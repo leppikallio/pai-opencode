@@ -8,7 +8,7 @@ Impact: Removed ALL customizations from v1.0, pushed to v1.x iterations
 Rationale: v1.0 must be a pure vanilla installation to research and test on
 -->
 
-# PAI 2.0 → OpenCode Port Constitution v3.6.0
+# PAI 2.0 → OpenCode Port Constitution v3.7.0
 
 **Ratified:** 2025-12-31
 **Last Amended:** 2026-01-01
@@ -192,6 +192,39 @@ cd ~/.claude && cat settings.json | jq '.initialized'
 # Test: No custom packs in v1.0
 ls $PAI_DIR/packs/
 # Expected: Empty or only vanilla PAI 2.0 defaults
+```
+
+---
+
+### Principle 7: Research Before Build (VALIDATION)
+
+**MUST Requirement:**
+- Before ANY implementation, verify assumptions against existing research
+- Check `research/SYNTHESIS.md` and project research folder FIRST
+- Never assume platform behavior - validate against documentation
+- If spec makes architectural assumptions, confirm with research before coding
+- "Better safe than sorry" - wrong assumptions waste expensive Opus tokens
+
+**Rationale:** v0.3 demonstrated this: original spec assumed OpenCode needs `skill.yaml` format. Research revealed OpenCode uses SAME SKILL.md format as PAI 2.0 - saving 66% implementation effort. Wrong assumptions lead to wasted work and token costs.
+
+**Key Message:** "Research first, implement second. Check existing findings before making architectural decisions."
+
+**Validation Workflow:**
+1. Before `/specfirst-apply`, run `/specfirst-clarify`
+2. During clarify, check `research/` folder for existing findings
+3. Verify spec assumptions match documented research
+4. Update spec if research contradicts assumptions
+5. Only proceed to implementation after validation
+
+**Validation:**
+```bash
+# Before implementation, verify research exists
+ls research/*.md
+# Expected: Relevant research documents present
+
+# Check SYNTHESIS.md for platform behavior
+grep -i "topic" research/SYNTHESIS.md
+# Expected: Research findings on implementation topic
 ```
 
 ---
@@ -1070,6 +1103,7 @@ Amend this constitution when:
 | v3.4.0 | 2026-01-01 | **TWO-PHASE VERSIONING** - Section II complete rewrite | Updated all version references to reflect two-phase structure: Phase 1 (PUBLIC v0.x → v1.0) = vanilla PAI 2.0 port, Phase 2 (PRIVATE Jeremy 2.0) = identity layer. Aligned all sections (II-IV, Appendices) with new versioning. Clarified public/private boundaries throughout. |
 | v3.5.0 | 2026-01-01 | **SCOPE & ARCHITECTURE FIXES** - Multiple corrections | (1) Principle 6: Voice Server/Constitutional Framework are IN vanilla PAI 2.0, not out of scope; (2) All folder references updated from jeremy-2.0 to pai-opencode; (3) Phase 2 versioning clarified (v0.x→v1.0→v1.x→v2.0); (4) Git architecture simplified from 3 remotes to 2 (removed fork - PAI-OpenCode is independent port, not fork); (5) Repository path corrections throughout. |
 | v3.6.0 | 2026-01-01 | **WORKSPACE PATH CONSOLIDATION** | All workspace paths updated from `~/Workspace/GitHub/Steffen025/` to `~/Workspace/github.com/Steffen025/` to match existing directory structure. |
+| v3.7.0 | 2026-01-01 | **NEW PRINCIPLE: Research Before Build** | Added Principle 7 - mandatory validation of assumptions against existing research before implementation. Learned from v0.3: spec assumed skill.yaml conversion needed, research revealed formats are identical, saving 66% effort. "Better safe than sorry" - use the 48-page SYNTHESIS.md! |
 
 **v3.1.0 Critical Learning Note (Hook/Plugin System Discovery):**
 
