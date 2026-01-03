@@ -17,14 +17,11 @@ function debugLog(message: string) {
   const timestamp = new Date().toISOString();
   const logLine = `[${timestamp}] ${message}\n`;
 
-  // Write to console
-  console.log(message);
-
-  // Write to debug file
+  // ONLY write to debug file - console.log corrupts TUI
   try {
     appendFileSync(DEBUG_LOG, logLine);
-  } catch (error) {
-    console.error('[PAI] Failed to write to debug log:', error);
+  } catch {
+    // Silently fail - don't corrupt TUI
   }
 }
 

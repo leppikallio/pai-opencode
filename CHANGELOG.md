@@ -7,15 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- **SCOPE SWAP (2026-01-02):** v0.5 and v0.6 milestones reorganized
-  - v0.5 now focused on Plugin Infrastructure (hook→plugin translation)
-  - v0.6 now contains History System implementation
-  - v0.7 now contains Converter Tool (was v0.6)
-  - Reason: History System requires plugin infrastructure - original had inverted dependency
-  - Research from expanded v0.5 preserved in v0.6 specs
-  - No work lost, just reorganized for proper dependency order
-  - Updated ROADMAP.md to v3.2.0 with corrected dependency graph
+## [0.5.0] - 2026-01-03
+
+### Added
+- Plugin infrastructure with two skeleton plugins
+- `pai-post-tool-use.ts` - Captures tool execution events via `tool.execute.after` hook
+- `pai-session-lifecycle.ts` - Captures session events via generic `event` hook
+- Debug logging to `/tmp/pai-plugin-debug.log`
+- Documentation: `docs/PLUGIN-ARCHITECTURE.md` and `docs/EVENT-MAPPING.md`
+
+### Technical Details
+- Uses `@opencode-ai/plugin` v1.0.218
+- Hooks return Hooks object directly (no wrapper)
+- File-only logging (no console.log to avoid TUI corruption)
+- Event payload structures documented with TypeScript interfaces
+
+### Scope
+- **IN SCOPE:** 2 core plugins validating the pattern
+- **DEFERRED to v0.6:** Additional plugins (pre-tool-use, user-prompt, context-lifecycle)
+- **DEFERRED to v0.6:** JSONL storage, session summaries, history directory structure
 
 ### Research
 - Plugin events verified: `tool.execute.after`, `session.created`, `session.idle`
