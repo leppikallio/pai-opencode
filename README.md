@@ -1,10 +1,10 @@
 # PAI-OpenCode
 
-[![Status](https://img.shields.io/badge/status-v0.5.0%20Plugin%20Infrastructure-blue)](https://github.com/Steffen025/pai-opencode)
+[![Status](https://img.shields.io/badge/status-v0.6.0%20PAI%202.3%20Alignment-blue)](https://github.com/Steffen025/pai-opencode)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![PAI Version](https://img.shields.io/badge/PAI-2.0-green)](https://github.com/danielmiessler/PAI)
+[![PAI Version](https://img.shields.io/badge/PAI-2.3-green)](https://github.com/danielmiessler/PAI)
 
-> A community-driven port of Daniel Miessler's PAI 2.0 from Claude Code to OpenCode
+> A community-driven port of Daniel Miessler's PAI 2.3 from Claude Code to OpenCode
 
 ![PAI-OpenCode Hero Banner](docs/images/hero-banner.png)
 
@@ -59,7 +59,7 @@ PAI transforms AI coding assistants from reactive chat interfaces into proactive
 
 ## Project Status
 
-**Current Version:** v0.5.0 - Plugin Infrastructure ✅ COMPLETE
+**Current Version:** v0.6.0 - PAI 2.3 Alignment ✅ COMPLETE
 
 **Progress to v1.0 Public Release:**
 
@@ -70,28 +70,33 @@ PAI transforms AI coding assistants from reactive chat interfaces into proactive
 | v0.3 | Skills Translation (OpenCode lazy loading) | ✅ DONE |
 | v0.4 | Agent Delegation (Hybrid Task API) | ✅ DONE |
 | v0.4.2 | Agent Profiles (Provider switching) | ✅ DONE |
-| v0.5 | Plugin Infrastructure (Hook→Plugin translation, 8 core plugin equivalents) | ✅ DONE |
-| v0.6 | History System (COMPLETE: OpenCode sessions + PAI knowledge layer) | ⚠️ IN PROGRESS (Fixing) |
-| v0.7 | Converter Tool (PAI→OpenCode translator) | NOT STARTED |
-| v0.8 | Integration Testing (End-to-end validation) | NOT STARTED |
-| v0.9 | Documentation (Public release prep) | NOT STARTED |
-| v1.0 | **PUBLIC RELEASE** (Community-ready vanilla PAI 2.0) | NOT STARTED |
+| v0.5 | Plugin Infrastructure (Hook→Plugin translation) | ✅ DONE |
+| v0.6 | **PAI 2.3 Alignment** (Structure reset, MEMORY/, CORE split) | ✅ DONE |
+| v0.7 | Bug Fixes (TUI corruption, Plugin system) | ⚠️ NEXT |
+| v0.8 | Converter Tool (PAI→OpenCode translator) | NOT STARTED |
+| v0.9 | Integration Testing + Documentation | NOT STARTED |
+| v1.0 | **PUBLIC RELEASE** (Community-ready vanilla PAI 2.3) | NOT STARTED |
 
 **Recent Achievements:**
-- **v0.3:** Skills translation with 94.96% token reduction
-- **v0.4:** 7 core agents migrated, Task wrapper with 19 unit tests
-- **v0.4.1:** Agent UI-Picker visibility fixed
-- **v0.4.2:** Profile system for switching AI providers (Anthropic, OpenAI, Ollama)
+- **v0.6:** PAI 2.3 Alignment - `history/` → `MEMORY/`, CORE SYSTEM/USER split
 - **v0.5:** Plugin Infrastructure with 2 skeleton plugins, event capture validated
+- **v0.4:** 7 core agents migrated, Task wrapper with 19 unit tests
+- **v0.3:** Skills translation with 94.96% token reduction
 
 ![v0.4 Celebration - All 7 Agents Toasting](docs/images/v0.4-celebration-toast.png)
 
-**Work in Progress:** v0.6 History System is next. This milestone builds on v0.5's plugin infrastructure to implement complete session storage, including OpenCode sessions plus PAI knowledge layer (learnings, research, decisions, ideas, projects).
+**Work in Progress:** v0.7 Bug Fixes is next. This milestone addresses known issues before continuing with new features.
+
+**Known Issues (v0.6.0):**
+| Issue | Description | Workaround |
+|-------|-------------|------------|
+| TUI Corruption | Console output from plugins corrupts OpenCode TUI | Use file-only logging |
+| Plugin Events | Event handling needs further development | Skeleton plugins work, full implementation pending |
 
 **Deferred to v1.x (Post-Release):**
-- Voice System (if not part of vanilla PAI 2.0 core)
+- Voice System (if not part of vanilla PAI 2.3 core)
 - Observability Dashboard (community plugins phase)
-- Advanced analytics and context pruning beyond 8 core plugins
+- Ollama deep integration (local model support)
 - Daniel Miessler's additional packs (importable via Converter)
 
 **Full Roadmap:** See [ROADMAP.md](ROADMAP.md) for detailed milestone specifications.
@@ -266,32 +271,44 @@ This project is open source and free to use, modify, and distribute. See [LICENS
 
 ## What's Next?
 
-**v0.5.0 Complete!** Plugin Infrastructure established with event capture skeleton:
+**v0.6.0 Complete!** PAI 2.3 Alignment achieved:
 
-- 2 working plugins: `pai-session-lifecycle.ts`, `pai-post-tool-use.ts`
-- Generic `event` hook pattern validated
-- File-only logging prevents TUI corruption
-- Event payload structures documented
+- Repository structure aligned with upstream PAI 2.3
+- `history/` → `MEMORY/` with proper subdirectories
+- CORE skill SYSTEM/USER split implemented
+- OpenCode constraints preserved (singular directory names)
 
-**Key Learnings from v0.5:**
-1. OpenCode uses generic `event` hook, not specific named hooks
-2. Plugin return type is `Promise<Hooks>`, not wrapped structure
-3. Console output corrupts TUI - file-only logging required
-4. Event filtering happens in-plugin, not via event registration
+**New Directory Structure:**
+```
+.opencode/
+├── MEMORY/                 ← PAI 2.3 standard (was: history/)
+│   ├── History/            ← Session transcripts
+│   ├── LEARNING/           ← Captured learnings
+│   ├── Signals/            ← Rating signals
+│   ├── WORK/               ← Active work
+│   └── PAISYSTEMUPDATES/   ← System updates
+├── skill/CORE/             ← SYSTEM/USER split
+│   ├── SYSTEM/             ← Updated on upgrades
+│   └── USER/               ← Never overwritten
+├── plugin/                 ← OpenCode plugins
+└── agent/                  ← Agent definitions
+```
 
-**Next Focus (v0.6 - History System):**
-- JSONL storage implementation using v0.5 event capture
-- Session summary generation on `session.idle`
-- PAI knowledge layer directories (learnings, research, decisions, ideas, projects)
-- `session-search` CLI tool for quick lookup
-- Complete two-layer architecture (OpenCode sessions + PAI knowledge)
+**Next Focus (v0.7 - Bug Fixes):**
+- Fix TUI corruption from plugin console output
+- Complete plugin event handling
+- Stabilize before adding new features
 
 **Upcoming Milestones:**
-- **v0.6** - History System (COMPLETE: OpenCode sessions + PAI knowledge layer) - ⚠️ IN PROGRESS (Fixing TUI/Plugin issues)
-- **v0.7** - Converter Tool (PAI→OpenCode translator for upstream updates)
-- **v0.8** - Integration Testing (End-to-end validation)
-- **v0.9** - Documentation (Public release prep)
-- **v1.0** - PUBLIC RELEASE (Community-ready vanilla PAI 2.0)
+- **v0.7** - Bug Fixes (TUI, Plugin system)
+- **v0.8** - Converter Tool (PAI→OpenCode translator)
+- **v0.9** - Integration Testing + Documentation
+- **v1.0** - PUBLIC RELEASE (Community-ready vanilla PAI 2.3)
+
+**Future (Post v1.0):**
+- Ollama integration for local models
+- Voice system
+- Observability dashboard
 
 **Follow our progress:** Watch this repository or check [ROADMAP.md](ROADMAP.md) for milestone updates.
 
