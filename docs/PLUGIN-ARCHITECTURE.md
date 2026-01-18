@@ -1,340 +1,312 @@
 # Plugin Architecture
 
-**PAI-OpenCode v0.5 Plugin Infrastructure**
+**PAI-OpenCode v0.7.0 Plugin Adapter**
 
-This document describes the plugin architecture for PAI-OpenCode, including file structure, event registration patterns, and implementation guidelines.
+This document describes the unified plugin architecture for PAI-OpenCode, including the adapter pattern that translates PAI hooks to OpenCode plugins.
 
 ---
 
 ## Overview
 
-PAI-OpenCode uses the OpenCode plugin system to capture events and extend functionality. Plugins are TypeScript modules that export event handlers following a standardized pattern.
+PAI-OpenCode uses a **unified plugin adapter** that combines all PAI hook functionality into a single OpenCode plugin. This approach simplifies maintenance and ensures consistent behavior across all hook types.
 
 **Key Principles:**
-- Plugins are self-contained TypeScript modules
-- Each plugin lives in `.opencode/plugin/<name>/`
-- Plugins use Bun runtime (not Node.js)
-- Plugins follow defensive error handling patterns
-- Plugins are non-blocking and async by default
+- Single unified plugin (`pai-unified.ts`) handles all hook types
+- TUI-safe logging (file-only, never console.log)
+- Defensive error handling with fail-open semantics
+- Security blocking via thrown errors in `tool.execute.before`
 
 ---
 
 ## File Structure
 
-### Directory Layout
+### Directory Layout (v0.7.0)
 
 ```
 .opencode/
 └── plugin/
-    ├── pai-post-tool-use/
-    │   ├── index.ts          # Main plugin entry point
-    │   └── package.json      # Plugin metadata
-    └── pai-session-lifecycle/
-        ├── index.ts          # Main plugin entry point
-        └── package.json      # Plugin metadata
+    ├── pai-unified.ts              # Main unified plugin (entry point)
+    ├── handlers/
+    │   ├── context-loader.ts       # CORE skill injection
+    │   └── security-validator.ts   # Security blocking
+    ├── adapters/
+    │   └── types.ts                # Shared TypeScript interfaces
+    ├── lib/
+    │   └── file-logger.ts          # TUI-safe file logging
+    ├── _deprecated/                # Old plugins (replaced by unified)
+    │   ├── pai-post-tool-use.ts
+    │   └── pai-session-lifecycle.ts
+    └── tsconfig.json               # TypeScript configuration
 ```
-
-### package.json Template
-
-Each plugin MUST include a `package.json` with the following fields:
-
-```json
-{
-  "name": "@pai/<plugin-name>",
-  "version": "0.5.0",
-  "description": "Brief description of plugin purpose",
-  "type": "module",
-  "main": "index.ts",
-  "author": "PAI Contributors",
-  "license": "MIT"
-}
-```
-
-**Key Fields:**
-- `type: "module"` - Enables ES module syntax
-- `main: "index.ts"` - Entry point for OpenCode to load
-- `name: "@pai/<name>"` - Scoped package naming convention
 
 ---
 
-## Event Registration Pattern
+## PAI Hook → OpenCode Plugin Mapping
 
-### Basic Structure
-
-All plugins follow this pattern:
-
-```typescript
-/**
- * Plugin entry point
- * @param ctx - Plugin context provided by OpenCode
- */
-export default async (ctx: unknown) => {
-  console.log('[PAI] <Plugin Name> loaded');
-
-  return {
-    "event.name": async (payload) => {
-      try {
-        // Plugin logic here
-        console.log(`[PAI] event.name:`, payload);
-
-        // Process event data
-        // ...
-
-      } catch (error) {
-        // Non-critical: log and continue
-        console.error('[PAI] Handler failed:', error);
-        // Session continues normally
-      }
-    }
-  };
-};
-```
-
-### Key Components
-
-1. **Export default async function** - OpenCode expects this signature
-2. **Console log on load** - Confirms plugin activated successfully
-3. **Return object with event handlers** - Event names as keys, async functions as values
-4. **Defensive try/catch** - CRITICAL for history plugins (see Error Handling below)
+| PAI Hook | OpenCode Hook | Purpose |
+|----------|---------------|---------|
+| `SessionStart` | `experimental.chat.system.transform` | Context injection |
+| `PreToolUse` (exit 2) | `tool.execute.before` + throw Error | Security blocking |
+| `PreToolUse` | `tool.execute.before` | Args modification |
+| `PostToolUse` | `tool.execute.after` | Learning capture |
+| `Stop` | `event` (session.idle) | Session lifecycle |
 
 ---
 
-## Error Handling Patterns
+## Key Technical Discovery (CRITICAL)
 
-### Non-Blocking Pattern (History Plugins)
-
-**USE FOR:** PostToolUse, SessionLifecycle, and any history capture plugins
+**In `tool.execute.before`, args are in `output.args`, NOT `input.args`!**
 
 ```typescript
-export default async (ctx: unknown) => {
-  console.log('[PAI] History Plugin loaded');
+// CORRECT
+"tool.execute.before": async (input, output) => {
+  const command = output.args.command; // ✅ Args in OUTPUT
+}
 
-  return {
-    "tool.execute.after": async (input, output) => {
-      try {
-        // Plugin logic
-        await captureToolExecution(input, output);
-      } catch (error) {
-        // Log error, don't propagate (non-critical)
-        console.error('[PAI] History capture failed:', error);
-        // Session continues normally - NEVER throw!
-      }
-    }
-  };
-};
+// WRONG
+"tool.execute.before": async (input, output) => {
+  const command = input.args.command; // ❌ input.args is undefined!
+}
 ```
 
-**Critical Rules:**
-- ALWAYS wrap handler in try/catch
-- NEVER throw errors from history plugins
-- Log errors to console for debugging
-- Session must continue even if history capture fails
-
-### Blocking Pattern (Security/Validation Plugins)
-
-**USE FOR:** PreToolUse security validation (v0.6+)
-
+This is documented in OpenCode's plugin type definitions:
 ```typescript
-export default async (ctx: unknown) => {
-  console.log('[PAI] Security Validator loaded');
-
-  return {
-    "tool.execute.before": async ({ tool, args }) => {
-      // NO try/catch - let errors propagate to block execution
-      if (isDangerousOperation(args)) {
-        // BLOCKING: Synchronous throw stops execution
-        throw new Error('Operation blocked by security validation');
-      }
-      // Non-blocking: return normally
-    }
-  };
-};
+"tool.execute.before"?: (
+  input: { tool: string; sessionID: string; callID: string },
+  output: { args: any },
+) => Promise<void>
 ```
-
-**Critical Rules:**
-- DO NOT wrap in try/catch for security plugins
-- Throwing errors BLOCKS tool execution
-- Use ONLY when blocking is intentional
-- Return normally to allow execution
 
 ---
 
-## Plugin Examples
+## Unified Plugin Pattern
 
-### Post-Tool-Use Plugin (Event Capture)
-
-```typescript
-/**
- * PAI Post-Tool-Use Plugin
- *
- * Captures all tool execution events for later processing.
- */
-
-interface ToolExecuteAfterInput {
-  tool: string;      // Tool name (e.g., "Bash", "Edit", "Task")
-  sessionID: string; // Current session
-  callID: string;    // Unique call identifier
-}
-
-interface ToolExecuteAfterOutput {
-  title: string;     // Tool execution title
-  output: string;    // Tool output content
-  metadata: object;  // Additional metadata
-}
-
-export default async (ctx: unknown) => {
-  console.log('[PAI] Post-Tool-Use plugin loaded');
-
-  return {
-    "tool.execute.after": async (
-      input: ToolExecuteAfterInput,
-      output: ToolExecuteAfterOutput
-    ) => {
-      try {
-        const timestamp = new Date().toISOString();
-        const { tool, sessionID, callID } = input;
-        const { title, output: toolOutput } = output;
-
-        console.log(`[PAI] tool.execute.after: ${tool} at ${timestamp}`);
-        console.log(`[PAI] sessionID: ${sessionID}, callID: ${callID}`);
-
-        // Identify Task tool for SubagentStop use case
-        if (tool === "Task") {
-          console.log(`[PAI] Agent task completed`);
-          const outputPreview = toolOutput?.substring(0, 100) || '(empty)';
-          console.log(`[PAI] Output preview: ${outputPreview}...`);
-        }
-
-        // v0.6 will add: JSONL storage logic
-      } catch (error) {
-        console.error('[PAI] Post-tool-use handler failed:', error);
-      }
-    }
-  };
-};
-```
-
-### Session Lifecycle Plugin (Multi-Event)
+### Main Entry Point (pai-unified.ts)
 
 ```typescript
-/**
- * PAI Session Lifecycle Plugin
- *
- * Captures session start and idle events.
- */
+import type { Plugin, Hooks } from "@opencode-ai/plugin";
+import { loadContext } from "./handlers/context-loader";
+import { validateSecurity } from "./handlers/security-validator";
+import { fileLog, fileLogError, clearLog } from "./lib/file-logger";
 
-interface SessionCreatedPayload {
-  sessionID: string;   // Session identifier
-  projectID: string;   // Project identifier
-  model?: string;      // Model used for session (optional)
-  parentID?: string;   // Parent session if subagent (optional)
-}
+export const PaiUnified: Plugin = async (ctx) => {
+  clearLog();
+  fileLog("=== PAI-OpenCode Plugin Loaded ===");
 
-interface SessionIdlePayload {
-  sessionID: string;   // Session identifier
-  duration?: number;   // Duration of idle time in ms (optional)
-}
-
-export default async (ctx: unknown) => {
-  console.log('[PAI] Session Lifecycle plugin loaded');
-
-  return {
-    "session.created": async (payload: SessionCreatedPayload) => {
-      try {
-        const timestamp = new Date().toISOString();
-        const { sessionID, projectID, model, parentID } = payload;
-
-        console.log(`[PAI] session.created: ${sessionID} at ${timestamp}`);
-        console.log(`[PAI] projectID: ${projectID}`);
-        if (model) console.log(`[PAI] model: ${model}`);
-        if (parentID) console.log(`[PAI] parentID: ${parentID} (subagent)`);
-
-        // v0.6 will add: directory initialization
-      } catch (error) {
-        console.error('[PAI] Session created handler failed:', error);
+  const hooks: Hooks = {
+    // Context injection (SessionStart equivalent)
+    "experimental.chat.system.transform": async (input, output) => {
+      const result = await loadContext();
+      if (result.success) {
+        output.system.push(result.context);
       }
     },
 
-    "session.idle": async (payload: SessionIdlePayload) => {
-      try {
-        const timestamp = new Date().toISOString();
-        const { sessionID, duration } = payload;
+    // Security blocking (PreToolUse exit(2) equivalent)
+    "tool.execute.before": async (input, output) => {
+      const result = await validateSecurity({
+        tool: input.tool,
+        args: output.args ?? {},  // ← Args in OUTPUT!
+      });
 
-        console.log(`[PAI] session.idle: ${sessionID} at ${timestamp}`);
-        if (duration) console.log(`[PAI] idle duration: ${duration}ms`);
-
-        // v0.6 will add: session summary generation
-      } catch (error) {
-        console.error('[PAI] Session idle handler failed:', error);
+      if (result.action === "block") {
+        throw new Error(`[PAI Security] ${result.message}`);
       }
-    }
+    },
+
+    // Learning capture (PostToolUse equivalent)
+    "tool.execute.after": async (input, output) => {
+      fileLog(`Tool after: ${input.tool}`);
+      // Future: Learning capture
+    },
+
+    // Session lifecycle (Stop equivalent)
+    event: async (input) => {
+      const eventType = (input.event as any)?.type || "";
+      if (eventType.includes("session.idle")) {
+        fileLog("Session ending");
+        // Future: Session cleanup
+      }
+    },
   };
+
+  return hooks;
 };
+
+export default PaiUnified;
+```
+
+---
+
+## TUI-Safe Logging (CRITICAL)
+
+**NEVER use `console.log` in plugins!** It corrupts the OpenCode TUI.
+
+### File Logger Pattern
+
+```typescript
+// lib/file-logger.ts
+import { appendFileSync, writeFileSync } from "fs";
+
+const LOG_FILE = "/tmp/pai-opencode-debug.log";
+
+export function fileLog(message: string, level = "info") {
+  const timestamp = new Date().toISOString();
+  const prefix = `[${timestamp}] [${level.toUpperCase().padEnd(5)}]`;
+  appendFileSync(LOG_FILE, `${prefix} ${message}\n`);
+}
+
+export function fileLogError(message: string, error: unknown) {
+  fileLog(`${message}: ${error}`, "error");
+  if (error instanceof Error && error.stack) {
+    appendFileSync(LOG_FILE, error.stack + "\n");
+  }
+}
+
+export function clearLog() {
+  writeFileSync(LOG_FILE, "");
+}
+```
+
+### Viewing Logs
+
+```bash
+# Follow logs in real-time
+tail -f /tmp/pai-opencode-debug.log
+
+# View recent entries
+cat /tmp/pai-opencode-debug.log | tail -50
+```
+
+---
+
+## Security Blocking Pattern
+
+### How to Block Dangerous Commands
+
+```typescript
+// handlers/security-validator.ts
+export async function validateSecurity(input): Promise<SecurityResult> {
+  const command = extractCommand(input);
+
+  // Check dangerous patterns
+  for (const pattern of DANGEROUS_PATTERNS) {
+    if (pattern.test(command)) {
+      return {
+        action: "block",
+        reason: `Dangerous pattern: ${pattern}`,
+        message: "Command blocked for security reasons.",
+      };
+    }
+  }
+
+  return { action: "allow", reason: "All checks passed" };
+}
+```
+
+### Dangerous Patterns (types.ts)
+
+```typescript
+export const DANGEROUS_PATTERNS = [
+  /rm\s+-rf\s+\/(?!tmp)/,   // rm -rf / (except /tmp)
+  /rm\s+-rf\s+~\//,          // rm -rf ~/
+  /rm\s+-rf\s+\*/,           // rm -rf *
+  /rm\s+-rf\s+\.\./,         // rm -rf ../
+  /mkfs\./,                   // Format disk
+  /dd\s+if=.*of=\/dev\//,    // Disk write
+  // ... more patterns
+];
+```
+
+---
+
+## Context Injection Pattern
+
+### Loading CORE Skill at Session Start
+
+```typescript
+// handlers/context-loader.ts
+export async function loadContext(): Promise<ContextResult> {
+  const skillDir = join(process.cwd(), ".opencode/skill/CORE");
+
+  // Load SKILL.md
+  const skillPath = join(skillDir, "SKILL.md");
+  if (await exists(skillPath)) {
+    const content = await Bun.file(skillPath).text();
+    parts.push(content);
+  }
+
+  // Load SYSTEM/*.md
+  const systemDir = join(skillDir, "SYSTEM");
+  // ... load system files
+
+  return {
+    context: parts.join("\n\n---\n\n"),
+    success: true,
+  };
+}
 ```
 
 ---
 
 ## Testing Plugins
 
-### Manual Testing with Bun
+### Verify Plugin Loads
 
 ```bash
-# Create test script
-cat > /tmp/test-plugins.ts << 'EOF'
-const plugin = await import('/path/to/.opencode/plugin/my-plugin/index.ts');
+# Start OpenCode and check logs
+opencode
 
-console.log('Testing plugin loading...');
-
-const ctx = {};
-const handlers = await plugin.default(ctx);
-
-console.log('✓ Plugin loaded successfully');
-console.log('✓ Handlers:', Object.keys(handlers));
-EOF
-
-# Run test
-bun /tmp/test-plugins.ts
+# In another terminal
+cat /tmp/pai-opencode-debug.log | grep "Plugin Loaded"
 ```
 
-### Expected Output
+### Test Security Blocking
+
+```bash
+# In OpenCode, try a dangerous command
+# The AI should see:
+# Error: [PAI Security] This command has been blocked...
+```
+
+### Expected Log Output
 
 ```
-Testing plugin loading...
-[PAI] My Plugin loaded
-✓ Plugin loaded successfully
-✓ Handlers: [ "event.name", "another.event" ]
+[INFO ] === PAI-OpenCode Plugin Loaded ===
+[INFO ] Working directory: /path/to/project
+[DEBUG] Tool before: bash
+[DEBUG] output.args: {"command":"ls -la"}
+[INFO ] Security check for tool: bash
+[INFO ] Extracted command: ls -la
+[DEBUG] Security check passed
 ```
 
 ---
 
-## Performance Guidelines
+## Error Handling
 
-### NFR-1: Performance Requirements
-
-- Plugin loading SHALL complete in <500ms
-- Event handlers SHALL complete in <50ms (v0.5 logging only)
-- Plugins SHALL NOT block UI thread
-
-### Optimization Tips
-
-1. **Lazy Loading**: Load heavy dependencies only when needed
-2. **Async Operations**: Use `await` for I/O operations
-3. **Minimal Logging**: Only log essential information in production
-4. **Early Returns**: Exit handlers quickly when conditions aren't met
-
-Example:
+### Fail-Open for Non-Security Hooks
 
 ```typescript
 "tool.execute.after": async (input, output) => {
   try {
-    // Early return for tools we don't care about
-    if (input.tool !== "Task") return;
-
-    // Only process Task tool events
-    console.log(`[PAI] Agent task completed`);
-    // ... rest of logic
+    // Plugin logic
   } catch (error) {
-    console.error('[PAI] Handler failed:', error);
+    fileLogError("Handler failed", error);
+    // Don't throw - session continues
+  }
+}
+```
+
+### Fail-Closed for Security Hooks
+
+```typescript
+"tool.execute.before": async (input, output) => {
+  // NO try/catch for security validation
+  // Let errors propagate to block execution
+  const result = await validateSecurity({ ... });
+  if (result.action === "block") {
+    throw new Error("Blocked!");
   }
 }
 ```
@@ -343,30 +315,37 @@ Example:
 
 ## Roadmap
 
-### v0.5 (Current)
+### v0.5 (Plugin Infrastructure)
 - ✅ Plugin scaffolding
 - ✅ Event registration patterns
 - ✅ Logging-only implementation
-- ✅ Error handling patterns
 
-### v0.6 (History System)
-- ⏳ JSONL file writing
-- ⏳ Directory initialization
-- ⏳ Context loading
-- ⏳ Session summary generation
-- ⏳ Agent output routing
+### v0.6 (PAI 2.3 Alignment)
+- ✅ Directory structure alignment
+- ✅ MEMORY/ folder creation
+
+### v0.7 (Plugin Adapter) - CURRENT
+- ✅ Unified plugin architecture
+- ✅ Security blocking working
+- ✅ Context injection working
+- ✅ TUI-safe file logging
+- ✅ All 4 tests passing
+
+### v0.8 (Converter Tool)
+- ⏳ PAI → OpenCode translation
+- ⏳ Skill format conversion
+- ⏳ Agent definition translation
 
 ---
 
 ## References
 
-- **Specification:** `specs/spec.md`
-- **Event Mapping:** `docs/EVENT-MAPPING.md`
+- **Test Results:** `.opencode/plugin/TEST-RESULTS-v0.7.md`
+- **Type Definitions:** `.opencode/plugin/adapters/types.ts`
 - **OpenCode Docs:** https://opencode.ai/docs/plugins/
-- **Research:** `~/.claude/history/projects/jeremy-2.0-opencode/research/`
 
 ---
 
-**Last Updated:** 2026-01-02
-**Version:** 0.5.0
-**Status:** COMPLETE
+**Last Updated:** 2026-01-18
+**Version:** 0.7.0
+**Status:** COMPLETE - All 4 tests passing
