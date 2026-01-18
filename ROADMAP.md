@@ -1,9 +1,9 @@
-# PAI 2.0 → OpenCode Migration Roadmap
+# PAI 2.3 → OpenCode Migration Roadmap
 
-**Version:** 3.0.0
-**Based on:** Constitution v3.2.0, SYNTHESIS.md
+**Version:** 3.1.0
+**Based on:** Constitution v3.2.0, SYNTHESIS.md, PAI 2.3 Vanilla
 **Created:** 2025-12-31
-**Last Updated:** 2026-01-01
+**Last Updated:** 2026-01-18
 **Author:** Steffen (with PAI assistance)
 
 ---
@@ -72,12 +72,44 @@ A complete, working port where:
 | **v0.2** | Vanilla Install | PAI 2.0 packs installed | ✅ DONE |
 | **v0.3** | Skills Translation | LazyLoad for OpenCode | ✅ DONE |
 | **v0.4** | Agent Delegation | Hybrid Task API | ✅ DONE |
-| **v0.5** | Plugin Infrastructure | Hook→Plugin translation, 8 core plugin equivalents | ✅ DONE |
-| **v0.6** | History System | COMPLETE: OpenCode sessions + PAI knowledge layer | ⚠️ IN PROGRESS (Fixing) |
-| **v0.7** | Converter Tool | PAI→OpenCode translator | NOT STARTED |
-| **v0.8** | Integration Testing | End-to-end validation | NOT STARTED |
-| **v0.9** | Documentation | Public release prep | NOT STARTED |
-| **v1.0** | **PUBLIC RELEASE** | Community-ready vanilla PAI 2.0 | NOT STARTED |
+| **v0.5** | Plugin Infrastructure | Hook→Plugin translation | ✅ DONE |
+| **v0.6** | **PAI 2.3 Alignment** | Structure reset, MEMORY/, CORE split | ✅ DONE |
+| **v0.7** | Bug Fixes | TUI corruption, Plugin system | ⚠️ NEXT |
+| **v0.8** | Converter Tool | PAI→OpenCode translator | NOT STARTED |
+| **v0.9** | Integration Testing + Docs | End-to-end validation, public prep | NOT STARTED |
+| **v1.0** | **PUBLIC RELEASE** | Community-ready vanilla PAI 2.3 | NOT STARTED |
+
+---
+
+## Post-v1.0: Future Phases
+
+### Phase 2: Local Model Integration (Ollama)
+
+**Goal:** Enable PAI-OpenCode to work with local models via Ollama.
+
+**Why Ollama?**
+- Complete data sovereignty
+- No API costs
+- Offline capability
+- Custom model fine-tuning
+
+**Implementation Plan:**
+| Task | Effort | Priority |
+|------|--------|----------|
+| Provider abstraction layer | THOROUGH | HIGH |
+| Ollama API integration | STANDARD | HIGH |
+| Model selection logic | STANDARD | MEDIUM |
+| Performance optimization | THOROUGH | LOW |
+| Local embeddings | THOROUGH | LOW |
+
+### Phase 3: Advanced Skills
+
+**Skills from PAI 2.3 to port:**
+- pai-algorithm-skill (THE ALGORITHM execution engine)
+- pai-agents-skill (AgentFactory + Traits.yaml)
+- pai-research-skill (Multi-source research)
+- pai-browser-skill (Browser automation)
+- pai-art-skill (Visual generation)
 
 ---
 
