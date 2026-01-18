@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-01-18
+
+### Breaking Changes
+- Renamed `history/` to `MEMORY/` (PAI 2.3 alignment)
+- Restructured MEMORY subdirectories to match PAI 2.3 standard
+
+### Added
+- **PAI 2.3 Alignment:** Repository structure now follows upstream PAI 2.3 patterns
+- `MEMORY/` directory with PAI 2.3 subdirectories:
+  - `History/` - Session transcripts (was: sessions/)
+  - `LEARNING/` - Captured learnings (was: learnings/)
+  - `WORK/` - Active work sessions (was: execution/)
+  - `Signals/` - Rating signals (NEW)
+  - `PAISYSTEMUPDATES/` - System updates (NEW)
+- CORE skill SYSTEM/USER split:
+  - `SYSTEM/` - System docs (updated on upgrades)
+  - `USER/` - User config (never overwritten)
+  - `USER/TELOS/` - Personal context
+  - `WORK/` - Active work sessions
+  - `Tools/` - TypeScript tools
+
+### OpenCode Constraints Preserved
+- `skill/` remains singular (OpenCode requirement)
+- `plugin/` remains singular (OpenCode requirement)
+- `agent/` remains singular (OpenCode requirement)
+
+### Known Issues
+- **TUI Corruption:** Console output from plugins corrupts OpenCode TUI
+- **Plugin System:** Event handling needs further development
+- These issues existed before v0.6.0 and will be addressed in future releases
+
+### Migration Guide
+Users of previous versions need to:
+1. Rename `.opencode/history/` to `.opencode/MEMORY/`
+2. Rename subdirectories: sessions→History, learnings→LEARNING, execution→WORK
+3. Move decisions/, research/, raw-outputs/ into WORK/
+4. Create SYSTEM/ and USER/ directories in skill/CORE/
+
 ## [0.5.0] - 2026-01-03
 
 ### Added
