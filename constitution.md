@@ -8,10 +8,10 @@ Impact: Removed ALL customizations from v1.0, pushed to v1.x iterations
 Rationale: v1.0 must be a pure vanilla installation to research and test on
 -->
 
-# PAI 2.0 → OpenCode Port Constitution v3.7.0
+# PAI 2.0 → OpenCode Port Constitution v4.0.0
 
 **Ratified:** 2025-12-31
-**Last Amended:** 2026-01-01
+**Last Amended:** 2026-01-18 (v0.7.0 Plugin Adapter Complete)
 **Authority:** Steffen (Project Owner)
 **Purpose:** Govern the public port of PAI 2.0 to OpenCode as a community contribution
 **Visibility:** PUBLIC
@@ -251,15 +251,15 @@ This section defines the two-phase approach to migrating PAI 2.0 to OpenCode:
 | Version | Milestone | Deliverable | Status |
 |---------|-----------|-------------|--------|
 | v0.1 | Foundation | Workspace + Git + Research | ✅ DONE |
-| v0.2 | Vanilla Install | PAI 2.0 packs installed | NOT STARTED |
-| v0.3 | Skills Translation | LazyLoad for OpenCode | NOT STARTED |
-| v0.4 | Agent Delegation | Hybrid Task API | NOT STARTED |
-| v0.5 | History System | OpenCode-native sessions | NOT STARTED |
-| v0.6 | Converter Tool | PAI → OpenCode translator | NOT STARTED |
-| v0.7 | Plugin Adaptation | Hooks → OpenCode plugins | NOT STARTED |
-| v0.8 | Integration Testing | End-to-end validation | NOT STARTED |
-| v0.9 | Documentation | Public release prep | NOT STARTED |
-| v1.0 | **PUBLIC RELEASE** | Complete PAI 2.0 on OpenCode | NOT STARTED |
+| v0.2 | Vanilla Install | PAI 2.0 packs installed | ✅ DONE |
+| v0.3 | Skills Translation | LazyLoad for OpenCode | ✅ DONE |
+| v0.4 | Agent Delegation | Hybrid Task API | ✅ DONE |
+| v0.5 | Plugin Infrastructure | Hook→Plugin skeleton | ✅ DONE |
+| v0.6 | PAI 2.3 Alignment | Structure reset, MEMORY/, CORE split | ✅ DONE |
+| v0.7 | **Plugin Adapter** | Security blocking, context injection, unified plugin | ✅ DONE |
+| v0.8 | Converter Tool | PAI → OpenCode translator | ⚠️ NEXT |
+| v0.9 | Integration Testing + Docs | End-to-end validation, public prep | NOT STARTED |
+| v1.0 | **PUBLIC RELEASE** | Complete PAI 2.3 on OpenCode | NOT STARTED |
 
 **See ROADMAP.md for detailed milestone specifications.**
 

@@ -1,8 +1,8 @@
 # Event Mapping: Claude Code → OpenCode
 
-**PAI-OpenCode v0.5 Plugin Infrastructure**
+**PAI-OpenCode v0.7.0 Plugin Adapter**
 
-This document maps Claude Code hooks to OpenCode events, documents event payloads, and highlights critical differences discovered through research.
+This document maps Claude Code hooks to OpenCode events, documents event payloads, and highlights critical differences discovered through research and implementation.
 
 ---
 
@@ -10,19 +10,60 @@ This document maps Claude Code hooks to OpenCode events, documents event payload
 
 Claude Code uses a **hook-based system** with specific named hooks (e.g., `SessionStart`, `PostToolUse`). OpenCode uses an **event-based system** with dot-notation events (e.g., `session.created`, `tool.execute.after`).
 
-This document provides the verified mapping between the two systems based on DeepWiki research conducted on 2026-01-02.
+This document provides the verified mapping between the two systems based on DeepWiki research (2026-01-02) and implementation validation (2026-01-18).
 
 ---
 
 ## Event Mapping Table
 
-| Claude Code Hook | OpenCode Event | Payload Type | Use Case | Notes |
-|------------------|----------------|--------------|----------|-------|
-| `SessionStart` | `session.created` | `SessionCreatedPayload` | Initialize session, load context | Fires on new session creation |
-| `SessionEnd` | `session.idle` | `SessionIdlePayload` | Generate summary, update index | **No separate `session.end` exists** |
-| `Stop` | `session.idle` | `SessionIdlePayload` | Voice feedback, cleanup | **Same event as SessionEnd** |
-| `PostToolUse` | `tool.execute.after` | `ToolExecuteAfterPayload` | Capture tool outputs, history | Fires after tool completes |
-| `SubagentStop` | `tool.execute.after` | `ToolExecuteAfterPayload` | Agent output routing | **Filter by `tool === "Task"`** |
+| Claude Code Hook | OpenCode Event | Payload Type | Use Case | Status |
+|------------------|----------------|--------------|----------|--------|
+| `SessionStart` | `experimental.chat.system.transform` | `SystemTransformPayload` | Context injection | ✅ v0.7 |
+| `PreToolUse` (exit 2) | `tool.execute.before` + throw | `ToolExecuteBeforePayload` | Security blocking | ✅ v0.7 |
+| `PreToolUse` | `tool.execute.before` | `ToolExecuteBeforePayload` | Args modification | ✅ v0.7 |
+| `PostToolUse` | `tool.execute.after` | `ToolExecuteAfterPayload` | Learning capture | ✅ v0.7 |
+| `Stop` | `event` (session.idle) | `SessionIdlePayload` | Session lifecycle | ✅ v0.7 |
+| `SessionEnd` | `session.idle` | `SessionIdlePayload` | Generate summary | ⏳ Future |
+| `SubagentStop` | `tool.execute.after` | `ToolExecuteAfterPayload` | Agent output routing | ⏳ Future |
+
+---
+
+## Critical Discoveries (v0.7)
+
+### Args Location in tool.execute.before (CRITICAL!)
+
+**In `tool.execute.before`, args are in `output.args`, NOT `input.args`!**
+
+```typescript
+// CORRECT
+"tool.execute.before": async (input, output) => {
+  const command = output.args.command; // ✅ Args in OUTPUT
+}
+
+// WRONG
+"tool.execute.before": async (input, output) => {
+  const command = input.args.command; // ❌ input.args is undefined!
+}
+```
+
+This was discovered during v0.7 implementation and is documented in OpenCode's type definitions:
+```typescript
+"tool.execute.before"?: (
+  input: { tool: string; sessionID: string; callID: string },
+  output: { args: any },
+) => Promise<void>
+```
+
+### Tool Name Case Sensitivity
+
+OpenCode passes tool names in **lowercase** (e.g., `bash`, `edit`), unlike Claude Code which uses PascalCase (`Bash`, `Edit`).
+
+```typescript
+"tool.execute.before": async (input, output) => {
+  // OpenCode: input.tool === "bash" (lowercase)
+  // Claude Code: tool === "Bash" (PascalCase)
+}
+```
 
 ---
 
@@ -243,15 +284,15 @@ interface SessionIdlePayload {
 
 OpenCode supports **33 events total** (verified via DeepWiki G-003). Below are the key events relevant to PAI:
 
-| Event Category | Event Name | Status | v0.5 Usage |
+| Event Category | Event Name | Status | v0.7 Usage |
 |----------------|------------|--------|------------|
-| **Session** | `session.created` | ✅ IMPLEMENTED | Initialize session |
-| **Session** | `session.idle` | ✅ IMPLEMENTED | Cleanup, summary |
-| **Tool** | `tool.execute.before` | ⏳ DEFERRED (v0.6) | Security validation |
-| **Tool** | `tool.execute.after` | ✅ IMPLEMENTED | History capture |
-| **User** | `user.prompt` | ⏳ DEFERRED (v0.6) | Prompt logging |
-| **Context** | `context.update` | ⏳ DEFERRED (v0.6) | Context tracking |
-| **Experimental** | `experimental.chat.system.transform` | ⏳ RESEARCH | Dynamic prompts |
+| **Session** | `session.created` | ✅ | (Not used - use transform instead) |
+| **Session** | `session.idle` | ✅ | Cleanup via event handler |
+| **Tool** | `tool.execute.before` | ✅ | **Security blocking** |
+| **Tool** | `tool.execute.after` | ✅ | Learning capture |
+| **User** | `user.prompt` | ⏳ | Prompt logging (future) |
+| **Context** | `context.update` | ⏳ | Context tracking (future) |
+| **Experimental** | `experimental.chat.system.transform` | ✅ | **Context injection** |
 
 **Full catalog available in research:** `~/.claude/history/projects/jeremy-2.0-opencode/research/2026-01-02_deepwiki-findings.md`
 
@@ -309,7 +350,7 @@ OpenCode supports **33 events total** (verified via DeepWiki G-003). Below are t
 
 Four methods discovered for loading context at session start:
 
-### Method 1: config.instructions (Recommended for v0.5)
+### Method 1: config.instructions (Static)
 
 ```json
 {
@@ -325,7 +366,7 @@ Four methods discovered for loading context at session start:
 **Pros:** Simple, static, reliable
 **Cons:** No dynamic routing
 
-### Method 2: session.created Hook (Recommended for v0.6)
+### Method 2: session.created Hook (Event-based)
 
 ```typescript
 "session.created": async ({ sessionID, projectID }) => {
@@ -337,17 +378,20 @@ Four methods discovered for loading context at session start:
 **Pros:** Dynamic, project-aware
 **Cons:** More complex implementation
 
-### Method 3: experimental.chat.system.transform
+### Method 3: experimental.chat.system.transform ✅ IMPLEMENTED (v0.7)
 
 ```typescript
-"experimental.chat.system.transform": async ({ system }) => {
-  const coreContext = readFileSync('.opencode/skills/CORE/SKILL.md');
-  return `${system}\n\n${coreContext}`;
+"experimental.chat.system.transform": async (input, output) => {
+  const result = await loadContext();
+  if (result.success) {
+    output.system.push(result.context);
+  }
 }
 ```
 
-**Pros:** Runtime system prompt modification
-**Cons:** Experimental, may change
+**Pros:** Runtime system prompt modification, dynamic
+**Cons:** Experimental API, may change
+**Status:** ✅ Working in v0.7
 
 ### Method 4: LOCAL_RULE_FILES (Legacy)
 
@@ -360,7 +404,7 @@ const LOCAL_RULE_FILES = [
 **Pros:** Simple legacy approach
 **Cons:** Deprecated pattern
 
-**Recommendation:** Use Method 1 for v0.5, transition to Method 2 in v0.6 for dynamic routing.
+**Recommendation:** Use Method 3 (`experimental.chat.system.transform`) as implemented in v0.7 unified plugin.
 
 ---
 
@@ -432,7 +476,7 @@ All event payloads, behaviors, and patterns documented here were verified throug
 
 ---
 
-**Last Updated:** 2026-01-02
-**Version:** 0.5.0
-**Status:** COMPLETE
-**Research Validation:** DeepWiki Analysis Complete
+**Last Updated:** 2026-01-18
+**Version:** 0.7.0
+**Status:** COMPLETE - Implementation Validated
+**Research Validation:** DeepWiki Analysis Complete + v0.7 Implementation Testing

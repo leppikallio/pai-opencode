@@ -1,9 +1,9 @@
 # PAI 2.3 → OpenCode Migration Roadmap
 
-**Version:** 3.1.0
+**Version:** 4.0.0
 **Based on:** Constitution v3.2.0, SYNTHESIS.md, PAI 2.3 Vanilla
 **Created:** 2025-12-31
-**Last Updated:** 2026-01-18
+**Last Updated:** 2026-01-18 (v0.7.0 Plugin Adapter Complete)
 **Author:** Steffen (with PAI assistance)
 
 ---
@@ -72,10 +72,10 @@ A complete, working port where:
 | **v0.2** | Vanilla Install | PAI 2.0 packs installed | ✅ DONE |
 | **v0.3** | Skills Translation | LazyLoad for OpenCode | ✅ DONE |
 | **v0.4** | Agent Delegation | Hybrid Task API | ✅ DONE |
-| **v0.5** | Plugin Infrastructure | Hook→Plugin translation | ✅ DONE |
-| **v0.6** | **PAI 2.3 Alignment** | Structure reset, MEMORY/, CORE split | ✅ DONE |
-| **v0.7** | Bug Fixes | TUI corruption, Plugin system | ⚠️ NEXT |
-| **v0.8** | Converter Tool | PAI→OpenCode translator | NOT STARTED |
+| **v0.5** | Plugin Infrastructure | Hook→Plugin skeleton | ✅ DONE |
+| **v0.6** | PAI 2.3 Alignment | Structure reset, MEMORY/, CORE split | ✅ DONE |
+| **v0.7** | **Plugin Adapter** | Security blocking, context injection, unified plugin | ✅ DONE |
+| **v0.8** | Converter Tool | PAI→OpenCode translator | ⚠️ NEXT |
 | **v0.9** | Integration Testing + Docs | End-to-end validation, public prep | NOT STARTED |
 | **v1.0** | **PUBLIC RELEASE** | Community-ready vanilla PAI 2.3 | NOT STARTED |
 
@@ -368,13 +368,40 @@ Pack Install  → Task Tool (maintains compatibility)
 
 ---
 
-## v0.7: Converter Tool
+## v0.7: Plugin Adapter ✅ DONE
+
+**Completed:** 2026-01-18
+
+**Goal:** Complete the plugin adapter with working security blocking, context injection, and unified plugin architecture.
+
+**Deliverables:**
+- [x] `pai-unified.ts` - Single unified plugin combining all PAI hook functionality
+- [x] `handlers/security-validator.ts` - Block dangerous commands via `tool.execute.before`
+- [x] `handlers/context-loader.ts` - Inject CORE skill at session start
+- [x] `lib/file-logger.ts` - TUI-safe file-only logging
+- [x] `adapters/types.ts` - Shared TypeScript interfaces
+- [x] All 4 tests passing (Plugin Load, Context Injection, Security Blocking, Logging)
+
+**Key Technical Discoveries:**
+- Args are in `output.args`, NOT `input.args` in `tool.execute.before`
+- Throw Error to block commands (not `permission.ask`)
+- Tool names are lowercase (`bash`, not `Bash`)
+
+**Test Results:**
+| Test | Status |
+|------|--------|
+| Plugin Load | ✅ PASS |
+| Context Injection | ✅ PASS |
+| Security Blocking | ✅ PASS |
+| Logging | ✅ PASS |
+
+---
+
+## v0.8: Converter Tool ⚠️ NEXT
 
 **Goal:** Create PAI 2.0 → OpenCode translation tool
 
 **Technical Decision:** Clean Break + Converter (Constitution §IX.1)
-
-**SPLIT/INSERT NOTE (2026-01-02):** Originally v0.6, shifted to v0.7 due to v0.5/v0.6 reorganization.
 
 **Purpose:**
 - Import upstream PAI 2.0 updates
@@ -402,9 +429,9 @@ Pack Install  → Task Tool (maintains compatibility)
 
 ---
 
-## v0.8: Integration Testing
+## v0.9: Integration Testing + Documentation
 
-**Goal:** Validate complete PAI 2.0 functionality on OpenCode
+**Goal:** Validate complete PAI 2.0 functionality on OpenCode and prepare public release
 
 **Actions:**
 1. End-to-end workflow testing
@@ -442,52 +469,6 @@ Pack Install  → Task Tool (maintains compatibility)
 - 100% of core functionality working
 - No blocking issues
 - Ready for documentation
-
----
-
-## v0.9: Documentation
-
-**Goal:** Prepare public release documentation
-
-**Deliverables:**
-
-### README.md
-- Project overview
-- Installation instructions
-- Quick start guide
-- Architecture overview
-- Contributing guidelines
-
-### MIGRATION-GUIDE.md
-- Step-by-step migration process
-- Common issues and solutions
-- Platform differences explained
-- Troubleshooting guide
-
-### ARCHITECTURE.md
-- Technical decisions and rationale
-- Component mapping (Claude Code → OpenCode)
-- Directory structure
-- Configuration format
-
-### CHANGELOG.md
-- Version history
-- Breaking changes
-- Migration notes
-
-**Actions:**
-1. Write README.md
-2. Write MIGRATION-GUIDE.md
-3. Write ARCHITECTURE.md
-4. Create CHANGELOG.md
-5. Review for sensitive content (ensure no personal data)
-6. Peer review documentation
-
-**Acceptance Criteria:**
-- Documentation complete and accurate
-- No personal/private content
-- Clear enough for community use
-- All code examples tested
 
 ---
 
