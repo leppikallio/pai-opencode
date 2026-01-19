@@ -9,7 +9,7 @@
 **REQUIRED FIRST:** Read the canonical structure:
 
 ```
-${PAI_DIR}/skills/CORE/SkillSystem.md
+~/.opencode/skill/CORE/SkillSystem.md
 ```
 
 ---
@@ -17,7 +17,7 @@ ${PAI_DIR}/skills/CORE/SkillSystem.md
 ## Step 2: Read the Target Skill
 
 ```bash
-${PAI_DIR}/skills/[SkillName]/SKILL.md
+~/.opencode/skill/[SkillName]/SKILL.md
 ```
 
 ---
@@ -26,7 +26,7 @@ ${PAI_DIR}/skills/[SkillName]/SKILL.md
 
 ### Skill Directory
 ```bash
-ls ${PAI_DIR}/skills/ | grep -i [skillname]
+ls ~/.opencode/skill/ | grep -i [skillname]
 ```
 
 Verify TitleCase:
@@ -35,7 +35,7 @@ Verify TitleCase:
 
 ### Workflow Files
 ```bash
-ls ${PAI_DIR}/skills/[SkillName]/workflows/
+ls ~/.opencode/skill/[SkillName]/Workflows/
 ```
 
 Verify TitleCase:
@@ -44,7 +44,7 @@ Verify TitleCase:
 
 ### Tool Files
 ```bash
-ls ${PAI_DIR}/skills/[SkillName]/tools/
+ls ~/.opencode/skill/[SkillName]/Tools/
 ```
 
 Verify TitleCase:
@@ -90,7 +90,7 @@ Running the **WorkflowName** workflow from the **SkillName** skill...
 
 | Workflow | Trigger | File |
 |----------|---------|------|
-| **WorkflowOne** | "trigger phrase" | `workflows/WorkflowOne.md` |
+| **WorkflowOne** | "trigger phrase" | `Workflows/WorkflowOne.md` |
 ```
 
 **Check for violations:**
@@ -117,7 +117,7 @@ User: "[Request]"
 ## Step 6: Check Workflow Files
 
 ```bash
-ls ${PAI_DIR}/skills/[SkillName]/workflows/
+ls ~/.opencode/skill/[SkillName]/Workflows/
 ```
 
 Verify:
@@ -131,13 +131,52 @@ Verify:
 ## Step 7: Check Structure
 
 ```bash
-ls -la ${PAI_DIR}/skills/[SkillName]/
+ls -la ~/.opencode/skill/[SkillName]/
 ```
 
 Verify:
 - `tools/` directory exists (even if empty)
 - No `backups/` directory inside skill
-- Reference docs at skill root (not in workflows/)
+- Reference docs at skill root (not in Workflows/)
+
+---
+
+## Step 7a: Check CLI-First Integration (for skills with CLI tools)
+
+**If the skill has CLI tools in `tools/`:**
+
+### CLI Tool Configuration Flags
+
+Check each tool for flag-based configuration:
+```bash
+bun ~/.opencode/skill/[SkillName]/Tools/[ToolName].ts --help
+```
+
+Verify the tool exposes behavioral configuration via flags:
+- Mode flags (--fast, --thorough, --dry-run) where applicable
+- Output flags (--format, --quiet, --verbose)
+- Resource flags (--model, etc.) if applicable
+- Post-processing flags if applicable
+
+### Workflow Intent-to-Flag Mapping
+
+For workflows that call CLI tools, check for intent-to-flag mapping tables:
+
+```bash
+grep -l "Intent-to-Flag" ~/.opencode/skill/[SkillName]/Workflows/*.md
+```
+
+**Required pattern in workflows with CLI tools:**
+```markdown
+## Intent-to-Flag Mapping
+
+| User Says | Flag | When to Use |
+|-----------|------|-------------|
+| "fast" | `--model haiku` | Speed priority |
+| (default) | `--model sonnet` | Balanced |
+```
+
+**Reference:** `~/.opencode/skill/CORE/CliFirstArchitecture.md`
 
 ---
 
@@ -166,5 +205,10 @@ Verify:
 ### Structure
 - [ ] `tools/` directory exists
 - [ ] No `backups/` inside skill
+
+### CLI-First Integration (for skills with CLI tools)
+- [ ] CLI tools expose configuration via flags (not hardcoded)
+- [ ] Workflows that call CLI tools have intent-to-flag mapping tables
+- [ ] Flag mappings cover mode, output, and resource selection where applicable
 
 **NON-COMPLIANT** if any check fails. Recommend using CanonicalizeSkill workflow.

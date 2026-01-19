@@ -6,8 +6,8 @@ Create a new skill following the canonical structure with proper TitleCase namin
 
 **REQUIRED FIRST:**
 
-1. Read the skill system documentation: `${PAI_DIR}/skills/CORE/SkillSystem.md`
-2. Read the canonical example: `${PAI_DIR}/skills/Blogging/SKILL.md`
+1. Read the skill system documentation: `~/.opencode/skill/CORE/SkillSystem.md`
+2. Read the canonical example: `~/.opencode/skill/_BLOGGING/SKILL.md`
 
 ## Step 2: Understand the Request
 
@@ -35,14 +35,14 @@ Ask the user:
 ## Step 4: Create the Skill Directory
 
 ```bash
-mkdir -p ${PAI_DIR}/skills/[SkillName]/workflows
-mkdir -p ${PAI_DIR}/skills/[SkillName]/tools
+mkdir -p ~/.opencode/skill/[SkillName]/Workflows
+mkdir -p ~/.opencode/skill/[SkillName]/Tools
 ```
 
 **Example:**
 ```bash
-mkdir -p ${PAI_DIR}/skills/Daemon/workflows
-mkdir -p ${PAI_DIR}/skills/Daemon/tools
+mkdir -p ~/.opencode/skill/Daemon/Workflows
+mkdir -p ~/.opencode/skill/Daemon/Tools
 ```
 
 ## Step 5: Create SKILL.md
@@ -69,8 +69,8 @@ Running the **WorkflowName** workflow from the **SkillName** skill...
 
 | Workflow | Trigger | File |
 |----------|---------|------|
-| **WorkflowOne** | "trigger phrase" | `workflows/WorkflowOne.md` |
-| **WorkflowTwo** | "another trigger" | `workflows/WorkflowTwo.md` |
+| **WorkflowOne** | "trigger phrase" | `Workflows/WorkflowOne.md` |
+| **WorkflowTwo** | "another trigger" | `Workflows/WorkflowTwo.md` |
 
 ## Examples
 
@@ -99,24 +99,65 @@ User: "[Different request]"
 For each workflow in the routing section:
 
 ```bash
-touch ${PAI_DIR}/skills/[SkillName]/workflows/[WorkflowName].md
+touch ~/.opencode/skill/[SkillName]/Workflows/[WorkflowName].md
 ```
+
+### Workflow-to-Tool Integration (REQUIRED for workflows with CLI tools)
+
+**If a workflow calls a CLI tool, it MUST include intent-to-flag mapping tables.**
+
+This pattern translates natural language user requests into appropriate CLI flags:
+
+```markdown
+## Intent-to-Flag Mapping
+
+### Model/Mode Selection
+
+| User Says | Flag | When to Use |
+|-----------|------|-------------|
+| "fast", "quick", "draft" | `--model haiku` | Speed priority |
+| (default), "best", "high quality" | `--model opus` | Quality priority |
+
+### Output Options
+
+| User Says | Flag | Effect |
+|-----------|------|--------|
+| "JSON output" | `--format json` | Machine-readable |
+| "detailed" | `--verbose` | Extra information |
+
+## Execute Tool
+
+Based on user request, construct the CLI command:
+
+\`\`\`bash
+bun ToolName.ts \
+  [FLAGS_FROM_INTENT_MAPPING] \
+  --required-param "value"
+\`\`\`
+```
+
+**Why this matters:**
+- Tools have rich configuration via flags
+- Workflows should expose this flexibility, not hardcode single patterns
+- Users speak naturally; workflows translate to precise CLI
+
+**Reference:** `~/.opencode/skill/CORE/CliFirstArchitecture.md` (Workflow-to-Tool Integration section)
 
 **Examples (TitleCase):**
 ```bash
-touch ${PAI_DIR}/skills/Daemon/workflows/UpdateDaemonInfo.md
-touch ${PAI_DIR}/skills/Daemon/workflows/UpdatePublicRepo.md
-touch ${PAI_DIR}/skills/Blogging/workflows/Create.md
-touch ${PAI_DIR}/skills/Blogging/workflows/Publish.md
+touch ~/.opencode/skill/Daemon/Workflows/UpdateDaemonInfo.md
+touch ~/.opencode/skill/Daemon/Workflows/UpdatePublicRepo.md
+touch ~/.opencode/skill/_BLOGGING/Workflows/Create.md
+touch ~/.opencode/skill/_BLOGGING/Workflows/Publish.md
 ```
 
 ## Step 7: Verify TitleCase
 
 Run this check:
 ```bash
-ls ${PAI_DIR}/skills/[SkillName]/
-ls ${PAI_DIR}/skills/[SkillName]/workflows/
-ls ${PAI_DIR}/skills/[SkillName]/tools/
+ls ~/.opencode/skill/[SkillName]/
+ls ~/.opencode/skill/[SkillName]/Workflows/
+ls ~/.opencode/skill/[SkillName]/Tools/
 ```
 
 Verify ALL files use TitleCase:
@@ -149,6 +190,11 @@ Verify ALL files use TitleCase:
 ### Structure
 - [ ] `tools/` directory exists (even if empty)
 - [ ] No `backups/` directory inside skill
+
+### CLI-First Integration (for skills with CLI tools)
+- [ ] CLI tools expose configuration via flags (see CliFirstArchitecture.md)
+- [ ] Workflows that call CLI tools have intent-to-flag mapping tables
+- [ ] Flag mappings cover: mode selection, output options, post-processing (where applicable)
 
 ## Done
 
