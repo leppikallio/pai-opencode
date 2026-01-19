@@ -10,50 +10,57 @@
 
 ---
 
-## Vision
+## New to PAI? Start Here
 
-PAI-OpenCode brings the power of PAI (Personal AI Infrastructure) to the OpenCode platform. This is a systematic, documented migration that validates PAI 2.0's platform independence promise while creating a shareable foundation for the community. We're not just porting code—we're proving that sophisticated AI scaffolding can transcend any single platform.
+**PAI (Personal AI Infrastructure)** is an open-source scaffolding system by [Daniel Miessler](https://github.com/danielmiessler/PAI) that transforms AI coding assistants from unreliable chatbots into dependable, context-aware systems.
+
+### The Core Insight: Scaffolding > Model
+
+![The Core Principle - Architecture Matters More Than AI Power](docs/images/scaffolding-greater-than-model.png)
+
+**The problem:** Raw AI models hallucinate, give inconsistent outputs, and forget context between sessions.
+
+**The solution:** PAI wraps the AI in structured workflows, validation layers, and persistent memory - turning chaos into reliability.
+
+### The AI Evolution (Why PAI is Different)
+
+| Level | What It Does | Example |
+|-------|--------------|---------|
+| **Chatbots** | Ask → Answer → Forget | ChatGPT, vanilla Claude |
+| **Agentic Platforms** | Ask → Use Tools → Get Result | Claude Code, Cursor, OpenCode |
+| **PAI** | Observe → Think → Plan → Execute → Verify → **Learn** → Improve | This project |
+
+The key difference: **Continuous learning and personal context retention.**
+
+### PAI's Building Blocks
+
+| Component | What It Does |
+|-----------|--------------|
+| **Skills** | Domain expertise that auto-activates on triggers ("security audit" → loads security skill) |
+| **Agents** | Specialized AI personalities (Engineer, Architect, Researcher) that work in parallel |
+| **Memory** | Learnings, decisions, and context that persist across sessions |
+| **Hooks/Plugins** | Lifecycle events that inject context, block dangerous commands, capture history |
+
+**Full documentation:** [danielmiessler/PAI](https://github.com/danielmiessler/PAI) - the original, authoritative source.
 
 ---
 
-## What is PAI?
+## What is PAI-OpenCode?
 
-[PAI (Personal AI Infrastructure)](https://github.com/danielmiessler/PAI) is an open-source scaffolding system created by Daniel Miessler for building AI-powered personal assistants. PAI extends AI coding environments with sophisticated capabilities that vanilla installations lack.
+**This project ports PAI to [OpenCode](https://github.com/opencode-ai/opencode)** - a community-driven migration proving that PAI's architecture transcends any single platform.
 
-### PAI 2.0 Core Concepts
+We're not just copying files. We're documenting every adaptation, solving platform differences, and creating a blueprint for porting PAI anywhere.
 
-**Packs** - Self-contained bundles of functionality distributed as single markdown files. Each pack contains complete code, configuration, and documentation needed to add capabilities to your AI assistant.
+### Why Port PAI?
 
-**Skills** - Domain expertise packages that auto-activate based on natural language triggers. Skills use progressive disclosure to load only what's needed, dramatically reducing token usage.
+| Challenge | Our Solution |
+|-----------|--------------|
+| Hooks → Plugins | TypeScript plugin adapter with security blocking |
+| Different lazy loading | Native OpenCode skill loading (94% token reduction) |
+| Agent delegation differences | Hybrid Task API + subagent mapping |
+| Session management | OpenCode-native storage + PAI memory layer |
 
-**Agents** - Specialized AI personalities (engineer, researcher, architect, designer, pentester) with unique voices and capabilities that can be delegated tasks and work in parallel.
-
-**Two Loops Pattern** - PAI's architectural philosophy: an Outer Loop (Current → Desired state) combined with an Inner Loop (7-phase execution: Plan → Specify → Clarify → Apply → Validate → Archive → Release).
-
-### Why PAI Matters
-
-PAI transforms AI coding assistants from reactive chat interfaces into proactive, context-aware systems with memory, specialized expertise, and systematic workflows. It's the difference between talking to a chatbot and collaborating with a team of specialized experts who understand your context, maintain continuity across sessions, and follow disciplined development practices.
-
-![Why PAI Matters - The Transformation](docs/images/why-pai-matters-transformation.png)
-
----
-
-## Why This Port?
-
-**The Platform Reality:** Daniel's PAI 2.0 was initially built for Claude Code. While PAI promises platform independence through its pack-and-bundle architecture, the actual migration to OpenCode requires significant adaptation:
-
-- **Different Extension Systems**: Claude Code uses hooks (JSON configuration), OpenCode uses plugins (TypeScript modules)
-- **Different Loading Mechanisms**: Claude Code lacks native lazy loading (requiring workarounds), OpenCode supports it natively
-- **Different Session Management**: Each platform stores session data differently
-- **Different API Patterns**: Agent delegation, tool execution, and event handling vary between platforms
-
-**The Goal:** This port validates PAI 2.0's portability claims while documenting every adaptation required. We're creating a reusable blueprint for migrating PAI to any platform—proving the architecture is sound and the methodology works.
-
-**The Community Benefit:** By documenting this migration thoroughly, we enable others to:
-- Migrate PAI to OpenCode following our tested path
-- Port PAI to other platforms (Cursor, Windsurf, etc.) using our lessons learned
-- Understand the differences between platforms when building portable AI systems
-- Contribute improvements back to the ecosystem
+**The result:** A working PAI 2.3 installation on OpenCode, with a converter tool that migrates 767 files in 5 seconds.
 
 ---
 
