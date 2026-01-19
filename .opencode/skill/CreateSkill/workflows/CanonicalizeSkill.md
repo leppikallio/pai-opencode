@@ -9,7 +9,7 @@
 **REQUIRED FIRST:** Read the canonical structure:
 
 ```
-${PAI_DIR}/skills/CORE/SkillSystem.md
+~/.opencode/skill/CORE/SkillSystem.md
 ```
 
 This defines exactly what "canonicalize" means.
@@ -19,7 +19,7 @@ This defines exactly what "canonicalize" means.
 ## Step 2: Read the Current Skill
 
 ```bash
-${PAI_DIR}/skills/[skill-name]/SKILL.md
+~/.opencode/skill/[skill-name]/SKILL.md
 ```
 
 Identify what's wrong:
@@ -36,10 +36,10 @@ Identify what's wrong:
 ## Step 3: Backup
 
 ```bash
-cp -r ${PAI_DIR}/skills/[skill-name]/ ${PAI_DIR}/history/backups/[skill-name]-backup-$(date +%Y%m%d)/
+cp -r ~/.opencode/skill/[skill-name]/ ~/.opencode/History/Backups/[skill-name]-backup-$(date +%Y%m%d)/
 ```
 
-**Note:** Backups go to `${PAI_DIR}/history/backups/`, NEVER inside skill directories.
+**Note:** Backups go to `~/.opencode/History/Backups/`, NEVER inside skill directories.
 
 ---
 
@@ -74,7 +74,7 @@ cp -r ${PAI_DIR}/skills/[skill-name]/ ${PAI_DIR}/history/backups/[skill-name]-ba
 **Rename files if needed:**
 ```bash
 # Example: rename workflow files
-cd ${PAI_DIR}/skills/[SkillName]/workflows/
+cd ~/.opencode/skill/[SkillName]/Workflows/
 mv create.md Create.md
 mv update-info.md UpdateInfo.md
 mv sync_repo.md SyncRepo.md
@@ -82,13 +82,66 @@ mv sync_repo.md SyncRepo.md
 
 ---
 
-## Step 5: Convert YAML Frontmatter
+## Step 5: Enforce Flat Folder Structure
+
+**CRITICAL: Maximum 2 levels deep - `skills/SkillName/Category/`**
+
+### Check for Nested Folders
+
+Scan for folders deeper than 2 levels:
+
+```bash
+# Find any folders 3+ levels deep (FORBIDDEN)
+find ~/.opencode/skill/[SkillName]/ -type d -mindepth 2 -maxdepth 3
+```
+
+### ❌ Common Violations to Fix
+
+**Nested Workflows:**
+```
+✗ WRONG: Workflows/Company/DueDiligence.md
+✓ FIX: Workflows/CompanyDueDiligence.md
+```
+
+**Nested Templates:**
+```
+✗ WRONG: Templates/Primitives/Extract.md
+✓ FIX: Move to skills/Prompting/Extract.md (templates belong in Prompting)
+```
+
+**Nested Tools:**
+```
+✗ WRONG: Tools/Utils/Helper.ts
+✓ FIX: Tools/Helper.ts (or delete if not needed)
+```
+
+### Flatten Procedure
+
+1. **Identify nested files**: Find any file 3+ levels deep
+2. **Rename for clarity**: `Category/File.md` → `CategoryFile.md`
+3. **Move to parent**: Move up one level to proper location
+4. **Update references**: Search for old paths and update
+
+**Example:**
+```bash
+# Before (3 levels - WRONG)
+skills/OSINT/Workflows/Company/DueDiligence.md
+
+# After (2 levels - CORRECT)
+skills/OSINT/Workflows/CompanyDueDiligence.md
+```
+
+**Rule:** If you need to organize many files, use clear filenames NOT subdirectories.
+
+---
+
+## Step 6: Convert YAML Frontmatter
 
 **From old format (WRONG):**
 ```yaml
 ---
 name: skill-name
-description: |
+description: "|"
   What the skill does.
 
 triggers:
@@ -96,8 +149,8 @@ triggers:
   - USE WHEN user wants to Y
 
 workflows:
-  - USE WHEN user wants to A: workflows/a.md
-  - USE WHEN user wants to B: workflows/b.md
+  - USE WHEN user wants to A: Workflows/a.md
+  - USE WHEN user wants to B: Workflows/b.md
 ---
 ```
 
@@ -136,8 +189,8 @@ Running the **WorkflowName** workflow from the **SkillName** skill...
 
 | Workflow | Trigger | File |
 |----------|---------|------|
-| **WorkflowOne** | "trigger phrase one" | `workflows/WorkflowOne.md` |
-| **WorkflowTwo** | "trigger phrase two" | `workflows/WorkflowTwo.md` |
+| **WorkflowOne** | "trigger phrase one" | `Workflows/WorkflowOne.md` |
+| **WorkflowTwo** | "trigger phrase two" | `Workflows/WorkflowTwo.md` |
 
 ## Examples
 
@@ -160,7 +213,7 @@ If the markdown body already had routing information in a different format, cons
 
 List workflow files:
 ```bash
-ls ${PAI_DIR}/skills/[SkillName]/workflows/
+ls ~/.opencode/skill/[SkillName]/Workflows/
 ```
 
 For EACH file:
@@ -224,7 +277,7 @@ Run checklist:
 ### Structure
 - [ ] `tools/` directory exists (even if empty)
 - [ ] Workflows contain ONLY work execution procedures
-- [ ] Reference docs live at skill root (not in workflows/)
+- [ ] Reference docs live at skill root (not in Workflows/)
 - [ ] No `backups/` directory inside skill
 
 ---

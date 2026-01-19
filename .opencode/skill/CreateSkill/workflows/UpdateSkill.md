@@ -9,7 +9,7 @@
 **REQUIRED FIRST:** Read the canonical structure:
 
 ```
-${PAI_DIR}/skills/CORE/SkillSystem.md
+~/.opencode/skill/CORE/SkillSystem.md
 ```
 
 ---
@@ -17,7 +17,7 @@ ${PAI_DIR}/skills/CORE/SkillSystem.md
 ## Step 2: Read the Current Skill
 
 ```bash
-${PAI_DIR}/skills/[SkillName]/SKILL.md
+~/.opencode/skill/[SkillName]/SKILL.md
 ```
 
 Understand the current:
@@ -46,12 +46,12 @@ What needs to change?
 
 2. **Create the workflow file:**
 ```bash
-touch ${PAI_DIR}/skills/[SkillName]/workflows/[WorkflowName].md
+touch ~/.opencode/skill/[SkillName]/Workflows/[WorkflowName].md
 ```
 
 Example:
 ```bash
-touch ${PAI_DIR}/skills/Daemon/workflows/UpdatePublicRepo.md
+touch ~/.opencode/skill/Daemon/Workflows/UpdatePublicRepo.md
 ```
 
 3. **Add entry to `## Workflow Routing` section in SKILL.md:**
@@ -60,8 +60,8 @@ touch ${PAI_DIR}/skills/Daemon/workflows/UpdatePublicRepo.md
 
 | Workflow | Trigger | File |
 |----------|---------|------|
-| **ExistingWorkflow** | "existing trigger" | `workflows/ExistingWorkflow.md` |
-| **NewWorkflow** | "new trigger" | `workflows/NewWorkflow.md` |
+| **ExistingWorkflow** | "existing trigger" | `Workflows/ExistingWorkflow.md` |
+| **NewWorkflow** | "new trigger" | `Workflows/NewWorkflow.md` |
 ```
 
 4. **Write the workflow content**
@@ -77,13 +77,13 @@ description: [What it does]. USE WHEN [updated intent triggers using OR]. [Capab
 
 1. **Create TitleCase tool file:**
 ```bash
-touch ${PAI_DIR}/skills/[SkillName]/tools/ToolName.ts
-touch ${PAI_DIR}/skills/[SkillName]/tools/ToolName.help.md
+touch ~/.opencode/skill/[SkillName]/Tools/ToolName.ts
+touch ~/.opencode/skill/[SkillName]/Tools/ToolName.help.md
 ```
 
-2. **Ensure tools/ directory exists:**
+2. **Ensure Tools/ directory exists:**
 ```bash
-mkdir -p ${PAI_DIR}/skills/[SkillName]/tools
+mkdir -p ~/.opencode/skill/[SkillName]/Tools
 ```
 
 ---
@@ -93,8 +93,8 @@ mkdir -p ${PAI_DIR}/skills/[SkillName]/tools
 After making changes, verify naming:
 
 ```bash
-ls ${PAI_DIR}/skills/[SkillName]/workflows/
-ls ${PAI_DIR}/skills/[SkillName]/tools/
+ls ~/.opencode/skill/[SkillName]/Workflows/
+ls ~/.opencode/skill/[SkillName]/Tools/
 ```
 
 All files must use TitleCase:

@@ -7,6 +7,131 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-01-19
+
+### Fixed
+- **PAIAGENTSYSTEM.md Correction:** Previous documentation was WRONG about agent invocation
+  - **WRONG claim:** `Task({subagent_type: "Architect"})` does not work
+  - **TRUTH:** `Task({subagent_type: "Architect"})` WORKS and creates clickable sessions
+  - Verified through manual testing in OpenCode
+
+### Changed
+- **PAIAGENTSYSTEM.md:** Complete rewrite based on verified test results
+  - Documented TWO invocation contexts: AI-to-Agent vs User-to-Agent
+  - AI uses `Task({subagent_type: "Name"})` for agent delegation
+  - User uses `@agentname` syntax in input field
+  - `@agentname` in AI response is just text, NOT an invocation
+
+### Added
+- **Learning Document:** `.opencode/MEMORY/Learning/2026-01-19_opencode-agent-invocation.md`
+  - Captures the verified invocation patterns
+  - Prevents future confusion
+
+### Test Results (Verified 2026-01-19)
+| Method | Result | UI Behavior |
+|--------|--------|-------------|
+| `Task({subagent_type: "Intern"})` | ✅ Works | Clickable session |
+| `Task({subagent_type: "Architect"})` | ✅ Works | Clickable session |
+| `@architect` in AI response | ❌ Nothing | No agent called |
+| User types `@architect` in input | ✅ Works | Agent invoked |
+
+## [0.9.0] - 2026-01-19
+
+### Fixed
+- **Agent Model Format:** OpenCode `ProviderModelNotFoundError` when using `@agent` delegation
+  - Root cause: Agent files had `model: opus` instead of `model: anthropic/claude-opus-4-5`
+  - Converter now maps model names to provider/model format automatically
+- **CORE Skill Configuration:** Updated to reference `opencode.json` instead of `settings.json`
+
+### Added
+- **Cost-Aware Model Assignment:** Different agent types get appropriate model tiers
+  - `intern`, `explore` agents → Haiku (fast, cheap for parallel grunt work)
+  - All other named agents → Sonnet (balanced cost/capability for implementation)
+  - PAI main orchestrator uses Opus (not in agent files)
+- **Model Mapping in Converter:** Automatic conversion from simple names to provider/model format:
+  - `opus` → `anthropic/claude-opus-4-5`
+  - `sonnet` → `anthropic/claude-sonnet-4-5`
+  - `haiku` → `anthropic/claude-haiku-4-5`
+
+### Changed
+- All 13 agent files updated with correct model format:
+  - `intern.md` → `anthropic/claude-haiku-4-5`
+  - All others → `anthropic/claude-sonnet-4-5`
+- Converter version bumped to v0.9.0
+- CORE SKILL.md updated for OpenCode configuration patterns
+
+### Test Results (Verified 2026-01-19)
+| Test | Status |
+|------|--------|
+| Single agent (`@intern`) | ✅ PASS - No ProviderModelNotFoundError |
+| Parallel agents (`@intern` + `@engineer`) | ✅ PASS - Both work independently |
+| Model format validation | ✅ 13/13 agents correct (intern=haiku, others=sonnet) |
+| AgentFactory prompt generation | ✅ PASS - Creates distinct personalities |
+| CORE skill config | ✅ References opencode.json |
+
+### Documentation Updates
+- **PAIAGENTSYSTEM.md:** Initial OpenCode architecture documentation
+  - *Note: Contained incorrect assumptions, corrected in v0.9.1*
+- **AgentFactory:** Installed missing handlebars dependency
+
+## [0.8.0] - 2026-01-18
+
+### Added
+- **PAI-to-OpenCode Converter Tool:** Full automated migration from PAI 2.3 to OpenCode
+- `tools/pai-to-opencode-converter.ts` - CLI converter with --help and --dry-run support
+- Settings translation (`.claude/settings.json` → `opencode.json`)
+- Skills translation (`.claude/skills/` → `.opencode/skill/`)
+- Agents translation (`.claude/agents/` → `.opencode/agent/`)
+- MEMORY copy with automatic path replacements
+- Migration report generation with file counts and validation status
+- OpenCode integration test validation (startup check + skill recognition)
+
+### Translation Features
+| Source | Target | Function |
+|--------|--------|----------|
+| `.claude/settings.json` | `opencode.json` | Settings schema mapping |
+| `.claude/skills/` | `.opencode/skill/` | Path + frontmatter fixes |
+| `.claude/agents/` | `.opencode/agent/` | Color + model conversion |
+| `.claude/MEMORY/` | `.opencode/MEMORY/` | Path replacement |
+
+### Fixed
+- **Settings Schema:** Rewrote to match OpenCode format (`model: provider/id`)
+- **Settings Location:** Fixed to output at project root (not `.opencode/`)
+- **Agent Colors:** Convert named colors to hex (`cyan` → `#00FFFF`)
+- **YAML Frontmatter:** Auto-quote descriptions with special characters
+- **PAI-Specific Fields:** Remove `voiceId`, `permissions` from agents
+- **Path Replacements:** `.claude/` → `.opencode/`, `skills/` → `skill/`
+
+### Test Results
+| Test | Status |
+|------|--------|
+| PAI v2.3 vanilla conversion | ✅ 767 files |
+| OpenCode startup | ✅ PASS |
+| Skill recognition | ✅ 20/20 skills |
+| Settings schema | ✅ PASS |
+| Agent conversion | ✅ PASS |
+| MEMORY migration | ✅ PASS |
+
+### Key Learnings (OpenCode Schema)
+1. **Settings Model Format:** Use `anthropic/claude-sonnet-4-5` not `sonnet`
+2. **Settings Location:** `opencode.json` goes at project root, not `.opencode/`
+3. **Agent Colors:** Must use hex format, not color names
+4. **YAML Quoting:** Special chars in frontmatter need auto-quoting
+5. **Field Removal:** PAI-specific fields must be removed (voiceId, permissions)
+
+### Migration Output
+```
+Converted 767 files:
+- Skills: .claude/skills/ → .opencode/skill/
+- Agents: .claude/agents/ → .opencode/agent/
+- Settings: .claude/settings.json → opencode.json
+- MEMORY: .claude/MEMORY/ → .opencode/MEMORY/
+```
+
+### Constitution
+- Updated to reflect v0.8.0 converter completion
+- Phase 2 milestone achieved: Full PAI 2.3 → OpenCode migration tooling
+
 ## [0.7.0] - 2026-01-18
 
 ### Added

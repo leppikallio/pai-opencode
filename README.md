@@ -59,7 +59,7 @@ PAI transforms AI coding assistants from reactive chat interfaces into proactive
 
 ## Project Status
 
-**Current Version:** v0.7.0 - Plugin Adapter ✅ COMPLETE
+**Current Version:** v0.8.0 - Converter Tool ✅ COMPLETE
 
 **Progress to v1.0 Public Release:**
 
@@ -73,19 +73,19 @@ PAI transforms AI coding assistants from reactive chat interfaces into proactive
 | v0.5 | Plugin Infrastructure (Hook→Plugin translation) | ✅ DONE |
 | v0.6 | PAI 2.3 Alignment (Structure reset, MEMORY/, CORE split) | ✅ DONE |
 | v0.7 | **Plugin Adapter** (Security blocking, context injection) | ✅ DONE |
-| v0.8 | Converter Tool (PAI→OpenCode translator) | ⚠️ NEXT |
-| v0.9 | Integration Testing + Documentation | NOT STARTED |
+| v0.8 | Converter Tool (PAI→OpenCode translator) | ✅ DONE |
+| v0.9 | Integration Testing + Documentation | ⚠️ NEXT |
 | v1.0 | **PUBLIC RELEASE** (Community-ready vanilla PAI 2.3) | NOT STARTED |
 
 **Recent Achievements:**
+- **v0.8:** Converter Tool - PAI→OpenCode translator with dry-run mode, conflict detection
 - **v0.7:** Plugin Adapter with security blocking, context injection, all 4 tests passing
 - **v0.6:** PAI 2.3 Alignment - `history/` → `MEMORY/`, CORE SYSTEM/USER split
 - **v0.5:** Plugin Infrastructure with 2 skeleton plugins, event capture validated
-- **v0.4:** 7 core agents migrated, Task wrapper with 19 unit tests
 
 ![v0.7 Plugin Adapter - Security Shield](docs/images/v0.7-plugin-adapter.png)
 
-**Work in Progress:** v0.8 Converter Tool is next. This will enable importing PAI updates automatically.
+**Work in Progress:** v0.9 Integration Testing + Documentation is next. This will validate all components together.
 
 **v0.7 Resolved Issues:**
 | Issue | Resolution |
@@ -201,6 +201,28 @@ bun Tools/PaiArchitecture.ts check
 
 **Current Status:** Foundation complete (workspace + git + research). Installation workflow in development.
 
+### Converter Quick Start
+
+The PAI→OpenCode converter tool translates PAI 2.x structure to OpenCode format automatically:
+
+```bash
+# Convert PAI 2.x to OpenCode format
+bun run tools/pai-to-opencode-converter.ts --source ~/.claude --target .opencode
+
+# Preview changes first (recommended)
+bun run tools/pai-to-opencode-converter.ts --dry-run --verbose
+
+# See all options
+bun run tools/pai-to-opencode-converter.ts --help
+```
+
+**Key Features:**
+- Automatic structure translation (skills/, hooks/, config/)
+- Conflict detection and backup creation
+- Dry-run mode for safe previewing
+- Verbose logging for transparency
+- Preserves existing OpenCode files
+
 ---
 
 ## Contributing
@@ -302,8 +324,7 @@ This project is open source and free to use, modify, and distribute. See [LICENS
 ```
 
 **Upcoming Milestones:**
-- **v0.8** - Converter Tool (PAI→OpenCode translator) ⚠️ NEXT
-- **v0.9** - Integration Testing + Documentation
+- **v0.9** - Integration Testing + Documentation ⚠️ NEXT
 - **v1.0** - PUBLIC RELEASE (Community-ready vanilla PAI 2.3)
 
 **Future (Post v1.0):**
