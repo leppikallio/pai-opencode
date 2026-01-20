@@ -36,7 +36,7 @@ Fix the PAI-OpenCode v0.9 blocker issues identified in testing.
 **Error:** `ProviderModelNotFoundError` when using @agent delegation
 
 **Files affected:**
-- `.opencode/agent/*.md` (13 agent files)
+- `.opencode/agents/*.md` (13 agent files)
 - `tools/pai-to-opencode-converter.ts` (converter logic)
 
 **Fix approach:**
@@ -57,17 +57,17 @@ Fix the PAI-OpenCode v0.9 blocker issues identified in testing.
 **Problem:** CORE skill searches for `settings.json` instead of `opencode.json`
 
 **Files affected:**
-- `.opencode/skill/CORE/SKILL.md`
+- `.opencode/skills/CORE/SKILL.md`
 - Possibly other files referencing Claude Code paths
 
 **Fix approach:**
-1. Search for `settings.json` references in `.opencode/skill/`
+1. Search for `settings.json` references in `.opencode/skills/`
 2. Replace with `opencode.json` or make configurable
 3. Search for `.claude/` references and update to `.opencode/`
 
 **Acceptance criteria:**
 - [ ] CORE skill reads from `opencode.json`
-- [ ] No hardcoded `.claude/` paths in `.opencode/skill/`
+- [ ] No hardcoded `.claude/` paths in `.opencode/skills/`
 
 ## Documentation Updates (After Fixes)
 
@@ -86,8 +86,8 @@ After fixes, verify:
 
 1. `docs/TEST-PLAN-v0.9.md` - Full test results and details
 2. `tools/pai-to-opencode-converter.ts` - Converter source
-3. `.opencode/agent/intern.md` - Example agent file with wrong model
-4. `.opencode/skill/CORE/SKILL.md` - CORE skill to check paths
+3. `.opencode/agents/intern.md` - Example agent file with wrong model
+4. `.opencode/skills/CORE/SKILL.md` - CORE skill to check paths
 ```
 
 ---

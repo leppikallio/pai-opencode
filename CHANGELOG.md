@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-01-20
+
+### Major Changes - Plural Directory Names + chat.message Hook
+
+**Breaking Change:** Directory naming convention changed from singular to plural to align with PAI vanilla naming conventions.
+
+### Changed
+
+1. **Directory Renames (Singular → Plural):**
+   - `.opencode/agent/` → `.opencode/agents/`
+   - `.opencode/plugin/` → `.opencode/plugins/`
+   - `.opencode/skill/` → `.opencode/skills/`
+
+2. **Path Updates:**
+   - All TypeScript files updated with new paths
+   - All Markdown documentation updated
+   - Converter tool updated for new paths
+   - Context loader updated
+
+### Added
+
+- **`chat.message` Hook** - UserPromptSubmit equivalent for user input interception
+  - Format enforcement capability
+  - Auto-work creation preparation
+  - Skill trigger detection preparation
+
+### Fixed
+
+- `pai-to-opencode-converter.ts` now creates plural directories
+- `apply-profile.ts` now uses `.opencode/agents/`
+- `context-loader.ts` now looks in `.opencode/skills/CORE/`
+
+### Migration
+
+If upgrading from v0.9.2, the directories will be renamed automatically. No manual action required.
+
+### Statistics
+
+- **Files Changed:** ~792 (mostly renames)
+- **New Hook:** 1 (chat.message)
+- **Path Updates:** ~200+ locations
+
+---
+
 ## [0.9.2] - 2026-01-20
 
 ### Critical Discovery - OpenCode Re-Audit
@@ -39,19 +83,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **NPM Package:** Updated `@opencode-ai/plugin` from 1.1.20 → 1.1.27
 
-### Planned for v0.9.3
+### Implemented in v0.9.3
 
-Based on these findings, v0.9.3 will include:
-
-1. **Directory Rename (Singular → Plural):**
-   - `.opencode/agent/` → `.opencode/agents/`
-   - `.opencode/plugin/` → `.opencode/plugins/`
-   - `.opencode/skill/` → `.opencode/skills/`
-
-2. **New Hook Implementation:**
-   - `chat.message` - UserPromptSubmit equivalent for user input interception
-
-This aligns PAI-OpenCode with PAI vanilla naming conventions.
+✅ Based on these findings, v0.9.3 now includes (see above):
+- Directory Rename (Singular → Plural)
+- `chat.message` Hook Implementation
 
 ### Documentation
 
@@ -60,19 +96,19 @@ This aligns PAI-OpenCode with PAI vanilla naming conventions.
 
 ---
 
-## [1.0.0] - TBD
+## [1.0.0] - Unreleased
 
-### Release - PAI-OpenCode v1.0.0 Public Release
+### Planned - PAI-OpenCode v1.0.0 Public Release
 
-**The community port of PAI 2.3 to OpenCode is now publicly available.**
+**The community port of PAI 2.3 to OpenCode will be publicly available with v1.0.**
 
-This release marks the completion of all planned milestones (v0.1 - v0.9.1) and delivers a fully functional PAI 2.3 installation on OpenCode.
+This release will mark the completion of all planned milestones and deliver a fully functional PAI 2.3 installation on OpenCode.
 
 ### Highlights
 
 - **Complete PAI 2.3 Functionality** - All core features ported to OpenCode
 - **20+ Skills** with native lazy loading (94% token reduction vs always-loaded)
-- **7 Named Agents** (Intern, Engineer, Architect, Researcher, Designer, Pentester, Writer)
+- **13 Named Agents** (Intern, Engineer, Architect, Designer, Pentester, Writer, Artist, QATester, Researcher, ClaudeResearcher, GeminiResearcher, GrokResearcher, CodexResearcher)
 - **Plugin Adapter** with security blocking and context injection
 - **Converter Tool** for migrating existing PAI installations (767 files in 5 seconds)
 - **Comprehensive Documentation** for getting started and contributing
@@ -177,8 +213,8 @@ Thanks to [Daniel Miessler](https://github.com/danielmiessler) for creating PAI 
 - **PAI-to-OpenCode Converter Tool:** Full automated migration from PAI 2.3 to OpenCode
 - `tools/pai-to-opencode-converter.ts` - CLI converter with --help and --dry-run support
 - Settings translation (`.claude/settings.json` → `opencode.json`)
-- Skills translation (`.claude/skills/` → `.opencode/skill/`)
-- Agents translation (`.claude/agents/` → `.opencode/agent/`)
+- Skills translation (`.claude/skills/` → `.opencode/skills/`)
+- Agents translation (`.claude/agents/` → `.opencode/agents/`)
 - MEMORY copy with automatic path replacements
 - Migration report generation with file counts and validation status
 - OpenCode integration test validation (startup check + skill recognition)
@@ -187,8 +223,8 @@ Thanks to [Daniel Miessler](https://github.com/danielmiessler) for creating PAI 
 | Source | Target | Function |
 |--------|--------|----------|
 | `.claude/settings.json` | `opencode.json` | Settings schema mapping |
-| `.claude/skills/` | `.opencode/skill/` | Path + frontmatter fixes |
-| `.claude/agents/` | `.opencode/agent/` | Color + model conversion |
+| `.claude/skills/` | `.opencode/skills/` | Path + frontmatter fixes |
+| `.claude/agents/` | `.opencode/agents/` | Color + model conversion |
 | `.claude/MEMORY/` | `.opencode/MEMORY/` | Path replacement |
 
 ### Fixed
@@ -219,8 +255,8 @@ Thanks to [Daniel Miessler](https://github.com/danielmiessler) for creating PAI 
 ### Migration Output
 ```
 Converted 767 files:
-- Skills: .claude/skills/ → .opencode/skill/
-- Agents: .claude/agents/ → .opencode/agent/
+- Skills: .claude/skills/ → .opencode/skills/
+- Agents: .claude/agents/ → .opencode/agents/
 - Settings: .claude/settings.json → opencode.json
 - MEMORY: .claude/MEMORY/ → .opencode/MEMORY/
 ```
@@ -404,7 +440,7 @@ bun tools/apply-profile.ts anthropic  # Switch to Claude (default)
 ## [0.4.1] - 2026-01-01
 
 ### Added
-- Agent UI-Picker Support: Created 7 agent files in `.opencode/agent/` directory
+- Agent UI-Picker Support: Created 7 agent files in `.opencode/agents/` directory
 - Agent files now visible in OpenCode's `/agents` UI picker with color coding
 - All PAI agents now discoverable through both `@agent-name` syntax and UI
 
@@ -455,22 +491,22 @@ bun tools/apply-profile.ts anthropic  # Switch to Claude (default)
 ### Added
 - Skills Translation: Migrated PAI 2.0 skills to OpenCode native format
 - OpenCode lazy loading support for 3-tier progressive disclosure
-- CORE skill migrated to `.opencode/skill/CORE/`
-- CreateSkill migrated to `.opencode/skill/CreateSkill/`
+- CORE skill migrated to `.opencode/skills/CORE/`
+- CreateSkill migrated to `.opencode/skills/CreateSkill/`
 - skill-migrate.ts tool for automated skill migration
 - Token reduction validation (≥90% achieved via progressive disclosure)
 
 ### Changed
-- Skills path from `.claude/skills/` to `.opencode/skill/` (OpenCode native)
+- Skills path from `.claude/skills/` to `.opencode/skills/` (OpenCode native)
 - Adopted OpenCode native lazy loading mechanism
 
 ### Fixed
-- Corrected OpenCode directory naming: `.opencode/skill/` (singular, not plural)
+- Corrected OpenCode directory naming: `.opencode/skills/` (singular, not plural)
 - Removed `.opencode/tool/` directory (OpenCode auto-loads files from this path)
 - Moved `skill-migrate.ts` to `tools/` outside `.opencode/` to prevent auto-execution
 
 ### Learned
-- OpenCode enforces singular naming: `.opencode/skill/` not `.opencode/skills/`
+- OpenCode enforces singular naming: `.opencode/skills/` not `.opencode/skills/`
 - Files in `.opencode/tool/` are auto-loaded by OpenCode - use for native tools only
 - PAI 2.0 and OpenCode SKILL.md formats are 100% identical (no translation needed)
 

@@ -1,6 +1,6 @@
 # PAI-OpenCode
 
-[![Status](https://img.shields.io/badge/status-v1.0.0%20Released-brightgreen)](https://github.com/Steffen025/pai-opencode)
+[![Status](https://img.shields.io/badge/status-v0.9.3%20Latest-blue)](https://github.com/Steffen025/pai-opencode)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![PAI Version](https://img.shields.io/badge/PAI-2.3-green)](https://github.com/danielmiessler/PAI)
 
@@ -66,7 +66,7 @@ We're not just copying files. We're documenting every adaptation, solving platfo
 
 ## Project Status
 
-**Current Version:** v1.0.0 - Public Release ✅
+**Current Version:** v0.9.3 - Plural Directories + chat.message Hook ✅ (v1.0 Next)
 
 **Development Progress:**
 
@@ -83,12 +83,14 @@ We're not just copying files. We're documenting every adaptation, solving platfo
 | v0.8 | **Converter Tool** (PAI→OpenCode translator) | ✅ DONE |
 | v0.9 | Integration Testing + Documentation | ✅ DONE |
 | v0.9.1 | Agent Invocation Verification | ✅ DONE |
-| v1.0 | **PUBLIC RELEASE** (Community-ready vanilla PAI 2.3) | ✅ DONE |
+| v0.9.2 | Re-Audit & Corrections | ✅ DONE |
+| v0.9.3 | Plural Directories + chat.message Hook | ✅ DONE |
+| v1.0 | **PUBLIC RELEASE** (Community-ready vanilla PAI 2.3) | ⏳ NEXT |
 
 **Recent Achievements:**
-- **v1.0.0:** PUBLIC RELEASE - Community-ready vanilla PAI 2.3 on OpenCode
+- **v0.9.3:** Plural Directories + chat.message Hook - Aligned with PAI vanilla naming
+- **v0.9.2:** Re-Audit - Repository corrections, NPM update
 - **v0.9.1:** Agent Invocation Verification - Critical discovery about Task tool vs @syntax
-- **v0.9:** Integration Testing - All components validated together
 - **v0.8:** Converter Tool - 767 files migrated in 5 seconds
 
 ### Milestone Highlights
@@ -313,9 +315,9 @@ This project is open source and free to use, modify, and distribute. See [LICENS
 
 ---
 
-## v1.0 Released!
+## Roadmap to v1.0
 
-**PAI-OpenCode v1.0.0 is now available!** A complete, community-ready port of PAI 2.3 to OpenCode.
+**PAI-OpenCode v1.0.0 will be released soon!** A complete, community-ready port of PAI 2.3 to OpenCode.
 
 ### What's Included
 
@@ -331,7 +333,7 @@ Some PAI 2.3 features cannot be ported due to OpenCode's architecture:
 
 | Feature | Reason | Impact |
 |---------|--------|--------|
-| User Input Interception | OpenCode has no `UserPromptSubmit` event | Format enforcement, auto-work creation not available |
+| User Input Interception | OpenCode `chat.message` hook added in v0.9.3 | Basic support available, advanced features pending |
 | Tab Title Updates | OpenCode tab API not exposed | No dynamic tab titles |
 | Rating Capture | Requires `UserPromptSubmit` | Explicit/implicit rating capture not available |
 

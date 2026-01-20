@@ -1,9 +1,9 @@
 # PAI 2.3 → OpenCode Migration Roadmap
 
-**Version:** 4.0.0
-**Based on:** Constitution v3.2.0, SYNTHESIS.md, PAI 2.3 Vanilla
+**Version:** 4.1.0
+**Based on:** Constitution v4.0.0, SYNTHESIS.md, PAI 2.3 Vanilla
 **Created:** 2025-12-31
-**Last Updated:** 2026-01-20 (v0.9.2 Re-Audit & Corrections)
+**Last Updated:** 2026-01-20 (v0.9.3 Plural Directories + chat.message Hook)
 **Author:** Steffen (with PAI assistance)
 
 ---
@@ -79,8 +79,8 @@ A complete, working port where:
 | **v0.9** | Integration Testing + Docs | End-to-end validation, public prep | ✅ DONE |
 | **v0.9.1** | Agent Invocation Verification | Task tool vs @syntax discovery | ✅ DONE |
 | **v0.9.2** | Re-Audit & Corrections | Repository refs, NPM update, OpenCode findings | ✅ DONE |
-| **v0.9.3** | Plural Directories + chat.message | Singular→Plural rename, UserPromptSubmit hook | ⏳ NEXT |
-| **v1.0** | **PUBLIC RELEASE** | Community-ready vanilla PAI 2.3 | ⏳ PENDING |
+| **v0.9.3** | Plural Directories + chat.message | Singular→Plural rename, UserPromptSubmit hook | ✅ DONE |
+| **v1.0** | **PUBLIC RELEASE** | Community-ready vanilla PAI 2.3 | ⏳ NEXT |
 
 ---
 
@@ -146,7 +146,7 @@ A complete, working port where:
 - [x] Git architecture configured (origin, upstream, fork)
 - [x] Basic directory structure established
 - [x] Research phase complete (SYNTHESIS.md)
-- [x] Constitution v3.2.0 ratified
+- [x] Constitution v4.0.0 ratified
 - [x] 6 Technical Decisions documented
 
 **Current State:**
@@ -432,15 +432,15 @@ Pack Install  → Task Tool (maintains compatibility)
 **Deliverables:**
 - [x] `tools/pai-to-opencode-converter.ts` - CLI converter tool
 - [x] Settings translation (`.claude/settings.json` → `opencode.json`)
-- [x] Skills translation (`.claude/skills/` → `.opencode/skill/`)
-- [x] Agents translation (`.claude/agents/` → `.opencode/agent/`)
+- [x] Skills translation (`.claude/skills/` → `.opencode/skills/`)
+- [x] Agents translation (`.claude/agents/` → `.opencode/agents/`)
 - [x] MEMORY copy with path updates
 - [x] Migration report generation
 - [x] Built-in --help and --dry-run support
 
 **Test Results:**
 - Tested with PAI v2.3 vanilla: **767 files converted** ✅
-- Path replacements: `.claude/` → `.opencode/`, `skills/` → `skill/` ✅
+- Path replacements: `.claude/` → `.opencode/`, `skills/` → `skills/` ✅ (v0.9.3: now plural)
 - Settings schema mapping to OpenCode format ✅
 - YAML frontmatter quoting for special chars ✅
 - Agent color conversion (named → hex) ✅
@@ -458,16 +458,16 @@ Pack Install  → Task Tool (maintains compatibility)
 | YAML parsing errors | Auto-quote descriptions with special chars |
 | PAI-specific fields | Remove `voiceId`, `permissions` from agents |
 
-**What Gets Converted:**
+**What Gets Converted (v0.9.3+):**
 | Source | Target | Method |
 |--------|--------|--------|
 | `settings.json` | `opencode.json` | Schema mapping |
-| `skills/` | `skill/` | Copy + path update + YAML sanitize |
-| `agents/` | `agent/` | Copy + color conversion + field removal |
+| `skills/` | `skills/` | Copy + path update + YAML sanitize |
+| `agents/` | `agents/` | Copy + color conversion + field removal |
 | `MEMORY/` | `MEMORY/` | Direct copy |
 
 **What Requires Manual Work:**
-- `hooks/` → `plugin/` (architecture differs - documented in MIGRATION-REPORT.md)
+- `hooks/` → `plugins/` (architecture differs - documented in MIGRATION-REPORT.md)
 
 **Usage:**
 ```bash
@@ -576,7 +576,7 @@ After v1.0 is released publicly, Jeremy 2.0 development begins:
 
 ## Technical Decisions Reference
 
-All decisions documented in Constitution v3.2.0 Section IX:
+All decisions documented in Constitution v4.0.0 Section IX:
 
 | # | Decision | Choice | Milestone |
 |---|----------|--------|-----------|
@@ -620,7 +620,7 @@ All decisions documented in Constitution v3.2.0 Section IX:
 | v0.9 Integration + Docs | ✅ DONE | - |
 | v0.9.1 Agent Invocation | ✅ DONE | - |
 | v0.9.2 Re-Audit | ✅ DONE | - |
-| v0.9.3 Plural + chat.message | ⏳ NEXT | - |
+| v0.9.3 Plural + chat.message | ✅ DONE | - |
 | v1.0 Release | ⏳ PENDING | v0.9.3 |
 
 ### Dependency Graph
@@ -662,7 +662,7 @@ We committed to posting updates at key milestones. Track progress here:
 | v0.8 | Converter Tool complete | ✅ DONE | 2026-01-19 |
 | v0.9.1 | Integration + Agent Invocation discovery | ✅ DONE | 2026-01-19 |
 | v0.9.2 | Re-Audit findings & corrections | ✅ DONE | 2026-01-20 |
-| v0.9.3 | Plural directories + chat.message hook | ⏳ NEXT | - |
+| v0.9.3 Plural + chat.message | ✅ DONE | - |
 | v1.0 | **PUBLIC RELEASE** 🎉 | ⏳ PENDING | - |
 
 **Update Template:**

@@ -31,12 +31,12 @@
 **Precondition:** OpenCode workspace exists with skills from v0.2
 
 **Steps:**
-1. Check current skill location: `ls -la .opencode/skills/` or `.opencode/skill/`
+1. Check current skill location: `ls -la .opencode/skills/` or `.opencode/skills/`
 2. Verify CORE skill directory exists
 3. Verify SKILL.md has YAML frontmatter with `name:` and `description:`
 
 **Expected:**
-- Skills are in `.opencode/skills/CORE/` (or `.opencode/skill/CORE/` if moved)
+- Skills are in `.opencode/skills/CORE/` (or `.opencode/skills/CORE/` if moved)
 - SKILL.md exists with valid frontmatter
 - USE WHEN trigger present in description
 
@@ -189,7 +189,7 @@ Reduction: (1012 - 51) / 1012 = 94.96%
 
 **Steps:**
 1. Run: `bun .opencode/tools/skill-migrate.ts --help`
-2. Run dry run: `bun .opencode/tools/skill-migrate.ts --source vendor/PAI/Packs/kai-core-install/skills/CORE --target .opencode/skill/CORE --dry-run`
+2. Run dry run: `bun .opencode/tools/skill-migrate.ts --source vendor/PAI/Packs/kai-core-install/skills/CORE --target .opencode/skills/CORE --dry-run`
 3. Run actual migration with --force if target exists
 
 **Expected:**
@@ -221,7 +221,7 @@ Reduction: (1012 - 51) / 1012 = 94.96%
 **Precondition:** skill-migrate tool works (AT-6)
 
 **Steps:**
-1. Run: `bun .opencode/tools/skill-migrate.ts --source vendor/PAI/Packs/kai-core-install/skills/CreateSkill --target .opencode/skill/CreateSkill`
+1. Run: `bun .opencode/tools/skill-migrate.ts --source vendor/PAI/Packs/kai-core-install/skills/CreateSkill --target .opencode/skills/CreateSkill`
 2. Verify CreateSkill directory created
 3. Verify SKILL.md copied correctly
 4. Test CreateSkill in OpenCode if available

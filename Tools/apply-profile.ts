@@ -10,7 +10,7 @@ import { parse as parseYaml } from "yaml";
 import { join } from "path";
 
 const PROFILES_DIR = ".opencode/profiles";
-const AGENTS_DIR = ".opencode/agent";
+const AGENTS_DIR = ".opencode/agents";
 
 function main() {
   const profileName = process.argv[2];

@@ -344,10 +344,10 @@ Skill("Agents")  // → CreateCustomAgent workflow
 ## Integration Points
 
 **Where agent types are defined:**
-- Task tool subagent_types: `~/.opencode/skill/CORE/SYSTEM/PAIAGENTSYSTEM.md`
-- Named agents: `~/.opencode/skill/Agents/AgentPersonalities.md`
-- Custom agent traits: `~/.opencode/skill/Agents/Data/Traits.yaml`
-- AgentFactory: `~/.opencode/skill/Agents/Tools/AgentFactory.ts`
+- Task tool subagent_types: `~/.opencode/skills/CORE/SYSTEM/PAIAGENTSYSTEM.md`
+- Named agents: `~/.opencode/skills/Agents/AgentPersonalities.md`
+- Custom agent traits: `~/.opencode/skills/Agents/Data/Traits.yaml`
+- AgentFactory: `~/.opencode/skills/Agents/Tools/AgentFactory.ts`
 
 **Skills that use agents:**
 - Development - Engineer, Architect, Designer agents

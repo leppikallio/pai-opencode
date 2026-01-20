@@ -440,7 +440,7 @@ All event payloads, behaviors, and patterns documented here were verified throug
 
 | Step | Claude Code | OpenCode |
 |------|-------------|----------|
-| 1 | Create `.claude/hooks/session-start.ts` | Create `.opencode/plugin/pai-session-lifecycle/index.ts` |
+| 1 | Create `.claude/hooks/session-start.ts` | Create `.opencode/plugins/pai-session-lifecycle/index.ts` |
 | 2 | Export hook function | Export async function returning event handlers |
 | 3 | `export default ({ sessionId }) => { }` | `"session.created": async ({ sessionID }) => { }` |
 | 4 | Use `sessionId` (camelCase) | Use `sessionID` (PascalCase) |
@@ -462,7 +462,7 @@ All event payloads, behaviors, and patterns documented here were verified throug
 
 4. **Loading:**
    - Claude Code: Hooks auto-discovered in `.claude/hooks/`
-   - OpenCode: Plugins auto-discovered in `.opencode/plugin/`
+   - OpenCode: Plugins auto-discovered in `.opencode/plugins/`
 
 ---
 

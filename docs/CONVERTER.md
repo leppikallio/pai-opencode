@@ -119,7 +119,7 @@ The converter maps PAI's settings schema to OpenCode's configuration format:
 The converter copies all skill files and performs three key transformations:
 
 1. **Path Updates:** `.claude/` → `.opencode/`
-2. **Directory Corrections:** `.opencode/skills/` → `.opencode/skill/` (OpenCode uses singular)
+2. **Directory Corrections:** `.opencode/skills/` → `.opencode/skills/` (OpenCode uses singular)
 3. **YAML Sanitization:** Quotes descriptions containing special characters (`:`, `'`, `"`, `#`, `|`, `>`)
 
 **Example transformation:**
@@ -361,8 +361,8 @@ Mode:   DRY RUN
   Writing: /Users/steffen/workspace/project/opencode.json
 
 📚 Translating skills/...
-  Copy: .claude/skills/CORE/SKILL.md → .opencode/skill/CORE/SKILL.md
-  Copy: .claude/skills/Research/SKILL.md → .opencode/skill/Research/SKILL.md
+  Copy: .claude/skills/CORE/SKILL.md → .opencode/skills/CORE/SKILL.md
+  Copy: .claude/skills/Research/SKILL.md → .opencode/skills/Research/SKILL.md
   ...
 
 🤖 Translating agents/...
@@ -432,7 +432,7 @@ bun run tools/pai-to-opencode-converter.ts
 cat .opencode/MIGRATION-REPORT.md
 
 # Step 5: Manually migrate hooks (see report for details)
-# Create .opencode/plugin/pai-unified.ts based on your hooks
+# Create .opencode/plugins/pai-unified.ts based on your hooks
 
 # Step 6: Test the OpenCode installation
 opencode
@@ -495,8 +495,8 @@ bun run tools/pai-to-opencode-converter.ts \
   --no-backup
 
 # Step 2: Copy only the skills you want
-cp -r /tmp/pai-conversion/skill/Research .opencode/skill/
-cp -r /tmp/pai-conversion/skill/Browser .opencode/skill/
+cp -r /tmp/pai-conversion/skill/Research .opencode/skills/
+cp -r /tmp/pai-conversion/skill/Browser .opencode/skills/
 
 # Step 3: Clean up
 rm -rf /tmp/pai-conversion
@@ -789,7 +789,7 @@ The converter should have quoted special characters automatically. If you still 
 
 ```bash
 # Find the problematic YAML
-grep -n "description:" .opencode/skill/Research/SKILL.md
+grep -n "description:" .opencode/skills/Research/SKILL.md
 
 # Manually quote the description
 # Before:
@@ -809,7 +809,7 @@ grep -n "description:" .opencode/skill/Research/SKILL.md
 
 ```bash
 # Check the agent file
-cat .opencode/agent/engineer.md
+cat .opencode/agents/engineer.md
 
 # If color is unknown, manually set hex value
 # Example:

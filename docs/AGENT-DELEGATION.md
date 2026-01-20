@@ -28,7 +28,7 @@ All agents are now visible in OpenCode's `/agents` UI picker:
 
 1. Type `/agents` in OpenCode
 2. Select from the list of available agents
-3. Agent files are located in `.opencode/agent/`
+3. Agent files are located in `.opencode/agents/`
 
 ### @ Mention Syntax
 
@@ -227,10 +227,10 @@ Agents can delegate to other agents:
 
 ### Agent File Location
 
-All agent files are in `.opencode/agent/`:
+All agent files are in `.opencode/agents/`:
 
 ```
-.opencode/agent/
+.opencode/agents/
 ├── intern.md
 ├── engineer.md
 ├── architect.md
@@ -276,7 +276,7 @@ The Task wrapper (`Tools/task-wrapper.ts`) provides:
 ### v0.4.0 → v0.4.1
 
 **What Changed:**
-- Added physical agent files to `.opencode/agent/`
+- Added physical agent files to `.opencode/agents/`
 - Agents now visible in UI picker
 - No behavior change (agents already worked via Task wrapper)
 
@@ -293,7 +293,7 @@ The Task wrapper (`Tools/task-wrapper.ts`) provides:
 
 **Symptom:** "Agent X not found" error
 
-**Solution:** Verify agent file exists in `.opencode/agent/X.md`
+**Solution:** Verify agent file exists in `.opencode/agents/X.md`
 
 ### Agent Not in UI Picker
 

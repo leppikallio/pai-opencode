@@ -227,7 +227,7 @@ export const DANGEROUS_PATTERNS = [
 ```typescript
 // handlers/context-loader.ts
 export async function loadContext(): Promise<ContextResult> {
-  const skillDir = join(process.cwd(), ".opencode/skill/CORE");
+  const skillDir = join(process.cwd(), ".opencode/skills/CORE");
 
   // Load SKILL.md
   const skillPath = join(skillDir, "SKILL.md");
@@ -340,8 +340,8 @@ cat /tmp/pai-opencode-debug.log | grep "Plugin Loaded"
 
 ## References
 
-- **Test Results:** `.opencode/plugin/TEST-RESULTS-v0.7.md`
-- **Type Definitions:** `.opencode/plugin/adapters/types.ts`
+- **Test Results:** `.opencode/plugins/TEST-RESULTS-v0.7.md`
+- **Type Definitions:** `.opencode/plugins/adapters/types.ts`
 - **OpenCode Docs:** https://opencode.ai/docs/plugins/
 
 ---

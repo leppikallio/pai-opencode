@@ -50,7 +50,7 @@ This pattern applies to every task, from simple queries to complex multi-session
 |-----------|---------|----------|
 | **Pack** | Self-contained upgrade packages | `Packs/` directory |
 | **Bundle** | Multiple related packs | `Packs/Bundles/` |
-| **Agent** | Specialized AI personalities | `Packs/Agents/` or `.opencode/agent/` |
+| **Agent** | Specialized AI personalities | `Packs/Agents/` or `.opencode/agents/` |
 | **Skill** | Domain expertise modules | Defined within packs |
 
 ### The 8 Core Packs (kai-*)
@@ -137,12 +137,12 @@ OpenCode is a **local-first, CLI-based AI coding agent platform** with comprehen
 | **Config Location** | `~/.claude/` | `~/.config/opencode/` | ⚠️ Path mapping needed |
 | **Rules File** | `CLAUDE.md` | `AGENTS.md` | ⚠️ Rename required |
 | **Agent System** | Task tool delegation | Primary/subagent modes | ❌ Conceptual remapping needed |
-| **Agent Storage** | `.claude/agents/*.md` | `.opencode/agent/*.md` | ⚠️ Minor path change |
+| **Agent Storage** | `.claude/agents/*.md` | `.opencode/agents/*.md` | ⚠️ Minor path change |
 | **Skills Loading** | Auto-load via `USE WHEN` | Lazy-load via `skill` tool | ❌ Architecture change needed |
-| **Skills Location** | `.claude/skills/` | `.opencode/skill/` or `.claude/skills/` | ✅ Backward compatible |
+| **Skills Location** | `.claude/skills/` | `.opencode/skills/` or `.claude/skills/` | ✅ Backward compatible |
 | **Custom Commands** | `.claude/commands/*.md` | `.opencode/command/*.md` | ⚠️ Path change, format similar |
 | **Hooks/Events** | 4 main hooks (SessionStart, Stop, PostToolUse, SessionEnd) | 30+ plugin events | ❌ Complete redesign needed |
-| **Hook Storage** | `.claude/hooks/*.ts` | Plugin system (`.opencode/plugin/`) | ❌ Architecture incompatible |
+| **Hook Storage** | `.claude/hooks/*.ts` | Plugin system (`.opencode/plugins/`) | ❌ Architecture incompatible |
 | **MCP Config** | `.claude/.mcp.json` | Embedded in `opencode.json` | ⚠️ Format translation needed |
 | **MCP Auth** | Manual env vars | OAuth flow + manual | ✅ Enhancement available |
 | **Tool Permissions** | Custom implementation | Native granular permissions | ✅ Upgrade opportunity |
@@ -322,7 +322,7 @@ Based on the project roadmap and compatibility analysis:
    - Implement skill tool integration for lazy loading
    - Preserve `USE WHEN` triggers via wrapper
    - Maintain `.claude/skills/` as primary location (OpenCode supports this)
-   - Add `.opencode/skill/` as secondary location
+   - Add `.opencode/skills/` as secondary location
 
 3. **Agent Definition Migration** (Week 2-3)
    - Convert PAI agent markdown files to OpenCode format
@@ -677,7 +677,7 @@ description: Deep research specialist using perplexity CLI
 You are an elite research specialist...
 ```
 
-**OpenCode (`.opencode/agent/researcher.md`):**
+**OpenCode (`.opencode/agents/researcher.md`):**
 ```markdown
 ---
 description: Deep research specialist using perplexity CLI
@@ -744,7 +744,7 @@ You are an elite research specialist...
 
 ### Phase 2: Skills & Agents (v1.1)
 
-- [ ] Copy skills to `.opencode/skill/` (or keep in `.claude/skills/`)
+- [ ] Copy skills to `.opencode/skills/` (or keep in `.claude/skills/`)
 - [ ] Convert agent definitions to OpenCode format
 - [ ] Implement skill discovery adapter
 - [ ] Test CORE skill auto-loading

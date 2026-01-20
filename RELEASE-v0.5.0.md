@@ -29,8 +29,8 @@
 
 | File | Purpose | Status | Lines |
 |------|---------|--------|-------|
-| `.opencode/plugin/pai-session-lifecycle.ts` | Captures session lifecycle events via generic `event` hook | ✅ COMPLETE | 85 |
-| `.opencode/plugin/pai-post-tool-use.ts` | Captures tool execution events via `tool.execute.after` hook | ✅ COMPLETE | 71 |
+| `.opencode/plugins/pai-session-lifecycle.ts` | Captures session lifecycle events via generic `event` hook | ✅ COMPLETE | 85 |
+| `.opencode/plugins/pai-post-tool-use.ts` | Captures tool execution events via `tool.execute.after` hook | ✅ COMPLETE | 71 |
 | `.opencode/package.json` | Plugin dependency: @opencode-ai/plugin v1.0.218 | ✅ COMPLETE | 5 |
 
 ### Documentation Files

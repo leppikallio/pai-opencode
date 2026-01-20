@@ -11,8 +11,8 @@
  *
  * What it translates:
  *   - settings.json → opencode.json (schema mapping)
- *   - skills/ → skill/ (path + minor adjustments)
- *   - agents/ → agent/ (YAML frontmatter format)
+ *   - skills/ → skills/ (path + minor adjustments)
+ *   - agents/ → agents/ (YAML frontmatter format)
  *   - MEMORY/ → MEMORY/ (direct copy with path updates)
  *
  * What it does NOT translate (requires manual work):
@@ -120,12 +120,12 @@ EXAMPLES:
 
 WHAT GETS CONVERTED:
   ✅ settings.json → opencode.json (schema mapping)
-  ✅ skills/ → skill/ (directory copy with path updates)
-  ✅ agents/ → agent/ (YAML frontmatter format)
+  ✅ skills/ → skills/ (directory copy with path updates)
+  ✅ agents/ → agents/ (YAML frontmatter format)
   ✅ MEMORY/ → MEMORY/ (direct copy)
 
 WHAT REQUIRES MANUAL WORK:
-  ⚠️  hooks/ → plugin/ (architecture differs - see migration report)
+  ⚠️  hooks/ → plugins/ (architecture differs - see migration report)
 
 OUTPUT:
   Creates a migration report at <target>/MIGRATION-REPORT.md
@@ -320,7 +320,7 @@ function translateSkills(source: string, target: string, dryRun: boolean, verbos
 } {
   const warnings: string[] = [];
   const skillsSource = join(source, "skills");
-  const skillsTarget = join(target, "skill");
+  const skillsTarget = join(target, "skills");
 
   if (!existsSync(skillsSource)) {
     warnings.push("No skills/ directory found in source");
@@ -340,8 +340,8 @@ function translateSkills(source: string, target: string, dryRun: boolean, verbos
         // Replace common path references
         content = content.replace(/\.claude\//g, ".opencode/");
         content = content.replace(/~\/\.claude/g, "~/.opencode");
-        // OpenCode uses singular 'skill' not 'skills'
-        content = content.replace(/\.opencode\/skills\//g, ".opencode/skill/");
+        // OpenCode now uses plural 'skills' (v0.9.3+)
+        // No replacement needed - already plural
 
         // Fix YAML frontmatter: quote description fields that contain special chars
         // This prevents YAML parsing errors with colons, quotes, etc.
@@ -475,7 +475,7 @@ function translateAgents(source: string, target: string, dryRun: boolean, verbos
 } {
   const warnings: string[] = [];
   const agentsSource = join(source, "agents");
-  const agentsTarget = join(target, "agent");
+  const agentsTarget = join(target, "agents");
 
   if (!existsSync(agentsSource)) {
     // Agents are optional

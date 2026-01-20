@@ -8,12 +8,12 @@ Impact: Removed ALL customizations from v1.0, pushed to v1.x iterations
 Rationale: v1.0 must be a pure vanilla installation to research and test on
 -->
 
-# PAI 2.0 → OpenCode Port Constitution v4.0.0
+# PAI 2.3 → OpenCode Port Constitution v4.1.0
 
 **Ratified:** 2025-12-31
-**Last Amended:** 2026-01-18 (v0.7.0 Plugin Adapter Complete)
+**Last Amended:** 2026-01-20 (v0.9.3 Plural Directories + chat.message Hook)
 **Authority:** Steffen (Project Owner)
-**Purpose:** Govern the public port of PAI 2.0 to OpenCode as a community contribution
+**Purpose:** Govern the public port of PAI 2.3 to OpenCode as a community contribution
 **Visibility:** PUBLIC
 
 ---
@@ -26,10 +26,10 @@ This constitution defines the immutable principles governing the PAI 2.0 → Ope
 
 | Aspect | Definition |
 |--------|------------|
-| **Goal** | Port Daniel Miessler's PAI 2.0 from Claude Code to OpenCode |
-| **Output** | Working PAI 2.0 installation on OpenCode platform |
+| **Goal** | Port Daniel Miessler's PAI 2.3 from Claude Code to OpenCode |
+| **Output** | Working PAI 2.3 installation on OpenCode platform |
 | **Visibility** | PUBLIC - Shareable with the community |
-| **Identity** | NONE - Pure vanilla PAI 2.0, no personal customizations |
+| **Identity** | NONE - Pure vanilla PAI 2.3, no personal customizations |
 
 **What This Is NOT:**
 - ❌ NOT Jeremy 2.0 (that's a separate private project)
@@ -1097,7 +1097,7 @@ Amend this constitution when:
 | v2.0.0 | 2025-12-31 | **MAJOR REVISION** - Complete restructure | Focus on realistic v1.0 scope: Identity-first, incremental migration, removed unrealistic gates and out-of-scope features |
 | v3.0.0 | 2025-12-31 | **MAJOR SCOPE REDUCTION** - v1.0 vanilla only | v1.0 is ONLY vanilla PAI 2.0 + git architecture (copycat mode). ALL customizations moved to v1.1+. Session Search/Project Sync explicitly unknown if transferable. |
 | v3.0.1 | 2026-01-01 | **CLARIFICATION** - Versioning correction | v1.0 was actually empty OpenCode workspace (not vanilla packs). Updated version mapping: v1.1 = vanilla packs, v1.2 = identity. |
-| v3.1.0 | 2026-01-01 | **CRITICAL LEARNING** - Hook/Plugin incompatibility | OpenCode uses plugin system (`.opencode/plugin/`), NOT Claude Code hooks (`settings.json`). kai-hook-system requires adaptation. Updated version mapping: v1.1 = skills only, v1.2 = hooks (as plugins), v1.3 = identity. |
+| v3.1.0 | 2026-01-01 | **CRITICAL LEARNING** - Hook/Plugin incompatibility | OpenCode uses plugin system (`.opencode/plugins/`), NOT Claude Code hooks (`settings.json`). kai-hook-system requires adaptation. Updated version mapping: v1.1 = skills only, v1.2 = hooks (as plugins), v1.3 = identity. |
 | v3.2.0 | 2026-01-01 | **TECHNICAL DECISIONS** - Added Section IX | Documented 6 key technical decisions from comprehensive research: (1) Clean Break + Converter, (2) Hybrid Agent Delegation, (3) LazyLoad Translation, (4) Hook System DEFERRED, (5) Dual History System, (6) Clean Break to `.opencode/`. |
 | v3.3.0 | 2026-01-01 | **PUBLIC REFRAME** - Project scope clarified | This is now explicitly a PUBLIC community contribution. v1.0 = Pure PAI 2.0 → OpenCode port (no identity). Jeremy 2.0 separated as private post-v1.0 project. New versioning: v0.1-v0.9 milestones to v1.0 public release. |
 | v3.4.0 | 2026-01-01 | **TWO-PHASE VERSIONING** - Section II complete rewrite | Updated all version references to reflect two-phase structure: Phase 1 (PUBLIC v0.x → v1.0) = vanilla PAI 2.0 port, Phase 2 (PRIVATE Jeremy 2.0) = identity layer. Aligned all sections (II-IV, Appendices) with new versioning. Clarified public/private boundaries throughout. |
@@ -1111,7 +1111,7 @@ During v1.1 implementation research, we discovered that **Claude Code hooks and 
 
 | Feature | Claude Code | OpenCode |
 |---------|-------------|----------|
-| **Config Location** | `~/.claude/settings.json` | `.opencode/plugin/` directory |
+| **Config Location** | `~/.claude/settings.json` | `.opencode/plugins/` directory |
 | **Format** | JSON configuration | TypeScript/JavaScript modules |
 | **Event Names** | `PreToolUse`, `PostToolUse`, `SessionStart` | `tool.execute.before`, `tool.execute.after`, `session.*` |
 | **Registration** | Declarative in settings.json | Export plugin functions |

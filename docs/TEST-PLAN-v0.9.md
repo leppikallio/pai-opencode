@@ -60,7 +60,7 @@ bun run tools/pai-to-opencode-converter.ts --source vendor/PAI/Releases/v2.3/.cl
 |---|------|----------------|-----------------|--------|
 | 4.1 | Help works | `bun run tools/pai-to-opencode-converter.ts --help` | Help displayed | ✅ PASS |
 | 4.2 | Dry-run works | `--dry-run --verbose` | Preview without changes | ✅ PASS |
-| 4.3 | Files converted | Check .opencode/skill/ count | 20 skills present | ✅ PASS |
+| 4.3 | Files converted | Check .opencode/skills/ count | 20 skills present | ✅ PASS |
 
 ### 5. Integration
 
@@ -82,7 +82,7 @@ bun run tools/pai-to-opencode-converter.ts --source vendor/PAI/Releases/v2.3/.cl
 ### Test 1.2 - USE WHEN trigger - CreateSkill
 **Time:** 01:02
 **Result:** ✅ PASS
-**Notes:** Typing "Ich möchte einen neuen Skill erstellen" correctly activated CreateSkill. The skill was loaded from `.opencode/skill/CreateSkill/`.
+**Notes:** Typing "Ich möchte einen neuen Skill erstellen" correctly activated CreateSkill. The skill was loaded from `.opencode/skills/CreateSkill/`.
 
 ### Test 1.3 - USE WHEN trigger - explicit
 **Time:** 01:05
@@ -131,7 +131,7 @@ bun run tools/pai-to-opencode-converter.ts --source vendor/PAI/Releases/v2.3/.cl
 - **After v0.9 fix:** All 13 agent files have correct format:
   - `intern.md` → `anthropic/claude-haiku-4-5` (cost-effective for grunt work)
   - All others → `anthropic/claude-sonnet-4-5` (balanced for implementation)
-- Verified via `grep "^model:" .opencode/agent/*.md`
+- Verified via `grep "^model:" .opencode/agents/*.md`
 
 ### Test 3.1 - Plugin loads
 **Time:** 01:22
@@ -180,7 +180,7 @@ AI provided safe alternatives.
 ### Test 4.3 - Files converted
 **Time:** 01:14 (during pre-test setup)
 **Result:** ✅ PASS
-**Notes:** Converter successfully created 20 skills in `.opencode/skill/`:
+**Notes:** Converter successfully created 20 skills in `.opencode/skills/`:
 Agents, AnnualReports, Art, BrightData, Browser, CORE, Council, CreateCLI, CreateSkill, FirstPrinciples, OSINT, PAIUpgrade, PrivateInvestigator, Prompting, Recon, RedTeam, Research, System, Telos, THEALGORITHM
 
 ### Test 5.1 - OpenCode startup
@@ -232,7 +232,7 @@ Agents, AnnualReports, Art, BrightData, Browser, CORE, Council, CreateCLI, Creat
 - Converter tool works perfectly (3/3 tests pass) + model mapping added
 - Integration tests all pass (3/3)
 - **Agent delegation tests all pass (4/4) after v0.9 fix**
-- Skills loaded from `.opencode/skill/` correctly after converter run
+- Skills loaded from `.opencode/skills/` correctly after converter run
 
 ---
 
