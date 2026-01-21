@@ -88,8 +88,6 @@ TRANSPARENT: Use Images skill to remove background for overlay use
 bun ~/.opencode/skills/CORE/Tools/RemoveBg.ts /path/to/visualization.png
 ```
 
-**See:** `~/.opencode/skills/Images/Workflows/BackgroundRemoval.md` for full documentation.
-
 ### Title/Subtitle Alignment
 
 ```

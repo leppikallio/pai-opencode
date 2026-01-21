@@ -506,8 +506,6 @@ bun ~/.opencode/skills/CORE/Tools/RemoveBg.ts /path/to/output.png
 bun ~/.opencode/skills/CORE/Tools/RemoveBg.ts image1.png image2.png image3.png
 ```
 
-**See:** `~/.opencode/skills/Images/Workflows/BackgroundRemoval.md` for full documentation.
-
 ### 🚨 COMPOSITION: USE FULL FRAME, MINIMALIST, NO BACKGROUNDS
 
 **SUBJECTS FILL THE FRAME. FEW ELEMENTS. NO FILLED BACKGROUNDS.**

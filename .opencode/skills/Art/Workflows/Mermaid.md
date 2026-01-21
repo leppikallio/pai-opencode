@@ -659,8 +659,6 @@ GOING INTO BLOG/WEBSITE: Remove background for transparency
 bun ~/.opencode/skills/CORE/Tools/RemoveBg.ts /path/to/mermaid-diagram.png
 ```
 
-**See:** `~/.opencode/skills/Images/Workflows/BackgroundRemoval.md` for full documentation.
-
 **Immediately open:**
 ```bash
 open /path/to/mermaid-diagram.png

@@ -12,13 +12,17 @@
  * What it translates:
  *   - settings.json → opencode.json (schema mapping)
  *   - skills/ → skills/ (path + minor adjustments)
- *   - agents/ → agents/ (YAML frontmatter format)
+ *   - agents/ → agents/ (YAML frontmatter + body path replacement)
  *   - MEMORY/ → MEMORY/ (direct copy with path updates)
+ *   - Tools/ → Tools/ (v0.9.5: all TypeScript files with path updates)
  *
  * What it does NOT translate (requires manual work):
  *   - hooks/ → plugin/ (fundamentally different architecture)
  *
- * @version 0.9.1
+ * Post-conversion validation:
+ *   - Checks for remaining .claude references (v0.9.5)
+ *
+ * @version 0.9.5
  * @author PAI-OpenCode Project
  */
 
@@ -94,7 +98,7 @@ interface OpencodeJson {
 
 function printHelp(): void {
   console.log(`
-PAI to OpenCode Converter v0.9.1
+PAI to OpenCode Converter v0.9.5
 
 USAGE:
   bun run tools/pai-to-opencode-converter.ts [OPTIONS]
@@ -121,8 +125,9 @@ EXAMPLES:
 WHAT GETS CONVERTED:
   ✅ settings.json → opencode.json (schema mapping)
   ✅ skills/ → skills/ (directory copy with path updates)
-  ✅ agents/ → agents/ (YAML frontmatter format)
+  ✅ agents/ → agents/ (YAML frontmatter + body path replacement)
   ✅ MEMORY/ → MEMORY/ (direct copy)
+  ✅ Tools/ → Tools/ (all TypeScript files with path updates)
 
 WHAT REQUIRES MANUAL WORK:
   ⚠️  hooks/ → plugins/ (architecture differs - see migration report)
@@ -536,6 +541,11 @@ function translateAgents(source: string, target: string, dryRun: boolean, verbos
           }
         );
 
+        // v0.9.5: Replace path references in agent body content (not just frontmatter)
+        // This catches skill references, tool paths, etc. in agent documentation
+        content = content.replace(/\.claude\//g, ".opencode/");
+        content = content.replace(/~\/\.claude/g, "~/.opencode");
+
         if (content !== originalContent) {
           writeFileSync(file, content);
           log(`  Transformed: ${relative(process.cwd(), file)}`, verbose);
@@ -569,13 +579,147 @@ function translateMemory(source: string, target: string, dryRun: boolean, verbos
 }
 
 /**
+ * Translate PAI Tools/ to OpenCode Tools/
+ *
+ * Tools contain TypeScript utilities that may reference .claude paths.
+ * All .ts files are processed for path replacement.
+ *
+ * @since v0.9.5
+ */
+function translateTools(source: string, target: string, dryRun: boolean, verbose: boolean): {
+  converted: string[];
+  warnings: string[];
+} {
+  const warnings: string[] = [];
+  const toolsSource = join(source, "Tools");
+  const toolsTarget = join(target, "Tools");
+
+  if (!existsSync(toolsSource)) {
+    // Tools may also be lowercase
+    const toolsSourceLower = join(source, "tools");
+    if (!existsSync(toolsSourceLower)) {
+      return { converted: [], warnings };
+    }
+    // Use lowercase variant
+    return translateToolsDir(toolsSourceLower, join(target, "tools"), dryRun, verbose);
+  }
+
+  return translateToolsDir(toolsSource, toolsTarget, dryRun, verbose);
+}
+
+/**
+ * Helper to translate a tools directory
+ */
+function translateToolsDir(toolsSource: string, toolsTarget: string, dryRun: boolean, verbose: boolean): {
+  converted: string[];
+  warnings: string[];
+} {
+  const warnings: string[] = [];
+
+  log(`\nTranslating Tools/`, verbose, true);
+  const converted = copyDir(toolsSource, toolsTarget, dryRun, verbose);
+
+  // Update path references in TypeScript files
+  if (!dryRun) {
+    for (const file of converted) {
+      if (file.endsWith(".ts") || file.endsWith(".js")) {
+        let content = readFileSync(file, "utf-8");
+        const originalContent = content;
+
+        // Replace common path references
+        content = content.replace(/\.claude\//g, ".opencode/");
+        content = content.replace(/~\/\.claude/g, "~/.opencode");
+        content = content.replace(/"\\.claude"/g, '".opencode"');
+        content = content.replace(/'\\.claude'/g, "'.opencode'");
+
+        if (content !== originalContent) {
+          writeFileSync(file, content);
+          log(`  Updated paths in: ${relative(process.cwd(), file)}`, verbose);
+        }
+      }
+    }
+  }
+
+  return { converted, warnings };
+}
+
+/**
+ * Post-conversion validation
+ *
+ * Scans target directory for remaining .claude references.
+ * Returns list of files that still contain .claude paths.
+ *
+ * @since v0.9.5
+ */
+function validateConversion(target: string, verbose: boolean): {
+  remainingReferences: string[];
+  clean: boolean;
+} {
+  const remainingReferences: string[] = [];
+
+  log(`\n🔍 Validating conversion (checking for remaining .claude references)...`, verbose, true);
+
+  function scanDir(dir: string): void {
+    if (!existsSync(dir)) return;
+
+    const entries = readdirSync(dir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+
+      // Skip backup files and common non-text files
+      if (entry.name.endsWith(".bak") || entry.name.endsWith(".backup")) continue;
+      if (entry.name === "node_modules" || entry.name === ".git") continue;
+
+      if (entry.isDirectory()) {
+        scanDir(fullPath);
+      } else if (entry.isFile()) {
+        // Only check text files
+        const ext = entry.name.split(".").pop()?.toLowerCase();
+        if (!["md", "ts", "js", "json", "yaml", "yml", "txt"].includes(ext || "")) continue;
+
+        try {
+          const content = readFileSync(fullPath, "utf-8");
+          // Check for .claude references (but not in comments about migration)
+          if (content.includes(".claude/") || content.includes("~/.claude")) {
+            // Exclude false positives from migration documentation
+            const lines = content.split("\n");
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i];
+              if ((line.includes(".claude/") || line.includes("~/.claude")) &&
+                  !line.includes("→") &&  // Migration arrows
+                  !line.includes("MIGRATION") &&
+                  !line.includes("// PAI") &&
+                  !line.includes("# PAI")) {
+                remainingReferences.push(`${relative(process.cwd(), fullPath)}:${i + 1}`);
+                break; // One per file is enough
+              }
+            }
+          }
+        } catch (e) {
+          // Skip files that can't be read
+        }
+      }
+    }
+  }
+
+  scanDir(target);
+
+  return {
+    remainingReferences,
+    clean: remainingReferences.length === 0,
+  };
+}
+
+/**
  * Generate migration report documenting manual work needed
  */
 function generateMigrationReport(
   result: ConversionResult,
   source: string,
   target: string,
-  dryRun: boolean
+  dryRun: boolean,
+  validationResult?: { clean: boolean; remainingReferences: string[] }
 ): void {
   const hooksSource = join(source, "hooks");
   let hooksInfo = "";
@@ -683,6 +827,7 @@ See \`PAIAGENTSYSTEM.md\` for complete agent documentation.
 | Warnings | ${result.warnings.length} |
 | Errors | ${result.errors.length} |
 | Manual Work Required | ${result.manualRequired.length} |
+| Validation | ${validationResult?.clean ? "✅ CLEAN" : `⚠️ ${validationResult?.remainingReferences.length || 0} remaining`} |
 
 ## What Was Converted
 
@@ -695,6 +840,16 @@ ${result.warnings.length > 0 ? result.warnings.map(w => `- ⚠️ ${w}`).join("\
 ## Errors
 
 ${result.errors.length > 0 ? result.errors.map(e => `- ❌ ${e}`).join("\n") : "No errors."}
+
+## Post-Conversion Validation
+
+${validationResult?.clean
+  ? "✅ **CLEAN** - No remaining `.claude` references found."
+  : `⚠️ **${validationResult?.remainingReferences.length || 0} remaining references** found:
+
+${(validationResult?.remainingReferences || []).map(r => `- \`${r}\``).join("\n")}
+
+These files may need manual review and path updates.`}
 ${hooksInfo}
 ${agentInvocationInfo}
 ## Next Steps
@@ -717,7 +872,7 @@ ${agentInvocationInfo}
 - \`docs/EVENT-MAPPING.md\` - Hook → Event mapping
 
 ---
-*Generated by pai-to-opencode-converter v0.9.1*
+*Generated by pai-to-opencode-converter v0.9.5*
 `;
 
   const reportPath = join(target, "MIGRATION-REPORT.md");
@@ -744,7 +899,7 @@ async function main(): Promise<void> {
 
   console.log(`
 ╭──────────────────────────────────────────╮
-│  PAI → OpenCode Converter v0.9.1        │
+│  PAI → OpenCode Converter v0.9.5        │
 ╰──────────────────────────────────────────╯
 `);
 
@@ -804,7 +959,13 @@ async function main(): Promise<void> {
   result.converted.push(...memoryResult.converted);
   result.warnings.push(...memoryResult.warnings);
 
-  // 5. Check for hooks (manual migration required)
+  // 5. Translate Tools (v0.9.5)
+  console.log("\n🔧 Translating Tools/...");
+  const toolsResult = translateTools(args.source, args.target, args.dryRun, args.verbose);
+  result.converted.push(...toolsResult.converted);
+  result.warnings.push(...toolsResult.warnings);
+
+  // 6. Check for hooks (manual migration required)
   const hooksPath = join(args.source, "hooks");
   if (existsSync(hooksPath)) {
     const hooks = readdirSync(hooksPath).filter(f => f.endsWith(".ts") || f.endsWith(".js"));
@@ -817,8 +978,20 @@ async function main(): Promise<void> {
     }
   }
 
+  // 7. Post-conversion validation (v0.9.5)
+  let validationResult = { clean: true, remainingReferences: [] as string[] };
+  if (!args.dryRun) {
+    validationResult = validateConversion(args.target, args.verbose);
+    if (!validationResult.clean) {
+      result.warnings.push(
+        `Post-conversion validation found ${validationResult.remainingReferences.length} remaining .claude reference(s). ` +
+        `See MIGRATION-REPORT.md for details.`
+      );
+    }
+  }
+
   // Generate migration report
-  generateMigrationReport(result, args.source, args.target, args.dryRun);
+  generateMigrationReport(result, args.source, args.target, args.dryRun, validationResult);
 
   // Print summary
   console.log(`
@@ -829,6 +1002,7 @@ async function main(): Promise<void> {
 ✅ Converted: ${result.converted.length} files
 ⚠️  Warnings:  ${result.warnings.length}
 🔧 Manual:    ${result.manualRequired.length} items
+${validationResult.clean ? "✅ Validation: CLEAN (no .claude references found)" : `⚠️  Validation: ${validationResult.remainingReferences.length} .claude reference(s) remaining`}
 
 ${args.dryRun ? "This was a DRY RUN - no files were modified." : "Files have been written to: " + args.target}
 `);
