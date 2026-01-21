@@ -7,6 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.5] - 2026-01-21
+
+### P1 Repository Fixes + Converter Expansion
+
+**Session 2 of v1.0 roadmap execution - System now 100% operational.**
+
+### Added
+
+- **PentesterContext.md** - Missing agent context file for Pentester agent
+- **AgentProfileLoader.ts** - Adapter for backward compatibility with SpawnAgentWithProfile.ts
+- **PAISECURITYSYSTEM/** - User security patterns directory with README template
+- **Fresh Install Test Guide** - `docs/FRESH-INSTALL-TEST.md` for validation
+
+### Changed
+
+- **Converter v0.9.5** - Major expansion:
+  - Added `Tools/` directory translation with path replacement
+  - Added agent body content path replacement (not just YAML frontmatter)
+  - Added post-conversion validation (grep check for remaining `.claude` refs)
+  - Validation results now included in MIGRATION-REPORT.md
+
+### Fixed
+
+- **Images Skill References** - Removed broken references from 3 Art workflows:
+  - Essay.md
+  - Mermaid.md
+  - Visualize.md
+
+### Converter Scope (v0.9.5)
+
+| Component | v0.9.1 | v0.9.5 |
+|-----------|--------|--------|
+| skills/ | ✅ | ✅ |
+| agents/ (frontmatter) | ✅ | ✅ |
+| agents/ (body content) | ❌ | ✅ NEW |
+| MEMORY/ | ✅ | ✅ |
+| Tools/ | ❌ | ✅ NEW |
+| Post-validation | ❌ | ✅ NEW |
+
+---
+
+## [0.9.4] - 2026-01-21
+
+### P0 Critical Fixes from Fresh Install Audit
+
+**Session 1 of v1.0 roadmap - System now 90% operational.**
+
+### Background
+
+Fresh install audit on clean `opencode` user discovered **42 issues** (25 critical, 17 warnings). Root cause: incomplete `.claude` → `.opencode` migration in converter.
+
+### Fixed
+
+1. **settings.json** - Created missing configuration file
+2. **Global Path Replacement** - Fixed 47+ files with hardcoded `.claude` paths
+3. **MEMORY Directories** - Created missing subdirectories:
+   - `Learning/ALGORITHM/`, `Learning/SYSTEM/`, `Learning/curated/`
+   - `State/progress/`, `State/integrity/`
+4. **Context Loader Filenames** - Fixed incorrect references:
+   - `AgentArchitecture.md` → `PAIAGENTSYSTEM.md`
+   - `HookSystem.md` → `THEHOOKSYSTEM.md`
+5. **CORE SKILL.md Typos** - Fixed routing references:
+   - `skill/Agents` → `skills/Agents`
+   - `USER/TELOS.md` → `USER/TELOS/`
+6. **Art Case Sensitivity** - Fixed `skills/art/` → `skills/Art/` for Linux compatibility
+
+### Test Results
+
+| Test | Status |
+|------|--------|
+| Settings loads | ✅ PASS |
+| Path references | ✅ 0 remaining `.claude` refs |
+| MEMORY structure | ✅ All directories exist |
+| Context injection | ✅ Correct files loaded |
+| Linux compatibility | ✅ Case-sensitive paths fixed |
+
+---
+
 ## [0.9.3] - 2026-01-20
 
 ### Major Changes - Plural Directory Names + chat.message Hook
