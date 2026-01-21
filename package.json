@@ -1,6 +1,7 @@
 {
   "type": "module",
   "dependencies": {
+    "diff": "^8.0.3",
     "yaml": "^2.8.2"
   }
 }

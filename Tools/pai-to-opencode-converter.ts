@@ -22,13 +22,36 @@
  * Post-conversion validation:
  *   - Checks for remaining .claude references (v0.9.5)
  *
- * @version 0.9.5
+ * @version 0.9.6
  * @author PAI-OpenCode Project
  */
 
 import { existsSync, mkdirSync, readdirSync, statSync, readFileSync, writeFileSync, copyFileSync } from "fs";
 import { join, basename, dirname, relative } from "path";
 import { parseArgs } from "util";
+
+import {
+  isSystemFile,
+  compareFiles,
+  formatValidationGate,
+  createValidationGateResult,
+  SYSTEM_FILES,
+  type SystemFile,
+  type FileComparison,
+  type ValidationGateResult,
+} from "./lib/validation-gate.js";
+
+import {
+  createManifest,
+  detectSource,
+  addTransformation,
+  addValidationGateResult,
+  addValidationRequirement,
+  writeManifest,
+  getManifestSummary,
+  type MigrationManifest,
+  type Transformation,
+} from "./lib/migration-manifest.js";
 
 // ============================================================================
 // Types
@@ -98,19 +121,21 @@ interface OpencodeJson {
 
 function printHelp(): void {
   console.log(`
-PAI to OpenCode Converter v0.9.5
+PAI to OpenCode Converter v0.9.6
 
 USAGE:
   bun run tools/pai-to-opencode-converter.ts [OPTIONS]
 
 OPTIONS:
-  --source <path>    Source PAI directory (default: ~/.claude)
-  --target <path>    Target OpenCode directory (default: .opencode)
-  --dry-run          Show what would be done without making changes
-  --backup           Create backup before conversion (default: true)
-  --no-backup        Skip backup creation
-  --verbose          Show detailed output
-  --help             Show this help message
+  --source <path>       Source PAI directory (default: ~/.claude)
+  --target <path>       Target OpenCode directory (default: .opencode)
+  --dry-run             Show what would be done without making changes
+  --backup              Create backup before conversion (default: true)
+  --no-backup           Skip backup creation
+  --skip-validation     Skip MigrationValidator after conversion
+  --skip-gates          Auto-approve all validation gates (no prompts)
+  --verbose             Show detailed output
+  --help                Show this help message
 
 EXAMPLES:
   # Convert with defaults
@@ -142,6 +167,8 @@ function parseCliArgs(): {
   target: string;
   dryRun: boolean;
   backup: boolean;
+  skipValidation: boolean;
+  skipGates: boolean;
   verbose: boolean;
   help: boolean;
 } {
@@ -153,6 +180,8 @@ function parseCliArgs(): {
       "dry-run": { type: "boolean", default: false },
       backup: { type: "boolean", default: true },
       "no-backup": { type: "boolean", default: false },
+      "skip-validation": { type: "boolean", default: false },
+      "skip-gates": { type: "boolean", default: false },
       verbose: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -172,6 +201,8 @@ function parseCliArgs(): {
     target: expandPath(values.target as string),
     dryRun: values["dry-run"] as boolean,
     backup: (values.backup as boolean) && !(values["no-backup"] as boolean),
+    skipValidation: values["skip-validation"] as boolean,
+    skipGates: values["skip-gates"] as boolean,
     verbose: values.verbose as boolean,
     help: values.help as boolean,
   };
@@ -644,6 +675,140 @@ function translateToolsDir(toolsSource: string, toolsTarget: string, dryRun: boo
 }
 
 /**
+ * Discover hooks in source and generate plugin templates
+ *
+ * Scans hooks/ directory for TypeScript/JavaScript hooks.
+ * Generates template entry points for the pai-unified plugin.
+ *
+ * @since v0.9.6
+ */
+function discoverHooks(source: string, verbose: boolean): {
+  hooks: Array<{
+    name: string;
+    path: string;
+    event: string;
+    templateCode: string;
+  }>;
+  warnings: string[];
+} {
+  const warnings: string[] = [];
+  const hooks: Array<{
+    name: string;
+    path: string;
+    event: string;
+    templateCode: string;
+  }> = [];
+
+  const hooksDir = join(source, "hooks");
+
+  if (!existsSync(hooksDir)) {
+    return { hooks, warnings };
+  }
+
+  // Event mapping from PAI hook names to OpenCode plugin events
+  const HOOK_TO_EVENT: Record<string, string> = {
+    "session-start": "experimental.chat.system.transform",
+    "initialize-session": "experimental.chat.system.transform",
+    "load-core-context": "experimental.chat.system.transform",
+    "security-validator": "tool.execute.before",
+    "pre-tool-use": "tool.execute.before",
+    "post-tool-use": "tool.execute.after",
+    "user-prompt-submit": "chat.message",
+    "capture-all-events": "event",
+    "stop": "event",
+    "stop-hook": "event",
+  };
+
+  const hookFiles = readdirSync(hooksDir).filter(
+    f => f.endsWith(".ts") || f.endsWith(".js")
+  );
+
+  for (const hookFile of hookFiles) {
+    const hookName = hookFile.replace(/\.(ts|js)$/, "");
+    const hookPath = join(hooksDir, hookFile);
+
+    // Try to determine event from hook name
+    let event = "event"; // Default fallback
+    for (const [pattern, mappedEvent] of Object.entries(HOOK_TO_EVENT)) {
+      if (hookName.toLowerCase().includes(pattern.replace(/-/g, ""))) {
+        event = mappedEvent;
+        break;
+      }
+    }
+
+    // Generate template code snippet
+    const templateCode = `
+// Template for ${hookName} hook
+// Original: hooks/${hookFile}
+// Event: ${event}
+"${event}": async (input, output) => {
+  // TODO: Migrate logic from ${hookFile}
+  // Key differences:
+  // - Args are in output.args (not input.args)
+  // - Block by throwing Error (not exit code 2)
+  // - Use fileLog() for logging (not console.log)
+
+  fileLog("${hookName}", "Event received");
+
+  // Original hook logic goes here
+},`;
+
+    hooks.push({
+      name: hookName,
+      path: hookPath,
+      event,
+      templateCode,
+    });
+
+    log(`  Found hook: ${hookFile} → ${event}`, verbose);
+  }
+
+  return { hooks, warnings };
+}
+
+/**
+ * Check if file is a system file and show validation gate if needed
+ */
+function checkValidationGate(
+  sourcePath: string,
+  targetPath: string,
+  manifest: MigrationManifest,
+  skipGates: boolean,
+  verbose: boolean
+): "overwrite" | "keep" | "skip" {
+  const relativePath = relative(process.cwd(), targetPath);
+  const systemFile = isSystemFile(relativePath);
+
+  if (!systemFile) {
+    return "overwrite"; // Not a system file, proceed normally
+  }
+
+  // Auto-approve if --skip-gates
+  if (skipGates) {
+    log(`  [AUTO] Validation gate skipped for: ${relativePath}`, verbose);
+    addValidationGateResult(manifest, relativePath, "overwrite");
+    return "overwrite";
+  }
+
+  // If target doesn't exist yet, no conflict
+  if (!existsSync(targetPath)) {
+    return "overwrite";
+  }
+
+  // Compare files and show validation gate
+  const comparison = compareFiles(sourcePath, targetPath);
+
+  log(formatValidationGate(comparison), true, true);
+
+  // For now, auto-approve based on recommendation
+  // In future: implement interactive prompt
+  const choice = comparison.recommendation === "keep" ? "keep" : "overwrite";
+  addValidationGateResult(manifest, relativePath, choice);
+
+  return choice;
+}
+
+/**
  * Post-conversion validation
  *
  * Scans target directory for remaining .claude references.
@@ -872,7 +1037,7 @@ ${agentInvocationInfo}
 - \`docs/EVENT-MAPPING.md\` - Hook → Event mapping
 
 ---
-*Generated by pai-to-opencode-converter v0.9.5*
+*Generated by pai-to-opencode-converter v0.9.6*
 `;
 
   const reportPath = join(target, "MIGRATION-REPORT.md");
@@ -899,7 +1064,7 @@ async function main(): Promise<void> {
 
   console.log(`
 ╭──────────────────────────────────────────╮
-│  PAI → OpenCode Converter v0.9.5        │
+│  PAI → OpenCode Converter v0.9.6        │
 ╰──────────────────────────────────────────╯
 `);
 
@@ -925,6 +1090,15 @@ async function main(): Promise<void> {
     errors: [],
     manualRequired: [],
   };
+
+  // Initialize migration manifest
+  const manifest = createManifest(args.source);
+  manifest.source = detectSource(args.source);
+
+  log(`\n📦 Source detection:`, args.verbose, true);
+  log(`  Hooks: ${manifest.source.detected.hooks.length}`, args.verbose, true);
+  log(`  Skills: ${manifest.source.detected.skills.length}`, args.verbose, true);
+  log(`  Custom Skills: ${manifest.source.detected.customizations.customSkills.join(", ") || "none"}`, args.verbose, true);
 
   // Create backup if requested
   if (args.backup && existsSync(args.target) && !args.dryRun) {
@@ -987,6 +1161,37 @@ async function main(): Promise<void> {
         `Post-conversion validation found ${validationResult.remainingReferences.length} remaining .claude reference(s). ` +
         `See MIGRATION-REPORT.md for details.`
       );
+    }
+  }
+
+  // Write migration manifest (skip in dry-run)
+  if (!args.dryRun) {
+    writeManifest(manifest, args.target);
+  } else {
+    console.log("\n📄 Migration manifest would be written to: " + join(args.target, "MIGRATION-MANIFEST.json"));
+    console.log(getManifestSummary(manifest));
+  }
+
+  // Auto-run MigrationValidator unless skipped
+  if (!args.skipValidation && !args.dryRun) {
+    console.log("\n🔍 Running MigrationValidator...");
+    try {
+      const { spawn } = await import("child_process");
+      const manifestPath = join(args.target, "MIGRATION-MANIFEST.json");
+      const validatorProcess = spawn("bun", [
+        "run",
+        join(dirname(import.meta.path), "MigrationValidator.ts"),
+        "--manifest", manifestPath,
+        "--target", args.target,
+        "--skip-llm", // Skip LLM checks by default for speed
+        args.verbose ? "--verbose" : "",
+      ].filter(Boolean), {
+        stdio: "inherit",
+      });
+
+      await new Promise((resolve) => validatorProcess.on("close", resolve));
+    } catch (error) {
+      console.warn("⚠️ MigrationValidator failed:", error);
     }
   }
 

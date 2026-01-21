@@ -1,14 +1,27 @@
-# Fresh Install Test - Session 3
+# Fresh Install Test - v0.9.7
 
 **Zweck:** Validierung dass PAI-OpenCode auf einem sauberen System funktioniert.
-**User:** `opencode` (existierender Test-User)
-**Datum:** 2026-01-21
+**User:** `opencode` (existierender Test-User) oder neuer User
+**Version:** v0.9.7 (Two-Layer Migration)
+**Datum:** 2026-01-22
+
+---
+
+## Änderungen gegenüber v0.9.5
+
+| Feature | v0.9.5 | v0.9.7 |
+|---------|--------|--------|
+| Converter | Path Translation | Path + Architecture Translation |
+| Validation Gate | ❌ | ✅ System file risk analysis |
+| MigrationValidator | ❌ | ✅ 12+12+3 validation checks |
+| Model-Provider Config | ❌ | ✅ Sen/Anthropic/OpenAI |
+| Manifest | ❌ | ✅ MIGRATION-MANIFEST.json |
 
 ---
 
 ## Step 0: Clean Slate (Alles löschen)
 
-**WICHTIG:** Als `opencode` User ausführen!
+**WICHTIG:** Als Test-User ausführen!
 
 ```bash
 # 1. OpenCode Data löschen
@@ -42,9 +55,9 @@ bun --version
 opencode --version
 # Erwartet: opencode version X.Y.Z
 
-# API Key gesetzt?
+# API Key gesetzt? (falls Anthropic/OpenAI statt Sen)
 echo $ANTHROPIC_API_KEY | head -c 20
-# Erwartet: sk-ant-api03-...
+# Erwartet: sk-ant-api03-... (optional - Sen ist kostenlos)
 ```
 
 **Falls nicht vorhanden:**
@@ -57,7 +70,7 @@ source ~/.zshrc
 go install github.com/anomalyco/opencode@latest
 export PATH="$PATH:$(go env GOPATH)/bin"
 
-# API Key setzen (in ~/.zshrc)
+# API Key setzen (optional, nur für Anthropic/OpenAI)
 export ANTHROPIC_API_KEY="sk-ant-api03-..."
 ```
 
@@ -75,7 +88,7 @@ bun install
 **Verify:**
 ```bash
 ls -la .opencode/
-# Sollte: skills/, MEMORY/, plugin/, etc. zeigen
+# Sollte: skills/, MEMORY/, plugins/, etc. zeigen
 
 ls -la opencode.json
 # Sollte: opencode.json im Root existieren
@@ -83,9 +96,80 @@ ls -la opencode.json
 
 ---
 
-## Step 3: OpenCode starten
+## Step 3: Converter testen (NEU in v0.9.7)
+
+### 3a: Converter Version prüfen
 
 ```bash
+bun Tools/pai-to-opencode-converter.ts --help | head -5
+```
+
+**Erwartet:** `PAI to OpenCode Converter v0.9.7`
+
+**Status:** [ ] PASS / [ ] FAIL
+
+---
+
+### 3b: Converter Dry-Run
+
+```bash
+bun Tools/pai-to-opencode-converter.ts \
+  --source ~/.claude \
+  --target /tmp/test-opencode \
+  --dry-run
+```
+
+**Erwartet:**
+- Source detection: Hooks, Skills, Custom Skills werden erkannt
+- "Migration manifest would be written to..."
+- "This was a DRY RUN - no files were modified."
+
+**Status:** [ ] PASS / [ ] FAIL
+
+---
+
+### 3c: MigrationValidator testen
+
+```bash
+# Erst echte Konvertierung durchführen
+bun Tools/pai-to-opencode-converter.ts \
+  --source ~/.claude \
+  --target /tmp/test-opencode \
+  --skip-validation
+
+# Dann Validator separat testen
+bun Tools/MigrationValidator.ts \
+  --manifest /tmp/test-opencode/MIGRATION-MANIFEST.json \
+  --target /tmp/test-opencode \
+  --skip-llm \
+  --verbose
+```
+
+**Erwartet:**
+- Phase A: 12 deterministic checks (most should pass)
+- Phase C: Self-tests
+- Summary mit pass/fail counts
+
+**Status:** [ ] PASS / [ ] FAIL
+
+---
+
+### 3d: MIGRATION-MANIFEST.json prüfen
+
+```bash
+cat /tmp/test-opencode/MIGRATION-MANIFEST.json | head -30
+```
+
+**Erwartet:** JSON mit version, timestamp, source.detected (hooks, skills, etc.)
+
+**Status:** [ ] PASS / [ ] FAIL
+
+---
+
+## Step 4: OpenCode starten
+
+```bash
+cd ~/pai-opencode
 opencode
 ```
 
@@ -128,10 +212,10 @@ Who are you? What is your name?
 
 **In OpenCode eingeben:**
 ```
-@intern What is TypeScript in one sentence?
+Use the Task tool to spawn an Intern agent to explain what TypeScript is in one sentence.
 ```
 
-**Erwartet:** Intern Agent antwortet mit kurzer TypeScript-Erklärung.
+**Erwartet:** Task tool wird verwendet, Intern Agent antwortet.
 
 **Status:** [ ] PASS / [ ] FAIL
 
@@ -176,53 +260,73 @@ sessions/
 
 ---
 
-## v0.9.5 Spezifische Tests
+## v0.9.7 Spezifische Tests
 
-### T1: PentesterContext.md existiert
+### T1: Validation Gate Library existiert
 
 ```bash
-cat ~/pai-opencode/.opencode/skills/Agents/PentesterContext.md | head -10
+ls -la ~/pai-opencode/Tools/lib/
 ```
 
-**Erwartet:** Pentester Agent Context file mit Model: sonnet
+**Erwartet:**
+- `validation-gate.ts`
+- `migration-manifest.ts`
 
 **Status:** [ ] PASS / [ ] FAIL
 
 ---
 
-### T2: AgentProfileLoader.ts funktioniert
+### T2: Model-Config Library existiert
+
+```bash
+cat ~/pai-opencode/.opencode/plugins/lib/model-config.ts | head -20
+```
+
+**Erwartet:** TypeScript mit `PaiModelConfig` interface
+
+**Status:** [ ] PASS / [ ] FAIL
+
+---
+
+### T3: Hook Discovery funktioniert
 
 ```bash
 cd ~/pai-opencode
-bun .opencode/skills/Agents/Tools/AgentProfileLoader.ts
+bun -e "
+const { discoverHooks } = await import('./Tools/pai-to-opencode-converter.ts');
+// Note: discoverHooks is internal, test via converter dry-run output
+console.log('Hook discovery test - check dry-run output for hook count');
+"
 ```
 
-**Erwartet:** Liste verfügbarer Profile (Architect, Engineer, etc.)
+**Alternative:** Check dry-run output from Step 3b zeigt "Hooks: XX"
 
 **Status:** [ ] PASS / [ ] FAIL
 
 ---
 
-### T3: Keine Images Skill Referenzen
+### T4: Keine .claude Pfade im konvertierten Output
 
 ```bash
-grep -r "Images/Workflows" ~/pai-opencode/.opencode/skills/Art/
+grep -r "\.claude/" /tmp/test-opencode/ 2>/dev/null | head -10
 ```
 
-**Erwartet:** Keine Treffer (0 results)
+**Erwartet:** Keine Treffer (oder nur in Migration-Dokumentation)
 
 **Status:** [ ] PASS / [ ] FAIL
 
 ---
 
-### T4: Converter v0.9.5
+### T5: plugins/ Directory statt hooks/
 
 ```bash
-cd ~/pai-opencode
-bun Tools/pai-to-opencode-converter.ts --help | head -5
+ls ~/pai-opencode/.opencode/plugins/
+ls ~/pai-opencode/.opencode/hooks/ 2>/dev/null || echo "OK: hooks/ nicht vorhanden"
 ```
 
-**Erwartet:** `PAI to OpenCode Converter v0.9.5`
+**Erwartet:**
+- plugins/ existiert mit pai-unified.ts
+- hooks/ existiert NICHT
 
 **Status:** [ ] PASS / [ ] FAIL
 
@@ -232,34 +336,49 @@ bun Tools/pai-to-opencode-converter.ts --help | head -5
 
 | Test | Status |
 |------|--------|
+| **Converter Tests** | |
+| 3a: Converter v0.9.7 | |
+| 3b: Converter Dry-Run | |
+| 3c: MigrationValidator | |
+| 3d: MIGRATION-MANIFEST | |
+| **Quick Tests** | |
 | Q1: Skills erkannt | |
 | Q2: CORE Context | |
 | Q3: Agent Delegation | |
 | Q4: Security Blocking | |
 | Q5: MEMORY Directories | |
-| T1: PentesterContext.md | |
-| T2: AgentProfileLoader.ts | |
-| T3: Keine Images Refs | |
-| T4: Converter v0.9.5 | |
+| **v0.9.7 Tests** | |
+| T1: Validation Gate Lib | |
+| T2: Model-Config Lib | |
+| T3: Hook Discovery | |
+| T4: Keine .claude Pfade | |
+| T5: plugins/ statt hooks/ | |
 
-**Gesamtergebnis:** ___ / 9 Tests bestanden
+**Gesamtergebnis:** ___ / 14 Tests bestanden
 
 ---
 
 ## Bei Fehlern
 
 1. **Debug Log prüfen:** `cat /tmp/pai-opencode-debug.log`
-2. **Plugin Status:** Prüfen ob plugin/pai-unified.ts vorhanden
-3. **Issue erstellen:** Mit Fehlerbeschreibung und Steps to Reproduce
+2. **Plugin Status:** Prüfen ob `plugins/pai-unified.ts` vorhanden
+3. **Manifest prüfen:** `cat MIGRATION-MANIFEST.json`
+4. **Validator manuell:** `bun Tools/MigrationValidator.ts --target . --skip-llm --verbose`
+5. **Issue erstellen:** Mit Fehlerbeschreibung und Steps to Reproduce
 
 ---
 
 ## Nach erfolgreichen Tests
 
 Wenn alle Tests PASS:
-1. Session 3 ist abgeschlossen
-2. Weiter zu Release Preparation (README aktualisieren, Tag erstellen, etc.)
+1. Fresh Install Test ist abgeschlossen
+2. Weiter zu v1.0 Release:
+   - Version auf v1.0.0 bumpen
+   - README.md finalisieren
+   - GitHub Release erstellen
+   - Announce
 
 ---
 
-*Erstellt für PAI-OpenCode v0.9.5 Fresh Install Validation*
+*Erstellt für PAI-OpenCode v0.9.7 Fresh Install Validation*
+*Two-Layer Migration: Converter + MigrationValidator*

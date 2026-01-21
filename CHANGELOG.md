@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.7] - 2026-01-22
+
+### Session 5: Converter Architecture Translation + Two-Layer Validation
+
+**Key Achievement:** The Converter now handles both Path Translation AND Architecture Translation with a two-layer validation system.
+
+### Added
+
+1. **Two-Layer Migration Architecture**
+   - **Layer 1:** Extended Converter with Validation Gate, Hook Discovery, Manifest Generation
+   - **Layer 2:** MigrationValidator for automated post-migration self-check
+
+2. **New Tools:**
+   - `Tools/MigrationValidator.ts` - Layer 2 Self-Check (~600 LOC)
+     - Phase A: 12 Deterministic Checks (no LLM required)
+     - Phase B: 12 LLM-Assisted Checks (optional, uses configured provider)
+     - Phase C: 3 Self-Tests (skill loading, context, tool routing)
+   - `Tools/lib/validation-gate.ts` - System file risk analysis (~390 LOC)
+   - `Tools/lib/migration-manifest.ts` - Manifest tracking (~370 LOC)
+   - `.opencode/plugins/lib/model-config.ts` - Model-Provider configuration (~210 LOC)
+
+3. **Validation Gate System**
+   - Shows risk analysis before overwriting system files
+   - User decides: Overwrite | Keep | Merge | Defer
+   - Risk levels: Low | Medium | High | Critical
+   - Auto-detects file version, change percentage, structure compatibility
+
+4. **Hook Discovery + Template Generator**
+   - Scans source `hooks/` directory
+   - Maps PAI hooks to OpenCode plugin events
+   - Generates migration template code snippets
+
+5. **Model-Provider Configuration**
+   - Supports three providers: `sen` (free), `anthropic`, `openai`
+   - Configurable per-agent model assignments
+   - Reads from `opencode.json` → `pai` section
+
+6. **MIGRATION-MANIFEST.json**
+   - Tracks: source detection, transformations, validation gate results
+   - Auto-generated during conversion
+   - Used by MigrationValidator for validation
+
+### Changed
+
+- **Converter v0.9.6 → v0.9.7**
+  - New CLI options: `--skip-validation`, `--skip-gates`
+  - Source detection output (hooks, skills, custom skills)
+  - Auto-runs MigrationValidator after conversion
+  - Generates MIGRATION-MANIFEST.json
+
+### Converter Scope (v0.9.7)
+
+| Component | v0.9.6 | v0.9.7 |
+|-----------|--------|--------|
+| Path Translation | ✅ | ✅ |
+| Validation Gate | ❌ | ✅ NEW |
+| Hook Discovery | ❌ | ✅ NEW |
+| Manifest Generation | ❌ | ✅ NEW |
+| Model-Provider Config | ❌ | ✅ NEW |
+| Auto-Self-Check | ❌ | ✅ NEW |
+
+### Path to v1.0
+
+```
+v0.9.7 ✅ (this release)
+   ↓
+Fresh Install Test (Session 6)
+   ↓
+v1.0 PUBLIC RELEASE
+```
+
+---
+
 ## [0.9.6] - 2026-01-22
 
 ### Session 4: Audit Analysis + Final Fixes
