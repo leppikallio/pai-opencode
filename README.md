@@ -66,7 +66,9 @@ We're not just copying files. We're documenting every adaptation, solving platfo
 
 ## Project Status
 
-**Current Version:** v0.9.5 - P1 Fixes + Converter Expansion ✅ (v1.0 Next)
+**Current Version:** v0.9.5 - P1 Fixes + Converter Expansion ✅
+
+**v1.0 Status:** ⚠️ **BLOCKED** - Deep audit completed (2026-01-21). Root cause identified: converter migrates documentation but not implementation. System integrity at 69%. Estimated fix time: ~2-3 sessions (similar to previous iteration).
 
 **Development Progress:**
 
@@ -91,9 +93,9 @@ We're not just copying files. We're documenting every adaptation, solving platfo
 
 **Recent Achievements:**
 - **v0.9.5:** P1 Fixes + Converter v0.9.5 - AgentProfileLoader, PentesterContext, Tools/ translation
+- **v0.9.5 Deep Audit:** Root cause identified - converter scope gaps (hooks/, plugins/ not translated)
 - **v0.9.4:** P0 Critical Fixes - 42 issues from fresh install audit fixed
 - **v0.9.3:** Plural Directories + chat.message Hook - Aligned with PAI vanilla naming
-- **v0.9.2:** Re-Audit - Repository corrections, NPM update
 
 ### Milestone Highlights
 
