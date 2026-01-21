@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.6] - 2026-01-22
+
+### Session 4: Audit Analysis + Final Fixes
+
+**Key Insight:** 1600 LOC "critical" audit was 90% FALSE POSITIVES due to measuring PAI architecture against OpenCode (different architecture).
+
+### Fixed
+
+1. **Security Regex Flaw** - `types.ts` line 135
+   - Before: `/rm\s+-rf\s+\/(?!tmp)/` - allowed `/tmp` deletion
+   - After: `/rm\s+-rf\s+\//` - blocks ALL root-level `rm -rf`
+
+2. **Path References (18 fixes in 8 files)**
+   - `~/.claude/` → `~/.opencode/` in:
+     - VerificationMethods.yaml (4)
+     - Capabilities.yaml (2)
+     - Traits.yaml (2)
+     - ZSHRC (4)
+     - kitty.conf (2)
+     - TestCase.hbs (2)
+     - Comparison.hbs (1)
+     - page.tsx (1)
+
+3. **Self-Check Banner.ts**
+   - Before: Searched for `hooks/` directory (PAI architecture)
+   - After: Searches for `plugins/` directory (OpenCode architecture)
+
+4. **ESM Module Fix** - `file-logger.ts`
+   - Replaced `require("fs")` with proper ESM import
+
+### Documented
+
+- **FALSE POSITIVES from Audit:**
+  - "Hook System: 0%" → OpenCode uses Plugins, not Hooks
+  - "Voice Server missing" → External service by design
+  - "Observability missing" → Optional monitoring
+  - "Delegation inactive" → Works via `Task({subagent_type})`
+
+### Path to v1.0
+
+```
+v0.9.6 ✅ (this release)
+   ↓
+Fresh Install Test
+   ↓
+v1.0 PUBLIC RELEASE
+```
+
+---
+
 ## [0.9.5] - 2026-01-21
 
 ### P1 Repository Fixes + Converter Expansion
