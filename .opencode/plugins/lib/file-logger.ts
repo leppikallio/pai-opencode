@@ -9,7 +9,7 @@
  * @module file-logger
  */
 
-import { appendFileSync, mkdirSync, existsSync } from "fs";
+import { appendFileSync, mkdirSync, existsSync, writeFileSync } from "fs";
 import { dirname } from "path";
 
 const LOG_PATH = "/tmp/pai-opencode-debug.log";
@@ -72,7 +72,6 @@ export function getLogPath(): string {
  */
 export function clearLog(): void {
   try {
-    const { writeFileSync } = require("fs");
     writeFileSync(LOG_PATH, "");
   } catch {
     // Silent fail

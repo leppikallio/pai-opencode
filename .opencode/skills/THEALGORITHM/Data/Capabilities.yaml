@@ -162,9 +162,9 @@ execution:
 agent_composition:
   factory:
     tool: AgentFactory
-    location: ~/.claude/skills/Agents/Tools/AgentFactory.ts
+    location: ~/.opencode/skills/Agents/Tools/AgentFactory.ts
     effort_min: STANDARD
-  traits_file: ~/.claude/skills/Agents/Data/Traits.yaml
+  traits_file: ~/.opencode/skills/Agents/Data/Traits.yaml
   use_when: "Need custom agent with specific trait combination"
 
 # === PARALLEL EXECUTION ===

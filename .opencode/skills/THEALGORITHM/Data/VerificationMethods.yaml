@@ -11,8 +11,8 @@ verification_methods:
       - "Web application functionality"
       - "User-facing features"
     command_examples:
-      - "bun run ~/.claude/skills/Browser/Tools/Browse.ts screenshot <url>"
-      - "bun run ~/.claude/skills/Browser/Tools/Browse.ts verify <url> <selector>"
+      - "bun run ~/.opencode/skills/Browser/Tools/Browse.ts screenshot <url>"
+      - "bun run ~/.opencode/skills/Browser/Tools/Browse.ts verify <url> <selector>"
     success_criteria_examples:
       - "Button visible and clickable"
       - "Page loads without console errors"
@@ -140,8 +140,8 @@ verification_methods:
       - "Capability verification"
       - "Multi-grader assessment"
     command_examples:
-      - "bun run ~/.claude/skills/Evals/Tools/AlgorithmBridge.ts --suite regression-core"
-      - "bun run ~/.claude/skills/Evals/Tools/AlgorithmBridge.ts --suite capability-auth --isc-row 3"
+      - "bun run ~/.opencode/skills/Evals/Tools/AlgorithmBridge.ts --suite regression-core"
+      - "bun run ~/.opencode/skills/Evals/Tools/AlgorithmBridge.ts --suite capability-auth --isc-row 3"
     success_criteria_examples:
       - "Suite pass rate >= threshold"
       - "All regression tests pass"
