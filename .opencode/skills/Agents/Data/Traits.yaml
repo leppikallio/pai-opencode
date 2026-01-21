@@ -5,8 +5,8 @@
 # Agents are composed by combining: expertise + personality + approach
 #
 # Usage:
-#   bun run ~/.claude/Skills/Agents/Tools/AgentFactory.ts --task "Review security architecture"
-#   bun run ~/.claude/Skills/Agents/Tools/AgentFactory.ts --traits "security,skeptical,thorough"
+#   bun run ~/.opencode/Skills/Agents/Tools/AgentFactory.ts --task "Review security architecture"
+#   bun run ~/.opencode/Skills/Agents/Tools/AgentFactory.ts --traits "security,skeptical,thorough"
 
 # ==============================================================================
 # EXPERTISE AREAS - Domain knowledge and specialization

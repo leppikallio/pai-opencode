@@ -136,7 +136,7 @@ function getStats(): SystemStats {
   } catch {}
 
   try {
-    for (const e of readdirSync(join(CLAUDE_DIR, "hooks"), { withFileTypes: true })) {
+    for (const e of readdirSync(join(CLAUDE_DIR, "plugins"), { withFileTypes: true })) {
       if (e.isFile() && e.name.endsWith(".ts")) hooks++;
     }
   } catch {}
