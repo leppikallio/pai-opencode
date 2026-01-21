@@ -202,25 +202,47 @@ PAI-OpenCode makes **6 key technical decisions** documented in our Constitution:
 
 ## Getting Started
 
-### Prerequisites
+### Step 1: Install Prerequisites
 
-- **OpenCode** installed ([github.com/anomalyco/opencode](https://github.com/anomalyco/opencode))
-- **Bun** runtime ([bun.sh](https://bun.sh))
-- **ANTHROPIC_API_KEY** environment variable set
+**Install Bun** (JavaScript runtime):
+```bash
+curl -fsSL https://bun.sh/install | bash
+source ~/.zshrc  # or ~/.bashrc
+```
 
-### Installation (Clone = Ready)
+**Install OpenCode** (choose one):
+```bash
+# Option A: Via Go (recommended)
+go install github.com/anomalyco/opencode@latest
 
-The repository IS a complete PAI 2.3 installation. Just clone and run:
+# Option B: Build from source
+git clone https://github.com/anomalyco/opencode.git
+cd opencode && go build -o opencode . && sudo mv opencode /usr/local/bin/
+
+# Option C: Download binary from releases
+# https://github.com/anomalyco/opencode/releases
+```
+
+**Set your Anthropic API Key:**
+```bash
+# Add to ~/.zshrc or ~/.bashrc:
+export ANTHROPIC_API_KEY="sk-ant-api03-your-key-here"
+
+# Then reload:
+source ~/.zshrc
+```
+
+### Step 2: Install PAI-OpenCode
 
 ```bash
-# 1. Clone the repository
+# Clone the repository
 git clone https://github.com/Steffen025/pai-opencode.git
 cd pai-opencode
 
-# 2. Install dependencies
+# Install dependencies
 bun install
 
-# 3. Start OpenCode with PAI
+# Start OpenCode with PAI
 opencode
 ```
 
@@ -229,12 +251,12 @@ That's it! PAI 2.3 is now running on OpenCode with:
 - 13 named agents (Intern, Engineer, Architect, Designer, Pentester, etc.)
 - Unified Plugin (security blocking, context injection)
 
-### Verify Installation
+### Step 3: Verify Installation
 
 In OpenCode, try these commands:
-- `/skills` - List available skills
-- `/agents` - List available agents
-- Ask: "What skills do you have?" - Should list PAI skills
+- `/agents` - Should show 13 agents
+- Ask: "Who are you?" - AI should identify as PAI
+- Try: `@intern What is TypeScript?` - Agent should respond
 
 ### For Existing PAI Users (Migration)
 
@@ -245,6 +267,37 @@ bun Tools/pai-to-opencode-converter.ts --source ~/.claude --target .opencode --d
 ```
 
 See [docs/CONVERTER.md](docs/CONVERTER.md) for detailed migration guide.
+
+### Troubleshooting
+
+**"opencode: command not found"**
+```bash
+# Check if Go bin is in PATH
+export PATH="$PATH:$(go env GOPATH)/bin"
+# Or check binary location
+which opencode
+```
+
+**"ANTHROPIC_API_KEY not set"**
+```bash
+# Verify the key is set
+echo $ANTHROPIC_API_KEY
+# Should show: sk-ant-api03-...
+```
+
+**Plugin doesn't load**
+```bash
+# Check the debug log
+cat /tmp/pai-opencode-debug.log
+# Should show: "PAI-OpenCode Plugin Loaded"
+```
+
+**TUI corruption or display issues**
+```bash
+# Reset terminal and restart
+reset
+opencode
+```
 
 ---
 
