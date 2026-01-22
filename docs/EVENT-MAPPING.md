@@ -468,15 +468,15 @@ All event payloads, behaviors, and patterns documented here were verified throug
 
 ## References
 
-- **Research:** `~/.claude/history/projects/jeremy-2.0-opencode/research/`
-- **Specification:** `specs/spec.md`
+- **Hook Translation Guide:** `docs/HOOK-TO-PLUGIN-TRANSLATION.md` - Full migration guide with patterns
 - **Plugin Architecture:** `docs/PLUGIN-ARCHITECTURE.md`
+- **Plugin System Docs:** `.opencode/skills/CORE/SYSTEM/THEPLUGINSYSTEM.md`
 - **Official Docs:** https://opencode.ai/docs/plugins/
 - **Community Plugins:** https://github.com/ericc-ch/opencode-plugins
 
 ---
 
-**Last Updated:** 2026-01-18
-**Version:** 0.7.0
-**Status:** COMPLETE - Implementation Validated
+**Last Updated:** 2026-01-22
+**Version:** 0.9.8
+**Status:** COMPLETE - Implementation Validated + Migration Guide Added
 **Research Validation:** DeepWiki Analysis Complete + v0.7 Implementation Testing

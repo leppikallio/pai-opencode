@@ -335,5 +335,5 @@ bun run ~/.opencode/skills/CORE/Tools/LearningPatternSynthesis.ts --week
 
 ## Related Documentation
 
-- **Hook System:** `THEHOOKSYSTEM.md`
+- **Plugin System:** `THEPLUGINSYSTEM.md`
 - **Architecture:** `PAISYSTEMARCHITECTURE.md`

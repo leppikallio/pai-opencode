@@ -340,12 +340,14 @@ cat /tmp/pai-opencode-debug.log | grep "Plugin Loaded"
 
 ## References
 
-- **Test Results:** `.opencode/plugins/TEST-RESULTS-v0.7.md`
+- **Hook Translation Guide:** `docs/HOOK-TO-PLUGIN-TRANSLATION.md` - Claude Code → OpenCode migration
+- **Event Mapping:** `docs/EVENT-MAPPING.md` - Detailed event payloads
+- **Plugin System Docs:** `.opencode/skills/CORE/SYSTEM/THEPLUGINSYSTEM.md`
 - **Type Definitions:** `.opencode/plugins/adapters/types.ts`
 - **OpenCode Docs:** https://opencode.ai/docs/plugins/
 
 ---
 
-**Last Updated:** 2026-01-18
-**Version:** 0.7.0
+**Last Updated:** 2026-01-22
+**Version:** 0.9.8
 **Status:** COMPLETE - All 4 tests passing

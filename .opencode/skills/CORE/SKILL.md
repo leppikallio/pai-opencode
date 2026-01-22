@@ -104,8 +104,8 @@ The system is built on the Founding Principles, beginning with customization of 
 **Skill System** — Skills are the organizational unit for domain expertise in PAI. Each skill is self-activating (triggers on user intent), self-contained (packages context, workflows, tools), and composable. System skills use TitleCase naming; personal skills use _ALLCAPS prefix and are never shared publicly.
 → `SYSTEM/SKILLSYSTEM.md`
 
-**Hook System** — Hooks are TypeScript scripts that execute at lifecycle events (SessionStart, Stop, PreToolUse, etc.). They enable voice notifications, session capture, security validation, and observability. All hooks are configured in `settings.json` and read identity from the centralized identity module.
-→ `SYSTEM/THEHOOKSYSTEM.md`
+**Plugin System** — Plugins are TypeScript modules that execute at lifecycle events (SessionStart, Stop, PreToolUse, etc.). They enable context injection, security validation, session capture, and observability. All plugins are configured in `opencode.json` and follow OpenCode's plugin API.
+→ `SYSTEM/THEPLUGINSYSTEM.md`
 
 **Memory System** — Every session, insight, and decision is captured automatically to `$PAI_HOME/MEMORY/`. The system stores raw event logs (JSONL), session summaries, learning captures, and rating signals. Memory makes intelligence compound—without it, every session starts from zero.
 → `SYSTEM/MEMORYSYSTEM.md`
@@ -243,7 +243,7 @@ References below use:
 | CONTACTS | Contact directory with names, roles, relationships, and communication preferences | `USER/CONTACTS.md` |
 | STACK | Technology preferences including TypeScript, bun, Cloudflare, and approved libraries | `USER/TECHSTACKPREFERENCES.md` |
 | DEFINITIONS | Canonical definitions for terms like AGI, Human 3.0, and domain-specific concepts | `USER/DEFINITIONS.md` |
-| HOOKS | Hook lifecycle, configuration, and implementation patterns for system events | `SYSTEM/THEHOOKSYSTEM.md` |
+| PLUGINS | Plugin lifecycle, configuration, and implementation patterns for OpenCode events | `SYSTEM/THEPLUGINSYSTEM.md` |
 | COMPLEX | Architecture decisions, trade-offs, and merge conflicts requiring deep analysis | Enter /plan mode |
 
 ---

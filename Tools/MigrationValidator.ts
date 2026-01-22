@@ -416,7 +416,7 @@ Return ONLY "PASS" or "FAIL: <reason>"`,
     id: "LLM-002",
     name: "plugin_logic_review",
     agentPrompt: `Read .opencode/plugins/pai-unified.ts and verify:
-1. All lifecycle events are handled (SessionStart, PreToolUse, Stop)
+1. All lifecycle events are handled (experimental.chat.system.transform, tool.execute.before, event)
 2. No references to old .claude/ paths
 3. Imports are correct (using .opencode/ paths)
 4. Security validator is integrated
@@ -509,9 +509,9 @@ Return ONLY "PASS" or "FAIL: <reason>"`,
     id: "LLM-010",
     name: "event_coverage_review",
     agentPrompt: `Review .opencode/plugins/pai-unified.ts and verify all critical events are handled:
-1. SessionStart (initialize session, load CORE)
-2. PreToolUse (security validation)
-3. Stop (cleanup, session end)
+1. experimental.chat.system.transform (initialize session, load CORE)
+2. tool.execute.before (security validation)
+3. event (cleanup, session end)
 4. All events are logged
 
 Return ONLY "PASS" or "FAIL: <reason>"`,

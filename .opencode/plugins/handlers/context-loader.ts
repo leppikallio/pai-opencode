@@ -93,7 +93,7 @@ export async function loadContext(): Promise<ContextResult> {
       const systemFiles = [
         "SkillSystem.md",
         "PAIAGENTSYSTEM.md",
-        "THEHOOKSYSTEM.md",
+        "THEPLUGINSYSTEM.md",
       ];
 
       for (const file of systemFiles) {
