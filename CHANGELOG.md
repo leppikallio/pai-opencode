@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.9] - 2026-01-22
+
+### Audit Fixes from 12-Agent System-Integrity-Check
+
+**Key Achievement:** All critical issues identified by the parallel 12-agent audit system resolved.
+
+### Fixed
+
+1. **Security Validator Case-Sensitivity Bug** (`handlers/security-validator.ts:147`)
+   - Before: `if (input.tool === "Write")` - only matched exact case
+   - After: `if (input.tool.toLowerCase() === "write")` - case-insensitive
+
+2. **CORE/SKILL.md Outdated References**
+   - `hooks/` → `plugins/` terminology update
+   - Removed ghost directory references (VoiceServer/, Observability/)
+   - Fixed Inference.ts path: `~/.opencode/tools/` → `~/.opencode/skills/CORE/Tools/`
+
+3. **Memory README.md Directory Names**
+   - Corrected to match actual structure (LEARNING/, Signals/, History/, etc.)
+
+4. **Plugin Configuration**
+   - Added `plugins` array to `opencode.json` pointing to `pai-unified.ts`
+
+### Added
+
+- `skills/AnnualReports/Data/sources.json` - Initialize data structure
+- `skills/AnnualReports/Reports/.gitkeep` - Directory placeholder
+
+---
+
+## [0.9.8] - 2026-01-22
+
+### Documentation Consolidation: THEHOOKSYSTEM → THEPLUGINSYSTEM
+
+**Key Achievement:** Complete documentation migration from Claude Code terminology (hooks) to OpenCode terminology (plugins).
+
+### Changed
+
+1. **THEHOOKSYSTEM.md → THEPLUGINSYSTEM.md**
+   - Full document rename and content migration
+   - All references updated throughout codebase
+
+2. **Constitution v4.0.0 → v4.1.0**
+   - Founding Principle #13: Hook System → Plugin System
+   - Architecture documentation aligned with OpenCode
+
+3. **SYSTEM/USER Two-Tier Architecture**
+   - Established separation between default configuration and user customizations
+   - Clear upgrade path for system files vs. user-owned files
+
+### Documentation
+
+- Updated all skill files referencing hook system
+- CORE/SKILL.md context loading section updated
+- Cross-references validated
+
+---
+
 ## [0.9.7] - 2026-01-22
 
 ### Session 5: Converter Architecture Translation + Two-Layer Validation

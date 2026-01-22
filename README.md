@@ -1,6 +1,6 @@
 # PAI-OpenCode
 
-[![Status](https://img.shields.io/badge/status-v0.9.5%20Latest-blue)](https://github.com/Steffen025/pai-opencode)
+[![Status](https://img.shields.io/badge/status-v0.9.9%20Latest-blue)](https://github.com/Steffen025/pai-opencode)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![PAI Version](https://img.shields.io/badge/PAI-2.3-green)](https://github.com/danielmiessler/PAI)
 
@@ -66,9 +66,9 @@ We're not just copying files. We're documenting every adaptation, solving platfo
 
 ## Project Status
 
-**Current Version:** v0.9.5 - P1 Fixes + Converter Expansion ✅
+**Current Version:** v0.9.9 - Audit Fixes + Documentation Consolidation ✅
 
-**v1.0 Status:** ⚠️ **BLOCKED** - Deep audit completed (2026-01-21). Root cause identified: converter migrates documentation but not implementation. System integrity at 69%. Estimated fix time: ~2-3 sessions (similar to previous iteration).
+**v1.0 Status:** 🚀 **APPROACHING** - System integrity verified. Two-layer validation architecture complete. Final documentation polish in progress. TUI branding (ASCII art) remaining for v1.0.
 
 **Development Progress:**
 
@@ -89,13 +89,17 @@ We're not just copying files. We're documenting every adaptation, solving platfo
 | v0.9.3 | Plural Directories + chat.message Hook | ✅ DONE |
 | v0.9.4 | P0 Critical Fixes (Fresh Install Audit) | ✅ DONE |
 | v0.9.5 | P1 Fixes + Converter v0.9.5 | ✅ DONE |
+| v0.9.6 | Security Regex Fix + Path Reference Audit (18 fixes) | ✅ DONE |
+| v0.9.7 | **Two-Layer Migration** (Converter v0.9.7 + MigrationValidator) | ✅ DONE |
+| v0.9.8 | Documentation Consolidation (THEHOOKSYSTEM → THEPLUGINSYSTEM) | ✅ DONE |
+| v0.9.9 | **12-Agent Audit Fixes** (Security validator, CORE paths, Memory README) | ✅ DONE |
 | v1.0 | **PUBLIC RELEASE** (Community-ready vanilla PAI 2.3) | ⏳ NEXT |
 
 **Recent Achievements:**
-- **v0.9.5:** P1 Fixes + Converter v0.9.5 - AgentProfileLoader, PentesterContext, Tools/ translation
-- **v0.9.5 Deep Audit:** Root cause identified - converter scope gaps (hooks/, plugins/ not translated)
-- **v0.9.4:** P0 Critical Fixes - 42 issues from fresh install audit fixed
-- **v0.9.3:** Plural Directories + chat.message Hook - Aligned with PAI vanilla naming
+- **v0.9.9:** 12-Agent System-Integrity-Check audit fixes - Security validator, CORE paths, Memory README
+- **v0.9.8:** Documentation consolidation - THEHOOKSYSTEM → THEPLUGINSYSTEM migration complete
+- **v0.9.7:** Two-Layer Migration Architecture - Converter + MigrationValidator with Validation Gate
+- **v0.9.6:** Security regex fix + 18 path reference fixes across 8 files
 
 ### Milestone Highlights
 
