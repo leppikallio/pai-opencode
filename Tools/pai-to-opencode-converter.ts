@@ -193,7 +193,7 @@ type MigrationMode = "full" | "selective";
 function parseCliArgs(): {
   source: string;
   target: string;
-  mode: MigrationMode;
+  mode: MigrationMode | undefined;  // undefined = ask user interactively
   dryRun: boolean;
   backup: boolean;
   skipValidation: boolean;
@@ -206,7 +206,7 @@ function parseCliArgs(): {
     options: {
       source: { type: "string", default: "~/.claude" },
       target: { type: "string", default: ".opencode" },
-      mode: { type: "string", default: "full" },
+      mode: { type: "string" },  // No default - undefined means ask user
       "dry-run": { type: "boolean", default: false },
       backup: { type: "boolean", default: true },
       "no-backup": { type: "boolean", default: false },
@@ -226,9 +226,9 @@ function parseCliArgs(): {
     return p;
   };
 
-  // Validate mode
-  const mode = values.mode as string;
-  if (mode !== "full" && mode !== "selective") {
+  // Validate mode if provided
+  const mode = values.mode as string | undefined;
+  if (mode !== undefined && mode !== "full" && mode !== "selective") {
     console.error(`❌ Invalid mode: ${mode}. Must be "full" or "selective".`);
     process.exit(1);
   }
@@ -236,7 +236,7 @@ function parseCliArgs(): {
   return {
     source: expandPath(values.source as string),
     target: expandPath(values.target as string),
-    mode: mode as MigrationMode,
+    mode: mode as MigrationMode | undefined,
     dryRun: values["dry-run"] as boolean,
     backup: (values.backup as boolean) && !(values["no-backup"] as boolean),
     skipValidation: values["skip-validation"] as boolean,
@@ -244,6 +244,85 @@ function parseCliArgs(): {
     verbose: values.verbose as boolean,
     help: values.help as boolean,
   };
+}
+
+// ============================================================================
+// Interactive Mode Selection Wizard
+// ============================================================================
+
+/**
+ * Prompt user to select migration mode interactively
+ * Shows recommendations based on detected PAI version
+ */
+async function promptMigrationMode(versionResult: VersionDetectionResult): Promise<MigrationMode> {
+  const readline = await import("readline");
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const question = (prompt: string): Promise<string> => {
+    return new Promise((resolve) => {
+      rl.question(prompt, (answer) => {
+        resolve(answer.trim());
+      });
+    });
+  };
+
+  // Determine recommendation based on version
+  const supportsSelective = versionResult.version !== "1.x" && versionResult.version !== "unknown";
+  const recommendSelective = supportsSelective && versionResult.migrationSupport === "full";
+
+  console.log(`
+╭──────────────────────────────────────────────────────────────╮
+│  Migration Mode Selection                                    │
+╰──────────────────────────────────────────────────────────────╯
+
+Detected: PAI ${versionResult.version} (${versionResult.migrationSupport} support)
+
+Which migration mode would you like?
+`);
+
+  if (recommendSelective) {
+    console.log(`  [1] SELECTIVE ${"\x1b[32m(Recommended)\x1b[0m"}
+      ✓ Import only YOUR content (TELOS, MEMORY, custom skills)
+      ✓ Keep fresh OpenCode 2.3 architecture intact
+      ✓ Best for: Upgrading to a new version
+
+  [2] FULL
+      ✓ Copy everything as-is from source
+      ✓ Best for: Archiving or creating exact copies
+`);
+  } else {
+    console.log(`  [1] FULL ${"\x1b[32m(Recommended)\x1b[0m"}
+      ✓ Copy everything as-is from source
+      ✓ Best for: PAI ${versionResult.version} migrations
+
+  [2] SELECTIVE
+      ⚠️  May have limited support for PAI ${versionResult.version}
+      ✓ Import only USER content, skip SYSTEM files
+`);
+  }
+
+  let choice = "";
+  while (choice !== "1" && choice !== "2") {
+    choice = await question("Enter choice [1/2]: ");
+    if (choice === "") {
+      choice = "1"; // Default to first option
+    }
+    if (choice !== "1" && choice !== "2") {
+      console.log("Please enter 1 or 2.");
+    }
+  }
+
+  rl.close();
+
+  // Map choice to mode
+  if (recommendSelective) {
+    return choice === "1" ? "selective" : "full";
+  } else {
+    return choice === "1" ? "full" : "selective";
+  }
 }
 
 // ============================================================================
@@ -1336,8 +1415,6 @@ async function main(): Promise<void> {
 
   console.log(`Source: ${args.source}`);
   console.log(`Target: ${args.target}`);
-  console.log(`Mode:   ${args.mode.toUpperCase()}${args.dryRun ? " (DRY RUN)" : ""}`);
-  console.log("");
 
   // Validate source exists
   if (!existsSync(args.source)) {
@@ -1346,15 +1423,25 @@ async function main(): Promise<void> {
   }
 
   // Version Detection (v1.0.0)
-  console.log("🔍 Detecting PAI version...");
+  console.log("\n🔍 Detecting PAI version...");
   const versionResult = detectPAIVersion(args.source);
   console.log(formatVersionInfo(versionResult));
-  console.log("");
+
+  // Interactive mode selection if --mode not provided
+  let mode: MigrationMode;
+  if (args.mode === undefined) {
+    mode = await promptMigrationMode(versionResult);
+    console.log(`\n✓ Selected mode: ${mode.toUpperCase()}\n`);
+  } else {
+    mode = args.mode;
+    console.log(`\nMode:   ${mode.toUpperCase()}${args.dryRun ? " (DRY RUN)" : ""}`);
+    console.log("");
+  }
 
   // Check migration support
   const migrationCheck = isSelectiveMigrationSupported(args.source);
 
-  if (!migrationCheck.supported && args.mode === "selective") {
+  if (!migrationCheck.supported && mode === "selective") {
     console.error(`❌ Selective migration not supported for PAI ${migrationCheck.version}`);
     console.error(`   ${migrationCheck.reason}`);
     console.error("\nOptions:");
@@ -1366,7 +1453,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  if (versionResult.migrationSupport === "partial" && args.mode === "selective") {
+  if (versionResult.migrationSupport === "partial" && mode === "selective") {
     console.warn(`⚠️  Warning: PAI ${versionResult.version} has partial selective import support`);
     console.warn(`   ${versionResult.migrationNotes[0]}`);
     console.warn("");
@@ -1419,7 +1506,7 @@ async function main(): Promise<void> {
     args.target,
     args.dryRun,
     args.verbose,
-    args.mode,
+    mode,
     customSkills
   );
   result.converted.push(...skillsResult.converted);
@@ -1434,13 +1521,13 @@ async function main(): Promise<void> {
 
   // 4. Copy MEMORY (always imported)
   console.log("\n💾 Copying MEMORY/...");
-  const memoryResult = translateMemory(args.source, args.target, args.dryRun, args.verbose, args.mode);
+  const memoryResult = translateMemory(args.source, args.target, args.dryRun, args.verbose, mode);
   result.converted.push(...memoryResult.converted);
   result.warnings.push(...memoryResult.warnings);
 
   // 5. Translate Tools (skipped in selective mode)
   console.log("\n🔧 Translating Tools/...");
-  const toolsResult = translateTools(args.source, args.target, args.dryRun, args.verbose, args.mode);
+  const toolsResult = translateTools(args.source, args.target, args.dryRun, args.verbose, mode);
   result.converted.push(...toolsResult.converted);
   result.skipped.push(...toolsResult.skipped);
   result.warnings.push(...toolsResult.warnings);
@@ -1510,9 +1597,9 @@ async function main(): Promise<void> {
 │  Conversion Complete                     │
 ╰──────────────────────────────────────────╯
 
-Mode: ${args.mode.toUpperCase()}
+Mode: ${mode.toUpperCase()}
 ✅ Converted: ${result.converted.length} files
-${args.mode === "selective" ? `⏭️ Skipped:   ${result.skipped.length} files (using fresh 2.3 versions)\n` : ""}⚠️  Warnings:  ${result.warnings.length}
+${mode === "selective" ? `⏭️ Skipped:   ${result.skipped.length} files (using fresh 2.3 versions)\n` : ""}⚠️  Warnings:  ${result.warnings.length}
 🔧 Manual:    ${result.manualRequired.length} items
 ${validationResult.clean ? "✅ Validation: CLEAN (no .claude references found)" : `⚠️  Validation: ${validationResult.remainingReferences.length} .claude reference(s) remaining`}
 
