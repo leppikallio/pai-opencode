@@ -144,7 +144,7 @@ export async function validateSecurity(
     }
 
     // Check for sensitive file writes
-    if (input.tool === "Write") {
+    if (input.tool.toLowerCase() === "write") {
       const filePath = input.args?.file_path as string;
       const sensitivePaths = [
         /\/etc\//,

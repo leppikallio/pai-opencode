@@ -3,5 +3,8 @@
   "theme": "dark",
   "model": "anthropic/claude-sonnet-4-5",
   "snapshot": true,
-  "username": "User"
+  "username": "User",
+  "plugins": [
+    ".opencode/plugins/pai-unified.ts"
+  ]
 }

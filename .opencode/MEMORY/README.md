@@ -6,10 +6,12 @@ PAI's memory system for continuous learning.
 
 | Directory | Purpose |
 |-----------|---------|
-| LEARNINGS/ | Captured insights and patterns |
-| SIGNALS/ | User feedback ratings |
-| SESSIONS/ | Session summaries |
+| LEARNING/ | Captured insights and patterns |
+| Signals/ | User feedback ratings |
+| History/ | Session summaries |
 | RESEARCH/ | Research artifacts |
 | PAISYSTEMUPDATES/ | System upgrade documentation |
+| STATE/ | Algorithm and system state |
+| WORK/ | Active work sessions |
 
 These directories populate automatically as you use PAI.

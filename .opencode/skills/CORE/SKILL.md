@@ -171,15 +171,13 @@ PAI uses a consistent two-tier pattern across all configurable components:
 | Directory | Purpose |
 |-----------|---------|
 | **skills/** | Skill modules (CORE, Agents, Browser, etc.) |
-| **hooks/** | Lifecycle event handlers (SessionStart, Stop, etc.) |
+| **plugins/** | Lifecycle event handlers (SessionStart, Stop, etc.) |
 | **MEMORY/** | Session history, learnings, signals, research |
 | **Commands/** | Slash command definitions |
 | **WORK/** | Active work sessions with scratch/ subdirectories |
 | **Plans/** | Plan mode working files |
 | **tools/** | Standalone CLI utilities |
 | **bin/** | Executable scripts |
-| **VoiceServer/** | TTS notification server |
-| **Observability/** | Agent monitoring dashboard |
 
 ---
 
@@ -369,13 +367,13 @@ When creating functionality that requires AI model inference, **never use direct
 **Usage:**
 ```bash
 # Fast inference (Haiku)
-echo "Your prompt here" | bun ~/.opencode/tools/Inference.ts fast
+echo "Your prompt here" | bun ~/.opencode/skills/CORE/Tools/Inference.ts fast
 
 # Standard inference (Sonnet)
-echo "Your prompt here" | bun ~/.opencode/tools/Inference.ts standard
+echo "Your prompt here" | bun ~/.opencode/skills/CORE/Tools/Inference.ts standard
 
 # Smart inference (Opus)
-echo "Your prompt here" | bun ~/.opencode/tools/Inference.ts smart
+echo "Your prompt here" | bun ~/.opencode/skills/CORE/Tools/Inference.ts smart
 ```
 
 **Why this matters:**
