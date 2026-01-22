@@ -3,7 +3,7 @@
 **Version:** 4.1.0
 **Based on:** Constitution v4.0.0, SYNTHESIS.md, PAI 2.3 Vanilla
 **Created:** 2025-12-31
-**Last Updated:** 2026-01-20 (v0.9.3 Plural Directories + chat.message Hook)
+**Last Updated:** 2026-01-22 (v0.9.9 Audit Fixes + Documentation Consolidation)
 **Author:** Steffen (with PAI assistance)
 
 ---
@@ -62,6 +62,14 @@ A complete, working port where:
 - PAI architecture check passes
 - No regressions from Claude Code version
 
+### v1.0 Remaining Tasks
+
+| Task | Description | Status |
+|------|-------------|--------|
+| TUI ASCII Art Branding | Change OpenCode header to "PAI-OpenCode" | ⏳ TODO |
+| README Final Polish | Hero images, installation guide refinement | ⏳ TODO |
+| Community Announcement | GitHub Release + Social Media | ⏳ TODO |
+
 ---
 
 ## Milestone Overview
@@ -80,7 +88,13 @@ A complete, working port where:
 | **v0.9.1** | Agent Invocation Verification | Task tool vs @syntax discovery | ✅ DONE |
 | **v0.9.2** | Re-Audit & Corrections | Repository refs, NPM update, OpenCode findings | ✅ DONE |
 | **v0.9.3** | Plural Directories + chat.message | Singular→Plural rename, UserPromptSubmit hook | ✅ DONE |
-| **v1.0** | **PUBLIC RELEASE** | Community-ready vanilla PAI 2.3 | ⏳ NEXT |
+| **v0.9.4** | P0 Critical Fixes | Fresh Install Audit (42 issues) | ✅ DONE |
+| **v0.9.5** | P1 Fixes + Converter v0.9.5 | AgentProfileLoader, PentesterContext, Tools/ | ✅ DONE |
+| **v0.9.6** | Security Regex + Path Fixes | Root-level rm fix, 18 path corrections | ✅ DONE |
+| **v0.9.7** | **Two-Layer Migration** | Converter v0.9.7 + MigrationValidator + Validation Gate | ✅ DONE |
+| **v0.9.8** | Docs Consolidation | THEHOOKSYSTEM → THEPLUGINSYSTEM migration | ✅ DONE |
+| **v0.9.9** | **12-Agent Audit Fixes** | Security validator, CORE paths, Memory README | ✅ DONE |
+| **v1.0** | **PUBLIC RELEASE** | Community-ready vanilla PAI 2.3 + TUI Branding | ⏳ NEXT |
 
 ---
 
