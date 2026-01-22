@@ -4,9 +4,23 @@ import { join, dirname } from "path";
 
 /**
  * PAI Model Configuration Schema
+ *
+ * Providers:
+ * - "zen": OpenCode ZEN free models (no API key required!)
+ * - "anthropic": Claude models (requires ANTHROPIC_API_KEY)
+ * - "openai": GPT models (requires OPENAI_API_KEY)
+ *
+ * ZEN Free Models (as of Jan 2026):
+ * - opencode/big-pickle (Free)
+ * - opencode/grok-code (Free - Grok Code Fast 1)
+ * - opencode/glm-4.7-free (Free - GLM 4.7)
+ * - opencode/minimax-m2-1-free (Free - MiniMax M2.1)
+ * - opencode/gpt-5-nano (Free)
+ *
+ * See: https://opencode.ai/docs/zen/
  */
 export interface PaiModelConfig {
-  model_provider: "sen" | "anthropic" | "openai";
+  model_provider: "zen" | "anthropic" | "openai";
   models: {
     default: string;
     validation: string;
@@ -23,17 +37,20 @@ export interface PaiModelConfig {
 /**
  * Provider Presets
  * Default model configurations for each provider
+ *
+ * ZEN models are FREE and don't require API keys!
  */
-const PROVIDER_PRESETS: Record<"sen" | "anthropic" | "openai", PaiModelConfig["models"]> = {
-  sen: {
-    default: "sen/grok-1",
-    validation: "sen/grok-1",
+const PROVIDER_PRESETS: Record<"zen" | "anthropic" | "openai", PaiModelConfig["models"]> = {
+  zen: {
+    // Using grok-code as default (fast, free, good for coding)
+    default: "opencode/grok-code",
+    validation: "opencode/grok-code",
     agents: {
-      intern: "sen/grok-1",
-      architect: "sen/grok-1",
-      engineer: "sen/grok-1",
-      explorer: "sen/grok-1",
-      reviewer: "sen/grok-1",
+      intern: "opencode/gpt-5-nano",        // Fast, lightweight
+      architect: "opencode/big-pickle",      // Best reasoning
+      engineer: "opencode/grok-code",        // Optimized for code
+      explorer: "opencode/grok-code",        // Fast exploration
+      reviewer: "opencode/big-pickle",       // Thorough review
     },
   },
   anthropic: {
@@ -64,7 +81,7 @@ const PROVIDER_PRESETS: Record<"sen" | "anthropic" | "openai", PaiModelConfig["m
  * Get the provider preset configuration
  */
 export function getProviderPreset(
-  provider: "sen" | "anthropic" | "openai"
+  provider: "zen" | "anthropic" | "openai"
 ): PaiModelConfig["models"] {
   return PROVIDER_PRESETS[provider];
 }
@@ -98,7 +115,7 @@ function readOpencodeConfig(): any | null {
 
 /**
  * Get the full model configuration
- * Reads from opencode.json or uses "sen" defaults
+ * Reads from opencode.json or uses "zen" defaults
  */
 export function getModelConfig(): PaiModelConfig {
   const config = readOpencodeConfig();
@@ -107,21 +124,21 @@ export function getModelConfig(): PaiModelConfig {
   const paiConfig = config?.pai;
 
   if (!paiConfig || !paiConfig.model_provider) {
-    fileLog("model-config", "No PAI config found, using sen defaults");
+    fileLog("model-config", "No PAI config found, using zen defaults");
     return {
-      model_provider: "sen",
-      models: PROVIDER_PRESETS.sen,
+      model_provider: "zen",
+      models: PROVIDER_PRESETS.zen,
     };
   }
 
-  const provider = paiConfig.model_provider as "sen" | "anthropic" | "openai";
+  const provider = paiConfig.model_provider as "zen" | "anthropic" | "openai";
 
   // Validate provider
-  if (!["sen", "anthropic", "openai"].includes(provider)) {
-    fileLog("model-config", `Invalid provider "${provider}", falling back to sen`);
+  if (!["zen", "anthropic", "openai"].includes(provider)) {
+    fileLog("model-config", `Invalid provider "${provider}", falling back to zen`);
     return {
-      model_provider: "sen",
-      models: PROVIDER_PRESETS.sen,
+      model_provider: "zen",
+      models: PROVIDER_PRESETS.zen,
     };
   }
 
@@ -195,13 +212,13 @@ export function getAgentModels(): Record<string, string> {
  */
 export function requiresApiKey(): boolean {
   const config = getModelConfig();
-  return config.model_provider !== "sen";
+  return config.model_provider !== "zen";
 }
 
 /**
  * Get the current provider name
  */
-export function getProvider(): "sen" | "anthropic" | "openai" {
+export function getProvider(): "zen" | "anthropic" | "openai" {
   const config = getModelConfig();
   return config.model_provider;
 }

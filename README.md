@@ -227,15 +227,6 @@ cd opencode && go build -o opencode . && sudo mv opencode /usr/local/bin/
 # https://github.com/anomalyco/opencode/releases
 ```
 
-**Set your Anthropic API Key:**
-```bash
-# Add to ~/.zshrc or ~/.bashrc:
-export ANTHROPIC_API_KEY="sk-ant-api03-your-key-here"
-
-# Then reload:
-source ~/.zshrc
-```
-
 ### Step 2: Install PAI-OpenCode
 
 ```bash
@@ -255,14 +246,50 @@ That's it! PAI 2.3 is now running on OpenCode with:
 - 13 named agents (Intern, Engineer, Architect, Designer, Pentester, etc.)
 - Unified Plugin (security blocking, context injection)
 
-### Step 3: Verify Installation
+### Step 3: Choose Your AI Provider
+
+PAI-OpenCode supports multiple AI providers. **No API key required for ZEN free models!**
+
+| Provider | Models | Cost | API Key Required |
+|----------|--------|------|------------------|
+| **ZEN** (default) | Big Pickle, Grok Code Fast, GLM 4.7, MiniMax M2.1, GPT-5 Nano | **FREE** | ❌ No |
+| Anthropic | Claude Opus/Sonnet/Haiku | Paid | ✅ Yes |
+| OpenAI | GPT-4o, GPT-4o-mini | Paid | ✅ Yes |
+
+**Using ZEN Free Models (Default - No Setup Needed!):**
+
+ZEN models work out of the box. Just run `opencode` and start working!
+
+See [OpenCode ZEN Documentation](https://opencode.ai/docs/zen/) for model details.
+
+**Using Anthropic/OpenAI (Optional):**
+
+If you prefer paid models, set your API key:
+```bash
+# For Anthropic:
+export ANTHROPIC_API_KEY="sk-ant-api03-your-key-here"
+
+# For OpenAI:
+export OPENAI_API_KEY="sk-your-key-here"
+```
+
+Then configure your provider in `opencode.json`:
+```json
+{
+  "pai": {
+    "model_provider": "anthropic"
+  }
+}
+```
+
+### Step 4: Verify Installation
 
 In OpenCode, try these commands:
 - `/agents` - Should show 13 agents
 - Ask: "Who are you?" - AI should identify as PAI
 - Try: `@intern What is TypeScript?` - Agent should respond
 
-### For Existing PAI Users (Migration)
+### Step 5: For Existing PAI Users (Migration)
 
 If you have an existing PAI installation on Claude Code, use the converter:
 
