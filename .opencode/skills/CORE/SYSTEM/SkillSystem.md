@@ -224,8 +224,6 @@ science_cycle_time: meso
 - **Research** - Investigation through hypotheses and evidence gathering
 - **Council** - Debate as parallel hypothesis testing
 
-**See:** `~/.opencode/skills/Science/Protocol.md` for the full protocol interface
-
 ### 2. Markdown Body (Workflow Routing + Examples + Documentation)
 
 ```markdown

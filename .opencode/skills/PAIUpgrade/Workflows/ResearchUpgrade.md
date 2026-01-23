@@ -84,7 +84,7 @@ Analyze applicability to PAI components:
 | Component | Potential Impact |
 |-----------|-----------------|
 | Skills System | New skill capabilities, context forking |
-| Hooks System | New hook types, triggers, agent-scoped hooks |
+| Plugins System | New plugin types, triggers, agent-scoped plugins |
 | Agent System | New agent types, delegation patterns |
 | Workflows | New workflow possibilities |
 | Tools | New CLI tools or capabilities |
@@ -120,7 +120,7 @@ Each recommendation includes:
 ## Features Researched
 
 ### [Feature Name]
-**Category:** [hooks/skills/agents/config/etc]
+**Category:** [plugins/skills/agents/config/etc]
 **Official Docs:** [URL if found]
 
 **What It Does:**

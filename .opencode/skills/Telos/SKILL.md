@@ -28,8 +28,6 @@ description: "Life OS and project analysis. USE WHEN TELOS, life goals, projects
    Running the **WorkflowName** workflow from the **Telos** skill...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SkillNotifications.md`
-
 ## Workflow Routing
 
 **When executing a workflow, output this notification directly:**

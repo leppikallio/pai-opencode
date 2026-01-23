@@ -45,8 +45,6 @@ The Agents skill is a complete agent composition and management system. It conso
    Running the **WorkflowName** workflow from the **Agents** skill...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SkillNotifications.md`
-
 ## Workflow Routing
 
 **Available Workflows:**

@@ -35,8 +35,6 @@ Technical reconnaissance of network infrastructure including domains, IP address
    Running the **WorkflowName** workflow from the **Recon** skill...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SkillNotifications.md`
-
 ## When to Use This Skill
 
 **Core Triggers - Use this skill when user says:**

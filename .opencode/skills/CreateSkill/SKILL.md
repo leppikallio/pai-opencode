@@ -219,8 +219,6 @@ Brief description.
    Running the **WorkflowName** workflow from the **CreateSkill** skill...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SkillNotifications.md`
-
 ## Workflow Routing
 
 | Workflow | Trigger | File |

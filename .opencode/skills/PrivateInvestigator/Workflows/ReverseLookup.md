@@ -363,9 +363,9 @@ If you found one username, try variations:
 
 ## Related Workflows
 
-- **find-person.md** - Full investigation workflow
-- **social-media-search.md** - After identifying username
-- **verify-identity.md** - Confirming findings
+- **FindPerson.md** - Full investigation workflow
+- **SocialMediaSearch.md** - After identifying username
+- **VerifyIdentity.md** - Confirming findings
 
 ---
 

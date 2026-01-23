@@ -36,8 +36,6 @@ Multi-agent debate system where specialized agents discuss topics in rounds, res
    Running the **WorkflowName** workflow from the **Council** skill...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SkillNotifications.md`
-
 ## Workflow Routing
 
 Route to the appropriate workflow based on the request.

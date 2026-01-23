@@ -28,8 +28,6 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
    Running the **WorkflowName** workflow from the **BrightData** skill...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SkillNotifications.md`
-
 ## Workflow Routing
 
 **When executing a workflow, output this notification directly:**

@@ -33,8 +33,6 @@ Open Source Intelligence gathering for authorized investigations.
    Running the **WorkflowName** workflow from the **OSINT** skill...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SkillNotifications.md`
-
 ## Workflow Routing
 
 | Investigation Type | Workflow | Context |

@@ -42,8 +42,6 @@ Research agents hallucinate URLs. A single broken link is a catastrophic failure
    Running the **WorkflowName** workflow from the **Research** skill...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SkillNotifications.md`
-
 ## Workflow Routing
 
 Route to the appropriate workflow based on the request.

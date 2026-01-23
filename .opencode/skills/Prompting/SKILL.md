@@ -53,8 +53,6 @@ Complete prompt engineering documentation based on:
    Running the **WorkflowName** workflow from the **Prompting** skill...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SkillNotifications.md`
-
 - Claude 4.x behavioral characteristics
 - Multi-context window workflows
 - Agentic coding best practices

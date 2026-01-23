@@ -224,9 +224,7 @@ References below use:
 |---------|-------------|----------|
 | CUSTOMAGENTS | User says "custom agents" → Invoke Agents skill for unique personalities/voices via AgentFactory | `SYSTEM/PAIAGENTSYSTEM.md` → `skills/Agents/SKILL.md` |
 | INTERNS | Spawn parallel agents for grunt work | Use `@intern` syntax (OpenCode) |
-| BLOG | {principal.name}'s blog and website content creation, editing, and deployment | `skills/_BLOGGING/SKILL.md` |
 | BROWSER | Web validation, screenshots, UI testing, and visual verification of changes | `skills/Browser/SKILL.md` |
-| PAI | Public PAI repository management, packs, releases, and community contributions | `skills/PAI/SKILL.md` |
 | SYSTEM | System validation, integrity audits, documentation updates, secret scanning, work context recall ("we just worked on", "remember when we") | `skills/System/SKILL.md`
 
 ### Resource Lookups
@@ -322,7 +320,7 @@ Enter planning mode (`/plan`) when:
 | Anti-Pattern | What to Do Instead |
 |--------------|-------------------|
 | Adding a wrapper to fix a bug | Fix the bug at its source |
-| Creating a new hook for edge cases | Extend existing hook logic |
+| Creating a new plugin for edge cases | Extend existing plugin logic |
 | Building adapters between mismatched systems | Align the systems at their interface |
 | Adding configuration options | Simplify the default behavior |
 | Deleting without understanding | Trace dependencies first |

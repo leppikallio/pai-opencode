@@ -36,8 +36,6 @@ Generate production-ready TypeScript CLIs with comprehensive documentation, type
    Running the **WorkflowName** workflow from the **CreateCLI** skill...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SkillNotifications.md`
-
 ## Workflow Routing
 
 Route to the appropriate workflow based on the request.

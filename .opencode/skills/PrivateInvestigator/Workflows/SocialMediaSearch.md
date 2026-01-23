@@ -325,9 +325,9 @@ Checks 120+ websites for account existence without sending notification.
 
 ## Related Workflows
 
-- **find-person.md** - Full investigation workflow
-- **reverse-lookup.md** - Reverse email/username lookup
-- **verify-identity.md** - Confirming correct person
+- **FindPerson.md** - Full investigation workflow
+- **ReverseLookup.md** - Reverse email/username lookup
+- **VerifyIdentity.md** - Confirming correct person
 
 ---
 

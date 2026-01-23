@@ -309,8 +309,8 @@
 
 ## Related Workflows
 
-- **find-person.md** - Full investigation workflow
-- **verify-identity.md** - Using records for verification
+- **FindPerson.md** - Full investigation workflow
+- **VerifyIdentity.md** - Using records for verification
 
 ---
 

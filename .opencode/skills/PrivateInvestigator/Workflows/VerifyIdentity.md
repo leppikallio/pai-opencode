@@ -332,9 +332,9 @@
 
 ## Related Workflows
 
-- **find-person.md** - Full investigation workflow
-- **social-media-search.md** - For additional verification data
-- **public-records-search.md** - For official record verification
+- **FindPerson.md** - Full investigation workflow
+- **SocialMediaSearch.md** - For additional verification data
+- **PublicRecordsSearch.md** - For official record verification
 
 ---
 

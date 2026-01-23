@@ -36,7 +36,6 @@ Illustrated comparisons show two contrasting concepts, states, or approaches sid
 ### Character Requirements (When figures present)
 
 **If comparison includes human or robot figures, MUST apply Planeform aesthetic:**
-- Read: `~/.opencode/skills/CORE/Aesthetic.md`
 - Figures built from ANGULAR PLANES (no round forms)
 - Adult proportions (1:7), NOT cute/stubby
 - Faces are minimal geometric blocks

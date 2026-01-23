@@ -212,7 +212,7 @@ Create a README.md in the history directory documenting the research:
 
 **ALWAYS verify output is properly captured:**
 
-1. **Check if hooks captured the output:**
+1. **Check if plugins captured the output:**
    ```bash
    # Check most recent history entries
    ls -lt ~/.opencode/History/research/ | head -5
@@ -221,7 +221,7 @@ Create a README.md in the history directory documenting the research:
    ls ~/.opencode/History/research/YYYY-MM-DD_description/
    ```
 
-2. **If hooks did NOT capture automatically:**
+2. **If plugins did NOT capture automatically:**
    ```bash
    # Create directory structure manually
    mkdir -p ~/.opencode/History/research/YYYY-MM-DD_description/
@@ -266,7 +266,7 @@ mkdir -p ~/.opencode/History/research/$(date +%Y-%m-%d)_podcast-analysis/
 # - README.md (documentation)
 # - metadata.json (source info)
 
-# 8. Verify hooks captured it
+# 8. Verify plugins captured it
 ls -lah ~/.opencode/History/research/$(date +%Y-%m-%d)_podcast-analysis/
 
 # 9. Note: scratch/ artifacts remain tied to work item for learning
@@ -279,7 +279,7 @@ ls -lah ~/.opencode/History/research/$(date +%Y-%m-%d)_podcast-analysis/
 2. **System intelligence:** PAI can analyze how research progresses over time
 3. **Context preservation:** Scratch provides context for final outputs
 4. **Proper documentation:** README ensures context is preserved in history
-5. **Hook verification:** Ensures nothing is lost if hooks fail
+5. **Plugin verification:** Ensures nothing is lost if plugins fail
 6. **deep thinking preservation:** Full deep analysis is saved, not just final insights
 7. **Research continuity:** Can revisit analysis methodology later
 

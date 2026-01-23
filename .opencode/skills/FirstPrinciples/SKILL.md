@@ -52,8 +52,6 @@ Foundational reasoning methodology based on Elon Musk's physics-based thinking f
    Running the **WorkflowName** workflow from the **FirstPrinciples** skill...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SkillNotifications.md`
-
 ## Workflow Routing
 
 Route to the appropriate workflow based on the request.

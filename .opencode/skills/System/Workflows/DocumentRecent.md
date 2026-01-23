@@ -122,7 +122,7 @@ DocumentRecent (this) → GitPush
 ## What Counts as "Significant"
 
 Document if ANY of these apply:
-- New files created in skills/, hooks/, tools/
+- New files created in skills/, plugins/, tools/
 - Modifications to SKILL.md files
 - Changes to settings.json
 - Workflow modifications

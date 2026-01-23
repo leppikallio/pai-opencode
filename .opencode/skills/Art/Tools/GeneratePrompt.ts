@@ -67,10 +67,7 @@ interface PromptOutput {
 // Constants
 // ============================================================================
 
-const ART_AESTHETIC_PATH = resolve(
-  process.env.HOME!,
-  ".opencode/skills/CORE/Aesthetic.md"
-);
+// Note: This tool is deprecated and needs rewriting for abstract shapes/impressions
 
 const COLOR_HEX_MAP: Record<TokyoNightColor, string> = {
   "Electric Blue": "#7aa2f7",

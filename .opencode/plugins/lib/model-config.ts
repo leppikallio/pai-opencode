@@ -1,4 +1,4 @@
-import { fileLog } from "./file-logger.js";
+import { fileLog } from "./file-logger";
 import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
 

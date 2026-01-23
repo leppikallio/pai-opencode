@@ -53,7 +53,7 @@ USER/PAISECURITYSYSTEM/               # USER tier (personal)
 └── ...
 ```
 
-The SecurityValidator hook checks `USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `PAISECURITYSYSTEM/patterns.example.yaml`.
+The SecurityValidator plugin checks `USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `PAISECURITYSYSTEM/patterns.example.yaml`.
 
 ### Response Format
 

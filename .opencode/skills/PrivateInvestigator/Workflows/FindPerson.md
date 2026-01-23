@@ -155,7 +155,7 @@ Include any professional or community involvement.
 
 **Description:** Use discovered phone/email/username for additional data
 
-**Invoke:** Read ~/.opencode/skills/PrivateInvestigator/Workflows/Reverse-lookup.md
+**Invoke:** Read ~/.opencode/skills/PrivateInvestigator/Workflows/ReverseLookup.md
 
 **For Each Phone Number Found:**
 - Run through CallerID, NumLookup
@@ -197,7 +197,7 @@ Include any professional or community involvement.
 
 **Description:** Confirm you've found the correct person
 
-**Invoke:** Read ~/.opencode/skills/PrivateInvestigator/Workflows/Verify-identity.md
+**Invoke:** Read ~/.opencode/skills/PrivateInvestigator/Workflows/VerifyIdentity.md
 
 **Verification Checklist:**
 - [ ] Age/DOB matches expected range
@@ -296,7 +296,7 @@ Include any professional or community involvement.
 ## Common Challenges
 
 ### Challenge: Common Name
-**Solution:** Add specificity - require location + age + additional identifier. See Verify-identity.md for detailed guidance.
+**Solution:** Add specificity - require location + age + additional identifier. See VerifyIdentity.md for detailed guidance.
 
 ### Challenge: No Results in People Search
 **Solution:** Try variations (maiden name, nickname), expand location search, focus on social media and public records.
@@ -311,10 +311,10 @@ Include any professional or community involvement.
 
 ## Related Workflows
 
-- **Social-media-search.md** - Deep dive on social platforms
-- **Public-records-search.md** - Government record searches
-- **Reverse-lookup.md** - Phone, email, image lookups
-- **Verify-identity.md** - Confirming correct person
+- **SocialMediaSearch.md** - Deep dive on social platforms
+- **PublicRecordsSearch.md** - Government record searches
+- **ReverseLookup.md** - Phone, email, image lookups
+- **VerifyIdentity.md** - Confirming correct person
 
 ---
 

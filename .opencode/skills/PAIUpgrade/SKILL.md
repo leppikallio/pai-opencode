@@ -35,8 +35,6 @@ Universal system upgrade skill with two modes:
    Running the **WorkflowName** workflow from the **PAIUpgrade** skill...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SkillNotifications.md`
-
 ## Workflow Routing
 
 Route to the appropriate workflow based on the request.

@@ -424,8 +424,8 @@ mcp__Apify__apify-slash-rag-web-browser({
    - Archive for future reference and reuse
 
 3. **Verification (MANDATORY):**
-   - Check if hooks captured output to history automatically
-   - If hooks failed, manually save to history
+   - Check if plugins captured output to history automatically
+   - If plugins failed, manually save to history
    - Confirm all files present in history directory
    - **Note:** Scratch artifacts remain tied to work item (don't delete)
 

@@ -32,8 +32,6 @@ Military-grade adversarial analysis using parallel agent deployment. Breaks argu
    Running the **WorkflowName** workflow from the **RedTeam** skill...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SkillNotifications.md`
-
 ## Workflow Routing
 
 Route to the appropriate workflow based on the request.

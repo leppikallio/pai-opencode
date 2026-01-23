@@ -70,7 +70,6 @@ Example: `ArchitectContext.md`
 
 ## Task-Specific Knowledge
 - **api** → skills/Development/References/APIDesign.md
-- **security** → skills/CORE/SecurityProtocols.md
 ```
 
 ### 2. Simple Loader Reads Context

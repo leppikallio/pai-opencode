@@ -187,4 +187,3 @@ For PUBLIC PAI repo (`~/Projects/PAI/`):
 
 **Related Documentation:**
 - ~/.opencode/skills/CORE/SKILL.md (CRITICAL SECURITY section)
-- ~/.opencode/skills/CORE/SecurityProtocols.md

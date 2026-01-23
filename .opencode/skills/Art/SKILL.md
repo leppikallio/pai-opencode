@@ -48,8 +48,6 @@ These override default behavior. If the directory does not exist, proceed with s
    Running the **WorkflowName** workflow from the **Art** skill...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SkillNotifications.md`
-
 ---
 
 ## Workflow Routing
