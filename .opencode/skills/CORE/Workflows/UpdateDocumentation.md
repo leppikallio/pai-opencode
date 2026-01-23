@@ -25,10 +25,13 @@ Keeps PAI Architecture tracking current by:
 
 ## Workflow Steps
 
+> **NOTE:** The PaiArchitecture.ts tool referenced in the original workflow does not exist. This workflow is currently disabled pending implementation of the architecture documentation system.
+
 ### Step 1: Regenerate Architecture
 
 ```bash
-bun run $PAI_DIR/Tools/PaiArchitecture.ts generate
+# DISABLED - PaiArchitecture.ts does not exist
+# bun run $PAI_DIR/Tools/PaiArchitecture.ts generate
 ```
 
 ### Step 2: Log the Change (If Applicable)
@@ -36,20 +39,22 @@ bun run $PAI_DIR/Tools/PaiArchitecture.ts generate
 If this was triggered by an installation or upgrade:
 
 ```bash
-# For pack installations
-bun run $PAI_DIR/Tools/PaiArchitecture.ts log-upgrade "Installed [pack-name] v[version]" pack
-
-# For bundle installations
-bun run $PAI_DIR/Tools/PaiArchitecture.ts log-upgrade "Installed [bundle-name] bundle" bundle
-
-# For config changes
-bun run $PAI_DIR/Tools/PaiArchitecture.ts log-upgrade "[description of change]" config
+# DISABLED - PaiArchitecture.ts does not exist
+# # For pack installations
+# bun run $PAI_DIR/Tools/PaiArchitecture.ts log-upgrade "Installed [pack-name] v[version]" pack
+#
+# # For bundle installations
+# bun run $PAI_DIR/Tools/PaiArchitecture.ts log-upgrade "Installed [bundle-name] bundle" bundle
+#
+# # For config changes
+# bun run $PAI_DIR/Tools/PaiArchitecture.ts log-upgrade "[description of change]" config
 ```
 
 ### Step 3: Verify Health
 
 ```bash
-bun run $PAI_DIR/Tools/PaiArchitecture.ts check
+# DISABLED - PaiArchitecture.ts does not exist
+# bun run $PAI_DIR/Tools/PaiArchitecture.ts check
 ```
 
 ### Step 4: Report Status
@@ -65,14 +70,15 @@ Output the current architecture state to confirm the update was successful.
 
 After all installation steps complete:
 
-1. Run UpdateDocumentation workflow
-2. Log the pack installation
-3. Verify the pack appears in Architecture.md
+1. Run UpdateDocumentation workflow (when available)
+2. Log the pack installation (when available)
+3. Verify the pack appears in Architecture.md (when available)
 
 \`\`\`bash
-# Auto-run after pack installation
-bun run $PAI_DIR/Tools/PaiArchitecture.ts log-upgrade "Installed [pack-name] v[version]" pack
-bun run $PAI_DIR/Tools/PaiArchitecture.ts generate
+# DISABLED - PaiArchitecture.ts does not exist
+# # Auto-run after pack installation
+# bun run $PAI_DIR/Tools/PaiArchitecture.ts log-upgrade "Installed [pack-name] v[version]" pack
+# bun run $PAI_DIR/Tools/PaiArchitecture.ts generate
 \`\`\`
 ```
 

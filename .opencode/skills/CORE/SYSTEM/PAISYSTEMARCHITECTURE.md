@@ -432,7 +432,7 @@ The System skill is the centralized mechanism for PAI self-management. It ensure
 | **Secret Scanning** | TruffleHog credential detection in any directory | `SecretScanning.md` |
 | **Privacy Validation** | Ensures USER/WORK content isolation from regular skills | `PrivacyCheck.md` |
 | **Cross-Repo Validation** | Verifies private/public repository separation | `CrossRepoValidation.md` |
-| **Documentation Updates** | Records system changes to MEMORY/PAISYSTEMUPDATES/ | `DocumentChanges.md` |
+| **Documentation Updates** | NOT IMPLEMENTED - Records system changes to MEMORY/PAISYSTEMUPDATES/ | `DocumentChanges.md` |
 | **Repo Management** | Auto-parses session activity for commits | `UpdateRepo.md` |
 
 ### Protected Directories

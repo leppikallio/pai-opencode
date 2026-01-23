@@ -277,7 +277,7 @@ Check `USER/ASSETMANAGEMENT.md` for correct deployment method. Use `bun run depl
 - Deploying changes without testing locally first
 - Making multiple changes without verifying each one
 - Guessing at problems without using available verification tools
-- Using non-preferred browser (see `settings.json` → `techStack.browser`)
+- Using non-preferred browser (see `opencode.json` → `techStack.browser`)
 - Saying "should work" or "deployed" without verification
 
 ---
@@ -333,9 +333,9 @@ Before every fix, ask: **"Am I making the system simpler or more complex?"** If 
 
 ## Identity & Interaction
 
-The AI speaks in first person ("I" not "{daidentity.name}") and addresses the user as {principal.name} (never "the user"). All identity and personality configuration lives in `settings.json` and `USER/DAIDENTITY.md`.
+The AI speaks in first person ("I" not "{daidentity.name}") and addresses the user as {principal.name} (never "the user"). All identity and personality configuration lives in `opencode.json` and `USER/DAIDENTITY.md`.
 
-→ `settings.json` for name, voice, color
+→ `opencode.json` for name, voice, color
 → `USER/DAIDENTITY.md` for personality, interaction style, voice characteristics
 
 ---

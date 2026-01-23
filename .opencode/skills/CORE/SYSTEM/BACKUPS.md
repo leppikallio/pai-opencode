@@ -1,11 +1,11 @@
 # Backup System
 
-All backups go to `~/.opencode/MEMORY/Backups/` - never inside skill directories.
+All backups go to `~/.opencode/BACKUPS/` - never inside skill directories.
 
 ## Directory Structure
 
 ```
-~/.opencode/MEMORY/Backups/
+~/.opencode/BACKUPS/
 ├── skills/        # Skill backups before major changes
 ├── config/        # Configuration file backups
 └── Workflows/     # Workflow backups
@@ -34,17 +34,17 @@ YYYY-MM-DD-HHMMSS_[type]_[description].md
 ```bash
 # Backup a skill
 cp ~/.opencode/skills/Skillname/SKILL.md \
-   ~/.opencode/MEMORY/Backups/skills/$(date +%Y-%m-%d-%H%M%S)_skill_Skillname-description.md
+   ~/.opencode/BACKUPS/skills/$(date +%Y-%m-%d-%H%M%S)_skill_Skillname-description.md
 
 # Backup a config
 cp ~/.opencode/settings.json \
-   ~/.opencode/MEMORY/Backups/config/$(date +%Y-%m-%d-%H%M%S)_config_settings-description.json
+   ~/.opencode/BACKUPS/config/$(date +%Y-%m-%d-%H%M%S)_config_settings-description.json
 ```
 
 ## Rules
 
 - **NEVER** create `backups/` directories inside skills
 - **NEVER** use `.bak` or `.bak2` suffixes
-- **ALWAYS** use the centralized MEMORY/Backups location
+- **ALWAYS** use the centralized `~/.opencode/BACKUPS/` location
 - **ALWAYS** include timestamp and description in filename
 - Clean up old backups monthly (keep major milestones)
