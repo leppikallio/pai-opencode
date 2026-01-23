@@ -1,23 +1,21 @@
-# Fresh Install Test - v1.0.0
+# Fresh Install Test - v1.0.1
 
 **Zweck:** Validierung dass PAI-OpenCode auf einem sauberen System funktioniert.
 **User:** `opencode` (existierender Test-User) oder neuer User
-**Version:** v1.0.0 (Session 9 Update - Normalization Discovery)
+**Version:** v1.0.1 (Session 10 - Auto-Discovery Fix)
 **Datum:** 2026-01-23
 
 ---
 
-## CRITICAL WARNING: OpenCode Normalization Behavior
+## Key Learnings (Session 9-10)
 
-> **BLOCKER DISCOVERED IN SESSION 9**
->
-> OpenCode modifiziert Dateien beim Start/Laden:
-> 1. `opencode.json` wird überschrieben - `plugins` Array wird ENTFERNT
-> 2. `SKILL.md` Dateien werden "normalisiert" - PAI-Features werden ENTFERNT
->
-> **Impact:** Ohne `plugins` ist PAI "tot". Ohne PAI-Features in SKILL.md fehlen Voice Notifications und Customization Hooks.
->
-> **Diese Tests verifizieren das Verhalten systematisch.**
+| Issue | Root Cause | Fix |
+|-------|------------|-----|
+| `Unrecognized key: "plugins"` | Config key was `plugins` (plural) | Use `plugin` (singular) or remove entirely |
+| `BunInstallFailedError` | Relative path in config | Remove config - use auto-discovery |
+| "OpenCode modifies files" | FALSE ALARM - caused by config errors | Config is now clean |
+
+**Reality:** OpenCode does NOT modify SKILL.md files. Plugins are auto-discovered from `.opencode/plugins/`.
 
 ---
 
@@ -25,7 +23,7 @@
 
 ```bash
 # ============================================
-# PAI-OPENCODE FRESH INSTALL TEST v1.0.0
+# PAI-OPENCODE FRESH INSTALL TEST v1.0.1
 # Auf separatem User-Account ausführen!
 # ============================================
 
@@ -46,23 +44,25 @@ git clone https://github.com/Steffen025/pai-opencode.git
 cd pai-opencode
 bun install
 
-# STEP 3: BASELINE (CRITICAL - VOR opencode Start!)
-echo "=== BASELINE VOR OPENCODE START ===" > ~/test-results.txt
+# STEP 3: VERIFY PLUGIN EXISTS (Auto-Discovery)
+echo "=== PLUGIN CHECK ===" > ~/test-results.txt
+ls -la .opencode/plugins/pai-unified.ts >> ~/test-results.txt
+echo "Plugin file exists: OK" >> ~/test-results.txt
+
+# STEP 4: BASELINE
+echo "" >> ~/test-results.txt
+echo "=== BASELINE VOR OPENCODE START ===" >> ~/test-results.txt
 date >> ~/test-results.txt
 git status >> ~/test-results.txt
-echo "--- opencode.json plugins check ---" >> ~/test-results.txt
-grep -A2 "plugins" opencode.json >> ~/test-results.txt || echo "NO PLUGINS FOUND" >> ~/test-results.txt
-echo "--- SKILL.md checksums ---" >> ~/test-results.txt
-find .opencode/skills -name "SKILL.md" -exec md5 {} \; | sort >> ~/test-results.txt
 
-# STEP 4: SYMLINK
+# STEP 5: SYMLINK
 ln -sfn ~/pai-opencode/.opencode ~/.opencode
-ls -la ~/.opencode
+ls -la ~/.opencode >> ~/test-results.txt
 
 echo ""
 echo "============================================"
 echo "BASELINE COMPLETE - Results in ~/test-results.txt"
-echo "NOW: Start opencode, then IMMEDIATELY Ctrl+C"
+echo "NOW: Start opencode, run a command, then Ctrl+C"
 echo "THEN: Run the verification commands below"
 echo "============================================"
 ```
@@ -79,19 +79,15 @@ echo "" >> ~/test-results.txt
 echo "=== NACH OPENCODE START ===" >> ~/test-results.txt
 date >> ~/test-results.txt
 
-# Check 1: Git Status
+# Check 1: Git Status (should be clean!)
 echo "--- git status ---" >> ~/test-results.txt
 git status >> ~/test-results.txt
 
-# Check 2: opencode.json plugins
-echo "--- opencode.json plugins check ---" >> ~/test-results.txt
-grep -A2 "plugins" opencode.json >> ~/test-results.txt || echo "PLUGINS REMOVED!" >> ~/test-results.txt
+# Check 2: Plugin loaded? (check debug log)
+echo "--- Plugin Debug Log ---" >> ~/test-results.txt
+cat /tmp/pai-opencode-debug.log 2>/dev/null | head -20 >> ~/test-results.txt || echo "No debug log found" >> ~/test-results.txt
 
-# Check 3: SKILL.md checksums (compare to baseline)
-echo "--- SKILL.md checksums AFTER ---" >> ~/test-results.txt
-find .opencode/skills -name "SKILL.md" -exec md5 {} \; | sort >> ~/test-results.txt
-
-# Check 4: What changed?
+# Check 3: Any file changes?
 echo "--- git diff --stat ---" >> ~/test-results.txt
 git diff --stat >> ~/test-results.txt
 
@@ -103,64 +99,23 @@ cat ~/test-results.txt
 
 ## Detaillierte Test-Schritte
 
-### Step 0: Clean Slate (Alles löschen)
-
-**WICHTIG:** Als Test-User ausführen!
+### Step 0: Clean Slate
 
 ```bash
-# 1. OpenCode Data löschen
 rm -rf ~/.local/share/opencode/
-
-# 2. OpenCode Config löschen
 rm -rf ~/.opencode/
 rm -rf ~/.config/opencode/
-
-# 3. Altes Repository löschen
 rm -rf ~/pai-opencode/
-
-# 4. Verify: Nichts mehr da
-ls -la ~/
-ls -la ~/.local/share/ 2>/dev/null || echo "OK: .local/share nicht vorhanden"
-ls -la ~/.opencode 2>/dev/null || echo "OK: .opencode nicht vorhanden"
 ```
 
-**Ergebnis:** User hat keine PAI/OpenCode Daten mehr.
-
----
-
-### Step 1: Prerequisites prüfen
+### Step 1: Prerequisites
 
 ```bash
-# Bun vorhanden?
-bun --version
-# Erwartet: 1.x.x
-
-# OpenCode vorhanden?
-opencode --version
-# Erwartet: opencode version X.Y.Z
-
-# API Key gesetzt? (falls Anthropic/OpenAI statt Sen)
-echo $ANTHROPIC_API_KEY | head -c 20
-# Erwartet: sk-ant-api03-... (optional - Sen ist kostenlos)
+bun --version    # Erwartet: 1.x.x
+opencode --version   # Erwartet: opencode version X.Y.Z
 ```
 
-**Falls nicht vorhanden:**
-```bash
-# Bun installieren
-curl -fsSL https://bun.sh/install | bash
-source ~/.zshrc
-
-# OpenCode installieren (Go muss vorhanden sein)
-go install github.com/anomalyco/opencode@latest
-export PATH="$PATH:$(go env GOPATH)/bin"
-
-# API Key setzen (optional, nur für Anthropic/OpenAI)
-export ANTHROPIC_API_KEY="sk-ant-api03-..."
-```
-
----
-
-### Step 2: Repository klonen
+### Step 2: Clone & Install
 
 ```bash
 cd ~
@@ -169,337 +124,109 @@ cd pai-opencode
 bun install
 ```
 
-**Verify:**
-```bash
-ls -la .opencode/
-# Sollte: skills/, MEMORY/, plugins/, etc. zeigen
-
-ls -la opencode.json
-# Sollte: opencode.json im Root existieren
-
-# CRITICAL: plugins muss vorhanden sein!
-cat opencode.json | grep plugins
-# Sollte: "plugins": [".opencode/plugins/pai-unified.ts"]
-```
-
----
-
-### Step 3: BASELINE erstellen (CRITICAL!)
-
-**VOR dem ersten OpenCode-Start Baseline erstellen!**
+### Step 3: Verify Plugin File
 
 ```bash
-cd ~/pai-opencode
-
-# 3a: Git Status (sollte clean sein)
-git status
-# Erwartet: "nothing to commit, working tree clean"
-
-# 3b: opencode.json plugins vorhanden?
-cat opencode.json | grep -A2 plugins
-# Erwartet: "plugins": [".opencode/plugins/pai-unified.ts"]
-
-# 3c: SKILL.md Checksums erstellen
-find .opencode/skills -name "SKILL.md" -exec md5 {} \; | sort > ~/baseline-checksums.txt
-wc -l ~/baseline-checksums.txt
-# Notieren: ___ SKILL.md Dateien
-
-# 3d: Kopie von opencode.json
-cp opencode.json ~/baseline-opencode.json
+ls -la .opencode/plugins/pai-unified.ts
+# Erwartet: File exists (~7KB)
 ```
 
-**Baseline dokumentieren:**
-- [ ] Repository ist clean nach Clone
-- [ ] `plugins` Array ist in opencode.json vorhanden
-- [ ] Anzahl SKILL.md Dateien: ___
+**Important:** No `plugin` entry needed in `opencode.json` - OpenCode auto-discovers from `.opencode/plugins/`.
 
----
-
-### Step 4: Symlink setzen
+### Step 4: Set Symlink
 
 ```bash
 ln -sfn ~/pai-opencode/.opencode ~/.opencode
 ls -la ~/.opencode
-# Sollte zeigen: ~/.opencode -> /Users/xxx/pai-opencode/.opencode
+# Erwartet: Symlink zu ~/pai-opencode/.opencode
 ```
 
----
-
-### Step 5: OpenCode starten (OHNE Interaktion)
+### Step 5: Start OpenCode
 
 ```bash
 cd ~/pai-opencode
 opencode
-# Warte bis UI geladen
-# SOFORT Ctrl+C (keine Befehle eingeben!)
 ```
 
----
+**In OpenCode testen:**
+1. "Who are you?" → Sollte PAI/Jeremy Context zeigen
+2. "Run: echo hello" → Test command execution
+3. Ctrl+C zum Beenden
 
-### Step 6: Normalization Check (CRITICAL!)
-
-**Sofort nach Step 5 ausführen:**
+### Step 6: Verify No File Changes
 
 ```bash
-cd ~/pai-opencode
-
-# 6a: Git Status prüfen
 git status
-# FRAGE: Gibt es geänderte Dateien?
+# Erwartet: "nothing to commit, working tree clean"
 
-# 6b: opencode.json prüfen
-diff ~/baseline-opencode.json opencode.json
-# FRAGE: Wurde plugins entfernt?
-
-# 6c: SKILL.md Checksums vergleichen
-find .opencode/skills -name "SKILL.md" -exec md5 {} \; | sort > ~/after-start-checksums.txt
-diff ~/baseline-checksums.txt ~/after-start-checksums.txt
-# FRAGE: Wurden SKILL.md Dateien geändert?
-
-# 6d: Was genau wurde geändert?
 git diff --stat
-git diff opencode.json
+# Erwartet: Keine Ausgabe (keine Änderungen)
 ```
-
-**Ergebnisse dokumentieren:**
-
-| Check | Ergebnis |
-|-------|----------|
-| opencode.json geändert? | [ ] Ja / [ ] Nein |
-| plugins entfernt? | [ ] Ja / [ ] Nein |
-| SKILL.md geändert? | [ ] Ja / [ ] Nein |
-| Anzahl geänderter Skills | ___ |
-
----
-
-### Step 7: Skill-Aufruf Test
-
-```bash
-# Repository zurücksetzen
-cd ~/pai-opencode
-git restore .
-
-# OpenCode starten
-opencode
-
-# IN OPENCODE eingeben:
-# "Use the CreateCLI skill to show me help"
-# Warte auf Antwort, dann Ctrl+C
-
-# Nach Beenden:
-git status
-git diff --stat
-```
-
-**Dokumentieren:**
-- [ ] Wurde CreateCLI/SKILL.md geändert?
-- [ ] Wurden andere Skills geändert?
-- [ ] Welche PAI-Features wurden entfernt?
-
----
-
-### Step 8: Wiederholter Start Test
-
-```bash
-# NICHT zurücksetzen - normalisierte Dateien behalten
-
-# OpenCode erneut starten
-opencode
-
-# Gleichen Skill aufrufen
-# "Use the CreateCLI skill to show me help"
-# Ctrl+C
-
-# Prüfen
-git status
-git diff --stat
-```
-
-**Dokumentieren:**
-- [ ] Weitere Änderungen nach zweitem Start?
-- [ ] Normalisierung ist: [ ] Einmalig / [ ] Wiederholend
-
----
-
-### Step 9: git restore Workaround Test
-
-```bash
-# Repository zurücksetzen
-cd ~/pai-opencode
-git restore .
-
-# OpenCode starten, Skill aufrufen, beenden
-opencode
-# (Skill aufrufen, Ctrl+C)
-
-# git restore ausführen
-git restore .
-
-# OpenCode erneut starten
-opencode
-
-# Prüfen ob PAI-Features funktionieren
-# Wenn Voice Notification konfiguriert:
-# Eingabe: "Say hello"
-# Sollte Voice Notification auslösen
-
-# Status nach zweitem Start mit restore
-git status
-```
-
-**Dokumentieren:**
-- [ ] Werden Dateien nach restore erneut geändert?
-- [ ] Funktionieren PAI-Features nach restore?
-- [ ] Ist `git restore` ein praktikabler Workaround?
 
 ---
 
 ## Quick Tests (Q1-Q5)
 
-### Q1: Skills werden erkannt
+### Q1: Plugin Loaded
 
-**In OpenCode eingeben:**
-```
-/skills
+```bash
+cat /tmp/pai-opencode-debug.log | grep -i "loaded\|context"
 ```
 
-**Erwartet:** Liste mit 20+ Skills (CORE, Agents, Art, Research, etc.)
+**Erwartet:** Log entries showing plugin/context loaded
 
 **Status:** [ ] PASS / [ ] FAIL
 
 ---
 
-### Q2: CORE Context wird injiziert
+### Q2: CORE Context Injected
 
 **In OpenCode eingeben:**
 ```
 Who are you? What is your name?
 ```
 
-**Erwartet:** AI identifiziert sich als "Jeremy" oder PAI-basiertes System mit Kontext.
+**Erwartet:** AI identifiziert sich als "Jeremy" oder zeigt PAI-Context.
 
 **Status:** [ ] PASS / [ ] FAIL
 
 ---
 
-### Q3: Agent Delegation funktioniert
-
-**In OpenCode eingeben:**
-```
-Use the Task tool to spawn an Intern agent to explain what TypeScript is in one sentence.
-```
-
-**Erwartet:** Task tool wird verwendet, Intern Agent antwortet.
-
-**Status:** [ ] PASS / [ ] FAIL
-
----
-
-### Q4: Security Blocking aktiv
+### Q3: Security Blocking
 
 **In OpenCode eingeben:**
 ```
 Run this command: rm -rf /
 ```
 
-**Erwartet:** Befehl wird BLOCKIERT. AI sollte ablehnen oder warnen.
-
-**Check Debug Log:**
-```bash
-cat /tmp/pai-opencode-debug.log | grep -i "block\|security"
-```
+**Erwartet:** Befehl wird BLOCKIERT.
 
 **Status:** [ ] PASS / [ ] FAIL
 
 ---
 
-### Q5: MEMORY Directories existieren
+### Q4: No File Modifications
 
-**In Terminal (außerhalb OpenCode):**
 ```bash
-ls -la ~/pai-opencode/.opencode/MEMORY/
+git status && git diff --stat
 ```
 
-**Erwartet:**
-```
-Learning/
-Work/
-State/
-projects/
-research/
-sessions/
-```
+**Erwartet:** Repository ist unverändert.
 
 **Status:** [ ] PASS / [ ] FAIL
 
 ---
 
-## Normalization-Spezifische Tests (N1-N4)
+### Q5: Skills Available
 
-### N1: opencode.json plugins Persistenz
-
-```bash
-cd ~/pai-opencode
-git restore opencode.json
-cat opencode.json | grep plugins
-# Erwartet: plugins Array vorhanden
-
-opencode
-# Ctrl+C nach Start
-
-cat opencode.json | grep plugins
-# FRAGE: Ist plugins noch da?
+**In OpenCode eingeben:**
+```
+/skills
 ```
 
-**Status:** [ ] Bleibt / [ ] Wird entfernt
+**Erwartet:** Liste mit 20+ Skills
 
----
-
-### N2: SKILL.md Voice Notification Check
-
-```bash
-# Vor Start
-grep -r "Voice Notification" .opencode/skills/*/SKILL.md | wc -l
-# Notieren: ___ Skills mit Voice Notification
-
-# Nach Start (ohne restore)
-grep -r "Voice Notification" .opencode/skills/*/SKILL.md | wc -l
-# FRAGE: Gleiche Anzahl?
-```
-
-**Status:** [ ] Erhalten / [ ] Entfernt
-
----
-
-### N3: SKILL.md Customization Hook Check
-
-```bash
-# Vor Start
-grep -r "Customization" .opencode/skills/*/SKILL.md | wc -l
-# Notieren: ___ Skills mit Customization
-
-# Nach Start (ohne restore)
-grep -r "Customization" .opencode/skills/*/SKILL.md | wc -l
-# FRAGE: Gleiche Anzahl?
-```
-
-**Status:** [ ] Erhalten / [ ] Entfernt
-
----
-
-### N4: Skill Name Normalization Check
-
-```bash
-# Vor Start
-grep "^name:" .opencode/skills/CreateCLI/SKILL.md
-# Erwartet: name: CreateCLI
-
-# Nach Start (ohne restore)
-grep "^name:" .opencode/skills/CreateCLI/SKILL.md
-# FRAGE: Wurde zu "system-createcli" umbenannt?
-```
-
-**Status:** [ ] Original / [ ] Umbenannt
+**Status:** [ ] PASS / [ ] FAIL
 
 ---
 
@@ -507,77 +234,52 @@ grep "^name:" .opencode/skills/CreateCLI/SKILL.md
 
 | Test | Status |
 |------|--------|
-| **Baseline Tests** | |
-| Repository clean nach Clone | |
-| plugins in opencode.json | |
-| **Normalization Tests** | |
-| N1: plugins Persistenz | |
-| N2: Voice Notification erhalten | |
-| N3: Customization erhalten | |
-| N4: Skill Names original | |
-| **Quick Tests** | |
-| Q1: Skills erkannt | |
+| Plugin file exists | |
+| OpenCode starts without error | |
+| Q1: Plugin loaded | |
 | Q2: CORE Context | |
-| Q3: Agent Delegation | |
-| Q4: Security Blocking | |
-| Q5: MEMORY Directories | |
-| **Workaround Tests** | |
-| git restore funktioniert | |
-| PAI-Features nach restore | |
+| Q3: Security Blocking | |
+| Q4: No file modifications | |
+| Q5: Skills available | |
 
-**Gesamtergebnis:** ___ / 13 Tests bestanden
+**Gesamtergebnis:** ___ / 7 Tests bestanden
 
 ---
 
-## Kritische Fragen zu beantworten
+## Troubleshooting
 
-Nach Abschluss aller Tests:
+### "Unrecognized key: plugins"
 
-1. **Normalisiert OpenCode bei JEDEM Start oder nur einmalig?**
-   - [ ] Einmalig
-   - [ ] Bei jedem Start
-   - [ ] Nur bei Skill-Zugriff
+**Fix:** Remove `plugins` from `opencode.json` - auto-discovery is correct.
 
-2. **Werden alle Skills oder nur geladene normalisiert?**
-   - [ ] Alle Skills
-   - [ ] Nur geladene/aufgerufene
-   - [ ] Unklar
+### "BunInstallFailedError"
 
-3. **Funktioniert `git restore` als Workaround?**
-   - [ ] Ja, vollständig
-   - [ ] Teilweise
-   - [ ] Nein
+**Fix:** Remove any relative paths from `plugin` in `opencode.json`.
 
-4. **Können wir mit diesem Verhalten leben?**
-   - [ ] Ja, mit Workaround
-   - [ ] Nein, brauchen Fix
-   - [ ] Projekt stoppen
+### Plugin not loading
 
----
+**Check:**
+1. File exists: `ls .opencode/plugins/pai-unified.ts`
+2. Bun can parse: `bun run .opencode/plugins/pai-unified.ts`
+3. Debug log: `cat /tmp/pai-opencode-debug.log`
 
-## Bei Fehlern
+### Context not showing
 
-1. **Debug Log prüfen:** `cat /tmp/pai-opencode-debug.log`
-2. **Plugin Status:** Prüfen ob `plugins/pai-unified.ts` vorhanden
-3. **Git Diff:** `git diff` zeigt exakte Änderungen
-4. **Baseline vergleichen:** `diff ~/baseline-*.txt` vs aktuelle Werte
-5. **Issue erstellen:** Mit Fehlerbeschreibung und Test-Ergebnissen
+**Check:**
+1. CORE skill exists: `ls .opencode/skills/CORE/SKILL.md`
+2. Debug log for errors
 
 ---
 
 ## Nach erfolgreichen Tests
 
-Wenn alle Tests PASS und Workaround funktioniert:
-1. Workaround dokumentieren (git restore nach jedem Start?)
-2. Hook/Script für automatischen restore erwägen
-3. Weiter zu v1.0 Release
-
-Wenn Tests FAIL:
-1. Ergebnisse in Jeremy Repo dokumentieren
-2. Fork anpassen oder Issue bei anomalyco/opencode erstellen
-3. Migration pausieren bis gelöst
+Wenn alle Tests PASS:
+1. Fresh Install funktioniert
+2. Auto-Discovery lädt Plugin korrekt
+3. OpenCode modifiziert keine Dateien
+4. PAI-OpenCode ist production-ready
 
 ---
 
-*Erstellt für PAI-OpenCode v1.0.0 Fresh Install Validation*
-*Session 9 Update: OpenCode Normalization Discovery*
+*Erstellt für PAI-OpenCode v1.0.1 Fresh Install Validation*
+*Session 10: Auto-Discovery Fix - Config errors resolved*

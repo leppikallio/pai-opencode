@@ -219,18 +219,33 @@ plugins/
 
 ## Configuration
 
-### Plugin Registration
+### Plugin Registration (Auto-Discovery)
 
-Plugins are registered in `opencode.json` (project root):
+OpenCode **automatically discovers** plugins from the `plugins/` directory - **no config entry needed!**
+
+```
+.opencode/
+  plugins/
+    pai-unified.ts    # ✅ Auto-discovered and loaded
+    my-plugin.ts      # ✅ Also auto-discovered
+```
+
+OpenCode scans `{plugin,plugins}/*.{ts,js}` and loads all matching files automatically.
+
+**Important:** Do NOT add relative paths to `opencode.json` - this causes `BunInstallFailedError`.
+
+If you must explicitly register a plugin (e.g., from npm or absolute path), use:
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
-  "plugins": [
-    ".opencode/plugins/pai-unified.ts"
+  "plugin": [
+    "some-npm-package",
+    "file:///absolute/path/to/plugin.ts"
   ]
 }
 ```
+
+**Note:** The config key is `plugin` (singular), not `plugins` (plural).
 
 ### Identity Configuration
 
@@ -286,9 +301,11 @@ See `plugins/adapters/types.ts` for full pattern definitions.
 ### Plugin Not Loading
 
 **Check:**
-1. Is plugin path correct in `opencode.json`?
+1. Is the plugin file in `.opencode/plugins/`? (Auto-discovery location)
 2. Can Bun parse the TypeScript? `bun run .opencode/plugins/pai-unified.ts`
 3. Are there TypeScript errors? Check `~/.opencode/plugins/debug.log`
+4. If using `opencode.json`: Use `plugin` (singular), not `plugins` (plural)
+5. If using explicit paths: Use `file://` URL format, not relative paths
 
 ### Context Not Injecting
 

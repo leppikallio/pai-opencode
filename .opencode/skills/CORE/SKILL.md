@@ -104,7 +104,7 @@ The system is built on the Founding Principles, beginning with customization of 
 **Skill System** — Skills are the organizational unit for domain expertise in PAI. Each skill is self-activating (triggers on user intent), self-contained (packages context, workflows, tools), and composable. System skills use TitleCase naming; personal skills use _ALLCAPS prefix and are never shared publicly.
 → `SYSTEM/SKILLSYSTEM.md`
 
-**Plugin System** — Plugins are TypeScript modules that execute at lifecycle events (SessionStart, Stop, PreToolUse, etc.). They enable context injection, security validation, session capture, and observability. All plugins are configured in `opencode.json` and follow OpenCode's plugin API.
+**Plugin System** — Plugins are TypeScript modules that execute at lifecycle events (SessionStart, Stop, PreToolUse, etc.). They enable context injection, security validation, session capture, and observability. Plugins are **auto-discovered** from `.opencode/plugins/*.ts` - no config entry needed.
 → `SYSTEM/THEPLUGINSYSTEM.md`
 
 **Memory System** — Every session, insight, and decision is captured automatically to `$PAI_HOME/MEMORY/`. The system stores raw event logs (JSONL), session summaries, learning captures, and rating signals. Memory makes intelligence compound—without it, every session starts from zero.
