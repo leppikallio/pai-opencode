@@ -1,25 +1,109 @@
-# Fresh Install Test - v0.9.7
+# Fresh Install Test - v1.0.0
 
 **Zweck:** Validierung dass PAI-OpenCode auf einem sauberen System funktioniert.
 **User:** `opencode` (existierender Test-User) oder neuer User
-**Version:** v0.9.7 (Two-Layer Migration)
-**Datum:** 2026-01-22
+**Version:** v1.0.0 (Session 9 Update - Normalization Discovery)
+**Datum:** 2026-01-23
 
 ---
 
-## Änderungen gegenüber v0.9.5
+## CRITICAL WARNING: OpenCode Normalization Behavior
 
-| Feature | v0.9.5 | v0.9.7 |
-|---------|--------|--------|
-| Converter | Path Translation | Path + Architecture Translation |
-| Validation Gate | ❌ | ✅ System file risk analysis |
-| MigrationValidator | ❌ | ✅ 12+12+3 validation checks |
-| Model-Provider Config | ❌ | ✅ Sen/Anthropic/OpenAI |
-| Manifest | ❌ | ✅ MIGRATION-MANIFEST.json |
+> **BLOCKER DISCOVERED IN SESSION 9**
+>
+> OpenCode modifiziert Dateien beim Start/Laden:
+> 1. `opencode.json` wird überschrieben - `plugins` Array wird ENTFERNT
+> 2. `SKILL.md` Dateien werden "normalisiert" - PAI-Features werden ENTFERNT
+>
+> **Impact:** Ohne `plugins` ist PAI "tot". Ohne PAI-Features in SKILL.md fehlen Voice Notifications und Customization Hooks.
+>
+> **Diese Tests verifizieren das Verhalten systematisch.**
 
 ---
 
-## Step 0: Clean Slate (Alles löschen)
+## Quick Copy-Paste (Gesamter Test-Block)
+
+```bash
+# ============================================
+# PAI-OPENCODE FRESH INSTALL TEST v1.0.0
+# Auf separatem User-Account ausführen!
+# ============================================
+
+# STEP 0: CLEAN SLATE
+rm -rf ~/.local/share/opencode/
+rm -rf ~/.opencode/
+rm -rf ~/.config/opencode/
+rm -rf ~/pai-opencode/
+echo "Clean slate complete"
+
+# STEP 1: PREREQUISITES
+bun --version || echo "FAIL: Bun not installed"
+opencode --version || echo "FAIL: OpenCode not installed"
+
+# STEP 2: FRESH CLONE
+cd ~
+git clone https://github.com/Steffen025/pai-opencode.git
+cd pai-opencode
+bun install
+
+# STEP 3: BASELINE (CRITICAL - VOR opencode Start!)
+echo "=== BASELINE VOR OPENCODE START ===" > ~/test-results.txt
+date >> ~/test-results.txt
+git status >> ~/test-results.txt
+echo "--- opencode.json plugins check ---" >> ~/test-results.txt
+grep -A2 "plugins" opencode.json >> ~/test-results.txt || echo "NO PLUGINS FOUND" >> ~/test-results.txt
+echo "--- SKILL.md checksums ---" >> ~/test-results.txt
+find .opencode/skills -name "SKILL.md" -exec md5 {} \; | sort >> ~/test-results.txt
+
+# STEP 4: SYMLINK
+ln -sfn ~/pai-opencode/.opencode ~/.opencode
+ls -la ~/.opencode
+
+echo ""
+echo "============================================"
+echo "BASELINE COMPLETE - Results in ~/test-results.txt"
+echo "NOW: Start opencode, then IMMEDIATELY Ctrl+C"
+echo "THEN: Run the verification commands below"
+echo "============================================"
+```
+
+---
+
+## Nach OpenCode Start (Verification Commands)
+
+```bash
+# Nach dem Start von opencode (und Ctrl+C zum Beenden):
+cd ~/pai-opencode
+
+echo "" >> ~/test-results.txt
+echo "=== NACH OPENCODE START ===" >> ~/test-results.txt
+date >> ~/test-results.txt
+
+# Check 1: Git Status
+echo "--- git status ---" >> ~/test-results.txt
+git status >> ~/test-results.txt
+
+# Check 2: opencode.json plugins
+echo "--- opencode.json plugins check ---" >> ~/test-results.txt
+grep -A2 "plugins" opencode.json >> ~/test-results.txt || echo "PLUGINS REMOVED!" >> ~/test-results.txt
+
+# Check 3: SKILL.md checksums (compare to baseline)
+echo "--- SKILL.md checksums AFTER ---" >> ~/test-results.txt
+find .opencode/skills -name "SKILL.md" -exec md5 {} \; | sort >> ~/test-results.txt
+
+# Check 4: What changed?
+echo "--- git diff --stat ---" >> ~/test-results.txt
+git diff --stat >> ~/test-results.txt
+
+# Show results
+cat ~/test-results.txt
+```
+
+---
+
+## Detaillierte Test-Schritte
+
+### Step 0: Clean Slate (Alles löschen)
 
 **WICHTIG:** Als Test-User ausführen!
 
@@ -44,7 +128,7 @@ ls -la ~/.opencode 2>/dev/null || echo "OK: .opencode nicht vorhanden"
 
 ---
 
-## Step 1: Prerequisites prüfen
+### Step 1: Prerequisites prüfen
 
 ```bash
 # Bun vorhanden?
@@ -76,7 +160,7 @@ export ANTHROPIC_API_KEY="sk-ant-api03-..."
 
 ---
 
-## Step 2: Repository klonen
+### Step 2: Repository klonen
 
 ```bash
 cd ~
@@ -92,91 +176,181 @@ ls -la .opencode/
 
 ls -la opencode.json
 # Sollte: opencode.json im Root existieren
+
+# CRITICAL: plugins muss vorhanden sein!
+cat opencode.json | grep plugins
+# Sollte: "plugins": [".opencode/plugins/pai-unified.ts"]
 ```
 
 ---
 
-## Step 3: Converter testen (NEU in v0.9.7)
+### Step 3: BASELINE erstellen (CRITICAL!)
 
-### 3a: Converter Version prüfen
+**VOR dem ersten OpenCode-Start Baseline erstellen!**
 
 ```bash
-bun Tools/pai-to-opencode-converter.ts --help | head -5
+cd ~/pai-opencode
+
+# 3a: Git Status (sollte clean sein)
+git status
+# Erwartet: "nothing to commit, working tree clean"
+
+# 3b: opencode.json plugins vorhanden?
+cat opencode.json | grep -A2 plugins
+# Erwartet: "plugins": [".opencode/plugins/pai-unified.ts"]
+
+# 3c: SKILL.md Checksums erstellen
+find .opencode/skills -name "SKILL.md" -exec md5 {} \; | sort > ~/baseline-checksums.txt
+wc -l ~/baseline-checksums.txt
+# Notieren: ___ SKILL.md Dateien
+
+# 3d: Kopie von opencode.json
+cp opencode.json ~/baseline-opencode.json
 ```
 
-**Erwartet:** `PAI to OpenCode Converter v0.9.7`
-
-**Status:** [ ] PASS / [ ] FAIL
+**Baseline dokumentieren:**
+- [ ] Repository ist clean nach Clone
+- [ ] `plugins` Array ist in opencode.json vorhanden
+- [ ] Anzahl SKILL.md Dateien: ___
 
 ---
 
-### 3b: Converter Dry-Run
+### Step 4: Symlink setzen
 
 ```bash
-bun Tools/pai-to-opencode-converter.ts \
-  --source ~/.claude \
-  --target /tmp/test-opencode \
-  --dry-run
+ln -sfn ~/pai-opencode/.opencode ~/.opencode
+ls -la ~/.opencode
+# Sollte zeigen: ~/.opencode -> /Users/xxx/pai-opencode/.opencode
 ```
-
-**Erwartet:**
-- Source detection: Hooks, Skills, Custom Skills werden erkannt
-- "Migration manifest would be written to..."
-- "This was a DRY RUN - no files were modified."
-
-**Status:** [ ] PASS / [ ] FAIL
 
 ---
 
-### 3c: MigrationValidator testen
-
-```bash
-# Erst echte Konvertierung durchführen
-bun Tools/pai-to-opencode-converter.ts \
-  --source ~/.claude \
-  --target /tmp/test-opencode \
-  --skip-validation
-
-# Dann Validator separat testen
-bun Tools/MigrationValidator.ts \
-  --manifest /tmp/test-opencode/MIGRATION-MANIFEST.json \
-  --target /tmp/test-opencode \
-  --skip-llm \
-  --verbose
-```
-
-**Erwartet:**
-- Phase A: 12 deterministic checks (most should pass)
-- Phase C: Self-tests
-- Summary mit pass/fail counts
-
-**Status:** [ ] PASS / [ ] FAIL
-
----
-
-### 3d: MIGRATION-MANIFEST.json prüfen
-
-```bash
-cat /tmp/test-opencode/MIGRATION-MANIFEST.json | head -30
-```
-
-**Erwartet:** JSON mit version, timestamp, source.detected (hooks, skills, etc.)
-
-**Status:** [ ] PASS / [ ] FAIL
-
----
-
-## Step 4: OpenCode starten
+### Step 5: OpenCode starten (OHNE Interaktion)
 
 ```bash
 cd ~/pai-opencode
 opencode
+# Warte bis UI geladen
+# SOFORT Ctrl+C (keine Befehle eingeben!)
 ```
 
-**Erste Beobachtungen:**
-- [ ] TUI startet ohne Fehler
-- [ ] Keine Corruption/Glitches
-- [ ] Plugin lädt (check: `/tmp/pai-opencode-debug.log`)
+---
+
+### Step 6: Normalization Check (CRITICAL!)
+
+**Sofort nach Step 5 ausführen:**
+
+```bash
+cd ~/pai-opencode
+
+# 6a: Git Status prüfen
+git status
+# FRAGE: Gibt es geänderte Dateien?
+
+# 6b: opencode.json prüfen
+diff ~/baseline-opencode.json opencode.json
+# FRAGE: Wurde plugins entfernt?
+
+# 6c: SKILL.md Checksums vergleichen
+find .opencode/skills -name "SKILL.md" -exec md5 {} \; | sort > ~/after-start-checksums.txt
+diff ~/baseline-checksums.txt ~/after-start-checksums.txt
+# FRAGE: Wurden SKILL.md Dateien geändert?
+
+# 6d: Was genau wurde geändert?
+git diff --stat
+git diff opencode.json
+```
+
+**Ergebnisse dokumentieren:**
+
+| Check | Ergebnis |
+|-------|----------|
+| opencode.json geändert? | [ ] Ja / [ ] Nein |
+| plugins entfernt? | [ ] Ja / [ ] Nein |
+| SKILL.md geändert? | [ ] Ja / [ ] Nein |
+| Anzahl geänderter Skills | ___ |
+
+---
+
+### Step 7: Skill-Aufruf Test
+
+```bash
+# Repository zurücksetzen
+cd ~/pai-opencode
+git restore .
+
+# OpenCode starten
+opencode
+
+# IN OPENCODE eingeben:
+# "Use the CreateCLI skill to show me help"
+# Warte auf Antwort, dann Ctrl+C
+
+# Nach Beenden:
+git status
+git diff --stat
+```
+
+**Dokumentieren:**
+- [ ] Wurde CreateCLI/SKILL.md geändert?
+- [ ] Wurden andere Skills geändert?
+- [ ] Welche PAI-Features wurden entfernt?
+
+---
+
+### Step 8: Wiederholter Start Test
+
+```bash
+# NICHT zurücksetzen - normalisierte Dateien behalten
+
+# OpenCode erneut starten
+opencode
+
+# Gleichen Skill aufrufen
+# "Use the CreateCLI skill to show me help"
+# Ctrl+C
+
+# Prüfen
+git status
+git diff --stat
+```
+
+**Dokumentieren:**
+- [ ] Weitere Änderungen nach zweitem Start?
+- [ ] Normalisierung ist: [ ] Einmalig / [ ] Wiederholend
+
+---
+
+### Step 9: git restore Workaround Test
+
+```bash
+# Repository zurücksetzen
+cd ~/pai-opencode
+git restore .
+
+# OpenCode starten, Skill aufrufen, beenden
+opencode
+# (Skill aufrufen, Ctrl+C)
+
+# git restore ausführen
+git restore .
+
+# OpenCode erneut starten
+opencode
+
+# Prüfen ob PAI-Features funktionieren
+# Wenn Voice Notification konfiguriert:
+# Eingabe: "Say hello"
+# Sollte Voice Notification auslösen
+
+# Status nach zweitem Start mit restore
+git status
+```
+
+**Dokumentieren:**
+- [ ] Werden Dateien nach restore erneut geändert?
+- [ ] Funktionieren PAI-Features nach restore?
+- [ ] Ist `git restore` ein praktikabler Workaround?
 
 ---
 
@@ -260,75 +434,72 @@ sessions/
 
 ---
 
-## v0.9.7 Spezifische Tests
+## Normalization-Spezifische Tests (N1-N4)
 
-### T1: Validation Gate Library existiert
-
-```bash
-ls -la ~/pai-opencode/Tools/lib/
-```
-
-**Erwartet:**
-- `validation-gate.ts`
-- `migration-manifest.ts`
-
-**Status:** [ ] PASS / [ ] FAIL
-
----
-
-### T2: Model-Config Library existiert
-
-```bash
-cat ~/pai-opencode/.opencode/plugins/lib/model-config.ts | head -20
-```
-
-**Erwartet:** TypeScript mit `PaiModelConfig` interface
-
-**Status:** [ ] PASS / [ ] FAIL
-
----
-
-### T3: Hook Discovery funktioniert
+### N1: opencode.json plugins Persistenz
 
 ```bash
 cd ~/pai-opencode
-bun -e "
-const { discoverHooks } = await import('./Tools/pai-to-opencode-converter.ts');
-// Note: discoverHooks is internal, test via converter dry-run output
-console.log('Hook discovery test - check dry-run output for hook count');
-"
+git restore opencode.json
+cat opencode.json | grep plugins
+# Erwartet: plugins Array vorhanden
+
+opencode
+# Ctrl+C nach Start
+
+cat opencode.json | grep plugins
+# FRAGE: Ist plugins noch da?
 ```
 
-**Alternative:** Check dry-run output from Step 3b zeigt "Hooks: XX"
-
-**Status:** [ ] PASS / [ ] FAIL
+**Status:** [ ] Bleibt / [ ] Wird entfernt
 
 ---
 
-### T4: Keine .claude Pfade im konvertierten Output
+### N2: SKILL.md Voice Notification Check
 
 ```bash
-grep -r "\.claude/" /tmp/test-opencode/ 2>/dev/null | head -10
+# Vor Start
+grep -r "Voice Notification" .opencode/skills/*/SKILL.md | wc -l
+# Notieren: ___ Skills mit Voice Notification
+
+# Nach Start (ohne restore)
+grep -r "Voice Notification" .opencode/skills/*/SKILL.md | wc -l
+# FRAGE: Gleiche Anzahl?
 ```
 
-**Erwartet:** Keine Treffer (oder nur in Migration-Dokumentation)
-
-**Status:** [ ] PASS / [ ] FAIL
+**Status:** [ ] Erhalten / [ ] Entfernt
 
 ---
 
-### T5: plugins/ Directory statt hooks/
+### N3: SKILL.md Customization Hook Check
 
 ```bash
-ls ~/pai-opencode/.opencode/plugins/
-ls ~/pai-opencode/.opencode/hooks/ 2>/dev/null || echo "OK: hooks/ nicht vorhanden"
+# Vor Start
+grep -r "Customization" .opencode/skills/*/SKILL.md | wc -l
+# Notieren: ___ Skills mit Customization
+
+# Nach Start (ohne restore)
+grep -r "Customization" .opencode/skills/*/SKILL.md | wc -l
+# FRAGE: Gleiche Anzahl?
 ```
 
-**Erwartet:**
-- plugins/ existiert mit pai-unified.ts
-- hooks/ existiert NICHT
+**Status:** [ ] Erhalten / [ ] Entfernt
 
-**Status:** [ ] PASS / [ ] FAIL
+---
+
+### N4: Skill Name Normalization Check
+
+```bash
+# Vor Start
+grep "^name:" .opencode/skills/CreateCLI/SKILL.md
+# Erwartet: name: CreateCLI
+
+# Nach Start (ohne restore)
+grep "^name:" .opencode/skills/CreateCLI/SKILL.md
+# FRAGE: Wurde zu "system-createcli" umbenannt?
+```
+
+**Status:** [ ] Original / [ ] Umbenannt
 
 ---
 
@@ -336,25 +507,51 @@ ls ~/pai-opencode/.opencode/hooks/ 2>/dev/null || echo "OK: hooks/ nicht vorhand
 
 | Test | Status |
 |------|--------|
-| **Converter Tests** | |
-| 3a: Converter v0.9.7 | |
-| 3b: Converter Dry-Run | |
-| 3c: MigrationValidator | |
-| 3d: MIGRATION-MANIFEST | |
+| **Baseline Tests** | |
+| Repository clean nach Clone | |
+| plugins in opencode.json | |
+| **Normalization Tests** | |
+| N1: plugins Persistenz | |
+| N2: Voice Notification erhalten | |
+| N3: Customization erhalten | |
+| N4: Skill Names original | |
 | **Quick Tests** | |
 | Q1: Skills erkannt | |
 | Q2: CORE Context | |
 | Q3: Agent Delegation | |
 | Q4: Security Blocking | |
 | Q5: MEMORY Directories | |
-| **v0.9.7 Tests** | |
-| T1: Validation Gate Lib | |
-| T2: Model-Config Lib | |
-| T3: Hook Discovery | |
-| T4: Keine .claude Pfade | |
-| T5: plugins/ statt hooks/ | |
+| **Workaround Tests** | |
+| git restore funktioniert | |
+| PAI-Features nach restore | |
 
-**Gesamtergebnis:** ___ / 14 Tests bestanden
+**Gesamtergebnis:** ___ / 13 Tests bestanden
+
+---
+
+## Kritische Fragen zu beantworten
+
+Nach Abschluss aller Tests:
+
+1. **Normalisiert OpenCode bei JEDEM Start oder nur einmalig?**
+   - [ ] Einmalig
+   - [ ] Bei jedem Start
+   - [ ] Nur bei Skill-Zugriff
+
+2. **Werden alle Skills oder nur geladene normalisiert?**
+   - [ ] Alle Skills
+   - [ ] Nur geladene/aufgerufene
+   - [ ] Unklar
+
+3. **Funktioniert `git restore` als Workaround?**
+   - [ ] Ja, vollständig
+   - [ ] Teilweise
+   - [ ] Nein
+
+4. **Können wir mit diesem Verhalten leben?**
+   - [ ] Ja, mit Workaround
+   - [ ] Nein, brauchen Fix
+   - [ ] Projekt stoppen
 
 ---
 
@@ -362,23 +559,25 @@ ls ~/pai-opencode/.opencode/hooks/ 2>/dev/null || echo "OK: hooks/ nicht vorhand
 
 1. **Debug Log prüfen:** `cat /tmp/pai-opencode-debug.log`
 2. **Plugin Status:** Prüfen ob `plugins/pai-unified.ts` vorhanden
-3. **Manifest prüfen:** `cat MIGRATION-MANIFEST.json`
-4. **Validator manuell:** `bun Tools/MigrationValidator.ts --target . --skip-llm --verbose`
-5. **Issue erstellen:** Mit Fehlerbeschreibung und Steps to Reproduce
+3. **Git Diff:** `git diff` zeigt exakte Änderungen
+4. **Baseline vergleichen:** `diff ~/baseline-*.txt` vs aktuelle Werte
+5. **Issue erstellen:** Mit Fehlerbeschreibung und Test-Ergebnissen
 
 ---
 
 ## Nach erfolgreichen Tests
 
-Wenn alle Tests PASS:
-1. Fresh Install Test ist abgeschlossen
-2. Weiter zu v1.0 Release:
-   - Version auf v1.0.0 bumpen
-   - README.md finalisieren
-   - GitHub Release erstellen
-   - Announce
+Wenn alle Tests PASS und Workaround funktioniert:
+1. Workaround dokumentieren (git restore nach jedem Start?)
+2. Hook/Script für automatischen restore erwägen
+3. Weiter zu v1.0 Release
+
+Wenn Tests FAIL:
+1. Ergebnisse in Jeremy Repo dokumentieren
+2. Fork anpassen oder Issue bei anomalyco/opencode erstellen
+3. Migration pausieren bis gelöst
 
 ---
 
-*Erstellt für PAI-OpenCode v0.9.7 Fresh Install Validation*
-*Two-Layer Migration: Converter + MigrationValidator*
+*Erstellt für PAI-OpenCode v1.0.0 Fresh Install Validation*
+*Session 9 Update: OpenCode Normalization Discovery*
