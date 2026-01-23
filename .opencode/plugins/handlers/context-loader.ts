@@ -109,13 +109,13 @@ export async function loadContext(): Promise<ContextResult> {
     // 3. Load USER/TELOS context (if exists)
     const telosDir = join(coreSkillDir, "USER", "TELOS");
     if (existsSync(telosDir)) {
-      const telosFiles = ["GOALS.md", "ABOUTME.md", "PREFERENCES.md"];
+      const telosFiles = ["GOALS.md", "TELOS.md"];
 
       for (const file of telosFiles) {
         const filePath = join(telosDir, file);
         const content = readFileSafe(filePath);
         if (content) {
-          contextParts.push(`--- USER/${file} ---\n${content}`);
+          contextParts.push(`--- USER/TELOS/${file} ---\n${content}`);
           fileLog(`Loaded USER/TELOS/${file}`);
         }
       }

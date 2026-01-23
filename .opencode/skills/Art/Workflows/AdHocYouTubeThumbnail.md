@@ -195,20 +195,18 @@ Rembrandt lighting pattern. Looking at camera. Ultra-tight crop on face only.
 
 ### Generate Command
 
+**NOTE: The Headshot.ts tool is NOT IMPLEMENTED.** Use your preferred AI image generation tool (e.g., Nano Banana Pro, Midjourney, or similar) with the face-only prompts above.
+
 ```bash
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 
-# Load reference images from user customizations
-# Default location: ~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Art/References/
-bun ~/.opencode/skills/Headshot/Tools/Headshot.ts \
-  --prompt "[FACE-ONLY HEADSHOT PROMPT]" \
-  --reference ~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Art/References/reference.png \
-  --size 2K \
-  --aspect-ratio 1:1 \
-  --output ~/Downloads/yt-headshot-${TIMESTAMP}.png
+# Generate face-only headshot using your preferred AI image generation service
+# Examples: Nano Banana Pro, Midjourney, DALL-E 3, etc.
+# Key requirement: Follow the "FACE ONLY" prompts in the variations above
+# Output should be saved as: ~/Downloads/yt-headshot-${TIMESTAMP}.png
 ```
 
-**Note:** Using 1:1 aspect ratio forces tighter face crop. ComposeThumbnail will also auto-crop to remove any remaining body.
+**Note:** Image generation must produce FACE-ONLY output (forehead to chin, ear to ear, no shoulders/body). ComposeThumbnail will also auto-crop to remove any remaining body parts.
 
 ### Remove Background
 

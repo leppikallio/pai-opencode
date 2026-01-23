@@ -59,15 +59,13 @@ git diff --staged  # Review staged changes
 
 ### 3. Update Documentation FIRST (BEFORE COMMITTING)
 
-**Execute `skills/System/Workflows/DocumentChanges.md` workflow:**
+**Review what changes are about to be committed:**
 
-- Review what changes are about to be committed
-- Create update entry in `MEMORY/PAISYSTEMUPDATES/` using CreateUpdate.ts
-- Update `CORE/USER/UPGRADES/RECENT.md` with the new entry
-- Regenerate index with UpdateIndex.ts
+- Verify that code changes align with documentation
+- If this is a system-level change, update relevant documentation files
 - Update SYSTEM docs if structure changed (SKILLSYSTEM.md, MEMORYSYSTEM.md, etc.)
 
-This ensures documentation is INCLUDED in the commit, keeping docs in sync with code.
+This ensures documentation stays in sync with code changes.
 
 ### 4. Stage All Changes (Including Doc Updates)
 

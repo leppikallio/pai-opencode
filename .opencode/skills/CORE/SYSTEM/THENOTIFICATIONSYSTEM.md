@@ -196,23 +196,47 @@ The backgrounded `&` and redirected output (`> /dev/null 2>&1`) ensure the curl 
 
 ---
 
-## External Notifications (Push, Discord)
+## 🔴 CURRENTLY IMPLEMENTED: Voice Server Only
 
-**Beyond voice notifications, PAI supports external notification channels:**
+**STATUS: Only the Voice Server (localhost:8888) is FULLY IMPLEMENTED and WORKING.**
 
-### Available Channels
+All curl calls in this document target `http://localhost:8888/notify` and function properly. External notification channels (ntfy.sh, Discord, SMS) listed below are **PLANNED FEATURES** and are **NOT YET IMPLEMENTED**.
 
-| Channel | Service | Purpose | Configuration |
-|---------|---------|---------|---------------|
-| **ntfy** | ntfy.sh | Mobile push notifications | `settings.json → notifications.ntfy` |
-| **Discord** | Webhook | Team/server notifications | `settings.json → notifications.discord` |
-| **Desktop** | macOS native | Local desktop alerts | Always available |
+---
 
-### Smart Routing
+## TTS Provider Implementation
 
-Notifications are automatically routed based on event type:
+**Currently Implemented (Production Ready):**
 
-| Event | Default Channels | Trigger |
+| Provider | Model | Status | Notes |
+|----------|-------|--------|-------|
+| **Google Cloud TTS** | Chirp 3: HD | ✅ PRIMARY | High quality, low latency, production-ready |
+| **ElevenLabs** | Multilingual v2 | ✅ FALLBACK | Fallback if Google Cloud unavailable |
+
+**Voice Server (localhost:8888) uses this configuration:**
+1. Try Google Cloud TTS (Chirp 3: HD) first
+2. Fall back to ElevenLabs if Google Cloud fails
+3. Voice IDs are configured in `AGENTPERSONALITIES.md`
+
+---
+
+## External Notifications (PLANNED - NOT IMPLEMENTED)
+
+⚠️ **These features are documented for future implementation. They do NOT currently work.**
+
+### Available Channels (Planned)
+
+| Channel | Service | Purpose | Status |
+|---------|---------|---------|--------|
+| **ntfy** | ntfy.sh | Mobile push notifications | 🔴 NOT IMPLEMENTED |
+| **Discord** | Webhook | Team/server notifications | 🔴 NOT IMPLEMENTED |
+| **Desktop** | macOS native | Local desktop alerts | 🔴 NOT IMPLEMENTED |
+
+### Smart Routing (Planned, Not Active)
+
+Notifications are **planned** to be routed based on event type:
+
+| Event | Planned Channels | Trigger |
 |-------|------------------|---------|
 | `taskComplete` | Voice only | Normal task completion |
 | `longTask` | Voice + ntfy | Task duration > 5 minutes |
@@ -220,15 +244,17 @@ Notifications are automatically routed based on event type:
 | `error` | Voice + ntfy | Error in response |
 | `security` | Voice + ntfy + Discord | Security alert |
 
-### Configuration
+**NOTE:** Currently, only Voice notifications work. The routing configuration below does not function.
 
-Located in `~/.opencode/settings.json`:
+### Configuration Schema (Planned)
+
+Located in `~/.opencode/settings.json` (for future use):
 
 ```json
 {
   "notifications": {
     "ntfy": {
-      "enabled": true,
+      "enabled": false,
       "topic": "kai-[random-topic]",
       "server": "ntfy.sh"
     },
@@ -250,20 +276,30 @@ Located in `~/.opencode/settings.json`:
 }
 ```
 
-### ntfy.sh Setup
+**DO NOT enable these settings** - they are not yet supported.
 
-1. **Generate topic**: `echo "kai-$(openssl rand -hex 8)"`
-2. **Install app**: iOS App Store or Android Play Store → "ntfy"
-3. **Subscribe**: Add your topic in the app
-4. **Test**: `curl -d "Test" ntfy.sh/your-topic`
+### ntfy.sh Setup (Future Implementation)
+
+🔴 **NOT IMPLEMENTED** - This section documents planned functionality:
+
+1. Generate topic: `echo "kai-$(openssl rand -hex 8)"`
+2. Install app: iOS App Store or Android Play Store → "ntfy"
+3. Subscribe: Add your topic in the app
+4. Test: `curl -d "Test" ntfy.sh/your-topic`
 
 Topic name acts as password - use random string for security.
 
-### Discord Setup
+**Estimated timeline:** Q1 2026
+
+### Discord Setup (Future Implementation)
+
+🔴 **NOT IMPLEMENTED** - This section documents planned functionality:
 
 1. Create webhook in your Discord server
 2. Add webhook URL to `settings.json`
 3. Set `discord.enabled: true`
+
+**Estimated timeline:** Q1 2026
 
 ### SMS (Not Recommended)
 
@@ -276,17 +312,19 @@ Topic name acts as password - use random string for security.
 
 | Option | Status | Notes |
 |--------|--------|-------|
-| **ntfy.sh** | ✅ RECOMMENDED | Same result (phone alert), zero hassle |
+| **ntfy.sh** | 🔴 NOT IMPLEMENTED | Same result (phone alert), zero hassle - planned for Q1 2026 |
 | **Textbelt** | ❌ Blocked | Free tier disabled for US due to abuse |
-| **AppleScript + Messages.app** | ⚠️ Requires permissions | Works if you grant automation access |
-| **Twilio Toll-Free** | ⚠️ Simpler | 5-14 day verification (vs 3-5 weeks for 10DLC) |
-| **Email-to-SMS** | ⚠️ Carrier-dependent | `number@vtext.com` (Verizon), `@txt.att.net` (AT&T) |
+| **AppleScript + Messages.app** | ⚠️ Not scheduled | Works if you grant automation access - low priority |
+| **Twilio Toll-Free** | ⚠️ Not scheduled | 5-14 day verification (vs 3-5 weeks for 10DLC) |
+| **Email-to-SMS** | ⚠️ Not scheduled | `number@vtext.com` (Verizon), `@txt.att.net` (AT&T) |
 
-**Bottom line:** ntfy.sh already alerts your phone. SMS adds carrier bureaucracy for the same outcome.
+**Current reality:** Only Voice Server (localhost:8888) alerts you. SMS implementation is deferred indefinitely.
 
-### Implementation
+### Implementation Status (FUTURE)
 
-The notification service is in `~/.opencode/hooks/lib/notifications.ts`:
+The notification service in `~/.opencode/hooks/lib/notifications.ts` is **NOT YET IMPLEMENTED**.
+
+Once implemented, it will provide:
 
 ```typescript
 import { notify, notifyTaskComplete, notifyBackgroundAgent, notifyError } from './lib/notifications';
@@ -305,9 +343,11 @@ await sendPush("Message", { title: "Title", priority: "high" });
 await sendDiscord("Message", { title: "Title", color: 0x00ff00 });
 ```
 
-### Design Principles
+**This code will not execute until external notification implementation is complete.**
 
-1. **Fire and forget** - Notifications never block hook execution
-2. **Fail gracefully** - Missing services don't cause errors
+### Design Principles (Future)
+
+1. **Fire and forget** - Notifications will not block hook execution
+2. **Fail gracefully** - Missing services won't cause errors
 3. **Conservative defaults** - Avoid notification fatigue
 4. **Duration-aware** - Only push for long-running tasks (>5 min)

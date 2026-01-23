@@ -192,5 +192,5 @@ git log --name-only --oneline | grep -i "[keyword]"
 
 ## Related Workflows
 
-- `DocumentChanges.md` - Create new documentation from findings
+- `DocumentChanges.md` - NOT IMPLEMENTED - Create new documentation from findings
 - `PrivateSystemAudit.md` - If recall suggests system issues

@@ -361,7 +361,7 @@ Keep only these in SKILL.md:
 - ✅ Brief description (1-2 lines)
 - ✅ Workflow routing table
 - ✅ Quick reference (3-5 bullet points)
-- ✅ Pointers to detailed docs via SkillSearch
+- ✅ Pointers to detailed docs via Read tool (see note below)
 
 ### What Goes In Additional .md Context Files (Loaded On-Demand)
 
@@ -404,26 +404,20 @@ Complete visual content system using **charcoal architectural sketch** aesthetic
 **Output:** Always ~/Downloads/ first
 
 **Full Documentation:**
-- Aesthetic guide: `SkillSearch('art aesthetic')` → loads Aesthetic.md
-- Examples: `SkillSearch('art examples')` → loads Examples.md
-- Tools: `SkillSearch('art tools')` → loads Tools.md
+- Aesthetic guide: `Read ~/.opencode/skills/Art/Aesthetic.md`
+- Examples: `Read ~/.opencode/skills/Art/Examples.md`
+- Tools: `Read ~/.opencode/skills/Art/Tools.md`
 ```
 
 ### Loading Additional Context Files
 
-Workflows call SkillSearch to load context files as needed:
+Reference context files directly using the Read tool:
 
-```bash
-# In workflow files or SKILL.md
-SkillSearch('art aesthetic')    # Loads Aesthetic.md from skill root
-SkillSearch('art examples')     # Loads Examples.md from skill root
-SkillSearch('art tools')        # Loads Tools.md from skill root
-```
-
-Or reference them directly:
 ```bash
 # Read specific context file
 Read ~/.opencode/skills/Art/Aesthetic.md
+Read ~/.opencode/skills/Art/Examples.md
+Read ~/.opencode/skills/Art/Tools.md
 ```
 
 Context files can reference workflows and tools:
@@ -433,6 +427,23 @@ Context files can reference workflows and tools:
 Use the Essay workflow for blog headers: `Workflows/Essay.md`
 Generate images with: `bun Tools/Generate.ts`
 ```
+
+---
+
+## ⚠️ FUTURE FEATURE: SkillSearch()
+
+**SkillSearch() is documented below but NOT YET IMPLEMENTED.**
+
+The following sections reference `SkillSearch()` as a future capability. **Do not use SkillSearch() - it will fail.**
+
+**Current Alternative:** Use the `Read` tool directly to load context files:
+```bash
+Read ~/.opencode/skills/SkillName/ContextFile.md
+```
+
+**When SkillSearch() is implemented in a future release**, it will provide intelligent skill discovery and dynamic context loading. Until then, use explicit file paths with the Read tool.
+
+---
 
 ### Benefits
 
@@ -516,7 +527,7 @@ Or manually:
 2. Update YAML frontmatter to single-line description
 3. Add `## Workflow Routing` table
 4. Add `## Examples` section
-5. Move backups to `~/.opencode/MEMORY/Backups/`
+5. Move backups to `~/.opencode/BACKUPS/`
 6. Verify against checklist
 
 ---
