@@ -124,7 +124,7 @@ curl -s -X POST http://localhost:8888/notify \
 | **{daidentity.name}** (default) | `{daidentity.voiceId}` | Use for most workflows |
 | **Priya** (Artist) | `ZF6FPAbjXT4488VcRRnw` | Art skill workflows |
 
-**Full voice registry:** `~/.opencode/skills/CORE/SYSTEM/AGENTPERSONALITIES.md`
+**Full voice registry:** `~/.opencode/skills/Agents/AgentPersonalities.md`
 
 ---
 

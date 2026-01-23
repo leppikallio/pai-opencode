@@ -196,9 +196,11 @@ Before marking icon complete:
 
 ## Related Workflows
 
-- `~/.opencode/skills/PAI/Workflows/CreatePack.md` - Uses this for icon generation
-- `~/.opencode/skills/PAI/Workflows/ValidatePack.md` - Validates icon exists
-- `~/.opencode/skills/PAI/Workflows/PAIIntegrityCheck.md` - Checks all icons
+> **Note:** The PAI skill workflows referenced below are planned but not yet implemented.
+
+- `~/.opencode/skills/PAI/Workflows/CreatePack.md` - *(NOT IMPLEMENTED)* Would use this for icon generation
+- `~/.opencode/skills/PAI/Workflows/ValidatePack.md` - *(NOT IMPLEMENTED)* Would validate icon exists
+- `~/.opencode/skills/PAI/Workflows/PAIIntegrityCheck.md` - *(NOT IMPLEMENTED)* Would check all icons
 
 ---
 
