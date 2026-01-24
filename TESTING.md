@@ -46,7 +46,6 @@ bun run .opencode/PAIOpenCodeWizard.ts
 | 3 | Timezone | Press Enter (auto-detect) |
 | 4 | Name your AI assistant | `PAI` |
 | 5 | Startup catchphrase | Press Enter (default) |
-| 6 | ElevenLabs API key | Press Enter (skip) |
 
 ### Available Providers (8 total)
 

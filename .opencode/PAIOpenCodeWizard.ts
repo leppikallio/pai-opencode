@@ -146,11 +146,11 @@ const PROVIDERS: ProviderConfig[] = [
   },
 ];
 
-// Default voice IDs - ElevenLabs pre-made voices
+// Voice deferred to v1.1 - keeping structure for future use
 const DEFAULT_VOICES = {
-  male: 'pNInz6obpgDQGcFmaJgB',      // Adam
-  female: '21m00Tcm4TlvDq8ikWAM',    // Rachel
-  neutral: 'ErXwobaYiN019PkySvjV',   // Antoni
+  male: 'pNInz6obpgDQGcFmaJgB',      // Adam (ElevenLabs)
+  female: '21m00Tcm4TlvDq8ikWAM',    // Rachel (ElevenLabs)
+  neutral: 'ErXwobaYiN019PkySvjV',   // Antoni (ElevenLabs)
 };
 
 interface InstallConfig {
@@ -159,8 +159,7 @@ interface InstallConfig {
   AI_NAME: string;
   CATCHPHRASE: string;
   PROVIDER: ProviderConfig;
-  VOICE_TYPE?: 'male' | 'female' | 'neutral';
-  ELEVENLABS_KEY?: string;
+  VOICE_TYPE?: 'male' | 'female' | 'neutral';  // Deferred to v1.1
 }
 
 // ============================================================================
@@ -539,33 +538,8 @@ async function main(): Promise<void> {
   const AI_NAME = await prompt('Name your AI assistant', 'PAI');
   const CATCHPHRASE = await prompt('Startup catchphrase', `${AI_NAME} here, ready to help.`);
 
-  // Step 6: Voice (optional)
-  print('');
-  print(`${c.bold}Step 4: Voice Settings (Optional)${c.reset}`);
-  print(`${c.gray}─────────────────────────────────────────────────${c.reset}`);
-  print(`  ${c.gray}Voice requires ElevenLabs API key. Skip if you don't have one.${c.reset}`);
-
-  const ELEVENLABS_KEY = await prompt('ElevenLabs API key (Enter to skip)', '');
-
-  let VOICE_TYPE: 'male' | 'female' | 'neutral' = 'male';
-  if (ELEVENLABS_KEY) {
-    const voiceIdx = await promptChoice('Voice type', ['Male (Adam)', 'Female (Rachel)', 'Neutral (Antoni)'], 0);
-    const voiceTypes: Array<'male' | 'female' | 'neutral'> = ['male', 'female', 'neutral'];
-    VOICE_TYPE = voiceTypes[voiceIdx];
-
-    // Write API key to .env
-    const envPath = join(OPENCODE_DIR, '.env');
-    let envContent = existsSync(envPath) ? readFileSync(envPath, 'utf-8') : '';
-    if (envContent.includes('ELEVENLABS_API_KEY=')) {
-      envContent = envContent.replace(/ELEVENLABS_API_KEY=.*/, `ELEVENLABS_API_KEY=${ELEVENLABS_KEY}`);
-    } else {
-      envContent = envContent.trim() + `\nELEVENLABS_API_KEY=${ELEVENLABS_KEY}\n`;
-    }
-    writeFileSync(envPath, envContent);
-    printSuccess('Saved ElevenLabs API key');
-  } else {
-    printInfo('Skipping voice setup');
-  }
+  // Voice deferred to v1.1
+  const VOICE_TYPE: 'male' | 'female' | 'neutral' = 'male';
 
   const config: InstallConfig = {
     PRINCIPAL_NAME,
@@ -574,12 +548,11 @@ async function main(): Promise<void> {
     CATCHPHRASE,
     PROVIDER: selectedProvider,
     VOICE_TYPE,
-    ELEVENLABS_KEY,
   };
 
-  // Step 7: Write Configuration Files
+  // Step 4: Write Configuration Files
   print('');
-  print(`${c.bold}Step 5: Writing Configuration${c.reset}`);
+  print(`${c.bold}Step 4: Writing Configuration${c.reset}`);
   print(`${c.gray}─────────────────────────────────────────────────${c.reset}`);
 
   // opencode.json (project root)
