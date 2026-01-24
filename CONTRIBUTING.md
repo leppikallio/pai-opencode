@@ -125,8 +125,28 @@ type(scope): subject
 ├── plugins/          # Lifecycle plugins (TypeScript)
 ├── MEMORY/           # Execution history (not in git)
 ├── PAISECURITYSYSTEM/ # Security patterns
+├── PAISYSTEM/        # System documentation
 └── settings.json     # Configuration
 ```
+
+## Importing PAI Versions
+
+When upgrading PAI-OpenCode to a new PAI version (e.g., 2.4 → 2.5), follow the mapping guide:
+
+📖 **[PAI-to-OpenCode Mapping Guide](.opencode/PAISYSTEM/PAI-TO-OPENCODE-MAPPING.md)**
+
+This document covers:
+- **Architecture differences** (`.claude/` → `.opencode/`, hooks → plugins)
+- **Component mapping rules** (Skills, Agents, CORE, MEMORY)
+- **What NOT to import** (Observability, VoiceServer, lib/)
+- **Common import errors** (nested SKILL.md, long descriptions, color format)
+- **Pre/During/Post import checklists**
+
+**Critical rules:**
+- Skills are **FLAT**: `skills/SkillName/SKILL.md` (NOT `SkillName/SkillName/`)
+- Agent colors must be **hex format**: `#00FFFF` (NOT `cyan`)
+- YAML descriptions must be **<220 characters**
+- Fabric patterns go **only** in `skills/Fabric/Patterns/`
 
 ### Adding a New Skill
 
