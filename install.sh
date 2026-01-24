@@ -283,65 +283,29 @@ else
     success "Bun installed"
 fi
 
-# ==================== STEP 2: BUILD OPENCODE ====================
-step "2" "Building OpenCode with PAI Branding"
+# ==================== STEP 2: INSTALL OPENCODE ====================
+step "2" "Installing OpenCode"
 
 if [[ "$SKIP_OPENCODE_BUILD" == "true" ]]; then
-    warn "Skipping OpenCode build (--skip-opencode-build)"
+    warn "Skipping OpenCode install (--skip-opencode-build)"
     if ! command -v opencode &> /dev/null; then
-        error "OpenCode not found and build was skipped. Cannot continue."
+        error "OpenCode not found and install was skipped. Cannot continue."
     fi
 else
-    TEMP_DIR=$(mktemp -d)
-    cd "$TEMP_DIR"
-
-    info "Cloning OpenCode repository..."
-    git clone --depth 1 https://github.com/opencode-ai/opencode.git opencode-src &
+    info "Installing OpenCode via go install..."
+    "$GO_BIN" install github.com/opencode-ai/opencode@latest &
     spin $!
-
-    cd opencode-src
-
-    info "Patching logo to 'PAI-OpenCode'..."
-    # Patch the logo in chat.go (line 101 based on research)
-    CHAT_FILE="internal/tui/components/chat/chat.go"
-    if [[ -f "$CHAT_FILE" ]]; then
-        # Use sed to replace "OpenCode" with "PAI-OpenCode" in the logo line
-        if [[ "$OS" == "Darwin" ]]; then
-            sed -i '' 's/"OpenCode"/"PAI-OpenCode"/g' "$CHAT_FILE"
-        else
-            sed -i 's/"OpenCode"/"PAI-OpenCode"/g' "$CHAT_FILE"
-        fi
-
-        # Verify the patch actually worked
-        if grep -q '"PAI-OpenCode"' "$CHAT_FILE"; then
-            success "Logo patched to PAI-OpenCode"
-        else
-            warn "Logo patch may have failed - check $CHAT_FILE"
-        fi
-    else
-        warn "Could not find chat.go - logo will show 'OpenCode'"
-    fi
-
-    info "Building OpenCode binary..."
-    "$GO_BIN" build -o opencode ./main.go &
-    spin $!
-
-    # Install to GOPATH/bin
-    GOPATH_BIN="$("$GO_BIN" env GOPATH 2>/dev/null || echo "$HOME/go")/bin"
-    mkdir -p "$GOPATH_BIN"
-    mv opencode "$GOPATH_BIN/"
-    success "OpenCode installed to $GOPATH_BIN/opencode"
-
-    # Cleanup
-    cd "$HOME"
-    rm -rf "$TEMP_DIR"
 
     # Ensure GOPATH/bin is in PATH
+    GOPATH_BIN="$("$GO_BIN" env GOPATH 2>/dev/null || echo "$HOME/go")/bin"
     if [[ ":$PATH:" != *":$GOPATH_BIN:"* ]]; then
         export PATH="$GOPATH_BIN:$PATH"
-        warn "Added $GOPATH_BIN to PATH for this session"
-        warn "Add this to your shell profile for persistence:"
-        echo -e "    ${DIM}export PATH=\"\$PATH:$GOPATH_BIN\"${NC}"
+    fi
+
+    if command -v opencode &> /dev/null; then
+        success "OpenCode installed to $GOPATH_BIN/opencode"
+    else
+        error "OpenCode installation failed"
     fi
 fi
 
