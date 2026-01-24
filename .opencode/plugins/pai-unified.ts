@@ -1,42 +1,58 @@
 /**
  * PAI-OpenCode Unified Plugin
  *
- * Single plugin that combines all PAI hook functionality:
+ * Single plugin that combines all PAI v2.4 hook functionality:
  * - Context injection (SessionStart equivalent)
  * - Security validation (PreToolUse blocking equivalent)
- * - Tool lifecycle (PreToolUse/PostToolUse equivalents)
- * - Session lifecycle (Stop equivalent)
+ * - Work tracking (AutoWorkCreation + SessionSummary)
+ * - Rating capture (ExplicitRatingCapture)
+ * - Agent output capture (AgentOutputCapture)
+ * - Learning extraction (WorkCompletionLearning)
  *
  * IMPORTANT: This plugin NEVER uses console.log!
  * All logging goes through file-logger.ts to prevent TUI corruption.
  *
  * @module pai-unified
+ * @version 1.0.0
  */
 
 import type { Plugin, Hooks } from "@opencode-ai/plugin";
 import { loadContext } from "./handlers/context-loader";
 import { validateSecurity } from "./handlers/security-validator";
+import { restoreSkillFiles } from "./handlers/skill-restore";
+import {
+  createWorkSession,
+  completeWorkSession,
+  getCurrentSession,
+  appendToThread,
+} from "./handlers/work-tracker";
+import { captureRating, detectRating } from "./handlers/rating-capture";
+import {
+  captureAgentOutput,
+  isTaskTool,
+} from "./handlers/agent-capture";
+import { extractLearningsFromWork } from "./handlers/learning-capture";
 import { fileLog, fileLogError, clearLog } from "./lib/file-logger";
 
 /**
  * PAI Unified Plugin
  *
  * Exports all hooks in a single plugin for OpenCode.
+ * Implements PAI v2.4 hook functionality.
  */
 export const PaiUnified: Plugin = async (ctx) => {
   // Clear log at plugin load (new session)
   clearLog();
-  fileLog("=== PAI-OpenCode Plugin Loaded ===");
+  fileLog("=== PAI-OpenCode Plugin v1.0.0 Loaded ===");
   fileLog(`Working directory: ${process.cwd()}`);
+  fileLog("Hooks: Context, Security, Work, Ratings, Agents, Learning");
 
   const hooks: Hooks = {
     /**
      * CONTEXT INJECTION (SessionStart equivalent)
      *
      * Injects CORE skill context into the chat system.
-     * This is equivalent to PAI's load-core-context.ts hook.
-     *
-     * Note: This hook is EXPERIMENTAL in OpenCode.
+     * Equivalent to PAI v2.4 load-core-context.ts hook.
      */
     "experimental.chat.system.transform": async (input, output) => {
       try {
@@ -48,7 +64,10 @@ export const PaiUnified: Plugin = async (ctx) => {
           output.system.push(result.context);
           fileLog("Context injected successfully");
         } else {
-          fileLog(`Context injection skipped: ${result.error || "unknown"}`, "warn");
+          fileLog(
+            `Context injection skipped: ${result.error || "unknown"}`,
+            "warn"
+          );
         }
       } catch (error) {
         fileLogError("Context injection failed", error);
@@ -61,13 +80,15 @@ export const PaiUnified: Plugin = async (ctx) => {
      *
      * Validates tool executions for security threats.
      * Can BLOCK dangerous operations by setting output.status = "deny".
-     *
-     * This is equivalent to PAI's security-validator.ts hook.
+     * Equivalent to PAI v2.4 security-validator.ts hook.
      */
     "permission.ask": async (input, output) => {
       try {
         fileLog(`>>> PERMISSION.ASK CALLED <<<`, "info");
-        fileLog(`permission.ask input: ${JSON.stringify(input).substring(0, 200)}`, "debug");
+        fileLog(
+          `permission.ask input: ${JSON.stringify(input).substring(0, 200)}`,
+          "debug"
+        );
 
         // Extract tool info from Permission input
         const tool = (input as any).tool || "unknown";
@@ -103,14 +124,14 @@ export const PaiUnified: Plugin = async (ctx) => {
      *
      * Called before EVERY tool execution.
      * Can block dangerous commands by THROWING AN ERROR.
-     *
-     * Note: permission.ask is not reliably called for all tools,
-     * so we do security validation here instead.
      */
     "tool.execute.before": async (input, output) => {
       fileLog(`Tool before: ${input.tool}`, "debug");
       // Args are in OUTPUT, not input! OpenCode API quirk.
-      fileLog(`output.args: ${JSON.stringify(output.args ?? {}).substring(0, 500)}`, "debug");
+      fileLog(
+        `output.args: ${JSON.stringify(output.args ?? {}).substring(0, 500)}`,
+        "debug"
+      );
 
       // Security validation - throws error to block dangerous commands
       const result = await validateSecurity({
@@ -133,36 +154,40 @@ export const PaiUnified: Plugin = async (ctx) => {
     },
 
     /**
-     * POST-TOOL EXECUTION (PostToolUse equivalent)
+     * POST-TOOL EXECUTION (PostToolUse + AgentOutputCapture equivalent)
      *
      * Called after tool execution.
-     * Used for learning capture, signals, etc.
+     * Captures subagent outputs to MEMORY/RESEARCH/
+     * Equivalent to PAI v2.4 AgentOutputCapture hook.
      */
     "tool.execute.after": async (input, output) => {
       try {
         fileLog(`Tool after: ${input.tool}`, "debug");
 
+        // === AGENT OUTPUT CAPTURE ===
         // Check for Task tool (subagent) completion
-        if (input.tool === "Task") {
-          fileLog("Subagent task completed", "info");
-          // Future: Capture subagent learnings
-        }
+        if (isTaskTool(input.tool)) {
+          fileLog("Subagent task completed, capturing output...", "info");
 
-        // Future: Learning capture
-        // Future: Signal processing
-        // Future: Work session tracking
+          const args = (input as any).args || (output as any).args || {};
+          const result = output.result;
+
+          const captureResult = await captureAgentOutput(args, result);
+          if (captureResult.success && captureResult.filepath) {
+            fileLog(`Agent output saved: ${captureResult.filepath}`, "info");
+          }
+        }
       } catch (error) {
         fileLogError("Tool after hook failed", error);
       }
     },
 
     /**
-     * CHAT MESSAGE HANDLER (UserPromptSubmit equivalent)
+     * CHAT MESSAGE HANDLER
+     * (UserPromptSubmit: AutoWorkCreation + ExplicitRatingCapture + FormatReminder)
      *
      * Called when user submits a message.
-     * Use for: format enforcement, auto-work creation, rating capture.
-     *
-     * @since v0.9.3
+     * Equivalent to PAI v2.4 AutoWorkCreation + ExplicitRatingCapture hooks.
      */
     "chat.message": async (input, output) => {
       try {
@@ -172,43 +197,108 @@ export const PaiUnified: Plugin = async (ctx) => {
         // Only process user messages
         if (role !== "user") return;
 
-        fileLog(`[chat.message] User: ${content.substring(0, 100)}...`, "debug");
-
-        // === FORMAT ENFORCEMENT ===
-        // Future: Check for required patterns (e.g., rating capture)
+        fileLog(
+          `[chat.message] User: ${content.substring(0, 100)}...`,
+          "debug"
+        );
 
         // === AUTO-WORK CREATION ===
-        // Future: Auto-create work session if none active
+        // Create work session on first user prompt if none exists
+        const currentSession = getCurrentSession();
+        if (!currentSession) {
+          const workResult = await createWorkSession(content);
+          if (workResult.success && workResult.session) {
+            fileLog(`Work session started: ${workResult.session.id}`, "info");
+          }
+        } else {
+          // Append to existing thread
+          await appendToThread(`**User:** ${content.substring(0, 200)}...`);
+        }
 
-        // === SKILL TRIGGER DETECTION ===
-        // Future: Check if message triggers a skill
+        // === EXPLICIT RATING CAPTURE ===
+        // Check if message is a rating (e.g., "8", "7 - needs work", "9/10")
+        const rating = detectRating(content);
+        if (rating) {
+          const ratingResult = await captureRating(content, "user message");
+          if (ratingResult.success && ratingResult.rating) {
+            fileLog(`Rating captured: ${ratingResult.rating.score}/10`, "info");
+          }
+        }
 
+        // === FORMAT REMINDER ===
+        // For non-trivial prompts, nudge towards Algorithm format
+        // (Not blocking, just logging for awareness)
+        if (content.length > 100 && !content.toLowerCase().includes("trivial")) {
+          fileLog("Non-trivial prompt detected, Algorithm format recommended", "debug");
+        }
       } catch (error) {
         fileLogError("chat.message handler failed", error);
       }
     },
 
     /**
-     * SESSION LIFECYCLE (Stop equivalent)
+     * SESSION LIFECYCLE
+     * (SessionStart: skill-restore, SessionEnd: WorkCompletionLearning + SessionSummary)
      *
      * Handles session events like start and end.
+     * Equivalent to PAI v2.4 StopOrchestrator + SessionSummary + WorkCompletionLearning.
      */
     event: async (input) => {
       try {
         const eventType = (input.event as any)?.type || "";
 
+        // === SESSION START ===
         if (eventType.includes("session.created")) {
-          fileLog("Session started", "info");
-          // Future: Session initialization
+          fileLog("=== Session Started ===", "info");
+
+          // SKILL RESTORE WORKAROUND
+          // OpenCode modifies SKILL.md files when loading them.
+          // Restore them to git state on session start.
+          try {
+            const restoreResult = await restoreSkillFiles();
+            if (restoreResult.restored.length > 0) {
+              fileLog(
+                `Skill restore: ${restoreResult.restored.length} files restored`,
+                "info"
+              );
+            }
+          } catch (error) {
+            fileLogError("Skill restore failed", error);
+            // Don't throw - session should continue
+          }
         }
 
+        // === SESSION END ===
         if (
           eventType.includes("session.ended") ||
           eventType.includes("session.idle")
         ) {
-          fileLog("Session ending", "info");
-          // Future: Session cleanup
-          // Future: Save work session state
+          fileLog("=== Session Ending ===", "info");
+
+          // WORK COMPLETION LEARNING
+          // Extract learnings from the work session
+          try {
+            const learningResult = await extractLearningsFromWork();
+            if (learningResult.success && learningResult.learnings.length > 0) {
+              fileLog(
+                `Extracted ${learningResult.learnings.length} learnings`,
+                "info"
+              );
+            }
+          } catch (error) {
+            fileLogError("Learning extraction failed", error);
+          }
+
+          // SESSION SUMMARY
+          // Complete the work session
+          try {
+            const completeResult = await completeWorkSession();
+            if (completeResult.success) {
+              fileLog("Work session completed", "info");
+            }
+          } catch (error) {
+            fileLogError("Work session completion failed", error);
+          }
         }
 
         // Log all events for debugging
