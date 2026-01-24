@@ -41,12 +41,25 @@ bun run .opencode/PAIOpenCodeWizard.ts
 
 | Step | Prompt | Example Input |
 |------|--------|---------------|
-| 1 | Choose AI Provider | `1` (Anthropic) or `3` (ZEN free) |
+| 1 | Choose AI Provider | `1` (Anthropic), `7` (ZEN free), or `8` (Ollama local) |
 | 2 | What is your name? | `TestUser` |
 | 3 | Timezone | Press Enter (auto-detect) |
 | 4 | Name your AI assistant | `PAI` |
 | 5 | Startup catchphrase | Press Enter (default) |
 | 6 | ElevenLabs API key | Press Enter (skip) |
+
+### Available Providers (8 total)
+
+| # | Provider | Auth | Notes |
+|---|----------|------|-------|
+| 1 | Anthropic (Claude) | OAuth or API key | `/login` or `ANTHROPIC_API_KEY` |
+| 2 | OpenAI (GPT-4) | OAuth or API key | `/login` or `OPENAI_API_KEY` |
+| 3 | Google (Gemini) | API key | `GOOGLE_API_KEY` |
+| 4 | Groq (Ultra Fast) | API key | `GROQ_API_KEY` |
+| 5 | AWS Bedrock | AWS credentials | `AWS_ACCESS_KEY_ID` etc. |
+| 6 | Azure OpenAI | API key | `AZURE_OPENAI_API_KEY` |
+| 7 | ZEN (Free) | None | Best for testing |
+| 8 | Local (Ollama) | None | Requires `ollama serve` |
 
 ### Verify Wizard Output
 
@@ -54,12 +67,12 @@ bun run .opencode/PAIOpenCodeWizard.ts
 # 1. Check opencode.json exists at project root
 cat ~/pai-opencode/opencode.json
 
-# Expected:
+# Expected (no pai section - OpenCode validates strictly):
 # {
 #   "model": "anthropic/claude-sonnet-4-5",
-#   "pai": {
-#     "model_provider": "anthropic"
-#   }
+#   "username": "TestUser",
+#   "theme": "dark",
+#   "snapshot": true
 # }
 
 # 2. Check settings.json
@@ -77,9 +90,9 @@ cat ~/pai-opencode/.opencode/skills/CORE/USER/BASICINFO.md
 ### Wizard Success Criteria
 
 - [ ] Wizard runs without errors
-- [ ] Provider selection works (all 4 options)
-- [ ] `opencode.json` created with `pai.model_provider`
-- [ ] `settings.json` created with user info
+- [ ] Provider selection works (all 8 options)
+- [ ] `opencode.json` created with `model` field (NO `pai` section!)
+- [ ] `settings.json` created with user info + `provider.id`
 - [ ] `DAIDENTITY.md` created with AI name
 - [ ] `BASICINFO.md` created with user name
 - [ ] Permissions set correctly (no permission errors)

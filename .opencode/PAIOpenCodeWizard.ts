@@ -54,6 +54,7 @@ interface ProviderConfig {
 }
 
 const PROVIDERS: ProviderConfig[] = [
+  // === TOP TIER: OAuth Login Support ===
   {
     name: 'Anthropic (Claude)',
     id: 'anthropic',
@@ -63,7 +64,7 @@ const PROVIDERS: ProviderConfig[] = [
     envVar: 'ANTHROPIC_API_KEY',
     authNote: `You have two options:
      ${c.cyan}Option A:${c.reset} Anthropic Max subscription (recommended)
-               OpenCode will prompt you to log in with your Anthropic account.
+               Run ${c.green}/login${c.reset} in OpenCode to authenticate.
      ${c.cyan}Option B:${c.reset} API Key
                Set ANTHROPIC_API_KEY in your environment.`,
   },
@@ -76,25 +77,72 @@ const PROVIDERS: ProviderConfig[] = [
     envVar: 'OPENAI_API_KEY',
     authNote: `You have two options:
      ${c.cyan}Option A:${c.reset} ChatGPT Plus/Pro subscription
-               OpenCode will prompt you to log in with your OpenAI account.
+               Run ${c.green}/login${c.reset} in OpenCode to authenticate.
      ${c.cyan}Option B:${c.reset} API Key
                Set OPENAI_API_KEY in your environment.`,
   },
+  // === FAST INFERENCE: API Key Required ===
+  {
+    name: 'Google (Gemini)',
+    id: 'google',
+    defaultModel: 'google/gemini-2.5-pro',
+    description: 'Gemini Pro and Flash models',
+    authType: 'apikey',
+    envVar: 'GOOGLE_API_KEY',
+    authNote: `Set ${c.cyan}GOOGLE_API_KEY${c.reset} in your environment.
+     Get your API key at: https://aistudio.google.com/apikey`,
+  },
+  {
+    name: 'Groq (Ultra Fast)',
+    id: 'groq',
+    defaultModel: 'groq/llama-3.3-70b-versatile',
+    description: 'Lightning-fast inference with Llama, Mixtral',
+    authType: 'apikey',
+    envVar: 'GROQ_API_KEY',
+    authNote: `Set ${c.cyan}GROQ_API_KEY${c.reset} in your environment.
+     Get your API key at: https://console.groq.com/keys`,
+  },
+  // === ENTERPRISE: API Key Required ===
+  {
+    name: 'AWS Bedrock',
+    id: 'bedrock',
+    defaultModel: 'bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0',
+    description: 'Claude, Llama via AWS credentials',
+    authType: 'apikey',
+    envVar: 'AWS_ACCESS_KEY_ID',
+    authNote: `Configure AWS credentials:
+     ${c.cyan}AWS_ACCESS_KEY_ID${c.reset} and ${c.cyan}AWS_SECRET_ACCESS_KEY${c.reset}
+     Optional: ${c.cyan}AWS_REGION${c.reset} (default: us-east-1)`,
+  },
+  {
+    name: 'Azure OpenAI',
+    id: 'azure',
+    defaultModel: 'azure/gpt-4o',
+    description: 'GPT models via Azure deployment',
+    authType: 'apikey',
+    envVar: 'AZURE_OPENAI_API_KEY',
+    authNote: `Set ${c.cyan}AZURE_OPENAI_API_KEY${c.reset} and ${c.cyan}AZURE_OPENAI_ENDPOINT${c.reset}
+     in your environment.`,
+  },
+  // === FREE / LOCAL OPTIONS ===
   {
     name: 'ZEN (Free)',
     id: 'zen',
     defaultModel: 'opencode/grok-code',
-    description: 'Free tier with community models',
+    description: 'Free tier with community models - No API key needed',
     authType: 'none',
-    authNote: `No authentication required. Free community models.`,
+    authNote: `${c.green}No authentication required.${c.reset} Free community models.
+     Great for trying out PAI-OpenCode.`,
   },
   {
     name: 'Local (Ollama)',
-    id: 'local',
-    defaultModel: 'ollama/llama3',
-    description: 'Run models locally via Ollama',
+    id: 'ollama',
+    defaultModel: 'ollama/llama3.3',
+    description: 'Run models locally - 100% private',
     authType: 'none',
-    authNote: `Make sure Ollama is running locally (ollama serve).`,
+    authNote: `${c.green}No API key needed.${c.reset}
+     Make sure Ollama is running: ${c.cyan}ollama serve${c.reset}
+     Download models: ${c.cyan}ollama pull llama3.3${c.reset}`,
   },
 ];
 
@@ -217,16 +265,14 @@ function checkBun(): boolean {
 // ============================================================================
 
 function generateOpencodeJson(config: InstallConfig): object {
+  // NOTE: OpenCode validates its config schema strictly.
+  // Custom PAI fields go in .opencode/settings.json instead.
   return {
     "$schema": "https://opencode.ai/config.json",
     "theme": "dark",
     "model": config.PROVIDER.defaultModel,
     "snapshot": true,
-    "username": config.PRINCIPAL_NAME,
-    "pai": {
-      "model_provider": config.PROVIDER.id,
-      "version": "2.4"
-    }
+    "username": config.PRINCIPAL_NAME
   };
 }
 
@@ -368,15 +414,15 @@ function validate(): { passed: boolean; results: string[] } {
   const results: string[] = [];
   let passed = true;
 
-  // Check opencode.json
+  // Check opencode.json (OpenCode's config - no custom fields allowed)
   const opencodeJsonPath = join(PROJECT_ROOT, 'opencode.json');
   if (existsSync(opencodeJsonPath)) {
     try {
       const config = JSON.parse(readFileSync(opencodeJsonPath, 'utf-8'));
-      if (config.pai?.model_provider && config.model) {
-        results.push(`${c.green}✓${c.reset} opencode.json valid (provider: ${config.pai.model_provider})`);
+      if (config.model) {
+        results.push(`${c.green}✓${c.reset} opencode.json valid (model: ${config.model})`);
       } else {
-        results.push(`${c.red}✗${c.reset} opencode.json missing pai section`);
+        results.push(`${c.red}✗${c.reset} opencode.json missing model field`);
         passed = false;
       }
     } catch (e) {
@@ -388,13 +434,13 @@ function validate(): { passed: boolean; results: string[] } {
     passed = false;
   }
 
-  // Check settings.json
+  // Check settings.json (PAI-OpenCode config - stores all custom fields)
   const settingsPath = join(OPENCODE_DIR, 'settings.json');
   if (existsSync(settingsPath)) {
     try {
       const settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
-      if (settings.principal?.name && settings.daidentity?.name) {
-        results.push(`${c.green}✓${c.reset} settings.json valid`);
+      if (settings.principal?.name && settings.daidentity?.name && settings.provider?.id) {
+        results.push(`${c.green}✓${c.reset} settings.json valid (provider: ${settings.provider.id})`);
       } else {
         results.push(`${c.red}✗${c.reset} settings.json missing required fields`);
         passed = false;
