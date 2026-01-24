@@ -121,6 +121,11 @@ Use any AI provider:
 | [ROADMAP.md](ROADMAP.md) | Version roadmap |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
 
+**For Contributors:**
+| Document | Description |
+|----------|-------------|
+| [PAI-to-OpenCode Mapping](.opencode/PAISYSTEM/PAI-TO-OPENCODE-MAPPING.md) | How to correctly import PAI components |
+
 **Upstream Resources:**
 - [Daniel Miessler's PAI](https://github.com/danielmiessler/Personal_AI_Infrastructure) — Original PAI documentation
 - [OpenCode Documentation](https://docs.opencode.ai) — OpenCode official docs
