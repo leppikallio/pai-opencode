@@ -4,9 +4,12 @@
 
 **Personal AI Infrastructure for OpenCode** — Bring Daniel Miessler's renowned PAI scaffolding to any AI provider.
 
+[![Version](https://img.shields.io/badge/Version-1.0-brightgreen)](KNOWN_LIMITATIONS.md)
 [![OpenCode Compatible](https://img.shields.io/badge/OpenCode-Compatible-green)](https://github.com/anomalyco/opencode)
 [![PAI Version](https://img.shields.io/badge/PAI-2.4-blue)](https://github.com/danielmiessler/Personal_AI_Infrastructure)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+> **v1.0 Release** — Core functionality ready. Voice server and dashboard coming in v1.1. See [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md).
 
 ---
 
@@ -63,10 +66,9 @@ opencode
 ```
 
 The wizard will ask you to:
-- Choose your AI provider (Anthropic, OpenAI, Local, ZEN free)
+- Choose your AI provider (8 options: Anthropic, OpenAI, Google, Groq, AWS Bedrock, Azure, ZEN free, Ollama)
 - Set your name and timezone
 - Name your AI assistant
-- Optionally configure voice
 
 **Takes ~2 minutes** and creates all necessary configuration files.
 
@@ -140,6 +142,7 @@ Use any AI provider:
 
 | Document | Description |
 |----------|-------------|
+| [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) | What's in v1.0 vs v1.1 |
 | [docs/WHAT-IS-PAI.md](docs/WHAT-IS-PAI.md) | PAI fundamentals explained |
 | [docs/OPENCODE-FEATURES.md](docs/OPENCODE-FEATURES.md) | OpenCode unique features |
 | [docs/PLUGIN-SYSTEM.md](docs/PLUGIN-SYSTEM.md) | Plugin architecture |

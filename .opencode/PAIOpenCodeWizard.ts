@@ -64,7 +64,7 @@ const PROVIDERS: ProviderConfig[] = [
     envVar: 'ANTHROPIC_API_KEY',
     authNote: `You have two options:
      ${c.cyan}Option A:${c.reset} Anthropic Max subscription (recommended)
-               Run ${c.green}/login${c.reset} in OpenCode to authenticate.
+               Run ${c.green}/connect${c.reset} in OpenCode to authenticate.
      ${c.cyan}Option B:${c.reset} API Key
                Set ANTHROPIC_API_KEY in your environment.`,
   },
@@ -77,7 +77,7 @@ const PROVIDERS: ProviderConfig[] = [
     envVar: 'OPENAI_API_KEY',
     authNote: `You have two options:
      ${c.cyan}Option A:${c.reset} ChatGPT Plus/Pro subscription
-               Run ${c.green}/login${c.reset} in OpenCode to authenticate.
+               Run ${c.green}/connect${c.reset} in OpenCode to authenticate.
      ${c.cyan}Option B:${c.reset} API Key
                Set OPENAI_API_KEY in your environment.`,
   },
