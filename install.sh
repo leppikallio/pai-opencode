@@ -311,7 +311,13 @@ else
         else
             sed -i 's/"OpenCode"/"PAI-OpenCode"/g' "$CHAT_FILE"
         fi
-        success "Logo patched"
+
+        # Verify the patch actually worked
+        if grep -q '"PAI-OpenCode"' "$CHAT_FILE"; then
+            success "Logo patched to PAI-OpenCode"
+        else
+            warn "Logo patch may have failed - check $CHAT_FILE"
+        fi
     else
         warn "Could not find chat.go - logo will show 'OpenCode'"
     fi
@@ -344,7 +350,7 @@ step "3" "Setting up PAI-OpenCode"
 
 if [[ -d "$INSTALL_DIR" ]]; then
     warn "PAI-OpenCode already exists at $INSTALL_DIR"
-    read -p "$(echo -e "${YELLOW}?${NC} Overwrite? (y/N): ")" -n 1 -r
+    read -p "$(echo -e "${YELLOW}?${NC} Overwrite? (y/N): ")" -n 1 -r < /dev/tty
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         rm -rf "$INSTALL_DIR"
@@ -389,11 +395,11 @@ step "5" "Personal Configuration"
 echo -e "${DIM}Configure your PAI-OpenCode identity${NC}\n"
 
 # Get user name
-read -p "$(echo -e "${CYAN}?${NC} Your name: ")" USER_NAME
+read -p "$(echo -e "${CYAN}?${NC} Your name: ")" USER_NAME < /dev/tty
 USER_NAME="${USER_NAME:-User}"
 
 # Get assistant name
-read -p "$(echo -e "${CYAN}?${NC} AI assistant name ${DIM}[PAI]${NC}: ")" ASSISTANT_NAME
+read -p "$(echo -e "${CYAN}?${NC} AI assistant name ${DIM}[PAI]${NC}: ")" ASSISTANT_NAME < /dev/tty
 ASSISTANT_NAME="${ASSISTANT_NAME:-PAI}"
 
 # Get timezone
@@ -403,7 +409,7 @@ if [[ -f /etc/timezone ]]; then
 elif [[ -L /etc/localtime ]]; then
     DEFAULT_TZ=$(readlink /etc/localtime | sed 's/.*zoneinfo\///')
 fi
-read -p "$(echo -e "${CYAN}?${NC} Timezone ${DIM}[$DEFAULT_TZ]${NC}: ")" TIMEZONE
+read -p "$(echo -e "${CYAN}?${NC} Timezone ${DIM}[$DEFAULT_TZ]${NC}: ")" TIMEZONE < /dev/tty
 TIMEZONE="${TIMEZONE:-$DEFAULT_TZ}"
 
 # Update settings.json
@@ -441,7 +447,7 @@ echo -e "  ${DIM}6)${NC} Groq API Key ${DIM}(console.groq.com - fast & cheap)${N
 echo -e "  ${DIM}7)${NC} Other / Manual Configuration"
 echo
 
-read -p "$(echo -e "${CYAN}?${NC} Select provider [1-7]: ")" PROVIDER_CHOICE
+read -p "$(echo -e "${CYAN}?${NC} Select provider [1-7]: ")" PROVIDER_CHOICE < /dev/tty
 PROVIDER_CHOICE="${PROVIDER_CHOICE:-1}"
 
 case "$PROVIDER_CHOICE" in
@@ -463,7 +469,7 @@ case "$PROVIDER_CHOICE" in
         # Anthropic API
         echo
         echo -e "${DIM}Get your API key at: https://console.anthropic.com/${NC}"
-        read -p "$(echo -e "${CYAN}?${NC} Anthropic API Key: ")" -s API_KEY
+        read -p "$(echo -e "${CYAN}?${NC} Anthropic API Key: ")" -s API_KEY < /dev/tty
         echo
         if [[ -z "$API_KEY" ]]; then
             warn "No API key provided. Run 'opencode config' after installation."
@@ -479,7 +485,7 @@ case "$PROVIDER_CHOICE" in
         echo
         echo -e "${DIM}Get your API key at: https://platform.openai.com/api-keys${NC}"
         echo -e "${DIM}Note: ChatGPT Plus subscription does NOT include API access${NC}"
-        read -p "$(echo -e "${CYAN}?${NC} OpenAI API Key: ")" -s API_KEY
+        read -p "$(echo -e "${CYAN}?${NC} OpenAI API Key: ")" -s API_KEY < /dev/tty
         echo
         if [[ -z "$API_KEY" ]]; then
             warn "No API key provided. Run 'opencode config' after installation."
@@ -494,7 +500,7 @@ case "$PROVIDER_CHOICE" in
         # Google Gemini
         echo
         echo -e "${DIM}Get your API key at: https://aistudio.google.com/apikey${NC}"
-        read -p "$(echo -e "${CYAN}?${NC} Google Gemini API Key: ")" -s API_KEY
+        read -p "$(echo -e "${CYAN}?${NC} Google Gemini API Key: ")" -s API_KEY < /dev/tty
         echo
         if [[ -z "$API_KEY" ]]; then
             warn "No API key provided. Run 'opencode config' after installation."
@@ -509,7 +515,7 @@ case "$PROVIDER_CHOICE" in
         # xAI Grok
         echo
         echo -e "${DIM}Get your API key at: https://console.x.ai/${NC}"
-        read -p "$(echo -e "${CYAN}?${NC} xAI Grok API Key: ")" -s API_KEY
+        read -p "$(echo -e "${CYAN}?${NC} xAI Grok API Key: ")" -s API_KEY < /dev/tty
         echo
         if [[ -z "$API_KEY" ]]; then
             warn "No API key provided. Run 'opencode config' after installation."
@@ -525,7 +531,7 @@ case "$PROVIDER_CHOICE" in
         echo
         echo -e "${DIM}Get your API key at: https://console.groq.com/keys${NC}"
         echo -e "${DIM}Groq offers fast inference for open-source models${NC}"
-        read -p "$(echo -e "${CYAN}?${NC} Groq API Key: ")" -s API_KEY
+        read -p "$(echo -e "${CYAN}?${NC} Groq API Key: ")" -s API_KEY < /dev/tty
         echo
         if [[ -z "$API_KEY" ]]; then
             warn "No API key provided. Run 'opencode config' after installation."
