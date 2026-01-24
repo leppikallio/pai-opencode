@@ -68,6 +68,26 @@ opencode
 
 ---
 
+## First Run: Personalize Your AI
+
+After installation, make PAI truly yours by running the **onboarding** workflow. Just paste this prompt into OpenCode:
+
+```
+Let's do the onboarding. Guide me through setting up my personal context -
+my name, my goals, my values, and how I want you to behave. Create the TELOS
+and identity files that make this AI mine.
+```
+
+This interactive wizard will:
+- Ask about your mission, goals, and values
+- Configure your AI assistant's name and personality
+- Set up your technology preferences
+- Create your personal context files in `.opencode/skills/CORE/USER/`
+
+**Takes 10-15 minutes** and transforms PAI from generic to personalized.
+
+---
+
 ## Features
 
 ![Features Showcase](docs/images/features-showcase.png)

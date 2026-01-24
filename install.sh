@@ -537,6 +537,58 @@ case "$PROVIDER_CHOICE" in
         ;;
 esac
 
+# Create opencode.json with provider configuration
+# This is read by model-config.ts for agent model resolution
+OPENCODE_JSON="$INSTALL_DIR/opencode.json"
+info "Creating opencode.json with provider settings..."
+
+# Map provider to model-config.ts format
+case "$PROVIDER" in
+    zen)
+        PROVIDER_CONFIG="zen"
+        DEFAULT_MODEL="opencode/grok-code"
+        ;;
+    anthropic)
+        PROVIDER_CONFIG="anthropic"
+        DEFAULT_MODEL="anthropic/claude-sonnet-4-5"
+        ;;
+    openai)
+        PROVIDER_CONFIG="openai"
+        DEFAULT_MODEL="openai/gpt-4o"
+        ;;
+    google)
+        PROVIDER_CONFIG="anthropic"  # Fallback - google not in presets
+        DEFAULT_MODEL="$MODEL_SONNET"
+        ;;
+    xai)
+        PROVIDER_CONFIG="anthropic"  # Fallback - xai not in presets
+        DEFAULT_MODEL="$MODEL_SONNET"
+        ;;
+    groq)
+        PROVIDER_CONFIG="anthropic"  # Fallback - groq not in presets
+        DEFAULT_MODEL="$MODEL_SONNET"
+        ;;
+    *)
+        PROVIDER_CONFIG="zen"
+        DEFAULT_MODEL="opencode/grok-code"
+        ;;
+esac
+
+cat > "$OPENCODE_JSON" << EOF
+{
+  "\$schema": "https://opencode.ai/config.json",
+  "theme": "dark",
+  "model": "$DEFAULT_MODEL",
+  "snapshot": true,
+  "username": "$USER_NAME",
+  "pai": {
+    "model_provider": "$PROVIDER_CONFIG"
+  }
+}
+EOF
+
+success "Created opencode.json with $PROVIDER_CONFIG provider"
+
 # Update agent configurations if provider was selected
 if [[ "$PROVIDER" != "manual" && -n "$MODEL_SONNET" ]]; then
     info "Updating agent configurations..."
@@ -588,6 +640,13 @@ if [[ -f "$INSTALL_DIR/.opencode/settings.json" ]]; then
 else
     error "Settings file not found"
     ((ERRORS++))
+fi
+
+# Check opencode.json
+if [[ -f "$INSTALL_DIR/opencode.json" ]]; then
+    success "Provider configuration (opencode.json) created"
+else
+    warn "opencode.json not found - model-config.ts will use defaults"
 fi
 
 # Check skills directory
