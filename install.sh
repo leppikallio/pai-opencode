@@ -138,6 +138,9 @@ esac
 # ==================== STEP 1: PREREQUISITES ====================
 step "1" "Checking Prerequisites"
 
+# Go version to install if needed
+GO_VERSION_INSTALL="1.23.4"
+
 # Check Go (check common paths first if not in PATH)
 find_go() {
     if command -v go &> /dev/null; then
@@ -149,6 +152,7 @@ find_go() {
         "/usr/local/go/bin/go"
         "/opt/homebrew/bin/go"
         "$HOME/go/bin/go"
+        "$HOME/.local/go/bin/go"
         "/usr/local/bin/go"
     )
     for gp in "${go_paths[@]}"; do
@@ -158,6 +162,61 @@ find_go() {
         fi
     done
     return 1
+}
+
+# Install Go directly from go.dev (no Homebrew, user-local)
+install_go_direct() {
+    # Determine the correct Go archive for this platform
+    case "$OS-$ARCH" in
+        Darwin-x86_64)  GO_FILE="go${GO_VERSION_INSTALL}.darwin-amd64.tar.gz" ;;
+        Darwin-arm64)   GO_FILE="go${GO_VERSION_INSTALL}.darwin-arm64.tar.gz" ;;
+        Linux-x86_64)   GO_FILE="go${GO_VERSION_INSTALL}.linux-amd64.tar.gz" ;;
+        Linux-aarch64)  GO_FILE="go${GO_VERSION_INSTALL}.linux-arm64.tar.gz" ;;
+        *)
+            error "Unsupported platform: $OS-$ARCH"
+            return 1
+            ;;
+    esac
+
+    GO_URL="https://go.dev/dl/${GO_FILE}"
+    GO_INSTALL_DIR="$HOME/.local/go"
+
+    info "Downloading Go ${GO_VERSION_INSTALL} for ${OS}/${ARCH}..."
+
+    # Create temp directory for download
+    TEMP_DIR=$(mktemp -d)
+    cd "$TEMP_DIR"
+
+    # Download Go
+    curl -fsSL -o "$GO_FILE" "$GO_URL" &
+    spin $!
+
+    if [[ ! -f "$GO_FILE" ]]; then
+        error "Failed to download Go from $GO_URL"
+        return 1
+    fi
+
+    # Extract to user-local directory (no sudo needed)
+    info "Installing Go to $GO_INSTALL_DIR..."
+    mkdir -p "$HOME/.local"
+    rm -rf "$GO_INSTALL_DIR"  # Clean previous install
+    tar -C "$HOME/.local" -xzf "$GO_FILE" &
+    spin $!
+
+    # Cleanup
+    cd "$HOME"
+    rm -rf "$TEMP_DIR"
+
+    # Set up PATH
+    GO_BIN="$GO_INSTALL_DIR/bin/go"
+    if [[ -x "$GO_BIN" ]]; then
+        export PATH="$GO_INSTALL_DIR/bin:$PATH"
+        success "Go installed to $GO_INSTALL_DIR"
+        return 0
+    else
+        error "Go installation failed"
+        return 1
+    fi
 }
 
 GO_BIN=$(find_go || echo "")
@@ -171,58 +230,43 @@ if [[ -n "$GO_BIN" ]]; then
     fi
 else
     info "Go not found. Installing..."
-    if [[ "$OS" == "Darwin" ]]; then
-        if command -v brew &> /dev/null; then
-            # Run brew install in foreground (it has its own progress display)
-            # Capture output to detect permission errors
-            BREW_OUTPUT=$(brew install go 2>&1) || {
-                if echo "$BREW_OUTPUT" | grep -q "not writable"; then
-                    echo
-                    error "Homebrew permission error detected!"
-                    echo
-                    echo -e "  ${YELLOW}Your user doesn't have write access to Homebrew directories.${NC}"
-                    echo -e "  ${YELLOW}This often happens on shared Macs with multiple admin users.${NC}"
-                    echo
-                    echo -e "  ${BOLD}Fix with:${NC}"
-                    echo -e "    ${CYAN}sudo chgrp -R admin /usr/local/Homebrew /usr/local/bin /usr/local/lib${NC}"
-                    echo -e "    ${CYAN}sudo chmod -R g+w /usr/local/Homebrew /usr/local/bin /usr/local/lib${NC}"
-                    echo
-                    echo -e "  Then re-run the installer."
-                    echo
-                    exit 1
-                else
-                    echo "$BREW_OUTPUT"
-                    error "Failed to install Go via Homebrew"
-                fi
-            }
-            echo "$BREW_OUTPUT"
 
-            # After Homebrew install, find Go in common locations
-            GO_BIN=$(find_go || echo "")
-            if [[ -z "$GO_BIN" ]]; then
-                # Homebrew on Apple Silicon
-                if [[ -x "/opt/homebrew/bin/go" ]]; then
-                    GO_BIN="/opt/homebrew/bin/go"
-                # Homebrew on Intel
-                elif [[ -x "/usr/local/bin/go" ]]; then
-                    GO_BIN="/usr/local/bin/go"
-                fi
-            fi
+    INSTALL_SUCCESS=false
 
-            if [[ -n "$GO_BIN" ]]; then
-                GO_DIR=$(dirname "$GO_BIN")
-                export PATH="$GO_DIR:$PATH"
-                success "Go installed at $GO_BIN"
+    # Try Homebrew first on macOS (if available)
+    if [[ "$OS" == "Darwin" ]] && command -v brew &> /dev/null; then
+        info "Trying Homebrew..."
+        BREW_OUTPUT=$(brew install go 2>&1) || {
+            if echo "$BREW_OUTPUT" | grep -q "not writable"; then
+                warn "Homebrew permission issue, falling back to direct download..."
             else
-                error "Go installation completed but binary not found. Please restart your terminal and re-run."
+                warn "Homebrew failed, falling back to direct download..."
             fi
-        else
-            error "Homebrew not found. Please install Go manually: https://go.dev/dl/"
+        }
+
+        # Check if Homebrew succeeded
+        GO_BIN=$(find_go || echo "")
+        if [[ -n "$GO_BIN" ]]; then
+            GO_DIR=$(dirname "$GO_BIN")
+            export PATH="$GO_DIR:$PATH"
+            success "Go installed via Homebrew at $GO_BIN"
+            INSTALL_SUCCESS=true
         fi
-    else
-        warn "Please install Go manually: https://go.dev/dl/"
-        warn "Then re-run this installer."
-        exit 1
+    fi
+
+    # Fallback: Direct download from go.dev (works on macOS and Linux)
+    if [[ "$INSTALL_SUCCESS" == "false" ]]; then
+        install_go_direct && INSTALL_SUCCESS=true
+    fi
+
+    if [[ "$INSTALL_SUCCESS" == "false" ]]; then
+        error "Could not install Go. Please install manually: https://go.dev/dl/"
+    fi
+
+    # Final check
+    GO_BIN=$(find_go || echo "")
+    if [[ -z "$GO_BIN" ]]; then
+        error "Go installation completed but binary not found."
     fi
 fi
 
