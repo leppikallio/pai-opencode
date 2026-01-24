@@ -402,20 +402,33 @@ success "Configuration saved to settings.json"
 step "6" "AI Provider Setup"
 
 echo -e "${DIM}Choose your AI provider${NC}\n"
-echo -e "  ${GREEN}1)${NC} Claude Subscription (Pro/Max) ${DIM}← Recommended if you have a subscription${NC}"
-echo -e "  ${BLUE}2)${NC} Anthropic API Key ${DIM}(console.anthropic.com)${NC}"
-echo -e "  ${PURPLE}3)${NC} OpenAI API Key ${DIM}(platform.openai.com)${NC}"
-echo -e "  ${CYAN}4)${NC} Google Gemini API Key ${DIM}(aistudio.google.com)${NC}"
-echo -e "  ${YELLOW}5)${NC} xAI Grok API Key ${DIM}(console.x.ai)${NC}"
-echo -e "  ${DIM}6)${NC} Groq API Key ${DIM}(console.groq.com - fast & cheap)${NC}"
-echo -e "  ${DIM}7)${NC} Other / Manual Configuration"
+echo -e "  ${GREEN}1)${NC} ZEN Provider (Free) ${DIM}← Start immediately, no API key needed${NC}"
+echo -e "  ${BLUE}2)${NC} Claude Subscription (Pro/Max) ${DIM}← Use your existing subscription${NC}"
+echo -e "  ${PURPLE}3)${NC} Anthropic API Key ${DIM}(console.anthropic.com)${NC}"
+echo -e "  ${CYAN}4)${NC} OpenAI API Key ${DIM}(platform.openai.com)${NC}"
+echo -e "  ${YELLOW}5)${NC} Google Gemini API Key ${DIM}(aistudio.google.com)${NC}"
+echo -e "  ${DIM}6)${NC} xAI Grok API Key ${DIM}(console.x.ai)${NC}"
+echo -e "  ${DIM}7)${NC} Groq API Key ${DIM}(console.groq.com - fast & cheap)${NC}"
+echo -e "  ${DIM}8)${NC} Other / Manual Configuration"
 echo
 
-read -p "$(echo -e "${CYAN}?${NC} Select provider [1-7]: ")" PROVIDER_CHOICE < /dev/tty
+read -p "$(echo -e "${CYAN}?${NC} Select provider [1-8]: ")" PROVIDER_CHOICE < /dev/tty
 PROVIDER_CHOICE="${PROVIDER_CHOICE:-1}"
 
 case "$PROVIDER_CHOICE" in
     1)
+        # ZEN Provider (Free - OpenCode default)
+        echo
+        success "ZEN Provider selected (free models)"
+        echo
+        echo -e "${DIM}OpenCode will use free models out of the box.${NC}"
+        echo -e "${DIM}You can change this later with: opencode config${NC}"
+        echo
+        PROVIDER="zen"
+        MODEL_SONNET=""
+        MODEL_HAIKU=""
+        ;;
+    2)
         # Claude Subscription
         echo
         success "Claude Subscription selected"
@@ -429,7 +442,7 @@ case "$PROVIDER_CHOICE" in
         MODEL_SONNET="anthropic/claude-sonnet-4-5"
         MODEL_HAIKU="anthropic/claude-haiku-4-5"
         ;;
-    2)
+    3)
         # Anthropic API
         echo
         echo -e "${DIM}Get your API key at: https://console.anthropic.com/${NC}"
@@ -444,7 +457,7 @@ case "$PROVIDER_CHOICE" in
         MODEL_SONNET="anthropic/claude-sonnet-4-5"
         MODEL_HAIKU="anthropic/claude-haiku-4-5"
         ;;
-    3)
+    4)
         # OpenAI
         echo
         echo -e "${DIM}Get your API key at: https://platform.openai.com/api-keys${NC}"
@@ -460,7 +473,7 @@ case "$PROVIDER_CHOICE" in
         MODEL_SONNET="openai/gpt-4o"
         MODEL_HAIKU="openai/gpt-4o-mini"
         ;;
-    4)
+    5)
         # Google Gemini
         echo
         echo -e "${DIM}Get your API key at: https://aistudio.google.com/apikey${NC}"
@@ -475,7 +488,7 @@ case "$PROVIDER_CHOICE" in
         MODEL_SONNET="google/gemini-2.0-flash"
         MODEL_HAIKU="google/gemini-2.0-flash-lite"
         ;;
-    5)
+    6)
         # xAI Grok
         echo
         echo -e "${DIM}Get your API key at: https://console.x.ai/${NC}"
@@ -490,7 +503,7 @@ case "$PROVIDER_CHOICE" in
         MODEL_SONNET="xai/grok-2"
         MODEL_HAIKU="xai/grok-2"
         ;;
-    6)
+    7)
         # Groq
         echo
         echo -e "${DIM}Get your API key at: https://console.groq.com/keys${NC}"
@@ -506,7 +519,7 @@ case "$PROVIDER_CHOICE" in
         MODEL_SONNET="groq/llama-3.3-70b-versatile"
         MODEL_HAIKU="groq/llama-3.1-8b-instant"
         ;;
-    7)
+    8)
         # Manual
         echo
         info "Manual configuration selected"
@@ -598,11 +611,18 @@ if [[ $ERRORS -eq 0 ]]; then
     echo -e "${BOLD}Next steps:${NC}"
     echo
     if [[ "$PROVIDER_CHOICE" == "1" ]]; then
+        # ZEN Provider - ready immediately
+        echo -e "  1. Run ${CYAN}opencode${NC} to start PAI-OpenCode"
+        echo -e "     ${DIM}You're using free models - no configuration needed!${NC}"
+    elif [[ "$PROVIDER_CHOICE" == "2" ]]; then
+        # Claude Subscription - needs login
         echo -e "  1. Run ${CYAN}opencode${NC}"
         echo -e "  2. Inside OpenCode, run ${CYAN}/login${NC} to connect your Claude subscription"
         echo -e "  3. Run ${CYAN}/provider anthropic${NC} to select Claude"
     else
-        echo -e "  1. Run ${CYAN}opencode${NC} to start PAI-OpenCode"
+        # API providers - run opencode config
+        echo -e "  1. Run ${CYAN}opencode config${NC} to enter your API key"
+        echo -e "  2. Run ${CYAN}opencode${NC} to start PAI-OpenCode"
     fi
     echo
     echo -e "  ${DIM}Ask: \"What skills do I have?\" to see available capabilities${NC}"
