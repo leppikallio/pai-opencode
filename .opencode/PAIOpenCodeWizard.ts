@@ -48,8 +48,9 @@ interface ProviderConfig {
   id: string;
   defaultModel: string;
   description: string;
-  requiresApiKey: boolean;
+  authType: 'oauth' | 'apikey' | 'none';  // oauth = subscription login, apikey = env var, none = free
   envVar?: string;
+  authNote?: string;  // Explanation shown after selection
 }
 
 const PROVIDERS: ProviderConfig[] = [
@@ -58,30 +59,42 @@ const PROVIDERS: ProviderConfig[] = [
     id: 'anthropic',
     defaultModel: 'anthropic/claude-sonnet-4-5',
     description: 'Claude models - Recommended for best PAI experience',
-    requiresApiKey: true,
+    authType: 'oauth',
     envVar: 'ANTHROPIC_API_KEY',
+    authNote: `You have two options:
+     ${c.cyan}Option A:${c.reset} Anthropic Max subscription (recommended)
+               OpenCode will prompt you to log in with your Anthropic account.
+     ${c.cyan}Option B:${c.reset} API Key
+               Set ANTHROPIC_API_KEY in your environment.`,
   },
   {
     name: 'OpenAI (GPT-4)',
     id: 'openai',
     defaultModel: 'openai/gpt-4o',
     description: 'GPT-4 and GPT-4o models',
-    requiresApiKey: true,
+    authType: 'oauth',
     envVar: 'OPENAI_API_KEY',
+    authNote: `You have two options:
+     ${c.cyan}Option A:${c.reset} ChatGPT Plus/Pro subscription
+               OpenCode will prompt you to log in with your OpenAI account.
+     ${c.cyan}Option B:${c.reset} API Key
+               Set OPENAI_API_KEY in your environment.`,
   },
   {
     name: 'ZEN (Free)',
     id: 'zen',
     defaultModel: 'opencode/grok-code',
     description: 'Free tier with community models',
-    requiresApiKey: false,
+    authType: 'none',
+    authNote: `No authentication required. Free community models.`,
   },
   {
     name: 'Local (Ollama)',
     id: 'local',
     defaultModel: 'ollama/llama3',
     description: 'Run models locally via Ollama',
-    requiresApiKey: false,
+    authType: 'none',
+    authNote: `Make sure Ollama is running locally (ollama serve).`,
   },
 ];
 
@@ -456,10 +469,10 @@ async function main(): Promise<void> {
 
   printSuccess(`Selected: ${selectedProvider.name}`);
 
-  if (selectedProvider.requiresApiKey) {
+  if (selectedProvider.authNote) {
     print('');
-    printInfo(`${selectedProvider.name} requires an API key.`);
-    printInfo(`Make sure ${selectedProvider.envVar} is set in your environment.`);
+    print(`  ${c.bold}Authentication:${c.reset}`);
+    print(selectedProvider.authNote);
   }
 
   // Step 4: Identity
