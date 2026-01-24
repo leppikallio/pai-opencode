@@ -1,3 +1,0 @@
-[submodule "vendor/PAI"]
-	path = vendor/PAI
-	url = https://github.com/danielmiessler/PAI
