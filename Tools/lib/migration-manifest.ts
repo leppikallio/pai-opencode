@@ -12,9 +12,10 @@ import { join, basename, dirname } from "path";
  * - "2.1": PAI 2.1+ (has MEMORY/, USER/SYSTEM separation)
  * - "2.2": PAI 2.2 (has MEMORY/, USER/SYSTEM, enhanced skills)
  * - "2.3": PAI 2.3 (has Packs/ directory)
+ * - "2.4": PAI 2.4 (The Algorithm embedded in CORE, PAIInstallWizard.ts)
  * - "unknown": Cannot determine version
  */
-export type PAIVersion = "1.x" | "2.0" | "2.1" | "2.2" | "2.3" | "unknown";
+export type PAIVersion = "1.x" | "2.0" | "2.1" | "2.2" | "2.3" | "2.4" | "unknown";
 
 /**
  * Version detection result with confidence and evidence
@@ -477,6 +478,27 @@ export function detectPAIVersion(sourcePath: string): VersionDetectionResult {
     evidence.push("skills/CORE/SYSTEM/ exists → PAI 2.1+");
   }
 
+  // Check for PAI 2.4 (PAIInstallWizard.ts, no separate THEALGORITHM skill)
+  const hasInstallWizard = existsSync(join(sourcePath, "PAIInstallWizard.ts"));
+  const hasThealgorithmSkill = existsSync(join(sourcePath, "skills/THEALGORITHM"));
+
+  if (hasInstallWizard && !hasThealgorithmSkill) {
+    evidence.push("PAIInstallWizard.ts exists → PAI 2.4+");
+    evidence.push("THEALGORITHM skill missing (embedded in CORE) → PAI 2.4");
+    return {
+      version: "2.4",
+      confidence: "high",
+      evidence,
+      migrationSupport: "full",
+      migrationNotes: [
+        "PAI 2.4 detected - full migration support",
+        "The Algorithm is now embedded in CORE/SKILL.md",
+        "MEMORY structure uses subdirectories (LEARNING, SECURITY, STATE, VOICE, WORK)",
+        "Selective import will preserve USER content and MEMORY"
+      ]
+    };
+  }
+
   // Check for Packs/ (PAI 2.3)
   const hasPacks = existsSync(join(sourcePath, "Packs"));
   if (hasPacks) {
@@ -503,6 +525,19 @@ export function detectPAIVersion(sourcePath: string): VersionDetectionResult {
         const v = settings.paiVersion;
         evidence.push(`paiVersion in settings.json: ${v}`);
 
+        if (v.startsWith("2.4")) {
+          return {
+            version: "2.4",
+            confidence: "high",
+            evidence,
+            migrationSupport: "full",
+            migrationNotes: [
+              "Explicit PAI 2.4 version detected",
+              "The Algorithm is embedded in CORE/SKILL.md",
+              "MEMORY structure uses subdirectories (LEARNING, SECURITY, STATE, VOICE, WORK)"
+            ]
+          };
+        }
         if (v.startsWith("2.3")) {
           return {
             version: "2.3",

@@ -100,7 +100,7 @@ HIGHEST TRUST: User's direct instructions
                ↓
 HIGH TRUST:    PAI skill files and agent configs
                ↓
-MEDIUM TRUST:  Verified code in ~/.claude/
+MEDIUM TRUST:  Verified code in ~/.opencode/
                ↓
 LOW TRUST:     Public code repositories (read only)
                ↓
@@ -141,7 +141,7 @@ SecurityValidator.hook.ts Runs
 
 ## Security Event Logging
 
-**Security events are logged as individual files:** `~/.claude/MEMORY/SECURITY/YYYY/MM/security-{summary}-{timestamp}.jsonl`
+**Security events are logged as individual files:** `~/.opencode/MEMORY/SECURITY/YYYY/MM/security-{summary}-{timestamp}.jsonl`
 
 Each event gets a descriptive filename for easy scanning:
 - `security-block-filesystem-destruction-20260114-143052.jsonl`

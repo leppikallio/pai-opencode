@@ -1,8 +1,6 @@
 ---
 name: Council
 description: "Multi-agent debate system. USE WHEN council, debate, perspectives, agents discuss. SkillSearch('council') for docs."
-implements: Science
-science_cycle_time: meso
 ---
 
 ## Customization

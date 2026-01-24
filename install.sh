@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# PAI-OpenCode Installer v1.0
+# PAI-OpenCode Installer v1.0 (based on PAI v2.4)
 # https://github.com/Steffen025/pai-opencode
 #
 # Usage: curl -fsSL https://pai-opencode.dev/install.sh | bash
@@ -66,7 +66,7 @@ show_banner() {
   ║   ██║     ██║  ██║██║      ╚██████╔╝██║     ███████╗██║ ╚████║╚██████╗╚██████╔╝██████╔╝███████╗║
   ║   ╚═╝     ╚═╝  ╚═╝╚═╝       ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝║
   ║                                                                                                ║
-  ║                           Personal AI Infrastructure v1.0                                      ║
+  ║                           Personal AI Infrastructure v1.0 (PAI 2.4)                                      ║
   ║                                                                                                ║
   ╚════════════════════════════════════════════════════════════════════════════════════════════════╝
 EOF
@@ -79,7 +79,7 @@ EOF
   ║   ██╔══██╗██╔══██╗██║                                        ║
   ║   ██████╔╝███████║██║█████╗  OpenCode                        ║
   ║   ██╔═══╝ ██╔══██║██║╚════╝                                  ║
-  ║   ██║     ██║  ██║██║       Personal AI Infrastructure v1.0  ║
+  ║   ██║     ██║  ██║██║       Personal AI Infrastructure v1.0 (PAI 2.4)  ║
   ║   ╚═╝     ╚═╝  ╚═╝╚═╝                                        ║
   ║                                                              ║
   ╚══════════════════════════════════════════════════════════════╝

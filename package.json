@@ -1,4 +1,7 @@
 {
+  "name": "pai-opencode",
+  "version": "1.0.0",
+  "description": "Personal AI Infrastructure for OpenCode (based on PAI v2.4)",
   "type": "module",
   "dependencies": {
     "diff": "^8.0.3",

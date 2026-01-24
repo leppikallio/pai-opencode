@@ -35,7 +35,7 @@ bun install
 opencode
 ```
 
-That's it! PAI 2.3 is now running on OpenCode.
+That's it! PAI 2.4 is now running on OpenCode.
 
 ### Method 2: Migration from Claude Code PAI
 
@@ -69,14 +69,14 @@ Edit `.opencode/settings.json` to customize:
 
 | Component | Count | Description |
 |-----------|-------|-------------|
-| Skills | 20 | Same as PAI 2.3 |
+| Skills | 20 | Same as PAI 2.4 |
 | Agents | 13 | Named AI personalities |
 | Plugin | 1 | Unified (security + context) |
 | Converter | 1 | For migrating PAI updates |
 
 ## What's Different from Claude Code PAI
 
-| PAI 2.3 (Claude Code) | PAI-OpenCode |
+| PAI 2.4 (Claude Code) | PAI-OpenCode |
 |-----------------------|--------------|
 | `hooks/` | `plugins/` |
 | `.claude/` | `.opencode/` |

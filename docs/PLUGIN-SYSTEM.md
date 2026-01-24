@@ -294,7 +294,7 @@ See **MIGRATION.md** for detailed converter tool usage.
 
 ## Next Steps
 
-- **PAI-ADAPTATIONS.md** - What we changed from vanilla PAI 2.3
+- **PAI-ADAPTATIONS.md** - What we changed from vanilla PAI 2.4
 - **MIGRATION.md** - Migrating from Claude Code PAI
 
 ---

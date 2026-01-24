@@ -1,12 +1,12 @@
 # PAI Adaptations
 
-**What we changed from vanilla PAI 2.3 and why**
+**What we changed from vanilla PAI 2.4 and why**
 
 ---
 
 ## Overview
 
-PAI-OpenCode is **PAI 2.3 ported to OpenCode**. Most of the system is unchanged—same skills, same agents, same memory structure. But some parts required adaptation due to fundamental platform differences.
+PAI-OpenCode is **PAI 2.4 ported to OpenCode**. Most of the system is unchanged—same skills, same agents, same memory structure. But some parts required adaptation due to fundamental platform differences.
 
 This document explains **what we changed** and **why**.
 
@@ -140,7 +140,7 @@ export function fileLog(message: string, level = "info") {
 
 ### settings.json → opencode.json
 
-| PAI 2.3 (Claude Code) | PAI-OpenCode |
+| PAI 2.4 (Claude Code) | PAI-OpenCode |
 |-----------------------|--------------|
 | `settings.json` | `settings.json` (kept for PAI config) |
 | No plugin config | `opencode.json` for plugin registration |
@@ -162,7 +162,7 @@ export function fileLog(message: string, level = "info") {
 
 ## What We Removed (Deferred to v1.x)
 
-These features exist in PAI 2.3 but are **deferred** in PAI-OpenCode v1.0:
+These features exist in PAI 2.4 but are **deferred** in PAI-OpenCode v1.0:
 
 | Feature | Status | Target |
 |---------|--------|--------|
@@ -178,7 +178,7 @@ See **DEFERRED-FEATURES.md** for detailed roadmap.
 
 ## Version Compatibility
 
-| Component | PAI 2.3 | PAI-OpenCode v1.0 |
+| Component | PAI 2.4 | PAI-OpenCode v1.0 |
 |-----------|---------|-------------------|
 | Skills | ✅ Identical | ✅ Identical |
 | Agents | ✅ Content identical | ⚠️ Filename casing changed |
@@ -192,7 +192,7 @@ See **DEFERRED-FEATURES.md** for detailed roadmap.
 
 ## Migration Path
 
-### From PAI 2.3 (Claude Code)
+### From PAI 2.4 (Claude Code)
 
 ```bash
 # Use converter tool

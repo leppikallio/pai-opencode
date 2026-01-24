@@ -1,18 +1,18 @@
 # Deferred Features
 
-**Features from PAI 2.3 that are not in PAI-OpenCode v1.0, and when they're coming**
+**Features from PAI 2.4 that are not in PAI-OpenCode v1.0, and when they're coming**
 
 ---
 
 ## Overview
 
-PAI-OpenCode v1.0 focuses on **core functionality**—skills, agents, security, memory. Some advanced features from PAI 2.3 (Claude Code) are **deferred to future releases** to ensure a stable, well-tested foundation.
+PAI-OpenCode v1.0 focuses on **core functionality**—skills, agents, security, memory. Some advanced features from PAI 2.4 (Claude Code) are **deferred to future releases** to ensure a stable, well-tested foundation.
 
 ---
 
 ## Feature Status Matrix
 
-| Feature | PAI 2.3 Status | PAI-OpenCode v1.0 | Target Version | Priority |
+| Feature | PAI 2.4 Status | PAI-OpenCode v1.0 | Target Version | Priority |
 |---------|----------------|-------------------|----------------|----------|
 | Skills System | ✅ Stable | ✅ Included | v1.0 | P0 |
 | Agent System | ✅ Stable | ✅ Included | v1.0 | P0 |
@@ -258,7 +258,7 @@ Want to help implement deferred features?
 ## Next Steps
 
 - **PLUGIN-SYSTEM.md** - How OpenCode plugins work
-- **PAI-ADAPTATIONS.md** - What we changed from PAI 2.3
+- **PAI-ADAPTATIONS.md** - What we changed from PAI 2.4
 - **MIGRATION.md** - Migrating from Claude Code PAI
 
 ---

@@ -5,7 +5,7 @@
 **Personal AI Infrastructure for OpenCode** — Bring Daniel Miessler's renowned PAI scaffolding to any AI provider.
 
 [![OpenCode Compatible](https://img.shields.io/badge/OpenCode-Compatible-green)](https://github.com/anomalyco/opencode)
-[![PAI Version](https://img.shields.io/badge/PAI-2.3-blue)](https://github.com/danielmiessler/Personal_AI_Infrastructure)
+[![PAI Version](https://img.shields.io/badge/PAI-2.4-blue)](https://github.com/danielmiessler/Personal_AI_Infrastructure)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
@@ -116,7 +116,7 @@ Use any AI provider:
 | [docs/WHAT-IS-PAI.md](docs/WHAT-IS-PAI.md) | PAI fundamentals explained |
 | [docs/OPENCODE-FEATURES.md](docs/OPENCODE-FEATURES.md) | OpenCode unique features |
 | [docs/PLUGIN-SYSTEM.md](docs/PLUGIN-SYSTEM.md) | Plugin architecture |
-| [docs/PAI-ADAPTATIONS.md](docs/PAI-ADAPTATIONS.md) | Changes from PAI 2.3 |
+| [docs/PAI-ADAPTATIONS.md](docs/PAI-ADAPTATIONS.md) | Changes from PAI 2.4 |
 | [docs/MIGRATION.md](docs/MIGRATION.md) | Migration from Claude Code PAI |
 | [ROADMAP.md](ROADMAP.md) | Version roadmap |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |

@@ -91,12 +91,12 @@ This roadmap outlines the development path from v1.0 to v2.0 and beyond.
 
 ### v2.0.0 - Full PAI Parity & Auto-Migration (Q3 2026)
 
-**Goal:** Complete feature parity with PAI 2.3 + seamless migration
+**Goal:** Complete feature parity with PAI 2.4 + seamless migration
 
 **Major Features:**
 
 1. **Auto-Migration System**
-   - One-command migration from PAI 2.3
+   - One-command migration from PAI 2.4
    - Skill mapping and compatibility layer
    - Memory import (sessions, projects, learning)
 
