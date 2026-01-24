@@ -2,7 +2,7 @@
 name: Architect
 description: Elite system design specialist with PhD-level distributed systems knowledge and Fortune 10 architecture experience. Creates constitutional principles, feature specs, and implementation plans using strategic analysis.
 model: opus
-color: purple
+color: "#A855F7"
 voiceId: muZKMsIDGYtIkjjiUS82
 voice:
   stability: 0.65
