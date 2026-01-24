@@ -4,6 +4,8 @@
  * Loads CORE skill context for injection into chat system.
  * Equivalent to PAI's load-core-context.ts hook.
  *
+ * Compatible with PAI v2.4 (The Algorithm embedded in CORE).
+ *
  * @module context-loader
  */
 
@@ -87,13 +89,16 @@ export async function loadContext(): Promise<ContextResult> {
       fileLog("Loaded SKILL.md");
     }
 
-    // 2. Load SYSTEM docs (if exists)
+    // 2. Load SYSTEM docs (if exists) - v2.4 compatible
     const systemDir = join(coreSkillDir, "SYSTEM");
     if (existsSync(systemDir)) {
+      // Priority SYSTEM files for v2.4
       const systemFiles = [
-        "SkillSystem.md",
-        "PAIAGENTSYSTEM.md",
-        "THEPLUGINSYSTEM.md",
+        "SkillSystem.md",           // Skill system documentation
+        "PAIAGENTSYSTEM.md",        // Agent system
+        "THEPLUGINSYSTEM.md",       // Plugin system (OpenCode specific)
+        "PAISYSTEMARCHITECTURE.md", // v2.4: System architecture
+        "RESPONSEFORMAT.md",        // v2.4: Response format rules
       ];
 
       for (const file of systemFiles) {
@@ -106,10 +111,17 @@ export async function loadContext(): Promise<ContextResult> {
       }
     }
 
-    // 3. Load USER/TELOS context (if exists)
+    // 3. Load USER/TELOS context (if exists) - v2.4 compatible
     const telosDir = join(coreSkillDir, "USER", "TELOS");
     if (existsSync(telosDir)) {
-      const telosFiles = ["GOALS.md", "TELOS.md"];
+      // Priority TELOS files for v2.4 (most important first)
+      const telosFiles = [
+        "TELOS.md",      // Main TELOS document
+        "MISSION.md",    // v2.4: Mission statement
+        "GOALS.md",      // Goals
+        "NARRATIVES.md", // v2.4: Personal narratives
+        "STATUS.md",     // v2.4: Current status
+      ];
 
       for (const file of telosFiles) {
         const filePath = join(telosDir, file);
@@ -121,12 +133,23 @@ export async function loadContext(): Promise<ContextResult> {
       }
     }
 
-    // 4. Check for USER/ABOUTME.md directly
-    const aboutMePath = join(coreSkillDir, "USER", "ABOUTME.md");
-    const aboutMe = readFileSafe(aboutMePath);
-    if (aboutMe) {
-      contextParts.push(`--- ABOUTME ---\n${aboutMe}`);
-      fileLog("Loaded USER/ABOUTME.md");
+    // 4. Load USER identity files - v2.4 compatible
+    const userDir = join(coreSkillDir, "USER");
+    const userFiles = [
+      "ABOUTME.md",           // User profile
+      "BASICINFO.md",         // v2.4: Basic information
+      "DAIDENTITY.md",        // v2.4: AI identity configuration
+      "TECHSTACKPREFERENCES.md", // v2.4: Tech stack preferences
+      "RESPONSEFORMAT.md",    // v2.4: Response format preferences
+    ];
+
+    for (const file of userFiles) {
+      const filePath = join(userDir, file);
+      const content = readFileSafe(filePath);
+      if (content) {
+        contextParts.push(`--- USER/${file} ---\n${content}`);
+        fileLog(`Loaded USER/${file}`);
+      }
     }
 
     // Combine all context
