@@ -247,7 +247,7 @@ Compare configuration files to ensure secrets not leaked:
 const configFiles = [
   ".opencode/config/settings.json",
   ".opencode/config/mcp.json",
-  ".opencode/hooks/config.ts",
+  ".opencode/plugins/lib/config.ts",
   "package.json"
 ];
 
@@ -395,7 +395,7 @@ Generated: {timestamp}
    **Recommendation**: Change to "The engineer's AI assistant"
    **Auto-fix**: Available
 
-2. **File**: .opencode/hooks/example.ts:8
+2. **File**: .opencode/plugins/handlers/example.ts:8
    **Issue**: Comment references private workflow
    **Pattern**: "Based on jeremy-2.0 implementation"
    **Recommendation**: Remove or genericize comment
@@ -421,7 +421,7 @@ The following differences are expected and correct:
 ## Next Steps
 
 1. Run auto-fix for medium priority issues: `jeremy fix-repo-issues`
-2. Manually review .opencode/hooks/example.ts:8
+2. Manually review .opencode/plugins/handlers/example.ts:8
 3. Re-run validation: `jeremy cross-repo-check`
 
 ---
@@ -572,7 +572,7 @@ Overall: PASS WITH WARNINGS (99/100 privacy score)
 
 2 issues need attention:
 1. docs/README.md - contains specific name instead of placeholder
-2. .opencode/hooks/example.ts - references private workflow
+2. .opencode/plugins/handlers/example.ts - references private workflow
 
 I can auto-fix issue #1. Would you like me to apply fixes?
 ```

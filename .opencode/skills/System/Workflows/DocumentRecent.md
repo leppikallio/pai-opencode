@@ -191,7 +191,7 @@ Tags: {relevant tags}
 {The key insight, pattern, or knowledge gained}
 
 ## Application
-{How this applies to jeremAIah infrastructure or development}
+{How this applies to PAI infrastructure or development}
 
 ## Evidence
 - Commits: {hashes}

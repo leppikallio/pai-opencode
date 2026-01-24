@@ -20,7 +20,7 @@ Use AskUserQuestion tool to ask:
 ```
 Which repository do you want to push to?
 
-1. jeremy-2.0-claudecode (private jeremAIah infrastructure)
+1. Your private PAI infrastructure repository
 2. pai-opencode (public fork - security scan required)
 
 Please enter 1 or 2:
@@ -127,7 +127,7 @@ Remote: git@github.com:Steffen025/jeremy-2.0-claudecode.git
 Branch: main
 
 Files Changed: 5
-- M .opencode/hooks/load-core-context.ts
+- M .opencode/plugins/handlers/context-loader.ts
 - M .opencode/MEMORY/State/algorithm-state.json
 - A .opencode/skills/System/Workflows/GitPush.md
 + 2 more...

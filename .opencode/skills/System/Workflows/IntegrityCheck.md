@@ -1,6 +1,6 @@
 # IntegrityCheck Workflow
 
-**Purpose:** Find and fix broken references across the jeremAIah system. Launches 12 parallel agents to audit all components for broken file references, outdated patterns, and configuration issues.
+**Purpose:** Find and fix broken references across the PAI system. Launches 12 parallel agents to audit all components for broken file references, outdated patterns, and configuration issues.
 
 **Triggers:** "integrity check", "audit system", "check references", "system health"
 
@@ -23,7 +23,7 @@ Running the **IntegrityCheck** workflow from the **System** skill...
 
 - After major refactoring
 - Periodic system health checks
-- Before releasing jeremAIah updates
+- Before releasing PAI updates
 - When something "feels broken"
 - At end of significant work sessions (before DocumentSession)
 
@@ -33,6 +33,8 @@ Running the **IntegrityCheck** workflow from the **System** skill...
 
 ### Step 1: Launch 12 Parallel Audit Agents
 
+**CRITICAL: Use `subagent_type: "Intern"` for all agents.** OpenCode does not have native "Explore" or "Plan" agents like Claude Code.
+
 Use the Task tool to launch agents in a SINGLE message (parallel execution). Each agent audits their assigned component.
 
 **Agent Assignments:**
@@ -40,8 +42,8 @@ Use the Task tool to launch agents in a SINGLE message (parallel execution). Eac
 | # | Focus Area | Scope | Check For |
 |---|------------|-------|-----------|
 | 1 | CORE SKILL.md | `skills/CORE/SKILL.md` | Broken file references, outdated paths |
-| 2 | Identity System | `hooks/lib/identity.ts`, `settings.json` | Config consistency |
-| 3 | Hook Scripts | `hooks/*.ts` | Imports, identity usage, TypeScript validity |
+| 2 | Identity System | `plugins/lib/identity.ts`, `settings.json` | Config consistency |
+| 3 | Plugin Scripts | `plugins/*.ts` | Imports, identity usage, TypeScript validity |
 | 4 | System Docs | `skills/CORE/SYSTEM/*.md` | Cross-references, broken links |
 | 5 | User Docs | `skills/CORE/USER/*.md` | Personal config references |
 | 6 | Workflows | `skills/*/Workflows/*.md` | File paths, tool references |
@@ -55,7 +57,7 @@ Use the Task tool to launch agents in a SINGLE message (parallel execution). Eac
 ### Step 2: Agent Prompt Template
 
 ```
-You are auditing the jeremAIah system for integrity issues.
+You are auditing the PAI system for integrity issues.
 
 **Your Focus Area:** [FOCUS_AREA]
 **Files to Check:** [SEARCH_SCOPE]
@@ -97,11 +99,11 @@ After agents complete:
 ### Step 4: Report Format
 
 ```markdown
-# jeremAIah Integrity Check Report
+# PAI Integrity Check Report
 
 **Date:** [DATE]
 **Audit Type:** Full System Integrity Check
-**Scope:** ~/.opencode/ (jeremAIah System)
+**Scope:** ~/.opencode/ (PAI System)
 **Method:** 12 Parallel Agent Audits
 **Status:** [HEALTHY|WARNINGS|CRITICAL]
 
@@ -180,7 +182,7 @@ IntegrityCheck (Complete)
 
 Save full report to user's home directory for easy access:
 ```
-~/YYYY-MM-DD_jeremAIah-System-Integrity-Audit.md
+~/YYYY-MM-DD_PAI-System-Integrity-Audit.md
 ```
 
 Also optionally save to MEMORY:
@@ -205,9 +207,10 @@ Launch ALL 12 agents in a SINGLE Task tool call block for true parallel executio
 
 ```typescript
 // In a single message, call Task 12 times:
-Task({ subagent_type: "Explore", model: "haiku", prompt: "Agent 1: CORE SKILL.md..." })
-Task({ subagent_type: "Explore", model: "haiku", prompt: "Agent 2: Identity System..." })
-Task({ subagent_type: "Explore", model: "haiku", prompt: "Agent 3: Hook Scripts..." })
+// NOTE: OpenCode uses "Intern" instead of Claude Code's native "Explore"
+Task({ subagent_type: "Intern", model: "haiku", prompt: "Agent 1: CORE SKILL.md..." })
+Task({ subagent_type: "Intern", model: "haiku", prompt: "Agent 2: Identity System..." })
+Task({ subagent_type: "Intern", model: "haiku", prompt: "Agent 3: Plugin Scripts..." })
 // ... all 12 agents
 ```
 

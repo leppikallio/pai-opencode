@@ -4,11 +4,11 @@
 "privacy check", "data isolation", "validate privacy", "check data boundaries", "privacy audit"
 
 ## Purpose
-Validate data isolation between USER/ (personal data), SYSTEM/ (architecture docs), and MEMORY/ (execution history) to ensure no cross-contamination or sensitive data exposure within the jeremAIah infrastructure.
+Validate data isolation between USER/ (personal data), SYSTEM/ (architecture docs), and MEMORY/ (execution history) to ensure no cross-contamination or sensitive data exposure within the PAI infrastructure.
 
 ## What It Does
 
-Validates internal jeremAIah data boundaries:
+Validates internal PAI data boundaries:
 
 1. **USER Directory Isolation** - Personal data stays in USER/, not leaked elsewhere
 2. **SYSTEM Documentation Purity** - Architecture docs remain generic, no personal examples
@@ -424,8 +424,8 @@ Generated: {timestamp}
    - Auto-fix: Available
 
 2. **SYSTEM/docs/setup.md:12**
-   - Contains: "/Users/steffen/.claude"
-   - Should be: "$PAI_DIR" or "$HOME/.claude"
+   - Contains: "/Users/username/.opencode"
+   - Should be: "$PAI_DIR" or "$HOME/.opencode"
    - Severity: MEDIUM
    - Auto-fix: Available
 
@@ -622,7 +622,7 @@ const autoFixes = [
   {
     file: "SYSTEM/docs/setup.md",
     line: 12,
-    original: "/Users/steffen/.claude",
+    original: "/Users/username/.opencode",
     replacement: "$PAI_DIR",
     description: "Replace hardcoded path with variable"
   },

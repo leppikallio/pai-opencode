@@ -417,7 +417,7 @@ Found {total} relevant artifacts:
 **2026-01-18 23:57** - Session: Hook development workflow
 - Implemented security-validator hook
 - Added pre-tool-use validation
-- Files: `.opencode/hooks/security-validator.ts`
+- Files: `.opencode/plugins/handlers/security-validator.ts`
 - Session: [link]
 
 **2026-01-18 22:30** - Learning: Git hook security patterns
@@ -441,7 +441,7 @@ Found {total} relevant artifacts:
 - Exit code 2 signals blocked command
 
 **Files Modified:**
-- `.opencode/hooks/security-validator.ts` (created)
+- `.opencode/plugins/handlers/security-validator.ts` (created)
 - `.opencode/config/settings.json` (hook registration)
 
 **Key Decisions:**
@@ -484,8 +484,8 @@ export default function securityValidator(context: HookContext) {
 ```
 
 ### Files Involved
-- `.opencode/hooks/security-validator.ts` (98 lines)
-- `.opencode/hooks/capture-all-events.ts` (modified)
+- `.opencode/plugins/handlers/security-validator.ts` (98 lines)
+- `.opencode/plugins/handlers/event-capture.ts` (modified)
 - `.opencode/config/settings.json` (hook registration)
 
 ### Tests Run

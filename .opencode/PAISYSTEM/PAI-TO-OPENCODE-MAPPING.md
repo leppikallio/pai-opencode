@@ -131,6 +131,32 @@ PAI-OpenCode:   .opencode/skills/Fabric/Patterns/
 
 ---
 
+## Agent Type Mapping (CRITICAL)
+
+**Claude Code has native agents that OpenCode does NOT have:**
+
+| Claude Code Agent | OpenCode Equivalent | Usage |
+|-------------------|---------------------|-------|
+| `Explore` | `Intern` | Fast codebase exploration, parallel tasks |
+| `Plan` | `Architect` | Architecture planning, system design |
+| `general-purpose` | `Intern` or `Engineer` | General tasks |
+
+**When porting workflows:**
+1. Replace `subagent_type: "Explore"` with `subagent_type: "Intern"`
+2. Replace `subagent_type: "Plan"` with `subagent_type: "Architect"`
+3. Replace `subagent_type: "general-purpose"` with appropriate agent
+
+**Available OpenCode agents** (from `.opencode/agents/`):
+- `Intern` - Fast parallel grunt work
+- `Architect` - System design
+- `Engineer` - Implementation
+- `Designer` - UX/UI
+- `Pentester` - Security
+- `QATester` - Testing
+- `ClaudeResearcher`, `GeminiResearcher`, `GrokResearcher` - Research
+
+---
+
 ## What NOT to Import
 
 These PAI 2.4 components are not applicable to OpenCode:
