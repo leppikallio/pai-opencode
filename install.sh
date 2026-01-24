@@ -49,22 +49,54 @@ spin() {
 }
 
 # ==================== BANNER ====================
-echo -e "${CYAN}"
-cat << 'EOF'
-  ╔═══════════════════════════════════════════════════════════════╗
-  ║                                                               ║
-  ║   ██████╗  █████╗ ██╗       ██████╗ ██████╗ ███████╗███╗   ██╗║
-  ║   ██╔══██╗██╔══██╗██║      ██╔═══██╗██╔══██╗██╔════╝████╗  ██║║
-  ║   ██████╔╝███████║██║█████╗██║   ██║██████╔╝█████╗  ██╔██╗ ██║║
-  ║   ██╔═══╝ ██╔══██║██║╚════╝██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║║
-  ║   ██║     ██║  ██║██║      ╚██████╔╝██║     ███████╗██║ ╚████║║
-  ║   ╚═╝     ╚═╝  ╚═╝╚═╝       ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝║
-  ║                                                               ║
-  ║              Personal AI Infrastructure v1.0                  ║
-  ║                                                               ║
-  ╚═══════════════════════════════════════════════════════════════╝
+# Responsive banner based on terminal width
+show_banner() {
+    local cols=$(tput cols 2>/dev/null || echo 80)
+
+    echo -e "${CYAN}"
+    if [ "$cols" -ge 98 ]; then
+        # Full PAI-OPENCODE banner (98 chars wide)
+        cat << 'EOF'
+  ╔════════════════════════════════════════════════════════════════════════════════════════════════╗
+  ║                                                                                                ║
+  ║   ██████╗  █████╗ ██╗       ██████╗ ██████╗ ███████╗███╗   ██╗ ██████╗ ██████╗ ██████╗ ███████╗║
+  ║   ██╔══██╗██╔══██╗██║      ██╔═══██╗██╔══██╗██╔════╝████╗  ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝║
+  ║   ██████╔╝███████║██║█████╗██║   ██║██████╔╝█████╗  ██╔██╗ ██║██║     ██║   ██║██║  ██║█████╗  ║
+  ║   ██╔═══╝ ██╔══██║██║╚════╝██║   ██║██╔═══╝ ██╔══╝  ██║╚██╗██║██║     ██║   ██║██║  ██║██╔══╝  ║
+  ║   ██║     ██║  ██║██║      ╚██████╔╝██║     ███████╗██║ ╚████║╚██████╗╚██████╔╝██████╔╝███████╗║
+  ║   ╚═╝     ╚═╝  ╚═╝╚═╝       ╚═════╝ ╚═╝     ╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝║
+  ║                                                                                                ║
+  ║                           Personal AI Infrastructure v1.0                                      ║
+  ║                                                                                                ║
+  ╚════════════════════════════════════════════════════════════════════════════════════════════════╝
 EOF
-echo -e "${NC}"
+    elif [ "$cols" -ge 70 ]; then
+        # Compact PAI banner (68 chars wide)
+        cat << 'EOF'
+  ╔══════════════════════════════════════════════════════════════╗
+  ║                                                              ║
+  ║   ██████╗  █████╗ ██╗                                        ║
+  ║   ██╔══██╗██╔══██╗██║                                        ║
+  ║   ██████╔╝███████║██║█████╗  OpenCode                        ║
+  ║   ██╔═══╝ ██╔══██║██║╚════╝                                  ║
+  ║   ██║     ██║  ██║██║       Personal AI Infrastructure v1.0  ║
+  ║   ╚═╝     ╚═╝  ╚═╝╚═╝                                        ║
+  ║                                                              ║
+  ╚══════════════════════════════════════════════════════════════╝
+EOF
+    else
+        # Minimal text-only for very narrow terminals
+        echo ""
+        echo "  ╔════════════════════════════════════════╗"
+        echo "  ║  PAI-OpenCode v1.0                     ║"
+        echo "  ║  Personal AI Infrastructure            ║"
+        echo "  ╚════════════════════════════════════════╝"
+        echo ""
+    fi
+    echo -e "${NC}"
+}
+
+show_banner
 
 # ==================== ARGS ====================
 SKIP_OPENCODE_BUILD=false
@@ -106,16 +138,63 @@ esac
 # ==================== STEP 1: PREREQUISITES ====================
 step "1" "Checking Prerequisites"
 
-# Check Go
-if command -v go &> /dev/null; then
-    GO_VERSION=$(go version | awk '{print $3}' | sed 's/go//')
-    success "Go $GO_VERSION found"
+# Check Go (check common paths first if not in PATH)
+find_go() {
+    if command -v go &> /dev/null; then
+        echo "$(command -v go)"
+        return 0
+    fi
+    # Check common Go installation paths
+    local go_paths=(
+        "/usr/local/go/bin/go"
+        "/opt/homebrew/bin/go"
+        "$HOME/go/bin/go"
+        "/usr/local/bin/go"
+    )
+    for gp in "${go_paths[@]}"; do
+        if [[ -x "$gp" ]]; then
+            echo "$gp"
+            return 0
+        fi
+    done
+    return 1
+}
+
+GO_BIN=$(find_go || echo "")
+if [[ -n "$GO_BIN" ]]; then
+    GO_VERSION=$("$GO_BIN" version | awk '{print $3}' | sed 's/go//')
+    success "Go $GO_VERSION found at $GO_BIN"
+    # Ensure Go is in PATH for this session
+    GO_DIR=$(dirname "$GO_BIN")
+    if [[ ":$PATH:" != *":$GO_DIR:"* ]]; then
+        export PATH="$GO_DIR:$PATH"
+    fi
 else
     info "Go not found. Installing..."
     if [[ "$OS" == "Darwin" ]]; then
         if command -v brew &> /dev/null; then
-            brew install go &
-            spin $!
+            # Run brew install in foreground (it has its own progress display)
+            brew install go
+
+            # After Homebrew install, find Go in common locations
+            GO_BIN=$(find_go || echo "")
+            if [[ -z "$GO_BIN" ]]; then
+                # Homebrew on Apple Silicon
+                if [[ -x "/opt/homebrew/bin/go" ]]; then
+                    GO_BIN="/opt/homebrew/bin/go"
+                # Homebrew on Intel
+                elif [[ -x "/usr/local/bin/go" ]]; then
+                    GO_BIN="/usr/local/bin/go"
+                fi
+            fi
+
+            if [[ -n "$GO_BIN" ]]; then
+                GO_DIR=$(dirname "$GO_BIN")
+                export PATH="$GO_DIR:$PATH"
+                success "Go installed at $GO_BIN"
+            else
+                error "Go installation completed but binary not found. Please restart your terminal and re-run."
+            fi
         else
             error "Homebrew not found. Please install Go manually: https://go.dev/dl/"
         fi
@@ -124,7 +203,6 @@ else
         warn "Then re-run this installer."
         exit 1
     fi
-    success "Go installed"
 fi
 
 # Check Bun
@@ -174,11 +252,11 @@ else
     fi
 
     info "Building OpenCode binary..."
-    go build -o opencode ./main.go &
+    "$GO_BIN" build -o opencode ./main.go &
     spin $!
 
     # Install to GOPATH/bin
-    GOPATH_BIN="${GOPATH:-$HOME/go}/bin"
+    GOPATH_BIN="$("$GO_BIN" env GOPATH 2>/dev/null || echo "$HOME/go")/bin"
     mkdir -p "$GOPATH_BIN"
     mv opencode "$GOPATH_BIN/"
     success "OpenCode installed to $GOPATH_BIN/opencode"
