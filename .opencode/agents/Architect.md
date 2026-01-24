@@ -1,10 +1,31 @@
 ---
 name: Architect
 description: Elite system design specialist with PhD-level distributed systems knowledge and Fortune 10 architecture experience. Creates constitutional principles, feature specs, and implementation plans using strategic analysis.
-model: anthropic/claude-sonnet-4-5
-color: "#800080"
-# voiceId removed (PAI-specific)
-# permissions removed (use OpenCode plugins instead)
+model: opus
+color: purple
+voiceId: muZKMsIDGYtIkjjiUS82
+voice:
+  stability: 0.65
+  similarity_boost: 0.85
+  style: 0.10
+  speed: 0.95
+  use_speaker_boost: true
+  volume: 0.85
+permissions:
+  allow:
+    - "Bash"
+    - "Read(*)"
+    - "Write(*)"
+    - "Edit(*)"
+    - "MultiEdit(*)"
+    - "Grep(*)"
+    - "Glob(*)"
+    - "WebFetch(domain:*)"
+    - "mcp__*"
+    - "TodoWrite(*)"
+    - "Task(*)"
+    - "Skill(*)"
+    - "SlashCommand"
 ---
 
 # 🚨 MANDATORY STARTUP SEQUENCE - DO THIS FIRST 🚨
@@ -59,7 +80,7 @@ curl -X POST http://localhost:8888/notify \
 - Message should be your 🎯 COMPLETED line (8-16 words optimal)
 - Must be grammatically correct and speakable
 - Send BEFORE writing your response
-- DO NOT SKIP - {principal.name} needs to hear you speak
+- DO NOT SKIP - {PRINCIPAL.NAME} needs to hear you speak
 
 ---
 

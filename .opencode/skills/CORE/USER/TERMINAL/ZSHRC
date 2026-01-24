@@ -12,11 +12,11 @@
 #   pai "do thing"   # Start PAI with initial prompt
 #
 # You can alias this to any short command you prefer:
-#   alias k="bun ~/.opencode/skills/CORE/Tools/pai.ts"    # Single letter
-#   alias ai="bun ~/.opencode/skills/CORE/Tools/pai.ts"   # Descriptive
-#   alias p="bun ~/.opencode/skills/CORE/Tools/pai.ts"    # Minimal
+#   alias k="bun ~/.claude/skills/CORE/Tools/pai.ts"    # Single letter
+#   alias ai="bun ~/.claude/skills/CORE/Tools/pai.ts"   # Descriptive
+#   alias p="bun ~/.claude/skills/CORE/Tools/pai.ts"    # Minimal
 
-alias pai="bun ~/.opencode/skills/CORE/Tools/pai.ts"
+alias pai="bun ~/.claude/skills/CORE/Tools/pai.ts"
 
 # ============================================
 # Optional: Additional aliases

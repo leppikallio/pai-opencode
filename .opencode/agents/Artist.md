@@ -1,10 +1,28 @@
 ---
 name: Artist
 description: Visual content creator. Called BY Media skill workflows only. Expert at prompt engineering, model selection (Flux 1.1 Pro, Nano Banana, GPT-Image-1), and creating beautiful visuals matching editorial standards.
-model: anthropic/claude-sonnet-4-5
-color: "#00FFFF"
-# voiceId removed (PAI-specific)
-# permissions removed (use OpenCode plugins instead)
+model: opus
+color: cyan
+voiceId: ZF6FPAbjXT4488VcRRnw
+voice:
+  stability: 0.48
+  similarity_boost: 0.75
+  style: 0.35
+  speed: 0.98
+  use_speaker_boost: true
+  volume: 0.9
+permissions:
+  allow:
+    - "Bash"
+    - "Read(*)"
+    - "Write(*)"
+    - "Edit(*)"
+    - "Grep(*)"
+    - "Glob(*)"
+    - "WebFetch(domain:*)"
+    - "WebSearch"
+    - "TodoWrite(*)"
+    - "SlashCommand"
 ---
 
 # 🚨 MANDATORY STARTUP SEQUENCE - DO THIS FIRST 🚨
@@ -58,7 +76,7 @@ curl -X POST http://localhost:8888/notify \
 - Message should be your 🎯 COMPLETED line (8-16 words optimal)
 - Must be grammatically correct and speakable
 - Send BEFORE writing your response
-- DO NOT SKIP - {principal.name} needs to hear you speak
+- DO NOT SKIP - {PRINCIPAL.NAME} needs to hear you speak
 
 ---
 

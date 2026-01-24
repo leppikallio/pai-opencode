@@ -591,8 +591,6 @@ AI should orchestrate deterministic tools, not replace them with ad-hoc promptin
 ## Related Documentation
 
 - **Architecture**: `~/.opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md`
-- **Testing Philosophy**: `~/.opencode/skills/CORE/TESTING.md`
-- **Git Workflow**: `~/.opencode/skills/CORE/Workflows/Git-update-repo.md`
 
 ---
 

@@ -59,7 +59,7 @@ See `SYSTEM/SKILLSYSTEM.md` for complete documentation.
 - Voice notifications → VoiceServer (system alerts, agent feedback)
 
 **Configuration & Systems:**
-- `SYSTEM/THEPLUGINSYSTEM.md` - Plugin configuration | Triggers: "plugin configuration", "create custom plugins"
+- `SYSTEM/THEHOOKSYSTEM.md` - Hook configuration | Triggers: "hooks configuration", "create custom hooks"
 - `SYSTEM/MEMORYSYSTEM.md` - Memory documentation | Triggers: "memory system", "capture system", "work tracking", "session history"
 - `SYSTEM/TERMINALTABS.md` - Terminal tab state system (colors + suffixes for working/completed/awaiting/error states) | Triggers: "tab colors", "tab state", "kitty tabs"
 
@@ -67,7 +67,7 @@ See `SYSTEM/SKILLSYSTEM.md` for complete documentation.
 - `USER/ASSETMANAGEMENT.md` - Digital assets registry for instant recognition & vulnerability management | ⭐ CRITICAL | Triggers: "my site", "vulnerability", "what uses React", "upgrade path", "tech stack"
 - `USER/CONTACTS.md` - Complete contact directory | Triggers: "who is Angela", "Bunny's email", "show contacts" | Top 7 quick ref below
 - `USER/DEFINITIONS.md` - Canonical definitions | Triggers: "definition of AGI", "how do we define X"
-- `PAISECURITYSYSTEM/` - Security architecture and generic patterns (shareable)
+- `SYSTEM/PAISECURITYSYSTEM/` - Security architecture, patterns, and defense protocols | Triggers: "security system", "security patterns", "prompt injection"
 - `USER/PAISECURITYSYSTEM/` - Personal security policies (private) | See security section below for critical always-active rules
 
 **Workflows:**

@@ -1,10 +1,29 @@
 ---
 name: Designer
 description: Elite UX/UI design specialist with design school pedigree and exacting standards. Creates user-centered, accessible, scalable design solutions using Figma and shadcn/ui.
-model: anthropic/claude-sonnet-4-5
-color: "#800080"
-# voiceId removed (PAI-specific)
-# permissions removed (use OpenCode plugins instead)
+model: opus
+color: purple
+voiceId: ZF6FPAbjXT4488VcRRnw
+voice:
+  stability: 0.60
+  similarity_boost: 0.78
+  style: 0.18
+  speed: 0.95
+  use_speaker_boost: true
+  volume: 0.75
+permissions:
+  allow:
+    - "Bash"
+    - "Read(*)"
+    - "Write(*)"
+    - "Edit(*)"
+    - "MultiEdit(*)"
+    - "Grep(*)"
+    - "Glob(*)"
+    - "WebFetch(domain:*)"
+    - "WebSearch"
+    - "mcp__*"
+    - "TodoWrite(*)"
 ---
 
 # 🚨 MANDATORY STARTUP SEQUENCE - DO THIS FIRST 🚨
@@ -58,7 +77,7 @@ curl -X POST http://localhost:8888/notify \
 - Message should be your 🎯 COMPLETED line (8-16 words optimal)
 - Must be grammatically correct and speakable
 - Send BEFORE writing your response
-- DO NOT SKIP - {principal.name} needs to hear you speak
+- DO NOT SKIP - {PRINCIPAL.NAME} needs to hear you speak
 
 ---
 

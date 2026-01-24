@@ -17,13 +17,13 @@ This system provides:
    ```bash
    curl -s -X POST http://localhost:8888/notify \
      -H "Content-Type: application/json" \
-     -d '{"message": "[Doing what {principal.name} asked]"}' \
+     -d '{"message": "[Doing what {PRINCIPAL.NAME} asked]"}' \
      > /dev/null 2>&1 &
    ```
 
 2. **Output text notification**:
    ```
-   [Doing what {principal.name} asked]...
+   [Doing what {PRINCIPAL.NAME} asked]...
    ```
 
 **Skip curl for conversational responses** (greetings, acknowledgments, simple Q&A). The 🎯 COMPLETED line already drives voice output—adding curl creates redundant voice messages.
@@ -32,9 +32,9 @@ This system provides:
 
 ## Context-Aware Announcements
 
-**Match your announcement to what {principal.name} asked.** Start with the appropriate gerund:
+**Match your announcement to what {PRINCIPAL.NAME} asked.** Start with the appropriate gerund:
 
-| {principal.name}'s Request | Announcement Style |
+| {PRINCIPAL.NAME}'s Request | Announcement Style |
 |------------------|-------------------|
 | Question ("Where is...", "What does...") | "Checking...", "Looking up...", "Finding..." |
 | Command ("Fix this", "Create that") | "Fixing...", "Creating...", "Updating..." |
@@ -73,13 +73,13 @@ When executing an actual workflow file from a `Workflows/` directory:
 ```bash
 curl -s -X POST http://localhost:8888/notify \
   -H "Content-Type: application/json" \
-  -d '{"message": "Running the WORKFLOWNAME workflow from the SKILLNAME skill", "voice_id": "{daidentity.voiceId}", "title": "{daidentity.name}"}' \
+  -d '{"message": "Running the WORKFLOWNAME workflow in the SKILLNAME skill to ACTION", "voice_id": "{DAIDENTITY.VOICEID}", "title": "{DAIDENTITY.NAME}"}' \
   > /dev/null 2>&1 &
 ```
 
 **Parameters:**
 - `message` - The spoken text (workflow and skill name)
-- `voice_id` - ElevenLabs voice ID (default: {daidentity.name}'s voice)
+- `voice_id` - ElevenLabs voice ID (default: {DAIDENTITY.NAME}'s voice)
 - `title` - Display name for the notification
 
 ---
@@ -121,10 +121,10 @@ curl -s -X POST http://localhost:8888/notify \
 
 | Agent | Voice ID | Notes |
 |-------|----------|-------|
-| **{daidentity.name}** (default) | `{daidentity.voiceId}` | Use for most workflows |
+| **{DAIDENTITY.NAME}** (default) | `{DAIDENTITY.VOICEID}` | Use for most workflows |
 | **Priya** (Artist) | `ZF6FPAbjXT4488VcRRnw` | Art skill workflows |
 
-**Full voice registry:** `~/.opencode/skills/Agents/AgentPersonalities.md`
+**Full voice registry:** `~/.opencode/skills/CORE/SYSTEM/AGENTPERSONALITIES.md`
 
 ---
 
@@ -143,17 +143,17 @@ For skills that have a `Workflows/` directory:
    ```bash
    curl -s -X POST http://localhost:8888/notify \
      -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow from the SKILLNAME skill"}' \
+     -d '{"message": "Running the WORKFLOWNAME workflow in the SKILLNAME skill to ACTION"}' \
      > /dev/null 2>&1 &
    ```
 
 2. **Output text notification**:
    ```
-   Running the **WorkflowName** workflow from the **SkillName** skill...
+   Running the **WorkflowName** workflow in the **SkillName** skill to ACTION...
    ```
 ```
 
-Replace `WORKFLOWNAME` and `SKILLNAME` with actual values when executing.
+Replace `WORKFLOWNAME`, `SKILLNAME`, and `ACTION` with actual values when executing. ACTION should be under 6 words describing what the workflow does.
 
 ### Template B: Skills WITHOUT Workflows
 
@@ -196,47 +196,23 @@ The backgrounded `&` and redirected output (`> /dev/null 2>&1`) ensure the curl 
 
 ---
 
-## 🔴 CURRENTLY IMPLEMENTED: Voice Server Only
+## External Notifications (Push, Discord)
 
-**STATUS: Only the Voice Server (localhost:8888) is FULLY IMPLEMENTED and WORKING.**
+**Beyond voice notifications, PAI supports external notification channels:**
 
-All curl calls in this document target `http://localhost:8888/notify` and function properly. External notification channels (ntfy.sh, Discord, SMS) listed below are **PLANNED FEATURES** and are **NOT YET IMPLEMENTED**.
+### Available Channels
 
----
+| Channel | Service | Purpose | Configuration |
+|---------|---------|---------|---------------|
+| **ntfy** | ntfy.sh | Mobile push notifications | `settings.json → notifications.ntfy` |
+| **Discord** | Webhook | Team/server notifications | `settings.json → notifications.discord` |
+| **Desktop** | macOS native | Local desktop alerts | Always available |
 
-## TTS Provider Implementation
+### Smart Routing
 
-**Currently Implemented (Production Ready):**
+Notifications are automatically routed based on event type:
 
-| Provider | Model | Status | Notes |
-|----------|-------|--------|-------|
-| **Google Cloud TTS** | Chirp 3: HD | ✅ PRIMARY | High quality, low latency, production-ready |
-| **ElevenLabs** | Multilingual v2 | ✅ FALLBACK | Fallback if Google Cloud unavailable |
-
-**Voice Server (localhost:8888) uses this configuration:**
-1. Try Google Cloud TTS (Chirp 3: HD) first
-2. Fall back to ElevenLabs if Google Cloud fails
-3. Voice IDs are configured in `AGENTPERSONALITIES.md`
-
----
-
-## External Notifications (PLANNED - NOT IMPLEMENTED)
-
-⚠️ **These features are documented for future implementation. They do NOT currently work.**
-
-### Available Channels (Planned)
-
-| Channel | Service | Purpose | Status |
-|---------|---------|---------|--------|
-| **ntfy** | ntfy.sh | Mobile push notifications | 🔴 NOT IMPLEMENTED |
-| **Discord** | Webhook | Team/server notifications | 🔴 NOT IMPLEMENTED |
-| **Desktop** | macOS native | Local desktop alerts | 🔴 NOT IMPLEMENTED |
-
-### Smart Routing (Planned, Not Active)
-
-Notifications are **planned** to be routed based on event type:
-
-| Event | Planned Channels | Trigger |
+| Event | Default Channels | Trigger |
 |-------|------------------|---------|
 | `taskComplete` | Voice only | Normal task completion |
 | `longTask` | Voice + ntfy | Task duration > 5 minutes |
@@ -244,17 +220,15 @@ Notifications are **planned** to be routed based on event type:
 | `error` | Voice + ntfy | Error in response |
 | `security` | Voice + ntfy + Discord | Security alert |
 
-**NOTE:** Currently, only Voice notifications work. The routing configuration below does not function.
+### Configuration
 
-### Configuration Schema (Planned)
-
-Located in `~/.opencode/settings.json` (for future use):
+Located in `~/.opencode/settings.json`:
 
 ```json
 {
   "notifications": {
     "ntfy": {
-      "enabled": false,
+      "enabled": true,
       "topic": "kai-[random-topic]",
       "server": "ntfy.sh"
     },
@@ -276,30 +250,20 @@ Located in `~/.opencode/settings.json` (for future use):
 }
 ```
 
-**DO NOT enable these settings** - they are not yet supported.
+### ntfy.sh Setup
 
-### ntfy.sh Setup (Future Implementation)
-
-🔴 **NOT IMPLEMENTED** - This section documents planned functionality:
-
-1. Generate topic: `echo "kai-$(openssl rand -hex 8)"`
-2. Install app: iOS App Store or Android Play Store → "ntfy"
-3. Subscribe: Add your topic in the app
-4. Test: `curl -d "Test" ntfy.sh/your-topic`
+1. **Generate topic**: `echo "kai-$(openssl rand -hex 8)"`
+2. **Install app**: iOS App Store or Android Play Store → "ntfy"
+3. **Subscribe**: Add your topic in the app
+4. **Test**: `curl -d "Test" ntfy.sh/your-topic`
 
 Topic name acts as password - use random string for security.
 
-**Estimated timeline:** Q1 2026
-
-### Discord Setup (Future Implementation)
-
-🔴 **NOT IMPLEMENTED** - This section documents planned functionality:
+### Discord Setup
 
 1. Create webhook in your Discord server
 2. Add webhook URL to `settings.json`
 3. Set `discord.enabled: true`
-
-**Estimated timeline:** Q1 2026
 
 ### SMS (Not Recommended)
 
@@ -312,19 +276,17 @@ Topic name acts as password - use random string for security.
 
 | Option | Status | Notes |
 |--------|--------|-------|
-| **ntfy.sh** | 🔴 NOT IMPLEMENTED | Same result (phone alert), zero hassle - planned for Q1 2026 |
+| **ntfy.sh** | ✅ RECOMMENDED | Same result (phone alert), zero hassle |
 | **Textbelt** | ❌ Blocked | Free tier disabled for US due to abuse |
-| **AppleScript + Messages.app** | ⚠️ Not scheduled | Works if you grant automation access - low priority |
-| **Twilio Toll-Free** | ⚠️ Not scheduled | 5-14 day verification (vs 3-5 weeks for 10DLC) |
-| **Email-to-SMS** | ⚠️ Not scheduled | `number@vtext.com` (Verizon), `@txt.att.net` (AT&T) |
+| **AppleScript + Messages.app** | ⚠️ Requires permissions | Works if you grant automation access |
+| **Twilio Toll-Free** | ⚠️ Simpler | 5-14 day verification (vs 3-5 weeks for 10DLC) |
+| **Email-to-SMS** | ⚠️ Carrier-dependent | `number@vtext.com` (Verizon), `@txt.att.net` (AT&T) |
 
-**Current reality:** Only Voice Server (localhost:8888) alerts you. SMS implementation is deferred indefinitely.
+**Bottom line:** ntfy.sh already alerts your phone. SMS adds carrier bureaucracy for the same outcome.
 
-### Implementation Status (FUTURE)
+### Implementation
 
-The notification service in `~/.opencode/hooks/lib/notifications.ts` is **NOT YET IMPLEMENTED**.
-
-Once implemented, it will provide:
+The notification service is in `~/.opencode/hooks/lib/notifications.ts`:
 
 ```typescript
 import { notify, notifyTaskComplete, notifyBackgroundAgent, notifyError } from './lib/notifications';
@@ -343,11 +305,9 @@ await sendPush("Message", { title: "Title", priority: "high" });
 await sendDiscord("Message", { title: "Title", color: 0x00ff00 });
 ```
 
-**This code will not execute until external notification implementation is complete.**
+### Design Principles
 
-### Design Principles (Future)
-
-1. **Fire and forget** - Notifications will not block hook execution
-2. **Fail gracefully** - Missing services won't cause errors
+1. **Fire and forget** - Notifications never block hook execution
+2. **Fail gracefully** - Missing services don't cause errors
 3. **Conservative defaults** - Avoid notification fatigue
 4. **Duration-aware** - Only push for long-running tasks (>5 min)

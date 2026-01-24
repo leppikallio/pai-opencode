@@ -26,7 +26,7 @@ This file guides your AI's technology choices to match your preferences and exis
 |----------|------------|-------|
 | JavaScript Runtime | [Node.js / Bun / Deno] | [Why] |
 | Package Manager | [npm / yarn / pnpm / bun] | [Why] |
-| Python Package Manager | [pip / poetry / conda] | [Why] |
+| Python Package Manager | [uv / pip / poetry / conda] | [Why] |
 
 ---
 

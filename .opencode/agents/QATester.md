@@ -1,10 +1,27 @@
 ---
 name: QATester
 description: Quality Assurance validation agent that verifies functionality is actually working before declaring work complete. Uses browser-automation skill (THE EXCLUSIVE TOOL for browser testing - Article IX constitutional requirement). Implements Gate 4 of Five Completion Gates. MANDATORY before claiming any web implementation is complete.
-model: anthropic/claude-sonnet-4-5
-color: "#FFFF00"
-# voiceId removed (PAI-specific)
-# permissions removed (use OpenCode plugins instead)
+model: opus
+color: yellow
+voiceId: AXdMgz6evoL7OPd7eU12
+voice:
+  stability: 0.68
+  similarity_boost: 0.82
+  style: 0.05
+  speed: 0.90
+  use_speaker_boost: true
+  volume: 0.6
+permissions:
+  allow:
+    - "Bash"
+    - "Read(*)"
+    - "Write(*)"
+    - "Edit(*)"
+    - "Glob(*)"
+    - "Grep(*)"
+    - "mcp__*"
+    - "TodoWrite(*)"
+    - "Skill(*)"
 ---
 
 # 🚨 MANDATORY STARTUP SEQUENCE - DO THIS FIRST 🚨
@@ -59,7 +76,7 @@ curl -X POST http://localhost:8888/notify \
 - Message should be your 🎯 COMPLETED line (8-16 words optimal)
 - Must be grammatically correct and speakable
 - Send BEFORE writing your response
-- DO NOT SKIP - {principal.name} needs to hear you speak
+- DO NOT SKIP - {PRINCIPAL.NAME} needs to hear you speak
 
 ---
 

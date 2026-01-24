@@ -1,166 +1,151 @@
 # PAI Agent System
 
-**Authoritative reference for agent routing in PAI-OpenCode. Verified via testing 2026-01-19.**
+**Authoritative reference for agent routing in PAI. Three distinct systems exist—never confuse them.**
 
 ---
 
-## 🚨 CRITICAL: Two Different Invocation Contexts
+## 🚨 THREE AGENT SYSTEMS — CRITICAL DISTINCTION
 
-**OpenCode has TWO contexts for agent invocation - don't confuse them!**
+PAI has three agent systems that serve different purposes. Confusing them causes routing failures.
 
-### Context 1: AI-zu-Agent Delegation (Task Tool)
+| System | What It Is | When to Use | Has Unique Voice? |
+|--------|-----------|-------------|-------------------|
+| **Task Tool Subagent Types** | Pre-built agents in Claude Code (Architect, Designer, Engineer, Intern, Explore, etc.) | Internal workflow use ONLY | No |
+| **Named Agents** | Persistent identities with backstories and ElevenLabs voices (Serena, Marcus, Rook, etc.) | Recurring work, voice output, relationships | Yes |
+| **Custom Agents** | Dynamic agents composed via ComposeAgent from traits | When user says "custom agents" | Yes (trait-mapped) |
 
-**When the AI needs to spawn an agent, use the Task tool:**
+---
+
+## 🚫 FORBIDDEN PATTERNS
+
+**When user says "custom agents":**
 
 ```typescript
-// ✅ WORKS - Task tool with subagent_type for named agents
-Task({ subagent_type: "Intern", prompt: "research X" })      // ✅ Klickbare Session
-Task({ subagent_type: "Architect", prompt: "design Y" })     // ✅ Klickbare Session
-Task({ subagent_type: "Engineer", prompt: "implement Z" })   // ✅ Klickbare Session
+// ❌ WRONG - These are Task tool subagent_types, NOT custom agents
+Task({ subagent_type: "Architect", prompt: "..." })
+Task({ subagent_type: "Designer", prompt: "..." })
+Task({ subagent_type: "Engineer", prompt: "..." })
 
-// ✅ WORKS - Native OpenCode types
-Task({ subagent_type: "Explore", prompt: "find files" })     // ✅ Native
-Task({ subagent_type: "Plan", prompt: "plan feature" })      // ✅ Native
-Task({ subagent_type: "general-purpose", prompt: "..." })    // ✅ Native
-
-// ❌ DOES NOT WORK - @syntax in AI response
-@intern research X    // ❌ This is just TEXT, not an invocation!
-@architect design Y   // ❌ Agent is NOT called!
+// ✅ RIGHT - Invoke the Agents skill for custom agents
+Skill("Agents")  // → CreateCustomAgent workflow
+// OR follow the workflow directly:
+// 1. Run ComposeAgent with different trait combinations
+// 2. Launch agents with the generated prompts
+// 3. Each gets unique personality + voice
 ```
-
-**Test Results (2026-01-19):**
-| Method | Result | UI Behavior |
-|--------|--------|-------------|
-| `Task({subagent_type: "Intern"})` | ✅ Works | Klickbare Session |
-| `Task({subagent_type: "Architect"})` | ✅ Works | Klickbare Session |
-| `@architect` in AI response | ❌ Nothing | No agent called |
-
-### Context 2: User-zu-Agent (User Input)
-
-**When the USER types in the input field:**
-
-```
-@intern research TypeScript    → Agent wird aufgerufen ✅
-@architect design a system     → Agent wird aufgerufen ✅
-```
-
-**The `@agentname` syntax ONLY works when the USER types it!**
 
 ---
 
-## Agent Invocation Summary
+## Routing Rules
 
-| Who | Method | Works? |
-|-----|--------|--------|
-| **AI** | `Task({subagent_type: "AgentName"})` | ✅ Yes |
-| **AI** | `@agentname` in response text | ❌ No (just text) |
-| **User** | `@agentname` in input | ✅ Yes |
+### The Word "Custom" Is the Trigger
 
----
+| User Says | Action | Implementation |
+|-----------|--------|----------------|
+| "**custom agents**", "spin up **custom** agents" | Invoke Agents skill | `Skill("Agents")` → CreateCustomAgent workflow |
+| "agents", "launch agents", "parallel agents" | Generic Interns | `Task({ subagent_type: "Intern" })` |
+| "use Remy", "get Ava to" | Named agent | Use appropriate researcher subagent_type |
+| (Internal workflow calls) | Task subagent_types | `Task({ subagent_type: "Engineer" })` etc. |
 
-## Task Tool Subagent Types
+### Custom Agent Creation Flow
 
-**All these subagent_types work in OpenCode:**
+When user requests custom agents:
 
-| Subagent Type | Purpose | Model |
-|---------------|---------|-------|
-| `Intern` | Fast parallel grunt work | Haiku |
-| `Architect` | System design | Sonnet |
-| `Engineer` | Code implementation | Sonnet |
-| `Designer` | UX/UI design | Sonnet |
-| `Pentester` | Security testing | Sonnet |
-| `Researcher` | General research | Sonnet |
-| `Explore` | Native codebase exploration | Haiku |
-| `Plan` | Native implementation planning | Sonnet |
-| `general-purpose` | Custom prompts, AgentFactory | Varies |
-
-**Note:** Agent names are case-insensitive (`intern` = `Intern`)
-
----
-
-## Custom Agents (Dynamic Composition)
-
-**For truly custom agents with unique trait combinations, use AgentFactory:**
+1. **Invoke Agents skill** via `Skill("Agents")` or follow CreateCustomAgent workflow
+2. **Run ComposeAgent** for EACH agent with DIFFERENT trait combinations
+3. **Extract prompt and voice_id** from ComposeAgent output
+4. **Launch agents** with Task tool using the composed prompts
+5. **Voice results** using each agent's unique voice_id
 
 ```bash
-# Generate custom agent prompt with specific traits
-bun run ~/.opencode/skills/Agents/Tools/AgentFactory.ts --traits "research,enthusiastic,exploratory"
-bun run ~/.opencode/skills/Agents/Tools/AgentFactory.ts --traits "security,skeptical,adversarial"
-```
-
-Then launch via Task:
-```typescript
-Task({
-  subagent_type: "general-purpose",
-  prompt: generatedPrompt
-})
+# Example: 3 custom research agents
+bun run ~/.opencode/skills/Agents/Tools/ComposeAgent.ts --traits "research,enthusiastic,exploratory"
+bun run ~/.opencode/skills/Agents/Tools/ComposeAgent.ts --traits "research,skeptical,systematic"
+bun run ~/.opencode/skills/Agents/Tools/ComposeAgent.ts --traits "research,analytical,synthesizing"
 ```
 
 ---
 
-## Routing Rules for AI
+## Task Tool Subagent Types (Internal Use Only)
 
-| User Says | AI Action |
-|-----------|-----------|
-| "use the Intern" / "lass den Intern..." | `Task({subagent_type: "Intern", prompt: ...})` |
-| "Architect soll..." / "get the Architect" | `Task({subagent_type: "Architect", prompt: ...})` |
-| "parallel agents" / "mehrere Agenten" | Multiple `Task()` calls in parallel |
-| "custom agents" / "benutzerdefinierte Agenten" | AgentFactory + `general-purpose` Task |
+These are pre-built agents in the Claude Code Task tool. They are for **internal workflow use**, not for user-requested "custom agents."
 
----
+| Subagent Type | Purpose | When Used |
+|---------------|---------|-----------|
+| `Architect` | System design | Development skill workflows |
+| `Designer` | UX/UI design | Development skill workflows |
+| `Engineer` | Code implementation | Development skill workflows |
+| `Intern` | General-purpose parallel work | Parallel grunt work, research |
+| `Explore` | Codebase exploration | Finding files, understanding structure |
+| `Plan` | Implementation planning | Plan mode |
+| `QATester` | Quality assurance | Browser testing workflows |
+| `Pentester` | Security testing | WebAssessment workflows |
+| `ClaudeResearcher` | Claude-based research | Research skill workflows |
+| `GeminiResearcher` | Gemini-based research | Research skill workflows |
+| `GrokResearcher` | Grok-based research | Research skill workflows |
 
-## Agent Files Location
-
-All agent definitions are in `.opencode/agents/*.md`:
-
-| Agent | File | Model |
-|-------|------|-------|
-| Intern | `intern.md` | `anthropic/claude-haiku-4-5` |
-| Architect | `architect.md` | `anthropic/claude-sonnet-4-5` |
-| Engineer | `engineer.md` | `anthropic/claude-sonnet-4-5` |
-| Designer | `designer.md` | `anthropic/claude-sonnet-4-5` |
-| Pentester | `pentester.md` | `anthropic/claude-sonnet-4-5` |
-| Researcher | `researcher.md` | `anthropic/claude-sonnet-4-5` |
-| QATester | `QATester.md` | `anthropic/claude-sonnet-4-5` |
-| Artist | `Artist.md` | `anthropic/claude-sonnet-4-5` |
-| ClaudeResearcher | `ClaudeResearcher.md` | `anthropic/claude-sonnet-4-5` |
-| GeminiResearcher | `GeminiResearcher.md` | `anthropic/claude-sonnet-4-5` |
-| GrokResearcher | `GrokResearcher.md` | `anthropic/claude-sonnet-4-5` |
-| CodexResearcher | `CodexResearcher.md` | `anthropic/claude-sonnet-4-5` |
-| Writer | `writer.md` | `anthropic/claude-sonnet-4-5` |
+**These do NOT have unique voices or ComposeAgent composition.**
 
 ---
 
 ## Named Agents (Persistent Identities)
 
-Named agents have rich backstories and personality traits. They provide relationship continuity across sessions.
+Named agents have rich backstories, personality traits, and mapped ElevenLabs voices. They provide relationship continuity across sessions.
 
-| Agent | Character | Use For |
-|-------|-----------|---------|
-| Dev Patel | High-energy genius intern | Parallel grunt work, research |
-| Serena Blackwood | Academic visionary | System architecture |
-| Marcus Webb | Battle-scarred pragmatist | Code implementation |
-| Rook Blackburn | Security specialist | Security testing |
+| Agent | Role | Voice | Use For |
+|-------|------|-------|---------|
+| Serena Blackwood | Architect | Premium UK Female | Long-term architecture decisions |
+| Marcus Webb | Engineer | Premium Male | Strategic technical leadership |
+| Rook Blackburn | Pentester | Enhanced UK Male | Security testing with personality |
+| Dev Patel | Intern | High-energy genius | Parallel grunt work |
+| Ava Sterling | Claude Researcher | Premium US Female | Strategic research |
+| Alex Rivera | Gemini Researcher | Multi-perspective | Comprehensive analysis |
 
-**Full backstories:** `skill/Agents/AgentPersonalities.md`
+**Full backstories and voice settings:** `skills/Agents/AgentPersonalities.md`
 
 ---
 
-## Model Selection (Cost-Aware)
+## Custom Agents (Dynamic Composition)
 
-| Agent Type | Model | Cost Reason |
-|------------|-------|-------------|
-| Intern, Explore | Haiku | Fast, cheap for parallel work |
-| All other named agents | Sonnet | Balanced cost/capability |
-| Main orchestrator (PAI) | Opus | Maximum intelligence |
+Custom agents are composed on-the-fly from traits using ComposeAgent. Each unique trait combination maps to a different ElevenLabs voice.
+
+### Trait Categories
+
+**Expertise** (domain knowledge):
+`security`, `legal`, `finance`, `medical`, `technical`, `research`, `creative`, `business`, `data`, `communications`
+
+**Personality** (behavior style):
+`skeptical`, `enthusiastic`, `cautious`, `bold`, `analytical`, `creative`, `empathetic`, `contrarian`, `pragmatic`, `meticulous`
+
+**Approach** (work style):
+`thorough`, `rapid`, `systematic`, `exploratory`, `comparative`, `synthesizing`, `adversarial`, `consultative`
+
+### Voice Mapping Examples
+
+| Trait Combo | Voice | Why |
+|-------------|-------|-----|
+| contrarian + skeptical | Clyde (gravelly) | Challenging intensity |
+| enthusiastic + creative | Jeremy (energetic) | High-energy creativity |
+| security + adversarial | Callum (edgy) | Hacker character |
+| analytical + meticulous | Charlotte (sophisticated) | Precision analysis |
+
+**Full trait definitions and voice mappings:** `skills/Agents/Data/Traits.yaml`
+
+---
+
+## Model Selection
+
+Always specify the appropriate model for agent work:
+
+| Task Type | Model | Speed |
+|-----------|-------|-------|
+| Simple checks, grunt work | `haiku` | 10-20x faster |
+| Standard analysis, implementation | `sonnet` | Balanced |
+| Deep reasoning, architecture | `opus` | Maximum intelligence |
 
 ```typescript
-// Cost-effective parallel execution
-Task({ subagent_type: "Intern", model: "haiku", prompt: "..." })  // Cheap
-Task({ subagent_type: "Intern", model: "haiku", prompt: "..." })  // Cheap
-Task({ subagent_type: "Intern", model: "haiku", prompt: "..." })  // Cheap
-// Then synthesize with Architect (Sonnet)
-Task({ subagent_type: "Architect", model: "sonnet", prompt: "synthesize..." })
+// Parallel custom agents benefit from haiku/sonnet for speed
+Task({ prompt: agentPrompt, subagent_type: "Intern", model: "sonnet" })
 ```
 
 ---
@@ -171,9 +156,9 @@ Task({ subagent_type: "Architect", model: "sonnet", prompt: "synthesize..." })
 
 ```typescript
 Task({
+  prompt: "Verify consistency across all agent outputs: [results]",
   subagent_type: "Intern",
-  model: "haiku",
-  prompt: "Verify consistency across all agent outputs: [results]"
+  model: "haiku"
 })
 ```
 
@@ -181,10 +166,11 @@ Task({
 
 ## References
 
-- **Agents Skill:** `skill/Agents/SKILL.md` — Custom agent creation
-- **AgentFactory:** `skill/Agents/Tools/AgentFactory.ts` — Dynamic composition
-- **Agent Files:** `.opencode/agents/*.md` — Agent definitions
+- **Agents Skill:** `skills/Agents/SKILL.md` — Custom agent creation, workflows
+- **ComposeAgent:** `skills/Agents/Tools/ComposeAgent.ts` — Dynamic composition tool
+- **Traits:** `skills/Agents/Data/Traits.yaml` — Trait definitions and voice mappings
+- **Agent Personalities:** `skills/Agents/AgentPersonalities.md` — Named agent backstories
 
 ---
 
-*Last updated: 2026-01-19 (verified via testing)*
+*Last updated: 2026-01-14*

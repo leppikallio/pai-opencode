@@ -224,6 +224,8 @@ science_cycle_time: meso
 - **Research** - Investigation through hypotheses and evidence gathering
 - **Council** - Debate as parallel hypothesis testing
 
+**See:** `~/.opencode/skills/Science/Protocol.md` for the full protocol interface
+
 ### 2. Markdown Body (Workflow Routing + Examples + Documentation)
 
 ```markdown
@@ -239,13 +241,13 @@ science_cycle_time: meso
    ```bash
    curl -s -X POST http://localhost:8888/notify \
      -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow from the SKILLNAME skill"}' \
+     -d '{"message": "Running the WORKFLOWNAME workflow in the SKILLNAME skill to ACTION"}' \
      > /dev/null 2>&1 &
    ```
 
 2. **Output text notification**:
    ```
-   Running the **WorkflowName** workflow from the **SkillName** skill...
+   Running the **WorkflowName** workflow in the **SkillName** skill to ACTION...
    ```
 
 **Full documentation:** `~/.opencode/skills/CORE/SYSTEM/THENOTIFICATIONSYSTEM.md`
@@ -361,7 +363,7 @@ Keep only these in SKILL.md:
 - ✅ Brief description (1-2 lines)
 - ✅ Workflow routing table
 - ✅ Quick reference (3-5 bullet points)
-- ✅ Pointers to detailed docs via Read tool (see note below)
+- ✅ Pointers to detailed docs via SkillSearch
 
 ### What Goes In Additional .md Context Files (Loaded On-Demand)
 
@@ -404,20 +406,26 @@ Complete visual content system using **charcoal architectural sketch** aesthetic
 **Output:** Always ~/Downloads/ first
 
 **Full Documentation:**
-- Aesthetic guide: `Read ~/.opencode/skills/Art/Aesthetic.md`
-- Examples: `Read ~/.opencode/skills/Art/Examples.md`
-- Tools: `Read ~/.opencode/skills/Art/Tools.md`
+- Aesthetic guide: `SkillSearch('art aesthetic')` → loads Aesthetic.md
+- Examples: `SkillSearch('art examples')` → loads Examples.md
+- Tools: `SkillSearch('art tools')` → loads Tools.md
 ```
 
 ### Loading Additional Context Files
 
-Reference context files directly using the Read tool:
+Workflows call SkillSearch to load context files as needed:
 
+```bash
+# In workflow files or SKILL.md
+SkillSearch('art aesthetic')    # Loads Aesthetic.md from skill root
+SkillSearch('art examples')     # Loads Examples.md from skill root
+SkillSearch('art tools')        # Loads Tools.md from skill root
+```
+
+Or reference them directly:
 ```bash
 # Read specific context file
 Read ~/.opencode/skills/Art/Aesthetic.md
-Read ~/.opencode/skills/Art/Examples.md
-Read ~/.opencode/skills/Art/Tools.md
 ```
 
 Context files can reference workflows and tools:
@@ -427,23 +435,6 @@ Context files can reference workflows and tools:
 Use the Essay workflow for blog headers: `Workflows/Essay.md`
 Generate images with: `bun Tools/Generate.ts`
 ```
-
----
-
-## ⚠️ FUTURE FEATURE: SkillSearch()
-
-**SkillSearch() is documented below but NOT YET IMPLEMENTED.**
-
-The following sections reference `SkillSearch()` as a future capability. **Do not use SkillSearch() - it will fail.**
-
-**Current Alternative:** Use the `Read` tool directly to load context files:
-```bash
-Read ~/.opencode/skills/SkillName/ContextFile.md
-```
-
-**When SkillSearch() is implemented in a future release**, it will provide intelligent skill discovery and dynamic context loading. Until then, use explicit file paths with the Read tool.
-
----
 
 ### Benefits
 
@@ -527,7 +518,7 @@ Or manually:
 2. Update YAML frontmatter to single-line description
 3. Add `## Workflow Routing` table
 4. Add `## Examples` section
-5. Move backups to `~/.opencode/BACKUPS/`
+5. Move backups to `~/.opencode/MEMORY/Backups/`
 6. Verify against checklist
 
 ---
@@ -609,13 +600,13 @@ Complete blog workflow.
    ```bash
    curl -s -X POST http://localhost:8888/notify \
      -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow from the Blogging skill"}' \
+     -d '{"message": "Running WORKFLOWNAME in Blogging"}' \
      > /dev/null 2>&1 &
    ```
 
 2. **Output text notification**:
    ```
-   Running the **WorkflowName** workflow from the **Blogging** skill...
+   Running the **WorkflowName** workflow in the **Blogging** skill to ACTION...
    ```
 
 **Full documentation:** `~/.opencode/skills/CORE/SYSTEM/THENOTIFICATIONSYSTEM.md`
@@ -631,7 +622,7 @@ Complete blog workflow.
 **When executing a workflow, also output this text:**
 
 ```
-Running the **WorkflowName** workflow from the **Blogging** skill...
+Running the **WorkflowName** workflow in the **Blogging** skill to ACTION...
 ```
 
 | Workflow | Trigger | File |
