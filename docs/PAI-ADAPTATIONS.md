@@ -231,6 +231,7 @@ See **MIGRATION.md** for full guide.
 
 ## Next Steps
 
+- **[PAI-to-OpenCode Mapping Guide](../.opencode/PAISYSTEM/PAI-TO-OPENCODE-MAPPING.md)** - Detailed component mapping rules and import checklist
 - **PLUGIN-SYSTEM.md** - How OpenCode plugins work
 - **DEFERRED-FEATURES.md** - Roadmap for v1.x features
 - **MIGRATION.md** - Migrating from Claude Code PAI

@@ -323,6 +323,7 @@ Your original PAI (Claude Code) is **never modified** during migration.
 
 ## Getting Help
 
+- **[PAI-to-OpenCode Mapping Guide](../.opencode/PAISYSTEM/PAI-TO-OPENCODE-MAPPING.md)** - Component mapping rules and common errors
 - **PLUGIN-SYSTEM.md** - Plugin development
 - **PAI-ADAPTATIONS.md** - What changed from PAI 2.4
 - **GitHub Issues**: https://github.com/Steffen025/pai-opencode/issues
