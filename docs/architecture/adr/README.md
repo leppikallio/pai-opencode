@@ -30,6 +30,8 @@ Architecture Decision Records document **WHY** we made specific technical choice
 | [ADR-003](ADR-003-skills-system-unchanged.md) | Skills System - 100% Unchanged | ✅ Accepted | Compatibility |
 | [ADR-004](ADR-004-plugin-logging-file-based.md) | Plugin Logging (console.log → File-Based) | ✅ Accepted | Platform Adaptation |
 | [ADR-005](ADR-005-configuration-dual-file-approach.md) | Configuration - Dual File Approach | ✅ Accepted | Platform Convention |
+| [ADR-006](ADR-006-security-validation-preservation.md) | Security Validation Pattern Preservation | ✅ Accepted | Security |
+| [ADR-007](ADR-007-memory-system-structure-preserved.md) | Memory System Structure Preserved | ✅ Accepted | Compatibility |
 
 ---
 
@@ -48,6 +50,11 @@ Decisions about following OpenCode conventions vs PAI patterns.
 ### Compatibility
 Decisions prioritizing upstream PAI compatibility.
 - ADR-003: Skills system unchanged
+- ADR-007: Memory system structure preserved
+
+### Security
+Decisions about security and safety guarantees.
+- ADR-006: Security validation preservation
 
 ---
 
@@ -57,10 +64,11 @@ Decisions prioritizing upstream PAI compatibility.
 
 | You are... | Start here |
 |------------|-----------|
-| New to pai-opencode | ADR-001, ADR-003 |
-| Migrating from PAI on Claude Code | ADR-002, ADR-005 |
+| New to pai-opencode | ADR-001, ADR-003, ADR-006 |
+| Migrating from PAI on Claude Code | ADR-002, ADR-005, ADR-007 |
 | Contributing plugins | ADR-001, ADR-004 |
 | Porting another skill from PAI | ADR-003 |
+| Security-focused | ADR-006 |
 | Understanding why X works this way | Search for keyword in ADR titles |
 
 ---
@@ -166,4 +174,4 @@ Potential topics for future documentation:
 ---
 
 *Last Updated: 2026-01-25*
-*ADRs Created: 5*
+*ADRs Created: 7*
