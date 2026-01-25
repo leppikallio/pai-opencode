@@ -44,6 +44,79 @@ Before running the wizard, ensure you have:
 
 ---
 
+## Windows Installation (WSL)
+
+**Native Windows is not yet supported.** Windows users can run PAI-OpenCode through WSL2 (Windows Subsystem for Linux).
+
+### Why WSL?
+
+PAI-OpenCode uses Unix-style paths and tools that don't work natively on Windows. WSL2 provides a full Linux environment where everything works out of the box.
+
+### Step 1: Install WSL2
+
+Open PowerShell as Administrator:
+
+```powershell
+wsl --install
+```
+
+Restart your computer when prompted. On first boot, create your Linux username and password.
+
+### Step 2: Install Prerequisites in WSL
+
+Open your WSL terminal (search "Ubuntu" in Start menu):
+
+```bash
+# Update packages
+sudo apt update && sudo apt upgrade -y
+
+# Install Go
+sudo apt install golang-go -y
+
+# Install Bun
+curl -fsSL https://bun.sh/install | bash
+source ~/.bashrc
+```
+
+### Step 3: Clone and Install PAI-OpenCode
+
+**Important:** Clone inside the WSL filesystem, NOT in `/mnt/c/`
+
+```bash
+# Navigate to your WSL home directory
+cd ~
+
+# Clone the repository
+git clone https://github.com/Steffen025/pai-opencode.git
+cd pai-opencode
+
+# Run the Installation Wizard
+bun run .opencode/PAIOpenCodeWizard.ts
+
+# Start OpenCode
+opencode
+```
+
+### Accessing Files
+
+Your WSL files are accessible from Windows Explorer at:
+```
+\\wsl$\Ubuntu\home\<your-username>\pai-opencode
+```
+
+Or open Explorer from WSL:
+```bash
+explorer.exe .
+```
+
+### Tips for WSL Users
+
+- **VS Code:** Install the "WSL" extension to edit files directly in WSL
+- **Terminal:** Windows Terminal provides a better WSL experience than the default
+- **Performance:** Files in WSL filesystem (`~/`) are faster than `/mnt/c/`
+
+---
+
 ## Manual Installation
 
 If you prefer to install manually without the wizard:
