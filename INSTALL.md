@@ -2,65 +2,51 @@
 
 This guide will help you install PAI-OpenCode in under 5 minutes.
 
-## Quick Install (Recommended)
-
-Run the installer script that handles everything automatically:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Steffen025/pai-opencode/main/install.sh | bash
-```
-
-The installer will:
-1. ✅ Install prerequisites (Go, Bun) if missing
-2. ✅ Build OpenCode from source with PAI branding
-3. ✅ Clone and configure PAI-OpenCode
-4. ✅ Set up your identity (name, AI assistant name, timezone)
-5. ✅ Configure your AI provider (Claude subscription, API, etc.)
-6. ✅ Update all agent configurations
-
 ![Installation Flow](docs/images/installation-flow.png)
 
----
-
-## Development / Testing Installation
-
-For testing or development, clone the repository first:
+## Quick Install (Recommended)
 
 ```bash
-# 1. Clone repository
+# 1. Clone PAI-OpenCode
 git clone https://github.com/Steffen025/pai-opencode.git
 cd pai-opencode
 
-# 2. Run installer
-./install.sh
+# 2. Run the Installation Wizard
+bun run .opencode/PAIOpenCodeWizard.ts
 
-# 3. Restart terminal (loads aliases)
-exec $SHELL
-
-# 4. Launch OpenCode
+# 3. Start OpenCode
 opencode
 ```
 
-This gives you access to the full repository including test guides in `docs/`.
+The wizard will:
+1. ✅ Check prerequisites (Go, Bun)
+2. ✅ Install OpenCode if missing
+3. ✅ Set up your identity (name, AI assistant name, timezone)
+4. ✅ Configure your AI provider (8 options: Anthropic, OpenAI, Google, Groq, AWS Bedrock, Azure, ZEN free, Ollama)
+5. ✅ Create all necessary configuration files
+
+**Takes ~2 minutes.**
+
+---
+
+## Prerequisites
+
+Before running the wizard, ensure you have:
+
+1. **Bun** - JavaScript/TypeScript runtime
+   ```bash
+   curl -fsSL https://bun.sh/install | bash
+   ```
+
+2. **Go** (1.24+) - For building OpenCode
+   - macOS: `brew install go`
+   - Linux: [Download from go.dev](https://go.dev/dl/)
 
 ---
 
 ## Manual Installation
 
-If you prefer to install manually, follow these steps:
-
-### Prerequisites
-
-1. **Go** (1.24+):
-   - macOS: `brew install go`
-   - Linux: [Download from go.dev](https://go.dev/dl/)
-
-2. **Bun** (JavaScript runtime):
-   ```bash
-   curl -fsSL https://bun.sh/install | bash
-   ```
-
-### Steps
+If you prefer to install manually without the wizard:
 
 **Step 1:** Install OpenCode
 ```bash

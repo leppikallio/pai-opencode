@@ -42,7 +42,7 @@ This document lists features that are planned but not yet implemented in v1.0.
 ## Working in v1.0
 
 - [x] Core plugin system (auto-discovery, no config needed)
-- [x] All 33 skills functional
+- [x] All 29 skills functional
 - [x] TELOS/USER context loading
 - [x] Security validation on tool execution
 - [x] Memory structure (capture ready)

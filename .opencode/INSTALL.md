@@ -69,10 +69,12 @@ Edit `.opencode/settings.json` to customize:
 
 | Component | Count | Description |
 |-----------|-------|-------------|
-| Skills | 20 | Same as PAI 2.4 |
-| Agents | 13 | Named AI personalities |
+| Skills | 29 | PAI 2.4 skills adapted for OpenCode |
+| Agents | 14 | Named AI personalities |
 | Plugin | 1 | Unified (security + context) |
 | Converter | 1 | For migrating PAI updates |
+
+> **Note:** For detailed installation instructions including the Installation Wizard, see [INSTALL.md](../INSTALL.md) in the repository root.
 
 ## What's Different from Claude Code PAI
 

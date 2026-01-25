@@ -11,10 +11,10 @@ This roadmap outlines the development path from v1.0 to v2.0 and beyond.
 **Status:** Released
 
 **What's Included:**
-- Skills system with 20+ skills (CORE, Algorithm, Fabric, Research, etc.)
+- Skills system with 29 skills (CORE, Algorithm, Fabric, Research, etc.)
 - Plugin system (security validator, context loader)
 - Memory system (projects, sessions, learning)
-- Agent system (13 agents, PascalCase naming)
+- Agent system (14 agents, PascalCase naming)
 - Skill search and indexing tools
 - Full TypeScript tooling with Bun runtime
 
@@ -74,16 +74,16 @@ This roadmap outlines the development path from v1.0 to v2.0 and beyond.
 
 ---
 
-### v1.3.0 - Installation Wizard (Q2 2026)
+### v1.3.0 - Enhanced Setup & Health Monitoring (Q2 2026)
 
-**Goal:** Interactive setup for new users
+**Goal:** Advanced setup options and system health
 
 **Features:**
-- Guided CLI wizard for first-time setup
-- API provider configuration
-- Skill selection (enable/disable)
-- Validation and health checks
-- Optional migration from Claude Code PAI
+- ✅ Basic Installation Wizard (shipped in v1.0)
+- Skill selection UI (enable/disable individual skills)
+- System health checks and diagnostics
+- Configuration validation
+- Migration assistant from Claude Code PAI (interactive)
 
 ---
 

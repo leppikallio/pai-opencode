@@ -114,7 +114,7 @@ export function fileLog(message: string, level = "info") {
 ### Skills System
 
 **100% unchanged:**
-- All 20+ skills work identically
+- All 29 skills work identically
 - SKILL.md format unchanged
 - Workflow files unchanged
 - Skill trigger logic unchanged

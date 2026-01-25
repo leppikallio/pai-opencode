@@ -179,17 +179,17 @@ Use external tools directly or via web interfaces.
 ### v1.0 (Current) - Foundation
 
 **Included:**
-- ✅ Skills System (20+ skills)
-- ✅ Agent System (13 agents, PascalCase)
+- ✅ Skills System (29 skills)
+- ✅ Agent System (14 agents, PascalCase)
 - ✅ Security Validation (pattern-based)
 - ✅ MEMORY System (work, learning, state)
 - ✅ Unified Plugin (context + security)
 - ✅ Converter Tool (Claude Code → OpenCode)
+- ✅ Installation Wizard (PAIOpenCodeWizard.ts)
 
 **Deferred:**
 - ⏳ Voice Server
 - ⏳ Observability Dashboard
-- ⏳ Installation Wizard
 - ⏳ Auto-Migration
 - ⏳ MCP Server Adapters
 
