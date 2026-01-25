@@ -63,7 +63,7 @@ Any `console.log()` from plugins:
 
 File logging provides:
 - **Persistence:** Logs survive crashes
-- **Tail-ability:** `tail -f debug.log` for live monitoring
+- **Tail-ability:** `tail -f /tmp/pai-opencode-debug.log` for live monitoring
 - **Grep-ability:** Search historical logs
 - **No Size Limit:** Unlike in-memory buffers
 
@@ -111,7 +111,7 @@ File logging is common for in-process extensions:
 
 - **TUI Stability:** Interface never corrupted → reliable UX
 - **Persistent Logs:** Debug trail survives crashes → better debugging
-- **Tail-Friendly:** `tail -f debug.log` → real-time monitoring
+- **Tail-Friendly:** `tail -f /tmp/pai-opencode-debug.log` → real-time monitoring
 - **No External Deps:** No network logging services → simple setup
 - **Privacy:** Logs stay local → no data leakage
 
