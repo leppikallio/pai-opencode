@@ -41,7 +41,7 @@ fileLog("Warning: config missing", "warn");
 console.log("Plugin loaded"); // CORRUPTS TUI!
 ```
 
-**Log Location:** `~/.opencode/plugins/debug.log`
+**Log Location:** `/tmp/pai-opencode-debug.log`
 
 ---
 
@@ -172,16 +172,16 @@ clearLog();
 opencode chat
 
 # Terminal 2: Tail logs
-tail -f ~/.opencode/plugins/debug.log
+tail -f /tmp/pai-opencode-debug.log
 ```
 
 **Search logs:**
 ```bash
 # Find all errors
-grep "\[ERROR\]" ~/.opencode/plugins/debug.log
+grep "\[ERROR\]" /tmp/pai-opencode-debug.log
 
 # Find recent warnings
-tail -100 ~/.opencode/plugins/debug.log | grep "\[WARN\]"
+tail -100 /tmp/pai-opencode-debug.log | grep "\[WARN\]"
 ```
 
 ---

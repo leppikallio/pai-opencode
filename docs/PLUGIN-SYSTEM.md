@@ -6,6 +6,8 @@
 
 ## Overview
 
+> **Architecture Decision:** [ADR-001 - Hooks → Plugins Architecture](architecture/adr/ADR-001-hooks-to-plugins-architecture.md)
+
 OpenCode uses a **plugin system** to extend functionality, while Claude Code uses **hooks**. Both achieve the same goals—context injection, security validation, lifecycle management—but with different implementation patterns.
 
 PAI-OpenCode implements all PAI functionality in a **single unified plugin** (`plugins/pai-unified.ts`) that handles multiple lifecycle events.
@@ -121,6 +123,8 @@ export default MyPlugin;
 | `event` | Session lifecycle | Session management |
 
 ### 3. File Logging (Critical)
+
+> **Architecture Decision:** [ADR-004 - Plugin Logging (File-Based)](architecture/adr/ADR-004-plugin-logging-file-based.md)
 
 **NEVER use `console.log()` in plugins!** It corrupts the TUI.
 

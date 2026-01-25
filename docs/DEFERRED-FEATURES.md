@@ -20,7 +20,6 @@ PAI-OpenCode v1.0 focuses on **core functionality**—skills, agents, security, 
 | MEMORY System | ✅ Stable | ✅ Included | v1.0 | P0 |
 | Voice Server | ✅ Stable | ⏳ Deferred | v1.1 | P1 |
 | Observability Dashboard | ✅ Stable | ⏳ Deferred | v1.2 | P2 |
-| Installation Wizard | ✅ Stable | ⏳ Deferred | v1.3 | P2 |
 | Auto-Migration | ✅ Stable | ⏳ Deferred | v1.x | P3 |
 | MCP Server Adapters | ⚠️ Experimental | ⏳ Deferred | v1.x | P3 |
 
@@ -87,40 +86,7 @@ cat .opencode/MEMORY/raw-outputs/2026-01/*.jsonl | jq
 
 ---
 
-## 3. Installation Wizard
-
-**Status:** Deferred to v1.3
-**Priority:** P2 (Medium)
-
-### What It Does
-
-The Installation Wizard provides **interactive setup** for:
-- Identity configuration (name, AI preferences)
-- Security pattern customization
-- Skill selection (enable/disable skills)
-- Agent customization
-
-### Why Deferred
-
-- Interactive CLI needs testing in OpenCode context
-- Default config works well (wizard might be unnecessary)
-- Focus on getting core features stable first
-
-### Workaround (v1.0)
-
-Manual setup:
-```bash
-git clone https://github.com/Steffen025/pai-opencode.git
-cd pai-opencode
-bun install
-opencode
-```
-
-Default config works immediately—no setup required.
-
----
-
-## 4. Auto-Migration
+## 3. Auto-Migration
 
 **Status:** Deferred to v1.x
 **Priority:** P3 (Low)
@@ -151,7 +117,7 @@ bun Tools/pai-to-opencode-converter.ts \
 
 ---
 
-## 5. MCP Server Adapters
+## 4. MCP Server Adapters
 
 **Status:** Deferred to v1.x
 **Priority:** P3 (Low)
@@ -193,6 +159,8 @@ Use external tools directly or via web interfaces.
 - ⏳ Auto-Migration
 - ⏳ MCP Server Adapters
 
+**Note:** Installation Wizard (`PAIOpenCodeWizard.ts`) is included in v1.0—run with `bun run .opencode/PAIOpenCodeWizard.ts`
+
 ---
 
 ### v1.1 - Voice & Notifications
@@ -213,17 +181,6 @@ Use external tools directly or via web interfaces.
 - Dashboard server (Bun + HTTP)
 - Vue client (real-time feed)
 - Session timeline visualization
-
----
-
-### v1.3 - Installation & UX
-
-**Target:** Q2 2026
-
-- Interactive installation wizard
-- Identity setup
-- Security configuration
-- Skill/agent customization
 
 ---
 
@@ -249,9 +206,8 @@ Want to help implement deferred features?
 **Priority order:**
 1. Voice Server (v1.1) - Clear use case, macOS only
 2. Observability (v1.2) - High value, moderate complexity
-3. Wizard (v1.3) - Nice-to-have
-4. Auto-Migration (v1.x) - Complex, needs stable baseline
-5. MCP Adapters (v1.x) - Experimental
+3. Auto-Migration (v1.x) - Complex, needs stable baseline
+4. MCP Adapters (v1.x) - Experimental
 
 ---
 

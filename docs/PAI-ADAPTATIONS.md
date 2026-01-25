@@ -16,6 +16,8 @@ This document explains **what we changed** and **why**.
 
 ### 1. Hooks → Plugins
 
+> **Architecture Decision:** [ADR-001 - Hooks → Plugins Architecture](architecture/adr/ADR-001-hooks-to-plugins-architecture.md)
+
 **What changed:**
 - Claude Code: Multiple hook files in `.claude/hooks/`
 - OpenCode: Single unified plugin in `.opencode/plugins/pai-unified.ts`
@@ -40,6 +42,8 @@ hooks/initialize-session.ts     → plugins/pai-unified.ts (event handler)
 ---
 
 ### 2. Directory Structure
+
+> **Architecture Decision:** [ADR-002 - Directory Structure (`.claude/` → `.opencode/`)](architecture/adr/ADR-002-directory-structure-claude-to-opencode.md)
 
 **What changed:**
 ```
@@ -76,6 +80,8 @@ hooks/initialize-session.ts     → plugins/pai-unified.ts (event handler)
 
 ### 4. Plugin Logging
 
+> **Architecture Decision:** [ADR-004 - Plugin Logging (File-Based)](architecture/adr/ADR-004-plugin-logging-file-based.md)
+
 **What changed:**
 - Claude Code hooks: Can use `console.log()` (separate process)
 - OpenCode plugins: Must use file logging (in-process)
@@ -111,6 +117,11 @@ export function fileLog(message: string, level = "info") {
 
 ## What Stayed The Same
 
+> **Architecture Decisions:**
+> - [ADR-003 - Skills System - 100% Unchanged](architecture/adr/ADR-003-skills-system-unchanged.md)
+> - [ADR-006 - Security Validation Preservation](architecture/adr/ADR-006-security-validation-preservation.md)
+> - [ADR-007 - Memory System Structure Preserved](architecture/adr/ADR-007-memory-system-structure-preserved.md)
+
 ### Skills System
 
 **100% unchanged:**
@@ -139,6 +150,8 @@ export function fileLog(message: string, level = "info") {
 ## Configuration Differences
 
 ### settings.json → opencode.json
+
+> **Architecture Decision:** [ADR-005 - Configuration - Dual File Approach](architecture/adr/ADR-005-configuration-dual-file-approach.md)
 
 | PAI 2.4 (Claude Code) | PAI-OpenCode |
 |-----------------------|--------------|

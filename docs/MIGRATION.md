@@ -122,6 +122,24 @@ opencode
 
 ---
 
+## Architecture Changes
+
+PAI-OpenCode required several architectural adaptations to work with OpenCode. These are documented in Architecture Decision Records (ADRs):
+
+| Change | ADR | Impact |
+|--------|-----|--------|
+| Hooks → Plugins | [ADR-001](architecture/adr/ADR-001-hooks-to-plugins-architecture.md) | Implementation only—logic preserved |
+| `.claude/` → `.opencode/` | [ADR-002](architecture/adr/ADR-002-directory-structure-claude-to-opencode.md) | Path updates only |
+| File-based logging | [ADR-004](architecture/adr/ADR-004-plugin-logging-file-based.md) | Debug workflow change |
+| Dual config files | [ADR-005](architecture/adr/ADR-005-configuration-dual-file-approach.md) | settings.json + opencode.json |
+
+**What stayed the same:**
+- Skills System: [ADR-003](architecture/adr/ADR-003-skills-system-unchanged.md) - 100% identical
+- Security: [ADR-006](architecture/adr/ADR-006-security-validation-preservation.md) - Patterns preserved
+- Memory: [ADR-007](architecture/adr/ADR-007-memory-system-structure-preserved.md) - Structure unchanged
+
+---
+
 ## What Transfers
 
 | Component | Transfer Status | Notes |
