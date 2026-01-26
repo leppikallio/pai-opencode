@@ -123,10 +123,10 @@ These are the tools I use behind the scenes:
 
 ```bash
 # Compose dynamic agent
-bun run ~/.opencode/skills/Agents/Tools/AgentFactory.ts --task "..." --output prompt
+bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --task "..." --output prompt
 
 # List available traits
-bun run ~/.opencode/skills/Agents/Tools/AgentFactory.ts --list
+bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --list
 ```
 
 ### Available Traits
@@ -348,9 +348,9 @@ Task({
 
 ## Related
 
-- **Agents skill**: `~/.opencode/skills/Agents/` - Complete agent composition system
+- **Agents skill**: `~/.config/opencode/skills/Agents/` - Complete agent composition system
   - Agent personalities: `AgentPersonalities.md`
   - Traits: `Data/Traits.yaml`
   - Agent factory: `Tools/AgentFactory.ts`
   - Workflows: `Workflows/CreateCustomAgent.md`, `Workflows/SpawnParallelAgents.md`
-- Background delegation: `~/.opencode/skills/CORE/Workflows/BackgroundDelegation.md`
+- Background delegation: `~/.config/opencode/skills/CORE/Workflows/BackgroundDelegation.md`

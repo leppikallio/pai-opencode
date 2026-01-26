@@ -154,7 +154,7 @@ OSINT_INDUSTRIES_API_KEY=your_actual_osint_industries_key_here
 ### Step 5: Test Your Setup
 
 ```bash
-cd ~/.opencode/skills/Webassessment/osint-tools/
+cd ~/.config/opencode/skills/Webassessment/osint-tools/
 python3 osint-api-tools.py --test
 ```
 

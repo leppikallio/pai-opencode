@@ -72,8 +72,8 @@ For missing critical functionality:
 
 ```bash
 # Verify basic operations
-bun run ~/.opencode/skills/Browser/Tools/Browse.ts screenshot https://example.com /tmp/test.png
-bun run ~/.opencode/skills/Browser/Tools/Browse.ts verify https://example.com "body"
+bun run ~/.config/opencode/skills/Browser/Tools/Browse.ts screenshot https://example.com /tmp/test.png
+bun run ~/.config/opencode/skills/Browser/Tools/Browse.ts verify https://example.com "body"
 ```
 
 ## Version Tracking

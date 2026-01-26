@@ -10,7 +10,7 @@
  *   add-bg input.png "#EAE9DF" output.png
  *   add-bg input.png --ul-brand output.png
  *
- * @see ~/.opencode/skills/Images/SKILL.md
+ * @see ~/.config/opencode/skills/Images/SKILL.md
  */
 
 import { existsSync } from "node:fs";

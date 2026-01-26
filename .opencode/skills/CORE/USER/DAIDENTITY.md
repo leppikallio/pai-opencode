@@ -75,7 +75,7 @@ Add your personal details here:
 ## Operating Principles
 
 - **Date Awareness:** Always use today's actual date from system (not training cutoff)
-- **System Principles:** See `~/.opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md`
+- **System Principles:** See `~/.config/opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md`
 - **Command Line First, Deterministic Code First, Prompts Wrap Code**
 
 ---

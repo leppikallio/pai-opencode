@@ -12,19 +12,19 @@
 
 **Version:** Latest (from GitHub)
 **Installation Method:** GitHub repository clone + pip3 dependencies
-**Location:** `~/.opencode/skills/Webassessment/osint-tools/dnsrecon/`
+**Location:** `~/.config/opencode/skills/Webassessment/osint-tools/dnsrecon/`
 **Repository:** https://github.com/darkoperator/dnsrecon
 
 **Installation Commands:**
 ```bash
-cd ~/.opencode/skills/Webassessment/osint-tools
+cd ~/.config/opencode/skills/Webassessment/osint-tools
 git clone https://github.com/darkoperator/dnsrecon.git
 pip3 install dnspython netaddr lxml requests httpx loguru stamina ujson
 ```
 
 **How to Run:**
 ```bash
-cd ~/.opencode/skills/Webassessment/osint-tools/dnsrecon
+cd ~/.config/opencode/skills/Webassessment/osint-tools/dnsrecon
 python3 dnsrecon.py [options]
 ```
 
@@ -84,19 +84,19 @@ python3 dnsrecon.py [options]
 
 **Version:** 0.6.3
 **Installation Method:** GitHub repository clone
-**Location:** `~/.opencode/skills/Webassessment/osint-tools/whatweb/`
+**Location:** `~/.config/opencode/skills/Webassessment/osint-tools/whatweb/`
 **Repository:** https://github.com/urbanadventurer/WhatWeb
 **Plugins:** 900+ technology detection plugins
 
 **Installation Commands:**
 ```bash
-cd ~/.opencode/skills/Webassessment/osint-tools
+cd ~/.config/opencode/skills/Webassessment/osint-tools
 git clone https://github.com/urbanadventurer/WhatWeb.git whatweb
 ```
 
 **How to Run:**
 ```bash
-cd ~/.opencode/skills/Webassessment/osint-tools/whatweb
+cd ~/.config/opencode/skills/Webassessment/osint-tools/whatweb
 ./whatweb [options] <target>
 ```
 
@@ -437,13 +437,13 @@ These tools are part of PAI webassessment skill workflow for:
 
 **DNS Enumeration:**
 ```bash
-cd ~/.opencode/skills/Webassessment/osint-tools/dnsrecon
+cd ~/.config/opencode/skills/Webassessment/osint-tools/dnsrecon
 python3 dnsrecon.py -d TARGET -t std -j output.json
 ```
 
 **Web Technology Detection:**
 ```bash
-cd ~/.opencode/skills/Webassessment/osint-tools/whatweb
+cd ~/.config/opencode/skills/Webassessment/osint-tools/whatweb
 ./whatweb -a 3 -v TARGET --log-json=output.json
 ```
 

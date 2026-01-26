@@ -13,28 +13,11 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { fileLog, fileLogError } from "../lib/file-logger";
 import type { ContextResult } from "../adapters/types";
+import { getPaiDir } from "../lib/pai-runtime";
+import { getIdentity, getPrincipal } from "../lib/identity";
 
-/**
- * Get the OpenCode directory path
- *
- * In OpenCode, config lives in .opencode/ (not .opencode/)
- */
-function getOpenCodeDir(): string {
-  // Try current working directory first
-  const cwd = process.cwd();
-  const opencodePath = join(cwd, ".opencode");
-
-  if (existsSync(opencodePath)) {
-    return opencodePath;
-  }
-
-  // Fallback to home directory
-  const homePath = join(
-    process.env.HOME || process.env.USERPROFILE || "",
-    ".opencode"
-  );
-
-  return homePath;
+function getRuntimeDir(): string {
+  return getPaiDir();
 }
 
 /**
@@ -52,6 +35,19 @@ function readFileSafe(filePath: string): string {
   }
 }
 
+function applyRuntimeTemplateVars(content: string): string {
+  // OpenCode/PAI docs often use placeholders like {AI_NAME} or {daidentity.name}.
+  // Replace them with runtime identity so the model doesn't echo raw placeholders.
+  const identity = getIdentity();
+  const principal = getPrincipal();
+
+  return content
+    .replace(/\{AI_NAME\}/g, identity.name)
+    .replace(/\{daidentity\.name\}/g, identity.name)
+    .replace(/\{DAIDENTITY\.NAME\}/g, identity.name)
+    .replace(/\{principal\.name\}/g, principal.name);
+}
+
 /**
  * Load CORE skill context
  *
@@ -64,8 +60,8 @@ function readFileSafe(filePath: string): string {
  */
 export async function loadContext(): Promise<ContextResult> {
   try {
-    const opencodeDir = getOpenCodeDir();
-    const coreSkillDir = join(opencodeDir, "skills", "CORE");
+    const paiDir = getRuntimeDir();
+    const coreSkillDir = join(paiDir, "skills", "CORE");
 
     fileLog(`Loading context from: ${coreSkillDir}`);
 
@@ -83,7 +79,7 @@ export async function loadContext(): Promise<ContextResult> {
 
     // 1. Load SKILL.md
     const skillPath = join(coreSkillDir, "SKILL.md");
-    const skillContent = readFileSafe(skillPath);
+    const skillContent = applyRuntimeTemplateVars(readFileSafe(skillPath));
     if (skillContent) {
       contextParts.push(`--- CORE SKILL ---\n${skillContent}`);
       fileLog("Loaded SKILL.md");
@@ -103,7 +99,7 @@ export async function loadContext(): Promise<ContextResult> {
 
       for (const file of systemFiles) {
         const filePath = join(systemDir, file);
-        const content = readFileSafe(filePath);
+        const content = applyRuntimeTemplateVars(readFileSafe(filePath));
         if (content) {
           contextParts.push(`--- ${file} ---\n${content}`);
           fileLog(`Loaded SYSTEM/${file}`);
@@ -123,15 +119,15 @@ export async function loadContext(): Promise<ContextResult> {
         "STATUS.md",     // v2.4: Current status
       ];
 
-      for (const file of telosFiles) {
-        const filePath = join(telosDir, file);
-        const content = readFileSafe(filePath);
-        if (content) {
-          contextParts.push(`--- USER/TELOS/${file} ---\n${content}`);
-          fileLog(`Loaded USER/TELOS/${file}`);
+        for (const file of telosFiles) {
+          const filePath = join(telosDir, file);
+          const content = applyRuntimeTemplateVars(readFileSafe(filePath));
+          if (content) {
+            contextParts.push(`--- USER/TELOS/${file} ---\n${content}`);
+            fileLog(`Loaded USER/TELOS/${file}`);
+          }
         }
       }
-    }
 
     // 4. Load USER identity files - v2.4 compatible
     const userDir = join(coreSkillDir, "USER");
@@ -145,7 +141,7 @@ export async function loadContext(): Promise<ContextResult> {
 
     for (const file of userFiles) {
       const filePath = join(userDir, file);
-      const content = readFileSafe(filePath);
+      const content = applyRuntimeTemplateVars(readFileSafe(filePath));
       if (content) {
         contextParts.push(`--- USER/${file} ---\n${content}`);
         fileLog(`Loaded USER/${file}`);

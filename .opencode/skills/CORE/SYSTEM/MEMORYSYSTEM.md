@@ -3,7 +3,7 @@
 **The unified system memory - what happened, what we learned, what we're working on.**
 
 **Version:** 7.0 (Projects-native architecture, 2026-01-12)
-**Location:** `~/.opencode/MEMORY/`
+**Location:** `~/.config/opencode/MEMORY/`
 
 ---
 
@@ -37,7 +37,7 @@ Harvesting (periodic):
 ## Directory Structure
 
 ```
-~/.opencode/MEMORY/
+~/.config/opencode/MEMORY/
 ├── WORK/                   # PRIMARY work tracking
 │   └── {work_id}/
 │       ├── META.yaml       # Status, session, lineage
@@ -90,7 +90,7 @@ Harvesting (periodic):
 
 ### Claude Code projects/ - Native Session Storage
 
-**Location:** `~/.opencode/projects/-Users-{username}--claude/`
+**Location:** `~/.config/opencode/projects/-Users-{username}--claude/`
 *(Replace `{username}` with your system username, e.g., `-Users-john--claude`)*
 **What populates it:** Claude Code automatically (every conversation)
 **Content:** Complete session transcripts in JSONL format
@@ -311,56 +311,56 @@ LearningPatternSynthesis → analyzes SIGNALS/ → writes SYNTHESIS/
 
 ### Check current work
 ```bash
-cat ~/.opencode/MEMORY/STATE/current-work.json
-ls ~/.opencode/MEMORY/WORK/ | tail -5
+cat ~/.config/opencode/MEMORY/STATE/current-work.json
+ls ~/.config/opencode/MEMORY/WORK/ | tail -5
 ```
 
 ### Check ratings
 ```bash
-tail ~/.opencode/MEMORY/LEARNING/SIGNALS/ratings.jsonl
+tail ~/.config/opencode/MEMORY/LEARNING/SIGNALS/ratings.jsonl
 ```
 
 ### View session transcripts
 ```bash
 # List recent sessions (newest first)
 # Replace {username} with your system username
-ls -lt ~/.opencode/projects/-Users-{username}--claude/*.jsonl | head -5
+ls -lt ~/.config/opencode/projects/-Users-{username}--claude/*.jsonl | head -5
 
 # View last session events
-tail ~/.opencode/projects/-Users-{username}--claude/$(ls -t ~/.opencode/projects/-Users-{username}--claude/*.jsonl | head -1) | jq .
+tail ~/.config/opencode/projects/-Users-{username}--claude/$(ls -t ~/.config/opencode/projects/-Users-{username}--claude/*.jsonl | head -1) | jq .
 ```
 
 ### Check learnings
 ```bash
-ls ~/.opencode/MEMORY/LEARNING/SYSTEM/
-ls ~/.opencode/MEMORY/LEARNING/ALGORITHM/
-ls ~/.opencode/MEMORY/LEARNING/SYNTHESIS/
+ls ~/.config/opencode/MEMORY/LEARNING/SYSTEM/
+ls ~/.config/opencode/MEMORY/LEARNING/ALGORITHM/
+ls ~/.config/opencode/MEMORY/LEARNING/SYNTHESIS/
 ```
 
 ### Check failures
 ```bash
 # List recent failure captures
-ls -lt ~/.opencode/MEMORY/LEARNING/FAILURES/$(date +%Y-%m)/ 2>/dev/null | head -10
+ls -lt ~/.config/opencode/MEMORY/LEARNING/FAILURES/$(date +%Y-%m)/ 2>/dev/null | head -10
 
 # View a specific failure
-cat ~/.opencode/MEMORY/LEARNING/FAILURES/2026-01/*/CONTEXT.md | head -100
+cat ~/.config/opencode/MEMORY/LEARNING/FAILURES/2026-01/*/CONTEXT.md | head -100
 
 # Migrate historical low ratings to FAILURES
-bun run ~/.opencode/skills/CORE/Tools/FailureCapture.ts --migrate
+bun run ~/.config/opencode/skills/CORE/Tools/FailureCapture.ts --migrate
 ```
 
 ### Check multi-session progress
 ```bash
-ls ~/.opencode/MEMORY/STATE/progress/
+ls ~/.config/opencode/MEMORY/STATE/progress/
 ```
 
 ### Run harvesting tools
 ```bash
 # Harvest learnings from recent sessions
-bun run ~/.opencode/skills/CORE/Tools/SessionHarvester.ts --recent 10
+bun run ~/.config/opencode/skills/CORE/Tools/SessionHarvester.ts --recent 10
 
 # Generate pattern synthesis
-bun run ~/.opencode/skills/CORE/Tools/LearningPatternSynthesis.ts --week
+bun run ~/.config/opencode/skills/CORE/Tools/LearningPatternSynthesis.ts --week
 ```
 
 ---
@@ -404,13 +404,13 @@ bun run ~/.opencode/skills/CORE/Tools/LearningPatternSynthesis.ts --week
 - Consolidated WORKSYSTEM.md into MEMORYSYSTEM.md
 
 **2026-01-09:** v4.0 - Major restructure
-- Moved BACKUPS to `~/.opencode/BACKUPS/` (outside MEMORY)
+- Moved BACKUPS to `~/.config/opencode/BACKUPS/` (outside MEMORY)
 - Renamed RAW-OUTPUTS to RAW
 - All directories now ALL CAPS
 
 **2026-01-05:** v1.0 - Unified Memory System migration
-- Previous: `~/.opencode/history/`, `~/.opencode/context/`, `~/.opencode/progress/`
-- Current: `~/.opencode/MEMORY/`
+- Previous: `~/.config/opencode/history/`, `~/.config/opencode/context/`, `~/.config/opencode/progress/`
+- Current: `~/.config/opencode/MEMORY/`
 - Files migrated: 8,415+
 
 ---

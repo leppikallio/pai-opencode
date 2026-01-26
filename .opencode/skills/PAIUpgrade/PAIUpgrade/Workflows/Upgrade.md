@@ -41,11 +41,11 @@ Use Task tool with subagent_type=Intern, run 4 agents in parallel:
 
 Agent 1 - TELOS Analysis:
 "Read and analyze the user's TELOS files to understand their current focus:
-- ~/.opencode/skills/CORE/USER/TELOS/TELOS.md
-- ~/.opencode/skills/CORE/USER/TELOS/GOALS.md
-- ~/.opencode/skills/CORE/USER/TELOS/PROJECTS.md
-- ~/.opencode/skills/CORE/USER/TELOS/CHALLENGES.md
-- ~/.opencode/skills/CORE/USER/TELOS/STATUS.md
+- ~/.config/opencode/skills/CORE/USER/TELOS/TELOS.md
+- ~/.config/opencode/skills/CORE/USER/TELOS/GOALS.md
+- ~/.config/opencode/skills/CORE/USER/TELOS/PROJECTS.md
+- ~/.config/opencode/skills/CORE/USER/TELOS/CHALLENGES.md
+- ~/.config/opencode/skills/CORE/USER/TELOS/STATUS.md
 
 Extract and return:
 1. Current high-priority goals
@@ -57,7 +57,7 @@ Format as structured JSON."
 
 Agent 2 - Recent Work Analysis:
 "Analyze the user's recent work patterns:
-- Read ~/.opencode/MEMORY/STATE/current-work.json
+- Read ~/.config/opencode/MEMORY/STATE/current-work.json
 - Check recent MEMORY/WORK/ directories (last 7 days)
 
 Extract and return:
@@ -70,9 +70,9 @@ Format as structured JSON."
 
 Agent 3 - PAI System State:
 "Analyze the current state of the user's PAI system:
-- List skills in ~/.opencode/skills/
-- List hooks in ~/.opencode/hooks/
-- Read ~/.opencode/settings.json
+- List skills in ~/.config/opencode/skills/
+- List hooks in ~/.config/opencode/hooks/
+- Read ~/.config/opencode/settings.json
 
 Extract and return:
 1. Installed skills (list with brief purpose)
@@ -106,7 +106,7 @@ Use Task tool with subagent_type=Intern, run 3 agents in parallel:
 Agent 1 - Anthropic Sources:
 "Check Anthropic sources for updates and EXTRACT GRANULAR TECHNIQUES:
 
-Run: bun ~/.opencode/skills/PAIUpgrade/Tools/Anthropic.ts
+Run: bun ~/.config/opencode/skills/PAIUpgrade/Tools/Anthropic.ts
 
 For EACH finding, extract SPECIFIC TECHNIQUES - not summaries:
 
@@ -143,16 +143,16 @@ Agent 2 - YouTube Channels:
 "Check configured YouTube channels for new content and EXTRACT GRANULAR TECHNIQUES:
 
 1. Load channel config:
-   bun ~/.opencode/skills/CORE/Tools/LoadSkillConfig.ts ~/.opencode/skills/PAIUpgrade youtube-channels.json
+   bun ~/.config/opencode/skills/CORE/Tools/LoadSkillConfig.ts ~/.config/opencode/skills/PAIUpgrade youtube-channels.json
 
 2. For each channel, check recent videos:
    yt-dlp --flat-playlist --dump-json 'https://www.youtube.com/@channelhandle/videos' 2>/dev/null | head -5
 
 3. Compare against state:
-   cat ~/.opencode/skills/PAIUpgrade/State/youtube-videos.json
+   cat ~/.config/opencode/skills/PAIUpgrade/State/youtube-videos.json
 
 4. For NEW videos, extract transcripts:
-   bun ~/.opencode/skills/CORE/Tools/GetTranscript.ts '<video-url>'
+   bun ~/.config/opencode/skills/CORE/Tools/GetTranscript.ts '<video-url>'
 
 5. CRITICAL - For each transcript, extract SPECIFIC TECHNIQUES:
    - Look for code patterns, configurations, command examples
@@ -177,7 +177,7 @@ If a video has no extractable techniques, mark it as 'skipped: no techniques fou
 Agent 3 - Custom Sources:
 "Check for any custom sources defined by the user:
 
-1. Look in ~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/
+1. Look in ~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/
 2. Check for additional source definitions beyond YouTube
 3. If sources exist, check them for updates
 

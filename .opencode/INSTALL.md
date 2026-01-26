@@ -19,23 +19,41 @@ Welcome to PAI (Personal AI Infrastructure) on OpenCode.
    cd opencode && go build -o opencode . && sudo mv opencode /usr/local/bin/
    ```
 
-## Installation
+## Installation (Recommended)
 
-### Method 1: Fresh Install (Recommended)
+PAI-OpenCode is designed to run from OpenCode's **global config directory**:
+`~/.config/opencode/`
 
 ```bash
 # Clone the repository
-git clone https://github.com/Steffen025/pai-opencode.git
+git clone https://github.com/leppikallio/pai-opencode.git
 cd pai-opencode
 
-# Install dependencies
-bun install
+# Install/upgrade the runtime tree
+bun Tools/Install.ts
 
-# Start OpenCode
+# Note: Install auto-applies the detected provider profile to agent frontmatter.
+# Use --skip-apply-profile to disable.
+
+# Configure your identity + provider (writes into ~/.config/opencode)
+bun ~/.config/opencode/PAIOpenCodeWizard.ts
+
+# Start OpenCode (from any directory)
 opencode
 ```
 
-That's it! PAI 2.4 is now running on OpenCode.
+Why this matters:
+- Your private content stays in `~/.config/opencode/` (not in the git repo).
+- You can update by pulling the repo and re-running `bun Tools/Install.ts`.
+- The installer maintains `~/.config/opencode/AGENTS.md` with a hard safety rule.
+
+## Runtime Safety Rule (Important)
+
+OpenCode loads global rules from `~/.config/opencode/AGENTS.md`.
+
+PAI-OpenCode installs a managed block there that enforces:
+- Do not edit `~/.config/opencode/` directly.
+- Make shareable changes in this repository under `.opencode/`, then deploy.
 
 ### Method 2: Migration from Claude Code PAI
 
@@ -60,10 +78,8 @@ Start OpenCode and verify:
 
 ## Configuration
 
-Edit `.opencode/settings.json` to customize:
-- Your name
-- AI preferences
-- Permissions
+Edit `~/.config/opencode/settings.json` for PAI-specific settings.
+Edit `~/.config/opencode/opencode.json` for OpenCode platform settings.
 
 ## What's Included
 
@@ -108,7 +124,7 @@ reset && opencode
 ## Getting Help
 
 - **Documentation**: `skills/CORE/SKILL.md`
-- **GitHub**: [github.com/Steffen025/pai-opencode](https://github.com/Steffen025/pai-opencode)
+- **GitHub**: [github.com/leppikallio/pai-opencode](https://github.com/leppikallio/pai-opencode)
 
 ---
 

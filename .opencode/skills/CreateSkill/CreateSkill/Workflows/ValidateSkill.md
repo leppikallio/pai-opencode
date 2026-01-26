@@ -20,7 +20,7 @@ Running the **ValidateSkill** workflow in the **CreateSkill** skill to validate 
 **REQUIRED FIRST:** Read the canonical structure:
 
 ```
-~/.opencode/skills/CORE/SkillSystem.md
+~/.config/opencode/skills/CORE/SkillSystem.md
 ```
 
 ---
@@ -28,7 +28,7 @@ Running the **ValidateSkill** workflow in the **CreateSkill** skill to validate 
 ## Step 2: Read the Target Skill
 
 ```bash
-~/.opencode/skills/[SkillName]/SKILL.md
+~/.config/opencode/skills/[SkillName]/SKILL.md
 ```
 
 ---
@@ -37,7 +37,7 @@ Running the **ValidateSkill** workflow in the **CreateSkill** skill to validate 
 
 ### Skill Directory
 ```bash
-ls ~/.opencode/skills/ | grep -i [skillname]
+ls ~/.config/opencode/skills/ | grep -i [skillname]
 ```
 
 Verify TitleCase:
@@ -46,7 +46,7 @@ Verify TitleCase:
 
 ### Workflow Files
 ```bash
-ls ~/.opencode/skills/[SkillName]/Workflows/
+ls ~/.config/opencode/skills/[SkillName]/Workflows/
 ```
 
 Verify TitleCase:
@@ -55,7 +55,7 @@ Verify TitleCase:
 
 ### Tool Files
 ```bash
-ls ~/.opencode/skills/[SkillName]/Tools/
+ls ~/.config/opencode/skills/[SkillName]/Tools/
 ```
 
 Verify TitleCase:
@@ -128,7 +128,7 @@ User: "[Request]"
 ## Step 6: Check Workflow Files
 
 ```bash
-ls ~/.opencode/skills/[SkillName]/Workflows/
+ls ~/.config/opencode/skills/[SkillName]/Workflows/
 ```
 
 Verify:
@@ -142,7 +142,7 @@ Verify:
 ## Step 7: Check Structure
 
 ```bash
-ls -la ~/.opencode/skills/[SkillName]/
+ls -la ~/.config/opencode/skills/[SkillName]/
 ```
 
 Verify:
@@ -160,7 +160,7 @@ Verify:
 
 Check each tool for flag-based configuration:
 ```bash
-bun ~/.opencode/skills/[SkillName]/Tools/[ToolName].ts --help
+bun ~/.config/opencode/skills/[SkillName]/Tools/[ToolName].ts --help
 ```
 
 Verify the tool exposes behavioral configuration via flags:
@@ -174,7 +174,7 @@ Verify the tool exposes behavioral configuration via flags:
 For workflows that call CLI tools, check for intent-to-flag mapping tables:
 
 ```bash
-grep -l "Intent-to-Flag" ~/.opencode/skills/[SkillName]/Workflows/*.md
+grep -l "Intent-to-Flag" ~/.config/opencode/skills/[SkillName]/Workflows/*.md
 ```
 
 **Required pattern in workflows with CLI tools:**
@@ -187,7 +187,7 @@ grep -l "Intent-to-Flag" ~/.opencode/skills/[SkillName]/Workflows/*.md
 | (default) | `--model sonnet` | Balanced |
 ```
 
-**Reference:** `~/.opencode/skills/CORE/CliFirstArchitecture.md`
+**Reference:** `~/.config/opencode/skills/CORE/CliFirstArchitecture.md`
 
 ---
 

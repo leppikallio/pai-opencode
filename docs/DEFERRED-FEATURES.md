@@ -159,7 +159,7 @@ Use external tools directly or via web interfaces.
 - ⏳ Auto-Migration
 - ⏳ MCP Server Adapters
 
-**Note:** Installation Wizard (`PAIOpenCodeWizard.ts`) is included in v1.0—run with `bun run .opencode/PAIOpenCodeWizard.ts`
+**Note:** Installation Wizard (`PAIOpenCodeWizard.ts`) is included in v1.0—run with `bun ~/.config/opencode/PAIOpenCodeWizard.ts` after `bun Tools/Install.ts --target ~/.config/opencode`
 
 ---
 

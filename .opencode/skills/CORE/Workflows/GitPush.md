@@ -1,6 +1,6 @@
 # Git Workflow - Push Updates
 
-**Purpose:** Complete workflow for committing and pushing changes to the PRIVATE PAI repository (`~/.opencode`)
+**Purpose:** Complete workflow for committing and pushing changes to the PRIVATE PAI repository (`~/.config/opencode`)
 
 **When User Says:** "push changes" or "update repo" or "commit and push"
 
@@ -10,7 +10,7 @@
 
 | Repository | Directory | Remote | Purpose |
 |------------|-----------|--------|---------|
-| **PRIVATE PAI** | `~/.opencode/` | `danielmiessler/.claude.git` | Personal PAI instance |
+| **PRIVATE PAI** | `~/.config/opencode/` | `danielmiessler/.claude.git` | Personal PAI instance |
 | **PUBLIC PAI** | `~/Projects/PAI/` | `danielmiessler/PAI.git` | Open source template |
 
 **This workflow is for the PRIVATE repo ONLY.**
@@ -33,8 +33,8 @@ Before EVERY push: `git remote -v` must show `.claude.git` NOT `PAI.git`
 ### 1. Verify Location and Remote (CRITICAL SECURITY)
 
 ```bash
-# MUST be in ~/.opencode (or $PAI_DIR)
-cd ~/.opencode && pwd
+# MUST be in ~/.config/opencode (or $PAI_DIR)
+cd ~/.config/opencode && pwd
 # Expected output: $HOME/.opencode (your home directory + .opencode)
 
 # MUST show the PRIVATE repo
@@ -44,7 +44,7 @@ git remote -v
 ```
 
 **⛔ STOP IMMEDIATELY if:**
-- `pwd` shows `~/Projects/PAI` or anything other than `~/.opencode`
+- `pwd` shows `~/Projects/PAI` or anything other than `~/.config/opencode`
 - `git remote -v` shows `danielmiessler/PAI.git` - this is the PUBLIC repo, not your private one
 
 **This is a HARD STOP condition.** Never proceed if verification fails.
@@ -134,7 +134,7 @@ git status  # Confirm clean working directory
 
 ## Security Checklist (ALWAYS)
 
-- ✅ Verified we're in ~/.opencode/ directory
+- ✅ Verified we're in ~/.config/opencode/ directory
 - ✅ Verified remote is the correct private repository
 - ✅ Reviewed changes for sensitive data
 - ✅ Commit message is descriptive and professional
@@ -167,7 +167,7 @@ git status
 
 ## CRITICAL
 
-**This workflow is for the PRIVATE `~/.opencode` repo ONLY.**
+**This workflow is for the PRIVATE `~/.config/opencode` repo ONLY.**
 
 | If User Says... | What to Do |
 |-----------------|------------|
@@ -184,4 +184,4 @@ For PUBLIC PAI repo (`~/Projects/PAI/`):
 ---
 
 **Related Documentation:**
-- ~/.opencode/skills/CORE/SKILL.md (CRITICAL SECURITY section)
+- ~/.config/opencode/skills/CORE/SKILL.md (CRITICAL SECURITY section)

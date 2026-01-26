@@ -83,7 +83,7 @@ Many companies run direct bug bounty programs:
 ### 3. Reconnaissance Initiation
 ```bash
 # Use bug bounty automation tool
-cd ~/.opencode/skills/Webassessment/bug-bounty-tool
+cd ~/.config/opencode/skills/Webassessment/bug-bounty-tool
 ./bounty.sh recon [program-id]
 
 # Manual recon workflow
@@ -96,7 +96,7 @@ cd ~/.opencode/skills/Webassessment/bug-bounty-tool
 
 ### 4. Vulnerability Testing
 Follow standard pentest methodology:
-- See: `~/.opencode/skills/Webassessment/Workflows/pentest/master-methodology.md`
+- See: `~/.config/opencode/skills/Webassessment/Workflows/pentest/master-methodology.md`
 - Focus on high-severity issues
 - Document proof-of-concepts thoroughly
 
@@ -181,7 +181,7 @@ Brief overview of the vulnerability (2-3 sentences)
 ## Automation Tool
 
 ### Tool Location
-`~/.opencode/skills/Webassessment/bug-bounty-tool/`
+`~/.config/opencode/skills/Webassessment/bug-bounty-tool/`
 
 ### Features
 - Track active programs
@@ -191,7 +191,7 @@ Brief overview of the vulnerability (2-3 sentences)
 - Report management
 
 ### Usage
-See: `~/.opencode/skills/Webassessment/Workflows/bug-bounty/automation-tool.md`
+See: `~/.config/opencode/skills/Webassessment/Workflows/bug-bounty/automation-tool.md`
 
 ## Resources
 
@@ -230,7 +230,7 @@ See: `~/.opencode/skills/Webassessment/Workflows/bug-bounty/automation-tool.md`
 
 ## See Also
 
-- Automation tool docs: `~/.opencode/skills/Webassessment/Workflows/bug-bounty/AutomationTool.md`
-- Pentest methodology: `~/.opencode/skills/Webassessment/Workflows/pentest/MasterMethodology.md`
-- Reconnaissance workflow: `~/.opencode/skills/Webassessment/Workflows/pentest/Reconnaissance.md`
-- Exploitation workflow: `~/.opencode/skills/Webassessment/Workflows/pentest/Exploitation.md`
+- Automation tool docs: `~/.config/opencode/skills/Webassessment/Workflows/bug-bounty/AutomationTool.md`
+- Pentest methodology: `~/.config/opencode/skills/Webassessment/Workflows/pentest/MasterMethodology.md`
+- Reconnaissance workflow: `~/.config/opencode/skills/Webassessment/Workflows/pentest/Reconnaissance.md`
+- Exploitation workflow: `~/.config/opencode/skills/Webassessment/Workflows/pentest/Exploitation.md`

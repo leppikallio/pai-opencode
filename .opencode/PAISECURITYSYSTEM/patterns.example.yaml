@@ -114,7 +114,7 @@ SECURITY_RULES:
   require_confirmation_for_warnings: true
 
   # Audit logging
-  audit_log_path: "~/.opencode/logs/security-audit.log"
+  audit_log_path: "~/.config/opencode/logs/security-audit.log"
 
   # Maximum command length before triggering inspection
   max_command_length: 1000

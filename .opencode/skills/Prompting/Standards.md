@@ -693,7 +693,7 @@ An **open-source framework** for augmenting humans using AI.
 
 ## Native Fabric Patterns in PAI
 
-**Location:** `~/.opencode/skills/CORE/Tools/fabric/Patterns/`
+**Location:** `~/.config/opencode/skills/CORE/Tools/fabric/Patterns/`
 
 PAI maintains a local copy of all Fabric patterns for native execution. Instead of spawning the `fabric` CLI for every pattern-based task, the system reads and applies patterns directly as prompts.
 
@@ -722,7 +722,7 @@ These operations require the CLI because they access external services or config
 
 Run the update script to sync latest patterns:
 ```bash
-~/.opencode/skills/CORE/Tools/fabric/update-patterns.sh
+~/.config/opencode/skills/CORE/Tools/fabric/update-patterns.sh
 ```
 
 This pulls upstream updates via `fabric -U` and syncs to PAI's local copy.
@@ -1157,7 +1157,7 @@ Reusable quality and completion checks.
 
 ## Template Location
 
-All templates live in `~/.opencode/skills/Prompting/Templates/`:
+All templates live in `~/.config/opencode/skills/Prompting/Templates/`:
 
 ```
 skills/Prompting/
@@ -1184,7 +1184,7 @@ skills/Prompting/
 
 **CLI Usage:**
 ```bash
-bun ~/.opencode/skills/Prompting/Tools/RenderTemplate.ts \
+bun ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
   --template Primitives/Roster.hbs \
   --data Data/Agents.yaml \
   --output Compiled/AgentRoster.md
@@ -1192,7 +1192,7 @@ bun ~/.opencode/skills/Prompting/Tools/RenderTemplate.ts \
 
 **Programmatic Usage:**
 ```typescript
-import { renderTemplate } from '~/.opencode/skills/Prompting/Tools/RenderTemplate.ts';
+import { renderTemplate } from '~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts';
 
 const output = renderTemplate('Primitives/Briefing.hbs', {
   agent: { id: 'EN-1', name: 'Skeptical Thinker', personality: '...' },

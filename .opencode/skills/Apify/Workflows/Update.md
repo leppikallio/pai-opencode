@@ -57,7 +57,7 @@ Review commonly used actors for updates:
 
 ```bash
 # Verify API wrapper works
-bun run ~/.opencode/skills/Apify/scrape-instagram.ts --help 2>/dev/null || echo "Check script"
+bun run ~/.config/opencode/skills/Apify/scrape-instagram.ts --help 2>/dev/null || echo "Check script"
 ```
 
 ### 4. Update Implementation

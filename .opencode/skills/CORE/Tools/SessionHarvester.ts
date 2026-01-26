@@ -2,7 +2,7 @@
 /**
  * SessionHarvester - Extract learnings from Claude Code session transcripts
  *
- * Harvests insights from ~/.opencode/projects/ sessions and writes to LEARNING/
+ * Harvests insights from ~/.config/opencode/projects/ sessions and writes to LEARNING/
  *
  * Commands:
  *   --recent N     Harvest from N most recent sessions (default: 10)

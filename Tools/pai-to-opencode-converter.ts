@@ -710,7 +710,7 @@ function translateSkills(
 
         // Replace common path references
         content = content.replace(/\.claude\//g, ".opencode/");
-        content = content.replace(/~\/\.claude/g, "~/.opencode");
+        content = content.replace(/~\/\.claude/g, "~/.config/opencode");
         // OpenCode now uses plural 'skills' (v0.9.3+)
         // No replacement needed - already plural
 
@@ -915,7 +915,7 @@ function translateAgents(source: string, target: string, dryRun: boolean, verbos
         // v0.9.5: Replace path references in agent body content (not just frontmatter)
         // This catches skill references, tool paths, etc. in agent documentation
         content = content.replace(/\.claude\//g, ".opencode/");
-        content = content.replace(/~\/\.claude/g, "~/.opencode");
+        content = content.replace(/~\/\.claude/g, "~/.config/opencode");
 
         if (content !== originalContent) {
           writeFileSync(file, content);
@@ -1012,7 +1012,7 @@ function translateToolsDir(toolsSource: string, toolsTarget: string, dryRun: boo
 
         // Replace common path references
         content = content.replace(/\.claude\//g, ".opencode/");
-        content = content.replace(/~\/\.claude/g, "~/.opencode");
+        content = content.replace(/~\/\.claude/g, "~/.config/opencode");
         content = content.replace(/"\\.claude"/g, '".opencode"');
         content = content.replace(/'\\.claude'/g, "'.opencode'");
 
@@ -1384,7 +1384,7 @@ ${agentInvocationInfo}
 
 ## References
 
-- [PAI-OpenCode Documentation](https://github.com/Steffen025/pai-opencode)
+- [PAI-OpenCode Documentation](https://github.com/leppikallio/pai-opencode)
 - [OpenCode Plugin Docs](https://opencode.ai/docs/plugins/)
 - \`docs/PLUGIN-ARCHITECTURE.md\` - Detailed plugin guide
 - \`docs/EVENT-MAPPING.md\` - Hook → Event mapping

@@ -27,7 +27,7 @@ Running the **RunEval** workflow in the **Evals** skill to execute evaluation...
 
 ```bash
 # Check use case exists
-ls ~/.opencode/skills/Evals/UseCases/<use-case>/config.yaml
+ls ~/.config/opencode/skills/Evals/UseCases/<use-case>/config.yaml
 ```
 
 If missing, redirect to `CreateUseCase.md` workflow.
@@ -41,7 +41,7 @@ curl -s http://localhost:5173 > /dev/null 2>&1 && echo "Running" || echo "Not ru
 
 If not running, start it:
 ```bash
-cd ~/.opencode/skills/Evals/EvalServer && bun run dev &
+cd ~/.config/opencode/skills/Evals/EvalServer && bun run dev &
 ```
 
 ### Step 3: Run Evaluation
@@ -55,7 +55,7 @@ cd ~/.opencode/skills/Evals/EvalServer && bun run dev &
 
 **Option B: CLI**
 ```bash
-bun run ~/.opencode/skills/Evals/EvalServer/cli-run.ts \
+bun run ~/.config/opencode/skills/Evals/EvalServer/cli-run.ts \
   --use-case <name> \
   --model claude-3-5-sonnet-20241022
 ```

@@ -40,9 +40,9 @@ This methodology uses browser automation to systematically extract and analyze w
 **Documentation:**
 ```bash
 # Create testing directory in current work
-WORK_DIR=$(jq -r '.work_dir' ~/.opencode/MEMORY/STATE/current-work.json)
-mkdir -p ~/.opencode/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d-%H%M%S)_prompt-injection-test-TARGET/
-cd ~/.opencode/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d-%H%M%S)_prompt-injection-test-TARGET/
+WORK_DIR=$(jq -r '.work_dir' ~/.config/opencode/MEMORY/STATE/current-work.json)
+mkdir -p ~/.config/opencode/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d-%H%M%S)_prompt-injection-test-TARGET/
+cd ~/.config/opencode/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d-%H%M%S)_prompt-injection-test-TARGET/
 
 # Document authorization
 cat > AUTHORIZATION.md << 'EOF'
@@ -643,7 +643,7 @@ cd "$OUTPUT_DIR"
 echo "[*] Phase 1: Initial Discovery"
 browser navigate "$TARGET_URL" > initial_nav.json
 browser screenshot
-cp "$(find ~/.opencode/Plugins/marketplaces/browser-tools/agent/browser_screenshots -type f -name '*.png' | tail -1)" initial_page.png
+cp "$(find ~/.config/opencode/Plugins/marketplaces/browser-tools/agent/browser_screenshots -type f -name '*.png' | tail -1)" initial_page.png
 
 # Phase 2: DOM Extraction
 echo "[*] Phase 2: DOM Extraction"
@@ -690,7 +690,7 @@ browser console-logs error > console_errors.json
 # Phase 10: Final Screenshot
 echo "[*] Phase 10: Final State Capture"
 browser screenshot
-cp "$(find ~/.opencode/Plugins/marketplaces/browser-tools/agent/browser_screenshots -type f -name '*.png' | tail -1)" final_page.png
+cp "$(find ~/.config/opencode/Plugins/marketplaces/browser-tools/agent/browser_screenshots -type f -name '*.png' | tail -1)" final_page.png
 
 # Cleanup
 echo "[*] Phase 11: Cleanup"

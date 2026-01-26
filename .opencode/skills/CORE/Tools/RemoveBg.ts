@@ -11,7 +11,7 @@
  *   remove-bg input.png output.png         # Saves to new file
  *   remove-bg file1.png file2.png file3.png # Batch process
  *
- * @see ~/.opencode/skills/Images/SKILL.md
+ * @see ~/.config/opencode/skills/Images/SKILL.md
  */
 
 import { readFile, writeFile } from "node:fs/promises";

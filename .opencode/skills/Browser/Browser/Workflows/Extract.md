@@ -19,7 +19,7 @@ Extract content from web pages.
 
 1. **Launch and navigate**
    ```typescript
-   import { PlaywrightBrowser } from '~/.opencode/skills/Browser/index.ts'
+   import { PlaywrightBrowser } from '~/.config/opencode/skills/Browser/index.ts'
    const browser = new PlaywrightBrowser()
    await browser.launch({ headless: true })
    await browser.navigate(url)
@@ -91,7 +91,7 @@ const a11y = await browser.getAccessibilityTree()
 ## Example: Article Extraction
 
 ```typescript
-import { PlaywrightBrowser } from '~/.opencode/skills/Browser/index.ts'
+import { PlaywrightBrowser } from '~/.config/opencode/skills/Browser/index.ts'
 
 const browser = new PlaywrightBrowser()
 await browser.launch({ headless: true })

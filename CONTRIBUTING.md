@@ -177,7 +177,7 @@ This document covers:
 
 ## Questions?
 
-- Open a [Discussion](https://github.com/Steffen025/pai-opencode/discussions)
+- Open a [Discussion](https://github.com/leppikallio/pai-opencode/discussions)
 - Check [docs/](docs/) for architecture details
 - Review existing code for patterns
 

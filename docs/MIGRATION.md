@@ -37,7 +37,7 @@ This guide helps you migrate an existing PAI 2.x installation from Claude Code t
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/Steffen025/pai-opencode.git
+git clone https://github.com/leppikallio/pai-opencode.git
 cd pai-opencode
 
 # 2. Install dependencies
@@ -72,7 +72,7 @@ ls -la ~/.claude/
 ### Step 2: Clone PAI-OpenCode
 
 ```bash
-git clone https://github.com/Steffen025/pai-opencode.git
+git clone https://github.com/leppikallio/pai-opencode.git
 cd pai-opencode
 ```
 
@@ -332,7 +332,7 @@ If migration fails:
 rm -rf .opencode/
 
 # Re-clone fresh
-git clone https://github.com/Steffen025/pai-opencode.git
+git clone https://github.com/leppikallio/pai-opencode.git
 ```
 
 Your original PAI (Claude Code) is **never modified** during migration.
@@ -344,7 +344,7 @@ Your original PAI (Claude Code) is **never modified** during migration.
 - **[PAI-to-OpenCode Mapping Guide](../.opencode/PAISYSTEM/PAI-TO-OPENCODE-MAPPING.md)** - Component mapping rules and common errors
 - **PLUGIN-SYSTEM.md** - Plugin development
 - **PAI-ADAPTATIONS.md** - What changed from PAI 2.4
-- **GitHub Issues**: https://github.com/Steffen025/pai-opencode/issues
+- **GitHub Issues**: https://github.com/leppikallio/pai-opencode/issues
 
 ---
 

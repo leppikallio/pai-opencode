@@ -221,17 +221,17 @@ Test the hook directly:
 ```bash
 # Test a blocked command
 echo '{"tool_name":"Bash","tool_input":{"command":"rm -rf /"},"session_id":"test"}' | \
-  bun ~/.opencode/hooks/SecurityValidator.hook.ts
+  bun ~/.config/opencode/hooks/SecurityValidator.hook.ts
 # Should exit 2 (blocked)
 
 # Test an allowed command
 echo '{"tool_name":"Bash","tool_input":{"command":"ls -la"},"session_id":"test"}' | \
-  bun ~/.opencode/hooks/SecurityValidator.hook.ts
+  bun ~/.config/opencode/hooks/SecurityValidator.hook.ts
 # Should output {"continue": true} and exit 0
 
 # Test a confirm command
 echo '{"tool_name":"Bash","tool_input":{"command":"git push --force"},"session_id":"test"}' | \
-  bun ~/.opencode/hooks/SecurityValidator.hook.ts
+  bun ~/.config/opencode/hooks/SecurityValidator.hook.ts
 # Should output {"decision": "ask", ...} and exit 0
 ```
 

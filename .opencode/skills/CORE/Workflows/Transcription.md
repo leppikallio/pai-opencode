@@ -12,7 +12,7 @@ Extract transcripts from audio and video files using local faster-whisper or Ope
 
 ## Tools Available
 
-**Location:** `~/.opencode/skills/CORE/Tools/`
+**Location:** `~/.config/opencode/skills/CORE/Tools/`
 
 | Tool | Purpose | Backend |
 |------|---------|---------|
@@ -25,14 +25,14 @@ Extract transcripts from audio and video files using local faster-whisper or Ope
 ### Single File (Local - Recommended)
 
 ```bash
-cd ~/.opencode/skills/CORE/Tools
+cd ~/.config/opencode/skills/CORE/Tools
 uv run extract-transcript.py /path/to/audio.m4a
 ```
 
 ### Single File (OpenAI API)
 
 ```bash
-bun ~/.opencode/skills/CORE/Tools/ExtractTranscript.ts /path/to/audio.m4a
+bun ~/.config/opencode/skills/CORE/Tools/ExtractTranscript.ts /path/to/audio.m4a
 ```
 
 ### Batch Processing (Local)

@@ -6,7 +6,7 @@ description: "Security reconnaissance. USE WHEN recon, reconnaissance, bug bount
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Recon/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Recon/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -231,7 +231,7 @@ ASN and BGP reconnaissance:
 **MCP Tools** (security profile required)
 - `httpx` - HTTP probing and technology detection
 - `naabu` - Port scanning
-- Note: Requires security MCP profile (`~/.opencode/MCPs/swap-mcp security`)
+- Note: Requires security MCP profile (`~/.config/opencode/MCPs/swap-mcp security`)
 
 ### Future Tool Integration
 
@@ -371,8 +371,8 @@ Located in `tools/` directory:
 ```
 
 Reports saved to:
-- **Work scratch/** (`~/.opencode/MEMORY/WORK/{current_work}/scratch/`) - For iterative artifacts during investigation
-- **MEMORY/RESEARCH/** (`~/.opencode/MEMORY/RESEARCH/YYYY-MM/`) - For pentest engagements and formal assessments
+- **Work scratch/** (`~/.config/opencode/MEMORY/WORK/{current_work}/scratch/`) - For iterative artifacts during investigation
+- **MEMORY/RESEARCH/** (`~/.config/opencode/MEMORY/RESEARCH/YYYY-MM/`) - For pentest engagements and formal assessments
 
 ## MCP Profile Requirements
 
@@ -381,7 +381,7 @@ Reports saved to:
 **For active recon:** Requires security MCP profile
 ```bash
 # Switch to security profile
-~/.opencode/MCPs/swap-mcp security
+~/.config/opencode/MCPs/swap-mcp security
 
 # Restart Claude Code to apply
 # Then run active reconnaissance
@@ -429,7 +429,7 @@ Assistant: Activating recon skill with passive-recon workflow.
      [Performs WHOIS, DNS, cert transparency, IPInfo]
      [Generates report in scratchpad]
 
-     Report: ~/.opencode/MEMORY/WORK/{current_work}/scratch/recon-example-com/
+     Report: ~/.config/opencode/MEMORY/WORK/{current_work}/scratch/recon-example-com/
 ```
 
 ### Example 2: IP Investigation with Active Scan
@@ -504,8 +504,8 @@ Assistant: Activating OSINT skill...
 ## Related Documentation
 
 **Security Skills:**
-- `~/.opencode/skills/OSINT/` - Entity and people reconnaissance
-- `~/.opencode/skills/Webassessment/` - Web application testing
+- `~/.config/opencode/skills/OSINT/` - Entity and people reconnaissance
+- `~/.config/opencode/skills/Webassessment/` - Web application testing
 
 **Tool Documentation:**
 - IPInfo API: https://ipinfo.io/developers

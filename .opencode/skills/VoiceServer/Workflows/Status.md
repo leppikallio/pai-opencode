@@ -6,7 +6,7 @@ Check if the voice server is running and responding.
 
 1. **Check process:**
 ```bash
-~/.opencode/VoiceServer/status.sh
+~/.config/opencode/VoiceServer/status.sh
 ```
 
 2. **Test endpoint:**
@@ -25,17 +25,17 @@ curl -X POST http://localhost:8888/notify \
 
 **Server not running:**
 ```bash
-~/.opencode/VoiceServer/start.sh
+~/.config/opencode/VoiceServer/start.sh
 ```
 
 **Port conflict:**
 ```bash
 lsof -i :8888
-~/.opencode/VoiceServer/stop.sh
-~/.opencode/VoiceServer/start.sh
+~/.config/opencode/VoiceServer/stop.sh
+~/.config/opencode/VoiceServer/start.sh
 ```
 
 **Check logs:**
 ```bash
-tail -50 ~/.opencode/VoiceServer/logs/server.log
+tail -50 ~/.config/opencode/VoiceServer/logs/server.log
 ```

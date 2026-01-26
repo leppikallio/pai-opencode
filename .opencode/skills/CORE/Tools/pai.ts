@@ -10,7 +10,7 @@
  *   pai -m bd            Launch with Bright Data MCP
  *   pai -m bd,ap         Launch with multiple MCPs
  *   pai -r / --resume    Resume last session
- *   pai --local          Stay in current directory (don't cd to ~/.opencode)
+ *   pai --local          Stay in current directory (don't cd to ~/.config/opencode)
  *   pai update           Update Claude Code
  *   pai version          Show version info
  *   pai profiles         List available profiles
@@ -545,7 +545,7 @@ USAGE:
   k -m <mcp>               Launch with specific MCP(s)
   k -m bd,ap               Launch with multiple MCPs
   k -r, --resume           Resume last session
-  k -l, --local            Stay in current directory (don't cd to ~/.opencode)
+  k -l, --local            Stay in current directory (don't cd to ~/.config/opencode)
 
 COMMANDS:
   k update                 Update Claude Code to latest version

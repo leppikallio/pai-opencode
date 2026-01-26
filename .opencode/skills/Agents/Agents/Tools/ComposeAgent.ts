@@ -7,8 +7,8 @@
  * Merges base traits (ships with PAI) with user customizations.
  *
  * Configuration files:
- *   Base:  ~/.opencode/skills/Agents/Data/Traits.yaml
- *   User:  ~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Agents/Traits.yaml
+ *   Base:  ~/.config/opencode/skills/Agents/Data/Traits.yaml
+ *   User:  ~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Agents/Traits.yaml
  *
  * Usage:
  *   # Infer traits from task description
@@ -503,8 +503,8 @@ OPTIONS:
   -h, --help           Show this help
 
 CONFIGURATION:
-  Base traits:  ~/.opencode/skills/Agents/Data/Traits.yaml
-  User traits:  ~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Agents/Traits.yaml
+  Base traits:  ~/.config/opencode/skills/Agents/Data/Traits.yaml
+  User traits:  ~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Agents/Traits.yaml
 
   User traits are merged over base (user takes priority).
   Add your custom voices, personalities, and prosody settings in the user file.

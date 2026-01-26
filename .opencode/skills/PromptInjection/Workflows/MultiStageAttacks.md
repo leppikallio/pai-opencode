@@ -307,10 +307,10 @@ AI: [COMPROMISED - shows system prompt]
 ## Complete Attack Reference
 
 **Multi-stage techniques:**
-`~/.opencode/skills/PromptInjection/COMPREHENSIVE-ATTACK-TAXONOMY.md` (Section 5)
+`~/.config/opencode/skills/PromptInjection/COMPREHENSIVE-ATTACK-TAXONOMY.md` (Section 5)
 
 **Attack payload library:**
-`~/.opencode/skills/PromptInjection/attack-payloads/multi-stage/`
+`~/.config/opencode/skills/PromptInjection/attack-payloads/multi-stage/`
 
 ## Integration with Other Workflows
 

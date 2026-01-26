@@ -361,7 +361,7 @@ This workflow is part of the be-creative skill ecosystem but serves a specialize
 ```markdown
 For technical creativity challenges, use the technical-creativity-gemini-3 workflow:
 
-1. Load workflow: `read ~/.opencode/skills/BeCreative/Workflows/TechnicalCreativityGemini3.md`
+1. Load workflow: `read ~/.config/opencode/skills/BeCreative/Workflows/TechnicalCreativityGemini3.md`
 2. Follow the workflow structure (Problem → Constraints → Generation → Evaluation)
 3. Use Gemini 3 Pro via llm CLI for creative technical solutions
 4. Return diverse technical approaches with trade-off analysis

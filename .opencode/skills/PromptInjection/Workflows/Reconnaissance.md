@@ -217,10 +217,10 @@ grep -i "auth\|token\|bearer\|api-key" js-code.txt
 ## Complete Methodology Reference
 
 **Full reconnaissance methodology:**
-`~/.opencode/skills/PromptInjection/APPLICATION-RECONNAISSANCE-METHODOLOGY.md`
+`~/.config/opencode/skills/PromptInjection/APPLICATION-RECONNAISSANCE-METHODOLOGY.md`
 
 **Attack taxonomy for prioritization:**
-`~/.opencode/skills/PromptInjection/COMPREHENSIVE-ATTACK-TAXONOMY.md`
+`~/.config/opencode/skills/PromptInjection/COMPREHENSIVE-ATTACK-TAXONOMY.md`
 
 ## Success Criteria
 

@@ -6,7 +6,7 @@
  * Based on Anthropic's claude-progress.txt pattern.
  *
  * Usage:
- *   bun run ~/.opencode/skills/CORE/Tools/SessionProgress.ts <command> [options]
+ *   bun run ~/.config/opencode/skills/CORE/Tools/SessionProgress.ts <command> [options]
  */
 
 import { existsSync, readFileSync, writeFileSync, readdirSync } from 'fs';

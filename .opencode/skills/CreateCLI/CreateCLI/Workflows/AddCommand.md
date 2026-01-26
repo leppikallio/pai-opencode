@@ -40,7 +40,7 @@ Add one or more commands to an existing CLI without breaking existing functional
 
 ```bash
 # Find CLI location
-ls -la ~/.opencode/Bin/[cli-name]/
+ls -la ~/.config/opencode/Bin/[cli-name]/
 # or
 ls -la ~/Projects/[project]/
 ```

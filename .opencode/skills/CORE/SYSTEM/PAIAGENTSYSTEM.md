@@ -59,9 +59,9 @@ When user requests custom agents:
 
 ```bash
 # Example: 3 custom research agents
-bun run ~/.opencode/skills/Agents/Tools/ComposeAgent.ts --traits "research,enthusiastic,exploratory"
-bun run ~/.opencode/skills/Agents/Tools/ComposeAgent.ts --traits "research,skeptical,systematic"
-bun run ~/.opencode/skills/Agents/Tools/ComposeAgent.ts --traits "research,analytical,synthesizing"
+bun run ~/.config/opencode/skills/Agents/Tools/ComposeAgent.ts --traits "research,enthusiastic,exploratory"
+bun run ~/.config/opencode/skills/Agents/Tools/ComposeAgent.ts --traits "research,skeptical,systematic"
+bun run ~/.config/opencode/skills/Agents/Tools/ComposeAgent.ts --traits "research,analytical,synthesizing"
 ```
 
 ---

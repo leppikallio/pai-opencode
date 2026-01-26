@@ -2,8 +2,8 @@
 
 **Event-Driven Automation Infrastructure for OpenCode**
 
-**Location:** `~/.opencode/plugins/`
-**Configuration:** `~/.opencode/opencode.json`
+**Location:** `~/.config/opencode/plugins/`
+**Configuration:** `~/.config/opencode/opencode.json`
 **Status:** Active - All plugins running in production
 
 ---
@@ -17,7 +17,7 @@ The PAI plugin system is an event-driven automation infrastructure built on Open
 - **Security Validation** - Block dangerous commands before execution
 - **Tool Lifecycle** - Pre/post processing for tool executions
 - **Voice Notifications** - Text-to-speech announcements for task completions
-- **History Capture** - Automatic work/learning documentation to `~/.opencode/MEMORY/`
+- **History Capture** - Automatic work/learning documentation to `~/.config/opencode/MEMORY/`
 
 **Key Principle:** Plugins run asynchronously and fail gracefully. They enhance the user experience but never block OpenCode's core functionality.
 
@@ -270,7 +270,7 @@ fileLog("Warning message", "warn");
 fileLogError("Something failed", error);
 ```
 
-Log file location: `~/.opencode/plugins/debug.log`
+Log file location: `~/.config/opencode/plugins/debug.log`
 
 ---
 
@@ -303,7 +303,7 @@ See `plugins/adapters/types.ts` for full pattern definitions.
 **Check:**
 1. Is the plugin file in `.opencode/plugins/`? (Auto-discovery location)
 2. Can Bun parse the TypeScript? `bun run .opencode/plugins/pai-unified.ts`
-3. Are there TypeScript errors? Check `~/.opencode/plugins/debug.log`
+3. Are there TypeScript errors? Check `~/.config/opencode/plugins/debug.log`
 4. If using `opencode.json`: Use `plugin` (singular), not `plugins` (plural)
 5. If using explicit paths: Use `file://` URL format, not relative paths
 
@@ -311,7 +311,7 @@ See `plugins/adapters/types.ts` for full pattern definitions.
 
 **Check:**
 1. Does `skills/CORE/SKILL.md` exist?
-2. Check `~/.opencode/plugins/debug.log` for loading errors
+2. Check `~/.config/opencode/plugins/debug.log` for loading errors
 3. Verify `context-loader.ts` can find the CORE skill directory
 
 ### Security Blocking Everything

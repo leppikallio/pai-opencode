@@ -7,7 +7,7 @@ context: fork
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/BrightData/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/BrightData/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -40,7 +40,7 @@ Running the **WorkflowName** workflow from the **Brightdata** skill...
 
 **When user requests scraping/fetching URL content:**
 Examples: "scrape this URL", "fetch this page", "get content from [URL]", "pull content from this site", "retrieve [URL]", "can't access this site", "this site is blocking me", "use Bright Data to fetch"
-→ **READ:** ~/.opencode/skills/brightdata/Workflows/Four-tier-scrape.md
+→ **READ:** ~/.config/opencode/skills/brightdata/Workflows/Four-tier-scrape.md
 → **EXECUTE:** Four-tier progressive scraping workflow (WebFetch → Curl → Browser Automation → Bright Data MCP)
 
 ---
@@ -175,7 +175,7 @@ Skill Response:
 ---
 
 **Related Documentation:**
-- `~/.opencode/skills/CORE/SkillSystem.md` - Canonical structure guide
-- `~/.opencode/skills/CORE/CONSTITUTION.md` - Overall PAI philosophy
+- `~/.config/opencode/skills/CORE/SkillSystem.md` - Canonical structure guide
+- `~/.config/opencode/skills/CORE/CONSTITUTION.md` - Overall PAI philosophy
 
 **Last Updated:** 2025-11-23

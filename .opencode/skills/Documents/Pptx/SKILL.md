@@ -9,7 +9,7 @@ description: PowerPoint processing. USE WHEN pptx, PowerPoint, slides. SkillSear
 
 **Before starting any task with this skill, load complete PAI context:**
 
-`read ~/.opencode/skills/CORE/SKILL.md`
+`read ~/.config/opencode/skills/CORE/SKILL.md`
 
 This provides access to:
 - Complete contact list (Angela, Bunny, Saša, Greg, team members)

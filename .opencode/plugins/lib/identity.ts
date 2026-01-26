@@ -6,12 +6,8 @@
  * All hooks and tools should import from here.
  */
 
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
-
-const HOME = process.env.HOME!;
-// OpenCode uses ~/.opencode/ instead of ~/.opencode/
-const SETTINGS_PATH = join(HOME, '.opencode/settings.json');
+import { readFileSync, existsSync } from "fs";
+import { getPaiRuntimeInfo } from "./pai-runtime";
 
 // Default identity (fallback if settings.json doesn't have identity section)
 const DEFAULT_IDENTITY = {
@@ -66,13 +62,15 @@ let cachedSettings: Settings | null = null;
 function loadSettings(): Settings {
   if (cachedSettings) return cachedSettings;
 
+  const { settingsPath } = getPaiRuntimeInfo();
+
   try {
-    if (!existsSync(SETTINGS_PATH)) {
+    if (!existsSync(settingsPath)) {
       cachedSettings = {};
       return cachedSettings;
     }
 
-    const content = readFileSync(SETTINGS_PATH, 'utf-8');
+    const content = readFileSync(settingsPath, "utf-8");
     cachedSettings = JSON.parse(content);
     return cachedSettings!;
   } catch {

@@ -249,7 +249,7 @@ PHILOSOPHY:
   - Documented: This help + README
   - Testable: Predictable behavior
 
-For full documentation: ~/.opencode/Bin/${CLI_NAME}/README.md
+For full documentation: ~/.config/opencode/Bin/${CLI_NAME}/README.md
 Version: ${VERSION}
 `);
 }

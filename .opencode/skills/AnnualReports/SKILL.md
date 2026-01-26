@@ -6,7 +6,7 @@ description: Security report aggregation. USE WHEN annual reports, security repo
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/AnnualReports/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/AnnualReports/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -26,13 +26,13 @@ Aggregates and analyzes annual security reports from 570+ sources across the cyb
 
 ```bash
 # Update sources from GitHub
-bun run ~/.opencode/skills/AnnualReports/Tools/UpdateSources.ts
+bun run ~/.config/opencode/skills/AnnualReports/Tools/UpdateSources.ts
 
 # List all sources
-bun run ~/.opencode/skills/AnnualReports/Tools/ListSources.ts [category]
+bun run ~/.config/opencode/skills/AnnualReports/Tools/ListSources.ts [category]
 
 # Fetch a specific report
-bun run ~/.opencode/skills/AnnualReports/Tools/FetchReport.ts <vendor> <report-name>
+bun run ~/.config/opencode/skills/AnnualReports/Tools/FetchReport.ts <vendor> <report-name>
 ```
 
 ## Categories

@@ -5,20 +5,20 @@ The banner displays at the start of every PAI session, providing a visual identi
 ## Banner Location
 
 ```
-~/.opencode/skills/CORE/Tools/Banner.ts
+~/.config/opencode/skills/CORE/Tools/Banner.ts
 ```
 
 ## Usage
 
 ```bash
 # Display default banner (Navy theme)
-bun ~/.opencode/skills/CORE/Tools/Banner.ts
+bun ~/.config/opencode/skills/CORE/Tools/Banner.ts
 
 # Display specific design
-bun ~/.opencode/skills/CORE/Tools/Banner.ts --design=electric
+bun ~/.config/opencode/skills/CORE/Tools/Banner.ts --design=electric
 
 # Preview all designs
-bun ~/.opencode/skills/CORE/Tools/Banner.ts --test
+bun ~/.config/opencode/skills/CORE/Tools/Banner.ts --test
 ```
 
 ## Available Designs
@@ -43,7 +43,7 @@ bun ~/.opencode/skills/CORE/Tools/Banner.ts --test
 
 ## Configuration
 
-The banner reads configuration from `~/.opencode/settings.json`:
+The banner reads configuration from `~/.config/opencode/settings.json`:
 
 ```json
 {

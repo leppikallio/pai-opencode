@@ -26,7 +26,7 @@
 ## New Files Created
 
 ```
-~/.opencode/skills/Agents/
+~/.config/opencode/skills/Agents/
 ├── ArchitectContext.md      ✅ NEW - Simple reference file
 ├── EngineerContext.md        ✅ NEW - Simple reference file
 ├── DesignerContext.md        ✅ NEW - Simple reference file
@@ -41,7 +41,7 @@
 
 ## Deprecated Files (Backed Up)
 
-Old YAML system backed up to: `~/.opencode/History/Backups/2025-12-18-AgentProfiles/`
+Old YAML system backed up to: `~/.config/opencode/History/Backups/2025-12-18-AgentProfiles/`
 
 - Architect.yaml
 - Engineer.yaml
@@ -115,14 +115,14 @@ All commands work as expected:
 
 ```bash
 # List available agents
-bun run ~/.opencode/skills/Agents/Tools/LoadAgentContext.ts
+bun run ~/.config/opencode/skills/Agents/Tools/LoadAgentContext.ts
 # Output: Architect, Artist, Engineer, Designer, QATester
 
 # View specific context
-bun run ~/.opencode/skills/Agents/Tools/LoadAgentContext.ts Architect
+bun run ~/.config/opencode/skills/Agents/Tools/LoadAgentContext.ts Architect
 
 # Generate enriched prompt
-bun run ~/.opencode/skills/Agents/Tools/LoadAgentContext.ts Engineer "Implement TDD workflow"
+bun run ~/.config/opencode/skills/Agents/Tools/LoadAgentContext.ts Engineer "Implement TDD workflow"
 ```
 
 ---

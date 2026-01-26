@@ -11,7 +11,7 @@ Background removal, background addition, and image optimization utilities.
 
 ## Tools Available
 
-**Location:** `~/.opencode/skills/CORE/Tools/`
+**Location:** `~/.config/opencode/skills/CORE/Tools/`
 
 | Tool | Purpose |
 |------|---------|
@@ -24,23 +24,23 @@ Background removal, background addition, and image optimization utilities.
 
 ```bash
 # Single file (overwrites original)
-bun ~/.opencode/skills/CORE/Tools/RemoveBg.ts image.png
+bun ~/.config/opencode/skills/CORE/Tools/RemoveBg.ts image.png
 
 # Single file with output path
-bun ~/.opencode/skills/CORE/Tools/RemoveBg.ts input.png output.png
+bun ~/.config/opencode/skills/CORE/Tools/RemoveBg.ts input.png output.png
 
 # Batch process multiple files
-bun ~/.opencode/skills/CORE/Tools/RemoveBg.ts image1.png image2.png image3.png
+bun ~/.config/opencode/skills/CORE/Tools/RemoveBg.ts image1.png image2.png image3.png
 ```
 
 ### Add Background Color
 
 ```bash
 # Add custom background color
-bun ~/.opencode/skills/CORE/Tools/AddBg.ts input.png "#FFFFFF" output.png
+bun ~/.config/opencode/skills/CORE/Tools/AddBg.ts input.png "#FFFFFF" output.png
 
 # Add UL brand background (sepia/cream #EAE9DF)
-bun ~/.opencode/skills/CORE/Tools/AddBg.ts input.png --ul-brand output.png
+bun ~/.config/opencode/skills/CORE/Tools/AddBg.ts input.png --ul-brand output.png
 ```
 
 ## Environment Variables
@@ -57,7 +57,7 @@ Get your API key at: https://www.remove.bg/api
 ### Example 1: Remove Background from Generated Image
 
 ```bash
-bun ~/.opencode/skills/CORE/Tools/RemoveBg.ts ~/Downloads/ai-generated-header.png
+bun ~/.config/opencode/skills/CORE/Tools/RemoveBg.ts ~/Downloads/ai-generated-header.png
 # Overwrites with transparent background version
 ```
 
@@ -65,29 +65,29 @@ bun ~/.opencode/skills/CORE/Tools/RemoveBg.ts ~/Downloads/ai-generated-header.pn
 
 ```bash
 # First remove background
-bun ~/.opencode/skills/CORE/Tools/RemoveBg.ts header.png header-transparent.png
+bun ~/.config/opencode/skills/CORE/Tools/RemoveBg.ts header.png header-transparent.png
 
 # Then add UL brand background
-bun ~/.opencode/skills/CORE/Tools/AddBg.ts header-transparent.png --ul-brand header-thumb.png
+bun ~/.config/opencode/skills/CORE/Tools/AddBg.ts header-transparent.png --ul-brand header-thumb.png
 ```
 
 ### Example 3: Batch Remove Backgrounds
 
 ```bash
-bun ~/.opencode/skills/CORE/Tools/RemoveBg.ts diagram1.png diagram2.png diagram3.png
+bun ~/.config/opencode/skills/CORE/Tools/RemoveBg.ts diagram1.png diagram2.png diagram3.png
 # All three files processed with transparent backgrounds
 ```
 
 ### Example 4: Add Dark Background for Dark Mode
 
 ```bash
-bun ~/.opencode/skills/CORE/Tools/AddBg.ts logo-transparent.png "#1a1a1a" logo-dark.png
+bun ~/.config/opencode/skills/CORE/Tools/AddBg.ts logo-transparent.png "#1a1a1a" logo-dark.png
 ```
 
 ### Example 5: Add White Background
 
 ```bash
-bun ~/.opencode/skills/CORE/Tools/AddBg.ts chart.png "#FFFFFF" chart-white.png
+bun ~/.config/opencode/skills/CORE/Tools/AddBg.ts chart.png "#FFFFFF" chart-white.png
 ```
 
 ## Common Colors

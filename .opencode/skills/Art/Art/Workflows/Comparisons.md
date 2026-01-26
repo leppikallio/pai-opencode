@@ -49,7 +49,7 @@ Illustrated comparisons show two contrasting concepts, states, or approaches sid
 ### Character Requirements (When figures present)
 
 **If comparison includes human or robot figures, MUST apply Planeform aesthetic:**
-- Read: `~/.opencode/skills/CORE/Aesthetic.md`
+- Read: `~/.config/opencode/skills/CORE/Aesthetic.md`
 - Figures built from ANGULAR PLANES (no round forms)
 - Adult proportions (1:7), NOT cute/stubby
 - Faces are minimal geometric blocks
@@ -285,7 +285,7 @@ Optional: Sign small in bottom right corner in charcoal (#2D2D2D).
 ### Step 5: Execute Generation
 
 ```bash
-bun run ~/.opencode/skills/art/Tools/Generate.ts \
+bun run ~/.config/opencode/skills/art/Tools/Generate.ts \
   --model nano-banana-pro \
   --prompt "[YOUR PROMPT]" \
   --size 2K \

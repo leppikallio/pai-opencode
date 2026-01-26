@@ -402,7 +402,7 @@ Route notifications based on event type and priority. User-specific configuratio
 ### Repository Separation
 
 ```
-PRIVATE: ~/.opencode/                    PUBLIC: ${PROJECTS_DIR}/PAI/
+PRIVATE: ~/.config/opencode/                    PUBLIC: ${PROJECTS_DIR}/PAI/
 ├── Personal data                      ├── Sanitized examples
 ├── API keys (.env)                    ├── Generic templates
 ├── Session history                    └── Community sharing

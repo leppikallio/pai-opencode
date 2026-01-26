@@ -33,7 +33,7 @@ Ask the user:
 
 ### Step 2: Create Judge Config
 
-Create `~/.opencode/skills/Evals/UseCases/<name>/judge-config.yaml`:
+Create `~/.config/opencode/skills/Evals/UseCases/<name>/judge-config.yaml`:
 
 ```yaml
 judge:
@@ -65,10 +65,10 @@ output:
 ### Step 3: Render Judge Prompt
 
 ```bash
-bun run ~/.opencode/Templates/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/Templates/Tools/RenderTemplate.ts \
   -t Evals/Judge.hbs \
-  -d ~/.opencode/skills/Evals/UseCases/<name>/judge-config.yaml \
-  -o ~/.opencode/skills/Evals/UseCases/<name>/judge-prompt.md \
+  -d ~/.config/opencode/skills/Evals/UseCases/<name>/judge-config.yaml \
+  -o ~/.config/opencode/skills/Evals/UseCases/<name>/judge-prompt.md \
   --preview
 ```
 
@@ -99,7 +99,7 @@ criteria:
 Run a single test case to verify:
 
 ```bash
-bun run ~/.opencode/skills/Evals/EvalServer/cli-run.ts \
+bun run ~/.config/opencode/skills/Evals/EvalServer/cli-run.ts \
   --use-case <name> \
   --test-id <single-test> \
   --verbose

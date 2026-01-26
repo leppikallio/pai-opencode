@@ -1,15 +1,50 @@
 {
-  "identity": {
-    "assistant_name": "PAI",
-    "user_name": "User"
+  "paiVersion": "2.4-opencode",
+  "env": {
+    "PAI_DIR": "~/.config/opencode",
+    "OPENCODE_MAX_OUTPUT_TOKENS": "80000",
+    "BASH_DEFAULT_TIMEOUT_MS": "600000"
   },
-  "environment": {
-    "PAI_DIR": ".opencode",
-    "TIME_ZONE": "Europe/Berlin"
+  "contextFiles": [
+    "skills/CORE/SKILL.md",
+    "skills/CORE/SYSTEM/AISTEERINGRULES.md",
+    "skills/CORE/USER/AISTEERINGRULES.md",
+    "skills/CORE/USER/DAIDENTITY.md"
+  ],
+  "daidentity": {
+    "name": "PAI",
+    "fullName": "PAI - Personal AI",
+    "displayName": "PAI",
+    "color": "#3B82F6",
+    "voiceId": "pNInz6obpgDQGcFmaJgB",
+    "voice": {
+      "stability": 0.35,
+      "similarity_boost": 0.8,
+      "style": 0.9,
+      "speed": 1.1,
+      "use_speaker_boost": true,
+      "volume": 0.8
+    },
+    "startupCatchphrase": "PAI here, ready to help."
   },
-  "preferences": {
-    "language": "TypeScript",
-    "package_manager": "bun",
-    "runtime": "bun"
+  "principal": {
+    "name": "User",
+    "timezone": "UTC"
+  },
+  "pai": {
+    "source": "github.com/Steffen025/pai-opencode",
+    "upstream": "github.com/danielmiessler/PAI",
+    "version": "2.4"
+  },
+  "techStack": {
+    "browser": "arc",
+    "terminal": "terminal",
+    "packageManager": "bun",
+    "language": "TypeScript"
+  },
+  "provider": {
+    "id": "openai",
+    "name": "OpenAI",
+    "model": "openai/gpt-4o"
   }
 }

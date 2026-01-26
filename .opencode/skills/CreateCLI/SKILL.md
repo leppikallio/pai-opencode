@@ -6,7 +6,7 @@ description: "Generate TypeScript CLIs. USE WHEN create CLI, build CLI, command-
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/CreateCLI/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/CreateCLI/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -159,7 +159,7 @@ Generated CLIs follow PAI standards:
 ### Repository Placement
 
 Generated CLIs go to:
-- `~/.opencode/Bin/[cli-name]/` - Personal CLIs (like llcli)
+- `~/.config/opencode/Bin/[cli-name]/` - Personal CLIs (like llcli)
 - `~/Projects/[project-name]/` - Project-specific CLIs
 - `~/Projects/PAI/Examples/clis/` - Example CLIs (PUBLIC repo)
 
@@ -216,7 +216,7 @@ Every generated CLI follows:
 
 **Generated Structure:**
 ```
-~/.opencode/Bin/ghcli/
+~/.config/opencode/Bin/ghcli/
 ├── ghcli.ts              # 350 lines, complete implementation
 ├── package.json          # Bun + TypeScript
 ├── tsconfig.json         # Strict mode
@@ -242,7 +242,7 @@ ghcli --help
 
 **Generated Structure:**
 ```
-~/.opencode/Bin/md2html/
+~/.config/opencode/Bin/md2html/
 ├── md2html.ts
 ├── package.json
 ├── README.md
@@ -265,7 +265,7 @@ md2html extract-frontmatter post.md
 
 **Generated Structure:**
 ```
-~/.opencode/Bin/data-cli/
+~/.config/opencode/Bin/data-cli/
 ├── data-cli.ts           # Commander.js with subcommands
 ├── package.json
 ├── README.md

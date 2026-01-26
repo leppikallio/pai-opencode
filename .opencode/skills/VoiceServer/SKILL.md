@@ -6,7 +6,7 @@ description: Voice server management. USE WHEN voice server, TTS server, voice n
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/VoiceServer/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/VoiceServer/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -34,7 +34,7 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 **Domain**: Voice notification system using ElevenLabs TTS with prosody guidance.
 
-**Algorithm**: `~/.opencode/skills/CORE/SKILL.md (Algorithm embedded in v2.4)`
+**Algorithm**: `~/.config/opencode/skills/CORE/SKILL.md (Algorithm embedded in v2.4)`
 
 ---
 
@@ -58,7 +58,7 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 ### EXECUTE
 - **Notify**: `curl -X POST http://localhost:8888/notify -H "Content-Type: application/json" -d '{"message":"...", "voice_id":"..."}'`
-- **Manage**: `~/.opencode/VoiceServer/{start,stop,status,restart}.sh`
+- **Manage**: `~/.config/opencode/VoiceServer/{start,stop,status,restart}.sh`
 - **Workflow**: `Workflows/Status.md`
 
 ---
@@ -73,10 +73,10 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 | pentester | ${PENTESTER_VOICE_ID} | Configure pentester voice |
 | architect | ${ARCHITECT_VOICE_ID} | Configure architect voice |
 
-Configure voice IDs in your environment or `~/.opencode/VoiceServer/voices.json`
+Configure voice IDs in your environment or `~/.config/opencode/VoiceServer/voices.json`
 
 **Prosody Quick Reference**:
 - Emotional: `[💥 excited]` `[✨ success]` `[⚠️ caution]` `[🚨 urgent]`
 - Emphasis: `**bold**` for key words, `...` for pause, `--` for break
 
-**Infrastructure**: Server at `~/.opencode/VoiceServer/`, Port 8888, Config `voices.json`
+**Infrastructure**: Server at `~/.config/opencode/VoiceServer/`, Port 8888, Config `voices.json`

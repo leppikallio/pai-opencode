@@ -166,7 +166,7 @@ Include any professional or community involvement.
 
 **Description:** Use discovered phone/email/username for additional data
 
-**Invoke:** Read ~/.opencode/skills/PrivateInvestigator/Workflows/Reverse-lookup.md
+**Invoke:** Read ~/.config/opencode/skills/PrivateInvestigator/Workflows/Reverse-lookup.md
 
 **For Each Phone Number Found:**
 - Run through CallerID, NumLookup
@@ -208,7 +208,7 @@ Include any professional or community involvement.
 
 **Description:** Confirm you've found the correct person
 
-**Invoke:** Read ~/.opencode/skills/PrivateInvestigator/Workflows/Verify-identity.md
+**Invoke:** Read ~/.config/opencode/skills/PrivateInvestigator/Workflows/Verify-identity.md
 
 **Verification Checklist:**
 - [ ] Age/DOB matches expected range

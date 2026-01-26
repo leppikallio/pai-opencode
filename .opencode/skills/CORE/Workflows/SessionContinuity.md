@@ -17,7 +17,7 @@
 
 ### Session Progress CLI
 ```bash
-bun run ~/.opencode/skills/CORE/Tools/SessionProgress.ts <command>
+bun run ~/.config/opencode/skills/CORE/Tools/SessionProgress.ts <command>
 ```
 
 **Commands:**
@@ -33,7 +33,7 @@ bun run ~/.opencode/skills/CORE/Tools/SessionProgress.ts <command>
 
 ### Feature Registry CLI
 ```bash
-bun run ~/.opencode/skills/CORE/Tools/FeatureRegistry.ts <command>
+bun run ~/.config/opencode/skills/CORE/Tools/FeatureRegistry.ts <command>
 ```
 
 **Commands:**
@@ -57,7 +57,7 @@ pwd
 Automatic via startup hook - PAI context loaded
 
 ### Step 3: Check for Active Tasks
-**Automatic!** The startup hook now checks `~/.opencode/MEMORY/progress/` for active work and displays it at session start. You'll see:
+**Automatic!** The startup hook now checks `~/.config/opencode/MEMORY/progress/` for active work and displays it at session start. You'll see:
 
 ```
 📋 ACTIVE WORK (from previous sessions):
@@ -72,11 +72,11 @@ Automatic via startup hook - PAI context loaded
    → Implement login endpoint
 ```
 
-Manual check: `bun run ~/.opencode/skills/CORE/Tools/SessionProgress.ts list`
+Manual check: `bun run ~/.config/opencode/skills/CORE/Tools/SessionProgress.ts list`
 
 ### Step 4: Review Last Session State (if resuming)
 ```bash
-bun run ~/.opencode/skills/CORE/Tools/SessionProgress.ts resume <project>
+bun run ~/.config/opencode/skills/CORE/Tools/SessionProgress.ts resume <project>
 ```
 
 ### Step 5: Execute Project Init (if exists)
@@ -95,27 +95,27 @@ bun test 2>/dev/null || npm test 2>/dev/null || echo "No tests configured"
 
 ```bash
 # 1. Create progress file
-bun run ~/.opencode/skills/CORE/Tools/SessionProgress.ts create my-feature \
+bun run ~/.config/opencode/skills/CORE/Tools/SessionProgress.ts create my-feature \
   "Implement user authentication" \
   "Add OAuth providers"
 
 # 2. Initialize feature registry (if multiple features)
-bun run ~/.opencode/skills/CORE/Tools/FeatureRegistry.ts init my-feature
-bun run ~/.opencode/skills/CORE/Tools/FeatureRegistry.ts add my-feature "Login form" --priority P1
-bun run ~/.opencode/skills/CORE/Tools/FeatureRegistry.ts add my-feature "Password reset" --priority P2
+bun run ~/.config/opencode/skills/CORE/Tools/FeatureRegistry.ts init my-feature
+bun run ~/.config/opencode/skills/CORE/Tools/FeatureRegistry.ts add my-feature "Login form" --priority P1
+bun run ~/.config/opencode/skills/CORE/Tools/FeatureRegistry.ts add my-feature "Password reset" --priority P2
 
 # 3. Work on task, recording progress
-bun run ~/.opencode/skills/CORE/Tools/SessionProgress.ts decision my-feature \
+bun run ~/.config/opencode/skills/CORE/Tools/SessionProgress.ts decision my-feature \
   "Using JWT tokens" "Simpler than sessions for API-first architecture"
 
-bun run ~/.opencode/skills/CORE/Tools/SessionProgress.ts work my-feature \
+bun run ~/.config/opencode/skills/CORE/Tools/SessionProgress.ts work my-feature \
   "Created User model and migration" src/models/user.ts src/migrations/001_users.sql
 
 # 4. Before ending session, set handoff
-bun run ~/.opencode/skills/CORE/Tools/SessionProgress.ts next my-feature \
+bun run ~/.config/opencode/skills/CORE/Tools/SessionProgress.ts next my-feature \
   "Write auth service tests" "Implement login endpoint" "Add JWT validation"
 
-bun run ~/.opencode/skills/CORE/Tools/SessionProgress.ts handoff my-feature \
+bun run ~/.config/opencode/skills/CORE/Tools/SessionProgress.ts handoff my-feature \
   "Auth model complete, ready for service implementation. Tests should verify JWT claims."
 ```
 
@@ -123,16 +123,16 @@ bun run ~/.opencode/skills/CORE/Tools/SessionProgress.ts handoff my-feature \
 
 ```bash
 # 1. Check for active tasks
-bun run ~/.opencode/skills/CORE/Tools/SessionProgress.ts list
+bun run ~/.config/opencode/skills/CORE/Tools/SessionProgress.ts list
 
 # 2. Load context for specific project
-bun run ~/.opencode/skills/CORE/Tools/SessionProgress.ts resume my-feature
+bun run ~/.config/opencode/skills/CORE/Tools/SessionProgress.ts resume my-feature
 
 # 3. Check feature status
-bun run ~/.opencode/skills/CORE/Tools/FeatureRegistry.ts list my-feature
+bun run ~/.config/opencode/skills/CORE/Tools/FeatureRegistry.ts list my-feature
 
 # 4. Get next feature to work on
-bun run ~/.opencode/skills/CORE/Tools/FeatureRegistry.ts next my-feature
+bun run ~/.config/opencode/skills/CORE/Tools/FeatureRegistry.ts next my-feature
 ```
 
 ## Integration with Development Skill

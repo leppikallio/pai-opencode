@@ -265,7 +265,7 @@ const format = formatIdx !== -1 ? args[formatIdx + 1] : 'json';
 4. **Value flags**: `--flag <value>` for choices
 5. **Composable**: Flags should combine logically
 
-**Reference:** `~/.opencode/skills/CORE/CliFirstArchitecture.md` (Configuration Flags section)
+**Reference:** `~/.config/opencode/skills/CORE/CliFirstArchitecture.md` (Configuration Flags section)
 
 ---
 
@@ -360,7 +360,7 @@ PHILOSOPHY:
   - Documented: Full help and examples
   - Testable: Predictable behavior
 
-For more information, see ~/.opencode/Bin/{{CLI_NAME}}/README.md
+For more information, see ~/.config/opencode/Bin/{{CLI_NAME}}/README.md
 
 Version: 1.0.0
 `);
@@ -526,7 +526,7 @@ main().catch((error) => {
 
 ## Full Documentation
 
-See: ~/.opencode/Bin/{{CLI_NAME}}/README.md
+See: ~/.config/opencode/Bin/{{CLI_NAME}}/README.md
 ```
 
 ---
@@ -592,7 +592,7 @@ See: ~/.opencode/Bin/{{CLI_NAME}}/README.md
 
 **Validation Commands:**
 ```bash
-cd ~/.opencode/Bin/{{CLI_NAME}}/
+cd ~/.config/opencode/Bin/{{CLI_NAME}}/
 chmod +x {{CLI_NAME}}.ts
 ./{{CLI_NAME}}.ts --help
 ./{{CLI_NAME}}.ts --version
@@ -600,7 +600,7 @@ chmod +x {{CLI_NAME}}.ts
 
 **Report to user:**
 ```
-✅ CLI Created: ~/.opencode/Bin/{{CLI_NAME}}/
+✅ CLI Created: ~/.config/opencode/Bin/{{CLI_NAME}}/
 
 Files generated:
 - {{CLI_NAME}}.ts ({{LINE_COUNT}} lines)
@@ -615,7 +615,7 @@ Next steps:
 2. Test: ./{{CLI_NAME}}.ts --help
 3. Use: ./{{CLI_NAME}}.ts {{EXAMPLE_COMMAND}}
 
-Documentation: ~/.opencode/Bin/{{CLI_NAME}}/README.md
+Documentation: ~/.config/opencode/Bin/{{CLI_NAME}}/README.md
 ```
 
 ---
@@ -627,7 +627,7 @@ Documentation: ~/.opencode/Bin/{{CLI_NAME}}/README.md
 
 **Generated Output:**
 ```
-✅ CLI Created: ~/.opencode/Bin/notioncli/
+✅ CLI Created: ~/.config/opencode/Bin/notioncli/
 
 Files generated:
 - notioncli.ts (342 lines)
@@ -646,7 +646,7 @@ Commands available:
 Next steps:
 1. Add NOTION_API_KEY=your_key to ${PAI_DIR}/.env
 2. Test: notioncli databases
-3. Read: ~/.opencode/Bin/notioncli/README.md
+3. Read: ~/.config/opencode/Bin/notioncli/README.md
 
 The CLI follows llcli pattern with type safety, error handling,
 and comprehensive documentation.
@@ -740,7 +740,7 @@ Show real usage examples, not just flag descriptions.
 Run `--help` and version command before reporting success.
 
 ### 8. **Follow llcli Pattern**
-Use proven structure from ~/.opencode/Bin/llcli/ as reference.
+Use proven structure from ~/.config/opencode/Bin/llcli/ as reference.
 
 ---
 

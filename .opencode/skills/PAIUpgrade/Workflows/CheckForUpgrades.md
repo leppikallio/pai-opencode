@@ -22,7 +22,7 @@ Both source types are checked, and results are combined into a single prioritize
 
 Run the Anthropic check tool:
 ```bash
-bun ~/.opencode/skills/PAIUpgrade/Tools/Anthropic.ts
+bun ~/.config/opencode/skills/PAIUpgrade/Tools/Anthropic.ts
 ```
 
 **Options:**
@@ -43,7 +43,7 @@ bun ~/.opencode/skills/PAIUpgrade/Tools/Anthropic.ts
 
 **Load channel configuration (merges base + user customizations):**
 ```bash
-bun ~/.opencode/skills/CORE/Tools/LoadSkillConfig.ts ~/.opencode/skills/PAIUpgrade youtube-channels.json
+bun ~/.config/opencode/skills/CORE/Tools/LoadSkillConfig.ts ~/.config/opencode/skills/PAIUpgrade youtube-channels.json
 ```
 
 **For each channel, check for new videos:**
@@ -53,12 +53,12 @@ yt-dlp --flat-playlist --dump-json "https://www.youtube.com/@channelhandle/video
 
 **Compare against state:**
 ```bash
-cat ~/.opencode/skills/PAIUpgrade/State/youtube-videos.json
+cat ~/.config/opencode/skills/PAIUpgrade/State/youtube-videos.json
 ```
 
 **For new videos, extract transcripts:**
 ```bash
-bun ~/.opencode/skills/CORE/Tools/GetTranscript.ts "<video-url>"
+bun ~/.config/opencode/skills/CORE/Tools/GetTranscript.ts "<video-url>"
 ```
 
 **Update state** with new video IDs (keep last 50 per channel).
@@ -121,7 +121,7 @@ State prevents duplicate reports - only NEW content is shown.
 
 **YouTube channels:** Two-tier configuration
 - Base: `youtube-channels.json` (empty by default)
-- User: `~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/youtube-channels.json`
+- User: `~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/youtube-channels.json`
 
 Use the config loader to merge both automatically.
 

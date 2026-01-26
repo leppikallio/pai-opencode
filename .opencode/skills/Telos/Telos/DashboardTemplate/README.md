@@ -30,7 +30,7 @@ A reusable Next.js dashboard template with Tokyo Night Day theme, shadcn/ui comp
 ### 1. Copy the Template
 
 ```bash
-cp -r ~/.opencode/skills/telos/dashboard-template /path/to/your/project
+cp -r ~/.config/opencode/skills/telos/dashboard-template /path/to/your/project
 cd /path/to/your/project
 ```
 
@@ -179,8 +179,8 @@ The template includes a complete file management system for TELOS files (markdow
 - `getAllTelosData()` - Scans TELOS directory and returns all files
 - `getTelosFileCount()` - Returns total file count
 - `getTelosFileList()` - Returns array of filenames
-- Searches `~/.opencode/skills/life/telos/` for `.md` files
-- Searches `~/.opencode/skills/life/telos/data/` for `.csv` files
+- Searches `~/.config/opencode/skills/life/telos/` for `.md` files
+- Searches `~/.config/opencode/skills/life/telos/data/` for `.csv` files
 
 ### File Upload
 **Page**: `app/add-file/page.tsx`

@@ -6,7 +6,7 @@ description: Aphorism management. USE WHEN aphorism, quote, saying. SkillSearch(
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Aphorisms/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Aphorisms/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -40,22 +40,22 @@ Running the **WorkflowName** workflow in the **Aphorisms** skill to ACTION...
 
 **When user requests finding perfect aphorism for newsletter content:**
 Examples: "find aphorism for this newsletter", "find quote for this content", "what aphorism fits this", "suggest quote for newsletter", "match aphorism to this article", "perfect quote for this", "aphorism recommendation"
-→ **READ:** ~/.opencode/skills/aphorisms/Workflows/Find-aphorism.md
+→ **READ:** ~/.config/opencode/skills/aphorisms/Workflows/Find-aphorism.md
 → **EXECUTE:** Analyze content themes and recommend matching aphorism from database
 
 **When user requests adding new aphorism to database:**
 Examples: "add this quote", "add aphorism", "save this quote", "add to aphorism database", "new aphorism", "store this quote", "include this in collection"
-→ **READ:** ~/.opencode/skills/aphorisms/Workflows/Add-aphorism.md
+→ **READ:** ~/.config/opencode/skills/aphorisms/Workflows/Add-aphorism.md
 → **EXECUTE:** Add new aphorism with proper metadata and theme tagging
 
 **When user requests researching specific thinker's quotes:**
 Examples: "research Hitchens quotes", "find Feynman aphorisms", "what did Spinoza say about", "get quotes from Sam Harris", "research David Deutsch wisdom", "thinker quotes on [topic]"
-→ **READ:** ~/.opencode/skills/aphorisms/Workflows/Research-thinker.md
+→ **READ:** ~/.config/opencode/skills/aphorisms/Workflows/Research-thinker.md
 → **EXECUTE:** Research thinker's relevant quotes and add to database
 
 **When user requests searching aphorisms by theme or keyword:**
 Examples: "search aphorisms about resilience", "find quotes on learning", "aphorisms about stoicism", "quotes matching [keyword]", "show me quotes about [theme]", "what aphorisms do we have on"
-→ **READ:** ~/.opencode/skills/aphorisms/Workflows/Search-aphorisms.md
+→ **READ:** ~/.config/opencode/skills/aphorisms/Workflows/Search-aphorisms.md
 → **EXECUTE:** Search database by theme, keyword, or author
 
 ---
@@ -138,7 +138,7 @@ Aphorisms categorized by themes matching user content:
 
 ## Database Structure
 
-**Location:** `~/.opencode/skills/aphorisms/Database/aphorisms.md`
+**Location:** `~/.config/opencode/skills/aphorisms/Database/aphorisms.md`
 
 **Current Collections:**
 1. **Initial Collection (Rahil Arora)** - 15 curated quotes covering core themes
@@ -359,7 +359,7 @@ All five thinkers align with TELOS themes of **wisdom, rationality, truth-seekin
 - "Search aphorisms about [theme]" → Theme-based search
 
 **Database Location:**
-`~/.opencode/skills/aphorisms/Database/aphorisms.md`
+`~/.config/opencode/skills/aphorisms/Database/aphorisms.md`
 
 **Current Collection Size:**
 - 15 initial quotes (Rahil Arora collection)

@@ -16,30 +16,30 @@ User Request -> AI orchestrates -> EvalServer CLI -> Deterministic results
 
 ```bash
 # Create new use case
-bun run ~/.opencode/skills/Evals/EvalServer/cli.ts use-case create --name <name>
+bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts use-case create --name <name>
 
 # List all use cases
-bun run ~/.opencode/skills/Evals/EvalServer/cli.ts use-case list
+bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts use-case list
 
 # Show use case details
-bun run ~/.opencode/skills/Evals/EvalServer/cli.ts use-case show <name>
+bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts use-case show <name>
 ```
 
 ### Test Case Management
 
 ```bash
 # Add test case to use case
-bun run ~/.opencode/skills/Evals/EvalServer/cli.ts test-case add --use-case <name>
+bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts test-case add --use-case <name>
 
 # List test cases for use case
-bun run ~/.opencode/skills/Evals/EvalServer/cli.ts test-case list --use-case <name>
+bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts test-case list --use-case <name>
 ```
 
 ### Run Evaluations
 
 ```bash
 # Run eval for use case (optional model specification)
-bun run ~/.opencode/skills/Evals/EvalServer/cli-run.ts --use-case <name> [--model <model>]
+bun run ~/.config/opencode/skills/Evals/EvalServer/cli-run.ts --use-case <name> [--model <model>]
 ```
 
 ---
@@ -49,7 +49,7 @@ bun run ~/.opencode/skills/Evals/EvalServer/cli-run.ts --use-case <name> [--mode
 Start the EvalServer for visual evaluation:
 
 ```bash
-cd ~/.opencode/skills/Evals/EvalServer
+cd ~/.config/opencode/skills/Evals/EvalServer
 bun run dev  # Starts on http://localhost:5173
 ```
 
@@ -66,7 +66,7 @@ bun run dev  # Starts on http://localhost:5173
 ### Files (Source of Truth)
 
 ```
-~/.opencode/skills/Evals/
+~/.config/opencode/skills/Evals/
 ├── UseCases/
 │   └── <name>/
 │       ├── config.yaml         # Criteria, thresholds

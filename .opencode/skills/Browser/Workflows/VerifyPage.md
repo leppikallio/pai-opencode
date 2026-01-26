@@ -6,7 +6,7 @@ Verify a page loads correctly and check for errors.
 
 1. **Launch and navigate**
    ```typescript
-   import { PlaywrightBrowser } from '~/.opencode/skills/Browser/index.ts'
+   import { PlaywrightBrowser } from '~/.config/opencode/skills/Browser/index.ts'
    const browser = new PlaywrightBrowser()
    await browser.launch({ headless: true })
 
@@ -48,7 +48,7 @@ Verify a page loads correctly and check for errors.
 ## Example: Full Verification
 
 ```typescript
-import { PlaywrightBrowser } from '~/.opencode/skills/Browser/index.ts'
+import { PlaywrightBrowser } from '~/.config/opencode/skills/Browser/index.ts'
 
 const browser = new PlaywrightBrowser()
 await browser.launch({ headless: true })
@@ -77,5 +77,5 @@ await browser.close()
 ## CLI Usage
 
 ```bash
-bun ~/.opencode/skills/Browser/examples/verify-page.ts https://example.com
+bun ~/.config/opencode/skills/Browser/examples/verify-page.ts https://example.com
 ```

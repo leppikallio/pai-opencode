@@ -7,7 +7,7 @@ context: fork
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -150,7 +150,7 @@ These are busywork, not upgrades. If the system does it, we don't need to "docum
 ### YouTube Monitoring
 
 YouTube channels are configured via the **Skill Customization Layer**.
-See `~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/` for user-specific channels.
+See `~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/` for user-specific channels.
 
 **Features:**
 - Detection of new videos via yt-dlp
@@ -174,11 +174,11 @@ See `~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/` for user-spec
 - `State/last-check.json` - Anthropic state
 - `State/youtube-videos.json` - YouTube state
 
-**User Customizations** (`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/`):
+**User Customizations** (`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/`):
 - `EXTEND.yaml` - Extension manifest
 - `youtube-channels.json` - User's personal YouTube channels
 
-Use `bun ~/.opencode/skills/CORE/Tools/LoadSkillConfig.ts` to load configs with customizations merged.
+Use `bun ~/.config/opencode/skills/CORE/Tools/LoadSkillConfig.ts` to load configs with customizations merged.
 
 ---
 
@@ -262,7 +262,7 @@ The skill improves its own recommendations over time:
 ### With System Components
 
 **History Capture:**
-- Log all upgrade analyses to `~/.opencode/History/research/YYYY-MM/`
+- Log all upgrade analyses to `~/.config/opencode/History/research/YYYY-MM/`
 - Build searchable archive of improvement ideas
 - Track implementation status over time
 

@@ -35,7 +35,7 @@ Post.md → Validate-Frontmatter → Verify → Validate-Images → Verify → P
 
 ## PIPELINE.md Format
 
-Every pipeline lives in `~/.opencode/PIPELINES/[Domain]_[Pipeline-Name]/PIPELINE.md`
+Every pipeline lives in `~/.config/opencode/PIPELINES/[Domain]_[Pipeline-Name]/PIPELINE.md`
 
 ### Required Sections
 
@@ -62,7 +62,7 @@ Every pipeline lives in `~/.opencode/PIPELINES/[Domain]_[Pipeline-Name]/PIPELINE
 
 ### Step 1: [Action_Name]
 
-**Action:** `~/.opencode/ACTIONS/[Action_Name]/ACTION.md`
+**Action:** `~/.config/opencode/ACTIONS/[Action_Name]/ACTION.md`
 
 **Input:**
 - [Required input 1]
@@ -93,7 +93,7 @@ Every pipeline lives in `~/.opencode/PIPELINES/[Domain]_[Pipeline-Name]/PIPELINE
 ### Naming Convention
 
 ```
-~/.opencode/PIPELINES/
+~/.config/opencode/PIPELINES/
 ├── Blog_Publish-Post/          # Domain_Action-Format
 │   └── PIPELINE.md
 ├── Newsletter_Full-Cycle/
@@ -251,8 +251,8 @@ Map out the complete workflow:
 ### Step 2: Create Pipeline Directory
 
 ```bash
-mkdir -p ~/.opencode/PIPELINES/[Domain]_[Pipeline-Name]
-cp ~/.opencode/PIPELINES/PIPELINE-TEMPLATE.md ~/.opencode/PIPELINES/[Domain]_[Pipeline-Name]/PIPELINE.md
+mkdir -p ~/.config/opencode/PIPELINES/[Domain]_[Pipeline-Name]
+cp ~/.config/opencode/PIPELINES/PIPELINE-TEMPLATE.md ~/.config/opencode/PIPELINES/[Domain]_[Pipeline-Name]/PIPELINE.md
 ```
 
 ### Step 3: Define Overview Table
@@ -378,10 +378,10 @@ Add a completed execution example showing all steps passed with their verificati
 
 ## Related Documentation
 
-- **Actions:** `~/.opencode/skills/CORE/SYSTEM/ACTIONS.md`
-- **Architecture:** `~/.opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md`
-- **Template:** `~/.opencode/PIPELINES/PIPELINE-TEMPLATE.md`
-- **Example:** `~/.opencode/PIPELINES/Blog_Publish-Post/PIPELINE.md`
+- **Actions:** `~/.config/opencode/skills/CORE/SYSTEM/ACTIONS.md`
+- **Architecture:** `~/.config/opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md`
+- **Template:** `~/.config/opencode/PIPELINES/PIPELINE-TEMPLATE.md`
+- **Example:** `~/.config/opencode/PIPELINES/Blog_Publish-Post/PIPELINE.md`
 
 ---
 

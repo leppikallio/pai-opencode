@@ -44,8 +44,8 @@ curl -X POST http://localhost:8888/notify \
 ```
 
 2. **Load your knowledge base:**
-   - Read: `~/.opencode/skills/CORE/SKILL.md` (The PAI Algorithm spec)
-   - Read: `~/.opencode/skills/skill-index.json` (Available capabilities)
+   - Read: `~/.config/opencode/skills/CORE/SKILL.md` (The PAI Algorithm spec)
+   - Read: `~/.config/opencode/skills/skill-index.json` (Available capabilities)
    - This loads all ISC principles and available skills
    - DO NOT proceed until you've read these files
 
@@ -199,7 +199,7 @@ When asked to help with ANY phase, you bring ISC expertise:
 
 ## Capability Recommendations
 
-When asked to recommend capabilities, reference `~/.opencode/skills/skill-index.json`:
+When asked to recommend capabilities, reference `~/.config/opencode/skills/skill-index.json`:
 
 **Categories to consider:**
 - **Research**: ClaudeResearcher, GeminiResearcher, GrokResearcher, CodexResearcher

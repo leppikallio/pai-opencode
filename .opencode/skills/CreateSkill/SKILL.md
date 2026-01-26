@@ -6,7 +6,7 @@ description: "Create and validate skills. USE WHEN create skill, new skill, skil
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/CreateSkill/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/CreateSkill/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -16,9 +16,9 @@ MANDATORY skill creation framework for ALL skill creation requests.
 
 ## Authoritative Source
 
-**Before creating ANY skill, READ:** `~/.opencode/skills/CORE/SkillSystem.md`
+**Before creating ANY skill, READ:** `~/.config/opencode/skills/CORE/SkillSystem.md`
 
-**Canonical example to follow:** `~/.opencode/skills/_BLOGGING/SKILL.md`
+**Canonical example to follow:** `~/.config/opencode/skills/_BLOGGING/SKILL.md`
 
 ## TitleCase Naming Convention
 
@@ -85,7 +85,7 @@ skills/SkillName/Tools/Utils/Helper.ts           # THREE levels - NO
 - Good: `Workflows/CompanyDueDiligence.md`
 - Bad: `Workflows/Company/DueDiligence.md`
 
-**See:** `~/.opencode/skills/CORE/SkillSystem.md` (Flat Folder Structure section)
+**See:** `~/.config/opencode/skills/CORE/SkillSystem.md` (Flat Folder Structure section)
 
 ---
 
@@ -198,7 +198,7 @@ Brief description.
 - **Efficiency:** Workflows load only what they actually need
 - **Maintainability:** Easier to update individual sections
 
-**See:** `~/.opencode/skills/CORE/SkillSystem.md` (Dynamic Loading Pattern section)
+**See:** `~/.config/opencode/skills/CORE/SkillSystem.md` (Dynamic Loading Pattern section)
 
 ---
 

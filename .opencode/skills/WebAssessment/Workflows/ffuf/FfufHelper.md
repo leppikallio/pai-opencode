@@ -4,7 +4,7 @@
 The FFUF helper script (`ffuf_helper.py`) automates common web fuzzing tasks and provides batch processing capabilities for penetration testing workflows.
 
 ## Location
-`~/.opencode/skills/Webassessment/ffuf-helper.py`
+`~/.config/opencode/skills/Webassessment/ffuf-helper.py`
 
 ## Purpose
 - Automate repetitive fuzzing tasks
@@ -128,7 +128,7 @@ python ffuf_helper.py \
 ## Configuration
 
 ### Wordlists
-The helper uses wordlists from `~/.opencode/skills/Webassessment/ffuf-resources/`:
+The helper uses wordlists from `~/.config/opencode/skills/Webassessment/ffuf-resources/`:
 - `common-directories.txt` - Common web directories
 - `common-files.txt` - Common file names
 - `subdomains.txt` - Subdomain wordlist
@@ -202,6 +202,6 @@ python ffuf_helper.py \
 
 ## See Also
 
-- Main FFUF guide: `~/.opencode/skills/Webassessment/Workflows/ffuf/ffuf-guide.md`
-- Pentest methodology: `~/.opencode/skills/Webassessment/Workflows/pentest/master-methodology.md`
-- Wordlist resources: `~/.opencode/skills/Webassessment/ffuf-resources/`
+- Main FFUF guide: `~/.config/opencode/skills/Webassessment/Workflows/ffuf/ffuf-guide.md`
+- Pentest methodology: `~/.config/opencode/skills/Webassessment/Workflows/pentest/master-methodology.md`
+- Wordlist resources: `~/.config/opencode/skills/Webassessment/ffuf-resources/`

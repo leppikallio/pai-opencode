@@ -7,11 +7,11 @@
  * base config with user customizations from SKILLCUSTOMIZATIONS directory.
  *
  * Usage:
- *   import { loadSkillConfig } from '~/.opencode/skills/CORE/Tools/LoadSkillConfig';
+ *   import { loadSkillConfig } from '~/.config/opencode/skills/CORE/Tools/LoadSkillConfig';
  *   const config = loadSkillConfig<MyConfigType>(__dirname, 'config.json');
  *
  * Or CLI:
- *   bun ~/.opencode/skills/CORE/Tools/LoadSkillConfig.ts <skill-dir> <filename>
+ *   bun ~/.config/opencode/skills/CORE/Tools/LoadSkillConfig.ts <skill-dir> <filename>
  */
 
 import { readFileSync, existsSync, readdirSync } from 'fs';
@@ -250,7 +250,7 @@ Usage:
   bun LoadSkillConfig.ts --check <skill-name>      Check if skill has customizations
 
 Examples:
-  bun LoadSkillConfig.ts ~/.opencode/skills/PAIUpgrade sources.json
+  bun LoadSkillConfig.ts ~/.config/opencode/skills/PAIUpgrade sources.json
   bun LoadSkillConfig.ts --list
   bun LoadSkillConfig.ts --check PAIUpgrade
 `);

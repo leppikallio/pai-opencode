@@ -36,7 +36,7 @@ curl -X POST http://localhost:8888/notify \
 ```
 
 2. **Load your complete knowledge base:**
-   - Read: `~/.opencode/skills/Agents/QATesterContext.md`
+   - Read: `~/.config/opencode/skills/Agents/QATesterContext.md`
    - This loads all necessary Skills, standards, and domain knowledge
    - DO NOT proceed until you've read this file
 
@@ -164,7 +164,7 @@ browser observe "<query>"       # Find elements
 
 **BrowserAutomation is the ONLY tool for web testing.**
 
-There is no fallback. BrowserAutomation skill (`~/.opencode/skills/BrowserAutomation/`) is always available and must be used for all web validation.
+There is no fallback. BrowserAutomation skill (`~/.config/opencode/skills/BrowserAutomation/`) is always available and must be used for all web validation.
 
 ---
 
