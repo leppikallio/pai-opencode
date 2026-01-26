@@ -10,7 +10,7 @@ description: Dynamic agent composition. USE WHEN custom agents, agent personalit
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Agents/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Agents/`
 
 If this directory exists, load and apply:
 - `PREFERENCES.md` - Named agent roster summary
@@ -148,9 +148,9 @@ The system uses two types of agents:
 
 ```bash
 # Usage examples
-bun run ~/.opencode/skills/Agents/Tools/AgentFactory.ts --task "Review security architecture"
-bun run ~/.opencode/skills/Agents/Tools/AgentFactory.ts --traits "legal,skeptical,meticulous"
-bun run ~/.opencode/skills/Agents/Tools/AgentFactory.ts --list
+bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --task "Review security architecture"
+bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --traits "legal,skeptical,meticulous"
+bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --list
 ```
 
 ### Personalities
@@ -176,12 +176,12 @@ bun run ~/.opencode/skills/Agents/Tools/AgentFactory.ts --list
 
 ## Integration Points
 
-**Voice Server** (`~/.opencode/VoiceServer/`)
+**Voice Server** (`~/.config/opencode/VoiceServer/`)
 - Reads agent personality configuration from AgentPersonalities.md
 - Maps agent names to ElevenLabs voice IDs
 - Delivers personality-driven voice notifications
 
-**CORE Skill** (`~/.opencode/skills/CORE/`)
+**CORE Skill** (`~/.config/opencode/skills/CORE/`)
 - References Agents skill for custom agent creation
 - Documents the custom vs generic distinction
 - Includes agent creation in delegation patterns

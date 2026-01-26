@@ -15,7 +15,7 @@ User: "Do passive recon on example.com"
      - Subdomain discovery (47 found)
      - IP mapping (3 unique IPs)
 
-Report: ~/.opencode/MEMORY/WORK/{current_work}/scratch/recon-example-com/
+Report: ~/.config/opencode/MEMORY/WORK/{current_work}/scratch/recon-example-com/
 ```
 
 ### IP Address Investigation
@@ -246,7 +246,7 @@ for (const ip of ips) {
 ### For Active Recon
 Requires **security MCP profile**:
 ```bash
-~/.opencode/MCPs/swap-mcp security
+~/.config/opencode/MCPs/swap-mcp security
 # Restart Claude Code
 ```
 
@@ -258,8 +258,8 @@ Requires **security MCP profile**:
 ## Output Formats
 
 ### Report Locations
-- **Iterative Work:** `~/.opencode/MEMORY/WORK/{current_work}/scratch/` (tied to work item for learning)
-- **Formal Assessments:** `~/.opencode/MEMORY/RESEARCH/YYYY-MM/`
+- **Iterative Work:** `~/.config/opencode/MEMORY/WORK/{current_work}/scratch/` (tied to work item for learning)
+- **Formal Assessments:** `~/.config/opencode/MEMORY/RESEARCH/YYYY-MM/`
 
 ### Report Structure
 - Executive summary

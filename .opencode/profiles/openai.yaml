@@ -1,11 +1,22 @@
 name: openai
 description: OpenAI GPT models - alternative provider
 models:
-  default: openai/gpt-4o
-  intern: openai/gpt-4o-mini
-  engineer: openai/gpt-4o
-  architect: openai/gpt-4o
-  researcher: openai/gpt-4o
-  designer: openai/gpt-4o
-  pentester: openai/gpt-4o
-  writer: openai/gpt-4o
+  # NOTE: This profile is applied by PAI's installer to agent frontmatter.
+  # Keep keys aligned to the agent filenames in `.opencode/agents/*.md`.
+  default: openai/gpt-5.2
+
+  # Explicit mappings for shipped agents (.opencode/agents/*.md)
+  Algorithm: openai/gpt-5.2
+  Architect: openai/gpt-5.2
+  Artist: openai/gpt-5.2
+  ClaudeResearcher: openai/gpt-5.2
+  CodexResearcher: openai/gpt-5.2
+  Designer: openai/gpt-5.2
+  Engineer: openai/gpt-5.2
+  GeminiResearcher: openai/gpt-5.2
+  GrokResearcher: openai/gpt-5.2
+  Intern: openai/gpt-5.2
+  Pentester: openai/gpt-5.2
+  QATester: openai/gpt-5.2
+  researcher: openai/gpt-5.2
+  writer: openai/gpt-5.2

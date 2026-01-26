@@ -7,11 +7,11 @@
  * Part of PAI CORE Tools.
  *
  * Usage:
- *   bun ~/.opencode/skills/CORE/Tools/SecretScan.ts <directory>
- *   bun ~/.opencode/skills/CORE/Tools/SecretScan.ts . --verbose
- *   bun ~/.opencode/skills/CORE/Tools/SecretScan.ts . --verify
+ *   bun ~/.config/opencode/skills/CORE/Tools/SecretScan.ts <directory>
+ *   bun ~/.config/opencode/skills/CORE/Tools/SecretScan.ts . --verbose
+ *   bun ~/.config/opencode/skills/CORE/Tools/SecretScan.ts . --verify
  *
- * @see ~/.opencode/skills/System/Workflows/SecretScanning.md
+ * @see ~/.config/opencode/skills/System/Workflows/SecretScanning.md
  */
 
 /*

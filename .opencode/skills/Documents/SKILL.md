@@ -6,7 +6,7 @@ description: Document processing. USE WHEN document, process file. SkillSearch('
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Documents/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Documents/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -36,7 +36,7 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 **Before starting any task with this skill, load complete CORE context:**
 
-`read ~/.opencode/skills/CORE/SKILL.md`
+`read ~/.config/opencode/skills/CORE/SKILL.md`
 
 
 ## When to Activate This Skill
@@ -83,9 +83,9 @@ This skill organizes document processing across 4 document types:
 - "Document review", "track changes" → Redlining workflow
 
 **Supporting Resources:**
-- Scripts: `~/.opencode/skills/documents/docx/Scripts/`
-- OOXML tools: `~/.opencode/skills/documents/docx/ooxml/`
-- License: `~/.opencode/skills/documents/docx/LICENSE.txt`
+- Scripts: `~/.config/opencode/skills/documents/docx/Scripts/`
+- OOXML tools: `~/.config/opencode/skills/documents/docx/ooxml/`
+- License: `~/.config/opencode/skills/documents/docx/LICENSE.txt`
 
 **Key Capabilities:**
 - Create professional documents with docx-js
@@ -109,8 +109,8 @@ This skill organizes document processing across 4 document types:
 - "Extract tables from PDF" → Table extraction (pdfplumber + pandas)
 
 **Supporting Resources:**
-- Scripts: `~/.opencode/skills/documents/pdf/Scripts/`
-- License: `~/.opencode/skills/documents/pdf/LICENSE.txt`
+- Scripts: `~/.config/opencode/skills/documents/pdf/Scripts/`
+- License: `~/.config/opencode/skills/documents/pdf/LICENSE.txt`
 
 **Key Capabilities:**
 - Create PDFs with reportlab
@@ -135,9 +135,9 @@ This skill organizes document processing across 4 document types:
 - "Create thumbnail grid" → Thumbnail workflow
 
 **Supporting Resources:**
-- Scripts: `~/.opencode/skills/documents/pptx/Scripts/`
-- OOXML tools: `~/.opencode/skills/documents/pptx/ooxml/`
-- License: `~/.opencode/skills/documents/pptx/LICENSE.txt`
+- Scripts: `~/.config/opencode/skills/documents/pptx/Scripts/`
+- OOXML tools: `~/.config/opencode/skills/documents/pptx/ooxml/`
+- License: `~/.config/opencode/skills/documents/pptx/LICENSE.txt`
 
 **Key Capabilities:**
 - Create presentations with html2pptx (HTML → PPTX)
@@ -161,8 +161,8 @@ This skill organizes document processing across 4 document types:
 - "Recalculate formulas" → Recalculation workflow (recalc.py)
 
 **Supporting Resources:**
-- Recalc script: `~/.opencode/skills/documents/xlsx/recalc.py`
-- License: `~/.opencode/skills/documents/xlsx/LICENSE.txt`
+- Recalc script: `~/.config/opencode/skills/documents/xlsx/recalc.py`
+- License: `~/.config/opencode/skills/documents/xlsx/LICENSE.txt`
 
 **Key Capabilities:**
 - Create spreadsheets with formulas (openpyxl)
@@ -262,23 +262,23 @@ User: "Create a revenue projection spreadsheet"
 ## 📚 Full Reference Documentation
 
 **Word Documents (DOCX):**
-- Main Guide: `~/.opencode/skills/documents/docx/SKILL.md`
-- Creation Reference: `~/.opencode/skills/documents/docx/docx-js.md`
-- Editing Reference: `~/.opencode/skills/documents/docx/ooxml.md`
+- Main Guide: `~/.config/opencode/skills/documents/docx/SKILL.md`
+- Creation Reference: `~/.config/opencode/skills/documents/docx/docx-js.md`
+- Editing Reference: `~/.config/opencode/skills/documents/docx/ooxml.md`
 
 **PDF Processing:**
-- Main Guide: `~/.opencode/skills/documents/pdf/SKILL.md`
-- Forms Guide: `~/.opencode/skills/documents/pdf/forms.md`
-- Advanced Reference: `~/.opencode/skills/documents/pdf/reference.md`
+- Main Guide: `~/.config/opencode/skills/documents/pdf/SKILL.md`
+- Forms Guide: `~/.config/opencode/skills/documents/pdf/forms.md`
+- Advanced Reference: `~/.config/opencode/skills/documents/pdf/reference.md`
 
 **PowerPoint Presentations (PPTX):**
-- Main Guide: `~/.opencode/skills/documents/pptx/SKILL.md`
-- Creation Reference: `~/.opencode/skills/documents/pptx/html2pptx.md`
-- Editing Reference: `~/.opencode/skills/documents/pptx/ooxml.md`
+- Main Guide: `~/.config/opencode/skills/documents/pptx/SKILL.md`
+- Creation Reference: `~/.config/opencode/skills/documents/pptx/html2pptx.md`
+- Editing Reference: `~/.config/opencode/skills/documents/pptx/ooxml.md`
 
 **Excel Spreadsheets (XLSX):**
-- Main Guide: `~/.opencode/skills/documents/xlsx/SKILL.md`
-- Recalc Script: `~/.opencode/skills/documents/xlsx/recalc.py`
+- Main Guide: `~/.config/opencode/skills/documents/xlsx/SKILL.md`
+- Recalc Script: `~/.config/opencode/skills/documents/xlsx/recalc.py`
 
 ---
 

@@ -6,7 +6,7 @@ Intelligent multi-layer content retrieval system for DIFFICULT content retrieval
 
 **Before starting any task with this skill, load complete PAI context:**
 
-`read ~/.opencode/skills/CORE/SKILL.md`
+`read ~/.config/opencode/skills/CORE/SKILL.md`
 
 This provides access to:
 - Complete contact list (Angela, Bunny, Saša, Greg, team members)
@@ -401,12 +401,12 @@ mcp__Apify__apify-slash-rag-web-browser({
 
 ## 📁 Scratch → History Pattern
 
-**Working Directory (Scratch):** `~/.opencode/MEMORY/WORK/{current_work}/scratch/`
+**Working Directory (Scratch):** `~/.config/opencode/MEMORY/WORK/{current_work}/scratch/`
 
 **Getting Current Work Directory:**
-1. Read `~/.opencode/MEMORY/STATE/current-work.json`
+1. Read `~/.config/opencode/MEMORY/STATE/current-work.json`
 2. Extract the `work_dir` value
-3. Use `~/.opencode/MEMORY/WORK/{work_dir}/scratch/` for temporary artifacts
+3. Use `~/.config/opencode/MEMORY/WORK/{work_dir}/scratch/` for temporary artifacts
 
 **Process:**
 
@@ -419,7 +419,7 @@ mcp__Apify__apify-slash-rag-web-browser({
    - **Ties retrieval artifacts to work item for learning**
 
 2. **History (Permanent Archive):**
-   - Move to `~/.opencode/History/research/YYYY-MM-DD_[description]/` when complete
+   - Move to `~/.config/opencode/History/research/YYYY-MM-DD_[description]/` when complete
    - Include: `README.md`, final extracted content, metadata
    - Archive for future reference and reuse
 
@@ -433,7 +433,7 @@ mcp__Apify__apify-slash-rag-web-browser({
 
 **Scratch (temporary workspace in current work item):**
 ```
-~/.opencode/MEMORY/WORK/20260111-172408_retrieve-react19-docs/scratch/
+~/.config/opencode/MEMORY/WORK/20260111-172408_retrieve-react19-docs/scratch/
 ├── raw-content/
 │   ├── page1.md (Layer 2 output)
 │   ├── page2.md (Layer 2 output)
@@ -447,7 +447,7 @@ mcp__Apify__apify-slash-rag-web-browser({
 
 **History (permanent archive):**
 ```
-~/.opencode/History/research/2025-10-26_react19-documentation/
+~/.config/opencode/History/research/2025-10-26_react19-documentation/
 ├── README.md (retrieval documentation)
 ├── content.md (final extracted content)
 ├── metadata.json (sources, layers used, timestamps)

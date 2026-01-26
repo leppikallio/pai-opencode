@@ -6,7 +6,7 @@ description: System maintenance - integrity check, document session, secret scan
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/System/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/System/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -81,7 +81,7 @@ This skill runs in the foreground so you can see all output, progress, and hear 
 ```
 User: "Run an integrity check"
 → Invokes IntegrityCheck workflow
-→ Spawns parallel agents to audit ~/.opencode
+→ Spawns parallel agents to audit ~/.config/opencode
 → Finds broken references, missing files
 → Returns list of issues found/fixed
 ```
@@ -110,7 +110,7 @@ User: "What's undocumented? Catch up the docs."
 ```
 User: "Git Push"
 → Invokes GitPush workflow
-→ Verifies we're in ~/.opencode (PRIVATE repo)
+→ Verifies we're in ~/.config/opencode (PRIVATE repo)
 → git add + commit + push
 ```
 
@@ -128,7 +128,7 @@ User: "Check for secrets before I push"
 ```
 User: "Make sure nothing leaked to public"
 → Invokes CrossRepoValidation workflow
-→ Compares ~/.opencode with ~/Projects/PAI
+→ Compares ~/.config/opencode with ~/Projects/PAI
 → Reports private content in wrong place
 ```
 

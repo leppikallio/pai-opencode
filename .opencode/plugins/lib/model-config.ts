@@ -1,6 +1,7 @@
 import { fileLog } from "./file-logger";
 import { readFileSync, existsSync } from "fs";
 import { join, dirname } from "path";
+import { getPaiRuntimeInfo } from "./pai-runtime";
 
 /**
  * PAI Model Configuration Schema
@@ -97,9 +98,12 @@ export function getProviderPreset(
  */
 function readOpencodeConfig(): any | null {
   try {
+    const runtime = getPaiRuntimeInfo();
+
     // Try multiple locations for opencode.json
     const cwd = process.cwd();
     const possiblePaths = [
+      runtime.opencodeConfigPath,             // Global config (~/.config/opencode/opencode.json)
       join(dirname(cwd), "opencode.json"),     // Parent of .opencode
       join(cwd, "opencode.json"),               // Project root (if cwd is project root)
       join(cwd, "..", "opencode.json"),         // Up one level
@@ -114,17 +118,20 @@ function readOpencodeConfig(): any | null {
     }
 
     if (!configPath) {
-      fileLog("model-config", `No opencode.json found in any of: ${possiblePaths.join(", ")}, using defaults`);
+      fileLog(
+        `[model-config] No opencode.json found in any of: ${possiblePaths.join(", ")}, using defaults`,
+        "debug"
+      );
       return null;
     }
 
     const content = readFileSync(configPath, "utf-8");
     const config = JSON.parse(content);
 
-    fileLog("model-config", `Loaded opencode.json from ${configPath}`);
+    fileLog(`[model-config] Loaded opencode.json from ${configPath}`, "debug");
     return config;
   } catch (error) {
-    fileLog("model-config", `Error reading opencode.json: ${error}`);
+    fileLog(`[model-config] Error reading opencode.json: ${error}`, "warn");
     return null;
   }
 }
@@ -161,7 +168,7 @@ export function getModelConfig(): PaiModelConfig {
 
     // Validate provider
     if (!["zen", "anthropic", "openai"].includes(provider)) {
-      fileLog("model-config", `Invalid provider "${provider}", falling back to zen`);
+      fileLog(`[model-config] Invalid provider "${provider}", falling back to zen`, "warn");
       return {
         model_provider: "zen",
         models: PROVIDER_PRESETS.zen,
@@ -184,7 +191,10 @@ export function getModelConfig(): PaiModelConfig {
       },
     };
 
-    fileLog("model-config", `Using provider "${provider}" from pai config with models: ${JSON.stringify(models)}`);
+    fileLog(
+      `[model-config] Using provider "${provider}" from pai config with models: ${JSON.stringify(models)}`,
+      "debug"
+    );
 
     return {
       model_provider: provider,
@@ -197,7 +207,10 @@ export function getModelConfig(): PaiModelConfig {
   if (config?.model) {
     const detectedProvider = detectProviderFromModel(config.model);
     if (detectedProvider) {
-      fileLog("model-config", `Auto-detected provider "${detectedProvider}" from model field: ${config.model}`);
+      fileLog(
+        `[model-config] Auto-detected provider "${detectedProvider}" from model field: ${config.model}`,
+        "debug"
+      );
       return {
         model_provider: detectedProvider,
         models: PROVIDER_PRESETS[detectedProvider],
@@ -206,7 +219,7 @@ export function getModelConfig(): PaiModelConfig {
   }
 
   // Final fallback: zen defaults
-  fileLog("model-config", "No PAI config or model field found, using zen defaults");
+  fileLog("[model-config] No PAI config or model field found, using zen defaults", "debug");
   return {
     model_provider: "zen",
     models: PROVIDER_PRESETS.zen,
@@ -242,7 +255,7 @@ export function getModel(
   }
 
   // Fallback to default
-  fileLog("model-config", `Unknown purpose "${purpose}", falling back to default`);
+  fileLog(`[model-config] Unknown purpose "${purpose}", falling back to default`, "warn");
   return models.default;
 }
 

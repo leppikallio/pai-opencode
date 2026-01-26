@@ -265,21 +265,21 @@ Every phase must show `🔧 Capabilities Selected:` declaring what tools are bei
 
 | Capability | What It Does | When to Use |
 |------------|--------------|-------------|
-| **Skills** (`~/.opencode/skills/skill-index.json`) | Pre-made sub-algorithms for specific domains | Domain expertise needed |
+| **Skills** (`~/.config/opencode/skills/skill-index.json`) | Pre-made sub-algorithms for specific domains | Domain expertise needed |
 | **Agents** (Task tool) | Sub-agents working underneath primary agent | Parallel work, delegation |
 | **Algorithm Agent** (Task: `subagent_type=Algorithm`) | Specialized for ISC and algorithm tasks | Most cases - prefer this agent |
 | **Engineer Agent** (Task: `subagent_type=Engineer`) | Builds and implements | Code implementation |
 | **Architect Agent** (Task: `subagent_type=Architect`) | Design and structure thinking | System design decisions |
-| **Researcher Agents** (`~/.opencode/skills/Research/SKILL.md`) | High-quality research via Research skill | Information gathering |
-| **Custom Agents** (`~/.opencode/skills/Agents/SKILL.md`) | Create via Agents skill | Unique requirements |
+| **Researcher Agents** (`~/.config/opencode/skills/Research/SKILL.md`) | High-quality research via Research skill | Information gathering |
+| **Custom Agents** (`~/.config/opencode/skills/Agents/SKILL.md`) | Create via Agents skill | Unique requirements |
 | **Task Tool** | Multiple nested algorithm threads | Big tasks needing parallelization |
-| **Red Team** (`~/.opencode/skills/RedTeam/SKILL.md`) | Adversarial thinking, failure modes | Stress-testing ideas |
-| **First Principles** (`~/.opencode/skills/FirstPrinciples/SKILL.md`) | Fundamental analysis without assumptions | Complex problems |
-| **Be Creative** (`~/.opencode/skills/BeCreative/SKILL.md`) | Expanded creativity mode | Ideation, can combine with others |
+| **Red Team** (`~/.config/opencode/skills/RedTeam/SKILL.md`) | Adversarial thinking, failure modes | Stress-testing ideas |
+| **First Principles** (`~/.config/opencode/skills/FirstPrinciples/SKILL.md`) | Fundamental analysis without assumptions | Complex problems |
+| **Be Creative** (`~/.config/opencode/skills/BeCreative/SKILL.md`) | Expanded creativity mode | Ideation, can combine with others |
 | **Parallelization** | Multiple agents/threads in background | Large non-serial work |
 | **Creative Branching** | Explore multiple ideas separately | Divergent exploration |
 | **Plan Mode** (EnterPlanMode tool) | Extra IQ for complex tasks | Major/complex/high-quality work |
-| **Evals** (`~/.opencode/skills/Evals/SKILL.md`) | Automated bakeoffs between ideas | Comparing solutions objectively |
+| **Evals** (`~/.config/opencode/skills/Evals/SKILL.md`) | Automated bakeoffs between ideas | Comparing solutions objectively |
 | **Git Branching** | Isolated work trees for experiments | Paired with Be Creative + Evals |
 | **Task Management** (TaskCreate/Update/List/Get) | Persistent task tracking with dependencies | Multi-turn work, parallel agents, complex ISC |
 
@@ -459,17 +459,17 @@ At each phase, mentally evaluate:
 | **Algorithm** | Task: `subagent_type=Algorithm` | ISC tracking needed, verification work, multi-phase tasks |
 | **Engineer** | Task: `subagent_type=Engineer` | Code to write/modify (>20 lines), implementation work |
 | **Architect** | Task: `subagent_type=Architect` | System design, API design, refactoring decisions |
-| **Researcher** | `~/.opencode/skills/Research/SKILL.md` | Documentation lookup, comparison research, information gathering |
+| **Researcher** | `~/.config/opencode/skills/Research/SKILL.md` | Documentation lookup, comparison research, information gathering |
 
 ### Capability Triggers
 
-**Use Be Creative** (`~/.opencode/skills/BeCreative/SKILL.md`) **when:** "how should I...", generating options, novel solutions, uncertainty about approach
+**Use Be Creative** (`~/.config/opencode/skills/BeCreative/SKILL.md`) **when:** "how should I...", generating options, novel solutions, uncertainty about approach
 
-**Use First Principles** (`~/.opencode/skills/FirstPrinciples/SKILL.md`) **when:** Root cause analysis, "why" questions, challenging assumptions
+**Use First Principles** (`~/.config/opencode/skills/FirstPrinciples/SKILL.md`) **when:** Root cause analysis, "why" questions, challenging assumptions
 
-**Use Red Team** (`~/.opencode/skills/RedTeam/SKILL.md`) **when:** Validating ideas, stress-testing plans, finding failure modes
+**Use Red Team** (`~/.config/opencode/skills/RedTeam/SKILL.md`) **when:** Validating ideas, stress-testing plans, finding failure modes
 
-**Use Research** (`~/.opencode/skills/Research/SKILL.md`) **when:** Unsure about current state, making recommendations that depend on external info
+**Use Research** (`~/.config/opencode/skills/Research/SKILL.md`) **when:** Unsure about current state, making recommendations that depend on external info
 
 **Use Task Management** (TaskCreate/Update/List/Get) **when:** Multi-turn work expected, criteria have dependencies, parallel agents need coordination, state must persist across turns
 

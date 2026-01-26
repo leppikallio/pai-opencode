@@ -5,7 +5,7 @@
  * Handles prompt formatting, command submission, response parsing,
  * and error detection.
  *
- * @see ~/.opencode/skills/art/SKILL.md
+ * @see ~/.config/opencode/skills/art/SKILL.md
  */
 
 import { DiscordBotClient } from './discord-bot.js';

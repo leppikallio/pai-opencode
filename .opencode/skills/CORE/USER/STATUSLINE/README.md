@@ -38,7 +38,7 @@ To customize the status line:
 1. **Create your own script:**
    ```bash
    #!/bin/bash
-   # ~/.opencode/skills/CORE/USER/STATUSLINE/custom-statusline.sh
+   # ~/.config/opencode/skills/CORE/USER/STATUSLINE/custom-statusline.sh
 
    echo "Your custom status info here"
    ```

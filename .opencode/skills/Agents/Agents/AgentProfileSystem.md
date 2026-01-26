@@ -40,7 +40,7 @@ This system DOES:
 ## File Structure
 
 ```
-~/.opencode/skills/Agents/
+~/.config/opencode/skills/Agents/
 ├── ArchitectContext.md     # Architecture specialist context
 ├── EngineerContext.md       # Implementation specialist context
 ├── DesignerContext.md       # UX/UI specialist context
@@ -166,13 +166,13 @@ That's it. Simple. No elaborate profile system. Just a reading list.
 
 ```bash
 # List available agent types
-bun run ~/.opencode/skills/Agents/Tools/LoadAgentContext.ts
+bun run ~/.config/opencode/skills/Agents/Tools/LoadAgentContext.ts
 
 # View context for specific agent
-bun run ~/.opencode/skills/Agents/Tools/LoadAgentContext.ts Architect
+bun run ~/.config/opencode/skills/Agents/Tools/LoadAgentContext.ts Architect
 
 # Generate enriched prompt for spawning
-bun run ~/.opencode/skills/Agents/Tools/LoadAgentContext.ts Architect "Design new skill system"
+bun run ~/.config/opencode/skills/Agents/Tools/LoadAgentContext.ts Architect "Design new skill system"
 ```
 
 ---
@@ -181,7 +181,7 @@ bun run ~/.opencode/skills/Agents/Tools/LoadAgentContext.ts Architect "Design ne
 
 To add a new agent type:
 
-1. Create `[AgentType]Context.md` in `~/.opencode/skills/Agents/`
+1. Create `[AgentType]Context.md` in `~/.config/opencode/skills/Agents/`
 2. Follow the context file format above
 3. Reference relevant Skills (don't duplicate content)
 4. Specify model preference (opus/sonnet/haiku)

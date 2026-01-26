@@ -4,7 +4,7 @@
 The bug bounty automation tool tracks active programs, manages reconnaissance workflows, and organizes security research efforts.
 
 ## Location
-`~/.opencode/skills/Webassessment/bug-bounty-tool/`
+`~/.config/opencode/skills/Webassessment/bug-bounty-tool/`
 
 ## Tool Structure
 
@@ -27,7 +27,7 @@ bug-bounty-tool/
 
 ### Dependencies
 ```bash
-cd ~/.opencode/skills/Webassessment/bug-bounty-tool
+cd ~/.config/opencode/skills/Webassessment/bug-bounty-tool
 bun install  # Using bun (preferred)
 ```
 
@@ -326,7 +326,7 @@ cp src/Database/programs.json programs-backup.json
 
 ## See Also
 
-- Bug bounty programs guide: `~/.opencode/skills/Webassessment/Workflows/bug-bounty/Programs.md`
-- Reconnaissance workflow: `~/.opencode/skills/Webassessment/Workflows/pentest/Reconnaissance.md`
-- Pentest methodology: `~/.opencode/skills/Webassessment/Workflows/pentest/MasterMethodology.md`
-- Full tool documentation: `~/.opencode/skills/Webassessment/bug-bounty-tool/README.md`
+- Bug bounty programs guide: `~/.config/opencode/skills/Webassessment/Workflows/bug-bounty/Programs.md`
+- Reconnaissance workflow: `~/.config/opencode/skills/Webassessment/Workflows/pentest/Reconnaissance.md`
+- Pentest methodology: `~/.config/opencode/skills/Webassessment/Workflows/pentest/MasterMethodology.md`
+- Full tool documentation: `~/.config/opencode/skills/Webassessment/bug-bounty-tool/README.md`

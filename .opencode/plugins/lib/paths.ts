@@ -9,25 +9,15 @@
 
 import * as path from "path";
 import * as fs from "fs";
-import * as os from "os";
+import { getPaiDir } from "./pai-runtime";
 
 /**
- * Get the OpenCode directory path
- * Tries cwd first, then home directory
+ * Get the PAI runtime directory path.
+ *
+ * For global installs this is usually: ~/.config/opencode
  */
 export function getOpenCodeDir(): string {
-  const cwdPath = path.join(process.cwd(), ".opencode");
-  if (fs.existsSync(cwdPath)) {
-    return cwdPath;
-  }
-
-  const homePath = path.join(os.homedir(), ".opencode");
-  if (fs.existsSync(homePath)) {
-    return homePath;
-  }
-
-  // Default to cwd even if doesn't exist (will be created)
-  return cwdPath;
+  return getPaiDir();
 }
 
 /**

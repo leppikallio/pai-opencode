@@ -20,7 +20,7 @@ Running the **UpdateSkill** workflow in the **CreateSkill** skill to modify exis
 **REQUIRED FIRST:** Read the canonical structure:
 
 ```
-~/.opencode/skills/CORE/SkillSystem.md
+~/.config/opencode/skills/CORE/SkillSystem.md
 ```
 
 ---
@@ -28,7 +28,7 @@ Running the **UpdateSkill** workflow in the **CreateSkill** skill to modify exis
 ## Step 2: Read the Current Skill
 
 ```bash
-~/.opencode/skills/[SkillName]/SKILL.md
+~/.config/opencode/skills/[SkillName]/SKILL.md
 ```
 
 Understand the current:
@@ -57,12 +57,12 @@ What needs to change?
 
 2. **Create the workflow file:**
 ```bash
-touch ~/.opencode/skills/[SkillName]/Workflows/[WorkflowName].md
+touch ~/.config/opencode/skills/[SkillName]/Workflows/[WorkflowName].md
 ```
 
 Example:
 ```bash
-touch ~/.opencode/skills/Daemon/Workflows/UpdatePublicRepo.md
+touch ~/.config/opencode/skills/Daemon/Workflows/UpdatePublicRepo.md
 ```
 
 3. **Add entry to `## Workflow Routing` section in SKILL.md:**
@@ -88,13 +88,13 @@ description: [What it does]. USE WHEN [updated intent triggers using OR]. [Capab
 
 1. **Create TitleCase tool file:**
 ```bash
-touch ~/.opencode/skills/[SkillName]/Tools/ToolName.ts
-touch ~/.opencode/skills/[SkillName]/Tools/ToolName.help.md
+touch ~/.config/opencode/skills/[SkillName]/Tools/ToolName.ts
+touch ~/.config/opencode/skills/[SkillName]/Tools/ToolName.help.md
 ```
 
 2. **Ensure Tools/ directory exists:**
 ```bash
-mkdir -p ~/.opencode/skills/[SkillName]/Tools
+mkdir -p ~/.config/opencode/skills/[SkillName]/Tools
 ```
 
 ---
@@ -104,8 +104,8 @@ mkdir -p ~/.opencode/skills/[SkillName]/Tools
 After making changes, verify naming:
 
 ```bash
-ls ~/.opencode/skills/[SkillName]/Workflows/
-ls ~/.opencode/skills/[SkillName]/Tools/
+ls ~/.config/opencode/skills/[SkillName]/Workflows/
+ls ~/.config/opencode/skills/[SkillName]/Tools/
 ```
 
 All files must use TitleCase:

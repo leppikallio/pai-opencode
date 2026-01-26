@@ -65,7 +65,7 @@ Bad
 : User asks to open a blog post preview. AI runs `open "http://localhost:5174/drafts/my-post"` and immediately reports "Draft is now open for preview at localhost:5174/drafts/my-post". The page is actually a 404 but AI never checked.
 
 Correct
-: User asks to open a blog post preview. AI runs `open "http://localhost:5174/drafts/my-post"`, then runs `bun run ~/.opencode/skills/Browser/Tools/Browse.ts "http://localhost:5174/drafts/my-post"` to get a screenshot. AI sees 404 in screenshot, reports the failure, and investigates why (e.g., VitePress doesn't serve /drafts/ path).
+: User asks to open a blog post preview. AI runs `open "http://localhost:5174/drafts/my-post"`, then runs `bun run ~/.config/opencode/skills/Browser/Tools/Browse.ts "http://localhost:5174/drafts/my-post"` to get a screenshot. AI sees 404 in screenshot, reports the failure, and investigates why (e.g., VitePress doesn't serve /drafts/ path).
 
 ### What Requires Browser Verification
 

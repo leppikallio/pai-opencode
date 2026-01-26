@@ -14,7 +14,7 @@ the most important and surprising insights without missing subtle but profound i
 
 **Before starting any task with this skill, load complete PAI context:**
 
-`read ~/.opencode/skills/CORE/SKILL.md`
+`read ~/.config/opencode/skills/CORE/SKILL.md`
 
 ## Core Philosophy
 
@@ -127,13 +127,13 @@ Capture the subtle genius buried in the content.
 **Use the current work item's scratch/ directory for all working files during analysis:**
 
 ```bash
-~/.opencode/MEMORY/WORK/{current_work}/scratch/
+~/.config/opencode/MEMORY/WORK/{current_work}/scratch/
 ```
 
 **To get the current work directory:**
-1. Read `~/.opencode/MEMORY/STATE/current-work.json`
+1. Read `~/.config/opencode/MEMORY/STATE/current-work.json`
 2. Extract the `work_dir` value
-3. Use `~/.opencode/MEMORY/WORK/{work_dir}/scratch/` for temporary artifacts
+3. Use `~/.config/opencode/MEMORY/WORK/{work_dir}/scratch/` for temporary artifacts
 
 **What goes in scratch/:**
 - Raw transcripts from fabric -y
@@ -149,7 +149,7 @@ Capture the subtle genius buried in the content.
 
 **Example scratch structure:**
 ```
-~/.opencode/MEMORY/WORK/20260111-172408_extract-alpha-analysis/scratch/
+~/.config/opencode/MEMORY/WORK/20260111-172408_extract-alpha-analysis/scratch/
 ├── raw-transcript.txt
 ├── deep thinking-notes.md
 ├── draft-insights.md
@@ -161,7 +161,7 @@ Capture the subtle genius buried in the content.
 **Save final outputs to permanent history:**
 
 ```bash
-~/.opencode/History/research/YYYY-MM-DD_description/
+~/.config/opencode/History/research/YYYY-MM-DD_description/
 ```
 
 **What goes in history/research/:**
@@ -172,7 +172,7 @@ Capture the subtle genius buried in the content.
 
 **Example history structure:**
 ```
-~/.opencode/History/research/2025-10-26_podcast-analysis/
+~/.config/opencode/History/research/2025-10-26_podcast-analysis/
 ├── README.md                  # Research session documentation
 ├── extract_alpha.md           # Final 24-30 insights
 ├── deep thinking-analysis.md     # Full deep analysis
@@ -215,16 +215,16 @@ Create a README.md in the history directory documenting the research:
 1. **Check if hooks captured the output:**
    ```bash
    # Check most recent history entries
-   ls -lt ~/.opencode/History/research/ | head -5
+   ls -lt ~/.config/opencode/History/research/ | head -5
 
    # Verify your research directory exists
-   ls ~/.opencode/History/research/YYYY-MM-DD_description/
+   ls ~/.config/opencode/History/research/YYYY-MM-DD_description/
    ```
 
 2. **If hooks did NOT capture automatically:**
    ```bash
    # Create directory structure manually
-   mkdir -p ~/.opencode/History/research/YYYY-MM-DD_description/
+   mkdir -p ~/.config/opencode/History/research/YYYY-MM-DD_description/
 
    # Save extract_alpha.md (final insights)
    # Save deep thinking-analysis.md (full analysis)
@@ -234,7 +234,7 @@ Create a README.md in the history directory documenting the research:
 
 3. **Confirm all files saved:**
    ```bash
-   ls -lah ~/.opencode/History/research/YYYY-MM-DD_description/
+   ls -lah ~/.config/opencode/History/research/YYYY-MM-DD_description/
    # Should show: README.md, extract_alpha.md, deep thinking-analysis.md, metadata.json
    ```
 
@@ -242,11 +242,11 @@ Create a README.md in the history directory documenting the research:
 
 ```bash
 # 1. Get current work directory
-WORK_DIR=$(jq -r '.work_dir' ~/.opencode/MEMORY/STATE/current-work.json)
+WORK_DIR=$(jq -r '.work_dir' ~/.config/opencode/MEMORY/STATE/current-work.json)
 
 # 2. Create scratch workspace in current work item
-mkdir -p ~/.opencode/MEMORY/WORK/${WORK_DIR}/scratch/
-cd ~/.opencode/MEMORY/WORK/${WORK_DIR}/scratch/
+mkdir -p ~/.config/opencode/MEMORY/WORK/${WORK_DIR}/scratch/
+cd ~/.config/opencode/MEMORY/WORK/${WORK_DIR}/scratch/
 
 # 3. Extract content to scratch
 fabric -y "YOUTUBE_URL" > raw-transcript.txt
@@ -258,7 +258,7 @@ fabric -y "YOUTUBE_URL" > raw-transcript.txt
 # [Extract 24-30 insights from deep thinking analysis, draft in scratch]
 
 # 6. Create permanent history directory
-mkdir -p ~/.opencode/History/research/$(date +%Y-%m-%d)_podcast-analysis/
+mkdir -p ~/.config/opencode/History/research/$(date +%Y-%m-%d)_podcast-analysis/
 
 # 7. Save final outputs to history
 # - extract_alpha.md (final insights)
@@ -267,7 +267,7 @@ mkdir -p ~/.opencode/History/research/$(date +%Y-%m-%d)_podcast-analysis/
 # - metadata.json (source info)
 
 # 8. Verify hooks captured it
-ls -lah ~/.opencode/History/research/$(date +%Y-%m-%d)_podcast-analysis/
+ls -lah ~/.config/opencode/History/research/$(date +%Y-%m-%d)_podcast-analysis/
 
 # 9. Note: scratch/ artifacts remain tied to work item for learning
 # (Don't delete scratch - it provides context for the work item)
@@ -378,11 +378,11 @@ fabric -y "https://youtu.be/VIDEO_ID"
 When this skill activates, PAI should:
 
 1. **Load content** via appropriate method (fabric -y, WebFetch, Read, or paste)
-2. **Get current work directory** - Read `~/.opencode/MEMORY/STATE/current-work.json` for `work_dir`
-3. **Create scratch workspace** - Work in `~/.opencode/MEMORY/WORK/{work_dir}/scratch/`
+2. **Get current work directory** - Read `~/.config/opencode/MEMORY/STATE/current-work.json` for `work_dir`
+3. **Create scratch workspace** - Work in `~/.config/opencode/MEMORY/WORK/{work_dir}/scratch/`
 4. **Engage deep thinking mode** - Deep extended thinking through all 10 dimensions
 5. **Extract insights** - Extract 24-30 highest-alpha ideas focusing on low-probability brilliant insights
-6. **Save to history** - Final outputs to `~/.opencode/History/research/YYYY-MM-DD_description/`
+6. **Save to history** - Final outputs to `~/.config/opencode/History/research/YYYY-MM-DD_description/`
 7. **Verify capture** - Ensure hooks captured or manually save all files
 8. **Output simple list** - Unformatted markdown, Paul Graham style, 8-12 words each
 9. **Prioritize surprise** - Novel ideas over obvious takeaways

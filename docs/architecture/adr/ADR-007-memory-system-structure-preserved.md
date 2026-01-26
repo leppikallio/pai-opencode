@@ -256,7 +256,7 @@ Rating → SIGNALS/ratings.jsonl
 
 **Check MEMORY structure exists:**
 ```bash
-cd /Users/steffen/workspace/github.com/Steffen025/pai-opencode
+cd <repo-root>
 
 # Verify all directories present
 for dir in RAW WORK LEARNING RESEARCH SECURITY STATE SESSIONS; do
@@ -276,7 +276,7 @@ ls .opencode/MEMORY/LEARNING/
 
 1. **Copy MEMORY/ directory:**
    ```bash
-   cp -r ~/.claude/MEMORY ~/.opencode/MEMORY
+   cp -r ~/.claude/MEMORY ~/.config/opencode/MEMORY
    ```
 
 2. **No format changes needed** - files transfer directly

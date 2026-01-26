@@ -7,7 +7,7 @@ context: fork
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/SECUpdates/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/SECUpdates/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -168,7 +168,7 @@ Within each category, rank items by:
 ### Step 1: Check State
 ```bash
 # Read last check timestamp
-cat ~/.opencode/skills/SECUpdates/State/last-check.json
+cat ~/.config/opencode/skills/SECUpdates/State/last-check.json
 ```
 
 ### Step 2: Fetch Sources (Parallel)

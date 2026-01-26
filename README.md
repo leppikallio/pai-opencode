@@ -55,13 +55,17 @@ PAI-OpenCode is the complete port of **Daniel Miessler's Personal AI Infrastruct
 
 ```bash
 # 1. Clone PAI-OpenCode
-git clone https://github.com/Steffen025/pai-opencode.git
+git clone https://github.com/leppikallio/pai-opencode.git
 cd pai-opencode
 
-# 2. Run the Installation Wizard
-bun run .opencode/PAIOpenCodeWizard.ts
+# 2. Install/upgrade into OpenCode global config
+bun Tools/Install.ts --target ~/.config/opencode
+# (This also auto-applies the detected provider profile to agent models)
 
-# 3. Start OpenCode
+# 3. Run the setup wizard (writes into ~/.config/opencode)
+bun ~/.config/opencode/PAIOpenCodeWizard.ts
+
+# 4. Start OpenCode (from any directory)
 opencode
 ```
 
@@ -209,8 +213,17 @@ MIT License — see [LICENSE](LICENSE) for details.
 ## Get Started
 
 ```bash
-git clone https://github.com/Steffen025/pai-opencode.git
-cd pai-opencode && bun run .opencode/PAIOpenCodeWizard.ts && opencode
+git clone https://github.com/leppikallio/pai-opencode.git
+cd pai-opencode
+
+# Install/upgrade into OpenCode global config
+bun Tools/Install.ts --target ~/.config/opencode
+
+# Run the setup wizard (writes into ~/.config/opencode)
+bun ~/.config/opencode/PAIOpenCodeWizard.ts
+
+# Start OpenCode (from any directory)
+opencode
 ```
 
 **Welcome to Personal AI Infrastructure, your way.**

@@ -47,7 +47,7 @@ If a skill does not follow this structure, it is not properly configured and wil
 ### System Skills (Shareable via PAI Packs)
 - Use **TitleCase** naming: `Browser`, `Research`, `Development`
 - Contain NO personal data (contacts, API keys, team members)
-- Reference `~/.opencode/skills/CORE/USER/` for any personalization
+- Reference `~/.config/opencode/skills/CORE/USER/` for any personalization
 - Can be exported to the public PAI repository
 
 ### Personal Skills (Never Shared)
@@ -60,7 +60,7 @@ If a skill does not follow this structure, it is not properly configured and wil
 
 Personal skills are identified by their `_ALLCAPS` naming convention. To list current personal skills:
 ```bash
-ls -1 ~/.opencode/skills/ | grep "^_"
+ls -1 ~/.config/opencode/skills/ | grep "^_"
 ```
 
 This ensures documentation never drifts from reality. The underscore prefix ensures:
@@ -73,8 +73,8 @@ System skills should reference CORE/USER files for personal data:
 ```markdown
 ## Configuration
 Personal configuration loaded from:
-- `~/.opencode/skills/CORE/USER/CONTACTS.md` - Contact information
-- `~/.opencode/skills/CORE/USER/TECHSTACKPREFERENCES.md` - Tech preferences
+- `~/.config/opencode/skills/CORE/USER/CONTACTS.md` - Contact information
+- `~/.config/opencode/skills/CORE/USER/TECHSTACKPREFERENCES.md` - Tech preferences
 ```
 
 **NEVER hardcode personal data in system skills.**
@@ -95,7 +95,7 @@ All skills include this standard instruction block after the YAML frontmatter:
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/{SkillName}/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/{SkillName}/`
 
 If this directory exists, load and apply:
 - `PREFERENCES.md` - User preferences and configuration
@@ -107,7 +107,7 @@ These define user-specific preferences. If the directory does not exist, proceed
 ### Directory Structure
 
 ```
-~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/
+~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/
 ├── README.md                    # Documentation for this system
 ├── Art/                         # Art skill customizations
 │   ├── EXTEND.yaml              # Extension manifest
@@ -160,7 +160,7 @@ description: "What this customization adds"
 
 ### Creating a Customization
 
-1. **Create directory**: `mkdir -p ~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/SkillName`
+1. **Create directory**: `mkdir -p ~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/SkillName`
 2. **Create EXTEND.yaml**: Define what files to load and merge strategy
 3. **Create PREFERENCES.md**: User preferences for this skill
 4. **Add additional files**: Any skill-specific configurations
@@ -224,7 +224,7 @@ science_cycle_time: meso
 - **Research** - Investigation through hypotheses and evidence gathering
 - **Council** - Debate as parallel hypothesis testing
 
-**See:** `~/.opencode/skills/Science/Protocol.md` for the full protocol interface
+**See:** `~/.config/opencode/skills/Science/Protocol.md` for the full protocol interface
 
 ### 2. Markdown Body (Workflow Routing + Examples + Documentation)
 
@@ -250,7 +250,7 @@ science_cycle_time: meso
    Running the **WorkflowName** workflow in the **SkillName** skill to ACTION...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SYSTEM/THENOTIFICATIONSYSTEM.md`
+**Full documentation:** `~/.config/opencode/skills/CORE/SYSTEM/THENOTIFICATIONSYSTEM.md`
 
 ## Workflow Routing
 
@@ -425,7 +425,7 @@ SkillSearch('art tools')        # Loads Tools.md from skill root
 Or reference them directly:
 ```bash
 # Read specific context file
-Read ~/.opencode/skills/Art/Aesthetic.md
+Read ~/.config/opencode/skills/Art/Aesthetic.md
 ```
 
 Context files can reference workflows and tools:
@@ -510,7 +510,7 @@ Don't bother for:
 
 Use the Createskill skill's CanonicalizeSkill workflow:
 ```
-~/.opencode/skills/Createskill/Workflows/CanonicalizeSkill.md
+~/.config/opencode/skills/Createskill/Workflows/CanonicalizeSkill.md
 ```
 
 Or manually:
@@ -518,7 +518,7 @@ Or manually:
 2. Update YAML frontmatter to single-line description
 3. Add `## Workflow Routing` table
 4. Add `## Examples` section
-5. Move backups to `~/.opencode/MEMORY/Backups/`
+5. Move backups to `~/.config/opencode/MEMORY/Backups/`
 6. Verify against checklist
 
 ---
@@ -580,7 +580,7 @@ description: Complete blog workflow. USE WHEN user mentions doing anything with 
 
 ## Complete Canonical Example: Blogging Skill
 
-**Reference:** `~/.opencode/skills/_BLOGGING/SKILL.md`
+**Reference:** `~/.config/opencode/skills/_BLOGGING/SKILL.md`
 
 ```yaml
 ---
@@ -609,7 +609,7 @@ Complete blog workflow.
    Running the **WorkflowName** workflow in the **Blogging** skill to ACTION...
    ```
 
-**Full documentation:** `~/.opencode/skills/CORE/SYSTEM/THENOTIFICATIONSYSTEM.md`
+**Full documentation:** `~/.config/opencode/skills/CORE/SYSTEM/THENOTIFICATIONSYSTEM.md`
 
 ## Core Paths
 
@@ -829,7 +829,7 @@ bun ToolName.ts \
 \`\`\`
 ```
 
-**See:** `~/.opencode/skills/CORE/SYSTEM/CLIFIRSTARCHITECTURE.md` (Workflow-to-Tool Integration section)
+**See:** `~/.config/opencode/skills/CORE/SYSTEM/CLIFIRSTARCHITECTURE.md` (Workflow-to-Tool Integration section)
 
 ---
 
@@ -934,7 +934,7 @@ bun Generate.ts \
 4. **Value flags**: `--flag <value>` for choices
 5. **Composable**: Flags should combine logically
 
-**See:** `~/.opencode/skills/CORE/SYSTEM/CLIFIRSTARCHITECTURE.md` (Configuration Flags section) for full documentation
+**See:** `~/.config/opencode/skills/CORE/SYSTEM/CLIFIRSTARCHITECTURE.md` (Configuration Flags section) for full documentation
 
 ### Tool Structure
 
@@ -944,7 +944,7 @@ bun Generate.ts \
  * ToolName.ts - Brief description
  *
  * Usage:
- *   bun ~/.opencode/skills/SkillName/Tools/ToolName.ts <command> [options]
+ *   bun ~/.config/opencode/skills/SkillName/Tools/ToolName.ts <command> [options]
  *
  * Commands:
  *   start     Start the thing

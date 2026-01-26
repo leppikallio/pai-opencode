@@ -7,7 +7,7 @@ updated: 2026-01-18
 
 # Fabric Pattern System Reference
 
-**Primary Skill:** `~/.opencode/skills/Fabric/SKILL.md`
+**Primary Skill:** `~/.config/opencode/skills/Fabric/SKILL.md`
 
 This document provides a quick reference. For full functionality, invoke the Fabric skill.
 
@@ -15,7 +15,7 @@ This document provides a quick reference. For full functionality, invoke the Fab
 
 ## Quick Reference
 
-**Patterns Location:** `~/.opencode/skills/Fabric/Patterns/` (237 patterns)
+**Patterns Location:** `~/.config/opencode/skills/Fabric/Patterns/` (237 patterns)
 
 ### Invoke Fabric Skill
 
@@ -73,18 +73,18 @@ Only use `fabric` command for:
 User: "Update fabric patterns"
 -> Fabric skill > UpdatePatterns workflow
 -> Runs fabric -U
--> Syncs to ~/.opencode/skills/Fabric/Patterns/
+-> Syncs to ~/.config/opencode/skills/Fabric/Patterns/
 ```
 
 **Manual:**
 ```bash
-fabric -U && rsync -av ~/.config/fabric/patterns/ ~/.opencode/skills/Fabric/Patterns/
+fabric -U && rsync -av ~/.config/fabric/patterns/ ~/.config/opencode/skills/Fabric/Patterns/
 ```
 
 ---
 
 ## See Also
 
-- **Full Skill:** `~/.opencode/skills/Fabric/SKILL.md`
-- **Pattern Execution:** `~/.opencode/skills/Fabric/Workflows/ExecutePattern.md`
-- **All Patterns:** `~/.opencode/skills/Fabric/Patterns/`
+- **Full Skill:** `~/.config/opencode/skills/Fabric/SKILL.md`
+- **Pattern Execution:** `~/.config/opencode/skills/Fabric/Workflows/ExecutePattern.md`
+- **All Patterns:** `~/.config/opencode/skills/Fabric/Patterns/`

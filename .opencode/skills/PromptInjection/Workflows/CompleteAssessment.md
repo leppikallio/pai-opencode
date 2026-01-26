@@ -85,7 +85,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 ### Phase 2: Reconnaissance (1-2 hours)
 
 **Use Reconnaissance workflow:**
-`~/.opencode/skills/PromptInjection/Workflows/Reconnaissance.md`
+`~/.config/opencode/skills/PromptInjection/Workflows/Reconnaissance.md`
 
 **Deliverables:**
 - Complete attack surface map
@@ -96,7 +96,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 
 **Save to:**
 ```
-~/.opencode/History/research/YYYY-MM-DD_[client]-recon/
+~/.config/opencode/History/research/YYYY-MM-DD_[client]-recon/
 ├── attack-surface-map.md
 ├── api-endpoints.md
 ├── injection-points.md
@@ -106,7 +106,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 ### Phase 3: Direct Injection Testing (2-3 hours)
 
 **Use DirectInjectionTesting workflow:**
-`~/.opencode/skills/PromptInjection/Workflows/DirectInjectionTesting.md`
+`~/.config/opencode/skills/PromptInjection/Workflows/DirectInjectionTesting.md`
 
 **Test all categories:**
 1. Basic instruction override
@@ -118,7 +118,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 
 **Document findings in:**
 ```
-~/.opencode/History/research/YYYY-MM-DD_[client]-direct-injection/
+~/.config/opencode/History/research/YYYY-MM-DD_[client]-direct-injection/
 ├── findings.md
 ├── successful-payloads.md
 ├── poc-screenshots/
@@ -128,7 +128,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 ### Phase 4: Indirect Injection Testing (2-3 hours)
 
 **Use IndirectInjectionTesting workflow:**
-`~/.opencode/skills/PromptInjection/Workflows/IndirectInjectionTesting.md`
+`~/.config/opencode/skills/PromptInjection/Workflows/IndirectInjectionTesting.md`
 
 **Test all vectors:**
 1. Document upload injection
@@ -140,7 +140,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 
 **Document findings in:**
 ```
-~/.opencode/History/research/YYYY-MM-DD_[client]-indirect-injection/
+~/.config/opencode/History/research/YYYY-MM-DD_[client]-indirect-injection/
 ├── findings.md
 ├── poisoned-documents/
 ├── test-web-pages/
@@ -150,7 +150,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 ### Phase 5: Multi-Stage Attack Testing (1-2 hours)
 
 **Use MultiStageAttacks workflow:**
-`~/.opencode/skills/PromptInjection/Workflows/MultiStageAttacks.md`
+`~/.config/opencode/skills/PromptInjection/Workflows/MultiStageAttacks.md`
 
 **Test patterns:**
 1. Progressive escalation
@@ -161,7 +161,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 
 **Document full conversations:**
 ```
-~/.opencode/History/research/YYYY-MM-DD_[client]-multistage/
+~/.config/opencode/History/research/YYYY-MM-DD_[client]-multistage/
 ├── attack-chain-1-transcript.md
 ├── attack-chain-2-transcript.md
 ├── successful-patterns.md
@@ -194,7 +194,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 
 **Document in:**
 ```
-~/.opencode/History/research/YYYY-MM-DD_[client]-defenses/
+~/.config/opencode/History/research/YYYY-MM-DD_[client]-defenses/
 ├── defense-evaluation.md
 ├── effective-controls.md
 └── defense-gaps.md
@@ -249,7 +249,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 ### Phase 8: Reporting (2-3 hours)
 
 **Use Reporting workflow for structure:**
-`~/.opencode/skills/PromptInjection/Reporting.md`
+`~/.config/opencode/skills/PromptInjection/Reporting.md`
 
 **Report sections:**
 
@@ -286,7 +286,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 
 **Deliverables:**
 ```
-~/.opencode/History/research/YYYY-MM-DD_[client]-final-report/
+~/.config/opencode/History/research/YYYY-MM-DD_[client]-final-report/
 ├── executive-summary.md
 ├── full-technical-report.md
 ├── findings-by-severity.md

@@ -11,36 +11,36 @@ Successfully migrated 4 research commands to the research skill's workflows dire
 ## Files Migrated
 
 ### 1. Claude WebSearch Research
-- **Source:** `~/.opencode/commands/perform-claude-research.md`
-- **Destination:** `~/.opencode/skills/Research/Workflows/ClaudeResearch.md`
+- **Source:** `~/.config/opencode/commands/perform-claude-research.md`
+- **Destination:** `~/.config/opencode/skills/Research/Workflows/ClaudeResearch.md`
 - **Size:** 3.6K
 - **Description:** Intelligent query decomposition with Claude's WebSearch tool (free, no API keys)
 - **Triggers:** "claude research", "use websearch", "claude only"
 
 ### 2. Perplexity API Research
-- **Source:** `~/.opencode/commands/perform-perplexity-research.md`
-- **Destination:** `~/.opencode/skills/Research/Workflows/PerplexityResearch.md`
+- **Source:** `~/.config/opencode/commands/perform-perplexity-research.md`
+- **Destination:** `~/.config/opencode/skills/Research/Workflows/PerplexityResearch.md`
 - **Size:** 8.1K
 - **Description:** Fast web search with query decomposition via Perplexity API
 - **Triggers:** "perplexity research", "use perplexity", "sonar"
 
 ### 3. Interview Preparation
-- **Source:** `~/.opencode/commands/perform-interview-research.md`
-- **Destination:** `~/.opencode/skills/Research/Workflows/InterviewResearch.md`
+- **Source:** `~/.config/opencode/commands/perform-interview-research.md`
+- **Destination:** `~/.config/opencode/skills/Research/Workflows/InterviewResearch.md`
 - **Size:** 4.4K
 - **Description:** Tyler Cowen-style interview prep with Shannon surprise principle
 - **Triggers:** "interview research", "prepare interview questions", "sponsored interview"
 
 ### 4. AI Trends Analysis
-- **Source:** `~/.opencode/commands/analyze-ai-trends.md`
-- **Destination:** `~/.opencode/skills/Research/Workflows/AnalyzeAiTrends.md`
+- **Source:** `~/.config/opencode/commands/analyze-ai-trends.md`
+- **Destination:** `~/.config/opencode/skills/Research/Workflows/AnalyzeAiTrends.md`
 - **Size:** 3.0K
 - **Description:** Deep trend analysis across historical AI news logs
 - **Triggers:** "analyze ai trends", "trend analysis", "ai industry trends"
 
 ## Workflows Directory Status
 
-**Location:** `~/.opencode/skills/Research/Workflows/`
+**Location:** `~/.config/opencode/skills/Research/Workflows/`
 
 **Note (2026-01):** Conduct.md and PerplexityResearch.md were later removed. Perplexity functionality consolidated into QuickResearch.md (single-agent) and StandardResearch.md (multi-agent).
 
@@ -83,7 +83,7 @@ Each workflow has:
 
 ✅ **ALL ORIGINALS PRESERVED**
 
-The original command files remain in `~/.opencode/commands/`:
+The original command files remain in `~/.config/opencode/commands/`:
 - `perform-claude-research.md` ✓
 - `perform-perplexity-research.md` ✓
 - `perform-interview-research.md` ✓

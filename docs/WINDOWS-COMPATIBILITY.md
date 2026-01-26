@@ -1,7 +1,7 @@
 # Windows Multi-Platform Support
 
 **Branch:** `feature/windows-multiplatform-support`
-**Issue:** [#5 - Bug: Windows Clone Fails - Colons in File Paths](https://github.com/Steffen025/pai-opencode/issues/5)
+**Issue:** [#5 - Bug: Windows Clone Fails - Colons in File Paths](https://github.com/leppikallio/pai-opencode/issues/5)
 **Created:** 2026-01-25
 **Status:** RESEARCH COMPLETE - Implementation Pending
 
@@ -67,7 +67,7 @@ git push origin --force --all
 
 **Option B: Sparse checkout workaround (for users)**
 ```bash
-git clone --no-checkout https://github.com/Steffen025/pai-opencode.git
+git clone --no-checkout https://github.com/leppikallio/pai-opencode.git
 cd pai-opencode
 git sparse-checkout init
 git sparse-checkout set "/*" "!*/Browser/Browser/Tools/https:*" "!*/Browser/Browser/http:*" "!*/Browser/Tools/https:*"
@@ -179,7 +179,7 @@ function getShellConfig(): string | null {
 Provide copy-based alternative:
 ```bash
 # Unix:
-ln -s $(pwd)/.opencode ~/.opencode
+ln -s $(pwd)/.opencode ~/.config/opencode
 
 # Windows (PowerShell):
 Copy-Item -Recurse -Force .\.opencode $env:USERPROFILE\.opencode
@@ -203,11 +203,11 @@ PAI-OpenCode works in WSL2 because it provides full Linux filesystem semantics.
 ```bash
 # WRONG (will fail due to Windows filesystem):
 cd /mnt/c/Users/YourName/Projects
-git clone https://github.com/Steffen025/pai-opencode.git
+git clone https://github.com/leppikallio/pai-opencode.git
 
 # CORRECT:
 cd ~
-git clone https://github.com/Steffen025/pai-opencode.git
+git clone https://github.com/leppikallio/pai-opencode.git
 ```
 
 ### WSL Installation Guide
@@ -220,7 +220,7 @@ wsl
 cd ~
 
 # 3. Clone repository
-git clone https://github.com/Steffen025/pai-opencode.git
+git clone https://github.com/leppikallio/pai-opencode.git
 cd pai-opencode
 
 # 4. Install Bun if not present
@@ -228,7 +228,9 @@ curl -fsSL https://bun.sh/install | bash
 source ~/.bashrc
 
 # 5. Run installer
-bun run .opencode/PAIOpenCodeWizard.ts
+bun Tools/Install.ts --target ~/.config/opencode
+
+bun ~/.config/opencode/PAIOpenCodeWizard.ts
 ```
 
 ---
@@ -290,7 +292,7 @@ OpenCode (the base tool) has known Windows issues:
 
 ## References
 
-- [GitHub Issue #5](https://github.com/Steffen025/pai-opencode/issues/5) - Original bug report
+- [GitHub Issue #5](https://github.com/leppikallio/pai-opencode/issues/5) - Original bug report
 - [OpenCode Windows Issue #631](https://github.com/anomalyco/opencode/issues/631) - Upstream tracking
 - [Bun Windows Support](https://bun.sh/docs/installation) - Runtime compatibility
 - [Node.js path module](https://nodejs.org/api/path.html) - Cross-platform path handling

@@ -80,7 +80,7 @@ BACKGROUND: Dark (#0a0a0f) - will be removed for transparency.
 
 **Command:**
 ```bash
-bun run ~/.opencode/skills/Art/Tools/Generate.ts \
+bun run ~/.config/opencode/skills/Art/Tools/Generate.ts \
   --model nano-banana-pro \
   --prompt "[YOUR_PROMPT]" \
   --size 1K \
@@ -121,7 +121,7 @@ file ~/Projects/PAI/Packs/icons/[PACK_NAME].png
 ### Example 1: Hook System Pack
 
 ```bash
-bun run ~/.opencode/skills/Art/Tools/Generate.ts \
+bun run ~/.config/opencode/skills/Art/Tools/Generate.ts \
   --model nano-banana-pro \
   --prompt "A stylized hook or fishing hook shape representing event hooks in software, simple flat icon design, 256x256 pixels. COLOR PALETTE: Primary electric blue (#4a90d9), Accent purple (#8b5cf6) sparingly. STYLE: Modern flat icon, simple enough to read at 64x64, no text, centered. BACKGROUND: Dark (#0a0a0f)." \
   --size 1K \
@@ -133,7 +133,7 @@ bun run ~/.opencode/skills/Art/Tools/Generate.ts \
 ### Example 2: Core Install Pack
 
 ```bash
-bun run ~/.opencode/skills/Art/Tools/Generate.ts \
+bun run ~/.config/opencode/skills/Art/Tools/Generate.ts \
   --model nano-banana-pro \
   --prompt "A download arrow pointing into a foundation/base structure representing core installation, simple flat icon design, 256x256 pixels. COLOR PALETTE: Primary electric blue (#4a90d9), Accent purple (#8b5cf6) sparingly. STYLE: Modern flat icon, simple enough to read at 64x64, no text, centered. BACKGROUND: Dark (#0a0a0f)." \
   --size 1K \
@@ -145,7 +145,7 @@ bun run ~/.opencode/skills/Art/Tools/Generate.ts \
 ### Example 3: Memory System Pack
 
 ```bash
-bun run ~/.opencode/skills/Art/Tools/Generate.ts \
+bun run ~/.config/opencode/skills/Art/Tools/Generate.ts \
   --model nano-banana-pro \
   --prompt "A brain with memory/data flowing in and out representing an AI memory system, simple flat icon design, 256x256 pixels. COLOR PALETTE: Primary electric blue (#4a90d9), Accent purple (#8b5cf6) sparingly. STYLE: Modern flat icon, simple enough to read at 64x64, no text, centered. BACKGROUND: Dark (#0a0a0f)." \
   --size 1K \
@@ -198,9 +198,9 @@ Before marking icon complete:
 
 > **Note:** The PAI skill workflows referenced below are planned but not yet implemented.
 
-- `~/.opencode/skills/PAI/Workflows/CreatePack.md` - *(NOT IMPLEMENTED)* Would use this for icon generation
-- `~/.opencode/skills/PAI/Workflows/ValidatePack.md` - *(NOT IMPLEMENTED)* Would validate icon exists
-- `~/.opencode/skills/PAI/Workflows/PAIIntegrityCheck.md` - *(NOT IMPLEMENTED)* Would check all icons
+- `~/.config/opencode/skills/PAI/Workflows/CreatePack.md` - *(NOT IMPLEMENTED)* Would use this for icon generation
+- `~/.config/opencode/skills/PAI/Workflows/ValidatePack.md` - *(NOT IMPLEMENTED)* Would validate icon exists
+- `~/.config/opencode/skills/PAI/Workflows/PAIIntegrityCheck.md` - *(NOT IMPLEMENTED)* Would check all icons
 
 ---
 

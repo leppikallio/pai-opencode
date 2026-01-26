@@ -19,7 +19,7 @@ Fill forms, click buttons, and interact with page elements.
 
 1. **Launch and navigate**
    ```typescript
-   import { PlaywrightBrowser } from '~/.opencode/skills/Browser/index.ts'
+   import { PlaywrightBrowser } from '~/.config/opencode/skills/Browser/index.ts'
    const browser = new PlaywrightBrowser()
    await browser.launch({ headless: false })  // Watch it work
    await browser.navigate(url)
@@ -97,7 +97,7 @@ await browser.uploadFile('input[type="file"]', '/path/to/file.pdf')
 ## Example: Login Flow
 
 ```typescript
-import { PlaywrightBrowser } from '~/.opencode/skills/Browser/index.ts'
+import { PlaywrightBrowser } from '~/.config/opencode/skills/Browser/index.ts'
 
 const browser = new PlaywrightBrowser()
 await browser.launch({ headless: false })

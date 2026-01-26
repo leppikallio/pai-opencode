@@ -159,7 +159,7 @@ export function formatForISC(result: AlgorithmEvalResult): string {
 export async function updateISCWithResult(result: AlgorithmEvalResult): Promise<void> {
   const status = result.passed ? 'DONE' : 'BLOCKED';
 
-  await $`bun run ~/.opencode/skills/THEALGORITHM/Tools/ISCManager.ts update --row ${result.isc_row} --status ${status} --note "${formatForISC(result)}"`.quiet();
+  await $`bun run ~/.config/opencode/skills/THEALGORITHM/Tools/ISCManager.ts update --row ${result.isc_row} --status ${status} --note "${formatForISC(result)}"`.quiet();
 }
 
 // CLI interface

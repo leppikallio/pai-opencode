@@ -5,9 +5,9 @@
  * Parses all SKILL.md files and builds a searchable index for dynamic skill discovery.
  * Run this after adding/modifying skills to update the index.
  *
- * Usage: bun run ~/.opencode/skills/CORE/Tools/GenerateSkillIndex.ts
+ * Usage: bun run ~/.config/opencode/skills/CORE/Tools/GenerateSkillIndex.ts
  *
- * Output: ~/.opencode/skills/skill-index.json
+ * Output: ~/.config/opencode/skills/skill-index.json
  */
 
 import { readdir, readFile, writeFile } from 'fs/promises';

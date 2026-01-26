@@ -6,7 +6,7 @@ description: Agent evaluation framework. USE WHEN eval, evaluate, test agent, be
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Evals/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Evals/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -91,19 +91,19 @@ Comprehensive agent evaluation system based on Anthropic's "Demystifying Evals f
 
 ```bash
 # Run an eval suite
-bun run ~/.opencode/skills/Evals/Tools/AlgorithmBridge.ts -s <suite>
+bun run ~/.config/opencode/skills/Evals/Tools/AlgorithmBridge.ts -s <suite>
 
 # Log a failure for later conversion
-bun run ~/.opencode/skills/Evals/Tools/FailureToTask.ts log "description" -c category -s severity
+bun run ~/.config/opencode/skills/Evals/Tools/FailureToTask.ts log "description" -c category -s severity
 
 # Convert failures to test tasks
-bun run ~/.opencode/skills/Evals/Tools/FailureToTask.ts convert-all
+bun run ~/.config/opencode/skills/Evals/Tools/FailureToTask.ts convert-all
 
 # Manage suites
-bun run ~/.opencode/skills/Evals/Tools/SuiteManager.ts create <name> -t capability -d "description"
-bun run ~/.opencode/skills/Evals/Tools/SuiteManager.ts list
-bun run ~/.opencode/skills/Evals/Tools/SuiteManager.ts check-saturation <name>
-bun run ~/.opencode/skills/Evals/Tools/SuiteManager.ts graduate <name>
+bun run ~/.config/opencode/skills/Evals/Tools/SuiteManager.ts create <name> -t capability -d "description"
+bun run ~/.config/opencode/skills/Evals/Tools/SuiteManager.ts list
+bun run ~/.config/opencode/skills/Evals/Tools/SuiteManager.ts check-saturation <name>
+bun run ~/.config/opencode/skills/Evals/Tools/SuiteManager.ts graduate <name>
 ```
 
 ### ALGORITHM Integration
@@ -112,7 +112,7 @@ Evals is a verification method for THE ALGORITHM ISC rows:
 
 ```bash
 # Run eval and update ISC row
-bun run ~/.opencode/skills/Evals/Tools/AlgorithmBridge.ts -s regression-core -r 3 -u
+bun run ~/.config/opencode/skills/Evals/Tools/AlgorithmBridge.ts -s regression-core -r 3 -u
 ```
 
 ISC rows can specify eval verification:

@@ -8,13 +8,17 @@ This guide will help you install PAI-OpenCode in under 5 minutes.
 
 ```bash
 # 1. Clone PAI-OpenCode
-git clone https://github.com/Steffen025/pai-opencode.git
+git clone https://github.com/leppikallio/pai-opencode.git
 cd pai-opencode
 
-# 2. Run the Installation Wizard
-bun run .opencode/PAIOpenCodeWizard.ts
+# 2. Install/upgrade into OpenCode global config
+bun Tools/Install.ts --target ~/.config/opencode
+# (This also auto-applies the detected provider profile to agent models)
 
-# 3. Start OpenCode
+# 3. Run the setup wizard (writes into ~/.config/opencode)
+bun ~/.config/opencode/PAIOpenCodeWizard.ts
+
+# 4. Start OpenCode (from any directory)
 opencode
 ```
 
@@ -87,11 +91,14 @@ source ~/.bashrc
 cd ~
 
 # Clone the repository
-git clone https://github.com/Steffen025/pai-opencode.git
+git clone https://github.com/leppikallio/pai-opencode.git
 cd pai-opencode
 
-# Run the Installation Wizard
-bun run .opencode/PAIOpenCodeWizard.ts
+# Install/upgrade into OpenCode global config
+bun Tools/Install.ts --target ~/.config/opencode
+
+# Run the setup wizard
+bun ~/.config/opencode/PAIOpenCodeWizard.ts
 
 # Start OpenCode
 opencode
@@ -128,7 +135,7 @@ go install github.com/opencode-ai/opencode@latest
 
 **Step 2:** Clone the repository
 ```bash
-git clone https://github.com/Steffen025/pai-opencode.git
+git clone https://github.com/leppikallio/pai-opencode.git
 cd pai-opencode
 ```
 
@@ -137,13 +144,23 @@ cd pai-opencode
 bun install
 ```
 
-**Step 4:** Create symlink to connect OpenCode with PAI
+**Step 4:** Install into OpenCode global config
+
+```bash
+bun Tools/Install.ts --target ~/.config/opencode
+```
+
+**Step 5:** Run the setup wizard
+
+```bash
+bun ~/.config/opencode/PAIOpenCodeWizard.ts
+```
 ```bash
 # Remove the empty .opencode folder that OpenCode created
-rm -rf ~/.opencode
+rm -rf ~/.config/opencode
 
 # Create symlink from your home directory to your PAI-OpenCode installation
-ln -s $(pwd)/.opencode ~/.opencode
+ln -s $(pwd)/.opencode ~/.config/opencode
 ```
 
 **Step 5:** Launch OpenCode
@@ -340,8 +357,8 @@ If you want to use a different provider (OpenAI, Groq, etc.):
 ## Getting Help
 
 - **Documentation**: [docs/](docs/)
-- **Issues**: [GitHub Issues](https://github.com/Steffen025/pai-opencode/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Steffen025/pai-opencode/discussions)
+- **Issues**: [GitHub Issues](https://github.com/leppikallio/pai-opencode/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/leppikallio/pai-opencode/discussions)
 
 ---
 

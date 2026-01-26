@@ -4,12 +4,12 @@
  * GetTranscript.ts - Extract transcript from YouTube video
  *
  * Usage:
- *   bun ~/.opencode/skills/Videotranscript/Tools/GetTranscript.ts <youtube-url>
- *   bun ~/.opencode/skills/Videotranscript/Tools/GetTranscript.ts <youtube-url> --save <output-file>
+ *   bun ~/.config/opencode/skills/Videotranscript/Tools/GetTranscript.ts <youtube-url>
+ *   bun ~/.config/opencode/skills/Videotranscript/Tools/GetTranscript.ts <youtube-url> --save <output-file>
  *
  * Examples:
- *   bun ~/.opencode/skills/Videotranscript/Tools/GetTranscript.ts "https://www.youtube.com/watch?v=abc123"
- *   bun ~/.opencode/skills/Videotranscript/Tools/GetTranscript.ts "https://youtu.be/abc123" --save transcript.txt
+ *   bun ~/.config/opencode/skills/Videotranscript/Tools/GetTranscript.ts "https://www.youtube.com/watch?v=abc123"
+ *   bun ~/.config/opencode/skills/Videotranscript/Tools/GetTranscript.ts "https://youtu.be/abc123" --save transcript.txt
  *
  * @author PAI System
  * @version 1.0.0

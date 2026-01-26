@@ -6,7 +6,7 @@ description: Meta-prompting for prompt generation. USE WHEN meta-prompting, temp
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Prompting/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Prompting/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -90,7 +90,7 @@ Templates/
 
 **RenderTemplate.ts** - Core rendering engine
 ```bash
-bun run ~/.opencode/skills/Prompting/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
   --template Primitives/Briefing.hbs \
   --data path/to/data.yaml \
   --output path/to/output.md
@@ -98,7 +98,7 @@ bun run ~/.opencode/skills/Prompting/Tools/RenderTemplate.ts \
 
 **ValidateTemplate.ts** - Template syntax checker
 ```bash
-bun run ~/.opencode/skills/Prompting/Tools/ValidateTemplate.ts \
+bun run ~/.config/opencode/skills/Prompting/Tools/ValidateTemplate.ts \
   --template Primitives/Briefing.hbs \
   --data path/to/sample-data.yaml
 ```
@@ -121,7 +121,7 @@ The system uses Handlebars notation (Anthropic's official syntax):
 
 ```typescript
 // skills/Agents/Tools/AgentFactory.ts
-import { renderTemplate } from '~/.opencode/skills/Prompting/Tools/RenderTemplate.ts';
+import { renderTemplate } from '~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts';
 
 const prompt = renderTemplate('Primitives/Briefing.hbs', {
   briefing: { type: 'research' },

@@ -6,7 +6,7 @@ description: Web security assessment. USE WHEN web assessment, pentest, security
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/WebAssessment/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/WebAssessment/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -79,19 +79,19 @@ WebAssessment uses tools from the Recon skill:
 
 ```bash
 # Corporate structure for scope
-bun ~/.opencode/skills/Recon/Tools/CorporateStructure.ts target.com
+bun ~/.config/opencode/skills/Recon/Tools/CorporateStructure.ts target.com
 
 # Subdomain enumeration
-bun ~/.opencode/skills/Recon/Tools/SubdomainEnum.ts target.com
+bun ~/.config/opencode/skills/Recon/Tools/SubdomainEnum.ts target.com
 
 # Endpoint discovery from JavaScript
-bun ~/.opencode/skills/Recon/Tools/EndpointDiscovery.ts https://target.com
+bun ~/.config/opencode/skills/Recon/Tools/EndpointDiscovery.ts https://target.com
 
 # Port scanning
-bun ~/.opencode/skills/Recon/Tools/PortScan.ts target.com
+bun ~/.config/opencode/skills/Recon/Tools/PortScan.ts target.com
 
 # Path discovery
-bun ~/.opencode/skills/Recon/Tools/PathDiscovery.ts https://target.com
+bun ~/.config/opencode/skills/Recon/Tools/PathDiscovery.ts https://target.com
 ```
 
 ## UnderstandApplication Output

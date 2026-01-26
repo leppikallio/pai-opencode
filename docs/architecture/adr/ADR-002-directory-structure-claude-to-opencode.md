@@ -1,4 +1,4 @@
-# ADR-002: Directory Structure (.claude/ → .opencode/)
+# ADR-002: Directory Structure (.claude/ → ~/.config/opencode/)
 
 **Status:** Accepted  
 **Date:** 2026-01-25  
@@ -11,7 +11,7 @@
 
 PAI v2.4 (built for Claude Code) uses `~/.claude/` as the root directory for all configuration, skills, hooks, and memory.
 
-OpenCode expects configuration and plugins in `~/.opencode/` directory by platform convention.
+OpenCode expects configuration and plugins in `~/.config/opencode/` directory by platform convention.
 
 **The Problem:**
 - All PAI documentation references `.claude/` paths
@@ -22,11 +22,11 @@ OpenCode expects configuration and plugins in `~/.opencode/` directory by platfo
 
 ## Decision
 
-**Rename `.claude/` to `.opencode/` and update all path references throughout the codebase.**
+**Move `.claude/` content to `~/.config/opencode/` and update all path references throughout the codebase.**
 
 This includes:
-- Root directory: `~/.claude/` → `~/.opencode/`
-- Environment variable: `CLAUDE_HOME` → `PAI_DIR` (points to `.opencode/`)
+- Root directory: `~/.claude/` → `~/.config/opencode/`
+- Environment variable: `CLAUDE_HOME` → `PAI_DIR` (points to `~/.config/opencode/`)
 - All script paths updated
 - All documentation updated
 
@@ -35,7 +35,7 @@ This includes:
 ## Rationale
 
 1. **Platform Convention**
-   - OpenCode looks for `.opencode/` directory by default
+   - OpenCode uses `~/.config/opencode/` by default
    - Parallel with Claude Code's `.claude/` pattern
    - Users expect platform-standard locations
 
@@ -99,9 +99,9 @@ This includes:
 
 **Environment Variable:**
 ```bash
-# In .opencode/settings.json
+# In ~/.config/opencode/settings.json
 "env": {
-  "PAI_DIR": "/Users/[username]/.opencode"
+  "PAI_DIR": "/Users/[username]/.config/opencode"
 }
 ```
 
@@ -111,12 +111,12 @@ This includes:
 const paiDir = process.env.HOME + "/.claude";
 
 // NEW (OpenCode):
-const paiDir = process.env.PAI_DIR || process.env.HOME + "/.opencode";
+const paiDir = process.env.PAI_DIR || process.env.HOME + "/.config/opencode";
 ```
 
 **Path Patterns Updated:**
-- `~/.claude/` → `~/.opencode/`
-- `$HOME/.claude/` → `$PAI_DIR/` or `$HOME/.opencode/`
+- `~/.claude/` → `~/.config/opencode/`
+- `$HOME/.claude/` → `$PAI_DIR/` or `$HOME/.config/opencode/`
 - Hardcoded `/Users/daniel/.claude/` → removed entirely
 
 ---

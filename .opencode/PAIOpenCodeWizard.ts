@@ -16,8 +16,8 @@
  *   bun run PAIOpenCodeWizard.ts    # Run the interactive wizard
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { join, dirname } from 'path';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { join, dirname, resolve } from "path";
 import { homedir, userInfo } from 'os';
 import { execSync } from 'child_process';
 import * as readline from 'readline';
@@ -35,12 +35,34 @@ const c = {
   magenta: '\x1b[38;2;168;85;247m',
 };
 
-// Paths - OpenCode uses .opencode instead of .claude
+// Paths
 const HOME = homedir();
 const SCRIPT_DIR = dirname(new URL(import.meta.url).pathname);
-const OPENCODE_DIR = SCRIPT_DIR; // Wizard lives inside .opencode/
-const PROJECT_ROOT = dirname(OPENCODE_DIR);
 const SHELL_RC = join(HOME, process.env.SHELL?.includes('zsh') ? '.zshrc' : '.bashrc');
+
+function getDefaultPaiDir(): string {
+  const xdg = process.env.XDG_CONFIG_HOME;
+  if (xdg && xdg.trim()) return join(xdg.trim(), "opencode");
+  return join(HOME, ".config", "opencode");
+}
+
+function resolvePaiDirFromArgs(argv: string[]): string {
+  // CLI: --pai-dir <dir>
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--pai-dir") {
+      const v = argv[i + 1];
+      if (!v) break;
+      return resolve(v);
+    }
+  }
+
+  // Env override
+  const fromEnv = process.env.PAI_DIR;
+  if (fromEnv && fromEnv.trim()) return resolve(fromEnv.trim());
+
+  return resolve(getDefaultPaiDir());
+}
 
 // Provider configurations
 interface ProviderConfig {
@@ -162,6 +184,57 @@ interface InstallConfig {
   VOICE_TYPE?: 'male' | 'female' | 'neutral';  // Deferred to v1.1
 }
 
+function quote(p: string): string {
+  // Minimal shell quoting for paths
+  return `"${p.replaceAll('"', '\\"')}"`;
+}
+
+function providerIdToProfileName(providerId: string): string | null {
+  // Profiles live at: .opencode/profiles/<name>.yaml
+  switch (providerId) {
+    case "openai":
+      return "openai";
+    case "anthropic":
+      return "anthropic";
+    case "ollama":
+      return "local";
+    case "zen":
+      // No zen profile today; zen defaults are handled elsewhere.
+      return null;
+    default:
+      return null;
+  }
+}
+
+function applySelectedProfile(paiDir: string, providerId: string): void {
+  const profileName = providerIdToProfileName(providerId);
+  if (!profileName) {
+    printInfo(`No agent profile to apply for provider '${providerId}'`);
+    return;
+  }
+
+  // PAI helper tool lives at: <paiDir>/pai-tools/ApplyProfile.ts
+  const applyProfileTool = join(paiDir, "pai-tools", "ApplyProfile.ts");
+  if (!existsSync(applyProfileTool)) {
+    printWarning(`ApplyProfile tool not found at: ${applyProfileTool}`);
+    printWarning("Agents may still reference non-existent models.");
+    return;
+  }
+
+  try {
+    print('');
+    print(`${c.bold}Applying Agent Model Profile${c.reset}`);
+    print(`${c.gray}─────────────────────────────────────────────────${c.reset}`);
+    const cmd = `bun ${quote(applyProfileTool)} ${profileName} --opencode-dir ${quote(paiDir)}`;
+    execSync(cmd, { stdio: 'inherit' });
+    printSuccess(`Applied '${profileName}' profile to agents`);
+  } catch (err: any) {
+    printWarning(`Failed to apply profile '${profileName}': ${err?.message || String(err)}`);
+    printWarning("You can apply manually later:");
+    printInfo(`bun ${applyProfileTool} ${profileName} --opencode-dir ${paiDir}`);
+  }
+}
+
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
@@ -275,13 +348,13 @@ function generateOpencodeJson(config: InstallConfig): object {
   };
 }
 
-function generateSettingsJson(config: InstallConfig): object {
+function generateSettingsJson(config: InstallConfig, paiDir: string): object {
   const VOICE_ID = DEFAULT_VOICES[config.VOICE_TYPE || 'male'];
 
   return {
     "paiVersion": "2.4-opencode",
     "env": {
-      "PAI_DIR": OPENCODE_DIR,
+      "PAI_DIR": paiDir,
       "OPENCODE_MAX_OUTPUT_TOKENS": "80000",
       "BASH_DEFAULT_TIMEOUT_MS": "600000"
     },
@@ -409,12 +482,12 @@ function generateBasicInfo(config: InstallConfig): string {
 // VALIDATION
 // ============================================================================
 
-function validate(): { passed: boolean; results: string[] } {
+function validate(paiDir: string): { passed: boolean; results: string[] } {
   const results: string[] = [];
   let passed = true;
 
   // Check opencode.json (OpenCode's config - no custom fields allowed)
-  const opencodeJsonPath = join(PROJECT_ROOT, 'opencode.json');
+  const opencodeJsonPath = join(paiDir, "opencode.json");
   if (existsSync(opencodeJsonPath)) {
     try {
       const config = JSON.parse(readFileSync(opencodeJsonPath, 'utf-8'));
@@ -434,7 +507,7 @@ function validate(): { passed: boolean; results: string[] } {
   }
 
   // Check settings.json (PAI-OpenCode config - stores all custom fields)
-  const settingsPath = join(OPENCODE_DIR, 'settings.json');
+  const settingsPath = join(paiDir, "settings.json");
   if (existsSync(settingsPath)) {
     try {
       const settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
@@ -454,8 +527,8 @@ function validate(): { passed: boolean; results: string[] } {
   }
 
   // Check directories
-  for (const dir of ['skills', 'MEMORY', 'plugins']) {
-    if (existsSync(join(OPENCODE_DIR, dir))) {
+  for (const dir of ["skills", "MEMORY", "plugins"]) {
+    if (existsSync(join(paiDir, dir))) {
       results.push(`${c.green}✓${c.reset} ${dir}/ exists`);
     } else {
       results.push(`${c.yellow}!${c.reset} ${dir}/ missing (will be created)`);
@@ -463,7 +536,7 @@ function validate(): { passed: boolean; results: string[] } {
   }
 
   // Check CORE skill
-  if (existsSync(join(OPENCODE_DIR, 'skills', 'CORE', 'SKILL.md'))) {
+  if (existsSync(join(paiDir, "skills", "CORE", "SKILL.md"))) {
     results.push(`${c.green}✓${c.reset} CORE skill found`);
   } else {
     results.push(`${c.red}✗${c.reset} CORE skill missing`);
@@ -488,6 +561,11 @@ async function main(): Promise<void> {
   // Step 1: Check Bun
   if (!checkBun()) {
     process.exit(1);
+  }
+
+  const paiDir = resolvePaiDirFromArgs(process.argv.slice(2));
+  if (!existsSync(paiDir)) {
+    mkdirSync(paiDir, { recursive: true });
   }
 
   // Step 2: Welcome
@@ -555,23 +633,26 @@ async function main(): Promise<void> {
   print(`${c.bold}Step 4: Writing Configuration${c.reset}`);
   print(`${c.gray}─────────────────────────────────────────────────${c.reset}`);
 
-  // opencode.json (project root)
+  // opencode.json (global OpenCode config)
   const opencodeJson = generateOpencodeJson(config);
-  writeFileSync(join(PROJECT_ROOT, 'opencode.json'), JSON.stringify(opencodeJson, null, 2));
-  printSuccess('Created opencode.json (project root)');
+  writeFileSync(join(paiDir, "opencode.json"), JSON.stringify(opencodeJson, null, 2));
+  printSuccess(`Created opencode.json (${paiDir})`);
 
-  // settings.json (.opencode/)
-  const settingsJson = generateSettingsJson(config);
-  writeFileSync(join(OPENCODE_DIR, 'settings.json'), JSON.stringify(settingsJson, null, 2));
-  printSuccess('Created settings.json (.opencode/)');
+  // settings.json (PAI configuration)
+  const settingsJson = generateSettingsJson(config, paiDir);
+  writeFileSync(join(paiDir, "settings.json"), JSON.stringify(settingsJson, null, 2));
+  printSuccess(`Created settings.json (${paiDir})`);
+
+  // Ensure identity directories exist
+  mkdirSync(join(paiDir, "skills", "CORE", "USER"), { recursive: true });
 
   // DAIDENTITY.md
-  const daIdentityPath = join(OPENCODE_DIR, 'skills', 'CORE', 'USER', 'DAIDENTITY.md');
+  const daIdentityPath = join(paiDir, "skills", "CORE", "USER", "DAIDENTITY.md");
   writeFileSync(daIdentityPath, generateDAIdentity(config));
   printSuccess('Created DAIDENTITY.md');
 
   // BASICINFO.md
-  const basicInfoPath = join(OPENCODE_DIR, 'skills', 'CORE', 'USER', 'BASICINFO.md');
+  const basicInfoPath = join(paiDir, "skills", "CORE", "USER", "BASICINFO.md");
   writeFileSync(basicInfoPath, generateBasicInfo(config));
   printSuccess('Created BASICINFO.md');
 
@@ -583,19 +664,22 @@ async function main(): Promise<void> {
     'MEMORY/WORK',
   ];
   for (const dir of requiredDirs) {
-    const dirPath = join(OPENCODE_DIR, dir);
+    const dirPath = join(paiDir, dir);
     if (!existsSync(dirPath)) {
       mkdirSync(dirPath, { recursive: true });
     }
   }
   printSuccess('Created MEMORY directories');
 
+  // Step 5: Apply agent model profile (prevents ProviderModelNotFoundError)
+  applySelectedProfile(paiDir, selectedProvider.id);
+
   // Fix permissions
-  fixPermissions(OPENCODE_DIR);
+  fixPermissions(paiDir);
 
   // Step 8: Validate
   print('');
-  const { passed, results } = validate();
+  const { passed, results } = validate(paiDir);
   print(`${c.bold}Validation${c.reset}`);
   print(`${c.gray}─────────────────────────────────────────────────${c.reset}`);
   for (const r of results) print(`  ${r}`);
@@ -611,10 +695,11 @@ async function main(): Promise<void> {
     print(`  ${c.cyan}Principal:${c.reset}   ${PRINCIPAL_NAME}`);
     print(`  ${c.cyan}Provider:${c.reset}    ${selectedProvider.name}`);
     print(`  ${c.cyan}Model:${c.reset}       ${selectedProvider.defaultModel}`);
+    print(`  ${c.cyan}PAI Dir:${c.reset}     ${paiDir}`);
     print('');
     print(`${c.bold}Next Steps:${c.reset}`);
     print('');
-    print(`  ${c.cyan}1.${c.reset} Start OpenCode in this directory:`);
+    print(`  ${c.cyan}1.${c.reset} Start OpenCode (from any directory):`);
     print(`     ${c.green}opencode${c.reset}`);
     print('');
     print(`  ${c.cyan}2.${c.reset} ${c.bold}Deep Personalization (Recommended):${c.reset}`);

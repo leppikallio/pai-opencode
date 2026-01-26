@@ -6,8 +6,8 @@ Create a new skill following the canonical structure with proper TitleCase namin
 
 **REQUIRED FIRST:**
 
-1. Read the skill system documentation: `~/.opencode/skills/CORE/SkillSystem.md`
-2. Read the canonical example: `~/.opencode/skills/_BLOGGING/SKILL.md`
+1. Read the skill system documentation: `~/.config/opencode/skills/CORE/SkillSystem.md`
+2. Read the canonical example: `~/.config/opencode/skills/_BLOGGING/SKILL.md`
 
 ## Step 2: Understand the Request
 
@@ -35,14 +35,14 @@ Ask the user:
 ## Step 4: Create the Skill Directory
 
 ```bash
-mkdir -p ~/.opencode/skills/[SkillName]/Workflows
-mkdir -p ~/.opencode/skills/[SkillName]/Tools
+mkdir -p ~/.config/opencode/skills/[SkillName]/Workflows
+mkdir -p ~/.config/opencode/skills/[SkillName]/Tools
 ```
 
 **Example:**
 ```bash
-mkdir -p ~/.opencode/skills/Daemon/Workflows
-mkdir -p ~/.opencode/skills/Daemon/Tools
+mkdir -p ~/.config/opencode/skills/Daemon/Workflows
+mkdir -p ~/.config/opencode/skills/Daemon/Tools
 ```
 
 ## Step 5: Create SKILL.md
@@ -99,7 +99,7 @@ User: "[Different request]"
 For each workflow in the routing section:
 
 ```bash
-touch ~/.opencode/skills/[SkillName]/Workflows/[WorkflowName].md
+touch ~/.config/opencode/skills/[SkillName]/Workflows/[WorkflowName].md
 ```
 
 ### Workflow-to-Tool Integration (REQUIRED for workflows with CLI tools)
@@ -141,23 +141,23 @@ bun ToolName.ts \
 - Workflows should expose this flexibility, not hardcode single patterns
 - Users speak naturally; workflows translate to precise CLI
 
-**Reference:** `~/.opencode/skills/CORE/CliFirstArchitecture.md` (Workflow-to-Tool Integration section)
+**Reference:** `~/.config/opencode/skills/CORE/CliFirstArchitecture.md` (Workflow-to-Tool Integration section)
 
 **Examples (TitleCase):**
 ```bash
-touch ~/.opencode/skills/Daemon/Workflows/UpdateDaemonInfo.md
-touch ~/.opencode/skills/Daemon/Workflows/UpdatePublicRepo.md
-touch ~/.opencode/skills/_BLOGGING/Workflows/Create.md
-touch ~/.opencode/skills/_BLOGGING/Workflows/Publish.md
+touch ~/.config/opencode/skills/Daemon/Workflows/UpdateDaemonInfo.md
+touch ~/.config/opencode/skills/Daemon/Workflows/UpdatePublicRepo.md
+touch ~/.config/opencode/skills/_BLOGGING/Workflows/Create.md
+touch ~/.config/opencode/skills/_BLOGGING/Workflows/Publish.md
 ```
 
 ## Step 7: Verify TitleCase
 
 Run this check:
 ```bash
-ls ~/.opencode/skills/[SkillName]/
-ls ~/.opencode/skills/[SkillName]/Workflows/
-ls ~/.opencode/skills/[SkillName]/Tools/
+ls ~/.config/opencode/skills/[SkillName]/
+ls ~/.config/opencode/skills/[SkillName]/Workflows/
+ls ~/.config/opencode/skills/[SkillName]/Tools/
 ```
 
 Verify ALL files use TitleCase:

@@ -7,7 +7,7 @@ context: fork
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Research/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Research/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -103,9 +103,9 @@ Route to the appropriate workflow based on the request.
 
 ## File Organization
 
-**Scratch (temporary work artifacts):** `~/.opencode/MEMORY/WORK/{current_work}/scratch/`
-- Read `~/.opencode/MEMORY/STATE/current-work.json` to get the `work_dir` value
+**Scratch (temporary work artifacts):** `~/.config/opencode/MEMORY/WORK/{current_work}/scratch/`
+- Read `~/.config/opencode/MEMORY/STATE/current-work.json` to get the `work_dir` value
 - All iterative work artifacts go in the current work item's scratch/ subdirectory
 - This ties research artifacts to the work item for learning and context
 
-**History (permanent):** `~/.opencode/History/research/YYYY-MM/YYYY-MM-DD_[topic]/`
+**History (permanent):** `~/.config/opencode/History/research/YYYY-MM/YYYY-MM-DD_[topic]/`

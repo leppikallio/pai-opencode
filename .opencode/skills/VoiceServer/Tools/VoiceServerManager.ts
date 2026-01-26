@@ -5,7 +5,7 @@
  * Manages the ElevenLabs TTS voice server for PAI notifications.
  *
  * Usage:
- *   bun ~/.opencode/skills/VoiceServer/Tools/VoiceServerManager.ts <command>
+ *   bun ~/.config/opencode/skills/VoiceServer/Tools/VoiceServerManager.ts <command>
  *
  * Commands:
  *   start     Start the voice server
@@ -20,7 +20,7 @@
  *   bun VoiceServerManager.ts status
  *   bun VoiceServerManager.ts test "Hello from PAI"
  *
- * Infrastructure: ~/.opencode/VoiceServer/
+ * Infrastructure: ~/.config/opencode/VoiceServer/
  * Port: 8888
  *
  * @author PAI
@@ -137,7 +137,7 @@ function showHelp(): void {
   console.log(colors.dim("─".repeat(50)));
   console.log(`
 ${colors.bold("Usage:")}
-  bun ~/.opencode/skills/VoiceServer/Tools/VoiceServerManager.ts <command>
+  bun ~/.config/opencode/skills/VoiceServer/Tools/VoiceServerManager.ts <command>
 
 ${colors.bold("Commands:")}
   ${colors.green("start")}     Start the voice server

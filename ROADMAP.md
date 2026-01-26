@@ -122,8 +122,8 @@ This roadmap outlines the development path from v1.0 to v2.0 and beyond.
 
 We value community input! Here's how to shape PAI-OpenCode's future:
 
-1. **Vote on Features**: Comment on [roadmap issues](https://github.com/Steffen025/pai-opencode/labels/roadmap)
-2. **Propose Ideas**: Open a [discussion](https://github.com/Steffen025/pai-opencode/discussions)
+1. **Vote on Features**: Comment on [roadmap issues](https://github.com/leppikallio/pai-opencode/labels/roadmap)
+2. **Propose Ideas**: Open a [discussion](https://github.com/leppikallio/pai-opencode/discussions)
 3. **Contribute Code**: Tackle items from the roadmap ([CONTRIBUTING.md](CONTRIBUTING.md))
 4. **Share Use Cases**: Tell us how you use PAI-OpenCode
 
@@ -139,4 +139,4 @@ We value community input! Here's how to shape PAI-OpenCode's future:
 
 **Stay Updated:**
 - Watch this repo for releases
-- Follow [Discussions](https://github.com/Steffen025/pai-opencode/discussions) for announcements
+- Follow [Discussions](https://github.com/leppikallio/pai-opencode/discussions) for announcements

@@ -371,4 +371,4 @@ Use **SpawnParallelAgents workflow** when:
 
 ## References
 
-- Agent personalities: `~/.opencode/skills/Agents/AgentPersonalities.md`
+- Agent personalities: `~/.config/opencode/skills/Agents/AgentPersonalities.md`

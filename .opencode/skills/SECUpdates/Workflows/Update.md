@@ -7,7 +7,7 @@
 ### 1. Load State
 
 ```bash
-cat ~/.opencode/skills/SECUpdates/State/last-check.json
+cat ~/.config/opencode/skills/SECUpdates/State/last-check.json
 ```
 
 Determine the last check timestamp to filter for new content only.

@@ -71,7 +71,7 @@ PAI uses a **hybrid agent system** that combines:
 **Trigger words:** "custom agents", "custom", "specialized agents with different expertise"
 
 **What happens:**
-1. Run `bun run ~/.opencode/skills/Agents/Tools/AgentFactory.ts` for EACH agent
+1. Run `bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts` for EACH agent
 2. Use DIFFERENT trait combinations to get unique voices
 3. Each agent gets a personality-matched ElevenLabs voice
 4. Launch with the full AgentFactory-generated prompt
@@ -144,16 +144,16 @@ bun run AgentFactory.ts --traits "..."  # Overkill for generic parallel work
 - **Approach**: thorough, rapid, systematic, exploratory, comparative, synthesizing, adversarial, consultative
 
 **Internal Infrastructure** (for {daidentity.name}'s use):
-- Trait definitions: `~/.opencode/skills/Agents/Data/Traits.yaml`
-- Agent template: `~/.opencode/skills/Agents/Templates/DynamicAgent.hbs`
-- Composition tool: `~/.opencode/skills/Agents/Tools/AgentFactory.ts`
+- Trait definitions: `~/.config/opencode/skills/Agents/Data/Traits.yaml`
+- Agent template: `~/.config/opencode/skills/Agents/Templates/DynamicAgent.hbs`
+- Composition tool: `~/.config/opencode/skills/Agents/Tools/AgentFactory.ts`
 
 ---
 
 ## Named Agent Architecture
 
-- **Location**: `~/.opencode/skills/CORE/AgentPersonalities.md` (this file)
-- **Consumer**: `~/.opencode/VoiceServer/server.ts` extracts JSON config from this file
+- **Location**: `~/.config/opencode/skills/CORE/AgentPersonalities.md` (this file)
+- **Consumer**: `~/.config/opencode/VoiceServer/server.ts` extracts JSON config from this file
 - **Format**: Human-readable markdown with embedded JSON configuration
 
 ## Configuration

@@ -8,7 +8,7 @@ This directory contains social media Open Source Intelligence (OSINT) tools for 
 
 ```bash
 # Activate the virtual environment
-cd ~/.opencode/skills/Webassessment/osint-tools
+cd ~/.config/opencode/skills/Webassessment/osint-tools
 source osint-venv/bin/activate
 
 # Now use any tool:
@@ -30,12 +30,12 @@ deactivate
 
 **Purpose:** Search for usernames across over 600 social networks and platforms to track digital footprints.
 
-**Location:** `~/.opencode/skills/Webassessment/osint-tools/sherlock/`
+**Location:** `~/.config/opencode/skills/Webassessment/osint-tools/sherlock/`
 
 **Installation Method:**
 ```bash
 # Tools installed in Python 3.14 virtual environment
-cd ~/.opencode/skills/Webassessment/osint-tools
+cd ~/.config/opencode/skills/Webassessment/osint-tools
 source osint-venv/bin/activate
 cd sherlock
 pip install -e .
@@ -44,7 +44,7 @@ pip install -e .
 **Usage:**
 ```bash
 # Activate virtual environment first!
-cd ~/.opencode/skills/Webassessment/osint-tools
+cd ~/.config/opencode/skills/Webassessment/osint-tools
 source osint-venv/bin/activate
 
 # Search for username
@@ -82,12 +82,12 @@ sherlock --version
 
 **Purpose:** Collect and analyze Instagram account data including followers, posts, geolocation, hashtags, and metadata for OSINT investigations.
 
-**Location:** `~/.opencode/skills/Webassessment/osint-tools/Osintgram/`
+**Location:** `~/.config/opencode/skills/Webassessment/osint-tools/Osintgram/`
 
 **Installation Method:**
 ```bash
 # Tools installed in Python 3.14 virtual environment
-cd ~/.opencode/skills/Webassessment/osint-tools
+cd ~/.config/opencode/skills/Webassessment/osint-tools
 source osint-venv/bin/activate
 cd Osintgram
 pip install -r requirements.txt
@@ -104,7 +104,7 @@ pip install -r requirements.txt
 **Usage:**
 ```bash
 # Activate virtual environment first!
-cd ~/.opencode/skills/Webassessment/osint-tools
+cd ~/.config/opencode/skills/Webassessment/osint-tools
 source osint-venv/bin/activate
 
 # Run Osintgram
@@ -152,12 +152,12 @@ geolocation         # Get location data from posts
 
 **Purpose:** Extract and analyze Twitter/X user intelligence including tweets, geolocation, social graphs, and metadata for threat intelligence.
 
-**Location:** `~/.opencode/skills/Webassessment/osint-tools/tinfoleak/`
+**Location:** `~/.config/opencode/skills/Webassessment/osint-tools/tinfoleak/`
 
 **Installation Method:**
 ```bash
 # Tools installed in Python 3.14 virtual environment
-cd ~/.opencode/skills/Webassessment/osint-tools
+cd ~/.config/opencode/skills/Webassessment/osint-tools
 source osint-venv/bin/activate
 pip install tweepy pillow exifread jinja2 oauth2
 ```
@@ -172,7 +172,7 @@ pip install tweepy pillow exifread jinja2 oauth2
 **Usage:**
 ```bash
 # Activate virtual environment first!
-cd ~/.opencode/skills/Webassessment/osint-tools
+cd ~/.config/opencode/skills/Webassessment/osint-tools
 source osint-venv/bin/activate
 
 # Configure Twitter API credentials first (see Configuration below)
@@ -224,27 +224,27 @@ python tinfoleak.py -u target_username
 **Installation Commands Used:**
 ```bash
 # 1. Create osint-tools directory
-mkdir -p ~/.opencode/skills/Webassessment/osint-tools/
+mkdir -p ~/.config/opencode/skills/Webassessment/osint-tools/
 
 # 2. Create Python 3.14 virtual environment
-cd ~/.opencode/skills/Webassessment/osint-tools
+cd ~/.config/opencode/skills/Webassessment/osint-tools
 /opt/homebrew/bin/python3 -m venv osint-venv
 source osint-venv/bin/activate
 
 # 3. Install Sherlock
-cd ~/.opencode/skills/Webassessment/osint-tools
+cd ~/.config/opencode/skills/Webassessment/osint-tools
 git clone https://github.com/sherlock-project/sherlock.git
 cd sherlock
 pip install -e .
 
 # 4. Install Osintgram
-cd ~/.opencode/skills/Webassessment/osint-tools
+cd ~/.config/opencode/skills/Webassessment/osint-tools
 git clone https://github.com/Datalux/Osintgram.git
 cd Osintgram
 pip install -r requirements.txt
 
 # 5. Install Tinfoleak
-cd ~/.opencode/skills/Webassessment/osint-tools
+cd ~/.config/opencode/skills/Webassessment/osint-tools
 git clone https://github.com/vaguileradiaz/tinfoleak.git
 pip install tweepy pillow exifread jinja2 oauth2
 ```
@@ -333,7 +333,7 @@ pip install tweepy pillow exifread jinja2 oauth2
 ModuleNotFoundError: No module named 'X'
 ```
 - **Solution:** Activate the virtual environment first
-- Command: `source ~/.opencode/skills/Webassessment/osint-tools/osint-venv/bin/activate`
+- Command: `source ~/.config/opencode/skills/Webassessment/osint-tools/osint-venv/bin/activate`
 - Verify activation: prompt should show `(osint-venv)`
 
 **Sherlock Command Not Found:**
@@ -379,7 +379,7 @@ ModuleNotFoundError: No module named 'X'
 **Updating Tools:**
 ```bash
 # Activate virtual environment first
-cd ~/.opencode/skills/Webassessment/osint-tools
+cd ~/.config/opencode/skills/Webassessment/osint-tools
 source osint-venv/bin/activate
 
 # Update Sherlock

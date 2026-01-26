@@ -6,7 +6,7 @@ description: "Open source intelligence gathering. USE WHEN OSINT, due diligence,
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/OSINT/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/OSINT/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -117,12 +117,12 @@ Open Source Intelligence gathering for authorized investigations.
 
 **Active investigations:**
 ```
-~/.opencode/MEMORY/WORK/$(jq -r '.work_dir' ~/.opencode/MEMORY/STATE/current-work.json)/scratch/YYYY-MM-DD-HHMMSS_osint-[target]/
+~/.config/opencode/MEMORY/WORK/$(jq -r '.work_dir' ~/.config/opencode/MEMORY/STATE/current-work.json)/scratch/YYYY-MM-DD-HHMMSS_osint-[target]/
 ```
 
 **Archived reports:**
 ```
-~/.opencode/History/research/YYYY-MM/[target]-osint/
+~/.config/opencode/History/research/YYYY-MM/[target]-osint/
 ```
 
 ---

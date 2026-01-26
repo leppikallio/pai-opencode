@@ -44,7 +44,7 @@ SKILLCUSTOMIZATIONS/
 ### Step 1: Create Directory
 
 ```bash
-mkdir -p ~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/SkillName
+mkdir -p ~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/SkillName
 ```
 
 ### Step 2: Create EXTEND.yaml (Required)
@@ -95,7 +95,7 @@ Some skills support additional configuration files:
 ## Example: Art Skill Customization
 
 ```bash
-mkdir -p ~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Art
+mkdir -p ~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Art
 ```
 
 **Art/EXTEND.yaml:**
@@ -131,4 +131,4 @@ enabled: false  # Skill uses defaults, customizations ignored
 
 ## Full Documentation
 
-See: `~/.opencode/skills/CORE/SYSTEM/SKILLSYSTEM.md` (Skill Customization System section)
+See: `~/.config/opencode/skills/CORE/SYSTEM/SKILLSYSTEM.md` (Skill Customization System section)

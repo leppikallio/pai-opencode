@@ -24,24 +24,24 @@ Discover and monitor public bug bounty programs from aggregated sources.
 
 ```bash
 # List all bounty programs
-bun ~/.opencode/skills/Recon/Tools/BountyPrograms.ts list
+bun ~/.config/opencode/skills/Recon/Tools/BountyPrograms.ts list
 
 # Show only paid bounty programs (not just swag)
-bun ~/.opencode/skills/Recon/Tools/BountyPrograms.ts list --bounty-only
+bun ~/.config/opencode/skills/Recon/Tools/BountyPrograms.ts list --bounty-only
 
 # Search for programs by keyword
-bun ~/.opencode/skills/Recon/Tools/BountyPrograms.ts search "crypto"
-bun ~/.opencode/skills/Recon/Tools/BountyPrograms.ts search "finance"
-bun ~/.opencode/skills/Recon/Tools/BountyPrograms.ts search "cloud"
+bun ~/.config/opencode/skills/Recon/Tools/BountyPrograms.ts search "crypto"
+bun ~/.config/opencode/skills/Recon/Tools/BountyPrograms.ts search "finance"
+bun ~/.config/opencode/skills/Recon/Tools/BountyPrograms.ts search "cloud"
 
 # Check if a domain has a bounty program
-bun ~/.opencode/skills/Recon/Tools/BountyPrograms.ts check example.com
+bun ~/.config/opencode/skills/Recon/Tools/BountyPrograms.ts check example.com
 
 # Update local cache from sources
-bun ~/.opencode/skills/Recon/Tools/BountyPrograms.ts update
+bun ~/.config/opencode/skills/Recon/Tools/BountyPrograms.ts update
 
 # Export as JSON
-bun ~/.opencode/skills/Recon/Tools/BountyPrograms.ts list --json > bounty-programs.json
+bun ~/.config/opencode/skills/Recon/Tools/BountyPrograms.ts list --json > bounty-programs.json
 ```
 
 ## Output
@@ -102,5 +102,5 @@ Format:
 
 ## Cache
 
-Local cache stored at: `~/.opencode/skills/Recon/Data/BountyPrograms.json`
+Local cache stored at: `~/.config/opencode/skills/Recon/Data/BountyPrograms.json`
 Cache expires after 24 hours and auto-refreshes on next use.

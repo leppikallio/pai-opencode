@@ -102,7 +102,7 @@ main().catch(error => {
 - ✅ Fast development priority
 
 ### Reference Implementation
-**Location:** `~/.opencode/Bin/llcli/llcli.ts` (327 lines)
+**Location:** `~/.config/opencode/Bin/llcli/llcli.ts` (327 lines)
 **Commands:** today, date, search
 **Pattern:** Exactly what this tier generates
 
@@ -470,7 +470,7 @@ Check dist/ folder size. Tier 1 CLIs are <100 KB.
 ---
 
 **Sources:**
-- llcli production implementation (~/.opencode/Bin/llcli/)
+- llcli production implementation (~/.config/opencode/Bin/llcli/)
 - Commander.js 12.x documentation
 - oclif core documentation
 - Perplexity research (32 sub-queries on CLI frameworks)

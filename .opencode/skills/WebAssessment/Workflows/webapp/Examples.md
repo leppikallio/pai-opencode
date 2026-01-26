@@ -4,7 +4,7 @@
 Common Playwright testing patterns for web application security testing and functionality verification.
 
 ## Examples Location
-`~/.opencode/skills/Webassessment/webapp-examples/`
+`~/.config/opencode/skills/Webassessment/webapp-examples/`
 
 ## Available Examples
 
@@ -312,7 +312,7 @@ if 'csrf' not in form_html.lower() and '_token' not in form_html.lower():
 For dynamic applications, use the server helper:
 
 ```bash
-python ~/.opencode/skills/Webassessment/webapp-scripts/with_server.py \
+python ~/.config/opencode/skills/Webassessment/webapp-scripts/with_server.py \
     --server "npm run dev" \
     --port 5173 \
     -- python my_test.py
@@ -368,6 +368,6 @@ with sync_playwright() as p:
 
 ## See Also
 
-- Web app testing guide: `~/.opencode/skills/Webassessment/Workflows/webapp/testing-guide.md`
-- Server helper script: `~/.opencode/skills/Webassessment/webapp-scripts/with_server.py`
+- Web app testing guide: `~/.config/opencode/skills/Webassessment/Workflows/webapp/testing-guide.md`
+- Server helper script: `~/.config/opencode/skills/Webassessment/webapp-scripts/with_server.py`
 - Playwright documentation: https://playwright.dev/python/

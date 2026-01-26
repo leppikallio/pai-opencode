@@ -7,7 +7,7 @@ version: 2.0.0
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Browser/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Browser/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -21,7 +21,7 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 Debugging shouldn't be opt-in. Like good logging frameworks - you don't turn on logging when you have a problem, you have it enabled from the start so the data exists when problems occur.
 
-**Headless by default.** All automation runs in headless mode. When the user says "show me" or wants to see what the assistant is seeing, open the URL in their preferred browser from `~/.opencode/skills/CORE/USER/TECHSTACKPREFERENCES.md`:
+**Headless by default.** All automation runs in headless mode. When the user says "show me" or wants to see what the assistant is seeing, open the URL in their preferred browser from `~/.config/opencode/skills/CORE/USER/TECHSTACKPREFERENCES.md`:
 
 ```bash
 # Open URL in user's preferred browser
@@ -41,7 +41,7 @@ open -a "$BROWSER" "<url>"  # BROWSER from tech stack prefs
 
 ```bash
 # Navigate with full diagnostics (PRIMARY COMMAND)
-bun run ~/.opencode/skills/Browser/Tools/Browse.ts https://example.com
+bun run ~/.config/opencode/skills/Browser/Tools/Browse.ts https://example.com
 
 # Output:
 # 📸 Screenshot: /tmp/browse-1704614400.png
@@ -189,7 +189,7 @@ Session auto-closes after 30 minutes of inactivity:
 
 ### CLI Tool
 
-**Location:** `~/.opencode/skills/Browser/Tools/Browse.ts`
+**Location:** `~/.config/opencode/skills/Browser/Tools/Browse.ts`
 
 | Command | Description |
 |---------|-------------|
@@ -212,7 +212,7 @@ Session auto-closes after 30 minutes of inactivity:
 
 ### Server Endpoints
 
-**Location:** `~/.opencode/skills/Browser/Tools/BrowserSession.ts`
+**Location:** `~/.config/opencode/skills/Browser/Tools/BrowserSession.ts`
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -235,7 +235,7 @@ Session auto-closes after 30 minutes of inactivity:
 For complex automation, use the TypeScript API directly:
 
 ```typescript
-import { PlaywrightBrowser } from '~/.opencode/skills/Browser/index.ts'
+import { PlaywrightBrowser } from '~/.config/opencode/skills/Browser/index.ts'
 
 const browser = new PlaywrightBrowser()
 await browser.launch({ headless: true })

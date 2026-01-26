@@ -3,7 +3,7 @@
 ## Available Templates
 
 ```
-~/.opencode/Templates/Evals/
+~/.config/opencode/Templates/Evals/
 ├── Judge.hbs       # Configurable LLM-as-Judge prompts
 ├── Rubric.hbs      # Evaluation criteria definitions
 ├── TestCase.hbs    # Test case specifications
@@ -18,10 +18,10 @@
 Use the JUDGE template for custom evaluation:
 
 ```bash
-bun run ~/.opencode/Templates/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/Templates/Tools/RenderTemplate.ts \
   -t Evals/Judge.hbs \
-  -d ~/.opencode/skills/Evals/UseCases/<name>/judge-config.yaml \
-  -o ~/.opencode/skills/Evals/UseCases/<name>/judge-prompt.md
+  -d ~/.config/opencode/skills/Evals/UseCases/<name>/judge-config.yaml \
+  -o ~/.config/opencode/skills/Evals/UseCases/<name>/judge-prompt.md
 ```
 
 ### Judge Config Example
@@ -55,10 +55,10 @@ output:
 Use the RUBRIC template for scoring criteria:
 
 ```bash
-bun run ~/.opencode/Templates/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/Templates/Tools/RenderTemplate.ts \
   -t Evals/Rubric.hbs \
-  -d ~/.opencode/skills/Evals/UseCases/<name>/rubric.yaml \
-  -o ~/.opencode/skills/Evals/UseCases/<name>/rubric.md
+  -d ~/.config/opencode/skills/Evals/UseCases/<name>/rubric.yaml \
+  -o ~/.config/opencode/skills/Evals/UseCases/<name>/rubric.md
 ```
 
 ---

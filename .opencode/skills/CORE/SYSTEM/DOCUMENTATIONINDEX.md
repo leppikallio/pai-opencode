@@ -13,7 +13,7 @@ extracted_from: SKILL.md lines 339-401
 
 ## 📚 Documentation Index & Route Triggers
 
-**All documentation files are in `~/.opencode/skills/CORE/` with SYSTEM/ and USER/ subdirectories. Read these files when you need deeper context.**
+**All documentation files are in `~/.config/opencode/skills/CORE/` with SYSTEM/ and USER/ subdirectories. Read these files when you need deeper context.**
 
 **Core Architecture & Philosophy:**
 - `SYSTEM/PAISYSTEMARCHITECTURE.md` - System architecture and philosophy, foundational principles (CLI-First, Deterministic Code, Prompts Wrap Code) | ⭐ PRIMARY REFERENCE | Triggers: "system architecture", "how does the system work", "system principles"
@@ -50,7 +50,7 @@ See `SYSTEM/SKILLSYSTEM.md` for complete documentation.
 - Testing standards → Development Skill
 
 **Agent System:**
-- **Agents Skill** (`~/.opencode/skills/Agents/`) - Complete agent composition system | See Agents skill for custom agent creation, traits, and voice mappings
+- **Agents Skill** (`~/.config/opencode/skills/Agents/`) - Complete agent composition system | See Agents skill for custom agent creation, traits, and voice mappings
 - Delegation patterns are documented inline in the "Delegation & Parallelization" section below
 
 **Response & Communication:**

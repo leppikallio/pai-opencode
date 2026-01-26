@@ -22,7 +22,7 @@ Running **ResearchThinker** in **Aphorisms**...
 - Building out thinker sections in database
 
 **Prerequisites:**
-- Aphorism database exists at `~/.opencode/skills/aphorisms/Database/aphorisms.md`
+- Aphorism database exists at `~/.config/opencode/skills/aphorisms/Database/aphorisms.md`
 - Clear understanding of which thinker to research
 - Optional: specific theme/topic to focus research on
 
@@ -260,7 +260,7 @@ research_skill.parallel_research(
 
 **Read current database:**
 ```bash
-Read ~/.opencode/skills/aphorisms/Database/aphorisms.md
+Read ~/.config/opencode/skills/aphorisms/Database/aphorisms.md
 ```
 
 **Locate thinker's section:**
@@ -270,7 +270,7 @@ Read ~/.opencode/skills/aphorisms/Database/aphorisms.md
 **Use Edit to replace placeholder:**
 ```bash
 Edit(
-  file_path=~/.opencode/skills/aphorisms/Database/aphorisms.md,
+  file_path=~/.config/opencode/skills/aphorisms/Database/aphorisms.md,
   old_string="### [Thinker Name]\n*Quotes to be added from research*",
   new_string="### [Thinker Name]\n\n[Organized quotes with themes and context]"
 )

@@ -113,7 +113,7 @@ curl -s -X POST http://localhost:8888/notify \
 - Thorough: "Running THE ALGORITHM at thorough effort with multi-agent analysis and deep thinking to design the architecture"
 - Exhaustive: "Running THE ALGORITHM at exhaustive effort with fleet operations and full decision support to build the new feature"
 
-**State file:** `~/.opencode/current-effort.json` stores current effort for downstream hooks.
+**State file:** `~/.config/opencode/current-effort.json` stores current effort for downstream hooks.
 
 ---
 
@@ -124,7 +124,7 @@ curl -s -X POST http://localhost:8888/notify \
 | **{DAIDENTITY.NAME}** (default) | `{DAIDENTITY.VOICEID}` | Use for most workflows |
 | **Priya** (Artist) | `ZF6FPAbjXT4488VcRRnw` | Art skill workflows |
 
-**Full voice registry:** `~/.opencode/skills/CORE/SYSTEM/AGENTPERSONALITIES.md`
+**Full voice registry:** `~/.config/opencode/skills/CORE/SYSTEM/AGENTPERSONALITIES.md`
 
 ---
 
@@ -222,7 +222,7 @@ Notifications are automatically routed based on event type:
 
 ### Configuration
 
-Located in `~/.opencode/settings.json`:
+Located in `~/.config/opencode/settings.json`:
 
 ```json
 {
@@ -286,7 +286,7 @@ Topic name acts as password - use random string for security.
 
 ### Implementation
 
-The notification service is in `~/.opencode/hooks/lib/notifications.ts`:
+The notification service is in `~/.config/opencode/hooks/lib/notifications.ts`:
 
 ```typescript
 import { notify, notifyTaskComplete, notifyBackgroundAgent, notifyError } from './lib/notifications';

@@ -246,7 +246,7 @@ Prevents intelligence gaps like missing investor-facing portals on alternative T
 ### Active Investigation
 
 ```
-~/.opencode/MEMORY/WORK/$(jq -r '.work_dir' ~/.opencode/MEMORY/STATE/current-work.json)/scratch/YYYY-MM-DD-HHMMSS_osint-[target]/
+~/.config/opencode/MEMORY/WORK/$(jq -r '.work_dir' ~/.config/opencode/MEMORY/STATE/current-work.json)/scratch/YYYY-MM-DD-HHMMSS_osint-[target]/
   phase1-collection.md
   phase2-analysis.md
   phase3-report.md
@@ -257,7 +257,7 @@ Prevents intelligence gaps like missing investor-facing portals on alternative T
 ### Archived Reports
 
 ```
-~/.opencode/History/research/YYYY-MM/[target]-osint/
+~/.config/opencode/History/research/YYYY-MM/[target]-osint/
   README.md
   comprehensive-report.md
   executive-summary.md

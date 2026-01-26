@@ -8,7 +8,7 @@
 
 ### Social Skill Integration
 
-**Location:** `~/.opencode/skills/social/SKILL.md`
+**Location:** `~/.config/opencode/skills/social/SKILL.md`
 
 **Updated Section:** "Fetching Tweet Content"
 
@@ -26,7 +26,7 @@ The social skill now uses code-based Apify scripts instead of `mcp__apify` MCP t
 **Example Workflow:**
 
 1. User: "Turn my latest tweet into a LinkedIn post"
-2. System runs: `bun ~/.opencode/filesystem-mcps/apify/get-latest-tweet.ts`
+2. System runs: `bun ~/.config/opencode/filesystem-mcps/apify/get-latest-tweet.ts`
 3. Script returns: Tweet text + metadata (~500 tokens)
 4. System transforms tweet into LinkedIn format
 5. **Token savings: 98%** (vs fetching unfiltered profile data)
@@ -37,13 +37,13 @@ The social skill now uses code-based Apify scripts instead of `mcp__apify` MCP t
 
 ```bash
 # Research what ThePrimeagen is discussing
-bun ~/.opencode/filesystem-mcps/apify/get-user-tweets.ts ThePrimeagen 10
+bun ~/.config/opencode/filesystem-mcps/apify/get-user-tweets.ts ThePrimeagen 10
 
 # Analyze Paul Graham's recent thoughts
-bun ~/.opencode/filesystem-mcps/apify/get-user-tweets.ts paulg 20
+bun ~/.config/opencode/filesystem-mcps/apify/get-user-tweets.ts paulg 20
 
 # Track Simon Willison's posts
-bun ~/.opencode/filesystem-mcps/apify/get-user-tweets.ts simonw 15
+bun ~/.config/opencode/filesystem-mcps/apify/get-user-tweets.ts simonw 15
 ```
 
 **Token Efficiency:**
@@ -57,7 +57,7 @@ bun ~/.opencode/filesystem-mcps/apify/get-user-tweets.ts simonw 15
 
 ```bash
 # Get user's thread about AI topic
-bun ~/.opencode/filesystem-mcps/apify/get-latest-thread.ts
+bun ~/.config/opencode/filesystem-mcps/apify/get-latest-thread.ts
 
 # Expand thread into blog post format
 # Token efficient: only thread content in context
@@ -112,7 +112,7 @@ mcp__Apify__get-actor-output(runId)
 
 ```typescript
 // All in one script, filtering in code
-bun ~/.opencode/filesystem-mcps/apify/get-latest-tweet.ts
+bun ~/.config/opencode/filesystem-mcps/apify/get-latest-tweet.ts
 
 // Returns only filtered result: ~500 tokens
 // Savings: 98.2%
@@ -124,7 +124,7 @@ bun ~/.opencode/filesystem-mcps/apify/get-latest-tweet.ts
 ✅ Use appropriate script for the task
 ✅ Let script filter data before returning
 ✅ Trust token savings calculations
-✅ Run from `~/.opencode/filesystem-mcps/apify/` directory or use full path
+✅ Run from `~/.config/opencode/filesystem-mcps/apify/` directory or use full path
 ✅ Check execution time (~10 seconds expected)
 
 ### DON'T:
@@ -199,13 +199,13 @@ Other Apify actors worth implementing:
 ## Documentation
 
 **For Users:**
-- Quick reference: `~/.opencode/filesystem-mcps/SCRIPTS-REFERENCE.md`
-- Social skill: `~/.opencode/skills/social/SKILL.md`
+- Quick reference: `~/.config/opencode/filesystem-mcps/SCRIPTS-REFERENCE.md`
+- Social skill: `~/.config/opencode/skills/social/SKILL.md`
 
 **For Developers:**
-- Implementation: `~/.opencode/filesystem-mcps/apify/README.md`
-- Standards: `~/.opencode/filesystem-mcps/STANDARDS.md`
-- Parent guide: `~/.opencode/filesystem-mcps/README.md`
+- Implementation: `~/.config/opencode/filesystem-mcps/apify/README.md`
+- Standards: `~/.config/opencode/filesystem-mcps/STANDARDS.md`
+- Parent guide: `~/.config/opencode/filesystem-mcps/README.md`
 
 ## Support
 

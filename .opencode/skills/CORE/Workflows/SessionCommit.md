@@ -83,13 +83,13 @@ Before creating a session commit:
 
 2. **Update progress file**
    ```bash
-   bun run ~/.opencode/skills/CORE/Tools/SessionProgress.ts next <project> "<next step 1>" "<next step 2>"
-   bun run ~/.opencode/skills/CORE/Tools/SessionProgress.ts handoff <project> "<handoff notes>"
+   bun run ~/.config/opencode/skills/CORE/Tools/SessionProgress.ts next <project> "<next step 1>" "<next step 2>"
+   bun run ~/.config/opencode/skills/CORE/Tools/SessionProgress.ts handoff <project> "<handoff notes>"
    ```
 
 3. **Update feature registry**
    ```bash
-   bun run ~/.opencode/skills/CORE/Tools/FeatureRegistry.ts list <project>
+   bun run ~/.config/opencode/skills/CORE/Tools/FeatureRegistry.ts list <project>
    # Update any feature statuses
    ```
 
@@ -149,7 +149,7 @@ Progress: 2/5 features passing
 
 This comes from:
 ```bash
-bun run ~/.opencode/skills/CORE/Tools/FeatureRegistry.ts verify <project>
+bun run ~/.config/opencode/skills/CORE/Tools/FeatureRegistry.ts verify <project>
 ```
 
 ## Why This Matters

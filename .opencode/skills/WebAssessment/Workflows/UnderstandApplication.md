@@ -125,13 +125,13 @@ Use Recon outputs to enhance understanding:
 
 ```bash
 # Get corporate structure for scope
-bun ~/.opencode/skills/Recon/Tools/CorporateStructure.ts target.com
+bun ~/.config/opencode/skills/Recon/Tools/CorporateStructure.ts target.com
 
 # Enumerate subdomains
-bun ~/.opencode/skills/Recon/Tools/SubdomainEnum.ts target.com
+bun ~/.config/opencode/skills/Recon/Tools/SubdomainEnum.ts target.com
 
 # Extract endpoints from JavaScript
-bun ~/.opencode/skills/Recon/Tools/EndpointDiscovery.ts https://target.com
+bun ~/.config/opencode/skills/Recon/Tools/EndpointDiscovery.ts https://target.com
 ```
 
 ## Workflow Execution
@@ -148,6 +148,6 @@ bun ~/.opencode/skills/Recon/Tools/EndpointDiscovery.ts https://target.com
 ## Output Location
 
 Save understanding document to:
-`~/.opencode/skills/Webassessment/Data/{client}/understanding.md`
+`~/.config/opencode/skills/Webassessment/Data/{client}/understanding.md`
 
 Or return inline for immediate use in threat modeling.

@@ -2,8 +2,8 @@
 
 **Event-Driven Automation Infrastructure**
 
-**Location:** `~/.opencode/hooks/`
-**Configuration:** `~/.opencode/settings.json`
+**Location:** `~/.config/opencode/hooks/`
+**Configuration:** `~/.config/opencode/settings.json`
 **Status:** Active - All hooks running in production
 
 ---
@@ -15,7 +15,7 @@ The PAI hook system is an event-driven automation infrastructure built on Claude
 **Core Capabilities:**
 - **Session Management** - Auto-load context, capture summaries, manage state
 - **Voice Notifications** - Text-to-speech announcements for task completions
-- **History Capture** - Automatic work/learning documentation to `~/.opencode/MEMORY/`
+- **History Capture** - Automatic work/learning documentation to `~/.config/opencode/MEMORY/`
 - **Multi-Agent Support** - Agent-specific hooks with voice routing
 - **Observability** - Real-time event streaming to dashboard
 - **Tab Titles** - Dynamic terminal tab updates with task context
@@ -26,7 +26,7 @@ The PAI hook system is an event-driven automation infrastructure built on Claude
 
 ## Available Hook Types
 
-Claude Code supports the following hook events (from `~/.opencode/hooks/lib/observability.ts`):
+Claude Code supports the following hook events (from `~/.config/opencode/hooks/lib/observability.ts`):
 
 ### 1. **SessionStart**
 **When:** Claude Code session begins (new conversation)
@@ -127,7 +127,7 @@ Claude Code supports the following hook events (from `~/.opencode/hooks/lib/obse
 **ExplicitRatingCapture.hook.ts** - Explicit Rating Detection
 - Detects when user types explicit ratings like "7" or "8 - good work"
 - Pattern: Single number (1-10) optionally followed by comment
-- Writes to `~/.opencode/MEMORY/SIGNALS/ratings.jsonl`
+- Writes to `~/.config/opencode/MEMORY/SIGNALS/ratings.jsonl`
 - Low ratings (<6) auto-capture as learning opportunities
 - Uses shared library: `hooks/lib/learning-utils.ts`
 
@@ -245,9 +245,9 @@ Claude Code supports the following hook events (from `~/.opencode/hooks/lib/obse
 
 **Tab Title Updates (Simplified Approach):**
 - Tab title updates are now handled by the **parent session** directly
-- After receiving Task result, parent calls: `bun ~/.opencode/skills/CORE/Tools/UpdateTabTitle.ts "Message"`
+- After receiving Task result, parent calls: `bun ~/.config/opencode/skills/CORE/Tools/UpdateTabTitle.ts "Message"`
 - This avoids transcript parsing race conditions
-- See `~/.opencode/skills/CORE/Tools/UpdateTabTitle.ts` for implementation
+- See `~/.config/opencode/skills/CORE/Tools/UpdateTabTitle.ts` for implementation
 
 **Agent-Specific Routing:**
 - `[AGENT:engineer]` → Captured to `execution/features/`
@@ -320,11 +320,11 @@ Claude Code supports the following hook events (from `~/.opencode/hooks/lib/obse
 ## Configuration
 
 ### Location
-**File:** `~/.opencode/settings.json`
+**File:** `~/.config/opencode/settings.json`
 **Section:** `"hooks": { ... }`
 
 ### Environment Variables
-Hooks have access to all environment variables from `~/.opencode/settings.json` `"env"` section:
+Hooks have access to all environment variables from `~/.config/opencode/settings.json` `"env"` section:
 
 ```json
 {
@@ -534,7 +534,7 @@ else if (hookData.cwd && hookData.cwd.includes('/agents/')) {
 }
 ```
 
-**Session Mapping:** `~/.opencode/MEMORY/STATE/agent-sessions.json`
+**Session Mapping:** `~/.config/opencode/MEMORY/STATE/agent-sessions.json`
 ```json
 {
   "session-id-abc123": "engineer",
@@ -607,7 +607,7 @@ await sendEventToObservability({
 - 🧠 Brain - AI inference in progress (Haiku/Sonnet thinking)
 - ⚙️ Gear - Processing/working state
 
-**Full Documentation:** See `~/.opencode/skills/CORE/SYSTEM/TERMINALTABS.md`
+**Full Documentation:** See `~/.config/opencode/skills/CORE/SYSTEM/TERMINALTABS.md`
 
 ---
 
@@ -661,7 +661,7 @@ async function main() {
 Decide which event should trigger your hook (SessionStart, Stop, PostToolUse, etc.)
 
 ### Step 2: Create Hook Script
-**Location:** `~/.opencode/hooks/my-custom-hook.ts`
+**Location:** `~/.config/opencode/hooks/my-custom-hook.ts`
 
 **Template:**
 ```typescript
@@ -702,7 +702,7 @@ main();
 
 ### Step 3: Make Executable
 ```bash
-chmod +x ~/.opencode/hooks/my-custom-hook.ts
+chmod +x ~/.config/opencode/hooks/my-custom-hook.ts
 ```
 
 ### Step 4: Add to settings.json
@@ -726,7 +726,7 @@ chmod +x ~/.opencode/hooks/my-custom-hook.ts
 ### Step 5: Test
 ```bash
 # Test hook directly
-echo '{"session_id":"test","transcript_path":"/tmp/test.jsonl","hook_event_name":"Stop"}' | bun ~/.opencode/hooks/my-custom-hook.ts
+echo '{"session_id":"test","transcript_path":"/tmp/test.jsonl","hook_event_name":"Stop"}' | bun ~/.config/opencode/hooks/my-custom-hook.ts
 ```
 
 ### Step 6: Restart Claude Code
@@ -788,18 +788,18 @@ await Promise.race([readPromise, timeoutPromise]);
 ### Hook Not Running
 
 **Check:**
-1. Is hook script executable? `chmod +x ~/.opencode/hooks/my-hook.ts`
+1. Is hook script executable? `chmod +x ~/.config/opencode/hooks/my-hook.ts`
 2. Is path correct in settings.json? Use `${PAI_DIR}/hooks/...`
-3. Is settings.json valid JSON? `jq . ~/.opencode/settings.json`
+3. Is settings.json valid JSON? `jq . ~/.config/opencode/settings.json`
 4. Did you restart Claude Code after editing settings.json?
 
 **Debug:**
 ```bash
 # Test hook directly
-echo '{"session_id":"test","transcript_path":"/tmp/test.jsonl","hook_event_name":"Stop"}' | bun ~/.opencode/hooks/my-hook.ts
+echo '{"session_id":"test","transcript_path":"/tmp/test.jsonl","hook_event_name":"Stop"}' | bun ~/.config/opencode/hooks/my-hook.ts
 
 # Check hook logs (stderr output)
-tail -f ~/.opencode/hooks/debug.log  # If you add logging
+tail -f ~/.config/opencode/hooks/debug.log  # If you add logging
 ```
 
 ---
@@ -851,22 +851,22 @@ curl -X POST http://localhost:8888/notify \
 ### Work Not Capturing
 
 **Check:**
-1. Does `~/.opencode/MEMORY/` directory exist?
-2. Is AutoWorkCreation hook running? Check `~/.opencode/MEMORY/STATE/current-work.json`
-3. Is hook actually running? Check `~/.opencode/MEMORY/RAW/` for events
-4. File permissions? `ls -la ~/.opencode/MEMORY/WORK/`
+1. Does `~/.config/opencode/MEMORY/` directory exist?
+2. Is AutoWorkCreation hook running? Check `~/.config/opencode/MEMORY/STATE/current-work.json`
+3. Is hook actually running? Check `~/.config/opencode/MEMORY/RAW/` for events
+4. File permissions? `ls -la ~/.config/opencode/MEMORY/WORK/`
 
 **Debug:**
 ```bash
 # Check current work
-cat ~/.opencode/MEMORY/STATE/current-work.json
+cat ~/.config/opencode/MEMORY/STATE/current-work.json
 
 # Check recent work directories
-ls -lt ~/.opencode/MEMORY/WORK/ | head -10
-ls -lt ~/.opencode/MEMORY/LEARNING/$(date +%Y-%m)/ | head -10
+ls -lt ~/.config/opencode/MEMORY/WORK/ | head -10
+ls -lt ~/.config/opencode/MEMORY/LEARNING/$(date +%Y-%m)/ | head -10
 
 # Check raw events
-tail ~/.opencode/MEMORY/RAW/$(date +%Y-%m)/$(date +%Y-%m-%d)_all-events.jsonl
+tail ~/.config/opencode/MEMORY/RAW/$(date +%Y-%m)/$(date +%Y-%m-%d)_all-events.jsonl
 ```
 
 **Common Issues:**
@@ -883,11 +883,11 @@ tail ~/.opencode/MEMORY/RAW/$(date +%Y-%m)/$(date +%Y-%m-%d)_all-events.jsonl
 **Evidence:**
 ```bash
 # Check if Stop events fired today
-grep '"event_type":"Stop"' ~/.opencode/MEMORY/RAW/$(date +%Y-%m)/$(date +%Y-%m-%d)_all-events.jsonl
+grep '"event_type":"Stop"' ~/.config/opencode/MEMORY/RAW/$(date +%Y-%m)/$(date +%Y-%m-%d)_all-events.jsonl
 # Result: 0 matches (no Stop events)
 
 # But other hooks ARE working
-grep '"event_type":"PostToolUse"' ~/.opencode/MEMORY/RAW/$(date +%Y-%m)/$(date +%Y-%m-%d)_all-events.jsonl
+grep '"event_type":"PostToolUse"' ~/.config/opencode/MEMORY/RAW/$(date +%Y-%m)/$(date +%Y-%m-%d)_all-events.jsonl
 # Result: 80+ matches (PostToolUse working fine)
 ```
 
@@ -905,7 +905,7 @@ grep '"event_type":"PostToolUse"' ~/.opencode/MEMORY/RAW/$(date +%Y-%m)/$(date +
 
 **Workaround (MANDATORY):**
 
-1. **Added CAPTURE field to response format** (see `~/.opencode/skills/CORE/SKILL.md`)
+1. **Added CAPTURE field to response format** (see `~/.config/opencode/skills/CORE/SKILL.md`)
    - MANDATORY field in every response
    - Forces verification before completing responses
    - Must document: "Auto-captured" / "Manually saved" / "N/A"
@@ -918,16 +918,16 @@ grep '"event_type":"PostToolUse"' ~/.opencode/MEMORY/RAW/$(date +%Y-%m)/$(date +
 3. **Verification Commands:**
    ```bash
    # Check if work is being tracked
-   cat ~/.opencode/MEMORY/STATE/current-work.json
-   ls -lt ~/.opencode/MEMORY/WORK/ | head -5
-   ls -lt ~/.opencode/MEMORY/LEARNING/$(date +%Y-%m)/ | head -5
+   cat ~/.config/opencode/MEMORY/STATE/current-work.json
+   ls -lt ~/.config/opencode/MEMORY/WORK/ | head -5
+   ls -lt ~/.config/opencode/MEMORY/LEARNING/$(date +%Y-%m)/ | head -5
 
    # If no current work or work items empty → Check AutoWorkCreation hook
    ```
 
 **Status:** UNRESOLVED (Claude Code issue, not hook configuration)
 **Mitigation:** Structural enforcement via response format (cannot complete valuable work without verification)
-**Tracking:** Documented in `~/.opencode/skills/CORE/SKILL.md` (History Capture System section)
+**Tracking:** Documented in `~/.config/opencode/skills/CORE/SKILL.md` (History Capture System section)
 
 **Long-term Fix:**
 - Report to Anthropic (Claude Code team) as Stop event reliability issue
@@ -939,17 +939,17 @@ grep '"event_type":"PostToolUse"' ~/.opencode/MEMORY/RAW/$(date +%Y-%m)/$(date +
 ### Agent Detection Failing
 
 **Check:**
-1. Is `~/.opencode/MEMORY/STATE/agent-sessions.json` writable?
+1. Is `~/.config/opencode/MEMORY/STATE/agent-sessions.json` writable?
 2. Is `[AGENT:type]` tag in `🎯 COMPLETED:` line?
 3. Is agent running from correct directory? (`/agents/name/`)
 
 **Debug:**
 ```bash
 # Check session mappings
-cat ~/.opencode/MEMORY/STATE/agent-sessions.json | jq .
+cat ~/.config/opencode/MEMORY/STATE/agent-sessions.json | jq .
 
 # Check subagent-stop debug log
-tail -f ~/.opencode/hooks/subagent-stop-debug.log
+tail -f ~/.config/opencode/hooks/subagent-stop-debug.log
 ```
 
 **Fix:**
@@ -969,7 +969,7 @@ tail -f ~/.opencode/hooks/subagent-stop-debug.log
 **Debug:**
 ```bash
 # Start dashboard server
-cd ~/.opencode/skills/system/observability/dashboard/apps/server
+cd ~/.config/opencode/skills/system/observability/dashboard/apps/server
 bun run dev
 
 # Check server logs
@@ -997,7 +997,7 @@ bun run dev
 **Verification:**
 ```bash
 # Check transcript type field
-grep '"type":"user"' ~/.opencode/projects/-Users-daniel--claude/*.jsonl | head -1 | jq '.type'
+grep '"type":"user"' ~/.config/opencode/projects/-Users-daniel--claude/*.jsonl | head -1 | jq '.type'
 # Should output: "user" (not "human")
 ```
 
@@ -1008,14 +1008,14 @@ grep '"type":"user"' ~/.opencode/projects/-Users-daniel--claude/*.jsonl | head -
 ### Context Loading Issues (SessionStart)
 
 **Check:**
-1. Does `~/.opencode/skills/CORE/SKILL.md` exist?
+1. Does `~/.config/opencode/skills/CORE/SKILL.md` exist?
 2. Is `LoadContext.hook.ts` executable?
 3. Is `PAI_DIR` env variable set correctly?
 
 **Debug:**
 ```bash
 # Test context loading directly
-bun ~/.opencode/hooks/LoadContext.hook.ts
+bun ~/.config/opencode/hooks/LoadContext.hook.ts
 
 # Should output <system-reminder> with SKILL.md content
 ```
@@ -1023,7 +1023,7 @@ bun ~/.opencode/hooks/LoadContext.hook.ts
 **Common Issues:**
 - Subagent sessions loading main context → Fixed (subagent detection in hook)
 - File not found → Check `PAI_DIR` environment variable
-- Permission denied → `chmod +x ~/.opencode/hooks/LoadContext.hook.ts`
+- Permission denied → `chmod +x ~/.config/opencode/hooks/LoadContext.hook.ts`
 
 ---
 
@@ -1151,10 +1151,10 @@ Hooks in same event execute **sequentially** in order defined in settings.json:
 
 ## Related Documentation
 
-- **Voice System:** `~/.opencode/VoiceServer/SKILL.md`
-- **Agent System:** `~/.opencode/skills/CORE/SYSTEM/AGENTPERSONALITIES.md`
-- **History/Memory:** `~/.opencode/skills/CORE/SYSTEM/MEMORYSYSTEM.md`
-- **Observability Dashboard:** `~/.opencode/Observability/`
+- **Voice System:** `~/.config/opencode/VoiceServer/SKILL.md`
+- **Agent System:** `~/.config/opencode/skills/CORE/SYSTEM/AGENTPERSONALITIES.md`
+- **History/Memory:** `~/.config/opencode/skills/CORE/SYSTEM/MEMORYSYSTEM.md`
+- **Observability Dashboard:** `~/.config/opencode/Observability/`
 
 ---
 
@@ -1171,17 +1171,17 @@ HOOK LIFECYCLE:
 7. Claude Code continues
 
 KEY FILES:
-~/.opencode/settings.json              Hook configuration (daidentity, principal, env vars)
-~/.opencode/hooks/                     Hook scripts
-~/.opencode/hooks/lib/identity.ts      Identity loader (reads from settings.json)
-~/.opencode/hooks/lib/observability.ts Observability helper library
-~/.opencode/hooks/lib/learning-utils.ts Learning categorization (SYSTEM/ALGORITHM)
-~/.opencode/hooks/lib/time.ts      PST timestamp utilities
-~/.opencode/MEMORY/RAW/                Event logs (JSONL) - source of truth
-~/.opencode/MEMORY/WORK/               Primary work tracking (work directories)
-~/.opencode/MEMORY/LEARNING/           Learning captures (SYSTEM/, ALGORITHM/, SIGNALS/)
-~/.opencode/MEMORY/STATE/              Runtime state (current-work.json, progress/, etc.)
-~/.opencode/MEMORY/STATE/agent-sessions.json  Session→Agent mapping
+~/.config/opencode/settings.json              Hook configuration (daidentity, principal, env vars)
+~/.config/opencode/hooks/                     Hook scripts
+~/.config/opencode/hooks/lib/identity.ts      Identity loader (reads from settings.json)
+~/.config/opencode/hooks/lib/observability.ts Observability helper library
+~/.config/opencode/hooks/lib/learning-utils.ts Learning categorization (SYSTEM/ALGORITHM)
+~/.config/opencode/hooks/lib/time.ts      PST timestamp utilities
+~/.config/opencode/MEMORY/RAW/                Event logs (JSONL) - source of truth
+~/.config/opencode/MEMORY/WORK/               Primary work tracking (work directories)
+~/.config/opencode/MEMORY/LEARNING/           Learning captures (SYSTEM/, ALGORITHM/, SIGNALS/)
+~/.config/opencode/MEMORY/STATE/              Runtime state (current-work.json, progress/, etc.)
+~/.config/opencode/MEMORY/STATE/agent-sessions.json  Session→Agent mapping
 
 STOP HOOKS (main agent completion):
 StopOrchestrator.hook.ts        Unified Stop handler with internal handlers:
@@ -1195,7 +1195,7 @@ ImplicitSentimentCapture.hook.ts Sentiment analysis (level: standard)
 UpdateTabTitle.hook.ts          Tab title + working state (level: fast)
 
 INFERENCE TOOL (for hooks needing AI):
-Path: ~/.opencode/skills/CORE/Tools/Inference.ts
+Path: ~/.config/opencode/skills/CORE/Tools/Inference.ts
 Import: import { inference } from '../skills/CORE/Tools/Inference'
 Levels: fast (haiku/15s) | standard (sonnet/30s) | smart (opus/90s)
 Usage: inference({ systemPrompt, userPrompt, level: 'fast', expectJson: true })

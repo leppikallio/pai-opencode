@@ -103,7 +103,7 @@ After agents complete:
 
 **Date:** [DATE]
 **Audit Type:** Full System Integrity Check
-**Scope:** ~/.opencode/ (PAI System)
+**Scope:** ~/.config/opencode/ (PAI System)
 **Method:** 12 Parallel Agent Audits
 **Status:** [HEALTHY|WARNINGS|CRITICAL]
 
@@ -187,7 +187,7 @@ Save full report to user's home directory for easy access:
 
 Also optionally save to MEMORY:
 ```
-~/.opencode/MEMORY/State/integrity/YYYY-MM-DD.md
+~/.config/opencode/MEMORY/State/integrity/YYYY-MM-DD.md
 ```
 
 ### Step 6: Completion

@@ -633,7 +633,7 @@ Optional: Sign small in bottom right corner in charcoal (#2D2D2D).
 **Execute with optimal model for text-heavy diagrams:**
 
 ```bash
-bun run ~/.opencode/skills/Art/Tools/Generate.ts \
+bun run ~/.config/opencode/skills/Art/Tools/Generate.ts \
   --model nano-banana-pro \
   --prompt "[YOUR COMPREHENSIVE PROMPT]" \
   --size 2K \
@@ -656,7 +656,7 @@ GOING INTO BLOG/WEBSITE: Remove background for transparency
 **For blog/website use** — use the **Images skill** for background removal:
 
 ```bash
-bun ~/.opencode/skills/CORE/Tools/RemoveBg.ts /path/to/mermaid-diagram.png
+bun ~/.config/opencode/skills/CORE/Tools/RemoveBg.ts /path/to/mermaid-diagram.png
 ```
 
 **Immediately open:**

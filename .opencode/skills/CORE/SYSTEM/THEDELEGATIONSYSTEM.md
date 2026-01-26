@@ -93,7 +93,7 @@ The Intern Agent is your high-agency genius generalist - perfect for parallel ex
 2. All get the same Dev Patel voice (fine for grunt work)
 3. No AgentFactory needed
 
-**Reference:** Agents skill (`~/.opencode/skills/Agents/SKILL.md`)
+**Reference:** Agents skill (`~/.config/opencode/skills/Agents/SKILL.md`)
 
 **Full Context Requirements:**
 When delegating, ALWAYS include:

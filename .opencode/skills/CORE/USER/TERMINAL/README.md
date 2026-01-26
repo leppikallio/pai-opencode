@@ -24,13 +24,13 @@ This directory contains the terminal configuration for [Kitty](https://sw.kovidg
 3. **Copy configuration:**
    ```bash
    mkdir -p ~/.config/kitty
-   cp ~/.opencode/skills/CORE/USER/TERMINAL/kitty.conf ~/.config/kitty/
+   cp ~/.config/opencode/skills/CORE/USER/TERMINAL/kitty.conf ~/.config/kitty/
    ```
 
 4. **Add shell aliases:**
    Add the contents of `ZSHRC` to your `~/.zshrc`:
    ```bash
-   cat ~/.opencode/skills/CORE/USER/TERMINAL/ZSHRC >> ~/.zshrc
+   cat ~/.config/opencode/skills/CORE/USER/TERMINAL/ZSHRC >> ~/.zshrc
    source ~/.zshrc
    ```
 
@@ -168,5 +168,5 @@ This enables efficient management of parallel AI sessions without needing to che
 - Switch to another tab to see the state color
 
 **Voice not working:**
-- Voice server must be running (`~/.opencode/VoiceServer/`)
+- Voice server must be running (`~/.config/opencode/VoiceServer/`)
 - Tab updates work independently of voice

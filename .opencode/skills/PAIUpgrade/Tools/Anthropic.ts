@@ -395,7 +395,7 @@ function generateRecommendation(update: Update): string {
   // Commands/Slash Commands
   if (titleLower.includes('command') || titleLower.includes('slash command')) {
     return `**PAI Impact:** HIGH - Command system update\n` +
-      `**Why:** PAI uses slash commands extensively (~/.opencode/Commands/). Changes affect our command architecture and user workflows.\n` +
+      `**Why:** PAI uses slash commands extensively (~/.config/opencode/Commands/). Changes affect our command architecture and user workflows.\n` +
       `**Action:** Review for new command patterns or capabilities. Update PAI's command templates if conventions change.`;
   }
 

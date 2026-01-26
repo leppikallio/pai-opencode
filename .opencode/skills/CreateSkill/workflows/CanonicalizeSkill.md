@@ -9,7 +9,7 @@
 **REQUIRED FIRST:** Read the canonical structure:
 
 ```
-~/.opencode/skills/CORE/SkillSystem.md
+~/.config/opencode/skills/CORE/SkillSystem.md
 ```
 
 This defines exactly what "canonicalize" means.
@@ -19,7 +19,7 @@ This defines exactly what "canonicalize" means.
 ## Step 2: Read the Current Skill
 
 ```bash
-~/.opencode/skills/[skill-name]/SKILL.md
+~/.config/opencode/skills/[skill-name]/SKILL.md
 ```
 
 Identify what's wrong:
@@ -36,10 +36,10 @@ Identify what's wrong:
 ## Step 3: Backup
 
 ```bash
-cp -r ~/.opencode/skills/[skill-name]/ ~/.opencode/History/Backups/[skill-name]-backup-$(date +%Y%m%d)/
+cp -r ~/.config/opencode/skills/[skill-name]/ ~/.config/opencode/History/Backups/[skill-name]-backup-$(date +%Y%m%d)/
 ```
 
-**Note:** Backups go to `~/.opencode/History/Backups/`, NEVER inside skill directories.
+**Note:** Backups go to `~/.config/opencode/History/Backups/`, NEVER inside skill directories.
 
 ---
 
@@ -74,7 +74,7 @@ cp -r ~/.opencode/skills/[skill-name]/ ~/.opencode/History/Backups/[skill-name]-
 **Rename files if needed:**
 ```bash
 # Example: rename workflow files
-cd ~/.opencode/skills/[SkillName]/Workflows/
+cd ~/.config/opencode/skills/[SkillName]/Workflows/
 mv create.md Create.md
 mv update-info.md UpdateInfo.md
 mv sync_repo.md SyncRepo.md
@@ -92,7 +92,7 @@ Scan for folders deeper than 2 levels:
 
 ```bash
 # Find any folders 3+ levels deep (FORBIDDEN)
-find ~/.opencode/skills/[SkillName]/ -type d -mindepth 2 -maxdepth 3
+find ~/.config/opencode/skills/[SkillName]/ -type d -mindepth 2 -maxdepth 3
 ```
 
 ### ❌ Common Violations to Fix
@@ -213,7 +213,7 @@ If the markdown body already had routing information in a different format, cons
 
 List workflow files:
 ```bash
-ls ~/.opencode/skills/[SkillName]/Workflows/
+ls ~/.config/opencode/skills/[SkillName]/Workflows/
 ```
 
 For EACH file:
