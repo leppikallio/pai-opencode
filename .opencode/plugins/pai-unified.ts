@@ -50,6 +50,7 @@ interface RatingKioskState {
   armedUntil: number;
   pendingTenUntil: number;
   typedSinceArm: string;
+  promptSnapshot: string;
   lastCapturedAt: number;
   lastArmedAt: number;
   timer: ReturnType<typeof setTimeout> | null;
@@ -77,9 +78,11 @@ export const PaiUnified: Plugin = async (ctx) => {
   // - Press 1 alone to log 1 (after timeout)
   // - Any other key = skip (no logging)
   // This is implemented via TUI events (not a custom tool).
-  const RATING_ARM_WINDOW_MS = 2000;
-  const RATING_PENDING_TEN_MS = 600;
-  const RATING_ARM_COOLDOWN_MS = 1500;
+  // NOTE: If this feels too "flashy" in the TUI, increase ARM window.
+  // We also try to pass a toast duration, but older OpenCode builds may ignore it.
+  const RATING_ARM_WINDOW_MS = 6000;
+  const RATING_PENDING_TEN_MS = 900;
+  const RATING_ARM_COOLDOWN_MS = 2500;
 
   const ratingKiosk: RatingKioskState = {
     mode: "idle",
@@ -87,6 +90,7 @@ export const PaiUnified: Plugin = async (ctx) => {
     armedUntil: 0,
     pendingTenUntil: 0,
     typedSinceArm: "",
+    promptSnapshot: "",
     lastCapturedAt: 0,
     lastArmedAt: 0,
     timer: null,
@@ -122,10 +126,21 @@ export const PaiUnified: Plugin = async (ctx) => {
     return value;
   }
 
-  async function showToast(message: string, variant: ToastVariant = "info") {
+  async function showToast(
+    message: string,
+    variant: ToastVariant = "info",
+    durationMs?: number
+  ) {
     try {
       if (!client?.tui?.showToast) return;
-      await client.tui.showToast({ body: { message, variant } });
+      // duration is not documented in all builds; pass through best-effort.
+      await client.tui.showToast({
+        body: {
+          message,
+          variant,
+          ...(typeof durationMs === "number" ? { duration: durationMs } : {}),
+        } as any,
+      });
     } catch (error) {
       fileLogError("Toast failed", error);
     }
@@ -162,12 +177,13 @@ export const PaiUnified: Plugin = async (ctx) => {
     ratingKiosk.armedUntil = 0;
     ratingKiosk.pendingTenUntil = 0;
     ratingKiosk.typedSinceArm = "";
+    ratingKiosk.promptSnapshot = "";
   }
 
   async function captureKioskRating(score: number) {
     ratingKiosk.lastCapturedAt = Date.now();
     await captureRating(String(score), "kiosk");
-    await showToast(`Captured rating ${score}/10`, "success");
+    await showToast(`Captured rating ${score}/10`, "success", 2500);
     fileLog(`Kiosk rating captured: ${score}/10`, "info");
   }
 
@@ -175,6 +191,8 @@ export const PaiUnified: Plugin = async (ctx) => {
     const now = Date.now();
 
     if (ratingKiosk.mode !== "idle") return;
+    // Avoid re-arming immediately after a rating was captured.
+    if (now - ratingKiosk.lastCapturedAt < 15000) return;
     if (now - ratingKiosk.lastArmedAt < RATING_ARM_COOLDOWN_MS) return;
     if (now - lastPromptAppendAt < 1000) return;
 
@@ -184,6 +202,7 @@ export const PaiUnified: Plugin = async (ctx) => {
     ratingKiosk.armedUntil = now + RATING_ARM_WINDOW_MS;
     ratingKiosk.pendingTenUntil = 0;
     ratingKiosk.typedSinceArm = "";
+    ratingKiosk.promptSnapshot = "";
 
     // Auto-disarm after window.
     ratingKiosk.timer = setTimeout(() => {
@@ -194,13 +213,14 @@ export const PaiUnified: Plugin = async (ctx) => {
     // Fire-and-forget toast (don't await in callers).
     void showToast(
       "Rate: 2-9, or 1 then 0 for 10 (any other key skips)",
-      "info"
+      "info",
+      RATING_ARM_WINDOW_MS
     );
 
     fileLog("Rating kiosk armed", "debug");
   }
 
-  async function handleRatingKioskPromptAppend(appended: string) {
+  async function handleRatingKioskChar(ch: string) {
     const now = Date.now();
 
     lastPromptAppendAt = now;
@@ -212,14 +232,6 @@ export const PaiUnified: Plugin = async (ctx) => {
       disarmRatingKiosk("expired");
       return;
     }
-
-    // Pasted text or multi-character append: treat as skip.
-    if (appended.length !== 1) {
-      disarmRatingKiosk("multi-char append");
-      return;
-    }
-
-    const ch = appended;
 
     // If user starts typing anything non-rating-ish, skip.
     const isDigit = ch >= "0" && ch <= "9";
@@ -299,6 +311,31 @@ export const PaiUnified: Plugin = async (ctx) => {
 
     // 0 as first key: treat as skip (avoid weirdness)
     disarmRatingKiosk("0 as first key");
+  }
+
+  async function handleRatingKioskPromptAppend(appendedOrFullText: string) {
+    const isKioskActive = () => ratingKiosk.mode !== "idle";
+    if (!isKioskActive()) return;
+
+    // Some OpenCode builds emit the FULL prompt contents in properties.text,
+    // while others emit only the appended delta. Handle both.
+    const current = appendedOrFullText;
+
+    let delta = current;
+    if (current.startsWith(ratingKiosk.promptSnapshot)) {
+      delta = current.slice(ratingKiosk.promptSnapshot.length);
+    }
+
+    // Update snapshot best-effort. If current is just delta, this still works.
+    ratingKiosk.promptSnapshot = current;
+
+    if (!delta) return;
+
+    // Process each newly appended character in order.
+    for (const ch of delta) {
+      if (!isKioskActive()) break;
+      await handleRatingKioskChar(ch);
+    }
   }
 
   const hooks: Hooks = {
@@ -536,6 +573,9 @@ export const PaiUnified: Plugin = async (ctx) => {
         // Check if message is a rating (e.g., "8", "7 - needs work", "9/10")
         const rating = detectRating(content);
         if (rating) {
+          // Prevent the kiosk from immediately re-arming after the user submits a rating.
+          ratingKiosk.lastCapturedAt = Date.now();
+          disarmRatingKiosk("explicit rating message");
           const ratingResult = await captureRating(content, "user message");
           if (ratingResult.success && ratingResult.rating) {
             fileLog(`Rating captured: ${ratingResult.rating.score}/10`, "info");
@@ -567,11 +607,16 @@ export const PaiUnified: Plugin = async (ctx) => {
         // === TUI RATING KIOSK ===
         // Intercept single keypresses during the short rating window.
         if (eventType === "tui.prompt.append") {
+          const props = (input.event as any)?.properties;
           const data = (input.event as any)?.data;
+
           const appendedRaw =
-            typeof data === "string"
+            // Official event payload uses properties.text
+            props?.text ??
+            // Back-compat for older/alternate payload shapes
+            (typeof data === "string"
               ? data
-              : (data?.text ?? data?.value ?? data?.append ?? "");
+              : (data?.text ?? data?.value ?? data?.append ?? ""));
 
           const appended = String(appendedRaw || "");
           if (appended.length > 0) {
