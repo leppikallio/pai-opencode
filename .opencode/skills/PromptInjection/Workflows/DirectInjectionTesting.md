@@ -2,12 +2,9 @@
 
 ## Voice Notification
 
-```bash
-curl -s -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Running the DirectInjectionTesting workflow in the PromptInjection skill to test direct attacks"}' \
-  > /dev/null 2>&1 &
-```
+Use the `voice_notify` tool:
+
+- `message`: "Running the DirectInjectionTesting workflow in the PromptInjection skill to test direct attacks"
 
 Running the **DirectInjectionTesting** workflow in the **PromptInjection** skill to test direct attacks...
 

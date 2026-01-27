@@ -4,12 +4,9 @@
 
 ## Voice Notification
 
-```bash
-curl -s -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Running the CreateCustomAgent workflow in the Agents skill to create agents"}' \
-  > /dev/null 2>&1 &
-```
+Use the `voice_notify` tool:
+
+- `message`: "Running the CreateCustomAgent workflow in the Agents skill to create agents"
 
 Running **CreateCustomAgent** in **Agents**...
 
@@ -112,15 +109,13 @@ Task({
 
 Each agent's prompt includes:
 - Their assigned voice_id from ComposeAgent
-- Instructions to call `curl -X POST http://localhost:8888/notify` with their voice_id
+- Instructions to call `voice_notify` (message: "...") with their voice_id
 - The requirement to voice their `🎯 COMPLETED:` message
 
 **Fallback:** If an agent fails to voice itself, you can manually voice their result:
-```bash
-curl -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message":"<COMPLETED line content>","voice_id":"<agent_voice_id>","title":"<agent_name>","voice_enabled":true}'
-```
+Use the `voice_notify` tool:
+
+- `message`: "<COMPLETED line content>"
 
 ### Step 6: Spotcheck (Optional but Recommended)
 

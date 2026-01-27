@@ -15,11 +15,9 @@ curl -s http://localhost:8888/health
 ```
 
 3. **Send test notification:**
-```bash
-curl -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message":"Voice server test","voice_id":"{daidentity.voiceId}","title":"Test"}'
-```
+Use the `voice_notify` tool:
+
+- `message`: "Voice server test"
 
 ## Troubleshooting
 

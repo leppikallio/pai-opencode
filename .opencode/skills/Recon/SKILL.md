@@ -23,81 +23,9 @@ Technical reconnaissance of network infrastructure including domains, IP address
 **When executing a workflow, do BOTH:**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow from the Recon skill"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow from the **Recon** skill...
-   ```
-
-## When to Use This Skill
-
-**Core Triggers - Use this skill when user says:**
-
-### Direct Recon Requests
-- "do recon on [target]" or "run recon"
-- "perform reconnaissance on [target]" or "conduct recon"
-- "do infrastructure recon" or "network reconnaissance"
-- "basic recon", "quick recon", "simple recon"
-- "comprehensive recon", "deep recon", "full reconnaissance"
-- "recon [target]" (just recon + target)
-- "passive recon", "active recon"
-
-### Infrastructure & Network Mapping
-- "map infrastructure for [domain]" or "map network"
-- "enumerate [domain] infrastructure" or "discover assets"
-- "find subdomains of [domain]" or "enumerate subdomains"
-- "scan [target]" or "port scan [IP/netblock]"
-- "what services are running on [IP]"
-- "investigate [IP address/domain/netblock]"
-
-### IP & Domain Investigation
-- "recon this IP" or "investigate this IP address"
-- "look up [IP]" or "IP lookup [address]"
-- "what is [IP]" or "who owns [IP]"
-- "domain recon" or "domain investigation"
-- "DNS recon", "DNS enumeration"
-- "WHOIS [domain/IP]"
-
-### ASN & Netblock Research
-- "investigate [ASN]" or "research ASN"
-- "scan [CIDR range/netblock]"
-- "find IPs in [netblock]"
-- "enumerate netblock" or "netblock scanning"
-
-### Passive vs Active Recon
-- "passive recon on [target]" (no authorization required)
-- "active scan [target]" (requires explicit authorization)
-- "safe reconnaissance" (passive only)
-- "authorized scan" (active techniques)
-
-### Use Case Indicators
-- Investigating IP addresses for ownership, location, and services
-- Mapping domain infrastructure and DNS configuration
-- Scanning netblocks or CIDR ranges for live hosts
-- Researching ASN ownership and IP allocations
-- Attack surface enumeration and network mapping
-- Called by OSINT for infrastructure mapping of entities
-
-## Relationship with Other Security Skills
-
-**OSINT → recon (Common Pattern):**
-- OSINT identifies entities, companies, people (social/public records focus)
-- Recon maps their technical infrastructure (network/system focus)
-- Example flow: OSINT finds company → Recon maps their domains/IPs/infrastructure
-
-**recon → webassessment:**
-- Recon identifies web applications and services
-- Web assessment tests those applications for vulnerabilities
-- Example: Recon finds subdomain api.target.com → Web assessment fuzzes/tests it
-
-**Workflow Integration:**
-```typescript
+- `message`: "Running the WORKFLOWNAME workflow from the Recon skill"typescript
 // OSINT skill discovers company infrastructure
 const domains = await osintFindCompanyDomains("Acme Corp");
 

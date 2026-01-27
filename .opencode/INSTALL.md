@@ -32,8 +32,8 @@ cd pai-opencode
 # Install/upgrade the runtime tree
 bun Tools/Install.ts
 
-# Note: Install auto-applies the detected provider profile to agent frontmatter.
-# Use --skip-apply-profile to disable.
+# Note: Agent models are defined explicitly in `.opencode/agents/*.md`.
+# The installer does not rewrite agent models unless you opt in.
 
 # Configure your identity + provider (writes into ~/.config/opencode)
 bun ~/.config/opencode/PAIOpenCodeWizard.ts

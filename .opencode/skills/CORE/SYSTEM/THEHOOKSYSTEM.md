@@ -834,12 +834,9 @@ setTimeout(() => {
 4. Is ElevenLabs API key in `${PAI_DIR}/.env`?
 
 **Debug:**
-```bash
-# Test voice server directly
-curl -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message":"Test message","voice_id":"[YOUR_VOICE_ID]","title":"Test"}'
-```
+Use the `voice_notify` tool:
+
+- `message`: "Test message"
 
 **Common Issues:**
 - Wrong voice_id → Silent failure (invalid ID)

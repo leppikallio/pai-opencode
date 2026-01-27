@@ -4,12 +4,9 @@
 
 ## Voice Notification
 
-```bash
-curl -s -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Running the Maps workflow in the Art skill to create conceptual maps"}' \
-  > /dev/null 2>&1 &
-```
+Use the `voice_notify` tool:
+
+- `message`: "Running the Maps workflow in the Art skill to create conceptual maps"
 
 Running **Maps** in **Art**...
 

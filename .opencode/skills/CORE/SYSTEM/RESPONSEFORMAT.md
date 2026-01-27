@@ -149,7 +149,7 @@ Users rate responses by typing a number 1-10:
 📊 STATUS: Ready for deployment
 📁 CAPTURE: Auth bug pattern - always validate tokens before use
 ➡️ NEXT: Deploy to staging, then production
-📖 STORY EXPLANATION:
+  📖 STORY EXPLANATION:
 1. User reported login failures
 2. Investigated auth handler
 3. Found missing null check on tokens

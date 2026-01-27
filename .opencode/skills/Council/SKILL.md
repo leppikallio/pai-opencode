@@ -22,25 +22,9 @@ Multi-agent debate system where specialized agents discuss topics in rounds, res
 **When executing a workflow, do BOTH:**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow from the Council skill"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow from the **Council** skill...
-   ```
-
-## Workflow Routing
-
-Route to the appropriate workflow based on the request.
-
-**When executing a workflow, output this notification directly:**
-
-```
+- `message`: "Running the WORKFLOWNAME workflow from the Council skill"
 Running the **WorkflowName** workflow from the **Council** skill...
 ```
 

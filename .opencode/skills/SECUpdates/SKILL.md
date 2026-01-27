@@ -15,12 +15,9 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 **Send this notification BEFORE doing anything else:**
 
-```bash
-curl -s -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Checking security updates from sources"}' \
-  > /dev/null 2>&1 &
-```
+Use the `voice_notify` tool:
+
+- `message`: "Checking security updates from sources"
 
 ---
 

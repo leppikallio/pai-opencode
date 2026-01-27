@@ -16,12 +16,7 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 **You MUST send this notification BEFORE doing anything else when this skill is invoked.**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow in the VoiceServer skill to ACTION"}' \
-     > /dev/null 2>&1 &
-   ```
+   ```voice_notify` (message: "Running the WORKFLOWNAME workflow in the VoiceServer skill to ACTION")``
 
 2. **Output text notification**:
    ```
@@ -57,7 +52,7 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 | Voice | Correct agent voice | Wrong voice |
 
 ### EXECUTE
-- **Notify**: `curl -X POST http://localhost:8888/notify -H "Content-Type: application/json" -d '{"message":"...", "voice_id":"..."}'`
+- **Notify**: `voice_notify` (message: "...")
 - **Manage**: `~/.config/opencode/VoiceServer/{start,stop,status,restart}.sh`
 - **Workflow**: `Workflows/Status.md`
 

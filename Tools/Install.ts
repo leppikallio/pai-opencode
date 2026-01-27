@@ -62,7 +62,7 @@ function usage(opts: Partial<Options> = {}) {
   console.log(`  --target <dir>         Install/upgrade into this dir (default: ${target})`);
   console.log(`  --source <dir>         Source .opencode dir (default: ${source})`);
   console.log("  --migrate-from-repo    Seed runtime USER/MEMORY from source tree");
-  console.log("  --skip-apply-profile   Do not rewrite agent model frontmatter");
+  console.log("  --apply-profile        Rewrite agent model frontmatter (disabled by default)");
   console.log("  --dry-run              Print actions without writing");
   console.log("  -h, --help             Show help");
 }
@@ -72,7 +72,7 @@ function parseArgs(argv: string[]): Options | null {
   let sourceDir = defaultSourceDir();
   let dryRun = false;
   let migrateFromRepo = false;
-  let applyProfile = true;
+  let applyProfile = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -85,8 +85,8 @@ function parseArgs(argv: string[]): Options | null {
       migrateFromRepo = true;
       continue;
     }
-    if (arg === "--skip-apply-profile") {
-      applyProfile = false;
+    if (arg === "--apply-profile") {
+      applyProfile = true;
       continue;
     }
     if (arg === "--target") {

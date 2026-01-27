@@ -14,46 +14,9 @@ This system provides:
 **When STARTING a task, do BOTH:**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "[Doing what {PRINCIPAL.NAME} asked]"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   [Doing what {PRINCIPAL.NAME} asked]...
-   ```
-
-**Skip curl for conversational responses** (greetings, acknowledgments, simple Q&A). The 🎯 COMPLETED line already drives voice output—adding curl creates redundant voice messages.
-
----
-
-## Context-Aware Announcements
-
-**Match your announcement to what {PRINCIPAL.NAME} asked.** Start with the appropriate gerund:
-
-| {PRINCIPAL.NAME}'s Request | Announcement Style |
-|------------------|-------------------|
-| Question ("Where is...", "What does...") | "Checking...", "Looking up...", "Finding..." |
-| Command ("Fix this", "Create that") | "Fixing...", "Creating...", "Updating..." |
-| Investigation ("Why isn't...", "Debug this") | "Investigating...", "Debugging...", "Analyzing..." |
-| Research ("Find out about...", "Look into...") | "Researching...", "Exploring...", "Looking into..." |
-
-**Examples:**
-- "Where's the config file?" → "Checking the project for config files..."
-- "Fix this bug" → "Fixing the null pointer in auth handler..."
-- "Why isn't the API responding?" → "Investigating the API connection..."
-- "Create a new component" → "Creating the new component..."
-
----
-
-## Workflow Invocation Notifications
-
-**For skills with `Workflows/` directories, use "Executing..." format:**
-
-```
+- `message`: "[Doing what {PRINCIPAL.NAME} asked]"
 Executing the **WorkflowName** workflow within the **SkillName** skill...
 ```
 
@@ -70,12 +33,9 @@ Executing the **WorkflowName** workflow within the **SkillName** skill...
 
 When executing an actual workflow file from a `Workflows/` directory:
 
-```bash
-curl -s -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Running the WORKFLOWNAME workflow in the SKILLNAME skill to ACTION", "voice_id": "{DAIDENTITY.VOICEID}", "title": "{DAIDENTITY.NAME}"}' \
-  > /dev/null 2>&1 &
-```
+Use the `voice_notify` tool:
+
+- `message`: "Running the WORKFLOWNAME workflow in the SKILLNAME skill to ACTION"
 
 **Parameters:**
 - `message` - The spoken text (workflow and skill name)
@@ -140,18 +100,9 @@ For skills that have a `Workflows/` directory:
 **When executing a workflow, do BOTH:**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow in the SKILLNAME skill to ACTION"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow in the **SkillName** skill to ACTION...
-   ```
-```
+- `message`: "Running the WORKFLOWNAME workflow in the SKILLNAME skill to ACTION"
 
 Replace `WORKFLOWNAME`, `SKILLNAME`, and `ACTION` with actual values when executing. ACTION should be under 6 words describing what the workflow does.
 

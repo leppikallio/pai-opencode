@@ -41,30 +41,9 @@ Complete prompt engineering documentation based on:
 **When executing a workflow, do BOTH:**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow from the Prompting skill"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow from the **Prompting** skill...
-   ```
-
-- Claude 4.x behavioral characteristics
-- Multi-context window workflows
-- Agentic coding best practices
-- Output format control
-- The Ultimate Prompt Template
-
-### 2. Templates/ - Five Core Primitives
-
-The templating system enables **prompts that write prompts** - dynamic composition where structure is fixed but content is parameterized.
-
-**Directory Structure:**
-```
+- `message`: "Running the WORKFLOWNAME workflow from the Prompting skill"
 Templates/
 ├── Primitives/       # Five core template patterns
 │   ├── Roster.hbs    # Agent/skill definitions from data

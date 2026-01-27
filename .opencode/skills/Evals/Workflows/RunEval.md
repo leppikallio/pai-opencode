@@ -4,12 +4,9 @@ Run evaluations for a specific use case.
 
 ## Voice Notification
 
-```bash
-curl -s -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Running the RunEval workflow in the Evals skill to execute evaluation"}' \
-  > /dev/null 2>&1 &
-```
+Use the `voice_notify` tool:
+
+- `message`: "Running the RunEval workflow in the Evals skill to execute evaluation"
 
 Running the **RunEval** workflow in the **Evals** skill to execute evaluation...
 

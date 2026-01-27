@@ -16,23 +16,9 @@ description: "Life OS and project analysis. USE WHEN TELOS, life goals, projects
 **When executing a workflow, do BOTH:**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow from the Telos skill"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow from the **Telos** skill...
-   ```
-
-## Workflow Routing
-
-**When executing a workflow, output this notification directly:**
-
-```
+- `message`: "Running the WORKFLOWNAME workflow from the Telos skill"
 Running the **WorkflowName** workflow from the **Telos** skill...
 ```
 

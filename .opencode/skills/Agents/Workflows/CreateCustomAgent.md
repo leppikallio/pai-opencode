@@ -96,11 +96,9 @@ After receiving agent results:
 1. Extract the `🎯 COMPLETED:` line from each agent's output
 2. Send voice notification using that agent's voice_id:
 
-```bash
-curl -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message":"<COMPLETED line content>","voice_id":"<agent_voice_id>","title":"<agent_name>"}'
-```
+Use the `voice_notify` tool:
+
+- `message`: "<COMPLETED line content>"
 
 This is more reliable than having agents voice themselves (they often skip curl commands).
 

@@ -207,31 +207,9 @@ Brief description.
 **When executing a workflow, do BOTH:**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow from the CreateSkill skill"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow from the **CreateSkill** skill...
-   ```
-
-## Workflow Routing
-
-| Workflow | Trigger | File |
-|----------|---------|------|
-| **CreateSkill** | "create a new skill" | `Workflows/CreateSkill.md` |
-| **ValidateSkill** | "validate skill", "check skill" | `Workflows/ValidateSkill.md` |
-| **UpdateSkill** | "update skill", "add workflow" | `Workflows/UpdateSkill.md` |
-| **CanonicalizeSkill** | "canonicalize", "fix skill structure" | `Workflows/CanonicalizeSkill.md` |
-
-## Examples
-
-**Example 1: Create a new skill from scratch**
-```
+- `message`: "Running the WORKFLOWNAME workflow from the CreateSkill skill"
 User: "Create a skill for managing my recipes"
 → Invokes CreateSkill workflow
 → Reads SkillSystem.md for structure requirements

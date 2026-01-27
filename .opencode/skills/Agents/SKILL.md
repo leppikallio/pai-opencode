@@ -33,29 +33,9 @@ The Agents skill is a complete agent composition and management system. It conso
 **When executing a workflow, do BOTH:**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow from the Agents skill"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow from the **Agents** skill...
-   ```
-
-## Workflow Routing
-
-**Available Workflows:**
-- **CREATECUSTOMAGENT** - Create specialized custom agents → `Workflows/CreateCustomAgent.md`
-- **LISTTRAITS** - Show available agent traits → `Workflows/ListTraits.md`
-- **SPAWNPARALLEL** - Launch parallel agents → `Workflows/SpawnParallelAgents.md`
-
-## Examples
-
-**Example 1: Create custom agents for analysis**
-```
+- `message`: "Running the WORKFLOWNAME workflow from the Agents skill"
 User: "Spin up 5 custom science agents to analyze this data"
 → Invokes CREATECUSTOMAGENT workflow
 → Runs AgentFactory 5 times with DIFFERENT trait combinations

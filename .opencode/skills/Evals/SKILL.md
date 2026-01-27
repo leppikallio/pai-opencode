@@ -16,80 +16,9 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 **You MUST send this notification BEFORE doing anything else when this skill is invoked.**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow in the Evals skill to ACTION"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow in the **Evals** skill to ACTION...
-   ```
-
-**This is not optional. Execute this curl command immediately upon skill invocation.**
-
-# Evals - AI Agent Evaluation Framework
-
-Comprehensive agent evaluation system based on Anthropic's "Demystifying Evals for AI Agents" (Jan 2026).
-
-**Key differentiator:** Evaluates agent *workflows* (transcripts, tool calls, multi-turn conversations), not just single outputs.
-
----
-
-## When to Activate
-
-- "run evals", "test this agent", "evaluate", "check quality", "benchmark"
-- "regression test", "capability test"
-- Compare agent behaviors across changes
-- Validate agent workflows before deployment
-- Verify ALGORITHM ISC rows
-- Create new evaluation tasks from failures
-
----
-
-## Core Concepts
-
-### Three Grader Types
-
-| Type | Strengths | Weaknesses | Use For |
-|------|-----------|------------|---------|
-| **Code-based** | Fast, cheap, deterministic, reproducible | Brittle, lacks nuance | Tests, state checks, tool verification |
-| **Model-based** | Flexible, captures nuance, scalable | Non-deterministic, expensive | Quality rubrics, assertions, comparisons |
-| **Human** | Gold standard, handles subjectivity | Expensive, slow | Calibration, spot checks, A/B testing |
-
-### Evaluation Types
-
-| Type | Pass Target | Purpose |
-|------|-------------|---------|
-| **Capability** | ~70% | Stretch goals, measuring improvement potential |
-| **Regression** | ~99% | Quality gates, detecting backsliding |
-
-### Key Metrics
-
-- **pass@k**: Probability of at least 1 success in k trials (measures capability)
-- **pass^k**: Probability all k trials succeed (measures consistency/reliability)
-
----
-
-## Workflow Routing
-
-| Trigger | Workflow |
-|---------|----------|
-| "run evals", "evaluate suite" | Run suite via `Tools/AlgorithmBridge.ts` |
-| "log failure" | Log failure via `Tools/FailureToTask.ts log` |
-| "convert failures" | Convert to tasks via `Tools/FailureToTask.ts convert-all` |
-| "create suite" | Create suite via `Tools/SuiteManager.ts create` |
-| "check saturation" | Check via `Tools/SuiteManager.ts check-saturation` |
-
----
-
-## Quick Reference
-
-### CLI Commands
-
-```bash
+- `message`: "Running the WORKFLOWNAME workflow in the Evals skill to ACTION"bash
 # Run an eval suite
 bun run ~/.config/opencode/skills/Evals/Tools/AlgorithmBridge.ts -s <suite>
 
