@@ -2,12 +2,9 @@
 
 ## Voice Notification
 
-```bash
-curl -s -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Running the Screenshot workflow in the Browser skill to capture screenshots"}' \
-  > /dev/null 2>&1 &
-```
+Use the `voice_notify` tool:
+
+- `message`: "Running the Screenshot workflow in the Browser skill to capture screenshots"
 
 Running **Screenshot** in **Browser**...
 

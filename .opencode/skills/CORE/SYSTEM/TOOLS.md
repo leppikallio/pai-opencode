@@ -163,19 +163,9 @@ bun ~/.config/opencode/skills/CORE/Tools/GetTranscript.ts "https://www.youtube.c
 Send text to the voice server running on localhost for TTS using a configured voice clone.
 
 **Usage:**
-```bash
-# Single narration segment
-curl -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "Your text here",
-    "voice_id": "$ELEVENLABS_VOICE_ID",
-    "title": "Voice Narrative"
-  }'
+Use the `voice_notify` tool:
 
-# Pause between segments
-sleep 2
-```
+- `message`: "Your text here"
 
 **Voice Configuration:**
 - **Voice ID:** Set via `ELEVENLABS_VOICE_ID` environment variable

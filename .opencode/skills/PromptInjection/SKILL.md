@@ -16,83 +16,9 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 **You MUST send this notification BEFORE doing anything else when this skill is invoked.**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow in the PromptInjection skill to ACTION"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow in the **PromptInjection** skill to ACTION...
-   ```
-
-**This is not optional. Execute this curl command immediately upon skill invocation.**
-
-# PromptInjection Skill
-
-## 🔒 AUTHORIZATION & ETHICAL USE REQUIREMENTS
-
-**⚠️ CRITICAL - READ BEFORE USE ⚠️**
-
-This skill is part of a **Security Practice** run by a security professional with extensive experience in offensive security testing.
-
-### Legal Requirements
-
-**AUTHORIZATION IS MANDATORY:**
-- ✅ **ONLY test systems you own** or have **explicit written permission** to test
-- ✅ **ONLY use these techniques** as part of authorized penetration testing engagements
-- ✅ **ALWAYS document authorization** before beginning any testing
-- ✅ **RESPECT scope boundaries** defined in testing agreements
-- ✅ **FOLLOW responsible disclosure** practices for any vulnerabilities discovered
-
-**UNAUTHORIZED TESTING IS ILLEGAL:**
-- ❌ **NEVER test systems** without explicit written permission
-- ❌ **NEVER exceed** authorized scope boundaries
-- ❌ **NEVER use these techniques** for malicious purposes
-- ❌ **NEVER disclose vulnerabilities** publicly before vendor remediation
-- ❌ **NEVER exfiltrate** real user data during testing
-
-### Ethical Framework
-
-This skill exists for **defensive security purposes:**
-1. **Authorized penetration testing** of client systems under formal engagement
-2. **Security assessment** of your own systems and products
-3. **Research and education** for improving AI/LLM security practices
-4. **Responsible disclosure** of vulnerabilities to vendors for remediation
-
-**Any use of this skill constitutes acceptance of these terms and agreement to use only for authorized, ethical security testing purposes.**
-
----
-
-## When to Activate This Skill
-
-**Activate this skill when user says:**
-
-### Direct Triggers
-- "test for prompt injection", "prompt injection test", "prompt injection assessment"
-- "LLM security testing", "AI security audit", "test chatbot security"
-- "jailbreak test", "test for jailbreaking"
-- "pentest AI application", "security test AI system"
-- "check AI vulnerabilities", "assess AI security"
-
-### Research & Analysis
-- "research prompt injection", "analyze LLM vulnerabilities"
-- "study jailbreaking methods", "investigate AI attack vectors"
-
-### Engagement Work
-- "client engagement for LLM security"
-- "comprehensive AI security assessment"
-- "vulnerability research for disclosure"
-
----
-
-
-## Workflow Routing
-
-**When executing a workflow, output this notification:**
-```
+- `message`: "Running the WORKFLOWNAME workflow in the PromptInjection skill to ACTION"
 Running the **WorkflowName** workflow in the **PromptInjection** skill to ACTION...
 ```
 

@@ -17,61 +17,9 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 **You MUST send this notification BEFORE doing anything else when this skill is invoked.**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow in the Apify skill to ACTION"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow in the **Apify** skill to ACTION...
-   ```
-
-**This is not optional. Execute this curl command immediately upon skill invocation.**
-
-# Apify - Social Media & Web Scraping
-
-Direct TypeScript access to 9 popular Apify actors with 99% token savings.
-
-## 🔌 File-Based MCP
-
-This skill is a **file-based MCP** - a code-first API wrapper that replaces token-heavy MCP protocol calls.
-
-**Why file-based?** Filter data in code BEFORE returning to model context = 97.5% token savings.
-
-**Architecture:** See `~/.config/opencode/skills/CORE/SYSTEM/DOCUMENTATION/FileBasedMCPs.md`
-
-## 🎯 Overview
-
-Direct TypeScript access to the 9 most popular Apify actors without MCP overhead. Filter and transform data in code BEFORE it reaches the model context.
-
-## 📊 Available Actors
-
-### Social Media (5 platforms)
-- **Instagram** (145k users, 4.60★) - Profiles, posts, hashtags, comments
-- **LinkedIn** (26k users, 4.10★) - Profiles, jobs, posts
-- **TikTok** (90k users, 4.61★) - Profiles, videos, hashtags, comments
-- **YouTube** (40k users, 4.40★) - Channels, videos, comments, search
-- **Facebook** (35k users, 4.56★) - Posts, groups, comments
-
-### Business & Lead Generation
-- **Google Maps** (198k users, 4.76★) - **HIGHEST VALUE!**
-  - Search businesses, extract contacts, reviews, images
-  - Perfect for lead generation
-
-### E-commerce
-- **Amazon** (8k users, 4.97★) - Products, reviews, pricing
-
-### Web Scraping
-- **Web Scraper** (94k users, 4.39★) - General-purpose, works with ANY website
-
-## 🚀 Quick Start
-
-### Basic Usage Pattern
-
-```typescript
+- `message`: "Running the WORKFLOWNAME workflow in the Apify skill to ACTION"typescript
 import { scrapeInstagramProfile, searchGoogleMaps } from '~/.config/opencode/skills/Apify/actors'
 
 // 1. Call the actor wrapper

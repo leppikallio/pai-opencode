@@ -2,12 +2,9 @@
 
 ## Voice Notification
 
-```bash
-curl -s -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Running the Upgrade workflow in the PAIUpgrade skill to check for upgrades"}' \
-  > /dev/null 2>&1 &
-```
+Use the `voice_notify` tool:
+
+- `message`: "Running the Upgrade workflow in the PAIUpgrade skill to check for upgrades"
 
 Running the **Upgrade** workflow in the **PAIUpgrade** skill to check for upgrades...
 

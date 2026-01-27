@@ -4,12 +4,9 @@ Create a new skill following the canonical structure with proper TitleCase namin
 
 ## Voice Notification
 
-```bash
-curl -s -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Running the CreateSkill workflow in the CreateSkill skill to create new skill"}' \
-  > /dev/null 2>&1 &
-```
+Use the `voice_notify` tool:
+
+- `message`: "Running the CreateSkill workflow in the CreateSkill skill to create new skill"
 
 Running the **CreateSkill** workflow in the **CreateSkill** skill to create new skill...
 
@@ -75,31 +72,9 @@ description: [What it does]. USE WHEN [intent triggers using OR]. [Additional ca
 **When executing a workflow, do BOTH:**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running WORKFLOWNAME in SKILLNAME"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running **WorkflowName** in **SkillName**...
-   ```
-
-**Full documentation:** `~/.config/opencode/skills/CORE/SYSTEM/THENOTIFICATIONSYSTEM.md`
-
-## Workflow Routing
-
-| Workflow | Trigger | File |
-|----------|---------|------|
-| **WorkflowOne** | "trigger phrase" | `Workflows/WorkflowOne.md` |
-| **WorkflowTwo** | "another trigger" | `Workflows/WorkflowTwo.md` |
-
-## Examples
-
-**Example 1: [Common use case]**
-```
+- `message`: "Running WORKFLOWNAME in SKILLNAME"
 User: "[Typical user request]"
 → Invokes WorkflowOne workflow
 → [What skill does]

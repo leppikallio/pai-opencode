@@ -4,12 +4,9 @@ Query and display evaluation results, generate reports, and track trends.
 
 ## Voice Notification
 
-```bash
-curl -s -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Running the ViewResults workflow in the Evals skill to display eval results"}' \
-  > /dev/null 2>&1 &
-```
+Use the `voice_notify` tool:
+
+- `message`: "Running the ViewResults workflow in the Evals skill to display eval results"
 
 Running the **ViewResults** workflow in the **Evals** skill to display eval results...
 

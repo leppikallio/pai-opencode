@@ -2,12 +2,9 @@
 
 ## Voice Notification
 
-```bash
-curl -s -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Running the VerifyIdentity workflow in the PrivateInvestigator skill to confirm identity"}' \
-  > /dev/null 2>&1 &
-```
+Use the `voice_notify` tool:
+
+- `message`: "Running the VerifyIdentity workflow in the PrivateInvestigator skill to confirm identity"
 
 Running the **VerifyIdentity** workflow in the **PrivateInvestigator** skill to confirm identity...
 

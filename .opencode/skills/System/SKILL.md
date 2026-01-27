@@ -25,60 +25,9 @@ This skill runs in the foreground so you can see all output, progress, and hear 
 **When executing a workflow, do BOTH:**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running WORKFLOWNAME workflow from System skill"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow from the **System** skill...
-   ```
-
----
-
-## Workflow Routing
-
-### Core Operations (The Four)
-
-| Workflow | Trigger | Purpose | File |
-|----------|---------|---------|------|
-| **IntegrityCheck** | "integrity check", "audit system", "check references", "system health" | Find and fix broken references across the system | `Workflows/IntegrityCheck.md` |
-| **DocumentSession** | "document session", "document today", "document this session", "log session" | Document current session's work from transcript | `Workflows/DocumentSession.md` |
-| **DocumentRecent** | "document recent", "catch up docs", "what's undocumented", "document since last update" | Catch-up documentation for changes since last documented update | `Workflows/DocumentRecent.md` |
-| **GitPush** | "git push", "commit and push", "push changes", "push to repo" | Git commit + push to private jeremAIah repo | `Workflows/GitPush.md` |
-
-**Composition Rules:**
-- Integrity Check → may produce fixes → Document Session → Git Push
-- After any session → Document Session → Git Push
-- Periodic catch-up → Document Recent → Git Push
-
-### Security Workflows
-
-| Workflow | Trigger | File |
-|----------|---------|------|
-| **SecretScanning** | "check for secrets", "scan for credentials", "security scan" | `Workflows/SecretScanning.md` |
-| **CrossRepoValidation** | "cross-repo validation", "check for leaks" | `Workflows/CrossRepoValidation.md` |
-| **PrivacyCheck** | "privacy check", "check for sensitive data", "data isolation" | `Workflows/PrivacyCheck.md` |
-
-### Utility Workflows
-
-| Workflow | Trigger | File |
-|----------|---------|------|
-| **WorkContextRecall** | "we just worked on", "what did we do with", "remember when we", "didn't we already" | `Workflows/WorkContextRecall.md` |
-
-**Note:** For public jeremAIah integrity ("check PAI integrity", "audit PAI packs"), use the PAI skill → `PAIIntegrityCheck.md`
-
----
-
-## Examples
-
-### Core Operations
-
-**Example 1: Integrity Check**
-```
+- `message`: "Running WORKFLOWNAME workflow from System skill"
 User: "Run an integrity check"
 → Invokes IntegrityCheck workflow
 → Spawns parallel agents to audit ~/.config/opencode

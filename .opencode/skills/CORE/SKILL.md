@@ -568,4 +568,3 @@ These inputs don't need deep ISC tracking, but **STILL REQUIRE THE OUTPUT FORMAT
 - The ISC Criteria ARE the VERIFICATION Criteria, which is what allows us to hill-climb towards IDEAL STATE
 - YOUR GOAL IS 9-10 implicit or explicit ratings for every response. EUPHORIC SURPRISE. Chase that using this system!
 - ALWAYS USE THE ALGORITHM AND RESPONSE FORMAT !!!
-

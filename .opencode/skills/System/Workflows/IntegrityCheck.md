@@ -8,12 +8,9 @@
 
 ## Voice Notification
 
-```bash
-curl -s -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Running integrity check with 12 parallel agents"}' \
-  > /dev/null 2>&1 &
-```
+Use the `voice_notify` tool:
+
+- `message`: "Running integrity check with 12 parallel agents"
 
 Running the **IntegrityCheck** workflow from the **System** skill...
 
@@ -192,12 +189,9 @@ Also optionally save to MEMORY:
 
 ### Step 6: Completion
 
-```bash
-curl -s -X POST http://localhost:8888/notify \
-  -H "Content-Type: application/json" \
-  -d '{"message": "Integrity check complete. [X] critical issues, [Y] warnings found."}' \
-  > /dev/null 2>&1 &
-```
+Use the `voice_notify` tool:
+
+- `message`: "Integrity check complete. [X] critical issues, [Y] warnings found."
 
 ---
 

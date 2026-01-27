@@ -189,51 +189,8 @@ function quote(p: string): string {
   return `"${p.replaceAll('"', '\\"')}"`;
 }
 
-function providerIdToProfileName(providerId: string): string | null {
-  // Profiles live at: .opencode/profiles/<name>.yaml
-  switch (providerId) {
-    case "openai":
-      return "openai";
-    case "anthropic":
-      return "anthropic";
-    case "ollama":
-      return "local";
-    case "zen":
-      // No zen profile today; zen defaults are handled elsewhere.
-      return null;
-    default:
-      return null;
-  }
-}
-
-function applySelectedProfile(paiDir: string, providerId: string): void {
-  const profileName = providerIdToProfileName(providerId);
-  if (!profileName) {
-    printInfo(`No agent profile to apply for provider '${providerId}'`);
-    return;
-  }
-
-  // PAI helper tool lives at: <paiDir>/pai-tools/ApplyProfile.ts
-  const applyProfileTool = join(paiDir, "pai-tools", "ApplyProfile.ts");
-  if (!existsSync(applyProfileTool)) {
-    printWarning(`ApplyProfile tool not found at: ${applyProfileTool}`);
-    printWarning("Agents may still reference non-existent models.");
-    return;
-  }
-
-  try {
-    print('');
-    print(`${c.bold}Applying Agent Model Profile${c.reset}`);
-    print(`${c.gray}─────────────────────────────────────────────────${c.reset}`);
-    const cmd = `bun ${quote(applyProfileTool)} ${profileName} --opencode-dir ${quote(paiDir)}`;
-    execSync(cmd, { stdio: 'inherit' });
-    printSuccess(`Applied '${profileName}' profile to agents`);
-  } catch (err: any) {
-    printWarning(`Failed to apply profile '${profileName}': ${err?.message || String(err)}`);
-    printWarning("You can apply manually later:");
-    printInfo(`bun ${applyProfileTool} ${profileName} --opencode-dir ${paiDir}`);
-  }
-}
+// Agent models are expected to be explicitly set in agent frontmatter.
+// We do not auto-rewrite models here.
 
 // ============================================================================
 // UTILITY FUNCTIONS
@@ -670,9 +627,6 @@ async function main(): Promise<void> {
     }
   }
   printSuccess('Created MEMORY directories');
-
-  // Step 5: Apply agent model profile (prevents ProviderModelNotFoundError)
-  applySelectedProfile(paiDir, selectedProvider.id);
 
   // Fix permissions
   fixPermissions(paiDir);

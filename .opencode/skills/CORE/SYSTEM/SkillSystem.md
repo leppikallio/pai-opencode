@@ -238,33 +238,9 @@ science_cycle_time: meso
 **When executing a workflow, do BOTH:**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow in the SKILLNAME skill to ACTION"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow in the **SkillName** skill to ACTION...
-   ```
-
-**Full documentation:** `~/.config/opencode/skills/CORE/SYSTEM/THENOTIFICATIONSYSTEM.md`
-
-## Workflow Routing
-
-The notification announces workflow execution. The routing table tells Claude which workflow to execute:
-
-| Workflow | Trigger | File |
-|----------|---------|------|
-| **WorkflowOne** | "trigger phrase" | `Workflows/WorkflowOne.md` |
-| **WorkflowTwo** | "another trigger" | `Workflows/WorkflowTwo.md` |
-
-## Examples
-
-**Example 1: [Common use case]**
-```
+- `message`: "Running the WORKFLOWNAME workflow in the SKILLNAME skill to ACTION"
 User: "[Typical user request]"
 → Invokes WorkflowOne workflow
 → [What skill does]
@@ -597,31 +573,9 @@ Complete blog workflow.
 **When executing a workflow, do BOTH:**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running WORKFLOWNAME in Blogging"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow in the **Blogging** skill to ACTION...
-   ```
-
-**Full documentation:** `~/.config/opencode/skills/CORE/SYSTEM/THENOTIFICATIONSYSTEM.md`
-
-## Core Paths
-
-- **Blog posts:** `~/Projects/Website/cms/blog/`
-- **CMS root:** `~/Projects/Website/cms/`
-- **Images:** `~/Projects/Website/cms/public/images/`
-
-## Workflow Routing
-
-**When executing a workflow, also output this text:**
-
-```
+- `message`: "Running WORKFLOWNAME in Blogging"
 Running the **WorkflowName** workflow in the **Blogging** skill to ACTION...
 ```
 

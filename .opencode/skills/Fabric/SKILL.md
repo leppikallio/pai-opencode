@@ -15,42 +15,9 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 **When executing a workflow, do BOTH:**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow in the Fabric skill to ACTION"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow in the **Fabric** skill to ACTION...
-   ```
-
-**Full documentation:** `~/.config/opencode/skills/CORE/SYSTEM/THENOTIFICATIONSYSTEM.md`
-
-# Fabric
-
-Intelligent prompt pattern system providing 240+ specialized patterns for content analysis, extraction, summarization, threat modeling, and transformation.
-
-**Patterns Location:** `~/.config/opencode/skills/Fabric/Patterns/`
-
----
-
-## Workflow Routing
-
-| Workflow | Trigger | File |
-|----------|---------|------|
-| **ExecutePattern** | "use fabric", "run pattern", "apply pattern", "extract wisdom", "summarize", "analyze with fabric" | `Workflows/ExecutePattern.md` |
-
-**Note:** To update patterns locally, run `fabric -U` to pull from the upstream fabric repo.
-
----
-
-## Examples
-
-**Example 1: Extract wisdom from content**
-```
+- `message`: "Running the WORKFLOWNAME workflow in the Fabric skill to ACTION"
 User: "Use fabric to extract wisdom from this article"
 -> Invokes ExecutePattern workflow
 -> Selects extract_wisdom pattern

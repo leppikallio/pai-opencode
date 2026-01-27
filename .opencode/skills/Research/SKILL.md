@@ -28,12 +28,7 @@ Research agents hallucinate URLs. A single broken link is a catastrophic failure
 **When executing a workflow, do BOTH:**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow from the Research skill"}' \
-     > /dev/null 2>&1 &
-   ```
+   ```voice_notify` (message: "Running the WORKFLOWNAME workflow from the Research skill")``
 
 2. **Output text notification**:
    ```

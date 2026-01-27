@@ -16,54 +16,9 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 **You MUST send this notification BEFORE doing anything else when this skill is invoked.**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow in the WebAssessment skill to ACTION"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow in the **WebAssessment** skill to ACTION...
-   ```
-
-**This is not optional. Execute this curl command immediately upon skill invocation.**
-
-# WebAssessment Skill
-
-Security assessment infrastructure integrating reconnaissance, threat modeling, and vulnerability testing.
-
-
-## Workflow Routing
-
-| Trigger | Workflow |
-|---------|----------|
-| "understand application", "what does this app do", "map the application" | UnderstandApplication |
-| "threat model", "attack scenarios", "how would I attack" | CreateThreatModel |
-| "pentest", "security assessment", "test for vulnerabilities" | Pentest/MasterMethodology |
-| "fuzz with ffuf", "directory fuzzing", "content discovery" | Ffuf/FfufGuide |
-| "OSINT", "reconnaissance", "open source intelligence" | Osint/MasterGuide |
-| "test web app", "Playwright", "browser automation" | Webapp/TestingGuide |
-| "bug bounty", "bounty programs" | BugBounty/Programs |
-| "vulnerability analysis with AI", "Gemini analysis" | VulnerabilityAnalysisGemini3 |
-
-## Skill Integration
-
-WebAssessment coordinates with specialized skills:
-
-| Phase | Skill | Purpose |
-|-------|-------|---------|
-| Scope Definition | **Recon** | Corporate structure, domain enumeration |
-| Target Discovery | **Recon** | Subdomains, endpoints, ports |
-| Understanding | **WebAssessment** | App narrative, user flows, sensitive data |
-| Threat Modeling | **WebAssessment** | Attack scenarios, test prioritization |
-| Injection Testing | **PromptInjection** | LLM-specific attacks |
-| Intelligence | **OSINT** | People, companies, social media |
-
-## Assessment Workflow
-
-```
+- `message`: "Running the WORKFLOWNAME workflow in the WebAssessment skill to ACTION"
 1. Corporate Structure (Recon) → Define scope and targets
 2. Subdomain Enumeration (Recon) → Find all domains
 3. Endpoint Discovery (Recon) → Extract JS endpoints

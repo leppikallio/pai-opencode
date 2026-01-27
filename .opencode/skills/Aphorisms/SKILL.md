@@ -16,25 +16,9 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 **You MUST send this notification BEFORE doing anything else when this skill is invoked.**
 
 1. **Send voice notification**:
-   ```bash
-   curl -s -X POST http://localhost:8888/notify \
-     -H "Content-Type: application/json" \
-     -d '{"message": "Running the WORKFLOWNAME workflow in the Aphorisms skill to ACTION"}' \
-     > /dev/null 2>&1 &
-   ```
+   Use the `voice_notify` tool:
 
-2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow in the **Aphorisms** skill to ACTION...
-   ```
-
-**This is not optional. Execute this curl command immediately upon skill invocation.**
-
-## Workflow Routing
-
-**When executing a workflow, output this notification directly:**
-
-```
+- `message`: "Running the WORKFLOWNAME workflow in the Aphorisms skill to ACTION"
 Running the **WorkflowName** workflow in the **Aphorisms** skill to ACTION...
 ```
 

@@ -16,7 +16,9 @@
  * @version 1.0.0
  */
 
-import type { Plugin, Hooks } from "@opencode-ai/plugin";
+import { tool, type Plugin, type Hooks } from "@opencode-ai/plugin";
+import os from "os";
+import path from "path";
 import { loadContext } from "./handlers/context-loader";
 import { validateSecurity } from "./handlers/security-validator";
 import { restoreSkillFiles } from "./handlers/skill-restore";
@@ -33,6 +35,25 @@ import {
 } from "./handlers/agent-capture";
 import { extractLearningsFromWork } from "./handlers/learning-capture";
 import { fileLog, fileLogError, clearLog } from "./lib/file-logger";
+import {
+  ensureScratchpadSession,
+  clearScratchpadSession,
+} from "./lib/scratchpad";
+
+type ToastVariant = "info" | "success" | "warning" | "error";
+
+type RatingKioskMode = "idle" | "armed" | "pendingTen";
+
+interface RatingKioskState {
+  mode: RatingKioskMode;
+  armedAt: number;
+  armedUntil: number;
+  pendingTenUntil: number;
+  typedSinceArm: string;
+  lastCapturedAt: number;
+  lastArmedAt: number;
+  timer: ReturnType<typeof setTimeout> | null;
+}
 
 /**
  * PAI Unified Plugin
@@ -41,13 +62,289 @@ import { fileLog, fileLogError, clearLog } from "./lib/file-logger";
  * Implements PAI v2.4 hook functionality.
  */
 export const PaiUnified: Plugin = async (ctx) => {
+  const client = (ctx as any)?.client;
+
   // Clear log at plugin load (new session)
   clearLog();
   fileLog("=== PAI-OpenCode Plugin v1.0.0 Loaded ===");
   fileLog(`Working directory: ${process.cwd()}`);
   fileLog("Hooks: Context, Security, Work, Ratings, Agents, Learning");
 
+  // === RATING KIOSK MODE ===
+  // Fast, optional rating capture:
+  // - Press 2-9 to log instantly
+  // - Press 1 then 0 (within 600ms) to log 10
+  // - Press 1 alone to log 1 (after timeout)
+  // - Any other key = skip (no logging)
+  // This is implemented via TUI events (not a custom tool).
+  const RATING_ARM_WINDOW_MS = 2000;
+  const RATING_PENDING_TEN_MS = 600;
+  const RATING_ARM_COOLDOWN_MS = 1500;
+
+  const ratingKiosk: RatingKioskState = {
+    mode: "idle",
+    armedAt: 0,
+    armedUntil: 0,
+    pendingTenUntil: 0,
+    typedSinceArm: "",
+    lastCapturedAt: 0,
+    lastArmedAt: 0,
+    timer: null,
+  };
+
+  // If the user is actively typing, don't pop the rating kiosk.
+  let lastPromptAppendAt = 0;
+
+  function expandTilde(p: string): string {
+    if (p === "~") return os.homedir();
+    if (p.startsWith("~/") || p.startsWith("~\\")) {
+      return path.join(os.homedir(), p.slice(2));
+    }
+    return p;
+  }
+
+  function normalizeArgsTilde(value: unknown): unknown {
+    if (typeof value === "string") {
+      // Only expand leading tilde paths. This fixes failures like:
+      //   ~/.config/opencode/... -> /Users/<user>/.config/opencode/...
+      return expandTilde(value);
+    }
+    if (Array.isArray(value)) {
+      return value.map((v) => normalizeArgsTilde(v));
+    }
+    if (value && typeof value === "object") {
+      const obj = value as Record<string, unknown>;
+      for (const k of Object.keys(obj)) {
+        obj[k] = normalizeArgsTilde(obj[k]);
+      }
+      return obj;
+    }
+    return value;
+  }
+
+  async function showToast(message: string, variant: ToastVariant = "info") {
+    try {
+      if (!client?.tui?.showToast) return;
+      await client.tui.showToast({ body: { message, variant } });
+    } catch (error) {
+      fileLogError("Toast failed", error);
+    }
+  }
+
+  async function clearPrompt() {
+    try {
+      if (!client?.tui?.clearPrompt) return;
+      await client.tui.clearPrompt();
+    } catch (error) {
+      fileLogError("clearPrompt failed", error);
+    }
+  }
+
+  async function appendPrompt(text: string) {
+    try {
+      if (!client?.tui?.appendPrompt) return;
+      await client.tui.appendPrompt({ body: { text } });
+    } catch (error) {
+      fileLogError("appendPrompt failed", error);
+    }
+  }
+
+  function disarmRatingKiosk(reason: string) {
+    if (ratingKiosk.timer) {
+      clearTimeout(ratingKiosk.timer);
+      ratingKiosk.timer = null;
+    }
+    if (ratingKiosk.mode !== "idle") {
+      fileLog(`Rating kiosk disarmed (${reason})`, "debug");
+    }
+    ratingKiosk.mode = "idle";
+    ratingKiosk.armedAt = 0;
+    ratingKiosk.armedUntil = 0;
+    ratingKiosk.pendingTenUntil = 0;
+    ratingKiosk.typedSinceArm = "";
+  }
+
+  async function captureKioskRating(score: number) {
+    ratingKiosk.lastCapturedAt = Date.now();
+    await captureRating(String(score), "kiosk");
+    await showToast(`Captured rating ${score}/10`, "success");
+    fileLog(`Kiosk rating captured: ${score}/10`, "info");
+  }
+
+  function armRatingKiosk() {
+    const now = Date.now();
+
+    if (ratingKiosk.mode !== "idle") return;
+    if (now - ratingKiosk.lastArmedAt < RATING_ARM_COOLDOWN_MS) return;
+    if (now - lastPromptAppendAt < 1000) return;
+
+    ratingKiosk.lastArmedAt = now;
+    ratingKiosk.mode = "armed";
+    ratingKiosk.armedAt = now;
+    ratingKiosk.armedUntil = now + RATING_ARM_WINDOW_MS;
+    ratingKiosk.pendingTenUntil = 0;
+    ratingKiosk.typedSinceArm = "";
+
+    // Auto-disarm after window.
+    ratingKiosk.timer = setTimeout(() => {
+      // If still armed/pending when timer fires, disarm silently.
+      disarmRatingKiosk("timeout");
+    }, RATING_ARM_WINDOW_MS + 50);
+
+    // Fire-and-forget toast (don't await in callers).
+    void showToast(
+      "Rate: 2-9, or 1 then 0 for 10 (any other key skips)",
+      "info"
+    );
+
+    fileLog("Rating kiosk armed", "debug");
+  }
+
+  async function handleRatingKioskPromptAppend(appended: string) {
+    const now = Date.now();
+
+    lastPromptAppendAt = now;
+
+    if (ratingKiosk.mode === "idle") return;
+
+    // Expired window.
+    if (now > ratingKiosk.armedUntil && ratingKiosk.mode === "armed") {
+      disarmRatingKiosk("expired");
+      return;
+    }
+
+    // Pasted text or multi-character append: treat as skip.
+    if (appended.length !== 1) {
+      disarmRatingKiosk("multi-char append");
+      return;
+    }
+
+    const ch = appended;
+
+    // If user starts typing anything non-rating-ish, skip.
+    const isDigit = ch >= "0" && ch <= "9";
+    if (!isDigit) {
+      disarmRatingKiosk("non-digit");
+      return;
+    }
+
+    // Only treat ratings if it's the FIRST character typed since arming.
+    // This avoids clobbering normal messages that just happen to contain digits.
+    const isFirstChar = ratingKiosk.typedSinceArm.length === 0;
+
+    // === Pending 10 handling ===
+    if (ratingKiosk.mode === "pendingTen") {
+      // If pending expired, treat as rating 1 and restore this char.
+      if (now > ratingKiosk.pendingTenUntil) {
+        await captureKioskRating(1);
+        await clearPrompt();
+        disarmRatingKiosk("pendingTen expired");
+        await appendPrompt(ch);
+        return;
+      }
+
+      // Expecting second key.
+      if (ch === "0") {
+        await captureKioskRating(10);
+        await clearPrompt();
+        disarmRatingKiosk("captured 10");
+        return;
+      }
+
+      // Any other digit -> treat as rating 1, but keep the digit as message input.
+      await captureKioskRating(1);
+      await clearPrompt();
+      disarmRatingKiosk("captured 1 (fallback)");
+      await appendPrompt(ch);
+      return;
+    }
+
+    // === Armed handling ===
+    if (!isFirstChar) {
+      // Once user started typing, stop intercepting.
+      disarmRatingKiosk("user typing continued");
+      return;
+    }
+
+    // First char: interpret.
+    if (ch >= "2" && ch <= "9") {
+      ratingKiosk.typedSinceArm = ch;
+      await captureKioskRating(parseInt(ch, 10));
+      await clearPrompt();
+      disarmRatingKiosk(`captured ${ch}`);
+      return;
+    }
+
+    if (ch === "1") {
+      ratingKiosk.typedSinceArm = "1";
+      ratingKiosk.mode = "pendingTen";
+      ratingKiosk.pendingTenUntil = now + RATING_PENDING_TEN_MS;
+
+      // If no second key arrives, treat as rating 1 and clear prompt.
+      if (ratingKiosk.timer) clearTimeout(ratingKiosk.timer);
+      ratingKiosk.timer = setTimeout(() => {
+        // Use void + async wrapper to avoid unhandled promise.
+        void (async () => {
+          if (ratingKiosk.mode !== "pendingTen") return;
+          if (Date.now() <= ratingKiosk.pendingTenUntil) return;
+
+          await captureKioskRating(1);
+          await clearPrompt();
+          disarmRatingKiosk("captured 1 (timeout)");
+        })();
+      }, RATING_PENDING_TEN_MS + 50);
+
+      return;
+    }
+
+    // 0 as first key: treat as skip (avoid weirdness)
+    disarmRatingKiosk("0 as first key");
+  }
+
   const hooks: Hooks = {
+    tool: {
+      voice_notify: tool({
+        description: "Send a voice notification via local voice server",
+        args: {
+          message: tool.schema.string().describe("Message to speak"),
+          voice_id: tool.schema
+            .string()
+            .optional()
+            .describe("Optional voice_id override"),
+          title: tool.schema
+            .string()
+            .optional()
+            .describe("Optional notification title"),
+        },
+        async execute(args, _context) {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 2500);
+          try {
+            const body: Record<string, unknown> = {
+              message: args.message,
+            };
+            if (args.voice_id) body.voice_id = args.voice_id;
+            if (args.title) body.title = args.title;
+
+            const res = await fetch("http://localhost:8888/notify", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(body),
+              signal: controller.signal,
+            });
+
+            return res.ok
+              ? `ok (${res.status})`
+              : `error (${res.status})`;
+          } catch (error: any) {
+            // Fail open: voice server is optional. Return error but don't throw.
+            return `error (${error?.message || String(error)})`;
+          } finally {
+            clearTimeout(timeout);
+          }
+        },
+      }),
+    },
     /**
      * CONTEXT INJECTION (SessionStart equivalent)
      *
@@ -56,6 +353,7 @@ export const PaiUnified: Plugin = async (ctx) => {
      */
     "experimental.chat.system.transform": async (input, output) => {
       try {
+        const scratchpad = await ensureScratchpadSession();
         fileLog("Injecting context...");
 
         const result = await loadContext();
@@ -69,6 +367,18 @@ export const PaiUnified: Plugin = async (ctx) => {
             "warn"
           );
         }
+
+        // Inject a short, binding scratchpad directive with the per-session path.
+        output.system.push(
+          [
+            "PAI SCRATCHPAD (Binding)",
+            `ScratchpadDir: ${scratchpad.dir}`,
+            "Rules:",
+            "- Write ALL temporary artifacts under ScratchpadDir.",
+            "- Do NOT write drafts/reviews into the current working directory.",
+            "- Only write outside ScratchpadDir when explicitly instructed with an exact destination path.",
+          ].join("\n")
+        );
       } catch (error) {
         fileLogError("Context injection failed", error);
         // Don't throw - continue without context
@@ -133,6 +443,13 @@ export const PaiUnified: Plugin = async (ctx) => {
         "debug"
       );
 
+      // Expand tilde paths in tool args (OpenCode does not expand '~' reliably).
+      // This prevents errors like:
+      //   ENOENT scandir '/Users/zuul/~/.config/opencode/...'
+      if (output.args && typeof output.args === "object") {
+        output.args = normalizeArgsTilde(output.args) as Record<string, unknown>;
+      }
+
       // Security validation - throws error to block dangerous commands
       const result = await validateSecurity({
         tool: input.tool,
@@ -170,7 +487,7 @@ export const PaiUnified: Plugin = async (ctx) => {
           fileLog("Subagent task completed, capturing output...", "info");
 
           const args = (input as any).args || (output as any).args || {};
-          const result = output.result;
+          const result = (output as any).result;
 
           const captureResult = await captureAgentOutput(args, result);
           if (captureResult.success && captureResult.filepath) {
@@ -247,6 +564,43 @@ export const PaiUnified: Plugin = async (ctx) => {
       try {
         const eventType = (input.event as any)?.type || "";
 
+        // === TUI RATING KIOSK ===
+        // Intercept single keypresses during the short rating window.
+        if (eventType === "tui.prompt.append") {
+          const data = (input.event as any)?.data;
+          const appendedRaw =
+            typeof data === "string"
+              ? data
+              : (data?.text ?? data?.value ?? data?.append ?? "");
+
+          const appended = String(appendedRaw || "");
+          if (appended.length > 0) {
+            await handleRatingKioskPromptAppend(appended);
+          }
+
+          // Don't spam the log for every keypress.
+          return;
+        }
+
+        // Some OpenCode builds report response completion via session.status updates
+        // rather than session.idle. If we see an "idle"-like status, arm kiosk.
+        if (eventType === "session.status") {
+          try {
+            const data = (input.event as any)?.data ?? {};
+            const statusStr = String(
+              (data as any)?.status ?? (data as any)?.state ?? (data as any)?.phase ?? ""
+            ).toLowerCase();
+            const dataStr = JSON.stringify(data).toLowerCase();
+
+            if (statusStr === "idle" || dataStr.includes("\"idle\"")) {
+              armRatingKiosk();
+              fileLog("Rating kiosk armed (session.status)", "debug");
+            }
+          } catch (error) {
+            fileLogError("session.status handling failed", error);
+          }
+        }
+
         // === SESSION START ===
         if (eventType.includes("session.created")) {
           fileLog("=== Session Started ===", "info");
@@ -268,12 +622,25 @@ export const PaiUnified: Plugin = async (ctx) => {
           }
         }
 
+        // === RESPONSE COMPLETE (IDLE) ===
+        // Treat session.idle as "assistant finished", not "session ended".
+        if (eventType === "session.idle" || eventType.includes("session.idle")) {
+          armRatingKiosk();
+          fileLog("Session idle (armed rating kiosk)", "debug");
+        }
+
         // === SESSION END ===
-        if (
-          eventType.includes("session.ended") ||
-          eventType.includes("session.idle")
-        ) {
-          fileLog("=== Session Ending ===", "info");
+        if (eventType === "session.ended" || eventType.includes("session.ended")) {
+          disarmRatingKiosk("session ended");
+
+          fileLog("=== Session Ended ===", "info");
+
+          // Session scratchpad cleanup (best-effort)
+          try {
+            await clearScratchpadSession();
+          } catch (error) {
+            fileLogError("Scratchpad cleanup failed", error);
+          }
 
           // WORK COMPLETION LEARNING
           // Extract learnings from the work session
