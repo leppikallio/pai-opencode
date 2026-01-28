@@ -49,7 +49,7 @@
 
 | Shortcut | Action |
 |----------|--------|
-| `Cmd+Shift+N` | New tab with PAI session (runs `pai` command) |
+| `Cmd+Shift+N` | New tab with PAI session (runs `opencode`) |
 | `Shift+Enter` | Send newline |
 | `Ctrl+Enter` | ZSH autosuggestion completion |
 

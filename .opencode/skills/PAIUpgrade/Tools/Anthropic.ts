@@ -420,7 +420,7 @@ function generateRecommendation(update: Update): string {
   if (titleLower.includes('mcp') || source.toLowerCase().includes('mcp')) {
     return `**PAI Impact:** HIGH - MCP infrastructure enhancement\n` +
       `**Why:** PAI uses MCP servers for chrome-devtools, brightdata, Ref docs, content access, and Stripe. Changes to MCP spec/docs affect our integrations.\n` +
-      `**Action:** Assess compatibility with existing MCP servers in .mcp.json. Look for new MCP capabilities to expand PAI's tooling.`;
+      `**Action:** Assess compatibility with configured MCP servers in opencode.json (mcp section). Look for new MCP capabilities to expand PAI's tooling.`;
   }
 
   // Commands/Slash Commands

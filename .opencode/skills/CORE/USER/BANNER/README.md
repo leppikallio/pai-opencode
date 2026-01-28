@@ -75,7 +75,7 @@ To change the default design, edit `Banner.ts` line 873:
 return createNavyBanner(stats, width);
 ```
 
-Or modify the `pai.ts` launcher to pass a specific design flag.
+Or pass a specific design flag via your OpenCode launcher/config.
 
 ## Adding New Designs
 

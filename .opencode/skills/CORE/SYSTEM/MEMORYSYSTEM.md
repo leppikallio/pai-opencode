@@ -384,7 +384,7 @@ bun run ~/.config/opencode/skills/CORE/Tools/LearningPatternSynthesis.ts --week
 - Added LEARNING/SYNTHESIS/ for pattern reports
 - Updated Observability to read from projects/ instead of RAW/
 - Updated ActivityParser.ts to use projects/ as data source
-- Removed archive functionality from pai.ts (Claude Code handles 30-day cleanup)
+- Removed archive functionality from legacy launcher (projects/ is source of truth)
 
 **2026-01-11:** v6.1 - Removed RECOVERY system
 - Deleted RECOVERY/ directory (5GB of redundant snapshots)
