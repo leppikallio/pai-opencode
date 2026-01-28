@@ -28,6 +28,7 @@ type Options = {
   dryRun: boolean;
   migrateFromRepo: boolean;
   applyProfile: boolean;
+  prune: boolean;
 };
 
 const AGENTS_BLOCK_BEGIN = "<!-- PAI-OPENCODE:BEGIN -->";
@@ -63,6 +64,7 @@ function usage(opts: Partial<Options> = {}) {
   console.log(`  --source <dir>         Source .opencode dir (default: ${source})`);
   console.log("  --migrate-from-repo    Seed runtime USER/MEMORY from source tree");
   console.log("  --apply-profile        Rewrite agent model frontmatter (disabled by default)");
+  console.log("  --prune                Delete unmanaged files from target (safe)");
   console.log("  --dry-run              Print actions without writing");
   console.log("  -h, --help             Show help");
 }
@@ -73,6 +75,7 @@ function parseArgs(argv: string[]): Options | null {
   let dryRun = false;
   let migrateFromRepo = false;
   let applyProfile = false;
+  let prune = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -87,6 +90,10 @@ function parseArgs(argv: string[]): Options | null {
     }
     if (arg === "--apply-profile") {
       applyProfile = true;
+      continue;
+    }
+    if (arg === "--prune") {
+      prune = true;
       continue;
     }
     if (arg === "--target") {
@@ -106,7 +113,7 @@ function parseArgs(argv: string[]): Options | null {
     throw new Error(`Unknown option: ${arg}`);
   }
 
-  return { targetDir, sourceDir, dryRun, migrateFromRepo, applyProfile };
+  return { targetDir, sourceDir, dryRun, migrateFromRepo, applyProfile, prune };
 }
 
 function isDir(p: string): boolean {
@@ -398,10 +405,83 @@ function copyDirRecursive(
   }
 }
 
+function removePath(targetPath: string, dryRun: boolean) {
+  const prefix = dryRun ? "[dry]" : "[write]";
+  console.log(`${prefix} delete ${targetPath}`);
+  if (dryRun) return;
+  try {
+    fs.rmSync(targetPath, { recursive: true, force: true });
+  } catch {
+    // best-effort
+  }
+}
+
+function pruneDirRecursive(
+  srcDir: string,
+  destDir: string,
+  opts: { dryRun: boolean; preserveIfExistsPrefixes: string[]; relBase: string }
+): { deleted: number } {
+  const { dryRun, preserveIfExistsPrefixes, relBase } = opts;
+
+  if (!isDir(destDir)) return { deleted: 0 };
+
+  let deleted = 0;
+  const entries = fs.readdirSync(destDir, { withFileTypes: true });
+
+  for (const ent of entries) {
+    const destPath = path.join(destDir, ent.name);
+    const srcPath = path.join(srcDir, ent.name);
+    const relPath = path.posix
+      .join(relBase.replace(/\\/g, "/"), ent.name)
+      .replace(/^\.\//, "");
+
+    const preserveIfExists = preserveIfExistsPrefixes.some((pfx) => relPath.startsWith(pfx));
+    if (preserveIfExists) continue;
+
+    const srcExists = fs.existsSync(srcPath);
+    if (!srcExists) {
+      removePath(destPath, dryRun);
+      deleted++;
+      continue;
+    }
+
+    const srcIsDir = isDir(srcPath);
+    const srcIsFile = isFile(srcPath);
+
+    // If types mismatch (dir vs file), delete the destination; it will be recreated by copy.
+    if (ent.isDirectory() && !srcIsDir) {
+      removePath(destPath, dryRun);
+      deleted++;
+      continue;
+    }
+    if (ent.isFile() && !srcIsFile) {
+      removePath(destPath, dryRun);
+      deleted++;
+      continue;
+    }
+    if (ent.isSymbolicLink() && !(srcIsDir || srcIsFile)) {
+      removePath(destPath, dryRun);
+      deleted++;
+      continue;
+    }
+
+    if (ent.isDirectory() && srcIsDir) {
+      const child = pruneDirRecursive(srcPath, destPath, {
+        dryRun,
+        preserveIfExistsPrefixes,
+        relBase: relPath,
+      });
+      deleted += child.deleted;
+    }
+  }
+
+  return { deleted };
+}
+
 function sync(mode: Mode, opts: Options) {
   if (mode !== "sync") throw new Error(`Unsupported mode: ${mode}`);
 
-  const { sourceDir, targetDir, dryRun, migrateFromRepo, applyProfile } = opts;
+  const { sourceDir, targetDir, dryRun, migrateFromRepo, applyProfile, prune } = opts;
   if (!isDir(sourceDir)) {
     throw new Error(`Source directory not found: ${sourceDir}`);
   }
@@ -412,6 +492,7 @@ function sync(mode: Mode, opts: Options) {
   console.log(`  source: ${sourceDir}`);
   console.log(`  target: ${targetDir}`);
   console.log(`  mode:   ${dryRun ? "dry-run" : "write"}`);
+  console.log(`  prune:  ${prune ? "enabled" : "disabled"}`);
   console.log("");
 
   ensureDir(targetDir, dryRun);
@@ -440,6 +521,21 @@ function sync(mode: Mode, opts: Options) {
       "skills/CORE/USER/",
       "skills/CORE/WORK/",
     ];
+
+    // Optional: delete target files/dirs that are not present in source.
+    // This is intentionally limited to the managed directories listed in copyAlways.
+    if (prune) {
+      const pruneResult = pruneDirRecursive(src, dest, {
+        dryRun,
+        preserveIfExistsPrefixes: preserve,
+        relBase: `${name}/`,
+      });
+      if (pruneResult.deleted > 0) {
+        console.log(
+          `${dryRun ? "[dry]" : "[write]"} pruned ${pruneResult.deleted} path(s) under ${name}`
+        );
+      }
+    }
 
     const overwrite = true;
     copyDirRecursive(src, dest, {
@@ -499,6 +595,21 @@ function sync(mode: Mode, opts: Options) {
     { name: "settings.json", overwrite: false },
     { name: "opencode.json", overwrite: false },
   ];
+
+  // If pruning, remove managed top-level files that were deleted from source.
+  // Never prune private config files.
+  if (prune) {
+    const managedTopLevel = topLevelFiles
+      .filter((f) => f.overwrite)
+      .map((f) => f.name);
+    for (const f of managedTopLevel) {
+      const src = path.join(sourceDir, f);
+      const dest = path.join(targetDir, f);
+      if (!fs.existsSync(src) && fs.existsSync(dest)) {
+        removePath(dest, dryRun);
+      }
+    }
+  }
 
   for (const { name: f, overwrite: overwriteFile } of topLevelFiles) {
     const src = path.join(sourceDir, f);
