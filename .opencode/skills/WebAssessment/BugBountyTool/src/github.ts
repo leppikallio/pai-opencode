@@ -113,36 +113,45 @@ export class GitHubClient {
   /**
    * Normalize program data from different platforms
    */
-  private normalizeProgram(data: any, platform: Program['platform']): Program {
+  private normalizeProgram(data: unknown, platform: Program['platform']): Program {
+    const record = (data && typeof data === 'object') ? (data as Record<string, unknown>) : {};
     return {
-      name: data.name || 'Unknown',
+      name: typeof record.name === 'string' ? record.name : 'Unknown',
       platform,
-      handle: data.handle || data.id || 'unknown',
-      url: data.url || '',
-      website: data.website,
-      offers_bounties: data.offers_bounties || data.bounty || false,
-      offers_swag: data.offers_swag || data.swag || false,
-      submission_state: data.submission_state || 'unknown',
-      key_scopes: this.extractScopes(data),
+      handle: (typeof record.handle === 'string' && record.handle)
+        || (typeof record.id === 'string' && record.id)
+        || 'unknown',
+      url: typeof record.url === 'string' ? record.url : '',
+      website: typeof record.website === 'string' ? record.website : undefined,
+      offers_bounties: Boolean(record.offers_bounties ?? record.bounty),
+      offers_swag: Boolean(record.offers_swag ?? record.swag),
+      submission_state: typeof record.submission_state === 'string' ? record.submission_state : 'unknown',
+      key_scopes: this.extractScopes(record),
       discovered_at: new Date().toISOString(),
-      max_severity: this.extractMaxSeverity(data),
-      managed_program: data.managed_program,
+      max_severity: this.extractMaxSeverity(record),
+      managed_program: typeof record.managed_program === 'boolean' ? record.managed_program : undefined,
     };
   }
 
   /**
    * Extract scope domains from program data
    */
-  private extractScopes(data: any): string[] {
-    if (data.domains && Array.isArray(data.domains)) {
-      return data.domains;
+  private extractScopes(data: Record<string, unknown>): string[] {
+    if (Array.isArray(data.domains)) {
+      return data.domains.filter((d): d is string => typeof d === 'string');
     }
 
-    if (data.targets?.in_scope && Array.isArray(data.targets.in_scope)) {
-      return data.targets.in_scope
-        .map((t: any) => t.asset_identifier)
-        .filter(Boolean)
-        .slice(0, 10); // Limit to first 10 scopes
+    const targets = data.targets;
+    const inScope = (targets && typeof targets === 'object' && 'in_scope' in targets)
+      ? (targets as { in_scope?: unknown }).in_scope
+      : undefined;
+    if (Array.isArray(inScope)) {
+      return inScope
+        .map((t) => (t && typeof t === 'object' && 'asset_identifier' in t)
+          ? (t as { asset_identifier?: string }).asset_identifier
+          : undefined)
+        .filter((v): v is string => Boolean(v))
+        .slice(0, 10);
     }
 
     return [];
@@ -151,11 +160,17 @@ export class GitHubClient {
   /**
    * Extract maximum severity from program data
    */
-  private extractMaxSeverity(data: any): string | undefined {
-    if (data.targets?.in_scope && Array.isArray(data.targets.in_scope)) {
-      const severities = data.targets.in_scope
-        .map((t: any) => t.max_severity)
-        .filter(Boolean);
+  private extractMaxSeverity(data: Record<string, unknown>): string | undefined {
+    const targets = data.targets;
+    const inScope = (targets && typeof targets === 'object' && 'in_scope' in targets)
+      ? (targets as { in_scope?: unknown }).in_scope
+      : undefined;
+    if (Array.isArray(inScope)) {
+      const severities = inScope
+        .map((t) => (t && typeof t === 'object' && 'max_severity' in t)
+          ? (t as { max_severity?: string }).max_severity
+          : undefined)
+        .filter((v): v is string => Boolean(v));
 
       if (severities.includes('critical')) return 'critical';
       if (severities.includes('high')) return 'high';

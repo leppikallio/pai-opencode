@@ -1,7 +1,25 @@
 import { fileLog } from "./file-logger";
-import { readFileSync, existsSync } from "fs";
-import { join, dirname } from "path";
+import { readFileSync, existsSync } from "node:fs";
+import { join, dirname } from "node:path";
 import { getPaiRuntimeInfo } from "./pai-runtime";
+
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === "object" && value !== null;
+}
+
+function getStringProp(obj: unknown, key: string): string | undefined {
+  if (!isRecord(obj)) return undefined;
+  const value = obj[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function getRecordProp(obj: unknown, key: string): UnknownRecord | undefined {
+  if (!isRecord(obj)) return undefined;
+  const value = obj[key];
+  return isRecord(value) ? value : undefined;
+}
 
 /**
  * PAI Model Configuration Schema
@@ -96,7 +114,7 @@ export function getProviderPreset(
  * 2. Current working directory (project root)
  * 3. Inside .opencode directory (fallback)
  */
-function readOpencodeConfig(): any | null {
+function readOpencodeConfig(): UnknownRecord | null {
   try {
     const runtime = getPaiRuntimeInfo();
 
@@ -129,7 +147,7 @@ function readOpencodeConfig(): any | null {
     const config = JSON.parse(content);
 
     fileLog(`[model-config] Loaded opencode.json from ${configPath}`, "debug");
-    return config;
+    return isRecord(config) ? config : null;
   } catch (error) {
     fileLog(`[model-config] Error reading opencode.json: ${error}`, "warn");
     return null;
@@ -161,10 +179,11 @@ export function getModelConfig(): PaiModelConfig {
   const config = readOpencodeConfig();
 
   // Check for PAI section in config (preferred method)
-  const paiConfig = config?.pai;
+  const paiConfig = getRecordProp(config, "pai");
 
-  if (paiConfig?.model_provider) {
-    const provider = paiConfig.model_provider as "zen" | "anthropic" | "openai";
+  const providerRaw = getStringProp(paiConfig, "model_provider");
+  if (providerRaw) {
+    const provider = providerRaw as "zen" | "anthropic" | "openai";
 
     // Validate provider
     if (!["zen", "anthropic", "openai"].includes(provider)) {
@@ -177,17 +196,18 @@ export function getModelConfig(): PaiModelConfig {
 
     // If user provided custom models, merge with preset
     const preset = PROVIDER_PRESETS[provider];
-    const customModels = paiConfig.models || {};
+    const customModels = getRecordProp(paiConfig, "models") ?? {};
+    const customAgents = getRecordProp(customModels, "agents") ?? {};
 
     const models: PaiModelConfig["models"] = {
-      default: customModels.default || preset.default,
-      validation: customModels.validation || preset.validation,
+      default: getStringProp(customModels, "default") || preset.default,
+      validation: getStringProp(customModels, "validation") || preset.validation,
       agents: {
-        intern: customModels.agents?.intern || preset.agents.intern,
-        architect: customModels.agents?.architect || preset.agents.architect,
-        engineer: customModels.agents?.engineer || preset.agents.engineer,
-        explorer: customModels.agents?.explorer || preset.agents.explorer,
-        reviewer: customModels.agents?.reviewer || preset.agents.reviewer,
+        intern: getStringProp(customAgents, "intern") || preset.agents.intern,
+        architect: getStringProp(customAgents, "architect") || preset.agents.architect,
+        engineer: getStringProp(customAgents, "engineer") || preset.agents.engineer,
+        explorer: getStringProp(customAgents, "explorer") || preset.agents.explorer,
+        reviewer: getStringProp(customAgents, "reviewer") || preset.agents.reviewer,
       },
     };
 
@@ -204,11 +224,12 @@ export function getModelConfig(): PaiModelConfig {
 
   // Fallback: Try to detect provider from "model" field in opencode.json
   // This supports the standard OpenCode config format: { "model": "anthropic/claude-sonnet-4-5" }
-  if (config?.model) {
-    const detectedProvider = detectProviderFromModel(config.model);
+  const model = getStringProp(config, "model");
+  if (model) {
+    const detectedProvider = detectProviderFromModel(model);
     if (detectedProvider) {
       fileLog(
-        `[model-config] Auto-detected provider "${detectedProvider}" from model field: ${config.model}`,
+        `[model-config] Auto-detected provider "${detectedProvider}" from model field: ${model}`,
         "debug"
       );
       return {

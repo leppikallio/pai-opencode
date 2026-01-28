@@ -9,7 +9,7 @@ async function main() {
   try {
     const results = await tracker.update();
 
-    console.log('\n' + '='.repeat(60));
+    console.log(`\n${'='.repeat(60)}`);
     console.log('📊 UPDATE SUMMARY');
     console.log('='.repeat(60));
     console.log(`🆕 New programs:        ${results.new_programs.length}`);

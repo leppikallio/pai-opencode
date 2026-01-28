@@ -1,7 +1,7 @@
 // State management for bug bounty tracker
 
-import { readFile, writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { CONFIG } from './config.js';
 import type { TrackerState, ProgramMetadata } from './types.js';
 
@@ -101,7 +101,7 @@ export class StateManager {
     await writeFile(this.recentChangesPath, JSON.stringify(filtered, null, 2));
   }
 
-  async logDiscovery(timestamp: string, message: string, data?: any): Promise<void> {
+  async logDiscovery(timestamp: string, message: string, data?: unknown): Promise<void> {
     await this.ensureDirectories();
     const logPath = `${CONFIG.paths.logs}/discovery.jsonl`;
     const logEntry = {
@@ -111,8 +111,8 @@ export class StateManager {
     };
 
     try {
-      const { appendFile } = await import('fs/promises');
-      await appendFile(logPath, JSON.stringify(logEntry) + '\n');
+      const { appendFile } = await import('node:fs/promises');
+      await appendFile(logPath, `${JSON.stringify(logEntry)}\n`);
     } catch (error) {
       console.error('Failed to write log:', error);
     }

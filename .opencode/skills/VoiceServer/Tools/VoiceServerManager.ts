@@ -28,7 +28,7 @@
  */
 
 import { $ } from "bun";
-import { join } from "path";
+import { join } from "node:path";
 
 const VOICE_SERVER_PATH = join(process.env.HOME || "", ".claude/VoiceServer");
 const PORT = 8888;
@@ -50,8 +50,12 @@ async function runScript(script: string): Promise<{ success: boolean; output: st
   try {
     const result = await $`${scriptPath}`.quiet();
     return { success: true, output: result.stdout.toString() };
-  } catch (error: any) {
-    return { success: false, output: error.stderr?.toString() || error.message };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    const stderr = (error && typeof error === 'object' && 'stderr' in error)
+      ? String((error as { stderr?: { toString?: () => string } }).stderr?.toString?.() ?? '')
+      : '';
+    return { success: false, output: stderr || message };
   }
 }
 
@@ -126,8 +130,9 @@ async function test(message?: string): Promise<void> {
     } else {
       console.log(colors.red(`Failed: HTTP ${response.status}`));
     }
-  } catch (error: any) {
-    console.log(colors.red(`Failed: ${error.message}`));
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.log(colors.red(`Failed: ${message}`));
     console.log(colors.dim("Is the voice server running? Try: bun VoiceServerManager.ts start"));
   }
 }

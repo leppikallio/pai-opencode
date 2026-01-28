@@ -18,7 +18,6 @@
  */
 
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 
 // ============================================================================
 // Types
@@ -98,7 +97,17 @@ function parseArgs(): {
   motifs?: string;
 } {
   const args = process.argv.slice(2);
-  const parsed: any = {
+  type ParsedArgs = {
+    input?: string;
+    type: "essay-illustration" | "blog-header";
+    format: OutputFormat;
+    composition?: CompositionType;
+    character?: CharacterFocus;
+    colors?: string;
+    motifs?: string;
+    [key: string]: string | undefined;
+  };
+  const parsed: ParsedArgs = {
     type: "essay-illustration",
     format: "text",
   };
@@ -109,7 +118,15 @@ function parseArgs(): {
     parsed[key] = value;
   }
 
-  return parsed;
+  return parsed as {
+    input: string;
+    type: "essay-illustration" | "blog-header";
+    format: OutputFormat;
+    composition?: CompositionType;
+    character?: CharacterFocus;
+    colors?: string;
+    motifs?: string;
+  };
 }
 
 function readEssayContent(path: string): string {
@@ -131,7 +148,7 @@ function analyzeContent(essayContent: string): {
   // In a production version, this could use more sophisticated NLP or LLM analysis
 
   const lines = essayContent.split("\n");
-  const firstParagraph = lines.slice(0, 5).join(" ");
+  const _firstParagraph = lines.slice(0, 5).join(" ");
 
   // Extract title (first # line)
   const titleLine = lines.find((line) => line.startsWith("# "));
@@ -436,10 +453,10 @@ function main() {
       accent_colors: accentColors,
       human3_motifs: human3Motifs,
       image_prompt: imagePrompt,
-      suggested_filename: analysis.theme
+      suggested_filename: `${analysis.theme
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
-        .replace(/^-|-$/g, "") + ".png",
+        .replace(/^-|-$/g, "")}.png`,
     };
 
     console.log(JSON.stringify(output, null, 2));

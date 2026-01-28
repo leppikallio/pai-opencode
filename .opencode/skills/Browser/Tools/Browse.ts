@@ -17,12 +17,11 @@
  * Session auto-starts on first use. No explicit start needed.
  */
 
-import { PlaywrightBrowser } from '../index.ts'
 
 const VOICE_SERVER = 'http://localhost:8888/notify'
 const STATE_FILE = '/tmp/browser-session.json'
 const DEFAULT_PORT = 9222
-const SESSION_TIMEOUT = 5000 // 5s to wait for session start
+const _SESSION_TIMEOUT = 5000 // 5s to wait for session start
 const SETTINGS_PATH = `${process.env.HOME}/.opencode/settings.json`
 
 // ============================================
@@ -89,7 +88,7 @@ interface Diagnostics {
 // UTILITIES
 // ============================================
 
-async function notify(message: string): Promise<void> {
+async function _notify(message: string): Promise<void> {
   try {
     await fetch(VOICE_SERVER, {
       method: 'POST',
@@ -106,12 +105,12 @@ function formatBytes(bytes: number): string {
   const k = 1024
   const sizes = ['B', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
+  return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`
 }
 
 function truncate(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str
-  return str.slice(0, maxLen - 3) + '...'
+  return `${str.slice(0, maxLen - 3)}...`
 }
 
 // ============================================
@@ -131,7 +130,7 @@ async function getSessionState(): Promise<SessionState | null> {
   return null
 }
 
-async function isSessionRunning(): Promise<boolean> {
+async function _isSessionRunning(): Promise<boolean> {
   const state = await getSessionState()
   if (!state) return false
 
@@ -143,7 +142,7 @@ async function isSessionRunning(): Promise<boolean> {
   } catch {
     // Server not responding - clean up orphan state
     try {
-      const fs = await import('fs/promises')
+      const fs = await import('node:fs/promises')
       await fs.unlink(STATE_FILE)
     } catch {}
     return false
@@ -178,7 +177,7 @@ async function ensureSession(): Promise<number> {
   } catch {}
 
   // Start server in background
-  const { spawn } = await import('child_process')
+  const { spawn } = await import('node:child_process')
   const serverPath = new URL('./BrowserSession.ts', import.meta.url).pathname
 
   const env: Record<string, string> = {
@@ -210,11 +209,14 @@ async function ensureSession(): Promise<number> {
   throw new Error('Failed to start browser session')
 }
 
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue }
+type JsonRecord = Record<string, JsonValue>
+
 async function sessionCommand(
   endpoint: string,
-  body?: any,
+  body?: JsonRecord,
   method = 'POST'
-): Promise<any> {
+): Promise<unknown> {
   const port = await ensureSession()
 
   const options: RequestInit = {
@@ -228,11 +230,11 @@ async function sessionCommand(
   }
 
   const url = method === 'GET' && body
-    ? `http://localhost:${port}/${endpoint}?${new URLSearchParams(body)}`
+    ? `http://localhost:${port}/${endpoint}?${new URLSearchParams(Object.entries(body).map(([key, value]) => [key, String(value)]))}`
     : `http://localhost:${port}/${endpoint}`
 
   const res = await fetch(url, options)
-  const data = await res.json() as { success: boolean; data?: any; error?: string }
+  const data = await res.json() as { success: boolean; data?: unknown; error?: string }
 
   if (data.success) {
     return data.data
@@ -430,7 +432,7 @@ async function takeScreenshot(path?: string): Promise<void> {
 }
 
 async function navigate(url: string): Promise<void> {
-  const result = await sessionCommand('navigate', { url })
+  const result = await sessionCommand('navigate', { url }) as { url: string }
   console.log(`Navigated to: ${result.url}`)
 }
 
@@ -450,7 +452,7 @@ async function type(selector: string, text: string): Promise<void> {
 }
 
 async function evaluate(script: string): Promise<void> {
-  const result = await sessionCommand('evaluate', { script })
+  const result = await sessionCommand('evaluate', { script }) as { result: unknown }
   console.log(JSON.stringify(result.result, null, 2))
 }
 
@@ -462,7 +464,14 @@ async function showStatus(): Promise<void> {
       return
     }
 
-    const session = await sessionCommand('session', {}, 'GET')
+    const session = await sessionCommand('session', {}, 'GET') as {
+      sessionId: string
+      port: number
+      url?: string
+      title?: string
+      startedAt?: string
+      idleTimeout?: number
+    }
     console.log('Browser Session:')
     console.log(`  ID: ${session.sessionId}`)
     console.log(`  Port: ${session.port}`)
@@ -490,7 +499,7 @@ async function restart(): Promise<void> {
 
   // Clean up state file
   try {
-    const fs = await import('fs/promises')
+    const fs = await import('node:fs/promises')
     await fs.unlink(STATE_FILE)
   } catch {}
 
@@ -520,7 +529,7 @@ async function stop(): Promise<void> {
 async function openUrl(url: string): Promise<void> {
   // Use browser from settings.json techStack
   const browser = await getBrowser()
-  const { spawn } = await import('child_process')
+  const { spawn } = await import('node:child_process')
   spawn('open', ['-a', browser, url], { detached: true, stdio: 'ignore' }).unref()
   console.log(`Opened in ${browser}: ${url}`)
 }
@@ -665,7 +674,7 @@ async function main(): Promise<void> {
         break
 
       // Legacy session commands (redirect to new interface)
-      case 'session':
+      case 'session': {
         const subCmd = args[1]
         if (subCmd === 'start') {
           await ensureSession()
@@ -679,14 +688,16 @@ async function main(): Promise<void> {
           console.log('Use: Browse.ts <url> | errors | network | failed | etc.')
         }
         break
+      }
 
       default:
         console.error(`Unknown command: ${command}`)
         console.log('Run with --help for usage')
         process.exit(1)
     }
-  } catch (err: any) {
-    console.error(`Error: ${err.message}`)
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err)
+    console.error(`Error: ${message}`)
     process.exit(1)
   }
 }

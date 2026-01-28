@@ -4,11 +4,11 @@
  * Manage capability vs regression suites with saturation monitoring
  */
 
-import type { EvalSuite, EvalType, SaturationStatus, EvalRun, Task } from '../Types/index.ts';
-import { existsSync, mkdirSync, readdirSync, writeFileSync, readFileSync } from 'fs';
-import { join, basename } from 'path';
+import type { EvalSuite, EvalType, SaturationStatus, EvalRun, } from '../Types/index.ts';
+import { existsSync, mkdirSync, readdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { join, } from 'node:path';
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml';
-import { parseArgs } from 'util';
+import { parseArgs } from 'node:util';
 
 const EVALS_DIR = join(import.meta.dir, '..');
 const SUITES_DIR = join(EVALS_DIR, 'Suites');
@@ -44,7 +44,7 @@ export function createSuite(
     name,
     description,
     type,
-    domain: options?.domain as any,
+    domain: options?.domain as EvalSuite['domain'],
     tasks: options?.tasks ?? [],
     pass_threshold: options?.pass_threshold ?? (type === 'regression' ? 0.95 : 0.70),
     saturation_threshold: options?.saturation_threshold ?? 0.95,
@@ -198,7 +198,7 @@ export function graduateSuite(suiteName: string): boolean {
 
   writeFileSync(newPath, stringifyYaml(suite));
   if (existsSync(oldPath)) {
-    const fs = require('fs');
+    const fs = require('node:fs');
     fs.unlinkSync(oldPath);
   }
 
@@ -333,7 +333,7 @@ Examples:
         process.exit(1);
       }
       const saturation = checkSaturation(args[0]);
-      console.log('\n' + formatSuiteSummary(suite, saturation));
+      console.log(`\n${formatSuiteSummary(suite, saturation)}`);
       break;
     }
 

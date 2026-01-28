@@ -9,8 +9,8 @@
  * @module file-logger
  */
 
-import { appendFileSync, mkdirSync, existsSync, writeFileSync } from "fs";
-import { dirname } from "path";
+import { appendFileSync, mkdirSync, existsSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 
 const LOG_PATH = "/tmp/pai-opencode-debug.log";
 

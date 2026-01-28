@@ -1,5 +1,5 @@
-import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from "fs";
-import { join, basename, dirname } from "path";
+import { existsSync, readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
+import { join, } from "node:path";
 
 // ============================================================================
 // Types
@@ -409,7 +409,7 @@ export function validateManifestStructure(manifest: MigrationManifest): {
  */
 export function detectPAIVersion(sourcePath: string): VersionDetectionResult {
   const evidence: string[] = [];
-  const migrationNotes: string[] = [];
+  const _migrationNotes: string[] = [];
 
   // Check for skills/ directory (PAI 2.0+)
   const hasSkills = existsSync(join(sourcePath, "skills"));
@@ -636,10 +636,14 @@ export function formatVersionInfo(result: VersionDetectionResult): string {
   lines.push(`   Migration Support: ${result.migrationSupport.toUpperCase()}`);
   lines.push("");
   lines.push("Evidence:");
-  result.evidence.forEach(e => lines.push(`   • ${e}`));
+  result.evidence.forEach((e) => {
+    lines.push(`   • ${e}`);
+  });
   lines.push("");
   lines.push("Notes:");
-  result.migrationNotes.forEach(n => lines.push(`   • ${n}`));
+  result.migrationNotes.forEach((n) => {
+    lines.push(`   • ${n}`);
+  });
 
   return lines.join("\n");
 }

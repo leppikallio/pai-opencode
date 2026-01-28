@@ -14,7 +14,6 @@
  *   sudo bun MassScan.ts targets.txt -p 22,80,443,3389 --json
  */
 
-import { $ } from "bun";
 
 interface MassScanOptions {
   ports?: string;
@@ -232,7 +231,7 @@ function parseArgs(args: string[]): { target: string; options: MassScanOptions }
         i++;
         break;
       case "--rate":
-        options.rate = parseInt(next);
+        options.rate = parseInt(next, 10);
         i++;
         break;
       case "--banners":
@@ -272,11 +271,11 @@ function parseArgs(args: string[]): { target: string; options: MassScanOptions }
         options.json = true;
         break;
       case "--wait":
-        options.wait = parseInt(next);
+        options.wait = parseInt(next, 10);
         i++;
         break;
       case "--retries":
-        options.retries = parseInt(next);
+        options.retries = parseInt(next, 10);
         i++;
         break;
       case "-h":
@@ -319,6 +318,7 @@ Examples:
   sudo bun MassScan.ts targets.txt -p 1-1000 --json > results.json
 `);
         process.exit(0);
+        break;
       default:
         if (!arg.startsWith("-") && !target) {
           target = arg;
@@ -340,7 +340,8 @@ if (!target && !options.includeFile) {
   process.exit(1);
 }
 
-const result = await runMassScan(target || options.includeFile!, options);
+const scanTarget = target ?? options.includeFile ?? "";
+const result = await runMassScan(scanTarget, options);
 
 if (options.json) {
   console.log(JSON.stringify(result, null, 2));
@@ -377,7 +378,8 @@ if (options.json) {
       });
 
       for (const ip of sortedIps.slice(0, 50)) {
-        const ports = byIp.get(ip)!;
+        const ports = byIp.get(ip);
+        if (!ports) continue;
         const portList = ports.map(p => p.port).sort((a, b) => a - b).join(", ");
         console.log(`  ${ip}`);
         console.log(`    Open: ${portList}`);
@@ -409,4 +411,4 @@ if (options.outputFile) {
   console.log(`\n💾 Results saved to: ${options.outputFile}`);
 }
 
-export { runMassScan, MassScanOptions, MassScanReport, MassScanResult };
+export { runMassScan, type MassScanOptions, type MassScanReport, type MassScanResult };

@@ -16,11 +16,11 @@
  *   bun run PAIOpenCodeWizard.ts    # Run the interactive wizard
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
-import { join, dirname, resolve } from "path";
-import { homedir, userInfo } from 'os';
-import { execSync } from 'child_process';
-import * as readline from 'readline';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { join, dirname, resolve } from "node:path";
+import { homedir, userInfo } from 'node:os';
+import { execSync } from 'node:child_process';
+import * as readline from 'node:readline';
 
 // ANSI colors
 const c = {
@@ -37,12 +37,12 @@ const c = {
 
 // Paths
 const HOME = homedir();
-const SCRIPT_DIR = dirname(new URL(import.meta.url).pathname);
-const SHELL_RC = join(HOME, process.env.SHELL?.includes('zsh') ? '.zshrc' : '.bashrc');
+const _SCRIPT_DIR = dirname(new URL(import.meta.url).pathname);
+const _SHELL_RC = join(HOME, process.env.SHELL?.includes('zsh') ? '.zshrc' : '.bashrc');
 
 function getDefaultPaiDir(): string {
   const xdg = process.env.XDG_CONFIG_HOME;
-  if (xdg && xdg.trim()) return join(xdg.trim(), "opencode");
+  if (xdg?.trim()) return join(xdg.trim(), "opencode");
   return join(HOME, ".config", "opencode");
 }
 
@@ -59,7 +59,7 @@ function resolvePaiDirFromArgs(argv: string[]): string {
 
   // Env override
   const fromEnv = process.env.PAI_DIR;
-  if (fromEnv && fromEnv.trim()) return resolve(fromEnv.trim());
+  if (fromEnv?.trim()) return resolve(fromEnv.trim());
 
   return resolve(getDefaultPaiDir());
 }
@@ -184,7 +184,7 @@ interface InstallConfig {
   VOICE_TYPE?: 'male' | 'female' | 'neutral';  // Deferred to v1.1
 }
 
-function quote(p: string): string {
+function _quote(p: string): string {
   // Minimal shell quoting for paths
   return `"${p.replaceAll('"', '\\"')}"`;
 }
@@ -232,7 +232,7 @@ async function promptChoice(question: string, choices: string[], defaultIdx = 0)
   return new Promise((resolve) => {
     rl.question(`  ${c.gray}Enter 1-${choices.length} [${defaultIdx + 1}]:${c.reset} `, (answer) => {
       rl.close();
-      const num = parseInt(answer.trim()) || (defaultIdx + 1);
+      const num = parseInt(answer.trim(), 10) || (defaultIdx + 1);
       resolve(Math.max(0, Math.min(choices.length - 1, num - 1)));
     });
   });
@@ -260,12 +260,13 @@ function fixPermissions(targetDir: string): void {
     for (const pattern of ['*.ts', '*.sh']) {
       try {
         execSync(`find "${targetDir}" -name "${pattern}" -exec chmod 755 {} \\;`, { stdio: 'pipe' });
-      } catch (e) { /* ignore */ }
+      } catch (_e) { /* ignore */ }
     }
     printSuccess('Set executable permissions on scripts');
 
-  } catch (err: any) {
-    printWarning(`Permission fix may need sudo: ${err.message}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    printWarning(`Permission fix may need sudo: ${message}`);
   }
 }
 
@@ -454,7 +455,7 @@ function validate(paiDir: string): { passed: boolean; results: string[] } {
         results.push(`${c.red}✗${c.reset} opencode.json missing model field`);
         passed = false;
       }
-    } catch (e) {
+    } catch (_e) {
       results.push(`${c.red}✗${c.reset} opencode.json invalid JSON`);
       passed = false;
     }
@@ -474,7 +475,7 @@ function validate(paiDir: string): { passed: boolean; results: string[] } {
         results.push(`${c.red}✗${c.reset} settings.json missing required fields`);
         passed = false;
       }
-    } catch (e) {
+    } catch (_e) {
       results.push(`${c.red}✗${c.reset} settings.json invalid JSON`);
       passed = false;
     }

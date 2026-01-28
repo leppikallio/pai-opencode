@@ -24,10 +24,10 @@
  *   - Links to all changes
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { createHash } from 'crypto';
-import { join } from 'path';
-import { homedir } from 'os';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { join } from 'node:path';
+import { homedir } from 'node:os';
 
 // Types
 interface Source {
@@ -66,6 +66,26 @@ interface Update {
   recommendation?: string;
 }
 
+type GitCommit = {
+  sha?: string;
+  html_url?: string;
+  commit?: {
+    message?: string;
+    author?: {
+      date?: string;
+      name?: string;
+    };
+  };
+};
+
+type GitRelease = {
+  tag_name?: string;
+  name?: string;
+  html_url?: string;
+  published_at?: string;
+  body?: string;
+};
+
 interface State {
   last_check_timestamp: string;
   sources: Record<string, {
@@ -87,7 +107,7 @@ const SOURCES_FILE = join(SKILL_DIR, 'sources.json');
 // Parse args
 const args = process.argv.slice(2);
 const daysArg = args.find(a => !a.startsWith('--'));
-const DAYS = daysArg ? parseInt(daysArg) : 30; // Default to 30 days for comprehensive review
+const DAYS = daysArg ? parseInt(daysArg, 10) : 30; // Default to 30 days for comprehensive review
 const FORCE = args.includes('--force');
 const LOG_DIR = join(SKILL_DIR, 'Logs');
 const LOG_FILE = join(LOG_DIR, 'run-history.jsonl');
@@ -135,7 +155,7 @@ function saveState(state: State): void {
 
 function logRun(updatesFound: number, high: number, medium: number, low: number): void {
   try {
-    const { mkdirSync, appendFileSync, existsSync } = require('fs');
+    const { mkdirSync, appendFileSync, existsSync } = require('node:fs');
 
     if (!existsSync(LOG_DIR)) {
       mkdirSync(LOG_DIR, { recursive: true });
@@ -151,7 +171,7 @@ function logRun(updatesFound: number, high: number, medium: number, low: number)
       low_priority: low
     };
 
-    appendFileSync(LOG_FILE, JSON.stringify(logEntry) + '\n', 'utf-8');
+    appendFileSync(LOG_FILE, `${JSON.stringify(logEntry)}\n`, 'utf-8');
   } catch (error) {
     console.warn('⚠️ Failed to log run:', error);
   }
@@ -173,7 +193,7 @@ function getLastRunInfo(): { days_ago: number, last_timestamp: string } | null {
       days_ago: daysAgo,
       last_timestamp: lastLog.timestamp
     };
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -181,7 +201,8 @@ function getLastRunInfo(): { days_ago: number, last_timestamp: string } | null {
 // Fetching functions
 async function fetchBlog(source: Source, state: State): Promise<Update[]> {
   try {
-    const response = await fetch(source.url!);
+    if (!source.url) return [];
+    const response = await fetch(source.url);
     if (!response.ok) {
       console.warn(`⚠️ Failed to fetch ${source.name}: ${response.status}`);
       return [];
@@ -206,7 +227,7 @@ async function fetchBlog(source: Source, state: State): Promise<Update[]> {
       category: 'blog',
       type: 'blog',
       title: `${source.name}: ${title}`,
-      url: source.url!,
+      url: source.url,
       date: new Date().toISOString().split('T')[0],
       hash: contentHash,
       priority: source.priority,
@@ -221,12 +242,13 @@ async function fetchBlog(source: Source, state: State): Promise<Update[]> {
 
 async function fetchGitHubRepo(source: Source, state: State): Promise<Update[]> {
   const updates: Update[] = [];
+  if (!source.owner || !source.repo) return updates;
   const token = process.env.GITHUB_TOKEN || '';
   const headers: Record<string, string> = {
     'Accept': 'application/vnd.github.v3+json',
     'User-Agent': 'PAI-Anthropic-Monitor'
   };
-  if (token) headers['Authorization'] = `token ${token}`;
+  if (token) headers.Authorization = `token ${token}`;
 
   try {
     // Check commits
@@ -236,26 +258,31 @@ async function fetchGitHubRepo(source: Source, state: State): Promise<Update[]> 
 
       const response = await fetch(url, { headers });
       if (response.ok) {
-        const commits = await response.json() as any[];
+        const commits = await response.json() as GitCommit[];
 
         const stateKey = `github_${source.repo}_commits`;
         const lastSha = state.sources[stateKey]?.last_sha;
 
         for (const commit of commits) {
-          if (FORCE || commit.sha !== lastSha) {
+          const sha = commit.sha ?? '';
+          if (FORCE || sha !== lastSha) {
+            const message = commit.commit?.message ?? 'Commit';
+            const title = message.split('\n')[0];
+            const date = commit.commit?.author?.date?.split('T')[0] ?? new Date().toISOString().split('T')[0];
+            const authorName = commit.commit?.author?.name ?? 'Unknown';
             updates.push({
               source: source.name,
               category: 'github',
               type: 'commit',
-              title: commit.commit.message.split('\n')[0],
-              url: commit.html_url,
-              date: commit.commit.author.date.split('T')[0],
-              sha: commit.sha,
+              title,
+              url: commit.html_url ?? '',
+              date,
+              sha,
               priority: source.priority,
-              summary: `Commit by ${commit.commit.author.name}`
+              summary: `Commit by ${authorName}`
             });
           }
-          if (commit.sha === lastSha) break;
+          if (sha && sha === lastSha) break;
         }
       }
     }
@@ -266,26 +293,28 @@ async function fetchGitHubRepo(source: Source, state: State): Promise<Update[]> 
 
       const response = await fetch(url, { headers });
       if (response.ok) {
-        const releases = await response.json() as any[];
+        const releases = await response.json() as GitRelease[];
 
         const stateKey = `github_${source.repo}_releases`;
         const lastVersion = state.sources[stateKey]?.last_version;
 
         for (const release of releases) {
-          if (FORCE || release.tag_name !== lastVersion) {
+          const tag = release.tag_name ?? 'unknown';
+          if (FORCE || tag !== lastVersion) {
+            const date = release.published_at?.split('T')[0] ?? new Date().toISOString().split('T')[0];
             updates.push({
               source: source.name,
               category: 'github',
               type: 'release',
-              title: `${release.tag_name}: ${release.name || 'New Release'}`,
-              url: release.html_url,
-              date: release.published_at.split('T')[0],
-              version: release.tag_name,
+              title: `${tag}: ${release.name || 'New Release'}`,
+              url: release.html_url ?? '',
+              date,
+              version: tag,
               priority: source.priority,
-              summary: release.body ? release.body.substring(0, 200) + '...' : 'See release notes'
+              summary: release.body ? `${release.body.substring(0, 200)}...` : 'See release notes'
             });
           }
-          if (release.tag_name === lastVersion) break;
+          if (tag && tag === lastVersion) break;
         }
       }
     }
@@ -299,7 +328,8 @@ async function fetchGitHubRepo(source: Source, state: State): Promise<Update[]> 
 
 async function fetchChangelog(source: Source, state: State): Promise<Update[]> {
   try {
-    const response = await fetch(source.url!);
+    if (!source.url) return [];
+    const response = await fetch(source.url);
     if (!response.ok) {
       console.warn(`⚠️ Failed to fetch ${source.name}: ${response.status}`);
       return [];
@@ -324,7 +354,7 @@ async function fetchChangelog(source: Source, state: State): Promise<Update[]> {
       category: 'changelog',
       type: 'changelog',
       title: `${source.name}: ${title}`,
-      url: source.url!,
+      url: source.url,
       date: new Date().toISOString().split('T')[0],
       hash: contentHash,
       priority: source.priority,
@@ -339,7 +369,8 @@ async function fetchChangelog(source: Source, state: State): Promise<Update[]> {
 
 async function fetchDocs(source: Source, state: State): Promise<Update[]> {
   try {
-    const response = await fetch(source.url!);
+    if (!source.url) return [];
+    const response = await fetch(source.url);
     if (!response.ok) {
       console.warn(`⚠️ Failed to fetch ${source.name}: ${response.status}`);
       return [];
@@ -360,7 +391,7 @@ async function fetchDocs(source: Source, state: State): Promise<Update[]> {
       category: 'documentation',
       type: 'docs',
       title: `${source.name}: Documentation updated`,
-      url: source.url!,
+      url: source.url,
       date: new Date().toISOString().split('T')[0],
       hash: contentHash,
       priority: source.priority,
@@ -544,7 +575,9 @@ function generateNarrative(updates: Update[]): string {
 
   if (themes.length > 0) {
     narrative += `### 🎯 Key Activity Areas\n\n`;
-    themes.forEach(theme => narrative += `- ${theme}\n`);
+    themes.forEach((theme) => {
+      narrative += `- ${theme}\n`;
+    });
     narrative += `\n`;
   }
 
@@ -666,7 +699,9 @@ function generateNarrative(updates: Update[]): string {
 
   if (topItems.length > 0) {
     narrative += `**Recommended Review Order:**\n`;
-    topItems.forEach(item => narrative += `${item}\n`);
+    topItems.forEach((item) => {
+      narrative += `${item}\n`;
+    });
     narrative += `\n`;
   }
 
@@ -831,35 +866,35 @@ async function main() {
     if (update.category === 'blog') {
       stateKey = `blog_${update.source.toLowerCase().replace(/\s+/g, '_')}`;
       newState.sources[stateKey] = {
-        last_hash: update.hash!,
+        last_hash: update.hash ?? '',
         last_title: update.title,
         last_checked: new Date().toISOString()
       };
     } else if (update.category === 'github' && update.type === 'commit') {
       stateKey = `github_${update.source.toLowerCase().replace(/\s+/g, '_')}_commits`;
       newState.sources[stateKey] = {
-        last_sha: update.sha!,
+        last_sha: update.sha ?? '',
         last_title: update.title,
         last_checked: new Date().toISOString()
       };
     } else if (update.category === 'github' && update.type === 'release') {
       stateKey = `github_${update.source.toLowerCase().replace(/\s+/g, '_')}_releases`;
       newState.sources[stateKey] = {
-        last_version: update.version!,
+        last_version: update.version ?? '',
         last_title: update.title,
         last_checked: new Date().toISOString()
       };
     } else if (update.category === 'changelog') {
       stateKey = `changelog_${update.source.toLowerCase().replace(/\s+/g, '_')}`;
       newState.sources[stateKey] = {
-        last_hash: update.hash!,
+        last_hash: update.hash ?? '',
         last_title: update.title,
         last_checked: new Date().toISOString()
       };
     } else if (update.category === 'documentation') {
       stateKey = `docs_${update.source.toLowerCase().replace(/\s+/g, '_')}`;
       newState.sources[stateKey] = {
-        last_hash: update.hash!,
+        last_hash: update.hash ?? '',
         last_title: update.title,
         last_checked: new Date().toISOString()
       };

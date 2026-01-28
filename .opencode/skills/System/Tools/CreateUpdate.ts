@@ -57,6 +57,7 @@ function parseArgs(): CreateUpdateArgs | null {
       case '-h':
         showHelp();
         process.exit(0);
+        break;
       default:
         console.error(`Error: Unknown argument: ${arg}`);
         return null;
@@ -118,7 +119,7 @@ async function createUpdate(args: CreateUpdateArgs): Promise<void> {
   // Create directory structure
   try {
     await Bun.write(`${dirPath}/.keep`, '');
-  } catch (error) {
+  } catch (_error) {
     console.error(`Error: Failed to create directory ${dirPath}`);
     process.exit(1);
   }

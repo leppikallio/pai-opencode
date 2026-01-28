@@ -15,11 +15,11 @@
  * - Amber/green phosphor CRT terminals
  */
 
-import { readdirSync, existsSync, readFileSync } from "fs";
-import { join } from "path";
-import { spawnSync } from "child_process";
+import { readdirSync, existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 
-const HOME = process.env.HOME!;
+const HOME = process.env.HOME ?? process.cwd();
 const CLAUDE_DIR = join(HOME, ".opencode");
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -39,7 +39,7 @@ function getTerminalWidth(): number {
         for (const osWindow of data) {
           for (const tab of osWindow.tabs) {
             for (const win of tab.windows) {
-              if (win.id === parseInt(kittyWindowId)) {
+              if (win.id === parseInt(kittyWindowId, 10)) {
                 width = win.columns;
                 break;
               }
@@ -57,7 +57,7 @@ function getTerminalWidth(): number {
         encoding: "utf-8"
       });
       if (result.stdout) {
-        const cols = parseInt(result.stdout.trim().split(/\s+/)[1]);
+        const cols = parseInt(result.stdout.trim().split(/\s+/)[1], 10);
         if (cols > 0) width = cols;
       }
     } catch {}
@@ -68,7 +68,7 @@ function getTerminalWidth(): number {
     try {
       const result = spawnSync("tput", ["cols"], { encoding: "utf-8" });
       if (result.stdout) {
-        const cols = parseInt(result.stdout.trim());
+        const cols = parseInt(result.stdout.trim(), 10);
         if (cols > 0) width = cols;
       }
     } catch {}
@@ -76,7 +76,7 @@ function getTerminalWidth(): number {
 
   // Tier 4: Environment variable fallback
   if (!width || width <= 0) {
-    width = parseInt(process.env.COLUMNS || "80") || 80;
+    width = parseInt(process.env.COLUMNS || "80", 10) || 80;
   }
 
   return width;
@@ -88,7 +88,7 @@ function getTerminalWidth(): number {
 
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
-const DIM = "\x1b[2m";
+const _DIM = "\x1b[2m";
 const BLINK = "\x1b[5m"; // Terminal-dependent blinking
 
 const rgb = (r: number, g: number, b: number) => `\x1b[38;2;${r};${g};${b}m`;
@@ -154,7 +154,7 @@ const BOX = {
 
 // Isometric cube with P, A, I on visible faces
 // Using only classic ASCII: @ # $ % ^ & * ( ) - _ + = [ ] { } | \ / < > , . ? ! ~
-const PAI_CUBE_ASCII = [
+const _PAI_CUBE_ASCII = [
   "          __________",
   "         /\\         \\",
   "        /  \\   @@    \\",
@@ -175,7 +175,7 @@ const PAI_CUBE_ASCII = [
 ];
 
 // Alternative simpler isometric cube
-const PAI_CUBE_SIMPLE = [
+const _PAI_CUBE_SIMPLE = [
   "       _______________",
   "      /\\              \\",
   "     /  \\    P         \\",
@@ -188,7 +188,7 @@ const PAI_CUBE_SIMPLE = [
 ];
 
 // Clean isometric cube with clear letters
-const PAI_CUBE = [
+const _PAI_CUBE = [
   "            .-------.",
   "           /   P   /|",
   "          /       / |",
@@ -200,7 +200,7 @@ const PAI_CUBE = [
 ];
 
 // Full ASCII art isometric PAI cube - detailed version
-const PAI_LOGO_FULL = [
+const _PAI_LOGO_FULL = [
   "          __________________",
   "         /\\                 \\",
   "        /  \\   P  P  P       \\",
@@ -223,7 +223,7 @@ const PAI_LOGO_FULL = [
 ];
 
 // Compact but effective isometric cube
-const PAI_CUBE_COMPACT = [
+const _PAI_CUBE_COMPACT = [
   "      .=========.",
   "     /    P    /|",
   "    /   PPP   / |",
@@ -239,7 +239,7 @@ const PAI_CUBE_COMPACT = [
 ];
 
 // The BEST isometric ASCII cube - clean and readable
-const PAI_ASCII_LOGO = [
+const _PAI_ASCII_LOGO = [
   "        ,-------.",
   "       /   P   /|",
   "      /  PPP  / |",
@@ -281,7 +281,7 @@ const PAI_CUBE_WIDE = [
 // Block Letter KAI (using block characters)
 // ═══════════════════════════════════════════════════════════════════════════
 
-const BLOCK_KAI = [
+const _BLOCK_KAI = [
   "█  █  █████  █████",
   "█ █   █   █    █  ",
   "██    █████    █  ",
@@ -414,11 +414,11 @@ function generateProgressBar(width: number, fill: number = 0.7): string {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function createRetroBanner(): string {
-  const width = getTerminalWidth();
+  const _width = getTerminalWidth();
   const stats = getStats();
 
   const g = COLORS.greenBright;
-  const gn = COLORS.greenNormal;
+  const _gn = COLORS.greenNormal;
   const gd = COLORS.greenDim;
   const a = COLORS.amberBright;
   const f = COLORS.frame;
@@ -539,7 +539,7 @@ function createPureASCIIBanner(): string {
   const stats = getStats();
 
   const g = COLORS.greenBright;
-  const gn = COLORS.greenNormal;
+  const _gn = COLORS.greenNormal;
   const gd = COLORS.greenDim;
   const h = COLORS.highlight;
   const c = COLORS.cyan;
@@ -569,12 +569,12 @@ function createPureASCIIBanner(): string {
   const statsBox = [
     "+------------------------+",
     `| DA.........: ${daName} |`,
-    "| Skills.....: " + String(stats.skills).padEnd(10) + " |",
-    "| Hooks......: " + String(stats.hooks).padEnd(10) + " |",
-    "| Work Items.: " + (stats.workItems > 100 ? "100+" : String(stats.workItems)).padEnd(10) + " |",
-    "| Learnings..: " + String(stats.learnings).padEnd(10) + " |",
-    "| User Files.: " + String(stats.userFiles).padEnd(10) + " |",
-    "| Model......: " + stats.model.padEnd(10) + " |",
+    `| Skills.....: ${String(stats.skills).padEnd(10)} |`,
+    `| Hooks......: ${String(stats.hooks).padEnd(10)} |`,
+    `| Work Items.: ${(stats.workItems > 100 ? "100+" : String(stats.workItems)).padEnd(10)} |`,
+    `| Learnings..: ${String(stats.learnings).padEnd(10)} |`,
+    `| User Files.: ${String(stats.userFiles).padEnd(10)} |`,
+    `| Model......: ${stats.model.padEnd(10)} |`,
     "+------------------------+",
   ];
 
@@ -674,7 +674,7 @@ function createCompactRetroBanner(): string {
     let part = `${c}${logo[i]}${RESET}`;
     part += " ".repeat(Math.max(0, 10 - logo[i].length));
     if (i > 0 && i <= statsLines.length) {
-      part += " " + statsLines[i - 1];
+      part += ` ${statsLines[i - 1]}`;
     }
     lines.push(part);
   }
@@ -698,7 +698,6 @@ function createBanner(mode: BannerMode = "retro"): string {
       return createPureASCIIBanner();
     case "compact":
       return createCompactRetroBanner();
-    case "retro":
     default:
       return createRetroBanner();
   }

@@ -7,14 +7,13 @@
  * @module work-tracker
  */
 
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { fileLog, fileLogError } from "../lib/file-logger";
 import {
   getWorkDir,
   getYearMonth,
   getTimestamp,
-  generateSessionId,
   ensureDir,
   getCurrentWorkPath,
   setCurrentWorkPath,

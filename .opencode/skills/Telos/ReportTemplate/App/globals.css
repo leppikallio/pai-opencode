@@ -1,5 +1,8 @@
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind directive */
 @tailwind base;
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind directive */
 @tailwind components;
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind directive */
 @tailwind utilities;
 
 /* Custom Fonts - Matthew Butterick's Practical Typography */
@@ -514,7 +517,7 @@ body {
   }
 
   .no-print {
-    display: none !important;
+    display: none;
   }
 
   .callout,

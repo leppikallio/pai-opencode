@@ -15,8 +15,8 @@
  * @version 1.0.0
  */
 
-import { execSync } from 'child_process';
-import { writeFileSync } from 'fs';
+import { execSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
 
 const HELP = `
 GetTranscript - Extract transcript from YouTube video using fabric
@@ -86,15 +86,19 @@ try {
     console.log('\n--- TRANSCRIPT END ---');
   }
 
-} catch (error: any) {
-  if (error.status === 1) {
+} catch (error: unknown) {
+  const status = (error && typeof error === 'object' && 'status' in error)
+    ? (error as { status?: number }).status
+    : undefined;
+  if (status === 1) {
     console.error('❌ Failed to extract transcript');
     console.error('Possible reasons:');
     console.error('  - Video has no captions/transcript');
     console.error('  - Video is private or restricted');
     console.error('  - Invalid URL');
   } else {
-    console.error('❌ Error:', error.message);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error('❌ Error:', message);
   }
   process.exit(1);
 }

@@ -11,8 +11,8 @@
 import {
   Client,
   GatewayIntentBits,
-  Message,
-  TextChannel,
+  type Message,
+  type TextChannel,
   Partials
 } from 'discord.js';
 import { writeFile } from 'node:fs/promises';

@@ -77,7 +77,8 @@ export class IPInfoClient {
   async lookup(ip: string): Promise<IPInfoResponse> {
     // Check cache
     if (this.cache.has(ip)) {
-      return this.cache.get(ip)!;
+      const cached = this.cache.get(ip);
+      if (cached) return cached;
     }
 
     // Rate limiting
@@ -127,7 +128,10 @@ export class IPInfoClient {
       // All cached
       const result: IPInfoBatchResponse = {};
       for (const ip of ips) {
-        result[ip] = this.cache.get(ip)!;
+        const cached = this.cache.get(ip);
+        if (cached) {
+          result[ip] = cached;
+        }
       }
       return result;
     }

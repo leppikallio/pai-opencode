@@ -65,7 +65,9 @@ if (import.meta.main) {
     console.log("\nAvailable profiles:");
     const loader = new AgentProfileLoader();
     const profiles = loader.getAvailableProfiles();
-    profiles.forEach((p) => console.log(`  - ${p}`));
+    profiles.forEach((p) => {
+      console.log(`  - ${p}`);
+    });
     process.exit(1);
   }
 

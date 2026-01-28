@@ -14,9 +14,9 @@
 
 import Handlebars from 'handlebars';
 import { parse as parseYaml } from 'yaml';
-import { readFileSync, existsSync } from 'fs';
-import { resolve, dirname, basename } from 'path';
-import { parseArgs } from 'util';
+import { readFileSync, existsSync } from 'node:fs';
+import { resolve, dirname, } from 'node:path';
+import { parseArgs } from 'node:util';
 
 // ============================================================================
 // Types
@@ -115,8 +115,8 @@ function checkUnbalancedBlocks(source: string): string[] {
       if (blockStack.length === 0) {
         errors.push(`Line ${lineNum}: Unexpected closing block {{/${closer}}}`);
       } else {
-        const opener = blockStack.pop()!;
-        if (opener.name !== closer) {
+        const opener = blockStack.pop();
+        if (opener && opener.name !== closer) {
           errors.push(
             `Line ${lineNum}: Mismatched block - expected {{/${opener.name}}} (opened on line ${opener.line}), got {{/${closer}}}`
           );
@@ -281,27 +281,37 @@ Examples:
 
   if (result.variables.length > 0) {
     console.log(`\nVariables (${result.variables.length}):`);
-    result.variables.forEach(v => console.log(`  - ${v}`));
+    result.variables.forEach((v) => {
+      console.log(`  - ${v}`);
+    });
   }
 
   if (result.helpers.length > 0) {
     console.log(`\nHelpers Used (${result.helpers.length}):`);
-    result.helpers.forEach(h => console.log(`  - ${h}`));
+    result.helpers.forEach((h) => {
+      console.log(`  - ${h}`);
+    });
   }
 
   if (result.partials.length > 0) {
     console.log(`\nPartials (${result.partials.length}):`);
-    result.partials.forEach(p => console.log(`  - ${p}`));
+    result.partials.forEach((p) => {
+      console.log(`  - ${p}`);
+    });
   }
 
   if (result.errors.length > 0) {
     console.log(`\n✗ Errors (${result.errors.length}):`);
-    result.errors.forEach(e => console.log(`  - ${e}`));
+    result.errors.forEach((e) => {
+      console.log(`  - ${e}`);
+    });
   }
 
   if (result.warnings.length > 0) {
     console.log(`\n⚠ Warnings (${result.warnings.length}):`);
-    result.warnings.forEach(w => console.log(`  - ${w}`));
+    result.warnings.forEach((w) => {
+      console.log(`  - ${w}`);
+    });
   }
 
   console.log('');

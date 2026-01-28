@@ -486,7 +486,8 @@ export class PlaywrightBrowser {
    */
   async evaluate<T>(script: string | (() => T)): Promise<T> {
     const page = this.ensurePage()
-    return await page.evaluate(script as any)
+    type EvaluateArg = Parameters<typeof page.evaluate>[0]
+    return await page.evaluate(script as EvaluateArg)
   }
 
   /**
@@ -504,8 +505,9 @@ export class PlaywrightBrowser {
       logs = logs.filter(log => log.type === options.type)
     }
 
-    if (options?.search) {
-      logs = logs.filter(log => log.text.includes(options.search!))
+    const search = options?.search
+    if (search) {
+      logs = logs.filter(log => log.text.includes(search))
     }
 
     if (options?.limit) {
@@ -528,7 +530,7 @@ export class PlaywrightBrowser {
     }
 
     // Need to create new page with new context for UA change
-    const newContext = await this.browser!.newContext({ userAgent })
+    const newContext = await this.browser?.newContext({ userAgent })
     const newPage = await newContext.newPage()
 
     // Attach event listeners to new page

@@ -27,8 +27,8 @@
  * @version 1.0.0
  */
 
-import { parseArgs } from "util";
-import { readFileSync, existsSync } from "fs";
+import { parseArgs } from "node:util";
+import { readFileSync, existsSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
 import Handlebars from "handlebars";
 

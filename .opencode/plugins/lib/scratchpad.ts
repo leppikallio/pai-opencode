@@ -5,11 +5,23 @@
  * and deletes it when the OpenCode session ends.
  */
 
-import fs from "fs";
-import path from "path";
-import os from "os";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
 import { fileLog, fileLogError } from "./file-logger";
 import { ensureDir, generateSessionId } from "./paths";
+
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === "object" && value !== null;
+}
+
+function getStringProp(obj: unknown, key: string): string | undefined {
+  if (!isRecord(obj)) return undefined;
+  const value = obj[key];
+  return typeof value === "string" ? value : undefined;
+}
 
 export type ScratchpadState = {
   id: string;
@@ -23,13 +35,13 @@ function getStatePath(): string {
 
 function getStateDir(): string {
   const fromEnv = process.env.XDG_CONFIG_HOME;
-  const xdg = fromEnv && fromEnv.trim() ? fromEnv.trim() : path.join(os.homedir(), ".config");
+  const xdg = fromEnv?.trim() ? fromEnv.trim() : path.join(os.homedir(), ".config");
   return path.join(xdg, "opencode", "MEMORY", "STATE");
 }
 
 function getOpenCodeDir(): string {
   const fromEnv = process.env.XDG_CONFIG_HOME;
-  const xdg = fromEnv && fromEnv.trim() ? fromEnv.trim() : path.join(os.homedir(), ".config");
+  const xdg = fromEnv?.trim() ? fromEnv.trim() : path.join(os.homedir(), ".config");
   return path.join(xdg, "opencode");
 }
 
@@ -47,11 +59,12 @@ async function readState(): Promise<ScratchpadState | null> {
   try {
     const raw = await fs.promises.readFile(getStatePath(), "utf-8");
     const parsed = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object") return null;
-    if (typeof (parsed as any).id !== "string") return null;
-    if (typeof (parsed as any).dir !== "string") return null;
-    if (typeof (parsed as any).created_at !== "string") return null;
-    return parsed as ScratchpadState;
+    if (!isRecord(parsed)) return null;
+    const id = getStringProp(parsed, "id");
+    const dir = getStringProp(parsed, "dir");
+    const created_at = getStringProp(parsed, "created_at");
+    if (!id || !dir || !created_at) return null;
+    return { id, dir, created_at };
   } catch {
     return null;
   }

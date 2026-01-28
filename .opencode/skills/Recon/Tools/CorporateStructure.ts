@@ -19,7 +19,6 @@
  *   4. Map all domains for enumeration
  */
 
-import { $ } from "bun";
 
 interface CorporateEntity {
   name: string;
@@ -351,17 +350,23 @@ function getCorporateHierarchy(companyName: string): CorporateHierarchy {
 
   // Add parent domains
   if (hierarchy.parent?.domains) {
-    hierarchy.parent.domains.forEach(d => allDomains.add(d));
+    hierarchy.parent.domains.forEach((d) => {
+      allDomains.add(d);
+    });
   }
 
   // Add sibling domains
   for (const sibling of hierarchy.siblings) {
-    sibling.domains.forEach(d => allDomains.add(d));
+    sibling.domains.forEach((d) => {
+      allDomains.add(d);
+    });
   }
 
   // Add child domains
   for (const child of hierarchy.children) {
-    child.domains.forEach(d => allDomains.add(d));
+    child.domains.forEach((d) => {
+      allDomains.add(d);
+    });
   }
 
   hierarchy.allDomains = [...allDomains].sort();
@@ -422,7 +427,7 @@ function generateAssessmentContext(hierarchy: CorporateHierarchy): string {
 
 async function getCorporateStructure(
   company: string,
-  options: { json?: boolean; context?: boolean } = {}
+  _options: { json?: boolean; context?: boolean } = {}
 ): Promise<CorporateStructureResult> {
   const hierarchy = getCorporateHierarchy(company);
 
@@ -505,6 +510,7 @@ Supported Company Families:
   Palo Alto Networks, CrowdStrike
 `);
         process.exit(0);
+        break;
       default:
         if (!arg.startsWith("-")) {
           company = arg;
@@ -591,4 +597,4 @@ if (options.domainsOnly) {
   }
 }
 
-export { getCorporateStructure, getCorporateHierarchy, CorporateHierarchy, CorporateStructureResult };
+export { getCorporateStructure, getCorporateHierarchy, type CorporateHierarchy, type CorporateStructureResult };

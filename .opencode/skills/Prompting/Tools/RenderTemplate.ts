@@ -15,9 +15,9 @@
 
 import Handlebars from 'handlebars';
 import { parse as parseYaml } from 'yaml';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { resolve, dirname, basename } from 'path';
-import { parseArgs } from 'util';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { resolve, dirname, basename } from 'node:path';
+import { parseArgs } from 'node:util';
 
 // ============================================================================
 // Custom Handlebars Helpers
@@ -96,7 +96,7 @@ Handlebars.registerHelper('percent', (value: number, total: number, decimals = 0
 Handlebars.registerHelper('truncate', (str: string, length: number) => {
   if (!str) return '';
   const maxLen = typeof length === 'number' ? length : 100;
-  return str.length > maxLen ? str.substring(0, maxLen) + '...' : str;
+  return str.length > maxLen ? `${str.substring(0, maxLen)}...` : str;
 });
 
 // Default value if undefined

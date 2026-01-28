@@ -1,3 +1,5 @@
+import Image from "next/image"
+
 interface CoverPageProps {
   clientName: string
   reportTitle: string
@@ -17,7 +19,7 @@ export function CoverPage({
 
       <div className="flex-1 flex flex-col justify-center">
         {/* Logo - left-justified above title */}
-        <img
+        <Image
           src="/ul-icon.png"
           alt="Unsupervised Learning"
           width={125}

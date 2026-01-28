@@ -32,7 +32,7 @@ export interface ActorRun {
   buildNumber?: string
   exitCode?: number
   containerUrl?: string
-  output?: any
+  output?: unknown
 }
 
 export interface DatasetOptions {
@@ -80,7 +80,7 @@ export class Apify {
     // Filter client-side by query
     // Match if ANY word in query appears in actor fields
     const queryWords = query.toLowerCase().split(/\s+/)
-    const filtered = items.filter((actor: any) => {
+    const filtered = items.filter((actor: Actor) => {
       const name = (actor.name || '').toLowerCase()
       const title = (actor.title || '').toLowerCase()
       const description = (actor.description || '').toLowerCase()
@@ -105,7 +105,7 @@ export class Apify {
    */
   async callActor(
     actorId: string,
-    input: any,
+    input: unknown,
     options?: {
       memory?: number    // Memory in MB (128, 256, 512, 1024, etc.)
       timeout?: number   // Timeout in seconds
@@ -180,7 +180,7 @@ export class ApifyDataset {
    * @param options - List options (pagination, fields)
    * @returns Array of dataset items
    */
-  async listItems(options?: DatasetOptions): Promise<any[]> {
+  async listItems(options?: DatasetOptions): Promise<unknown[]> {
     const { items } = await this.client.dataset(this.datasetId).listItems({
       offset: options?.offset,
       limit: options?.limit,
@@ -200,8 +200,8 @@ export class ApifyDataset {
    *
    * @returns Array of all items
    */
-  async getAllItems(): Promise<any[]> {
-    const allItems: any[] = []
+  async getAllItems(): Promise<unknown[]> {
+    const allItems: unknown[] = []
     let offset = 0
     const limit = 1000
 
@@ -229,7 +229,7 @@ export class ApifyDataset {
    * @param predicate - Filter function
    * @returns Filtered items
    */
-  async filter(predicate: (item: any) => boolean): Promise<any[]> {
+  async filter(predicate: (item: unknown) => boolean): Promise<unknown[]> {
     const items = await this.getAllItems()
     return items.filter(predicate)
   }
@@ -241,7 +241,7 @@ export class ApifyDataset {
    * @param limit - Number of items to return
    * @returns Top N sorted items
    */
-  async top(sortFn: (a: any, b: any) => number, limit: number): Promise<any[]> {
+  async top(sortFn: (a: unknown, b: unknown) => number, limit: number): Promise<unknown[]> {
     const items = await this.getAllItems()
     return items.sort(sortFn).slice(0, limit)
   }

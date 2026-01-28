@@ -6,12 +6,12 @@
 
 import type { AlgorithmEvalRequest, AlgorithmEvalResult, EvalRun, Task } from '../Types/index.ts';
 import { loadSuite, checkSaturation } from './SuiteManager.ts';
-import { TrialRunner, formatEvalResults } from './TrialRunner.ts';
-import { TranscriptCapture, createTranscript } from './TranscriptCapture.ts';
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { TrialRunner, } from './TrialRunner.ts';
+import { createTranscript } from './TranscriptCapture.ts';
+import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
-import { parseArgs } from 'util';
+import { parseArgs } from 'node:util';
 import { $ } from 'bun';
 
 const EVALS_DIR = join(import.meta.dir, '..');
@@ -203,9 +203,15 @@ Examples:
     process.exit(0);
   }
 
+  const suite = values.suite;
+  if (!suite) {
+    console.error('Error: --suite is required');
+    process.exit(1);
+  }
+
   if (values['show-saturation']) {
-    const status = checkSaturation(values.suite!);
-    console.log(`\nSaturation Status: ${values.suite}\n`);
+    const status = checkSaturation(suite);
+    console.log(`\nSaturation Status: ${suite}\n`);
     console.log(`  Saturated: ${status.saturated ? '⚠️ Yes' : '✅ No'}`);
     console.log(`  Consecutive above threshold: ${status.consecutive_above_threshold}/3`);
     console.log(`  Recommendation: ${status.recommended_action}`);
@@ -213,8 +219,8 @@ Examples:
   }
 
   const request: AlgorithmEvalRequest = {
-    isc_row: values['isc-row'] ? parseInt(values['isc-row']) : 0,
-    suite: values.suite!,
+    isc_row: values['isc-row'] ? parseInt(values['isc-row'], 10) : 0,
+    suite,
   };
 
   console.log(`\nRunning eval suite: ${request.suite}\n`);

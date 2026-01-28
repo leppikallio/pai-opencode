@@ -4,7 +4,7 @@
  */
 
 import { BaseGrader, registerGrader, type GraderContext } from '../Base.ts';
-import type { GraderConfig, GraderResult, RegexMatchParams } from '../../Types/index.ts';
+import type { GraderResult, RegexMatchParams } from '../../Types/index.ts';
 
 export class RegexMatchGrader extends BaseGrader {
   type = 'regex_match' as const;

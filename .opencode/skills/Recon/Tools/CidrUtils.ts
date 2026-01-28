@@ -56,7 +56,7 @@ export function parseCIDR(cidr: string): CIDRInfo {
   const broadcastInt = (networkInt | wildcardInt) >>> 0;
 
   // Total and usable IPs
-  const totalIPs = Math.pow(2, 32 - mask);
+  const totalIPs = 2 ** (32 - mask);
   const usableIPs = mask === 32 ? 1 : mask === 31 ? 2 : totalIPs - 2;
 
   return {
@@ -190,7 +190,7 @@ export function generateIPsFromCIDR(
       }
       break;
 
-    case "random":
+    case "random": {
       const selected = new Set<number>();
       while (selected.size < count) {
         const randomOffset = Math.floor(Math.random() * totalIPs);
@@ -198,8 +198,9 @@ export function generateIPsFromCIDR(
       }
       ips.push(...Array.from(selected).map(intToIP));
       break;
+    }
 
-    case "distributed":
+    case "distributed": {
       // Distribute IPs evenly across the range
       const step = totalIPs / count;
       for (let i = 0; i < count; i++) {
@@ -207,6 +208,7 @@ export function generateIPsFromCIDR(
         ips.push(intToIP(firstInt + offset));
       }
       break;
+    }
   }
 
   return ips;
@@ -298,10 +300,10 @@ export function splitCIDR(cidr: string, newMask: number): string[] {
   }
 
   const subnets: string[] = [];
-  const subnetCount = Math.pow(2, newMask - info.mask);
+  const subnetCount = 2 ** (newMask - info.mask);
 
   const firstInt = ipToInt(info.network);
-  const subnetSize = Math.pow(2, 32 - newMask);
+  const subnetSize = 2 ** (32 - newMask);
 
   for (let i = 0; i < subnetCount; i++) {
     const subnetInt = firstInt + i * subnetSize;
@@ -377,13 +379,19 @@ if (import.meta.main) {
   } else if (command === "sample") {
     const count = parseInt(args[2] || "10", 10);
     const ips = generateIPsFromCIDR(cidr, count);
-    ips.forEach((ip) => console.log(ip));
+    ips.forEach((ip) => {
+      console.log(ip);
+    });
   } else if (command === "split") {
     const newMask = parseInt(args[2], 10);
     const subnets = splitCIDR(cidr, newMask);
-    subnets.forEach((subnet) => console.log(subnet));
+    subnets.forEach((subnet) => {
+      console.log(subnet);
+    });
   } else if (command === "recon") {
     const samples = getSampleReconIPs(cidr);
-    samples.forEach((ip) => console.log(ip));
+    samples.forEach((ip) => {
+      console.log(ip);
+    });
   }
 }

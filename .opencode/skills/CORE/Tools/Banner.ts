@@ -8,12 +8,14 @@
  * Small terminals (<85 cols): Minimal, Vertical, Wrapping layouts
  */
 
-import { readdirSync, existsSync, readFileSync } from "fs";
-import { join } from "path";
-import { spawnSync } from "child_process";
+import { readdirSync, existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 
-const HOME = process.env.HOME!;
+const HOME = process.env.HOME ?? process.cwd();
 const CLAUDE_DIR = join(HOME, ".opencode");
+const ANSI_PATTERN = String.raw`\u001b\[[0-9;]*m`;
+const ANSI_REGEX = new RegExp(ANSI_PATTERN, "g");
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Terminal Width Detection
@@ -31,7 +33,7 @@ function getTerminalWidth(): number {
         for (const osWindow of data) {
           for (const tab of osWindow.tabs) {
             for (const win of tab.windows) {
-              if (win.id === parseInt(kittyWindowId)) {
+              if (win.id === parseInt(kittyWindowId, 10)) {
                 width = win.columns;
                 break;
               }
@@ -46,7 +48,7 @@ function getTerminalWidth(): number {
     try {
       const result = spawnSync("sh", ["-c", "stty size </dev/tty 2>/dev/null"], { encoding: "utf-8" });
       if (result.stdout) {
-        const cols = parseInt(result.stdout.trim().split(/\s+/)[1]);
+        const cols = parseInt(result.stdout.trim().split(/\s+/)[1], 10);
         if (cols > 0) width = cols;
       }
     } catch {}
@@ -56,14 +58,14 @@ function getTerminalWidth(): number {
     try {
       const result = spawnSync("tput", ["cols"], { encoding: "utf-8" });
       if (result.stdout) {
-        const cols = parseInt(result.stdout.trim());
+        const cols = parseInt(result.stdout.trim(), 10);
         if (cols > 0) width = cols;
       }
     } catch {}
   }
 
   if (!width || width <= 0) {
-    width = parseInt(process.env.COLUMNS || "100") || 100;
+    width = parseInt(process.env.COLUMNS || "100", 10) || 100;
   }
 
   return width;
@@ -75,7 +77,7 @@ function getTerminalWidth(): number {
 
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
-const DIM = "\x1b[2m";
+const _DIM = "\x1b[2m";
 const ITALIC = "\x1b[3m";
 
 const rgb = (r: number, g: number, b: number) => `\x1b[38;2;${r};${g};${b}m`;
@@ -198,14 +200,14 @@ function getStats(): SystemStats {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function visibleLength(str: string): number {
-  return str.replace(/\x1b\[[0-9;]*m/g, "").length;
+  return str.replace(ANSI_REGEX, "").length;
 }
 
 function padEnd(str: string, width: number): string {
   return str + " ".repeat(Math.max(0, width - visibleLength(str)));
 }
 
-function padStart(str: string, width: number): string {
+function _padStart(str: string, width: number): string {
   return " ".repeat(Math.max(0, width - visibleLength(str))) + str;
 }
 
@@ -317,7 +319,7 @@ function createNavyBanner(stats: SystemStats, width: number): string {
   const frameWidth = 70;
   const framePad = " ".repeat(Math.floor((width - frameWidth) / 2));
   const cornerLen = 3; // Length of corner pieces
-  const innerSpace = frameWidth - (cornerLen * 2);
+  const _innerSpace = frameWidth - (cornerLen * 2);
 
   const lines: string[] = [""];
 

@@ -13,7 +13,6 @@
  *   bun PathDiscovery.ts https://example.com --threads 100 --json
  */
 
-import { $ } from "bun";
 
 interface PathDiscoveryOptions {
   wordlist?: string;
@@ -258,11 +257,11 @@ function parseArgs(args: string[]): { url: string; options: PathDiscoveryOptions
         break;
       case "-t":
       case "--threads":
-        options.threads = parseInt(next);
+        options.threads = parseInt(next, 10);
         i++;
         break;
       case "--timeout":
-        options.timeout = parseInt(next);
+        options.timeout = parseInt(next, 10);
         i++;
         break;
       case "-r":
@@ -283,7 +282,7 @@ function parseArgs(args: string[]): { url: string; options: PathDiscoveryOptions
         options.recursion = true;
         break;
       case "--recursion-depth":
-        options.recursionDepth = parseInt(next);
+        options.recursionDepth = parseInt(next, 10);
         i++;
         break;
       case "-H":
@@ -312,7 +311,7 @@ function parseArgs(args: string[]): { url: string; options: PathDiscoveryOptions
         i++;
         break;
       case "--rate":
-        options.rate = parseInt(next);
+        options.rate = parseInt(next, 10);
         i++;
         break;
       case "--json":
@@ -363,6 +362,7 @@ Examples:
   bun PathDiscovery.ts https://example.com --json > results.json
 `);
         process.exit(0);
+        break;
       default:
         if (!arg.startsWith("-") && !url) {
           url = arg;
@@ -425,4 +425,4 @@ if (options.json) {
   }
 }
 
-export { runPathDiscovery, PathDiscoveryOptions, PathDiscoveryResult, PathResult };
+export { runPathDiscovery, type PathDiscoveryOptions, type PathDiscoveryResult, type PathResult };

@@ -29,11 +29,11 @@
 import { PlaywrightBrowser } from '../index.ts'
 
 const CONFIG = {
-  port: parseInt(process.env.BROWSER_PORT || '9222'),
+  port: parseInt(process.env.BROWSER_PORT || '9222', 10),
   headless: process.env.BROWSER_HEADLESS === 'true',
   viewport: {
-    width: parseInt(process.env.BROWSER_WIDTH || '1920'),
-    height: parseInt(process.env.BROWSER_HEIGHT || '1080')
+    width: parseInt(process.env.BROWSER_WIDTH || '1920', 10),
+    height: parseInt(process.env.BROWSER_HEIGHT || '1080', 10)
   },
   stateFile: '/tmp/browser-session.json',
   idleTimeout: 30 * 60 * 1000 // 30 minutes
@@ -73,7 +73,7 @@ async function cleanup(): Promise<void> {
     const file = Bun.file(CONFIG.stateFile)
     if (await file.exists()) {
       await Bun.write(CONFIG.stateFile, '')
-      const fs = await import('fs/promises')
+      const fs = await import('node:fs/promises')
       await fs.unlink(CONFIG.stateFile)
     }
   } catch {}
@@ -100,7 +100,13 @@ setInterval(checkIdleTimeout, 60 * 1000)
 // RESPONSE HELPERS
 // ============================================
 
-function json(data: any, status = 200): Response {
+type JsonPayload = unknown
+type ConsoleLogType = 'all' | 'error' | 'warning' | 'log' | 'info' | 'debug'
+const CONSOLE_LOG_TYPES = new Set<ConsoleLogType>([
+  'all', 'error', 'warning', 'log', 'info', 'debug'
+])
+
+function json(data: JsonPayload, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
@@ -112,7 +118,7 @@ function json(data: any, status = 200): Response {
   })
 }
 
-function success(data?: any): Response {
+function success(data?: JsonPayload): Response {
   return json({ success: true, data })
 }
 
@@ -139,7 +145,7 @@ await browser.launch({
 // HTTP SERVER
 // ============================================
 
-const server = Bun.serve({
+const _server = Bun.serve({
   port: CONFIG.port,
 
   async fetch(req) {
@@ -173,11 +179,11 @@ const server = Bun.serve({
 
         const networkLogs = browser.getNetworkLogs({ type: 'response' })
         const failedRequests = networkLogs
-          .filter(l => l.status && l.status >= 400)
+          .filter(l => l.status !== undefined && l.status >= 400)
           .map(l => ({
             url: l.url,
             method: l.method,
-            status: l.status!,
+            status: l.status ?? 0,
             statusText: l.statusText
           }))
 
@@ -195,15 +201,18 @@ const server = Bun.serve({
 
       // Console logs
       if (url.pathname === '/console' && method === 'GET') {
-        const type = url.searchParams.get('type') as any
-        const limit = parseInt(url.searchParams.get('limit') || '100')
+        const typeParam = url.searchParams.get('type')
+        const type = typeParam && CONSOLE_LOG_TYPES.has(typeParam as ConsoleLogType)
+          ? (typeParam as ConsoleLogType)
+          : undefined
+        const limit = parseInt(url.searchParams.get('limit') || '100', 10)
         const logs = browser.getConsoleLogs({ type: type || undefined, limit })
         return success(logs)
       }
 
       // Network logs
       if (url.pathname === '/network' && method === 'GET') {
-        const limit = parseInt(url.searchParams.get('limit') || '100')
+        const limit = parseInt(url.searchParams.get('limit') || '100', 10)
         const logs = browser.getNetworkLogs({ limit })
         return success(logs)
       }
@@ -372,8 +381,8 @@ const server = Bun.serve({
 
       // Tabs - close
       if (url.pathname.startsWith('/tabs/') && method === 'DELETE') {
-        const index = parseInt(url.pathname.split('/')[2])
-        if (isNaN(index)) return error('invalid tab index', 400)
+        const index = parseInt(url.pathname.split('/')[2], 10)
+        if (Number.isNaN(index)) return error('invalid tab index', 400)
         await browser.switchTab(index)
         await browser.closeTab()
         return success({ closed: index })
@@ -381,8 +390,8 @@ const server = Bun.serve({
 
       // Tabs - switch
       if (url.pathname.startsWith('/tabs/') && method === 'POST') {
-        const index = parseInt(url.pathname.split('/')[2])
-        if (isNaN(index)) return error('invalid tab index', 400)
+        const index = parseInt(url.pathname.split('/')[2], 10)
+        if (Number.isNaN(index)) return error('invalid tab index', 400)
         await browser.switchTab(index)
         return success({ switched: index })
       }
@@ -421,9 +430,10 @@ const server = Bun.serve({
 
       return error('Not found', 404)
 
-    } catch (err: any) {
-      console.error('Request error:', err.message)
-      return error(err.message)
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error('Request error:', message)
+      return error(message)
     }
   }
 })

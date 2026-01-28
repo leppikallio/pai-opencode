@@ -12,7 +12,6 @@
 import { Apify } from '../../index'
 import type {
   Post,
-  UserProfile,
   PaginationOptions,
   ActorRunOptions
 } from '../../types'
@@ -79,6 +78,25 @@ export interface FacebookComment {
   authorUrl?: string
 }
 
+type FacebookCommentRaw = FacebookComment & {
+  time?: string
+  likes?: number
+}
+
+type FacebookPostRaw = FacebookPost & {
+  time?: string
+  likes?: number
+  shares?: number
+  comments?: number | FacebookCommentRaw[]
+  postType?: 'post' | 'video' | 'image' | 'link'
+  groupName?: string
+  groupUrl?: string
+  authorName?: string
+  authorUrl?: string
+  images?: string[]
+  video?: string
+}
+
 /* ============================================================================
  * FUNCTIONS
  * ========================================================================= */
@@ -127,19 +145,19 @@ export async function scrapeFacebookPosts(
   const items = await dataset.listItems({
     limit: input.maxResults || 1000,
     offset: input.offset || 0
-  })
+  }) as FacebookPostRaw[]
 
-  return items.map((post: any) => ({
+  return items.map((post: FacebookPostRaw) => ({
     id: post.id,
     url: post.url,
     text: post.text,
     caption: post.text,
-    postDate: post.time,
-    timestamp: post.time,
+    postDate: post.time ?? "",
+    timestamp: post.time ?? "",
     pageUrl: post.pageUrl,
     pageName: post.pageName,
     likesCount: post.likes,
-    commentsCount: post.comments,
+    commentsCount: typeof post.comments === "number" ? post.comments : post.comments?.length,
     sharesCount: post.shares,
     imageUrls: post.images,
     videoUrl: post.video,
@@ -191,32 +209,32 @@ export async function scrapeFacebookGroups(
   const items = await dataset.listItems({
     limit: input.maxResults || 1000,
     offset: input.offset || 0
-  })
+  }) as FacebookPostRaw[]
 
-  return items.map((post: any) => ({
+  return items.map((post: FacebookPostRaw) => ({
     id: post.id,
     url: post.url,
     text: post.text,
     caption: post.text,
-    postDate: post.time,
-    timestamp: post.time,
+    postDate: post.time ?? "",
+    timestamp: post.time ?? "",
     groupName: post.groupName,
     groupUrl: post.groupUrl,
     authorName: post.authorName,
     authorUrl: post.authorUrl,
     likesCount: post.likes,
-    commentsCount: post.comments,
+    commentsCount: typeof post.comments === "number" ? post.comments : post.comments?.length,
     sharesCount: post.shares,
     imageUrls: post.images,
     videoUrl: post.video,
-    comments: post.comments?.map((c: any) => ({
+    comments: Array.isArray(post.comments) ? post.comments.map((c: FacebookCommentRaw) => ({
       id: c.id,
       text: c.text,
-      date: c.time,
+      date: c.time ?? "",
       likesCount: c.likes,
       authorName: c.authorName,
       authorUrl: c.authorUrl
-    }))
+    })) : undefined
   }))
 }
 
@@ -262,12 +280,12 @@ export async function scrapeFacebookComments(
   const items = await dataset.listItems({
     limit: input.maxResults || 1000,
     offset: input.offset || 0
-  })
+  }) as FacebookCommentRaw[]
 
-  return items.map((comment: any) => ({
+  return items.map((comment: FacebookCommentRaw) => ({
     id: comment.id,
     text: comment.text,
-    date: comment.time,
+    date: comment.time ?? "",
     likesCount: comment.likes,
     authorName: comment.authorName,
     authorUrl: comment.authorUrl

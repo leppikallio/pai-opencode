@@ -6,10 +6,10 @@
  */
 
 import type { FailureLog, Task, GraderConfig, EvalDomain } from '../Types/index.ts';
-import { existsSync, mkdirSync, writeFileSync, readFileSync, appendFileSync } from 'fs';
-import { join } from 'path';
+import { existsSync, mkdirSync, writeFileSync, readFileSync, appendFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { stringify as stringifyYaml } from 'yaml';
-import { parseArgs } from 'util';
+import { parseArgs } from 'node:util';
 
 const EVALS_DIR = join(import.meta.dir, '..');
 const FAILURES_LOG = join(EVALS_DIR, 'Data', 'failures.jsonl');
@@ -36,7 +36,7 @@ export function logFailure(failure: Omit<FailureLog, 'id' | 'timestamp'>): Failu
     timestamp: new Date().toISOString(),
   };
 
-  appendFileSync(FAILURES_LOG, JSON.stringify(log) + '\n');
+  appendFileSync(FAILURES_LOG, `${JSON.stringify(log)}\n`);
 
   return log;
 }
@@ -195,7 +195,7 @@ export function markConverted(failureId: string, taskId: string): void {
     f.id === failureId ? { ...f, converted_to_task: taskId } : f
   );
 
-  writeFileSync(FAILURES_LOG, updated.map(f => JSON.stringify(f)).join('\n') + '\n');
+  writeFileSync(FAILURES_LOG, `${updated.map(f => JSON.stringify(f)).join('\n')}\n`);
 }
 
 /**
@@ -301,7 +301,7 @@ Examples:
       const failures = loadFailures();
       console.log(`\n${failures.length} Failures:\n`);
       for (const failure of failures) {
-        console.log('  ' + formatFailure(failure));
+        console.log(`  ${formatFailure(failure)}`);
       }
       break;
     }
@@ -310,7 +310,7 @@ Examples:
       const failures = loadUnconvertedFailures();
       console.log(`\n${failures.length} Unconverted Failures:\n`);
       for (const failure of failures) {
-        console.log('  ' + formatFailure(failure));
+        console.log(`  ${formatFailure(failure)}`);
       }
       break;
     }

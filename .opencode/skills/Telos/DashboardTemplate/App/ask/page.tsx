@@ -99,9 +99,9 @@ export default function AskPage() {
                 </div>
               </div>
             ) : (
-              messages.map((message, index) => (
+              messages.map((message) => (
                 <div
-                  key={index}
+                  key={`${message.timestamp.getTime()}-${message.role}`}
                   className={`flex gap-3 ${
                     message.role === "user" ? "justify-end" : "justify-start"
                   }`}

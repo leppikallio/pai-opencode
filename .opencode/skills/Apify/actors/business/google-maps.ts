@@ -316,8 +316,9 @@ export async function scrapeGoogleMapsReviews(
 
   // Filter by rating if specified
   let reviews = items.map(transformReview)
-  if (input.minRating) {
-    reviews = reviews.filter(r => r.rating >= input.minRating!)
+  const minRating = input.minRating
+  if (typeof minRating === "number") {
+    reviews = reviews.filter(r => r.rating >= minRating)
   }
 
   return reviews
@@ -330,13 +331,52 @@ export async function scrapeGoogleMapsReviews(
 /**
  * Transform raw Google Maps place data to our standard format
  */
-function transformPlace(place: any): GoogleMapsPlace {
+type GoogleMapsReviewRaw = GoogleMapsReview & {
+  reviewId?: string
+  reviewText?: string
+  publishAt?: string
+  stars?: number
+  rating?: number
+  likesCount?: number
+  reviewerId?: string
+  name?: string
+  reviewerName?: string
+  profilePhotoUrl?: string
+  reviewerPhotoUrl?: string
+  reviewerNumberOfReviews?: number
+  responseFromOwnerText?: string
+  responseFromOwnerDate?: string
+  reviewImageUrls?: string[]
+}
+
+type GoogleMapsPlaceRaw = GoogleMapsPlace & {
+  title?: string
+  categoryName?: string
+  city?: string
+  state?: string
+  countryCode?: string
+  postalCode?: string
+  location?: { lat?: number; lng?: number }
+  companyEmail?: string
+  popularTimesHistogram?: PopularTimes[]
+  temporarilyClosed?: boolean
+  permanentlyClosed?: boolean
+  imageUrls?: string[]
+  reviews?: GoogleMapsReviewRaw[]
+  facebookUrl?: string
+  twitterUrl?: string
+  instagramUrl?: string
+  linkedinUrl?: string
+  claimThisBusiness?: string
+}
+
+function transformPlace(place: GoogleMapsPlaceRaw): GoogleMapsPlace {
   return {
-    placeId: place.placeId,
-    name: place.title || place.name,
-    url: place.url,
+    placeId: place.placeId ?? "",
+    name: place.title || place.name || "",
+    url: place.url || "",
     category: place.categoryName,
-    categories: place.categories || [place.categoryName],
+    categories: place.categories ?? (place.categoryName ? [place.categoryName] : []),
     address: place.address,
     location: {
       latitude: place.location?.lat,
@@ -360,7 +400,7 @@ function transformPlace(place: any): GoogleMapsPlace {
     isPermanentlyClosed: place.permanentlyClosed,
     reviewsDistribution: place.reviewsDistribution,
     imageUrls: place.imageUrls,
-    reviews: place.reviews?.map(transformReview),
+    reviews: Array.isArray(place.reviews) ? place.reviews.map(transformReview) : undefined,
     contact: {
       email: place.email || place.companyEmail,
       phone: place.phone,
@@ -390,7 +430,7 @@ function transformPlace(place: any): GoogleMapsPlace {
 /**
  * Transform raw Google Maps review data to our standard format
  */
-function transformReview(review: any): GoogleMapsReview {
+function transformReview(review: GoogleMapsReviewRaw): GoogleMapsReview {
   return {
     id: review.reviewId,
     text: review.text || review.reviewText,

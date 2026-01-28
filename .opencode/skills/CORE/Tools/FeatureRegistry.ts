@@ -18,8 +18,8 @@
  *   next <project>              Show next priority feature
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 interface TestStep {
   step: string;
@@ -86,7 +86,7 @@ function calculateSummary(features: Feature[]): FeatureRegistry['completion_summ
 
 function generateId(features: Feature[]): string {
   const maxId = features.reduce((max, f) => {
-    const num = parseInt(f.id.replace('feat-', ''));
+    const num = parseInt(f.id.replace('feat-', ''), 10);
     return num > max ? num : max;
   }, 0);
   return `feat-${maxId + 1}`;
@@ -310,7 +310,7 @@ switch (command) {
     initRegistry(args[1]);
     break;
 
-  case 'add':
+  case 'add': {
     if (!args[1] || !args[2]) {
       console.error('Usage: feature-registry add <project> <feature-name> [--description "desc"] [--priority P1|P2|P3]');
       process.exit(1);
@@ -321,8 +321,9 @@ switch (command) {
     const prio = prioIdx > -1 ? args[prioIdx + 1] as 'P1' | 'P2' | 'P3' : 'P2';
     addFeature(args[1], args[2], desc, prio);
     break;
+  }
 
-  case 'update':
+  case 'update': {
     if (!args[1] || !args[2]) {
       console.error('Usage: feature-registry update <project> <feature-id> [status] [--note "note"]');
       process.exit(1);
@@ -333,6 +334,7 @@ switch (command) {
     const noteArg = noteIdx > -1 ? args[noteIdx + 1] : undefined;
     updateFeature(args[1], args[2], statusArg, noteArg);
     break;
+  }
 
   case 'list':
     if (!args[1]) {

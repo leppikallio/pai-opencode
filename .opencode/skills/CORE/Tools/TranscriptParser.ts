@@ -16,7 +16,7 @@
  *   import { parseTranscript, getLastAssistantMessage } from './TranscriptParser'
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 import { getIdentity } from '../../../plugins/lib/identity';
 
 const DA_IDENTITY = getIdentity();
@@ -87,9 +87,9 @@ export function parseLastAssistantMessage(transcriptContent: string): string {
   for (const line of lines) {
     if (line.trim()) {
       try {
-        const entry = JSON.parse(line) as any;
+        const entry = JSON.parse(line) as { type?: string; message?: { content?: unknown } };
         if (entry.type === 'assistant' && entry.message?.content) {
-          const text = contentToText(entry.message.content);
+          const text = contentToText(entry.message.content as string | Array<{ type?: string; text?: string }>);
           if (text) {
             lastAssistantMessage = text;
           }
@@ -140,7 +140,7 @@ export function extractVoiceCompletion(text: string): string {
     if (matches.length > 0) {
       // Use LAST match - the actual voice line at end of response
       const lastMatch = matches[matches.length - 1];
-      if (lastMatch && lastMatch[1]) {
+      if (lastMatch?.[1]) {
         let completed = lastMatch[1].trim();
         // Clean up agent tags
         completed = completed.replace(/^\[AGENT:\w+\]\s*/i, '');
@@ -172,7 +172,7 @@ export function extractCompletionPlain(text: string): string {
     if (matches.length > 0) {
       // Use LAST match - the actual voice line at end of response
       const lastMatch = matches[matches.length - 1];
-      if (lastMatch && lastMatch[1]) {
+      if (lastMatch?.[1]) {
         let completed = lastMatch[1].trim();
         completed = completed.replace(/^\[AGENT:\w+\]\s*/i, '');
         completed = completed.replace(/\[.*?\]/g, '');
@@ -187,9 +187,9 @@ export function extractCompletionPlain(text: string): string {
 
   // Fallback: try to extract something meaningful from the response
   const summaryMatch = text.match(/📋\s*\*{0,2}SUMMARY:?\*{0,2}\s*(.+?)(?:\n|$)/i);
-  if (summaryMatch && summaryMatch[1]) {
-    let summary = summaryMatch[1].trim().slice(0, 30);
-    return summary.length > 27 ? summary.slice(0, 27) + '…' : summary;
+  if (summaryMatch?.[1]) {
+    const summary = summaryMatch[1].trim().slice(0, 30);
+    return summary.length > 27 ? `${summary.slice(0, 27)}…` : summary;
   }
 
   // Last resort fallback - must be valid gerund for tab title validation
@@ -217,7 +217,7 @@ export function extractStructuredSections(text: string): StructuredResponse {
 
   for (const [key, pattern] of Object.entries(patterns)) {
     const match = text.match(pattern);
-    if (match && match[1]) {
+    if (match?.[1]) {
       result[key as keyof StructuredResponse] = match[1].trim();
     }
   }
@@ -237,11 +237,11 @@ export function detectResponseState(lastMessage: string, transcriptContent: stri
   try {
     // Check if the LAST assistant message used AskUserQuestion
     const lines = transcriptContent.trim().split('\n');
-    let lastAssistantEntry: any = null;
+    let lastAssistantEntry: { type?: string; message?: { content?: unknown } } | null = null;
 
     for (const line of lines) {
       try {
-        const entry = JSON.parse(line);
+        const entry = JSON.parse(line) as { type?: string; message?: { content?: unknown } };
         if (entry.type === 'assistant' && entry.message?.content) {
           lastAssistantEntry = entry;
         }
@@ -253,7 +253,14 @@ export function detectResponseState(lastMessage: string, transcriptContent: stri
         ? lastAssistantEntry.message.content
         : [];
       for (const block of content) {
-        if (block.type === 'tool_use' && block.name === 'AskUserQuestion') {
+        if (
+          block &&
+          typeof block === 'object' &&
+          'type' in block &&
+          'name' in block &&
+          block.type === 'tool_use' &&
+          block.name === 'AskUserQuestion'
+        ) {
           return 'awaitingInput';
         }
       }

@@ -13,9 +13,9 @@
  */
 
 import { AgentContextLoader } from "./LoadAgentContext";
-import { existsSync, readdirSync } from "fs";
-import { join } from "path";
-import { homedir } from "os";
+import { existsSync, } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 
 export interface AgentProfile {
   name: string;
@@ -94,7 +94,9 @@ if (import.meta.main) {
     console.log("\nAvailable profiles:");
     const loader = new AgentProfileLoader();
     const profiles = loader.getAvailableProfiles();
-    profiles.forEach((p) => console.log(`  - ${p}`));
+    profiles.forEach((p) => {
+      console.log(`  - ${p}`);
+    });
     process.exit(1);
   }
 

@@ -6,8 +6,39 @@
  * All hooks and tools should import from here.
  */
 
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync } from "node:fs";
 import { getPaiRuntimeInfo } from "./pai-runtime";
+
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === "object" && value !== null;
+}
+
+function isNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+function isBoolean(value: unknown): value is boolean {
+  return typeof value === "boolean";
+}
+
+function parseVoiceProsody(value: unknown): VoiceProsody | undefined {
+  if (!isRecord(value)) return undefined;
+  const stability = value.stability;
+  const similarity_boost = value.similarity_boost;
+  const style = value.style;
+  const speed = value.speed;
+  const use_speaker_boost = value.use_speaker_boost;
+
+  if (!isNumber(stability)) return undefined;
+  if (!isNumber(similarity_boost)) return undefined;
+  if (!isNumber(style)) return undefined;
+  if (!isNumber(speed)) return undefined;
+  if (!isBoolean(use_speaker_boost)) return undefined;
+
+  return { stability, similarity_boost, style, speed, use_speaker_boost };
+}
 
 // Default identity (fallback if settings.json doesn't have identity section)
 const DEFAULT_IDENTITY = {
@@ -72,7 +103,7 @@ function loadSettings(): Settings {
 
     const content = readFileSync(settingsPath, "utf-8");
     cachedSettings = JSON.parse(content);
-    return cachedSettings!;
+    return cachedSettings ?? {};
   } catch {
     cachedSettings = {};
     return cachedSettings;
@@ -95,7 +126,7 @@ export function getIdentity(): Identity {
     displayName: daidentity.displayName || daidentity.name || envDA || DEFAULT_IDENTITY.displayName,
     voiceId: daidentity.voiceId || DEFAULT_IDENTITY.voiceId,
     color: daidentity.color || DEFAULT_IDENTITY.color,
-    voice: (daidentity as any).voice as VoiceProsody | undefined,
+    voice: parseVoiceProsody(isRecord(daidentity) ? daidentity.voice : undefined),
   };
 }
 

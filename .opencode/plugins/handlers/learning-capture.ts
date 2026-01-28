@@ -8,18 +8,29 @@
  * @module learning-capture
  */
 
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { fileLog, fileLogError } from "../lib/file-logger";
 import {
   getLearningDir,
-  getWorkDir,
   getYearMonth,
   getTimestamp,
   ensureDir,
   getCurrentWorkPath,
   slugify,
 } from "../lib/paths";
+
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === "object" && value !== null;
+}
+
+function getStringProp(obj: unknown, key: string): string | undefined {
+  if (!isRecord(obj)) return undefined;
+  const value = obj[key];
+  return typeof value === "string" ? value : undefined;
+}
 
 /**
  * Learning entry structure
@@ -111,15 +122,20 @@ export async function extractLearningsFromWork(): Promise<CaptureLearningResult>
 
       // Extract learnings from completed criteria
       if (Array.isArray(isc.criteria)) {
-        const completed = isc.criteria.filter(
-          (c: any) => c.status === "DONE" || c.status === "VERIFIED"
-        );
+        const completed = isc.criteria.filter((c: unknown) => {
+          const status = getStringProp(c, "status");
+          return status === "DONE" || status === "VERIFIED";
+        });
 
         if (completed.length > 0) {
           const iscLearning: LearningEntry = {
             title: "ISC Completion Summary",
             content: `Completed ${completed.length} criteria:\n\n${completed
-              .map((c: any) => `- ${c.description}: ${c.status}`)
+              .map((c: unknown) => {
+                const description = getStringProp(c, "description") ?? "(no description)";
+                const status = getStringProp(c, "status") ?? "UNKNOWN";
+                return `- ${description}: ${status}`;
+              })
               .join("\n")}`,
             category: CATEGORIES.ALGORITHM,
             source: "ISC.json",
@@ -181,12 +197,11 @@ function extractLearningsFromText(
   // Pattern: "Learning: ..." or "Learned: ..." or "Key insight: ..."
   const patterns = [
     /(?:Learning|Learned|Key insight|Insight|Takeaway):\s*(.+?)(?:\n\n|\n(?=[A-Z#*-]))/gis,
-    /## (?:Learning|Learned|Key insight|Insight|Takeaway)[^\n]*\n\n(.+?)(?:\n##|\n---|\z)/gis,
+    /## (?:Learning|Learned|Key insight|Insight|Takeaway)[^\n]*\n\n(.+?)(?:\n##|\n---|z)/gis,
   ];
 
   for (const pattern of patterns) {
-    let match;
-    while ((match = pattern.exec(content)) !== null) {
+    for (let match = pattern.exec(content); match !== null; match = pattern.exec(content)) {
       const learningContent = match[1].trim();
       if (learningContent.length > 20) {
         // Skip very short matches

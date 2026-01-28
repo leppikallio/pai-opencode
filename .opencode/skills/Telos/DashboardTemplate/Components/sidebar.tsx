@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { Home, MessageSquare, Upload, FileText, Table } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 interface FileNav {
   name: string
@@ -23,10 +23,10 @@ const staticNavigation = [
 export function Sidebar() {
   const pathname = usePathname()
   const [fileCount, setFileCount] = useState(0)
-  const [files, setFiles] = useState<string[]>([])
+  const [_files, setFiles] = useState<string[]>([])
   const [fileNavigation, setFileNavigation] = useState<FileNav[]>([])
 
-  const fetchFileCount = () => {
+  const fetchFileCount = useCallback(() => {
     fetch('/api/files/count')
       .then(res => res.json())
       .then(data => {
@@ -47,7 +47,7 @@ export function Sidebar() {
         setFileNavigation(navItems)
       })
       .catch(err => console.error('Failed to fetch file count:', err))
-  }
+  }, [])
 
   useEffect(() => {
     // Initial fetch
@@ -63,7 +63,8 @@ export function Sidebar() {
     return () => {
       window.removeEventListener('telosFileUploaded', handleFileUploaded)
     }
-  }, [])
+  }, [// Initial fetch
+    fetchFileCount])
 
   return (
     <div className="flex h-screen w-64 flex-col fixed left-0 top-0 bg-gradient-to-b from-[#2e7de9]/5 to-[#9854f1]/5 border-r">

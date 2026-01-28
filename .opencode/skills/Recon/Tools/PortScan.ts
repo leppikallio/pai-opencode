@@ -13,7 +13,6 @@
  *   bun PortScan.ts targets.txt --json
  */
 
-import { $ } from "bun";
 
 interface PortScanOptions {
   ports?: string;
@@ -214,16 +213,16 @@ function parseArgs(args: string[]): { target: string; options: PortScanOptions }
         i++;
         break;
       case "--rate":
-        options.rate = parseInt(next);
+        options.rate = parseInt(next, 10);
         i++;
         break;
       case "-t":
       case "--threads":
-        options.threads = parseInt(next);
+        options.threads = parseInt(next, 10);
         i++;
         break;
       case "--timeout":
-        options.timeout = parseInt(next);
+        options.timeout = parseInt(next, 10);
         i++;
         break;
       case "-s":
@@ -294,6 +293,7 @@ Examples:
   bun PortScan.ts example.com --nmap "nmap -sV -sC"
 `);
         process.exit(0);
+        break;
       default:
         if (!arg.startsWith("-") && !target) {
           target = arg;
@@ -355,4 +355,4 @@ if (options.json) {
   }
 }
 
-export { runPortScan, PortScanOptions, PortScanResult, PortResult };
+export { runPortScan, type PortScanOptions, type PortScanResult, type PortResult };

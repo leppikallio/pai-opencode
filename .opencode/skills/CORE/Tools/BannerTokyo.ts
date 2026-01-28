@@ -10,15 +10,15 @@ const BOLD = "\x1b[1m";
 const DIM = "\x1b[2m";
 
 // Tokyo Night palette
-const BG_DARK = "\x1b[38;2;26;27;38m";      // #1a1b26
+const _BG_DARK = "\x1b[38;2;26;27;38m";      // #1a1b26
 const FG = "\x1b[38;2;169;177;214m";         // #a9b1d6 lavender
 const CYAN = "\x1b[38;2;125;207;255m";       // #7dcfff
 const BLUE = "\x1b[38;2;122;162;247m";       // #7aa2f7
 const MAGENTA = "\x1b[38;2;187;154;247m";    // #bb9af7
 const PURPLE = "\x1b[38;2;157;124;216m";     // #9d7cd8
 const GREEN = "\x1b[38;2;158;206;106m";      // #9ece6a
-const ORANGE = "\x1b[38;2;255;158;100m";     // #ff9e64
-const RED = "\x1b[38;2;247;118;142m";        // #f7768e
+const _ORANGE = "\x1b[38;2;255;158;100m";     // #ff9e64
+const _RED = "\x1b[38;2;247;118;142m";        // #f7768e
 const COMMENT = "\x1b[38;2;86;95;137m";      // #565f89
 const DARK = "\x1b[38;2;52;59;88m";          // darker comment
 
@@ -145,32 +145,32 @@ ${BLUE}╰───────────────────────�
 }
 
 // Print all designs
-console.log("\n" + "═".repeat(70));
+console.log(`\n${"═".repeat(70)}`);
 console.log(" DESIGN A: TOKYO DRIFT");
 console.log("═".repeat(70));
 console.log(designA());
 
-console.log("\n" + "═".repeat(70));
+console.log(`\n${"═".repeat(70)}`);
 console.log(" DESIGN B: NEON TOKYO");
 console.log("═".repeat(70));
 console.log(designB());
 
-console.log("\n" + "═".repeat(70));
+console.log(`\n${"═".repeat(70)}`);
 console.log(" DESIGN C: MINIMAL TOKYO");
 console.log("═".repeat(70));
 console.log(designC());
 
-console.log("\n" + "═".repeat(70));
+console.log(`\n${"═".repeat(70)}`);
 console.log(" DESIGN D: TOKYO GLITCH");
 console.log("═".repeat(70));
 console.log(designD());
 
-console.log("\n" + "═".repeat(70));
+console.log(`\n${"═".repeat(70)}`);
 console.log(" DESIGN E: TOKYO STORM");
 console.log("═".repeat(70));
 console.log(designE());
 
-console.log("\n" + "═".repeat(70));
+console.log(`\n${"═".repeat(70)}`);
 console.log(" DESIGN F: TOKYO TERMINAL");
 console.log("═".repeat(70));
 console.log(designF());

@@ -13,7 +13,7 @@ async function main() {
 
   if (!process.env.APIFY_TOKEN && !process.env.APIFY_API_KEY) {
     console.error('❌ APIFY_TOKEN or APIFY_API_KEY not set in environment')
-    console.error('   Add to ${PAI_DIR}/.env: APIFY_TOKEN=apify_api_xxxxx')
+    console.error(`   Add to \${PAI_DIR}/.env: APIFY_TOKEN=apify_api_xxxxx`)
     console.error('   Or: APIFY_API_KEY=apify_api_xxxxx\n')
     process.exit(1)
   }
@@ -52,7 +52,7 @@ async function main() {
 
     // Test 3: Test token estimation
     console.log('Test 3: Token estimation...')
-    const estimateTokens = (data: any) => {
+    const estimateTokens = (data: unknown) => {
       return Math.ceil(JSON.stringify(data).length / 4)
     }
 

@@ -9,8 +9,8 @@
  * @module context-loader
  */
 
-import { readFileSync, existsSync } from "fs";
-import { join } from "path";
+import { readFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { fileLog, fileLogError } from "../lib/file-logger";
 import type { ContextResult } from "../adapters/types";
 import { getPaiDir } from "../lib/pai-runtime";

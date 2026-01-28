@@ -7,8 +7,8 @@
  * @module agent-capture
  */
 
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { fileLog, fileLogError } from "../lib/file-logger";
 import {
   getResearchDir,
@@ -17,6 +17,18 @@ import {
   ensureDir,
   slugify,
 } from "../lib/paths";
+
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === "object" && value !== null;
+}
+
+function getStringProp(obj: unknown, key: string): string | undefined {
+  if (!isRecord(obj)) return undefined;
+  const v = obj[key];
+  return typeof v === "string" ? v : undefined;
+}
 
 /**
  * Agent output structure
@@ -62,21 +74,18 @@ function extractResultText(result: unknown): string {
     return result;
   }
 
-  if (result && typeof result === "object") {
+  if (isRecord(result)) {
     // Handle { output: "..." } format
-    if ("output" in result && typeof (result as any).output === "string") {
-      return (result as any).output;
-    }
+    const output = getStringProp(result, "output");
+    if (output) return output;
 
     // Handle { result: "..." } format
-    if ("result" in result && typeof (result as any).result === "string") {
-      return (result as any).result;
-    }
+    const innerResult = getStringProp(result, "result");
+    if (innerResult) return innerResult;
 
     // Handle { message: "..." } format
-    if ("message" in result && typeof (result as any).message === "string") {
-      return (result as any).message;
-    }
+    const message = getStringProp(result, "message");
+    if (message) return message;
 
     // Stringify object
     return JSON.stringify(result, null, 2);
@@ -93,7 +102,7 @@ function extractResultText(result: unknown): string {
 function generateSummary(text: string): string {
   const firstLine = text.split("\n")[0].trim();
   const truncated = firstLine.slice(0, 100);
-  return truncated.length < firstLine.length ? truncated + "..." : truncated;
+  return truncated.length < firstLine.length ? `${truncated}...` : truncated;
 }
 
 /**

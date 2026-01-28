@@ -14,11 +14,11 @@
  *   bun run Tools/MigrationValidator.ts --manifest ... --verbose
  */
 
-import { parseArgs } from "util";
+import { parseArgs } from "node:util";
 import { readManifest } from "./lib/migration-manifest";
 import { getModel } from "../.opencode/plugins/lib/model-config.js";
-import { stat, readdir, readFile } from "fs/promises";
-import { join } from "path";
+import { stat, readdir, readFile } from "node:fs/promises";
+import { join } from "node:path";
 
 // Global target directory - set from CLI args
 let TARGET_DIR = ".opencode";
@@ -101,7 +101,7 @@ async function checkDirectoryExists(path: string): Promise<CheckResult> {
       message: `${path} exists but is not a directory`,
       severity: "error",
     };
-  } catch (error) {
+  } catch (_error) {
     return {
       passed: false,
       message: `Directory ${path} does not exist`,
@@ -118,7 +118,7 @@ async function checkDirectoryNotExists(path: string): Promise<CheckResult> {
       message: `Directory ${path} should not exist (should be transformed to plugins/)`,
       severity: "error",
     };
-  } catch (error) {
+  } catch (_error) {
     return { passed: true, severity: "ok" };
   }
 }
@@ -134,7 +134,7 @@ async function checkFileExists(path: string): Promise<CheckResult> {
       message: `${path} exists but is not a file`,
       severity: "error",
     };
-  } catch (error) {
+  } catch (_error) {
     return {
       passed: false,
       message: `File ${path} does not exist`,
@@ -169,7 +169,7 @@ async function checkNoPatternInDir(
 
       for (const entry of entries) {
         const fullPath = join(currentDir, entry.name);
-        const relativePath = fullPath.replace(process.cwd() + "/", "");
+        const relativePath = fullPath.replace(`${process.cwd()}/`, "");
 
         // Skip excluded files
         if (excludePatterns.some((ex) => relativePath.includes(ex))) {
@@ -193,7 +193,7 @@ async function checkNoPatternInDir(
           }
         }
       }
-    } catch (error) {
+    } catch (_error) {
       // Skip unreadable directories
     }
   }
@@ -299,7 +299,7 @@ async function checkNoLegacyMcpServers(): Promise<CheckResult> {
       message: "Legacy mcp-servers/ directory still exists",
       severity: "warning",
     };
-  } catch (error) {
+  } catch (_error) {
     return { passed: true, severity: "ok" };
   }
 }
@@ -708,7 +708,7 @@ async function runPhaseA(verbose: boolean): Promise<ValidationReport["phaseA"]> 
   };
 }
 
-async function runPhaseB(verbose: boolean, model: string): Promise<ValidationReport["phaseB"]> {
+async function runPhaseB(_verbose: boolean, model: string): Promise<ValidationReport["phaseB"]> {
   console.log("═══════════════════════════════════════════════════════════════");
   console.log("PHASE B: LLM-Assisted Checks (12 agents)");
   console.log("═══════════════════════════════════════════════════════════════\n");
@@ -894,7 +894,7 @@ Exit Codes:
   let model = "unknown";
   try {
     model = getModel("validation") || "sen/grok-1";
-  } catch (error) {
+  } catch (_error) {
     console.log("⚠️  Could not load model config, using default: sen/grok-1");
     model = "sen/grok-1";
   }

@@ -12,7 +12,6 @@ import { Apify } from '../../index'
 import type {
   UserProfile,
   Post,
-  EngagementMetrics,
   PaginationOptions,
   ActorRunOptions
 } from '../../types'
@@ -92,6 +91,27 @@ export interface YouTubeComment {
   publishedAt: string
 }
 
+type YouTubeCommentRaw = YouTubeComment & {
+  authorText?: string
+  publishedTimeText?: string
+}
+
+type YouTubeVideoRaw = YouTubeVideo & {
+  channelName?: string
+  date?: string
+  views?: number
+  likes?: number
+  numberOfComments?: number
+  thumbnail?: string
+  numberOfSubscribers?: number
+  numberOfVideos?: number
+  numberOfViews?: number
+  joinedDate?: string
+  country?: string
+  bannerUrl?: string
+  verified?: boolean
+}
+
 /* ============================================================================
  * FUNCTIONS
  * ========================================================================= */
@@ -136,7 +156,7 @@ export async function scrapeYouTubeChannel(
   }
 
   const dataset = apify.getDataset(finalRun.defaultDatasetId)
-  const items = await dataset.listItems()
+  const items = (await dataset.listItems()) as YouTubeVideoRaw[]
 
   if (items.length === 0) {
     throw new Error(`Channel not found: ${input.channelUrl}`)
@@ -147,9 +167,9 @@ export async function scrapeYouTubeChannel(
   const videos = items.slice(1).map(transformVideo)
 
   return {
-    id: channelData.channelId,
-    title: channelData.title,
-    fullName: channelData.title,
+    id: channelData.channelId || "",
+    title: channelData.title || "",
+    fullName: channelData.title || "",
     url: channelData.url || input.channelUrl,
     description: channelData.description,
     bio: channelData.description,
@@ -211,10 +231,10 @@ export async function searchYouTube(
   }
 
   const dataset = apify.getDataset(finalRun.defaultDatasetId)
-  const items = await dataset.listItems({
+  const items = (await dataset.listItems({
     limit: input.maxResults || 1000,
     offset: input.offset || 0
-  })
+  })) as YouTubeCommentRaw[]
 
   return items.map(transformVideo)
 }
@@ -263,14 +283,14 @@ export async function scrapeYouTubeComments(
     offset: input.offset || 0
   })
 
-  return items.map((comment: any) => ({
+  return items.map((comment: YouTubeCommentRaw) => ({
     id: comment.id,
     text: comment.text,
-    authorName: comment.authorText,
+    authorName: comment.authorText || comment.authorName || "",
     authorChannelUrl: comment.authorChannelUrl,
     likesCount: comment.likesCount || 0,
     replyCount: comment.replyCount,
-    publishedAt: comment.publishedTimeText
+    publishedAt: comment.publishedTimeText || comment.publishedAt || ""
   }))
 }
 
@@ -278,7 +298,7 @@ export async function scrapeYouTubeComments(
  * HELPERS
  * ========================================================================= */
 
-function transformVideo(video: any): YouTubeVideo {
+function transformVideo(video: YouTubeVideoRaw): YouTubeVideo {
   return {
     id: video.id,
     url: video.url || `https://www.youtube.com/watch?v=${video.id}`,

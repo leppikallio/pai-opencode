@@ -44,6 +44,16 @@ export interface TwitterProfile extends UserProfile {
   latestTweets?: TwitterTweet[]
 }
 
+type TwitterProfileRaw = TwitterProfile & {
+  name?: string
+  description?: string
+  url?: string
+  followers?: number
+  following?: number
+  tweets?: number
+  isVerified?: boolean
+}
+
 export interface TwitterTweetsInput extends PaginationOptions {
   /** Twitter username (without @) */
   username: string
@@ -82,6 +92,26 @@ export interface TwitterTweet extends Post {
   isRetweet?: boolean
   isReply?: boolean
   quotedTweet?: TwitterTweet
+}
+
+type TwitterMediaItem = {
+  type?: string
+  url?: string
+}
+
+type TwitterTweetRaw = TwitterTweet & {
+  tweetId?: string
+  fullText?: string
+  username?: string
+  authorName?: string
+  displayName?: string
+  createdAt?: string
+  likes?: number
+  retweets?: number
+  replies?: number
+  views?: number
+  media?: TwitterMediaItem[]
+  isReplyTo?: unknown
 }
 
 /* ============================================================================
@@ -129,15 +159,15 @@ export async function scrapeTwitterProfile(
   }
 
   const dataset = apify.getDataset(finalRun.defaultDatasetId)
-  const items = await dataset.listItems({ limit: 100 })
+  const items = (await dataset.listItems({ limit: 100 })) as (TwitterProfileRaw | TwitterTweetRaw)[]
 
   if (items.length === 0) {
     throw new Error(`Profile not found: @${input.username}`)
   }
 
   // First item is profile, rest are tweets
-  const profileData = items[0]
-  const tweets = items.slice(1)
+  const profileData = items[0] as TwitterProfileRaw
+  const tweets = items.slice(1) as TwitterTweetRaw[]
 
   return {
     username: profileData.username || input.username,
@@ -200,10 +230,10 @@ export async function scrapeTwitterTweets(
   }
 
   const dataset = apify.getDataset(finalRun.defaultDatasetId)
-  const items = await dataset.listItems({
+  const items = (await dataset.listItems({
     limit: input.maxTweets || 1000,
     offset: input.offset || 0
-  })
+  })) as TwitterTweetRaw[]
 
   return items.map(mapToTwitterTweet)
 }
@@ -251,10 +281,10 @@ export async function searchTwitter(
   }
 
   const dataset = apify.getDataset(finalRun.defaultDatasetId)
-  const items = await dataset.listItems({
+  const items = (await dataset.listItems({
     limit: input.maxTweets || 1000,
     offset: input.offset || 0
-  })
+  })) as TwitterTweetRaw[]
 
   return items.map(mapToTwitterTweet)
 }
@@ -263,14 +293,14 @@ export async function searchTwitter(
  * HELPERS
  * ========================================================================= */
 
-function mapToTwitterTweet(tweet: any): TwitterTweet {
+function mapToTwitterTweet(tweet: TwitterTweetRaw): TwitterTweet {
   return {
-    id: tweet.id || tweet.tweetId,
+    id: tweet.id || tweet.tweetId || "",
     url: tweet.url || `https://twitter.com/${tweet.authorUsername}/status/${tweet.id}`,
-    text: tweet.text || tweet.fullText,
-    authorUsername: tweet.authorUsername || tweet.username,
-    authorDisplayName: tweet.authorName || tweet.displayName,
-    timestamp: tweet.createdAt || tweet.timestamp,
+    text: tweet.text || tweet.fullText || "",
+    authorUsername: tweet.authorUsername || tweet.username || "",
+    authorDisplayName: tweet.authorName || tweet.displayName || "",
+    timestamp: tweet.createdAt || tweet.timestamp || "",
     likesCount: tweet.likesCount || tweet.likes || 0,
     retweetsCount: tweet.retweetsCount || tweet.retweets || 0,
     repliesCount: tweet.repliesCount || tweet.replies || 0,
@@ -278,8 +308,11 @@ function mapToTwitterTweet(tweet: any): TwitterTweet {
     commentsCount: tweet.repliesCount || tweet.replies || 0,
     hashtags: tweet.hashtags,
     mentions: tweet.mentions,
-    imageUrls: tweet.media?.filter((m: any) => m.type === 'photo').map((m: any) => m.url),
-    videoUrl: tweet.media?.find((m: any) => m.type === 'video')?.url,
+    imageUrls: tweet.media
+      ?.filter((m) => m.type === 'photo')
+      .map((m) => m.url)
+      .filter((url): url is string => Boolean(url)),
+    videoUrl: tweet.media?.find((m) => m.type === 'video')?.url,
     isRetweet: tweet.isRetweet,
     isReply: tweet.isReplyTo !== undefined,
     quotedTweet: tweet.quotedTweet ? mapToTwitterTweet(tweet.quotedTweet) : undefined,

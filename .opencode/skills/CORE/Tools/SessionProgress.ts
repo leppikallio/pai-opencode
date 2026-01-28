@@ -9,8 +9,8 @@
  *   bun run ~/.config/opencode/skills/CORE/Tools/SessionProgress.ts <command> [options]
  */
 
-import { existsSync, readFileSync, writeFileSync, readdirSync } from 'fs';
-import { join } from 'path';
+import { existsSync, readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 
 interface Decision {
   timestamp: string;
@@ -180,7 +180,9 @@ function resumeProgress(project: string): void {
   console.log(`Last Updated: ${progress.updated}\n`);
 
   console.log(`OBJECTIVES:`);
-  progress.objectives.forEach((o, i) => console.log(`  ${i + 1}. ${o}`));
+  progress.objectives.forEach((o, i) => {
+    console.log(`  ${i + 1}. ${o}`);
+  });
 
   if (progress.decisions.length > 0) {
     console.log(`\nKEY DECISIONS:`);
@@ -217,7 +219,9 @@ function resumeProgress(project: string): void {
 
   if (progress.next_steps.length > 0) {
     console.log(`\n➡️ NEXT STEPS:`);
-    progress.next_steps.forEach((s, i) => console.log(`  ${i + 1}. ${s}`));
+    progress.next_steps.forEach((s, i) => {
+      console.log(`  ${i + 1}. ${s}`);
+    });
   }
 
   console.log(`\n${'═'.repeat(60)}\n`);

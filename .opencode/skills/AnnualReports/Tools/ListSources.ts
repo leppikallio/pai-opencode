@@ -9,8 +9,8 @@
  *   bun run ListSources.ts --vendor <name>    # List all reports from vendor
  */
 
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const SOURCES_PATH = join(import.meta.dir, '..', 'Data', 'sources.json');
 

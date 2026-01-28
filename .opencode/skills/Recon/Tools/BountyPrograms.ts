@@ -59,7 +59,7 @@ interface ChaosProgram {
 }
 
 async function ensureCacheDir(): Promise<void> {
-  const dir = Bun.file(CACHE_DIR);
+  const _dir = Bun.file(CACHE_DIR);
   try {
     await $`mkdir -p ${CACHE_DIR}`.quiet();
   } catch {
@@ -204,7 +204,7 @@ async function updatePrograms(): Promise<BountyProgramsResult> {
   };
 }
 
-async function getNewPrograms(days: number = 7): Promise<BountyProgramsResult> {
+async function getNewPrograms(_days: number = 7): Promise<BountyProgramsResult> {
   // This requires tracking when programs were added
   // For now, we'll just return programs that have bounty=true
   // A proper implementation would track additions over time
@@ -244,7 +244,7 @@ function parseArgs(args: string[]): { command: string; query: string; options: R
         options.swagOnly = true;
         break;
       case "--days":
-        options.days = parseInt(next);
+        options.days = parseInt(next, 10);
         i++;
         break;
       case "--json":
@@ -284,6 +284,7 @@ Examples:
   bun BountyPrograms.ts update
 `);
         process.exit(0);
+        break;
       default:
         if (!arg.startsWith("-") && !["list", "new", "search", "check", "update"].includes(arg)) {
           query = arg;
@@ -374,4 +375,4 @@ if (options.json) {
   }
 }
 
-export { getAllPrograms, listPrograms, searchPrograms, checkDomain, BountyProgram, BountyProgramsResult };
+export { getAllPrograms, listPrograms, searchPrograms, checkDomain, type BountyProgram, type BountyProgramsResult };

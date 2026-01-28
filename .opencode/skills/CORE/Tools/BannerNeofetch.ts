@@ -10,12 +10,14 @@
  * Aesthetic: Modern tech startup (gh, npm, vercel) with gradient colors (blue->purple->cyan)
  */
 
-import { readdirSync, existsSync, readFileSync } from "fs";
-import { join } from "path";
-import { spawnSync } from "child_process";
+import { readdirSync, existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 
-const HOME = process.env.HOME!;
+const HOME = process.env.HOME ?? process.cwd();
 const CLAUDE_DIR = join(HOME, ".opencode");
+const ANSI_PATTERN = String.raw`\u001b\[[0-9;]*m`;
+const ANSI_REGEX = new RegExp(ANSI_PATTERN, "g");
 
 // ═══════════════════════════════════════════════════════════════════════
 // Terminal Width Detection
@@ -33,7 +35,7 @@ function getTerminalWidth(): number {
         for (const osWindow of data) {
           for (const tab of osWindow.tabs) {
             for (const win of tab.windows) {
-              if (win.id === parseInt(kittyWindowId)) {
+              if (win.id === parseInt(kittyWindowId, 10)) {
                 width = win.columns;
                 break;
               }
@@ -48,7 +50,7 @@ function getTerminalWidth(): number {
     try {
       const result = spawnSync("sh", ["-c", "stty size </dev/tty 2>/dev/null"], { encoding: "utf-8" });
       if (result.stdout) {
-        const cols = parseInt(result.stdout.trim().split(/\s+/)[1]);
+        const cols = parseInt(result.stdout.trim().split(/\s+/)[1], 10);
         if (cols > 0) width = cols;
       }
     } catch {}
@@ -58,14 +60,14 @@ function getTerminalWidth(): number {
     try {
       const result = spawnSync("tput", ["cols"], { encoding: "utf-8" });
       if (result.stdout) {
-        const cols = parseInt(result.stdout.trim());
+        const cols = parseInt(result.stdout.trim(), 10);
         if (cols > 0) width = cols;
       }
     } catch {}
   }
 
   if (!width || width <= 0) {
-    width = parseInt(process.env.COLUMNS || "100") || 100;
+    width = parseInt(process.env.COLUMNS || "100", 10) || 100;
   }
 
   return width;
@@ -77,12 +79,12 @@ function getTerminalWidth(): number {
 
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
-const DIM = "\x1b[2m";
+const _DIM = "\x1b[2m";
 const ITALIC = "\x1b[3m";
-const UNDERLINE = "\x1b[4m";
+const _UNDERLINE = "\x1b[4m";
 
 const rgb = (r: number, g: number, b: number) => `\x1b[38;2;${r};${g};${b}m`;
-const bgRgb = (r: number, g: number, b: number) => `\x1b[48;2;${r};${g};${b}m`;
+const _bgRgb = (r: number, g: number, b: number) => `\x1b[48;2;${r};${g};${b}m`;
 
 // Modern gradient palette (blue -> purple -> cyan) - inspired by Vercel, Linear, etc.
 const GRADIENT = {
@@ -119,7 +121,7 @@ const UI = {
 
 // Braille patterns (2x4 dots per char = high resolution)
 // Reference: https://en.wikipedia.org/wiki/Braille_Patterns
-const BRAILLE = {
+const _BRAILLE = {
   empty: "⠀", full: "⣿",
   dots: "⠁⠂⠃⠄⠅⠆⠇⡀⡁⡂⡃⡄⡅⡆⡇⢀⢁⢂⢃⢄⢅⢆⢇⣀⣁⣂⣃⣄⣅⣆⣇",
   gradients: ["⠀", "⢀", "⣀", "⣄", "⣤", "⣦", "⣶", "⣷", "⣿"],
@@ -134,7 +136,7 @@ const BLOCKS = {
 };
 
 // Geometric shapes
-const SHAPES = {
+const _SHAPES = {
   triangles: { tl: "◤", tr: "◥", bl: "◣", br: "◢" },
   diamonds: { filled: "◆", empty: "◇", small: "⬥" },
   circles: { filled: "●", empty: "○", half: ["◐", "◑", "◒", "◓"] },
@@ -180,7 +182,7 @@ const ISOMETRIC_CUBE_BRAILLE = [
 const CUBE_WIDTH = 46;
 
 // Alternative: Block-based geometric cube with gradient shading
-const ISOMETRIC_CUBE_BLOCKS = [
+const _ISOMETRIC_CUBE_BLOCKS = [
   "          ╱────────────────╲          ",
   "        ╱░░░░░░░░░░░░░░░░░░░░╲        ",
   "      ╱░░░░░░░░░░░░░░░░░░░░░░░░╲      ",
@@ -222,7 +224,7 @@ const PAI_BLOCK_ART = [
   "██║     ██║  ██║██║",
   "╚═╝     ╚═╝  ╚═╝╚═╝",
 ];
-const PAI_WIDTH = 19;
+const _PAI_WIDTH = 19;
 
 // ═══════════════════════════════════════════════════════════════════════
 // Dynamic Stats Collection
@@ -333,7 +335,7 @@ function getStats(): SystemStats {
 // ═══════════════════════════════════════════════════════════════════════
 
 function visibleLength(str: string): number {
-  return str.replace(/\x1b\[[0-9;]*m/g, "").length;
+  return str.replace(ANSI_REGEX, "").length;
 }
 
 function padEnd(str: string, width: number): string {
@@ -576,12 +578,12 @@ function main(): void {
 
   try {
     if (test) {
-      console.log("\n" + "═".repeat(80));
+      console.log(`\n${"═".repeat(80)}`);
       console.log("  NEOFETCH BANNER - FULL MODE");
       console.log("═".repeat(80));
       console.log(createNeofetchBanner());
 
-      console.log("\n" + "═".repeat(80));
+      console.log(`\n${"═".repeat(80)}`);
       console.log("  NEOFETCH BANNER - COMPACT MODE");
       console.log("═".repeat(80));
       console.log(createCompactBanner());
