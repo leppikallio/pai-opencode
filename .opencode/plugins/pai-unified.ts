@@ -17,8 +17,8 @@
  */
 
 import { tool, type Plugin, type Hooks } from "@opencode-ai/plugin";
-import os from "os";
-import path from "path";
+import os from "node:os";
+import path from "node:path";
 import { loadContext } from "./handlers/context-loader";
 import { validateSecurity } from "./handlers/security-validator";
 import { restoreSkillFiles } from "./handlers/skill-restore";
@@ -40,9 +40,30 @@ import {
   clearScratchpadSession,
 } from "./lib/scratchpad";
 
+type UnknownRecord = Record<string, unknown>;
+
+function isRecord(value: unknown): value is UnknownRecord {
+  return typeof value === "object" && value !== null;
+}
+
+function getProp(obj: unknown, key: string): unknown {
+  if (!isRecord(obj)) return undefined;
+  return obj[key];
+}
+
+function getStringProp(obj: unknown, key: string): string | undefined {
+  const v = getProp(obj, key);
+  return typeof v === "string" ? v : undefined;
+}
+
+function getRecordProp(obj: unknown, key: string): UnknownRecord | undefined {
+  const v = getProp(obj, key);
+  return isRecord(v) ? v : undefined;
+}
+
 type ToastVariant = "info" | "success" | "warning" | "error";
 
-type RatingKioskMode = "idle" | "armed" | "pendingTen";
+type RatingKioskMode = "idle" | "armed" | "pendingTen" | "pendingConfirm";
 
 interface RatingKioskState {
   mode: RatingKioskMode;
@@ -54,6 +75,7 @@ interface RatingKioskState {
   lastCapturedAt: number;
   lastArmedAt: number;
   timer: ReturnType<typeof setTimeout> | null;
+  pendingTimer: ReturnType<typeof setTimeout> | null;
 }
 
 /**
@@ -63,7 +85,7 @@ interface RatingKioskState {
  * Implements PAI v2.4 hook functionality.
  */
 export const PaiUnified: Plugin = async (ctx) => {
-  const client = (ctx as any)?.client;
+  const client = getProp(ctx, "client");
 
   // Clear log at plugin load (new session)
   clearLog();
@@ -82,6 +104,7 @@ export const PaiUnified: Plugin = async (ctx) => {
   // We also try to pass a toast duration, but older OpenCode builds may ignore it.
   const RATING_ARM_WINDOW_MS = 6000;
   const RATING_PENDING_TEN_MS = 900;
+  const RATING_CONFIRM_SINGLE_MS = 250;
   const RATING_ARM_COOLDOWN_MS = 2500;
 
   const ratingKiosk: RatingKioskState = {
@@ -94,10 +117,12 @@ export const PaiUnified: Plugin = async (ctx) => {
     lastCapturedAt: 0,
     lastArmedAt: 0,
     timer: null,
+    pendingTimer: null,
   };
 
   // If the user is actively typing, don't pop the rating kiosk.
   let lastPromptAppendAt = 0;
+  let lastKioskPromptLogAt = 0;
 
   function expandTilde(p: string): string {
     if (p === "~") return os.homedir();
@@ -132,15 +157,16 @@ export const PaiUnified: Plugin = async (ctx) => {
     durationMs?: number
   ) {
     try {
-      if (!client?.tui?.showToast) return;
+      const tui = getRecordProp(client, "tui");
+      const showToastFn = tui ? tui.showToast : undefined;
+      if (typeof showToastFn !== "function") return;
       // duration is not documented in all builds; pass through best-effort.
-      await client.tui.showToast({
-        body: {
-          message,
-          variant,
-          ...(typeof durationMs === "number" ? { duration: durationMs } : {}),
-        } as any,
-      });
+      const body: UnknownRecord = {
+        message,
+        variant,
+        ...(typeof durationMs === "number" ? { duration: durationMs } : {}),
+      };
+      await (showToastFn as (args: { body: UnknownRecord }) => Promise<unknown>)({ body });
     } catch (error) {
       fileLogError("Toast failed", error);
     }
@@ -148,17 +174,23 @@ export const PaiUnified: Plugin = async (ctx) => {
 
   async function clearPrompt() {
     try {
-      if (!client?.tui?.clearPrompt) return;
-      await client.tui.clearPrompt();
+      const tui = getRecordProp(client, "tui");
+      const clearPromptFn = tui ? tui.clearPrompt : undefined;
+      if (typeof clearPromptFn !== "function") return;
+      await (clearPromptFn as () => Promise<unknown>)();
     } catch (error) {
       fileLogError("clearPrompt failed", error);
     }
   }
 
-  async function appendPrompt(text: string) {
+  async function _appendPrompt(text: string) {
     try {
-      if (!client?.tui?.appendPrompt) return;
-      await client.tui.appendPrompt({ body: { text } });
+      const tui = getRecordProp(client, "tui");
+      const appendPromptFn = tui ? tui.appendPrompt : undefined;
+      if (typeof appendPromptFn !== "function") return;
+      await (appendPromptFn as (args: { body: { text: string } }) => Promise<unknown>)(
+        { body: { text } }
+      );
     } catch (error) {
       fileLogError("appendPrompt failed", error);
     }
@@ -168,6 +200,10 @@ export const PaiUnified: Plugin = async (ctx) => {
     if (ratingKiosk.timer) {
       clearTimeout(ratingKiosk.timer);
       ratingKiosk.timer = null;
+    }
+    if (ratingKiosk.pendingTimer) {
+      clearTimeout(ratingKiosk.pendingTimer);
+      ratingKiosk.pendingTimer = null;
     }
     if (ratingKiosk.mode !== "idle") {
       fileLog(`Rating kiosk disarmed (${reason})`, "debug");
@@ -228,8 +264,14 @@ export const PaiUnified: Plugin = async (ctx) => {
     if (ratingKiosk.mode === "idle") return;
 
     // Expired window.
-    if (now > ratingKiosk.armedUntil && ratingKiosk.mode === "armed") {
+    if (now > ratingKiosk.armedUntil) {
       disarmRatingKiosk("expired");
+      return;
+    }
+
+    // If user keeps typing while we're waiting to confirm, treat as prompt.
+    if (ratingKiosk.mode === "pendingConfirm") {
+      disarmRatingKiosk("pendingConfirm -> prompt");
       return;
     }
 
@@ -246,16 +288,13 @@ export const PaiUnified: Plugin = async (ctx) => {
 
     // === Pending 10 handling ===
     if (ratingKiosk.mode === "pendingTen") {
-      // If pending expired, treat as rating 1 and restore this char.
+      // If another key arrives, treat this as a normal prompt.
+      // The "1" rating is only captured if the user pauses.
       if (now > ratingKiosk.pendingTenUntil) {
-        await captureKioskRating(1);
-        await clearPrompt();
-        disarmRatingKiosk("pendingTen expired");
-        await appendPrompt(ch);
+        disarmRatingKiosk("pendingTen expired (prompt)");
         return;
       }
 
-      // Expecting second key.
       if (ch === "0") {
         await captureKioskRating(10);
         await clearPrompt();
@@ -263,11 +302,7 @@ export const PaiUnified: Plugin = async (ctx) => {
         return;
       }
 
-      // Any other digit -> treat as rating 1, but keep the digit as message input.
-      await captureKioskRating(1);
-      await clearPrompt();
-      disarmRatingKiosk("captured 1 (fallback)");
-      await appendPrompt(ch);
+      disarmRatingKiosk("pendingTen -> prompt");
       return;
     }
 
@@ -281,9 +316,18 @@ export const PaiUnified: Plugin = async (ctx) => {
     // First char: interpret.
     if (ch >= "2" && ch <= "9") {
       ratingKiosk.typedSinceArm = ch;
-      await captureKioskRating(parseInt(ch, 10));
-      await clearPrompt();
-      disarmRatingKiosk(`captured ${ch}`);
+      ratingKiosk.mode = "pendingConfirm";
+
+      if (ratingKiosk.pendingTimer) clearTimeout(ratingKiosk.pendingTimer);
+      ratingKiosk.pendingTimer = setTimeout(() => {
+        void (async () => {
+          if (ratingKiosk.mode !== "pendingConfirm") return;
+          await captureKioskRating(parseInt(ch, 10));
+          await clearPrompt();
+          disarmRatingKiosk(`captured ${ch}`);
+        })();
+      }, RATING_CONFIRM_SINGLE_MS);
+
       return;
     }
 
@@ -293,8 +337,8 @@ export const PaiUnified: Plugin = async (ctx) => {
       ratingKiosk.pendingTenUntil = now + RATING_PENDING_TEN_MS;
 
       // If no second key arrives, treat as rating 1 and clear prompt.
-      if (ratingKiosk.timer) clearTimeout(ratingKiosk.timer);
-      ratingKiosk.timer = setTimeout(() => {
+      if (ratingKiosk.pendingTimer) clearTimeout(ratingKiosk.pendingTimer);
+      ratingKiosk.pendingTimer = setTimeout(() => {
         // Use void + async wrapper to avoid unhandled promise.
         void (async () => {
           if (ratingKiosk.mode !== "pendingTen") return;
@@ -373,9 +417,10 @@ export const PaiUnified: Plugin = async (ctx) => {
             return res.ok
               ? `ok (${res.status})`
               : `error (${res.status})`;
-          } catch (error: any) {
+          } catch (error: unknown) {
             // Fail open: voice server is optional. Return error but don't throw.
-            return `error (${error?.message || String(error)})`;
+            const msg = error instanceof Error ? error.message : String(error);
+            return `error (${msg})`;
           } finally {
             clearTimeout(timeout);
           }
@@ -388,7 +433,7 @@ export const PaiUnified: Plugin = async (ctx) => {
      * Injects CORE skill context into the chat system.
      * Equivalent to PAI v2.4 load-core-context.ts hook.
      */
-    "experimental.chat.system.transform": async (input, output) => {
+    "experimental.chat.system.transform": async (_input, output) => {
       try {
         const scratchpad = await ensureScratchpadSession();
         fileLog("Injecting context...");
@@ -438,8 +483,8 @@ export const PaiUnified: Plugin = async (ctx) => {
         );
 
         // Extract tool info from Permission input
-        const tool = (input as any).tool || "unknown";
-        const args = (input as any).args || {};
+        const tool = getStringProp(input, "tool") ?? "unknown";
+        const args = getRecordProp(input, "args") ?? {};
 
         const result = await validateSecurity({ tool, args });
 
@@ -454,7 +499,6 @@ export const PaiUnified: Plugin = async (ctx) => {
             fileLog(`CONFIRM: ${result.reason}`, "warn");
             break;
 
-          case "allow":
           default:
             // Don't modify output.status - let it proceed
             fileLog(`ALLOWED: ${tool}`, "debug");
@@ -523,8 +567,8 @@ export const PaiUnified: Plugin = async (ctx) => {
         if (isTaskTool(input.tool)) {
           fileLog("Subagent task completed, capturing output...", "info");
 
-          const args = (input as any).args || (output as any).args || {};
-          const result = (output as any).result;
+          const args = getRecordProp(input, "args") ?? getRecordProp(output, "args") ?? {};
+          const result = getProp(output, "result");
 
           const captureResult = await captureAgentOutput(args, result);
           if (captureResult.success && captureResult.filepath) {
@@ -543,10 +587,11 @@ export const PaiUnified: Plugin = async (ctx) => {
      * Called when user submits a message.
      * Equivalent to PAI v2.4 AutoWorkCreation + ExplicitRatingCapture hooks.
      */
-    "chat.message": async (input, output) => {
+    "chat.message": async (input, _output) => {
       try {
-        const role = (input as any).message?.role || "unknown";
-        const content = (input as any).message?.content || "";
+        const msg = getRecordProp(input, "message");
+        const role = getStringProp(msg, "role") ?? "unknown";
+        const content = getStringProp(msg, "content") ?? "";
 
         // Only process user messages
         if (role !== "user") return;
@@ -602,13 +647,19 @@ export const PaiUnified: Plugin = async (ctx) => {
      */
     event: async (input) => {
       try {
-        const eventType = (input.event as any)?.type || "";
+        const eventObj = getRecordProp(input, "event");
+        const eventType = getStringProp(eventObj, "type") ?? "";
 
         // === TUI RATING KIOSK ===
         // Intercept single keypresses during the short rating window.
         if (eventType === "tui.prompt.append") {
-          const props = (input.event as any)?.properties;
-          const data = (input.event as any)?.data;
+          // Always treat prompt activity as "user is typing" signal
+          // (even if kiosk is not armed).
+          lastPromptAppendAt = Date.now();
+
+          const props = getRecordProp(eventObj, "properties");
+          const data = getProp(eventObj, "data");
+          const dataRec = isRecord(data) ? data : undefined;
 
           const appendedRaw =
             // Official event payload uses properties.text
@@ -616,14 +667,30 @@ export const PaiUnified: Plugin = async (ctx) => {
             // Back-compat for older/alternate payload shapes
             (typeof data === "string"
               ? data
-              : (data?.text ?? data?.value ?? data?.append ?? ""));
+              : (getStringProp(dataRec, "text") ??
+                  getStringProp(dataRec, "value") ??
+                  getStringProp(dataRec, "append") ??
+                  ""));
 
           const appended = String(appendedRaw || "");
+
+          // Debug (rate-limited): confirm whether prompt events fire at all.
+          if (ratingKiosk.mode !== "idle") {
+            const now = Date.now();
+            if (now - lastKioskPromptLogAt > 300) {
+              lastKioskPromptLogAt = now;
+              fileLog(
+                `tui.prompt.append len=${appended.length} kiosk=${ratingKiosk.mode}`,
+                "debug"
+              );
+            }
+          }
+
           if (appended.length > 0) {
             await handleRatingKioskPromptAppend(appended);
           }
 
-          // Don't spam the log for every keypress.
+          // Don't fall through; this event can be extremely frequent.
           return;
         }
 
@@ -631,11 +698,15 @@ export const PaiUnified: Plugin = async (ctx) => {
         // rather than session.idle. If we see an "idle"-like status, arm kiosk.
         if (eventType === "session.status") {
           try {
-            const data = (input.event as any)?.data ?? {};
+            const data = getProp(eventObj, "data");
+            const dataRec = isRecord(data) ? data : {};
             const statusStr = String(
-              (data as any)?.status ?? (data as any)?.state ?? (data as any)?.phase ?? ""
+              getProp(dataRec, "status") ??
+                getProp(dataRec, "state") ??
+                getProp(dataRec, "phase") ??
+                ""
             ).toLowerCase();
-            const dataStr = JSON.stringify(data).toLowerCase();
+            const dataStr = JSON.stringify(dataRec).toLowerCase();
 
             if (statusStr === "idle" || dataStr.includes("\"idle\"")) {
               armRatingKiosk();
