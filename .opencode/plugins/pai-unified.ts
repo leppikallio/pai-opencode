@@ -468,6 +468,58 @@ export const PaiUnified: Plugin = async (ctx) => {
     },
 
     /**
+     * COMPACTION CONTEXT INJECTION (pre-compaction)
+     *
+     * Injects CORE skill context into the compaction prompt so it survives
+     * session.compacted / continuation summaries.
+     *
+     * See: https://opencode.ai/docs/plugins/ (experimental.session.compacting)
+     */
+    "experimental.session.compacting": async (_input, output) => {
+      try {
+        const scratchpad = await ensureScratchpadSession();
+        fileLog("Compaction: injecting context...");
+
+        const result = await loadContext();
+
+        // output.context is used to seed the compaction summary.
+        // Be defensive: ensure it exists and is an array.
+        const outRec = output as unknown as UnknownRecord;
+        const existingContext = outRec.context;
+        const contextArray: string[] = Array.isArray(existingContext)
+          ? (existingContext.filter((v) => typeof v === "string") as string[])
+          : [];
+
+        if (result.success && result.context) {
+          contextArray.push(result.context);
+          fileLog("Compaction: context injected successfully");
+        } else {
+          fileLog(
+            `Compaction: context injection skipped: ${result.error || "unknown"}`,
+            "warn"
+          );
+        }
+
+        // Inject the same binding scratchpad directive so it survives compaction.
+        contextArray.push(
+          [
+            "PAI SCRATCHPAD (Binding)",
+            `ScratchpadDir: ${scratchpad.dir}`,
+            "Rules:",
+            "- Write ALL temporary artifacts under ScratchpadDir.",
+            "- Do NOT write drafts/reviews into the current working directory.",
+            "- Only write outside ScratchpadDir when explicitly instructed with an exact destination path.",
+          ].join("\n")
+        );
+
+        outRec.context = contextArray;
+      } catch (error) {
+        fileLogError("Compaction context injection failed", error);
+        // Don't throw - compaction should continue
+      }
+    },
+
+    /**
      * SECURITY BLOCKING (PreToolUse exit(2) equivalent)
      *
      * Validates tool executions for security threats.
