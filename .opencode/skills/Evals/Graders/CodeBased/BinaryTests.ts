@@ -4,7 +4,7 @@
  */
 
 import { BaseGrader, registerGrader, type GraderContext } from '../Base.ts';
-import type { GraderConfig, GraderResult, BinaryTestsParams } from '../../Types/index.ts';
+import type { GraderResult, BinaryTestsParams } from '../../Types/index.ts';
 import { $ } from 'bun';
 
 export class BinaryTestsGrader extends BaseGrader {

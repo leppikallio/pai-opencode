@@ -6,6 +6,7 @@ import { BugBountyTracker } from './tracker.js';
 async function main() {
   const args = process.argv.slice(2);
   const tracker = new BugBountyTracker();
+  type ProgramList = Awaited<ReturnType<BugBountyTracker['getRecentDiscoveries']>>
 
   try {
     // Parse arguments
@@ -16,11 +17,11 @@ async function main() {
       if (args[i] === '--last' && args[i + 1]) {
         const value = args[i + 1];
         if (value.endsWith('h')) {
-          hours = parseInt(value.slice(0, -1));
+          hours = parseInt(value.slice(0, -1), 10);
         } else if (value.endsWith('d')) {
-          hours = parseInt(value.slice(0, -1)) * 24;
+          hours = parseInt(value.slice(0, -1), 10) * 24;
         } else {
-          hours = parseInt(value);
+          hours = parseInt(value, 10);
         }
         i++;
       } else if (args[i] === '--search' && args[i + 1]) {
@@ -31,7 +32,7 @@ async function main() {
       }
     }
 
-    let programs;
+    let programs: ProgramList = [];
 
     if (searchQuery) {
       console.log(`🔍 Searching for: "${searchQuery}"\n`);

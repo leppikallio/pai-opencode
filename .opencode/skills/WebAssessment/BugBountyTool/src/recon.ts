@@ -2,7 +2,7 @@
 // Initiate reconnaissance on a bug bounty program
 
 import { BugBountyTracker } from './tracker.js';
-import { writeFile } from 'fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { CONFIG } from './config.js';
 
 async function main() {
@@ -14,9 +14,9 @@ async function main() {
     process.exit(1);
   }
 
-  const programIndex = parseInt(args[0]) - 1;
+  const programIndex = parseInt(args[0], 10) - 1;
 
-  if (isNaN(programIndex) || programIndex < 0) {
+  if (Number.isNaN(programIndex) || programIndex < 0) {
     console.error('Invalid program number');
     process.exit(1);
   }

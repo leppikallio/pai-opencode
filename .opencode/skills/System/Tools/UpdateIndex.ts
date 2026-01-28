@@ -5,8 +5,8 @@
  * Regenerates index.json and INDEX.md from PAISYSTEMUPDATES files
  */
 
-import { readdirSync, statSync } from 'fs';
-import { join } from 'path';
+import { readdirSync, } from 'node:fs';
+import { join } from 'node:path';
 
 interface UpdateMetadata {
   type: string;
@@ -100,7 +100,7 @@ async function scanUpdates(baseDir: string): Promise<UpdateMetadata[]> {
                 slug: file.replace('.md', '')
               });
             }
-          } catch (error) {
+          } catch (_error) {
             console.warn(`Warning: Failed to read ${filePath}`);
           }
         }
@@ -206,5 +206,5 @@ async function updateIndex(): Promise<void> {
 }
 
 // Main execution
-const args = parseArgs();
+const _args = parseArgs();
 await updateIndex();

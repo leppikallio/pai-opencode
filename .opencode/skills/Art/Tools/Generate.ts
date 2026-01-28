@@ -27,7 +27,8 @@ import { extname, resolve } from "node:path";
  * This ensures API keys are available regardless of how the CLI is invoked
  */
 async function loadEnv(): Promise<void> {
-  const paiDir = process.env.PAI_DIR || resolve(process.env.HOME!, '.opencode');
+  const homeDir = process.env.HOME ?? process.cwd();
+  const paiDir = process.env.PAI_DIR || resolve(homeDir, '.opencode');
   const envPath = resolve(paiDir, '.env');
   try {
     const envContent = await readFile(envPath, 'utf-8');
@@ -48,7 +49,7 @@ async function loadEnv(): Promise<void> {
         process.env[key] = value;
       }
     }
-  } catch (error) {
+  } catch (_error) {
     // Silently continue if .env doesn't exist - rely on shell env vars
   }
 }
@@ -302,14 +303,15 @@ function parseArgs(argv: string[]): CLIArgs {
         referenceImages.push(value);
         i++; // Skip next arg (value)
         break;
-      case "creative-variations":
+      case "creative-variations": {
         const variations = parseInt(value, 10);
-        if (isNaN(variations) || variations < 1 || variations > 10) {
+        if (Number.isNaN(variations) || variations < 1 || variations > 10) {
           throw new CLIError(`Invalid creative-variations: ${value}. Must be 1-10`);
         }
         parsed.creativeVariations = variations;
         i++; // Skip next arg (value)
         break;
+      }
       case "add-bg":
         // Validate hex color format
         if (!/^#[0-9A-Fa-f]{6}$/.test(value)) {
@@ -601,7 +603,7 @@ async function generateWithNanoBananaPro(
     const parts = response.candidates[0].content.parts;
     for (const part of parts) {
       // Check if this part contains inline image data
-      if (part.inlineData && part.inlineData.data) {
+      if (part.inlineData?.data) {
         imageData = part.inlineData.data;
         break;
       }
@@ -660,7 +662,7 @@ async function main(): Promise<void> {
             generateWithNanoBananaPro(
               finalPrompt,
               args.size as GeminiSize,
-              args.aspectRatio!,
+              args.aspectRatio ?? "16:9",
               varOutput,
               args.referenceImages
             )
@@ -684,7 +686,7 @@ async function main(): Promise<void> {
       await generateWithNanoBananaPro(
         finalPrompt,
         args.size as GeminiSize,
-        args.aspectRatio!,
+        args.aspectRatio ?? "16:9",
         args.output,
         args.referenceImages
       );

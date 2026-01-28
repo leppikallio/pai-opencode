@@ -14,10 +14,10 @@
  * the current working directory.
  */
 
-import { dirname, join, resolve } from "path";
-import { fileURLToPath } from "url";
-import os from "os";
-import fs from "fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import os from "node:os";
+import fs from "node:fs";
 
 export type PaiRuntimeInfo = {
   paiDir: string;
@@ -27,7 +27,7 @@ export type PaiRuntimeInfo = {
 
 function xdgConfigHome(): string {
   const fromEnv = process.env.XDG_CONFIG_HOME;
-  if (fromEnv && fromEnv.trim()) return fromEnv.trim();
+  if (fromEnv?.trim()) return fromEnv.trim();
   return join(os.homedir(), ".config");
 }
 
@@ -54,7 +54,7 @@ function dirExists(p: string): boolean {
  */
 export function getPaiDir(): string {
   const fromEnv = process.env.PAI_DIR;
-  if (fromEnv && fromEnv.trim()) return resolve(fromEnv.trim());
+  if (fromEnv?.trim()) return resolve(fromEnv.trim());
 
   // This file lives at: <paiDir>/plugins/lib/pai-runtime.ts (installed)
   // or: <repo>/.opencode/plugins/lib/pai-runtime.ts (source tree)

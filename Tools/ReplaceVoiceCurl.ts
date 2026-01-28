@@ -30,11 +30,11 @@ function extractMessage(input: string): string | null {
 }
 
 function voiceNotifySnippet(message: string | null): string {
-  const msg = message && message.length ? message : "Your message here";
+  const msg = message?.length ? message : "Your message here";
   return [
     "Use the `voice_notify` tool:",
     "",
-    `- \`message\`: \"${msg.split('"').join('\\"')}\"`,
+    `- \`message\`: "${msg.split('"').join('\\"')}"`,
   ].join("\n");
 }
 
@@ -54,12 +54,12 @@ function replaceBashFences(content: string): { next: string; count: number } {
 
 function replaceInlineCurl(content: string): { next: string; count: number } {
   let count = 0;
-  const next = content.replace(/`([^`]*?curl[^`]*?http:\/\/localhost:8888\/notify[^`]*)`/g, (full, inner) => {
+  const next = content.replace(/`([^`]*?curl[^`]*?http:\/\/localhost:8888\/notify[^`]*)`/g, (_full, inner) => {
     const txt = String(inner);
     const message = extractMessage(txt);
     count++;
-    const msg = message && message.length ? message : "...";
-    return `\`voice_notify\` (message: \"${msg.split('"').join('\\"')}\")`;
+    const msg = message?.length ? message : "...";
+    return `\`voice_notify\` (message: "${msg.split('"').join('\\"')}")`;
   });
   return { next, count };
 }

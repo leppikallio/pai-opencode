@@ -12,7 +12,6 @@ import { Apify } from '../../index'
 import type {
   UserProfile,
   Post,
-  EngagementMetrics,
   PaginationOptions,
   ActorRunOptions
 } from '../../types'
@@ -87,6 +86,37 @@ export interface TikTokComment {
   userNickname?: string
 }
 
+type TikTokCommentRaw = TikTokComment & {
+  cid?: string
+  diggCount?: number
+  replyCommentTotal?: number
+  user?: { uniqueId?: string; nickname?: string }
+}
+
+type TikTokVideoRaw = Omit<TikTokVideo, 'hashtags'> & {
+  webVideoUrl?: string
+  authorMeta?: {
+    id?: string
+    name?: string
+    nickName?: string
+    signature?: string
+    verified?: boolean
+    fans?: number
+    following?: number
+    heart?: number
+    video?: number
+  }
+  covers?: { default?: string }
+  playCount?: number
+  diggCount?: number
+  commentCount?: number
+  shareCount?: number
+  downloadCount?: number
+  musicMeta?: { musicName?: string; musicAuthor?: string }
+  hashtags?: Array<{ name?: string }>
+  posts?: TikTokVideoRaw[]
+}
+
 /* ============================================================================
  * FUNCTIONS
  * ========================================================================= */
@@ -128,7 +158,7 @@ export async function scrapeTikTokProfile(
   }
 
   const dataset = apify.getDataset(finalRun.defaultDatasetId)
-  const items = await dataset.listItems({ limit: 1 })
+  const items = (await dataset.listItems({ limit: 1 })) as TikTokVideoRaw[]
 
   if (items.length === 0) {
     throw new Error(`Profile not found: @${input.username}`)
@@ -137,7 +167,7 @@ export async function scrapeTikTokProfile(
   const profile = items[0]
 
   return {
-    id: profile.authorMeta?.id,
+    id: profile.authorMeta?.id || "",
     username: input.username,
     nickname: profile.authorMeta?.name,
     fullName: profile.authorMeta?.name,
@@ -192,10 +222,10 @@ export async function scrapeTikTokHashtag(
   }
 
   const dataset = apify.getDataset(finalRun.defaultDatasetId)
-  const items = await dataset.listItems({
+  const items = (await dataset.listItems({
     limit: input.maxResults || 1000,
     offset: input.offset || 0
-  })
+  })) as TikTokVideoRaw[]
 
   return items.map(transformVideo)
 }
@@ -242,14 +272,14 @@ export async function scrapeTikTokComments(
     offset: input.offset || 0
   })
 
-  return items.map((comment: any) => ({
-    id: comment.cid,
-    text: comment.text,
-    createTime: comment.createTime,
-    likeCount: comment.diggCount || 0,
-    replyCount: comment.replyCommentTotal,
-    username: comment.user?.uniqueId,
-    userNickname: comment.user?.nickname
+  return (items as TikTokCommentRaw[]).map((comment) => ({
+    id: comment.cid ?? comment.id ?? '',
+    text: comment.text ?? '',
+    createTime: comment.createTime ?? '',
+    likeCount: comment.diggCount ?? comment.likeCount ?? 0,
+    replyCount: comment.replyCommentTotal ?? comment.replyCount,
+    username: comment.user?.uniqueId ?? comment.username ?? '',
+    userNickname: comment.user?.nickname ?? comment.userNickname
   }))
 }
 
@@ -257,15 +287,15 @@ export async function scrapeTikTokComments(
  * HELPERS
  * ========================================================================= */
 
-function transformVideo(video: any): TikTokVideo {
+function transformVideo(video: TikTokVideoRaw): TikTokVideo {
   return {
-    id: video.id,
+    id: video.id ?? '',
     url: video.webVideoUrl || `https://www.tiktok.com/@${video.authorMeta?.name}/video/${video.id}`,
     text: video.text,
     desc: video.text,
     caption: video.text,
-    createTime: video.createTime,
-    timestamp: video.createTime,
+    createTime: video.createTime ?? '',
+    timestamp: video.createTime ?? '',
     videoUrl: video.videoUrl,
     coverUrl: video.covers?.default,
     playCount: video.playCount,
@@ -281,7 +311,7 @@ function transformVideo(video: any): TikTokVideo {
     musicAuthor: video.musicMeta?.musicAuthor,
     authorUsername: video.authorMeta?.name,
     authorNickname: video.authorMeta?.nickName,
-    hashtags: video.hashtags?.map((h: any) => h.name),
+    hashtags: video.hashtags?.map((h) => h.name).filter((name): name is string => Boolean(name)),
     mentions: video.mentions,
     isAd: video.isAd
   }

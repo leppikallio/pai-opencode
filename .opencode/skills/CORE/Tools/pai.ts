@@ -20,9 +20,9 @@
 
 import { spawn, spawnSync } from "bun";
 import { getDAName, getVoiceId } from "../../../plugins/lib/identity";
-import { existsSync, readFileSync, writeFileSync, readdirSync, symlinkSync, unlinkSync, lstatSync } from "fs";
-import { homedir } from "os";
-import { join, basename } from "path";
+import { existsSync, readFileSync, writeFileSync, readdirSync, symlinkSync, unlinkSync, lstatSync } from "node:fs";
+import { homedir } from "node:os";
+import { join, basename } from "node:path";
 
 // ============================================================================
 // Configuration
@@ -155,7 +155,7 @@ function getCurrentProfile(): string | null {
   try {
     const stats = lstatSync(ACTIVE_MCP);
     if (stats.isSymbolicLink()) {
-      const target = readFileSync(ACTIVE_MCP, "utf-8");
+      const _target = readFileSync(ACTIVE_MCP, "utf-8");
       // For symlink, we need the real target name
       const realpath = Bun.spawnSync(["readlink", ACTIVE_MCP]).stdout.toString().trim();
       return basename(realpath).replace(".mcp.json", "");
@@ -167,7 +167,7 @@ function getCurrentProfile(): string | null {
 }
 
 function mergeMcpConfigs(mcpFiles: string[]): object {
-  const merged: Record<string, any> = { mcpServers: {} };
+  const merged: Record<string, unknown> = { mcpServers: {} };
 
   for (const file of mcpFiles) {
     const filepath = join(MCP_DIR, file);
@@ -180,7 +180,7 @@ function mergeMcpConfigs(mcpFiles: string[]): object {
       if (config.mcpServers) {
         Object.assign(merged.mcpServers, config.mcpServers);
       }
-    } catch (e) {
+    } catch (_e) {
       log(`Warning: Failed to parse ${file}`, "⚠️");
     }
   }
@@ -234,7 +234,8 @@ function setMcpCustom(mcpNames: string[]) {
   }
   writeFileSync(ACTIVE_MCP, JSON.stringify(merged, null, 2));
 
-  const serverCount = Object.keys((merged as any).mcpServers || {}).length;
+  const mcpServers = (merged as { mcpServers?: Record<string, unknown> }).mcpServers;
+  const serverCount = mcpServers ? Object.keys(mcpServers).length : 0;
   if (serverCount > 0) {
     log(`Configured ${serverCount} MCP server(s): ${mcpNames.join(", ")}`, "✅");
   }
@@ -342,7 +343,9 @@ function cmdWallpaper(args: string[]) {
   if (!match) {
     log(`No wallpaper matching "${query}"`, "❌");
     console.log("\nAvailable wallpapers:");
-    wallpapers.forEach((w) => console.log(`  - ${getWallpaperName(w)}`));
+    wallpapers.forEach((w) => {
+      console.log(`  - ${getWallpaperName(w)}`);
+    });
     process.exit(1);
   }
 
@@ -611,7 +614,7 @@ async function main() {
 
     switch (arg) {
       case "-m":
-      case "--mcp":
+      case "--mcp": {
         const nextArg = args[i + 1];
         // -m with no arg, or -m 0, or -m "" means no MCPs
         if (!nextArg || nextArg.startsWith("-") || nextArg === "0" || nextArg === "") {
@@ -621,6 +624,7 @@ async function main() {
           mcp = args[++i];
         }
         break;
+      }
       case "-r":
       case "--resume":
         resume = true;

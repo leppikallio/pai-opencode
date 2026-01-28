@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useParams, notFound } from "next/navigation"
+import { useParams, } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { FileText, Table as TableIcon, Edit2, Save, X } from "lucide-react"
@@ -11,7 +11,13 @@ export default function FilePage() {
   const params = useParams()
   const slug = params.slug as string
 
-  const [file, setFile] = useState<any>(null)
+  type FileData = {
+    name: string
+    filename: string
+    content: string
+    type: 'csv' | 'markdown'
+  }
+  const [file, setFile] = useState<FileData | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [editedContent, setEditedContent] = useState("")
   const [isSaving, setIsSaving] = useState(false)
@@ -157,8 +163,7 @@ export default function FilePage() {
               className="w-full h-[600px] p-4 border rounded-lg font-mono text-sm resize-y focus:outline-none focus:ring-2 focus:ring-[#2e7de9]"
             />
           ) : (
-            <>
-              {isCSV ? (
+            isCSV ? (
                 <div className="overflow-x-auto">
                   <CSVTable content={file.content} />
                 </div>
@@ -166,8 +171,7 @@ export default function FilePage() {
                 <div className="prose max-w-none">
                   <ReactMarkdown>{file.content}</ReactMarkdown>
                 </div>
-              )}
-            </>
+              )
           )}
         </CardContent>
       </Card>
@@ -186,9 +190,9 @@ function CSVTable({ content }: { content: string }) {
     <table className="min-w-full divide-y divide-gray-200">
       <thead className="bg-gray-50">
         <tr>
-          {headers.map((header, idx) => (
+          {headers.map((header) => (
             <th
-              key={idx}
+              key={header}
               className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
             >
               {header}
@@ -197,18 +201,20 @@ function CSVTable({ content }: { content: string }) {
         </tr>
       </thead>
       <tbody className="bg-white divide-y divide-gray-200">
-        {rows.map((row, rowIdx) => (
-          <tr key={rowIdx} className="hover:bg-gray-50">
-            {row.map((cell, cellIdx) => (
+        {rows.map((row) => {
+          const rowKey = row.join('|')
+          return (
+          <tr key={rowKey} className="hover:bg-gray-50">
+            {row.map((cell) => (
               <td
-                key={cellIdx}
+                key={`${rowKey}-${cell}`}
                 className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
               >
                 {cell}
               </td>
             ))}
           </tr>
-        ))}
+        )})}
       </tbody>
     </table>
   )

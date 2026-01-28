@@ -34,11 +34,12 @@
  * - WRONG.md - Things I was wrong about
  */
 
-import { readFileSync, writeFileSync, copyFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, writeFileSync, copyFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { getPrincipal } from '../../../plugins/lib/identity';
 
-const TELOS_DIR = join(process.env.HOME!, '.opencode', 'context', 'life', 'telos');
+const HOME_DIR = process.env.HOME ?? process.cwd();
+const TELOS_DIR = join(HOME_DIR, '.opencode', 'context', 'life', 'telos');
 const BACKUPS_DIR = join(TELOS_DIR, 'backups');
 const UPDATES_FILE = join(TELOS_DIR, 'updates.md');
 
@@ -125,7 +126,7 @@ async function main() {
   // Step 2: Update the target file (append content)
   try {
     const currentContent = readFileSync(targetFile, 'utf-8');
-    const updatedContent = currentContent.trimEnd() + '\n' + content + '\n';
+    const updatedContent = `${currentContent.trimEnd()}\n${content}\n`;
     writeFileSync(targetFile, updatedContent, 'utf-8');
     console.log(`✅ Updated: ${filename}`);
   } catch (error) {
@@ -166,7 +167,7 @@ async function main() {
       console.log(`✅ Change logged in updates.md`);
     } else {
       // Fallback: just append
-      const updatedUpdates = updatesContent.trimEnd() + '\n' + logEntry;
+      const updatedUpdates = `${updatesContent.trimEnd()}\n${logEntry}`;
       writeFileSync(UPDATES_FILE, updatedUpdates, 'utf-8');
       console.log(`✅ Change logged in updates.md (appended)`);
     }

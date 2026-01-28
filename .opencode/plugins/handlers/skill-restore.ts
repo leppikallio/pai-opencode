@@ -10,7 +10,7 @@
  * @module skill-restore
  */
 
-import { execSync } from "child_process";
+import { execSync } from "node:child_process";
 import { fileLog, fileLogError } from "../lib/file-logger";
 
 export interface RestoreResult {

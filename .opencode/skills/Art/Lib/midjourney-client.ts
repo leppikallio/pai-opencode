@@ -8,8 +8,8 @@
  * @see ~/.config/opencode/skills/art/SKILL.md
  */
 
-import { DiscordBotClient } from './discord-bot.js';
-import { Message } from 'discord.js';
+import type { DiscordBotClient } from './discord-bot.js';
+import type { Message } from 'discord.js';
 
 // ============================================================================
 // Types
@@ -272,10 +272,11 @@ export class MidjourneyClient {
     // Extract parameters
     const parameters: Record<string, string> = {};
     const paramRegex = /--(\w+)\s+([^\s-]+)/g;
-    let match;
+    let match: RegExpExecArray | null = paramRegex.exec(content);
 
-    while ((match = paramRegex.exec(content)) !== null) {
+    while (match !== null) {
       parameters[match[1]] = match[2];
+      match = paramRegex.exec(content);
     }
 
     return { prompt, parameters };

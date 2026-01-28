@@ -27,10 +27,10 @@ interface CLIArgs {
   title: string;
   subtitle: string;
   output: string;
-  titleColor?: string;
-  subtitleColor?: string;
-  borderColor?: string;
-  font?: string;
+  titleColor: string;
+  subtitleColor: string;
+  borderColor: string;
+  font: string;
   headshotPosition?: "left" | "center" | "right";
 }
 
@@ -151,6 +151,7 @@ function parseArgs(args: string[]): CLIArgs {
       case "-h":
         printHelp();
         process.exit(0);
+        break;
       case "--background":
         result.background = next;
         i++;
@@ -230,8 +231,12 @@ async function runCommand(cmd: string, args: string[]): Promise<string> {
     let stdout = "";
     let stderr = "";
 
-    proc.stdout.on("data", (data) => (stdout += data.toString()));
-    proc.stderr.on("data", (data) => (stderr += data.toString()));
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
 
     proc.on("close", (code) => {
       if (code === 0) {
@@ -352,8 +357,8 @@ async function composeThumbnail(args: CLIArgs): Promise<void> {
     // For center position: separate title (top) and subtitle (bottom)
 
     // Resolve colors (support preset names like "cyan" or hex like "#ff007c")
-    const titleColorResolved = resolveColor(args.titleColor!);
-    const subtitleColorResolved = resolveColor(args.subtitleColor!);
+    const titleColorResolved = resolveColor(args.titleColor);
+    const subtitleColorResolved = resolveColor(args.subtitleColor);
 
     if (args.headshotPosition === "center") {
       // CENTER: Title at top, subtitle at bottom (outside headshot zone)
@@ -365,7 +370,7 @@ async function composeThumbnail(args: CLIArgs): Promise<void> {
       await runCommand("magick", [
         "-size", "1400x200",
         "xc:transparent",
-        "-font", args.font!,
+        "-font", args.font,
         "-pointsize", String(LAYOUT.titleSize),
         "-gravity", "center",
         "-stroke", "#000000", "-strokewidth", String(LAYOUT.titleStroke), "-fill", "none",
@@ -380,7 +385,7 @@ async function composeThumbnail(args: CLIArgs): Promise<void> {
       await runCommand("magick", [
         "-size", "1400x120",
         "xc:transparent",
-        "-font", args.font!,
+        "-font", args.font,
         "-pointsize", String(LAYOUT.subtitleSize),
         "-gravity", "center",
         "-stroke", "#000000", "-strokewidth", String(LAYOUT.subtitleStroke), "-fill", "none",
@@ -432,7 +437,7 @@ async function composeThumbnail(args: CLIArgs): Promise<void> {
       await runCommand("magick", [
         "-size", "1400x200",
         "xc:transparent",
-        "-font", args.font!,
+        "-font", args.font,
         "-gravity", "center",
         "-pointsize", String(LAYOUT.titleSize),
         "-stroke", "#000000", "-strokewidth", String(LAYOUT.titleStroke), "-fill", "none",
@@ -447,7 +452,7 @@ async function composeThumbnail(args: CLIArgs): Promise<void> {
       await runCommand("magick", [
         "-size", "1400x120",
         "xc:transparent",
-        "-font", args.font!,
+        "-font", args.font,
         "-gravity", "center",
         "-pointsize", String(LAYOUT.subtitleSize),
         "-stroke", "#000000", "-strokewidth", String(LAYOUT.subtitleStroke), "-fill", "none",
@@ -493,7 +498,7 @@ async function composeThumbnail(args: CLIArgs): Promise<void> {
     console.log("   🖼️  Adding border...");
     await runCommand("magick", [
       withText,
-      "-bordercolor", args.borderColor!,
+      "-bordercolor", args.borderColor,
       "-border", String(LAYOUT.borderWidth),
       "-resize", `${LAYOUT.width}x${LAYOUT.height}!`,
       args.output,

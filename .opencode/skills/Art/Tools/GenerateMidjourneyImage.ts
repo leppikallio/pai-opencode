@@ -26,7 +26,8 @@ import { resolve } from 'node:path';
  * This ensures API keys are available regardless of how the CLI is invoked
  */
 async function loadEnv(): Promise<void> {
-  const paiDir = process.env.PAI_DIR || resolve(process.env.HOME!, '.opencode');
+  const homeDir = process.env.HOME ?? process.cwd();
+  const paiDir = process.env.PAI_DIR || resolve(homeDir, '.opencode');
   const envPath = resolve(paiDir, '.env');
   try {
     const envContent = await readFile(envPath, 'utf-8');
@@ -47,7 +48,7 @@ async function loadEnv(): Promise<void> {
         process.env[key] = value;
       }
     }
-  } catch (error) {
+  } catch (_error) {
     // Silently continue if .env doesn't exist - rely on shell env vars
   }
 }
@@ -76,8 +77,8 @@ interface CLIArgs {
 const DEFAULTS = {
   aspectRatio: '16:9',
   version: process.env.MIDJOURNEY_DEFAULT_VERSION || '6.1',
-  stylize: parseInt(process.env.MIDJOURNEY_DEFAULT_STYLIZE || '100'),
-  quality: parseInt(process.env.MIDJOURNEY_DEFAULT_QUALITY || '1'),
+  stylize: parseInt(process.env.MIDJOURNEY_DEFAULT_STYLIZE || '100', 10),
+  quality: parseInt(process.env.MIDJOURNEY_DEFAULT_QUALITY || '1', 10),
   tile: false,
   output: '/tmp/midjourney-image.png',
   timeout: 120,
@@ -221,7 +222,7 @@ function parseArgs(args: string[]): CLIArgs {
 
       case '--stylize':
       case '-s':
-        result.stylize = parseInt(args[++i]);
+        result.stylize = parseInt(args[++i], 10);
         break;
 
       case '--quality':
@@ -230,11 +231,11 @@ function parseArgs(args: string[]): CLIArgs {
         break;
 
       case '--chaos':
-        result.chaos = parseInt(args[++i]);
+        result.chaos = parseInt(args[++i], 10);
         break;
 
       case '--weird':
-        result.weird = parseInt(args[++i]);
+        result.weird = parseInt(args[++i], 10);
         break;
 
       case '--tile':
@@ -247,7 +248,7 @@ function parseArgs(args: string[]): CLIArgs {
         break;
 
       case '--timeout':
-        result.timeout = parseInt(args[++i]);
+        result.timeout = parseInt(args[++i], 10);
         break;
 
       default:
@@ -281,13 +282,13 @@ async function main() {
 
     if (!botToken) {
       throw new CLIError(
-        'Missing DISCORD_BOT_TOKEN environment variable. Add it to ${PAI_DIR}/.env'
+        `Missing DISCORD_BOT_TOKEN environment variable. Add it to \${PAI_DIR}/.env`
       );
     }
 
     if (!channelId) {
       throw new CLIError(
-        'Missing MIDJOURNEY_CHANNEL_ID environment variable. Add it to ${PAI_DIR}/.env'
+        `Missing MIDJOURNEY_CHANNEL_ID environment variable. Add it to \${PAI_DIR}/.env`
       );
     }
 

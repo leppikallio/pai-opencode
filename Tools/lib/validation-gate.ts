@@ -5,9 +5,8 @@
  * Prevents accidental overwrites of customized PAI infrastructure.
  */
 
-import { readFileSync, existsSync } from "fs";
+import { readFileSync, existsSync } from "node:fs";
 import { diffLines } from "diff";
-import { join } from "path";
 
 // ============================================================================
 // TYPES
@@ -67,7 +66,7 @@ export function isSystemFile(path: string): SystemFile | null {
       }
     } else {
       // Exact file match
-      if (path === systemFile.path || path.endsWith("/" + systemFile.path)) {
+      if (path === systemFile.path || path.endsWith(`/${systemFile.path}`)) {
         return systemFile;
       }
     }
@@ -261,7 +260,7 @@ function extractVersion(content: string): string | undefined {
 
   for (const pattern of versionPatterns) {
     const match = content.match(pattern);
-    if (match && match[1]) {
+    if (match?.[1]) {
       return match[1];
     }
   }
@@ -327,9 +326,10 @@ function extractExports(content: string): string[] {
   ];
 
   patterns.forEach((pattern) => {
-    let match;
-    while ((match = pattern.exec(content)) !== null) {
+    let match: RegExpExecArray | null = pattern.exec(content);
+    while (match !== null) {
       exports.push(match[1]);
+      match = pattern.exec(content);
     }
   });
 
@@ -384,7 +384,7 @@ export function logValidationGate(
   result: ValidationGateResult,
   logPath: string
 ): void {
-  const log = JSON.stringify(result, null, 2) + "\n";
-  const { appendFileSync } = require("fs");
+  const log = `${JSON.stringify(result, null, 2)}\n`;
+  const { appendFileSync } = require("node:fs");
   appendFileSync(logPath, log);
 }

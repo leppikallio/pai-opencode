@@ -36,8 +36,8 @@ export default function ReportPage() {
               <div className="flex-1">
                 <p className="text-sm font-semibold text-foreground mb-2">Roles Interviewed:</p>
                 <div className="grid grid-cols-2 gap-1">
-                  {data.executiveSummary.methodology.roles.map((role, i) => (
-                    <p key={i} className="text-sm text-muted">{role}</p>
+                  {data.executiveSummary.methodology.roles.map((role) => (
+                    <p key={role} className="text-sm text-muted">{role}</p>
                   ))}
                 </div>
               </div>
@@ -47,7 +47,7 @@ export default function ReportPage() {
           <Exhibit number={2} title="Key Findings Summary">
             <ul className="space-y-2">
               {data.executiveSummary.keyFindings.map((finding, i) => (
-                <li key={i} className="flex items-start gap-3">
+                <li key={finding} className="flex items-start gap-3">
                   <span className="text-primary font-bold">{i + 1}.</span>
                   <span>{finding}</span>
                 </li>
@@ -61,8 +61,8 @@ export default function ReportPage() {
 
           <h3 className="text-lg font-semibold mt-6 mb-3">Expected Outcomes</h3>
           <ul className="space-y-2">
-            {data.executiveSummary.expectedOutcomes.map((outcome, i) => (
-              <li key={i} className="flex items-center gap-3">
+            {data.executiveSummary.expectedOutcomes.map((outcome) => (
+              <li key={outcome} className="flex items-center gap-3">
                 <CheckCircle2 className="h-5 w-5 text-success flex-shrink-0" />
                 <span>{outcome}</span>
               </li>
@@ -113,9 +113,9 @@ export default function ReportPage() {
           <div className="grid gap-6">
             <Exhibit number={3} title="Existential Risks">
               <div className="space-y-3">
-                {data.riskAnalysis.existentialRisks.map((risk, i) => (
+                {data.riskAnalysis.existentialRisks.map((risk) => (
                   <div
-                    key={i}
+                    key={risk}
                     className="flex items-start gap-3 p-3 bg-destructive/5 rounded-lg border border-destructive/20"
                   >
                     <AlertTriangle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
@@ -128,7 +128,7 @@ export default function ReportPage() {
             <Exhibit number={4} title="Competitive Threats">
               <ul className="space-y-2">
                 {data.riskAnalysis.competitiveThreats.map((threat, i) => (
-                  <li key={i} className="flex items-start gap-3">
+                  <li key={threat} className="flex items-start gap-3">
                     <span className="text-warning font-bold">{i + 1}.</span>
                     <span>{threat}</span>
                   </li>
@@ -158,7 +158,7 @@ export default function ReportPage() {
           <ul className="space-y-3">
             {data.strategicOpportunity.requirements.map((req, i) => (
               <li
-                key={i}
+                key={req}
                 className="flex items-start gap-3 p-3 bg-accent/5 rounded-lg border border-accent/20"
               >
                 <span className="text-accent font-bold">{i + 1}.</span>
@@ -192,9 +192,9 @@ export default function ReportPage() {
 
           <Exhibit number={5} title="Key Capabilities Enabled">
             <div className="grid md:grid-cols-3 gap-4">
-              {data.targetState.keyCapabilities.map((capability, i) => (
+              {data.targetState.keyCapabilities.map((capability) => (
                 <div
-                  key={i}
+                  key={capability}
                   className="p-4 bg-success/5 rounded-lg border border-success/20 text-center"
                 >
                   <CheckCircle2 className="h-8 w-8 text-success mx-auto mb-2" />
@@ -206,8 +206,8 @@ export default function ReportPage() {
 
           <h3 className="text-lg font-semibold mt-6 mb-3">Success Metrics</h3>
           <ul className="space-y-2">
-            {data.targetState.successMetrics.map((metric, i) => (
-              <li key={i} className="flex items-center gap-3">
+            {data.targetState.successMetrics.map((metric) => (
+              <li key={metric} className="flex items-center gap-3">
                 <span className="w-2 h-2 bg-primary rounded-full" />
                 <span>{metric}</span>
               </li>
@@ -233,7 +233,7 @@ export default function ReportPage() {
             <h3 className="text-xl font-semibold mb-4">Immediate Next Steps</h3>
             <ol className="space-y-3 mb-6">
               {data.callToAction.immediateSteps.map((step, i) => (
-                <li key={i} className="flex items-start gap-3">
+                <li key={step} className="flex items-start gap-3">
                   <span className="flex-shrink-0 w-7 h-7 rounded-full bg-primary text-white flex items-center justify-center font-bold text-sm">
                     {i + 1}
                   </span>
@@ -244,8 +244,8 @@ export default function ReportPage() {
 
             <h3 className="text-xl font-semibold mb-4">Decision Points Required</h3>
             <ul className="space-y-2 mb-6">
-              {data.callToAction.decisionPoints.map((point, i) => (
-                <li key={i} className="flex items-center gap-3">
+              {data.callToAction.decisionPoints.map((point) => (
+                <li key={point} className="flex items-center gap-3">
                   <span className="w-2 h-2 bg-accent rounded-full" />
                   <span>{point}</span>
                 </li>

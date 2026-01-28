@@ -10,9 +10,9 @@
  * Usage: bun run LoadAgentContext.ts <agentType>
  */
 
-import { readFileSync, existsSync, readdirSync } from "fs";
-import { join } from "path";
-import { homedir } from "os";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
 
 interface AgentContext {
   agentType: string;
@@ -102,7 +102,9 @@ if (import.meta.main) {
     console.log("\nAvailable agent types:");
     const loader = new AgentContextLoader();
     const agents = loader.getAvailableAgents();
-    agents.forEach((a) => console.log(`  - ${a}`));
+    agents.forEach((a) => {
+      console.log(`  - ${a}`);
+    });
     process.exit(1);
   }
 

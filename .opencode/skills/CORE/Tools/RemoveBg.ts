@@ -23,7 +23,8 @@ import { existsSync } from "node:fs";
 // ============================================================================
 
 async function loadEnv(): Promise<void> {
-  const envPath = resolve(process.env.HOME!, ".opencode/.env");
+  const homeDir = process.env.HOME ?? process.cwd();
+  const envPath = resolve(homeDir, ".opencode/.env");
   try {
     const envContent = await readFile(envPath, "utf-8");
     for (const line of envContent.split("\n")) {
@@ -97,7 +98,7 @@ async function removeBackground(
   const apiKey = process.env.REMOVEBG_API_KEY;
   if (!apiKey) {
     console.error("❌ Missing environment variable: REMOVEBG_API_KEY");
-    console.error("   Add it to ${PAI_DIR}/.env or export it in your shell");
+    console.error(`   Add it to \${PAI_DIR}/.env or export it in your shell`);
     process.exit(1);
   }
 

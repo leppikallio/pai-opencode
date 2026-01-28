@@ -322,7 +322,7 @@ async function main() {
 
   await test('switchTab()', async () => {
     await browser.switchTab(0)
-    const url = browser.getUrl()
+    const _url = browser.getUrl()
     // Should be back on first tab
   })
 
@@ -384,7 +384,7 @@ async function main() {
   // ============================================
   // SUMMARY
   // ============================================
-  console.log('\n' + '='.repeat(50))
+  console.log(`\n${'='.repeat(50)}`)
   console.log('TEST SUMMARY')
   console.log('='.repeat(50))
 

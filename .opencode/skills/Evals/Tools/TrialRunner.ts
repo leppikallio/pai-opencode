@@ -4,10 +4,10 @@
  * Execute multiple trials and calculate pass@k / pass^k metrics
  */
 
-import type { Task, Trial, EvalRun, GraderResult, Transcript, GraderConfig } from '../Types/index.ts';
+import type { Task, Trial, EvalRun, Transcript, } from '../Types/index.ts';
 import { createGrader, runGraders, type GraderContext } from '../Graders/Base.ts';
 import { TranscriptCapture } from './TranscriptCapture.ts';
-import { parseArgs } from 'util';
+import { parseArgs } from 'node:util';
 
 // Import graders to register them
 import '../Graders/CodeBased/index.ts';
@@ -111,7 +111,7 @@ export class TrialRunner {
     const passCount = trials.filter(t => t.passed).length;
     const scores = trials.map(t => t.score);
     const meanScore = scores.reduce((a, b) => a + b, 0) / scores.length;
-    const variance = scores.reduce((sum, s) => sum + Math.pow(s - meanScore, 2), 0) / scores.length;
+    const variance = scores.reduce((sum, s) => sum + (s - meanScore) ** 2, 0) / scores.length;
     const stdDev = Math.sqrt(variance);
 
     // Calculate pass@k and pass^k

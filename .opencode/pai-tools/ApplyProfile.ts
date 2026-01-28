@@ -10,15 +10,20 @@
  *   bun pai-tools/ApplyProfile.ts <profile-name> [--opencode-dir <dir>] [--dry-run]
  */
 
-import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from "fs";
-import { join, dirname, resolve } from "path";
-import { fileURLToPath } from "url";
-import os from "os";
+import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { join, dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import os from "node:os";
 
 type ApplyProfileOptions = {
   opencodeDir: string;
   profileName: string;
   dryRun: boolean;
+};
+
+type SimpleProfile = {
+  models?: Record<string, string>;
+  [key: string]: string | Record<string, string> | undefined;
 };
 
 function dirExists(p: string): boolean {
@@ -31,7 +36,7 @@ function dirExists(p: string): boolean {
 
 function defaultOpencodeDir(): string {
   const fromEnv = process.env.PAI_DIR;
-  if (fromEnv && fromEnv.trim()) return resolve(fromEnv.trim());
+  if (fromEnv?.trim()) return resolve(fromEnv.trim());
 
   // Resolve to the directory that contains the runtime tree.
   // pai-tools/ApplyProfile.ts -> <opencodeDir>/pai-tools -> <opencodeDir>
@@ -58,7 +63,9 @@ function usage(opencodeDir?: string) {
   if (existsSync(profilesDir)) {
     console.log("Available profiles:");
     const profiles = readdirSync(profilesDir).filter((f) => f.endsWith(".yaml"));
-    profiles.forEach((p) => console.log(`  - ${p.replace(".yaml", "")}`));
+    profiles.forEach((p) => {
+      console.log(`  - ${p.replace(".yaml", "")}`);
+    });
   }
 }
 
@@ -95,7 +102,6 @@ function parseArgs(argv: string[]): ApplyProfileOptions | null {
     }
     if (!profileName) {
       profileName = arg;
-      continue;
     }
   }
 
@@ -161,7 +167,7 @@ export function applyProfileToAgents(opts: ApplyProfileOptions): { updated: numb
     }
 
     const candidates = getModelKeyCandidates(agentName);
-    const key = candidates.find((k) => profile.models && Object.prototype.hasOwnProperty.call(profile.models, k));
+    const key = candidates.find((k) => profile.models && Object.hasOwn(profile.models, k));
     const newModel = (key ? profile.models[key] : undefined) || profile.models.default;
 
     const newContent = content.replace(modelRegex, `model: ${newModel}`);
@@ -182,8 +188,8 @@ export function applyProfileToAgents(opts: ApplyProfileOptions): { updated: numb
   return { updated, total: agentFiles.length };
 }
 
-function parseSimpleProfileYaml(content: string): any {
-  const out: any = {};
+function parseSimpleProfileYaml(content: string): SimpleProfile {
+  const out: SimpleProfile = {};
   let currentMap: "models" | null = null;
 
   for (const rawLine of content.split(/\r?\n/)) {
@@ -193,7 +199,7 @@ function parseSimpleProfileYaml(content: string): any {
     if (!trimmed) continue;
     if (trimmed.startsWith("#")) continue;
 
-    if (/^[a-zA-Z0-9_\-]+:\s*$/.test(trimmed)) {
+    if (/^[a-zA-Z0-9_-]+:\s*$/.test(trimmed)) {
       const key = trimmed.slice(0, -1).trim();
       if (key === "models") {
         out.models = out.models || {};
@@ -204,11 +210,15 @@ function parseSimpleProfileYaml(content: string): any {
       continue;
     }
 
-    if (currentMap === "models" && /^\s{2,}[a-zA-Z0-9_\-]+:/.test(line)) {
+    if (currentMap === "models" && /^\s{2,}[a-zA-Z0-9_-]+:/.test(line)) {
       const idx = line.indexOf(":");
       const k = line.slice(0, idx).trim();
       const v = line.slice(idx + 1).trim();
-      if (k) out.models[k] = stripYamlScalar(v);
+      if (k) {
+        const models = out.models ?? {};
+        models[k] = stripYamlScalar(v);
+        out.models = models;
+      }
       continue;
     }
 
@@ -237,8 +247,9 @@ function main() {
 
   try {
     applyProfileToAgents(args);
-  } catch (err: any) {
-    console.error(`\nError: ${err?.message || String(err)}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`\nError: ${message}`);
     usage(args.opencodeDir);
     process.exit(1);
   }

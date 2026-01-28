@@ -4,9 +4,9 @@
  */
 
 import { BaseGrader, registerGrader, type GraderContext } from '../Base.ts';
-import type { GraderConfig, GraderResult, PairwiseComparisonParams } from '../../Types/index.ts';
+import type { GraderResult, PairwiseComparisonParams } from '../../Types/index.ts';
 import { inference, type InferenceLevel } from '../../../CORE/Tools/Inference';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from 'node:fs';
 
 export class PairwiseComparisonGrader extends BaseGrader {
   type = 'pairwise_comparison' as const;

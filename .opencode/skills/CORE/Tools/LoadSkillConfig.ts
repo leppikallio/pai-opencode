@@ -14,9 +14,9 @@
  *   bun ~/.config/opencode/skills/CORE/Tools/LoadSkillConfig.ts <skill-dir> <filename>
  */
 
-import { readFileSync, existsSync, readdirSync } from 'fs';
-import { join, basename } from 'path';
-import { homedir } from 'os';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
+import { join, basename } from 'node:path';
+import { homedir } from 'node:os';
 import { parse as parseYaml } from 'yaml';
 
 // Types
@@ -40,8 +40,8 @@ const CUSTOMIZATION_DIR = join(HOME, '.opencode', 'skills', 'CORE', 'USER', 'SKI
 /**
  * Deep merge two objects recursively
  */
-function deepMerge<T extends Record<string, any>>(base: T, custom: Partial<T>): T {
-  const result = { ...base };
+function deepMerge<T extends Record<string, unknown>>(base: T, custom: Partial<T>): T {
+  const result = { ...base } as Record<string, unknown>;
 
   for (const key of Object.keys(custom) as (keyof T)[]) {
     const customValue = custom[key];
@@ -58,17 +58,20 @@ function deepMerge<T extends Record<string, any>>(base: T, custom: Partial<T>): 
       !Array.isArray(baseValue)
     ) {
       // Recursively merge objects
-      result[key] = deepMerge(baseValue, customValue);
+      result[key as string] = deepMerge(
+        baseValue as Record<string, unknown>,
+        customValue as Partial<Record<string, unknown>>
+      );
     } else if (Array.isArray(customValue) && Array.isArray(baseValue)) {
       // Concatenate arrays
-      result[key] = [...baseValue, ...customValue] as T[keyof T];
+      result[key as string] = [...baseValue, ...customValue];
     } else {
       // Override value
-      result[key] = customValue as T[keyof T];
+      result[key as string] = customValue as unknown;
     }
   }
 
-  return result;
+  return result as T;
 }
 
 /**
@@ -80,7 +83,7 @@ function mergeConfigs<T>(
   strategy: 'append' | 'override' | 'deep_merge'
 ): T {
   // Remove metadata from custom config
-  const { _customization, ...customData } = custom as any;
+  const { _customization, ...customData } = custom as T & { _customization?: CustomizationMetadata };
 
   // Override per-file strategy if specified
   const effectiveStrategy = _customization?.merge_strategy || strategy;
@@ -90,12 +93,10 @@ function mergeConfigs<T>(
       return customData as T;
 
     case 'deep_merge':
-      return deepMerge(base as Record<string, any>, customData) as T;
-
-    case 'append':
-    default:
+      return deepMerge(base as Record<string, unknown>, customData as Partial<Record<string, unknown>>) as T;
+    default: {
       // For append, concatenate all arrays found at the top level
-      const result = { ...base } as any;
+      const result = { ...base } as Record<string, unknown>;
       for (const key of Object.keys(customData)) {
         if (Array.isArray(result[key]) && Array.isArray(customData[key])) {
           result[key] = [...result[key], ...customData[key]];
@@ -105,6 +106,7 @@ function mergeConfigs<T>(
         }
       }
       return result as T;
+    }
   }
 }
 
@@ -218,7 +220,7 @@ export function getCustomizationPath(skillName: string): string {
  */
 export function hasCustomizations(skillName: string): boolean {
   const manifest = loadExtendManifest(skillName);
-  return manifest !== null && manifest.enabled;
+  return manifest?.enabled;
 }
 
 /**
@@ -263,7 +265,9 @@ Examples:
       console.log('No skills with customizations found.');
     } else {
       console.log('Skills with customizations:');
-      skills.forEach(s => console.log(`  - ${s}`));
+      skills.forEach((s) => {
+        console.log(`  - ${s}`);
+      });
     }
     process.exit(0);
   }

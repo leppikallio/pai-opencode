@@ -165,7 +165,7 @@ async function main() {
     console.log(`\n=== Domain Recon: ${domain} ===\n`);
     console.log(`Subdomains (${uniqueSubdomains.length} unique):`);
     for (const sub of uniqueSubdomains) {
-      if (resolved && resolved[sub]) {
+      if (resolved?.[sub]) {
         console.log(`  ${sub} → ${resolved[sub].join(", ")}`);
       } else {
         console.log(`  ${sub}`);

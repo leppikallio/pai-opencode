@@ -277,7 +277,7 @@ function parseWhoisDate(dateStr: string): Date | undefined {
   // Try standard date parsing
   const date = new Date(dateStr);
 
-  if (!isNaN(date.getTime())) {
+  if (!Number.isNaN(date.getTime())) {
     return date;
   }
 
@@ -447,7 +447,9 @@ if (import.meta.main) {
     const emails = extractEmails(info);
     if (emails.length > 0) {
       console.log(`\nContact Emails:`);
-      emails.forEach((email) => console.log(`  - ${email}`));
+      emails.forEach((email) => {
+        console.log(`  - ${email}`);
+      });
     }
   }
 }

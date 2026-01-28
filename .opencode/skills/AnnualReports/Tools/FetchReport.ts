@@ -8,8 +8,8 @@
  *   bun run FetchReport.ts --list-cached             # List downloaded reports
  */
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
-import { join, basename } from 'path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { join, basename } from 'node:path';
 
 const SOURCES_PATH = join(import.meta.dir, '..', 'Data', 'sources.json');
 const REPORTS_DIR = join(import.meta.dir, '..', 'Reports');

@@ -31,35 +31,26 @@
  * @author PAI-OpenCode Project
  */
 
-import { existsSync, mkdirSync, readdirSync, statSync, readFileSync, writeFileSync, copyFileSync } from "fs";
-import { join, basename, dirname, relative } from "path";
-import { parseArgs } from "util";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, copyFileSync } from "node:fs";
+import { join, basename, dirname, relative } from "node:path";
+import { parseArgs } from "node:util";
 
 import {
   isSystemFile,
   compareFiles,
   formatValidationGate,
-  createValidationGateResult,
-  SYSTEM_FILES,
-  type SystemFile,
-  type FileComparison,
-  type ValidationGateResult,
 } from "./lib/validation-gate.js";
 
 import {
   createManifest,
   detectSource,
-  addTransformation,
   addValidationGateResult,
-  addValidationRequirement,
   writeManifest,
   getManifestSummary,
   detectPAIVersion,
   isSelectiveMigrationSupported,
   formatVersionInfo,
   type MigrationManifest,
-  type Transformation,
-  type PAIVersion,
   type VersionDetectionResult,
 } from "./lib/migration-manifest.js";
 
@@ -255,7 +246,7 @@ function parseCliArgs(): {
  * Shows recommendations based on detected PAI version
  */
 async function promptMigrationMode(versionResult: VersionDetectionResult): Promise<MigrationMode> {
-  const readline = await import("readline");
+  const readline = await import("node:readline");
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
@@ -627,7 +618,7 @@ function translateSettings(source: string, target: string, dryRun: boolean, verb
 
   if (!dryRun) {
     ensureDir(configDir, dryRun);
-    writeFileSync(outputPath, JSON.stringify(opencode, null, 2) + "\n");
+    writeFileSync(outputPath, `${JSON.stringify(opencode, null, 2)}\n`);
   }
 
   return { success: true, warnings };
@@ -772,7 +763,7 @@ const HAIKU_AGENTS = ["intern", "explore"];
  * Get the correct OpenCode model format for an agent
  * Based on cost-aware model assignment strategy
  */
-function getModelForAgent(agentName: string, currentModel: string): string {
+function getModelForAgent(agentName: string, _currentModel: string): string {
   const normalizedName = agentName.toLowerCase().replace(/\.md$/, "");
 
   // Intern and Explore use haiku for cost efficiency
@@ -872,7 +863,7 @@ function translateAgents(source: string, target: string, dryRun: boolean, verbos
         // Matches: color: cyan or color: "cyan" etc.
         content = content.replace(
           /^(color:\s*)([a-zA-Z]+)(\s*)$/gm,
-          (match, prefix, colorName, suffix) => {
+          (_match, prefix, colorName, suffix) => {
             const hexColor = convertColorToHex(colorName);
             log(`  Color converted: ${colorName} → ${hexColor} in ${basename(file)}`, verbose);
             return `${prefix}"${hexColor}"${suffix}`;
@@ -882,7 +873,7 @@ function translateAgents(source: string, target: string, dryRun: boolean, verbos
         // Also handle quoted named colors
         content = content.replace(
           /^(color:\s*["'])([a-zA-Z]+)(["']\s*)$/gm,
-          (match, prefix, colorName, suffix) => {
+          (_match, prefix, colorName, _suffix) => {
             const hexColor = convertColorToHex(colorName);
             log(`  Color converted: ${colorName} → ${hexColor} in ${basename(file)}`, verbose);
             return `${prefix.replace(/["']$/, '"')}${hexColor}"`;
@@ -905,7 +896,7 @@ function translateAgents(source: string, target: string, dryRun: boolean, verbos
         const agentName = basename(file);
         content = content.replace(
           /^(model:\s*)(\w+)(\s*)$/gm,
-          (match, prefix, modelName, suffix) => {
+          (_match, prefix, modelName, suffix) => {
             const openCodeModel = getModelForAgent(agentName, modelName);
             log(`  Model converted: ${modelName} → ${openCodeModel} in ${agentName}`, verbose);
             return `${prefix}${openCodeModel}${suffix}`;
@@ -1035,7 +1026,7 @@ function translateToolsDir(toolsSource: string, toolsTarget: string, dryRun: boo
  *
  * @since v0.9.6
  */
-function discoverHooks(source: string, verbose: boolean): {
+function _discoverHooks(source: string, verbose: boolean): {
   hooks: Array<{
     name: string;
     path: string;
@@ -1122,7 +1113,7 @@ function discoverHooks(source: string, verbose: boolean): {
 /**
  * Check if file is a system file and show validation gate if needed
  */
-function checkValidationGate(
+function _checkValidationGate(
   sourcePath: string,
   targetPath: string,
   manifest: MigrationManifest,
@@ -1214,7 +1205,7 @@ function validateConversion(target: string, verbose: boolean): {
               }
             }
           }
-        } catch (e) {
+        } catch (_e) {
           // Skip files that can't be read
         }
       }
@@ -1569,7 +1560,7 @@ async function main(): Promise<void> {
   if (!args.dryRun) {
     writeManifest(manifest, args.target);
   } else {
-    console.log("\n📄 Migration manifest would be written to: " + join(args.target, "MIGRATION-MANIFEST.json"));
+    console.log(`\n📄 Migration manifest would be written to: ${join(args.target, "MIGRATION-MANIFEST.json")}`);
     console.log(getManifestSummary(manifest));
   }
 
@@ -1577,7 +1568,7 @@ async function main(): Promise<void> {
   if (!args.skipValidation && !args.dryRun) {
     console.log("\n🔍 Running MigrationValidator...");
     try {
-      const { spawn } = await import("child_process");
+      const { spawn } = await import("node:child_process");
       const manifestPath = join(args.target, "MIGRATION-MANIFEST.json");
       const validatorProcess = spawn("bun", [
         "run",
@@ -1611,17 +1602,21 @@ ${mode === "selective" ? `⏭️ Skipped:   ${result.skipped.length} files (usin
 🔧 Manual:    ${result.manualRequired.length} items
 ${validationResult.clean ? "✅ Validation: CLEAN (no .claude references found)" : `⚠️  Validation: ${validationResult.remainingReferences.length} .claude reference(s) remaining`}
 
-${args.dryRun ? "This was a DRY RUN - no files were modified." : "Files have been written to: " + args.target}
+${args.dryRun ? "This was a DRY RUN - no files were modified." : `Files have been written to: ${args.target}`}
 `);
 
   if (result.warnings.length > 0) {
     console.log("Warnings:");
-    result.warnings.forEach(w => console.log(`  ⚠️  ${w}`));
+    result.warnings.forEach((w) => {
+      console.log(`  ⚠️  ${w}`);
+    });
   }
 
   if (result.manualRequired.length > 0) {
     console.log("\nManual migration required:");
-    result.manualRequired.forEach(m => console.log(`  🔧 ${m}`));
+    result.manualRequired.forEach((m) => {
+      console.log(`  🔧 ${m}`);
+    });
   }
 }
 

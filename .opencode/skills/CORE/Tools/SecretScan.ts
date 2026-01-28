@@ -29,8 +29,8 @@
 - And 700+ other credential types
 */
 
-import { spawn } from 'child_process';
-import { existsSync } from 'fs';
+import { spawn } from 'node:child_process';
+import { existsSync } from 'node:fs';
 
 interface TruffleHogFinding {
   SourceMetadata: {
@@ -47,7 +47,7 @@ interface TruffleHogFinding {
   Raw: string;
   RawV2: string;
   Redacted: string;
-  ExtraData: any;
+  ExtraData: unknown;
 }
 
 async function runTruffleHog(targetDir: string, options: string[]): Promise<string> {
@@ -93,7 +93,7 @@ function parseTruffleHogOutput(output: string): TruffleHogFinding[] {
       if (finding.SourceMetadata?.Data?.Filesystem) {
         findings.push(finding);
       }
-    } catch (e) {
+    } catch (_e) {
       // Skip non-JSON lines
     }
   }
@@ -198,7 +198,7 @@ async function main() {
   // Check if trufflehog is installed
   try {
     await runTruffleHog('--help', []);
-  } catch (error) {
+  } catch (_error) {
     console.error('❌ TruffleHog is not installed or not in PATH');
     console.error('Install with: brew install trufflehog');
     process.exit(1);
@@ -224,8 +224,9 @@ async function main() {
     if (findings.some(f => f.Verified)) {
       process.exit(1);
     }
-  } catch (error) {
-    console.error(`❌ Error running TruffleHog: ${error.message}`);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`❌ Error running TruffleHog: ${message}`);
     process.exit(1);
   }
 }

@@ -4,9 +4,9 @@
  */
 
 import { BaseGrader, registerGrader, type GraderContext } from '../Base.ts';
-import type { GraderConfig, GraderResult, StateCheckParams } from '../../Types/index.ts';
-import { existsSync, readFileSync } from 'fs';
-import { join } from 'path';
+import type { GraderResult, StateCheckParams } from '../../Types/index.ts';
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 export class StateCheckGrader extends BaseGrader {
   type = 'state_check' as const;

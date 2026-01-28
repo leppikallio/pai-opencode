@@ -170,7 +170,7 @@ export async function getAllRecords(domain: string): Promise<{
   NS: string[];
   TXT: string[];
   CNAME: string | null;
-  SOA: any;
+  SOA: unknown;
 }> {
   const [A, AAAA, MX, NS, TXT, CNAME, SOA] = await Promise.all([
     getARecords(domain),
@@ -476,12 +476,16 @@ if (import.meta.main) {
     console.log("Searching certificate transparency...");
     const certSubs = await enumerateSubdomainsViaCert(domain);
     console.log(`Found ${certSubs.length} subdomains via cert transparency:`);
-    certSubs.forEach((sub) => console.log(`  ${sub}`));
+    certSubs.forEach((sub) => {
+      console.log(`  ${sub}`);
+    });
 
     console.log("\nChecking common subdomains...");
     const commonSubs = await enumerateCommonSubdomains(domain);
     console.log(`Found ${commonSubs.length} common subdomains:`);
-    commonSubs.forEach((sub) => console.log(`  ${sub}`));
+    commonSubs.forEach((sub) => {
+      console.log(`  ${sub}`);
+    });
   } else if (command === "reverse" && args[2]) {
     const hostname = await reverseDNS(args[2]);
     console.log(hostname || "No PTR record found");

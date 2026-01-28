@@ -12,9 +12,9 @@
  *   bun .opencode/tools/skill-migrate.ts --source path/to/skill --target .opencode/skills/SkillName --force
  */
 
-import { existsSync, statSync, readdirSync, mkdirSync, copyFileSync, readFileSync } from 'fs';
-import { join, basename, dirname } from 'path';
-import { parseArgs } from 'util';
+import { existsSync, statSync, readdirSync, mkdirSync, copyFileSync, readFileSync } from 'node:fs';
+import { join, basename, dirname } from 'node:path';
+import { parseArgs } from 'node:util';
 
 interface TokenCounts {
   tier1: number;  // Description field

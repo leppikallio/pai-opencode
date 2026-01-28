@@ -19,7 +19,6 @@
  *   bun EndpointDiscovery.ts urls.txt --batch
  */
 
-import { $ } from "bun";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -78,7 +77,7 @@ const ENDPOINT_PATTERNS = {
   fullUrl: /["'`](https?:\/\/[^"'`\s]{5,500})["'`]/g,
 
   // Relative paths
-  relativePath: /["'`](\/[a-zA-Z0-9_\-]{1,50}(?:\/[a-zA-Z0-9_\-\.]{1,100}){0,10})["'`]/g,
+  relativePath: /["'`](\/[a-zA-Z0-9_-]{1,50}(?:\/[a-zA-Z0-9_\-.]{1,100}){0,10})["'`]/g,
 
   // WebSocket
   websocket: /["'`](wss?:\/\/[^"'`\s]{5,300})["'`]/g,
@@ -130,11 +129,11 @@ function extractEndpointsFromJS(content: string, source?: string): { endpoints: 
   const seenPaths = new Set<string>();
 
   // Extract endpoints
-  for (const [name, pattern] of Object.entries(ENDPOINT_PATTERNS)) {
+  for (const [_name, pattern] of Object.entries(ENDPOINT_PATTERNS)) {
     const regex = new RegExp(pattern.source, pattern.flags);
-    let match;
+    let match: RegExpExecArray | null = regex.exec(content);
 
-    while ((match = regex.exec(content)) !== null) {
+    while (match !== null) {
       const path = match[1] || match[0];
 
       // Skip common false positives
@@ -149,15 +148,17 @@ function extractEndpointsFromJS(content: string, source?: string): { endpoints: 
         type: classifyEndpoint(path),
         source,
       });
+
+      match = regex.exec(content);
     }
   }
 
   // Extract secrets
   for (const [type, pattern] of Object.entries(SECRET_PATTERNS)) {
     const regex = new RegExp(pattern.source, pattern.flags);
-    let match;
+    let match: RegExpExecArray | null = regex.exec(content);
 
-    while ((match = regex.exec(content)) !== null) {
+    while (match !== null) {
       const value = match[1] || match[0];
 
       // Avoid duplicates and false positives
@@ -168,6 +169,8 @@ function extractEndpointsFromJS(content: string, source?: string): { endpoints: 
         value: value.substring(0, 50) + (value.length > 50 ? "..." : ""),
         source,
       });
+
+      match = regex.exec(content);
     }
   }
 
@@ -202,7 +205,7 @@ async function crawlWithKatana(target: string, options: EndpointDiscoveryOptions
   }
 
   args.push("-d", String(options.depth || 3));
-  args.push("-ct", String(options.timeout || 30) + "s");
+  args.push("-ct", `${String(options.timeout || 30)}s`);
 
   if (options.threads) {
     args.push("-c", String(options.threads));
@@ -397,16 +400,16 @@ function parseArgs(args: string[]): { target: string; options: EndpointDiscovery
         break;
       case "-d":
       case "--depth":
-        options.depth = parseInt(next);
+        options.depth = parseInt(next, 10);
         i++;
         break;
       case "-t":
       case "--threads":
-        options.threads = parseInt(next);
+        options.threads = parseInt(next, 10);
         i++;
         break;
       case "--timeout":
-        options.timeout = parseInt(next);
+        options.timeout = parseInt(next, 10);
         i++;
         break;
       case "--headless":
@@ -488,6 +491,7 @@ Scale Tips:
   - Pipe to PathDiscovery.ts for fuzzing discovered endpoints
 `);
         process.exit(0);
+        break;
       default:
         if (!arg.startsWith("-") && !target) {
           target = arg;
@@ -572,4 +576,4 @@ if (options.json) {
   }
 }
 
-export { runEndpointDiscovery, extractEndpointsFromJS, EndpointDiscoveryOptions, EndpointDiscoveryResult, Endpoint };
+export { runEndpointDiscovery, extractEndpointsFromJS, type EndpointDiscoveryOptions, type EndpointDiscoveryResult, type Endpoint };

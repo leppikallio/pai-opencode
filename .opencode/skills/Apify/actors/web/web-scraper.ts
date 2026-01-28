@@ -10,7 +10,6 @@
 
 import { Apify } from '../../index'
 import type {
-  PaginationOptions,
   ActorRunOptions
 } from '../../types'
 
@@ -42,7 +41,7 @@ export interface ScrapedPage {
   title?: string
   html?: string
   text?: string
-  [key: string]: any // Custom extracted data
+  [key: string]: unknown // Custom extracted data
 }
 
 /* ============================================================================

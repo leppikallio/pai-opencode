@@ -7,8 +7,8 @@
  * @module rating-capture
  */
 
-import * as fs from "fs";
-import * as path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { fileLog, fileLogError } from "../lib/file-logger";
 import {
   getLearningDir,
@@ -124,7 +124,7 @@ export async function captureRating(
 
     // Append to ratings.jsonl
     const ratingsFile = path.join(signalsDir, "ratings.jsonl");
-    const line = JSON.stringify(rating) + "\n";
+    const line = `${JSON.stringify(rating)}\n`;
     await fs.promises.appendFile(ratingsFile, line);
 
     fileLog(`Rating captured: ${rating.score}/10`, "info");

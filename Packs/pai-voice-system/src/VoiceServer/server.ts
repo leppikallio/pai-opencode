@@ -5,14 +5,14 @@
  */
 
 import { serve } from "bun";
-import { spawn } from "child_process";
-import { homedir } from "os";
-import { join } from "path";
-import { existsSync, readFileSync } from "fs";
+import { spawn } from "node:child_process";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 
 function getOpenCodeDir(): string {
   const xdg = process.env.XDG_CONFIG_HOME;
-  const configHome = xdg && xdg.trim() ? xdg.trim() : join(homedir(), ".config");
+  const configHome = xdg?.trim() ? xdg.trim() : join(homedir(), ".config");
   return join(configHome, "opencode");
 }
 
@@ -36,7 +36,7 @@ if (existsSync(envPath)) {
   });
 }
 
-const PORT = parseInt(process.env.PORT || "8888");
+const PORT = parseInt(process.env.PORT || "8888", 10);
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 
 if (!ELEVENLABS_API_KEY) {
@@ -48,7 +48,7 @@ if (!ELEVENLABS_API_KEY) {
 // Load settings.json for DA identity and default voice
   let daVoiceId: string | null = null;
   let daVoiceProsody: ProsodySettings | null = null;
-  let daName = "Assistant";
+  let _daName = "Assistant";
   try {
   const settingsPath = join(getOpenCodeDir(), 'settings.json');
   if (existsSync(settingsPath)) {
@@ -59,14 +59,14 @@ if (!ELEVENLABS_API_KEY) {
       console.log(`Loaded DA voice ID from settings.json`);
     }
     if (settings.daidentity?.name) {
-      daName = settings.daidentity.name;
+      _daName = settings.daidentity.name;
     }
     if (settings.daidentity?.voice) {
       daVoiceProsody = settings.daidentity.voice as ProsodySettings;
       console.log(`Loaded DA voice prosody from settings.json`);
     }
   }
-} catch (error) {
+} catch (_error) {
   console.warn('Failed to load DA voice settings from settings.json');
 }
 
@@ -122,12 +122,12 @@ try {
     const markdownContent = readFileSync(corePersonalitiesPath, 'utf-8');
     // Extract JSON block from markdown
     const jsonMatch = markdownContent.match(/```json\n([\s\S]*?)\n```/);
-    if (jsonMatch && jsonMatch[1]) {
+    if (jsonMatch?.[1]) {
       voicesConfig = JSON.parse(jsonMatch[1]);
       console.log('Loaded agent voice personalities from AGENTPERSONALITIES.md');
     }
   }
-} catch (error) {
+} catch (_error) {
   console.warn('Failed to load agent voice personalities');
 }
 
@@ -140,7 +140,7 @@ try {
     pronunciations = JSON.parse(content);
     console.log(`Loaded ${Object.keys(pronunciations).length} pronunciation(s) from USER config`);
   }
-} catch (error) {
+} catch (_error) {
   console.warn('Failed to load pronunciation customizations');
 }
 
@@ -204,7 +204,7 @@ function sanitizeForSpeech(input: string): string {
 }
 
 // Validate user input - check for obviously malicious content
-function validateInput(input: any): { valid: boolean; error?: string; sanitized?: string } {
+function validateInput(input: unknown): { valid: boolean; error?: string; sanitized?: string } {
   if (!input || typeof input !== 'string') {
     return { valid: false, error: 'Invalid input type' };
   }
@@ -374,8 +374,8 @@ async function sendNotification(
   }
 
   // Use pre-sanitized values from validation
-  const safeTitle = titleValidation.sanitized!;
-  let safeMessage = stripMarkers(messageValidation.sanitized!);
+  const safeTitle = titleValidation.sanitized ?? '';
+  const safeMessage = stripMarkers(messageValidation.sanitized ?? '');
 
   // Generate and play voice
   if (voiceEnabled) {
@@ -418,7 +418,7 @@ async function sendNotification(
         }
 
         const settings = { ...DEFAULT_PROSODY, ...prosody };
-        const volume = (prosody as any)?.volume ?? daVoiceProsody?.volume;
+        const volume = prosody.volume ?? daVoiceProsody?.volume;
         console.log(`Generating speech (voice: ${voice}, stability: ${settings.stability}, style: ${settings.style}, speed: ${settings.speed}, volume: ${volume ?? 1.0})`);
 
         const spokenMessage = applyPronunciations(safeMessage);
@@ -474,7 +474,7 @@ function checkRateLimit(ip: string): boolean {
 }
 
 // Start HTTP server
-const server = serve({
+const _server = serve({
   port: PORT,
   async fetch(req) {
     const url = new URL(req.url);
@@ -532,8 +532,9 @@ const server = serve({
             status: 200
           }
         );
-      } catch (error: any) {
-        console.error("Notification error:", error);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error("Notification error:", message);
         return new Response(
           JSON.stringify({ status: "error", message: error.message || "Internal server error" }),
           {
@@ -561,8 +562,9 @@ const server = serve({
             status: 200
           }
         );
-      } catch (error: any) {
-        console.error("PAI notification error:", error);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error("PAI notification error:", message);
         return new Response(
           JSON.stringify({ status: "error", message: error.message || "Internal server error" }),
           {

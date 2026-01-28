@@ -63,17 +63,18 @@ function parseArgs(): SearchArgs | null {
         i++;
         break;
       case '--limit':
-        if (!next || isNaN(parseInt(next))) {
+        if (!next || Number.isNaN(parseInt(next, 10))) {
           console.error('Error: --limit requires a number');
           return null;
         }
-        parsed.limit = parseInt(next);
+        parsed.limit = parseInt(next, 10);
         i++;
         break;
       case '--help':
       case '-h':
         showHelp();
         process.exit(0);
+        break;
       default:
         console.error(`Error: Unknown argument: ${arg}`);
         return null;
@@ -107,7 +108,7 @@ async function loadIndex(baseDir: string): Promise<IndexData | null> {
   try {
     const content = await Bun.file(indexPath).text();
     return JSON.parse(content);
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -126,11 +127,11 @@ async function searchContent(filePath: string, query: string): Promise<string | 
     const end = Math.min(content.length, index + query.length + 50);
     let snippet = content.slice(start, end);
 
-    if (start > 0) snippet = '...' + snippet;
-    if (end < content.length) snippet = snippet + '...';
+    if (start > 0) snippet = `...${snippet}`;
+    if (end < content.length) snippet = `${snippet}...`;
 
     return snippet;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }

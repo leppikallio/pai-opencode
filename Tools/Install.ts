@@ -14,11 +14,11 @@
  * - Make OpenCode work from any working directory
  */
 
-import fs from "fs";
-import path from "path";
-import os from "os";
-import { fileURLToPath } from "url";
-import { execSync } from "child_process";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import { fileURLToPath } from "node:url";
+import { execSync } from "node:child_process";
 
 type Mode = "sync";
 
@@ -35,7 +35,7 @@ const AGENTS_BLOCK_END = "<!-- PAI-OPENCODE:END -->";
 
 function xdgConfigHome(): string {
   const v = process.env.XDG_CONFIG_HOME;
-  if (v && v.trim()) return v.trim();
+  if (v?.trim()) return v.trim();
   return path.join(os.homedir(), ".config");
 }
 
@@ -214,8 +214,9 @@ function maybeApplyProfile(args: { targetDir: string; sourceDir: string; dryRun:
       `bun "${toolPath}" "${profileName}" --opencode-dir "${args.targetDir}"`,
       { stdio: "inherit" }
     );
-  } catch (err: any) {
-    console.log(`[warn] apply profile (auto) failed: ${err?.message || String(err)}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.log(`[warn] apply profile (auto) failed: ${message}`);
   }
 }
 
@@ -261,7 +262,7 @@ function renderGlobalAgentsManagedBlock(args: {
     "1) STOP and do the change in the base repository instead:",
     `   \`${baseDir}/\``,
     "2) Deploy the change into the runtime by running:",
-    `   \`cd \"${repoRoot}\" && bun Tools/Install.ts --target \"${targetDir}\"\``,
+    `   \`cd "${repoRoot}" && bun Tools/Install.ts --target "${targetDir}"\``,
     "",
     "Only exception:",
     "- If you explicitly instruct me to perform a runtime-only edit under the runtime directory, I may do it.",
@@ -305,7 +306,7 @@ function upsertManagedBlock(existing: string, block: string): { content: string;
   }
 
   // No managed block present: prepend it and preserve existing content.
-  const next = normalizeTextFile(block.trim() + "\n\n" + trimmedExisting.trimStart());
+  const next = normalizeTextFile(`${block.trim()}\n\n${trimmedExisting.trimStart()}`);
   if (normalizeTextFile(trimmedExisting) === next) {
     return { content: normalizeTextFile(trimmedExisting), changed: false, action: "unchanged" };
   }
@@ -521,7 +522,7 @@ function sync(mode: Mode, opts: Options) {
 
   console.log("\nDone.");
   console.log("Next:");
-  console.log(`  1) Run: bun \"${path.join(targetDir, "PAIOpenCodeWizard.ts")}\"`);
+  console.log(`  1) Run: bun "${path.join(targetDir, "PAIOpenCodeWizard.ts")}"`);
   console.log("  2) Start OpenCode: opencode");
 }
 
@@ -535,8 +536,9 @@ function main() {
     }
 
     sync("sync", opts);
-  } catch (err: any) {
-    console.error(`Error: ${err?.message || String(err)}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`Error: ${message}`);
     usage(opts || undefined);
     process.exit(1);
   }

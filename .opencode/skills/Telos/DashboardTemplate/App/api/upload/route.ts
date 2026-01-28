@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
-import fs from 'fs'
-import path from 'path'
-import os from 'os'
+import fs from 'node:fs'
+import path from 'node:path'
+import os from 'node:os'
 
 const TELOS_DIR = path.join(os.homedir(), '.opencode/skills/life/telos')
 

@@ -16,17 +16,18 @@
  *   bun run SessionHarvester.ts --all --dry-run
  */
 
-import { parseArgs } from "util";
-import * as fs from "fs";
-import * as path from "path";
+import { parseArgs } from "node:util";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import { getLearningCategory, isLearningCapture } from "../../../plugins/lib/learning-utils";
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
-const CLAUDE_DIR = path.join(process.env.HOME!, ".opencode");
-const USERNAME = process.env.USER || require("os").userInfo().username;
+const HOME_DIR = process.env.HOME ?? process.cwd();
+const CLAUDE_DIR = path.join(HOME_DIR, ".opencode");
+const USERNAME = process.env.USER || require("node:os").userInfo().username;
 const PROJECTS_DIR = path.join(CLAUDE_DIR, "projects", `-Users-${USERNAME}--claude`);
 const LEARNING_DIR = path.join(CLAUDE_DIR, "MEMORY", "LEARNING");
 
@@ -76,7 +77,7 @@ interface ProjectsEntry {
       type: string;
       text?: string;
       name?: string;
-      input?: any;
+      input?: unknown;
     }>;
   };
   timestamp?: string;
@@ -112,7 +113,8 @@ function getSessionFiles(options: { recent?: number; all?: boolean; sessionId?: 
     .sort((a, b) => b.mtime - a.mtime);
 
   if (options.sessionId) {
-    const match = files.find(f => f.name.includes(options.sessionId!));
+    const sessionId = options.sessionId;
+    const match = files.find(f => f.name.includes(sessionId));
     return match ? [match.path] : [];
   }
 
@@ -129,7 +131,9 @@ function getSessionFiles(options: { recent?: number; all?: boolean; sessionId?: 
 // Content Extraction
 // ============================================================================
 
-function extractTextContent(content: string | Array<any>): string {
+type ContentPart = { type?: string; text?: string };
+
+function extractTextContent(content: string | Array<ContentPart>): string {
   if (typeof content === 'string') return content;
 
   if (Array.isArray(content)) {
@@ -293,7 +297,7 @@ function writeLearning(learning: HarvestedLearning): string {
 
   // Skip if file already exists
   if (fs.existsSync(filepath)) {
-    return filepath + ' (skipped - exists)';
+    return `${filepath} (skipped - exists)`;
   }
 
   const content = formatLearningFile(learning);
@@ -334,7 +338,7 @@ Output: Creates learning files in MEMORY/LEARNING/{ALGORITHM|SYSTEM}/YYYY-MM/
 
 // Get sessions to process
 const sessionFiles = getSessionFiles({
-  recent: values.recent ? parseInt(values.recent) : undefined,
+  recent: values.recent ? parseInt(values.recent, 10) : undefined,
   all: values.all,
   sessionId: values.session
 });

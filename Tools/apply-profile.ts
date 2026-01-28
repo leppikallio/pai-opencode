@@ -5,8 +5,8 @@
  * Example: bun Tools/apply-profile.ts openai --opencode-dir .opencode
  */
 
-import { readFileSync, writeFileSync, readdirSync, existsSync } from "fs";
-import { join } from "path";
+import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
+import { join } from "node:path";
 
 type ApplyProfileOptions = {
   opencodeDir: string;
@@ -26,16 +26,18 @@ function usage(opencodeDir?: string) {
   if (existsSync(profilesDir)) {
     console.log("Available profiles:");
     const profiles = readdirSync(profilesDir).filter((f) => f.endsWith(".yaml"));
-    profiles.forEach((p) => console.log(`  - ${p.replace(".yaml", "")}`));
+    profiles.forEach((p) => {
+      console.log(`  - ${p.replace(".yaml", "")}`);
+    });
   }
 }
 
 function resolveDefaultOpenCodeDir(): string {
   const fromEnv = process.env.PAI_DIR;
-  if (fromEnv && fromEnv.trim()) return fromEnv.trim();
+  if (fromEnv?.trim()) return fromEnv.trim();
 
   const xdg = process.env.XDG_CONFIG_HOME;
-  if (xdg && xdg.trim()) return join(xdg.trim(), "opencode");
+  if (xdg?.trim()) return join(xdg.trim(), "opencode");
   return join(process.env.HOME || "", ".config", "opencode");
 }
 
@@ -72,7 +74,6 @@ function parseArgs(argv: string[]): ApplyProfileOptions | null {
     }
     if (!profileName) {
       profileName = arg;
-      continue;
     }
   }
 
@@ -138,7 +139,7 @@ export function applyProfileToAgents(opts: ApplyProfileOptions): { updated: numb
     }
 
     const candidates = getModelKeyCandidates(agentName);
-    const key = candidates.find((k) => profile.models && Object.prototype.hasOwnProperty.call(profile.models, k));
+    const key = candidates.find((k) => profile.models && Object.hasOwn(profile.models, k));
     const newModel = (key ? profile.models[key] : undefined) || profile.models.default;
 
     const newContent = content.replace(modelRegex, `model: ${newModel}`);
@@ -159,14 +160,19 @@ export function applyProfileToAgents(opts: ApplyProfileOptions): { updated: numb
   return { updated, total: agentFiles.length };
 }
 
-function parseSimpleProfileYaml(content: string): any {
+type SimpleProfile = {
+  models?: Record<string, string>
+  [key: string]: string | Record<string, string> | undefined
+}
+
+function parseSimpleProfileYaml(content: string): SimpleProfile {
   // Minimal YAML parser for the profile format used in .opencode/profiles/*.yaml
   // Supports:
   // - top-level key: value
   // - one nested map: models:
   //   - indented key: value pairs
 
-  const out: any = {};
+  const out: SimpleProfile = {};
   let currentMap: "models" | null = null;
 
   for (const rawLine of content.split(/\r?\n/)) {
@@ -177,7 +183,7 @@ function parseSimpleProfileYaml(content: string): any {
     if (trimmed.startsWith("#")) continue;
 
     // Section start
-    if (/^[a-zA-Z0-9_\-]+:\s*$/.test(trimmed)) {
+    if (/^[a-zA-Z0-9_-]+:\s*$/.test(trimmed)) {
       const key = trimmed.slice(0, -1).trim();
       if (key === "models") {
         out.models = out.models || {};
@@ -190,7 +196,7 @@ function parseSimpleProfileYaml(content: string): any {
     }
 
     // Nested models entries (must be indented)
-    if (currentMap === "models" && /^\s{2,}[a-zA-Z0-9_\-]+:/.test(line)) {
+    if (currentMap === "models" && /^\s{2,}[a-zA-Z0-9_-]+:/.test(line)) {
       const idx = line.indexOf(":");
       const k = line.slice(0, idx).trim();
       const v = line.slice(idx + 1).trim();
@@ -225,8 +231,9 @@ function main() {
 
   try {
     applyProfileToAgents(args);
-  } catch (err: any) {
-    console.error(`\n✗ ${err?.message || String(err)}`);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`\n✗ ${message}`);
     usage(args.opencodeDir);
     process.exit(1);
   }

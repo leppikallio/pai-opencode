@@ -13,17 +13,18 @@
  *   bun run ActivityParser.ts --session abc-123
  */
 
-import { parseArgs } from "util";
-import * as fs from "fs";
-import * as path from "path";
+import { parseArgs } from "node:util";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
-const CLAUDE_DIR = path.join(process.env.HOME!, ".opencode");
+const HOME_DIR = process.env.HOME ?? process.cwd();
+const CLAUDE_DIR = path.join(HOME_DIR, ".opencode");
 const MEMORY_DIR = path.join(CLAUDE_DIR, "MEMORY");
-const USERNAME = process.env.USER || require("os").userInfo().username;
+const USERNAME = process.env.USER || require("node:os").userInfo().username;
 const PROJECTS_DIR = path.join(CLAUDE_DIR, "projects", `-Users-${USERNAME}--claude`);  // Claude Code native storage
 const SYSTEM_UPDATES_DIR = path.join(MEMORY_DIR, "PAISYSTEMUPDATES");  // Canonical system change history
 
@@ -377,7 +378,7 @@ function generateTitle(activity: ParsedActivity): string {
   // New tool created - most specific
   if (categories.tools.some((c) => c.action === "created")) {
     const newTool = categories.tools.find((c) => c.action === "created");
-    const name = extractName(newTool!.file);
+    const name = extractName(newTool?.file);
     if (skills_affected.length === 1) {
       return `Added ${name} Tool to ${skills_affected[0]} Skill`;
     }
@@ -387,7 +388,7 @@ function generateTitle(activity: ParsedActivity): string {
   // New workflow created
   if (categories.workflows.some((c) => c.action === "created")) {
     const newWorkflow = categories.workflows.find((c) => c.action === "created");
-    const name = extractName(newWorkflow!.file);
+    const name = extractName(newWorkflow?.file);
     if (skills_affected.length === 1) {
       return `Added ${name} Workflow to ${skills_affected[0]}`;
     }
@@ -676,7 +677,7 @@ Output: JSON with categorized changes (or filepath if --generate)
 }
 
 // Default to --today if no option specified
-const useToday = values.today || (!values.session);
+const _useToday = values.today || (!values.session);
 const activity = await parseEvents(values.session);
 
 if (values.generate) {

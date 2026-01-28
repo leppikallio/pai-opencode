@@ -4,7 +4,7 @@
  */
 
 import { BaseGrader, registerGrader, type GraderContext } from '../Base.ts';
-import type { GraderConfig, GraderResult, ToolCallsParams } from '../../Types/index.ts';
+import type { GraderResult, ToolCallsParams } from '../../Types/index.ts';
 
 export class ToolCallVerificationGrader extends BaseGrader {
   type = 'tool_calls' as const;
@@ -30,7 +30,7 @@ export class ToolCallVerificationGrader extends BaseGrader {
 
               // Support glob patterns for paths
               if (typeof expected === 'string' && expected.includes('*')) {
-                const pattern = new RegExp('^' + expected.replace(/\*/g, '.*') + '$');
+                const pattern = new RegExp(`^${expected.replace(/\*/g, '.*')}$`);
                 if (!pattern.test(String(actual))) return false;
               } else if (actual !== expected) {
                 return false;

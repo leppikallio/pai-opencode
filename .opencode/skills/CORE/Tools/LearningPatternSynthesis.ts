@@ -16,15 +16,16 @@
  *   bun run LearningPatternSynthesis.ts --month --dry-run
  */
 
-import { parseArgs } from "util";
-import * as fs from "fs";
-import * as path from "path";
+import { parseArgs } from "node:util";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
-const CLAUDE_DIR = path.join(process.env.HOME!, ".opencode");
+const HOME_DIR = process.env.HOME ?? process.cwd();
+const CLAUDE_DIR = path.join(HOME_DIR, ".opencode");
 const LEARNING_DIR = path.join(CLAUDE_DIR, "MEMORY", "LEARNING");
 const RATINGS_FILE = path.join(LEARNING_DIR, "SIGNALS", "ratings.jsonl");
 const SYNTHESIS_DIR = path.join(LEARNING_DIR, "SYNTHESIS");
@@ -91,7 +92,7 @@ function detectPatterns(summaries: string[], patterns: Record<string, RegExp>): 
         if (!results.has(name)) {
           results.set(name, []);
         }
-        results.get(name)!.push(summary);
+        results.get(name)?.push(summary);
       }
     }
   }

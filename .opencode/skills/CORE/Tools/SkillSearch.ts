@@ -15,9 +15,9 @@
  * Output: Matching skills with full descriptions and workflows
  */
 
-import { readFile } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { existsSync } from 'node:fs';
 
 const INDEX_FILE = join(import.meta.dir, '..', 'Skills', 'skill-index.json');
 

@@ -15,12 +15,14 @@
  *   - Neon glow feel
  */
 
-import { readdirSync, existsSync, readFileSync } from "fs";
-import { join } from "path";
-import { spawnSync } from "child_process";
+import { readdirSync, existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 
-const HOME = process.env.HOME!;
+const HOME = process.env.HOME ?? process.cwd();
 const CLAUDE_DIR = join(HOME, ".opencode");
+const ANSI_PATTERN = String.raw`\u001b\[[0-9;]*m`;
+const ANSI_REGEX = new RegExp(ANSI_PATTERN, "g");
 
 // ═══════════════════════════════════════════════════════════════════════
 // Terminal Width Detection
@@ -41,7 +43,7 @@ function getTerminalWidth(): number {
         for (const osWindow of data) {
           for (const tab of osWindow.tabs) {
             for (const win of tab.windows) {
-              if (win.id === parseInt(kittyWindowId)) {
+              if (win.id === parseInt(kittyWindowId, 10)) {
                 width = win.columns;
                 break;
               }
@@ -59,7 +61,7 @@ function getTerminalWidth(): number {
         encoding: "utf-8"
       });
       if (result.stdout) {
-        const cols = parseInt(result.stdout.trim().split(/\s+/)[1]);
+        const cols = parseInt(result.stdout.trim().split(/\s+/)[1], 10);
         if (cols > 0) width = cols;
       }
     } catch {}
@@ -70,7 +72,7 @@ function getTerminalWidth(): number {
     try {
       const result = spawnSync("tput", ["cols"], { encoding: "utf-8" });
       if (result.stdout) {
-        const cols = parseInt(result.stdout.trim());
+        const cols = parseInt(result.stdout.trim(), 10);
         if (cols > 0) width = cols;
       }
     } catch {}
@@ -78,7 +80,7 @@ function getTerminalWidth(): number {
 
   // Tier 4: Environment variable fallback
   if (!width || width <= 0) {
-    width = parseInt(process.env.COLUMNS || "100") || 100;
+    width = parseInt(process.env.COLUMNS || "100", 10) || 100;
   }
 
   return width;
@@ -97,11 +99,11 @@ function getDisplayMode(): DisplayMode {
 
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
-const DIM = "\x1b[2m";
-const ITALIC = "\x1b[3m";
+const _DIM = "\x1b[2m";
+const _ITALIC = "\x1b[3m";
 
 const rgb = (r: number, g: number, b: number) => `\x1b[38;2;${r};${g};${b}m`;
-const bgRgb = (r: number, g: number, b: number) => `\x1b[48;2;${r};${g};${b}m`;
+const _bgRgb = (r: number, g: number, b: number) => `\x1b[48;2;${r};${g};${b}m`;
 
 // Tokyo Night Storm palette
 const COLORS = {
@@ -166,7 +168,7 @@ const SPARK = ["\u2581", "\u2582", "\u2583", "\u2584", "\u2585", "\u2586", "\u25
 
 // Large isometric cube with letters on three visible faces
 // Using block characters and line drawing for the cube structure
-const PAI_CUBE_LOGO = [
+const _PAI_CUBE_LOGO = [
   "              \u250C\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2510",
   "             \u2571              \u2571\u2502",
   "            \u2571   \u2588\u2588\u2588\u2588\u2588     \u2571 \u2502",
@@ -199,7 +201,7 @@ const PAI_CUBE_ASCII = [
 ];
 
 // Enhanced braille-based PAI logo for smaller terminals
-const PAI_BRAILLE_LOGO = [
+const _PAI_BRAILLE_LOGO = [
   "⣿⣿⣿⣛⣛⣛⣿⣿⣿⣿⣛⣛⣛⣛⣿⣿",
   "⣿⣿⣛⣛⣿⣿⣛⣿⣿⣛⣛⣿⣿⣿⣛⣿",
   "⣿⣛⣛⣿⣿⣿⣿⣛⣛⣿⣿⣿⣿⣿⣛⣛",
@@ -211,7 +213,7 @@ const PAI_BRAILLE_LOGO = [
 ];
 
 // Alternative minimal cube using Unicode box drawing
-const PAI_MINIMAL_CUBE = [
+const _PAI_MINIMAL_CUBE = [
   "    \u256D\u2500\u2500\u2500\u2500\u2500\u256E",
   "   \u2571P \u25C6 A\u2571\u2502",
   "  \u2571\u2500\u2500\u2500\u2500\u2500\u2500\u2571 \u2502",
@@ -221,7 +223,7 @@ const PAI_MINIMAL_CUBE = [
 ];
 
 // High-quality isometric cube using block elements
-const PAI_BLOCK_CUBE = [
+const _PAI_BLOCK_CUBE = [
   "         \u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2584\u2584",
   "       \u2584\u2588\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2580\u2588\u2584",
   "     \u2584\u2588\u2580  \u2588\u2588\u2588\u2588\u2588\u2588   \u2588\u2580\u2584",
@@ -240,7 +242,7 @@ const PAI_BLOCK_CUBE = [
 ];
 
 // Cleaner isometric cube for the banner
-const PAI_ISOMETRIC = [
+const _PAI_ISOMETRIC = [
   "        \u2571\u2572",
   "       \u2571P \u2572",
   "      \u2571    \u2572",
@@ -255,7 +257,7 @@ const PAI_ISOMETRIC = [
 ];
 
 // Final version - clean isometric cube with letters on visible faces
-const LOGO_LINES = [
+const _LOGO_LINES = [
   "          .---.---.---.---.",
   "         /   /   /   /   /|",
   "        .---.---.---.---. |",
@@ -271,7 +273,7 @@ const LOGO_LINES = [
 ];
 
 // Simple elegant cube logo
-const CUBE_LOGO = [
+const _CUBE_LOGO = [
   "      \u2571\u2572          ",
   "     \u2571  \u2572         ",
   "    \u2571 P  \u2572        ",
@@ -454,7 +456,7 @@ function generateBinary(len: number = 8): string {
 }
 
 function stripAnsi(str: string): string {
-  return str.replace(/\x1b\[[0-9;]*m/g, "");
+  return str.replace(ANSI_REGEX, "");
 }
 
 function visibleLength(str: string): number {
@@ -466,7 +468,7 @@ function padRight(str: string, len: number): string {
   return str + " ".repeat(Math.max(0, len - visible));
 }
 
-function padLeft(str: string, len: number): string {
+function _padLeft(str: string, len: number): string {
   const visible = visibleLength(str);
   return " ".repeat(Math.max(0, len - visible)) + str;
 }
@@ -537,7 +539,7 @@ function colorLogo(lines: string[]): string[] {
 function createNeofetchBanner(): string {
   const width = getTerminalWidth();
   const stats = getStats();
-  const mode = getDisplayMode();
+  const _mode = getDisplayMode();
 
   const f = COLORS.frame;
   const s = COLORS.subtext;
@@ -547,7 +549,7 @@ function createNeofetchBanner(): string {
   const c = COLORS.cyan;
   const g = COLORS.green;
   const o = COLORS.orange;
-  const y = COLORS.yellow;
+  const _y = COLORS.yellow;
   const nc = COLORS.neonCyan;
   const np = COLORS.neonPurple;
   const tl = COLORS.teal;

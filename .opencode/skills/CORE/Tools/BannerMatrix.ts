@@ -17,12 +17,14 @@
  *   - Hacker terminal feel
  */
 
-import { readdirSync, existsSync, readFileSync } from "fs";
-import { join } from "path";
-import { spawnSync } from "child_process";
+import { readdirSync, existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { spawnSync } from "node:child_process";
 
-const HOME = process.env.HOME!;
+const HOME = process.env.HOME ?? process.cwd();
 const CLAUDE_DIR = join(HOME, ".opencode");
+const ANSI_PATTERN = String.raw`\u001b\[[0-9;]*m`;
+const ANSI_REGEX = new RegExp(ANSI_PATTERN, "g");
 
 // =============================================================================
 // Terminal Width Detection
@@ -43,7 +45,7 @@ function getTerminalWidth(): number {
         for (const osWindow of data) {
           for (const tab of osWindow.tabs) {
             for (const win of tab.windows) {
-              if (win.id === parseInt(kittyWindowId)) {
+              if (win.id === parseInt(kittyWindowId, 10)) {
                 width = win.columns;
                 break;
               }
@@ -61,7 +63,7 @@ function getTerminalWidth(): number {
         encoding: "utf-8"
       });
       if (result.stdout) {
-        const cols = parseInt(result.stdout.trim().split(/\s+/)[1]);
+        const cols = parseInt(result.stdout.trim().split(/\s+/)[1], 10);
         if (cols > 0) width = cols;
       }
     } catch {}
@@ -72,7 +74,7 @@ function getTerminalWidth(): number {
     try {
       const result = spawnSync("tput", ["cols"], { encoding: "utf-8" });
       if (result.stdout) {
-        const cols = parseInt(result.stdout.trim());
+        const cols = parseInt(result.stdout.trim(), 10);
         if (cols > 0) width = cols;
       }
     } catch {}
@@ -80,7 +82,7 @@ function getTerminalWidth(): number {
 
   // Tier 4: Environment variable fallback
   if (!width || width <= 0) {
-    width = parseInt(process.env.COLUMNS || "80") || 80;
+    width = parseInt(process.env.COLUMNS || "80", 10) || 80;
   }
 
   return width;
@@ -100,10 +102,10 @@ function getDisplayMode(): DisplayMode {
 
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
-const DIM = "\x1b[2m";
+const _DIM = "\x1b[2m";
 
 const rgb = (r: number, g: number, b: number) => `\x1b[38;2;${r};${g};${b}m`;
-const bg = (r: number, g: number, b: number) => `\x1b[48;2;${r};${g};${b}m`;
+const _bg = (r: number, g: number, b: number) => `\x1b[48;2;${r};${g};${b}m`;
 
 // Matrix color palette
 const MATRIX = {
@@ -177,9 +179,9 @@ function randomBinary(len: number): string {
 }
 
 // Generate a rain column with varying intensity
-function generateRainColumn(height: number): string[] {
+function _generateRainColumn(height: number): string[] {
   const column: string[] = [];
-  const colors = [MATRIX.bright, MATRIX.primary, MATRIX.mid, MATRIX.dim, MATRIX.dark, MATRIX.darkest];
+  const _colors = [MATRIX.bright, MATRIX.primary, MATRIX.mid, MATRIX.dim, MATRIX.dark, MATRIX.darkest];
 
   for (let i = 0; i < height; i++) {
     // Random intensity - brighter near "head" of rain drop
@@ -242,7 +244,7 @@ const PAI_DRIP = [
 ];
 
 // Compact PAI logo for smaller modes
-const PAI_COMPACT = [
+const _PAI_COMPACT = [
   "┌───┐┌───┐┌─┐",
   "│ ┌─┘│ ┌─┤│ │",
   "│ │  │ ├─┤│ │",
@@ -258,7 +260,7 @@ interface SystemStats {
   skills: number;
   userFiles: number;
   hooks: number;
-  workItems: number;
+  workItems: number | string;
   learnings: number;
   model: string;
 }
@@ -313,7 +315,7 @@ function countHooks(): number {
   return count;
 }
 
-function countWorkItems(): number {
+function countWorkItems(): number | string {
   const workDir = join(CLAUDE_DIR, "MEMORY", "WORK");
   if (!existsSync(workDir)) return 0;
   let count = 0;
@@ -322,7 +324,7 @@ function countWorkItems(): number {
       if (entry.isDirectory()) count++;
     }
   } catch {}
-  return count > 100 ? "100+" as any : count;
+  return count > 100 ? "100+" : count;
 }
 
 function countLearnings(): number {
@@ -357,7 +359,7 @@ function getStats(): SystemStats {
 // Glitch Text Effects
 // =============================================================================
 
-function glitchText(text: string): string {
+function _glitchText(text: string): string {
   // Add random glitch characters around/in the text
   const glitchChars = ["░", "▒", "▓", "█", "▄", "▀", "■", "□"];
   let result = "";
@@ -421,7 +423,7 @@ function createMicroBanner(stats: SystemStats): string {
   const d = MATRIX.dim;
   const dk = MATRIX.darkest;
   const w = MATRIX.white;
-  const f = MATRIX.frame;
+  const _f = MATRIX.frame;
 
   const lines: string[] = [];
 
@@ -528,7 +530,7 @@ function createNormalBanner(stats: SystemStats): string {
 
   // Dimensions
   const logoWidth = 40;  // Width for PAI logo + rain
-  const statsWidth = width - logoWidth - 3;  // Right side stats
+  const _statsWidth = width - logoWidth - 3;  // Right side stats
   const dividerCol = logoWidth + 1;
 
   // Generate rain line with varying intensity
@@ -584,7 +586,7 @@ function createNormalBanner(stats: SystemStats): string {
   for (let i = 0; i < contentRows; i++) {
     // Left side: rain + logo + rain
     const logoLine = i < paiLines.length ? paiLines[i] : "";
-    const logoVisLen = logoLine.replace(/\x1b\[[0-9;]*m/g, "").length;
+    const logoVisLen = logoLine.replace(ANSI_REGEX, "").length;
     const rainLeft = makeRainLine(3, 0.6);
     const rainRight = makeRainLine(logoWidth - logoVisLen - 6, 0.5);
 
@@ -601,7 +603,7 @@ function createNormalBanner(stats: SystemStats): string {
 
     // Combine with divider
     const leftPart = `${rainLeft}${logoLine}${rainRight}`;
-    const leftVisLen = leftPart.replace(/\x1b\[[0-9;]*m/g, "").length;
+    const leftVisLen = leftPart.replace(ANSI_REGEX, "").length;
     const paddedLeft = leftPart + " ".repeat(Math.max(0, logoWidth - leftVisLen));
 
     lines.push(`${paddedLeft}${f}${BOLD}|${RESET} ${statLine}`);
@@ -609,7 +611,7 @@ function createNormalBanner(stats: SystemStats): string {
 
   // Divider with hex
   const hex1 = randomHex(4);
-  const hex2 = randomHex(4);
+  const _hex2 = randomHex(4);
   const binary = randomBinary(16);
   const midFrame = `${f}${BOLD}${"=".repeat(5)}${RESET}${dk}${binary}${RESET}${f}${BOLD}${"=".repeat(dividerCol - 26)}[${RESET}${d}0x${hex1}${RESET}${f}${BOLD}]${"=".repeat(width - dividerCol - 8)}${RESET}`;
   lines.push(midFrame);
@@ -619,8 +621,8 @@ function createNormalBanner(stats: SystemStats): string {
   lines.push(rainOverlay(brandLine1.padEnd(width), 0.15));
 
   // PAI dripping effect
-  const paiLines = PAI_DRIP.slice(0, 4);  // Just first 4 lines for compactness
-  for (const paiLine of paiLines) {
+  const dripLines = PAI_DRIP.slice(0, 4);  // Just first 4 lines for compactness
+  for (const paiLine of dripLines) {
     // Color gradient: bright to dim going down
     const coloredPai = `${g}${BOLD}${paiLine}${RESET}`;
     const centered = " ".repeat(Math.floor((width - paiLine.length) / 2));
@@ -663,7 +665,6 @@ function createBanner(forceMode?: DisplayMode): string {
       return createMicroBanner(stats);
     case "mini":
       return createMiniBanner(stats);
-    case "normal":
     default:
       return createNormalBanner(stats);
   }

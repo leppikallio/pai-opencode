@@ -6,12 +6,11 @@
  * Helper to split large audio files and transcribe them
  */
 
-import { spawn } from "child_process";
-import { mkdirSync, rmSync, readdirSync, statSync } from "fs";
-import { join, basename, extname } from "path";
+import { spawn } from "node:child_process";
+import { mkdirSync, rmSync, readdirSync, statSync } from "node:fs";
+import { join, extname } from "node:path";
 import OpenAI from "openai";
-import { createReadStream } from "fs";
-import { writeFile } from "fs/promises";
+import { createReadStream } from "node:fs";
 
 interface ChunkInfo {
   path: string;
@@ -91,12 +90,13 @@ async function transcribeChunk(
   openai: OpenAI,
   format: string
 ): Promise<string> {
-  const fileStream = createReadStream(chunk.path) as any;
+  const fileStream = createReadStream(chunk.path);
+  const responseFormat = (format === "txt" ? "text" : format) as OpenAI.Audio.TranscriptionCreateParams["response_format"];
 
   const transcription = await openai.audio.transcriptions.create({
     file: fileStream,
     model: "whisper-1",
-    response_format: format === "txt" ? "text" : (format as any),
+    response_format: responseFormat,
     language: "en",
   });
 

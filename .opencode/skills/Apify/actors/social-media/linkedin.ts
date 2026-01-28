@@ -15,8 +15,6 @@ import type {
   Post,
   PaginationOptions,
   ActorRunOptions,
-  Location,
-  ContactInfo
 } from '../../types'
 
 /* ============================================================================
@@ -42,10 +40,17 @@ export interface LinkedInProfile extends UserProfile {
   phone?: string
   website?: string
   connectionsCount?: number
+  followersCount?: number
   skills?: string[]
   experience?: LinkedInExperience[]
   education?: LinkedInEducation[]
   languages?: string[]
+}
+
+type LinkedInProfileRaw = LinkedInProfile & {
+  name?: string
+  connections?: number
+  followers?: number
 }
 
 export interface LinkedInExperience {
@@ -97,6 +102,12 @@ export interface LinkedInJob {
   jobFunctions?: string[]
   industries?: string[]
   salary?: string
+  url?: string
+}
+
+type LinkedInJobRaw = LinkedInJob & {
+  jobId?: string
+  postedAt?: string
 }
 
 export interface LinkedInPostsInput extends PaginationOptions {
@@ -119,6 +130,17 @@ export interface LinkedInPost extends Post {
   timestamp: string
   imageUrls?: string[]
   videoUrl?: string
+}
+
+type LinkedInPostRaw = LinkedInPost & {
+  postId?: string
+  postUrl?: string
+  content?: string
+  likes?: number
+  comments?: number
+  shares?: number
+  postedAt?: string
+  images?: string[]
 }
 
 /* ============================================================================
@@ -163,7 +185,7 @@ export async function scrapeLinkedInProfile(
   }
 
   const dataset = apify.getDataset(finalRun.defaultDatasetId)
-  const items = await dataset.listItems({ limit: 1 })
+  const items = (await dataset.listItems({ limit: 1 })) as LinkedInProfileRaw[]
 
   if (items.length === 0) {
     throw new Error(`Profile not found: ${input.profileUrl}`)
@@ -172,7 +194,7 @@ export async function scrapeLinkedInProfile(
   const profile = items[0]
 
   return {
-    fullName: profile.fullName || profile.name,
+    fullName: profile.fullName || profile.name || "",
     headline: profile.headline,
     bio: profile.about,
     about: profile.about,
@@ -183,8 +205,8 @@ export async function scrapeLinkedInProfile(
     email: profile.email,
     phone: profile.phone,
     website: profile.website,
-    connectionsCount: profile.connections,
-    followersCount: profile.followers,
+    connectionsCount: profile.connections ?? profile.connectionsCount,
+    followersCount: profile.followers ?? profile.followersCount,
     skills: profile.skills,
     experience: profile.experience,
     education: profile.education,
@@ -239,22 +261,22 @@ export async function searchLinkedInJobs(
   }
 
   const dataset = apify.getDataset(finalRun.defaultDatasetId)
-  const items = await dataset.listItems({
+  const items = (await dataset.listItems({
     limit: input.maxResults || 1000,
     offset: input.offset || 0
-  })
+  })) as LinkedInJobRaw[]
 
-  return items.map((job: any) => ({
+  return items.map((job: LinkedInJobRaw) => ({
     id: job.jobId || job.id,
-    title: job.title,
-    company: job.company,
+    title: job.title || "",
+    company: job.company || "",
     companyUrl: job.companyUrl,
     companyLogo: job.companyLogo,
-    location: job.location,
-    description: job.description,
-    postedDate: job.postedDate || job.postedAt,
+    location: job.location || "",
+    description: job.description || "",
+    postedDate: job.postedDate || job.postedAt || "",
     applicants: job.applicants,
-    jobUrl: job.jobUrl || job.url,
+    jobUrl: job.jobUrl || job.url || "",
     seniority: job.seniority,
     employmentType: job.employmentType,
     jobFunctions: job.jobFunctions,
@@ -304,24 +326,24 @@ export async function scrapeLinkedInPosts(
   }
 
   const dataset = apify.getDataset(finalRun.defaultDatasetId)
-  const items = await dataset.listItems({
+  const items = (await dataset.listItems({
     limit: input.maxResults || 1000,
     offset: input.offset || 0
-  })
+  })) as LinkedInPostRaw[]
 
-  return items.map((post: any) => ({
-    id: post.id || post.postId,
-    url: post.url || post.postUrl,
-    text: post.text || post.content,
+  return items.map((post: LinkedInPostRaw) => ({
+    id: post.id || post.postId || "",
+    url: post.url || post.postUrl || "",
+    text: post.text || post.content || "",
     authorName: post.authorName,
     authorUrl: post.authorUrl,
     authorHeadline: post.authorHeadline,
-    likesCount: post.likesCount || post.likes || 0,
-    commentsCount: post.commentsCount || post.comments || 0,
-    sharesCount: post.sharesCount || post.shares,
+    likesCount: post.likesCount ?? post.likes ?? 0,
+    commentsCount: post.commentsCount ?? post.comments ?? 0,
+    sharesCount: post.sharesCount ?? post.shares,
     viewsCount: post.viewsCount,
-    timestamp: post.timestamp || post.postedAt,
-    imageUrls: post.images,
+    timestamp: post.timestamp || post.postedAt || "",
+    imageUrls: post.images ?? post.imageUrls,
     videoUrl: post.videoUrl,
     caption: post.text
   }))

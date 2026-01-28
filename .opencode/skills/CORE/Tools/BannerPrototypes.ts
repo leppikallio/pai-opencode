@@ -24,7 +24,7 @@ const DARK = "\x1b[38;2;50;50;60m";
 // ═══════════════════════════════════════════════════════════════
 function design1_glitch(): string {
   const glitchChars = "░▒▓█▀▄▌▐╳╱╲";
-  const randomGlitch = () => glitchChars[Math.floor(Math.random() * glitchChars.length)];
+  const _randomGlitch = () => glitchChars[Math.floor(Math.random() * glitchChars.length)];
 
   return `
 ${DARK}░▒▓${CYAN}█${RESET}${BOLD}${CYAN} WELCOME TO YOUR PAI SYSTEM ${RESET}${CYAN}█${DARK}▓▒░░▒▓▒░${RESET}
@@ -138,32 +138,32 @@ ${CYAN}╰───────────────────────�
 }
 
 // Print all designs
-console.log("\n" + "═".repeat(70));
+console.log(`\n${"═".repeat(70)}`);
 console.log(" DESIGN 1: GLITCH CYBERPUNK");
 console.log("═".repeat(70));
 console.log(design1_glitch());
 
-console.log("\n" + "═".repeat(70));
+console.log(`\n${"═".repeat(70)}`);
 console.log(" DESIGN 2: HOLOGRAPHIC HUD");
 console.log("═".repeat(70));
 console.log(design2_holo());
 
-console.log("\n" + "═".repeat(70));
+console.log(`\n${"═".repeat(70)}`);
 console.log(" DESIGN 3: MATRIX NOIR");
 console.log("═".repeat(70));
 console.log(design3_matrix());
 
-console.log("\n" + "═".repeat(70));
+console.log(`\n${"═".repeat(70)}`);
 console.log(" DESIGN 4: NEON SCANLINES");
 console.log("═".repeat(70));
 console.log(design4_scanlines());
 
-console.log("\n" + "═".repeat(70));
+console.log(`\n${"═".repeat(70)}`);
 console.log(" DESIGN 5: MINIMAL BLADE RUNNER");
 console.log("═".repeat(70));
 console.log(design5_blade());
 
-console.log("\n" + "═".repeat(70));
+console.log(`\n${"═".repeat(70)}`);
 console.log(" DESIGN 6: GHOST IN THE SHELL");
 console.log("═".repeat(70));
 console.log(design6_ghost());

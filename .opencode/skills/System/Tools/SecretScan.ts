@@ -5,7 +5,7 @@
  * TruffleHog wrapper for secret scanning
  */
 
-import { spawn } from 'child_process';
+import { spawn } from 'node:child_process';
 
 interface ScanArgs {
   path: string;
@@ -43,6 +43,7 @@ function parseArgs(): ScanArgs | null {
       case '-h':
         showHelp();
         process.exit(0);
+        break;
       default:
         console.error(`Error: Unknown argument: ${arg}`);
         return null;

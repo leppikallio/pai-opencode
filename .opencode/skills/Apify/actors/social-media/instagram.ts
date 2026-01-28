@@ -11,7 +11,6 @@ import { Apify } from '../../index'
 import type {
   UserProfile,
   Post,
-  EngagementMetrics,
   PaginationOptions,
   ActorRunOptions
 } from '../../types'
@@ -92,6 +91,24 @@ export interface InstagramComment {
   ownerProfilePicUrl?: string
 }
 
+type InstagramPostRaw = InstagramPost & {
+  displayUrl?: string
+  imageUrl?: string
+  videoViewCount?: number
+  locationName?: string
+  locationSlug?: string
+  ownerUsername?: string
+  ownerFullName?: string
+  type?: 'Image' | 'Video' | 'Sidecar'
+}
+
+type InstagramProfileRaw = InstagramProfile & {
+  profilePicUrl?: string
+  followsCount?: number
+  private?: boolean
+  latestPosts?: InstagramPostRaw[]
+}
+
 /* ============================================================================
  * FUNCTIONS
  * ========================================================================= */
@@ -139,7 +156,7 @@ export async function scrapeInstagramProfile(
 
   // Get results
   const dataset = apify.getDataset(finalRun.defaultDatasetId)
-  const items = await dataset.listItems({ limit: 1 })
+  const items = (await dataset.listItems({ limit: 1 })) as InstagramProfileRaw[]
 
   if (items.length === 0) {
     throw new Error(`Profile not found: @${input.username}`)
@@ -154,14 +171,16 @@ export async function scrapeInstagramProfile(
     fullName: profile.fullName || profile.username,
     biography: profile.biography,
     externalUrl: profile.externalUrl,
-    profilePictureUrl: profile.profilePicUrl,
+    profilePictureUrl: profile.profilePictureUrl || profile.profilePicUrl,
     followersCount: profile.followersCount || 0,
     followingCount: profile.followsCount || 0,
     postsCount: profile.postsCount || 0,
-    isPrivate: profile.private,
+    isPrivate: profile.private ?? profile.isPrivate,
     isVerified: profile.verified,
     verified: profile.verified,
-    latestPosts: profile.latestPosts?.map((post: any) => transformPost(post))
+    latestPosts: (profile.latestPosts as InstagramPostRaw[] | undefined)?.map((post) =>
+      transformPost(post)
+    )
   }
 }
 
@@ -211,10 +230,10 @@ export async function scrapeInstagramPosts(
   }
 
   const dataset = apify.getDataset(finalRun.defaultDatasetId)
-  const items = await dataset.listItems({
+  const items = (await dataset.listItems({
     limit: input.maxResults || 1000,
     offset: input.offset || 0
-  })
+  })) as InstagramPostRaw[]
 
   return items.map(transformPost)
 }
@@ -260,10 +279,10 @@ export async function scrapeInstagramHashtag(
   }
 
   const dataset = apify.getDataset(finalRun.defaultDatasetId)
-  const items = await dataset.listItems({
+  const items = (await dataset.listItems({
     limit: input.maxResults || 1000,
     offset: input.offset || 0
-  })
+  })) as InstagramPostRaw[]
 
   return items.map(transformPost)
 }
@@ -308,12 +327,12 @@ export async function scrapeInstagramComments(
   }
 
   const dataset = apify.getDataset(finalRun.defaultDatasetId)
-  const items = await dataset.listItems({
+  const items = (await dataset.listItems({
     limit: input.maxResults || 1000,
     offset: input.offset || 0
-  })
+  })) as InstagramComment[]
 
-  return items.map((item: any) => ({
+  return items.map((item) => ({
     id: item.id,
     text: item.text,
     timestamp: item.timestamp,
@@ -330,7 +349,7 @@ export async function scrapeInstagramComments(
 /**
  * Transform raw Instagram post data to our standard format
  */
-function transformPost(post: any): InstagramPost {
+function transformPost(post: InstagramPostRaw): InstagramPost {
   return {
     id: post.id,
     shortCode: post.shortCode,

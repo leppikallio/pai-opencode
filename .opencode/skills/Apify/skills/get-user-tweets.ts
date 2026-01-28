@@ -6,9 +6,16 @@
 
 import { Apify } from '../index'
 
+type TweetItem = {
+  text?: string
+  fullText?: string
+  createdAt?: string
+  url?: string
+}
+
 async function main() {
   const username = process.argv[2]
-  const limit = parseInt(process.argv[3] || '5')
+  const limit = parseInt(process.argv[3] || '5', 10)
 
   if (!username) {
     console.error('Usage: bun get-user-tweets.ts <username> [limit]')
@@ -65,7 +72,7 @@ async function main() {
     // Step 3: Get results
     console.log('3. Fetching results...')
     const dataset = apify.getDataset(finalRun.defaultDatasetId)
-    const items = await dataset.listItems({ limit })
+    const items = (await dataset.listItems({ limit })) as TweetItem[]
 
     console.log(`   Retrieved ${items.length} tweets`)
     console.log()
@@ -93,7 +100,7 @@ async function main() {
     })
 
     // Step 5: Show token savings
-    const estimateTokens = (data: any) => {
+    const estimateTokens = (data: unknown) => {
       return Math.ceil(JSON.stringify(data).length / 4)
     }
 

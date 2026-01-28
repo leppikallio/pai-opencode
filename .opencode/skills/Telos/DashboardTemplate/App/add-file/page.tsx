@@ -84,7 +84,7 @@ export default function AddFilePage() {
 
         // Trigger a custom event to notify sidebar to refresh
         window.dispatchEvent(new CustomEvent('telosFileUploaded', { detail: { filename: file.name } }))
-      } catch (error) {
+      } catch (_error) {
         // Update status to error
         setUploadedFiles(prev => prev.map(f =>
           f.name === file.name && f.status === "uploading"
@@ -114,10 +114,15 @@ export default function AddFilePage() {
             <CardTitle>Upload Files</CardTitle>
           </CardHeader>
           <CardContent>
-            <div
+            <button
+              type="button"
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               onDrop={handleDrop}
+              onClick={() => {
+                const input = document.getElementById("file-upload") as HTMLInputElement | null
+                input?.click()
+              }}
               className={`
                 border-2 border-dashed rounded-lg p-12 text-center transition-all
                 ${isDragging
@@ -141,17 +146,16 @@ export default function AddFilePage() {
                 onChange={handleFileInput}
                 className="hidden"
               />
-              <label
-                htmlFor="file-upload"
+              <span
                 className="inline-flex items-center px-6 py-3 bg-[#2e7de9] text-white rounded-lg hover:bg-[#2e7de9]/90 cursor-pointer transition-colors"
               >
                 <Upload className="h-4 w-4 mr-2" />
                 Choose Files
-              </label>
+              </span>
               <p className="text-xs text-gray-500 mt-4">
                 Supported formats: .md (Markdown), .csv (Comma-separated values)
               </p>
-            </div>
+            </button>
           </CardContent>
         </Card>
 
@@ -163,9 +167,9 @@ export default function AddFilePage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {uploadedFiles.map((file, index) => (
+                {uploadedFiles.map((file) => (
                   <div
-                    key={index}
+                    key={`${file.name}-${file.status}`}
                     className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
                   >
                     <div className="flex items-center gap-3">

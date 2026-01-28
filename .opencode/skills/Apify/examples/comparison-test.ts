@@ -10,7 +10,7 @@
 import { Apify } from '../index'
 
 // Utility to estimate token count
-function estimateTokens(data: any): number {
+function estimateTokens(data: unknown): number {
   const str = JSON.stringify(data)
   // Rough estimate: ~4 characters per token
   return Math.ceil(str.length / 4)
@@ -55,7 +55,7 @@ async function demonstrateCodeFirstApproach() {
   console.log('=== CODE-FIRST APPROACH ===\n')
   console.log('Direct code execution with in-code filtering:\n')
 
-  const apify = new Apify()
+  const _apify = new Apify()
 
   console.log('Step 1: Model reads README.md for API discovery')
   console.log('  → README.md content: ~200 tokens')
@@ -93,7 +93,7 @@ return filtered
   `.trim()
 
   console.log('  Code to execute (~300 tokens):')
-  console.log('  ' + codeExample.split('\n').join('\n  '))
+  console.log(`  ${codeExample.split('\n').join('\n  ')}`)
 
   console.log('\nStep 3: Code executes in bash environment')
   console.log('  → All operations happen locally')
@@ -146,7 +146,7 @@ async function demonstrateFilteringComparison() {
   console.log(`  Reduction:        ${savings}% fewer tokens\n`)
 
   console.log('MCP Approach:')
-  console.log('  1. Return all 100 items to model (${fullTokens} tokens)')
+  console.log(`  1. Return all 100 items to model (${fullTokens} tokens)`)
   console.log('  2. Model reasons about filtering criteria')
   console.log('  3. Model makes another call to filter')
   console.log('  4. All 100 items in context again during filtering')
@@ -167,13 +167,13 @@ async function main() {
   console.log('╚═══════════════════════════════════════════════════════════╝\n')
 
   await demonstrateMCPApproach()
-  console.log('\n' + '─'.repeat(60) + '\n')
+  console.log(`\n${'─'.repeat(60)}\n`)
 
   await demonstrateCodeFirstApproach()
-  console.log('\n' + '─'.repeat(60) + '\n')
+  console.log(`\n${'─'.repeat(60)}\n`)
 
   await demonstrateFilteringComparison()
-  console.log('\n' + '─'.repeat(60) + '\n')
+  console.log(`\n${'─'.repeat(60)}\n`)
 
   console.log('=== CONCLUSION ===\n')
   console.log('Code-first Apify integration provides:')

@@ -16,9 +16,9 @@
  */
 
 import OpenAI from "openai";
-import { existsSync, statSync, readdirSync, mkdirSync, createReadStream } from "fs";
-import { join, basename, extname, dirname } from "path";
-import { writeFile } from "fs/promises";
+import { existsSync, statSync, readdirSync, mkdirSync, createReadStream } from "node:fs";
+import { join, basename, extname, dirname } from "node:path";
+import { writeFile } from "node:fs/promises";
 
 // Supported audio/video formats
 const SUPPORTED_FORMATS = [
@@ -169,13 +169,14 @@ async function transcribeFile(
 
   try {
     // Create file stream
-    const fileStream = createReadStream(filePath) as any;
+    const fileStream = createReadStream(filePath);
+    const responseFormat = (options.format === "txt" ? "text" : options.format) as OpenAI.Audio.TranscriptionCreateParams["response_format"];
 
     // Call OpenAI Whisper API
     const transcription = await openai.audio.transcriptions.create({
       file: fileStream,
       model: "whisper-1",
-      response_format: options.format === "txt" ? "text" : options.format as any,
+      response_format: responseFormat,
       language: "en",
     });
 
@@ -183,8 +184,9 @@ async function transcribeFile(
 
     // Return as string (API returns string for all formats)
     return typeof transcription === 'string' ? transcription : JSON.stringify(transcription, null, 2);
-  } catch (error: any) {
-    throw new Error(`Transcription failed: ${error.message || error}`);
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Transcription failed: ${message}`);
   }
 }
 
@@ -324,14 +326,16 @@ async function main() {
 
   if (results.length > 0) {
     console.log("\nOutput files:");
-    results.forEach(({ output }) => console.log(`  - ${output}`));
+    results.forEach(({ output }) => {
+      console.log(`  - ${output}`);
+    });
   }
 
   if (errors.length > 0) {
     console.log("\nErrors:");
-    errors.forEach(({ file, error }) =>
-      console.log(`  - ${file}: ${error}`)
-    );
+    errors.forEach(({ file, error }) => {
+      console.log(`  - ${file}: ${error}`);
+    });
   }
 }
 

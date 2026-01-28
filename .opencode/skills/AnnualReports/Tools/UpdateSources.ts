@@ -8,8 +8,8 @@
  *   bun run UpdateSources.ts --diff          # Show diff with upstream
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 
 const SOURCES_PATH = join(import.meta.dir, '..', 'Data', 'sources.json');
 const UPSTREAM_URL = 'https://raw.githubusercontent.com/jacobdjwilson/awesome-annual-security-reports/main/README.md';
@@ -133,7 +133,7 @@ function compareReports(current: Sources, parsed: Map<string, Report[]>): {
 } {
   let added = 0;
   let removed = 0;
-  let updated = 0;
+  const updated = 0;
 
   // Build current URL set
   const currentUrls = new Set<string>();
@@ -203,7 +203,7 @@ async function main() {
     if (showDiff) {
       console.log('📝 Detailed diff:');
       // Show what would change
-      for (const [key, reports] of parsed) {
+      for (const [key, _reports] of parsed) {
         const [section, category] = key.split('_', 2);
         const currentCategory = section === 'analysis'
           ? current.categories.analysis[category]

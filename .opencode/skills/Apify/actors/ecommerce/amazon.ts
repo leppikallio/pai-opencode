@@ -82,6 +82,53 @@ export interface AmazonReview {
   images?: string[]
 }
 
+type AmazonReviewRaw = {
+  id?: string
+  reviewId?: string
+  title?: string
+  text?: string
+  body?: string
+  stars?: number
+  rating?: number
+  date?: string
+  verified?: boolean
+  verifiedPurchase?: boolean
+  helpful?: number
+  helpfulCount?: number
+  reviewer?: string
+  reviewerName?: string
+  reviewerUrl?: string
+  author?: string
+  images?: string[]
+  reviewImages?: string[]
+}
+
+type AmazonProductRaw = {
+  asin?: string
+  title?: string
+  url?: string
+  price?: number
+  currency?: string
+  priceString?: string
+  originalPrice?: number
+  discount?: number
+  stars?: number
+  rating?: number
+  reviews?: number
+  reviewsCount?: number
+  description?: string
+  features?: string[]
+  featureBullets?: string[]
+  images?: string[]
+  variants?: unknown[]
+  availability?: string
+  inStock?: boolean
+  seller?: string
+  brand?: string
+  category?: string
+  topReviews?: AmazonReviewRaw[]
+}
+
 /* ============================================================================
  * FUNCTIONS
  * ========================================================================= */
@@ -130,7 +177,7 @@ export async function scrapeAmazonProduct(
   }
 
   const dataset = apify.getDataset(finalRun.defaultDatasetId)
-  const items = await dataset.listItems({ limit: 1 })
+  const items = await dataset.listItems({ limit: 1 }) as AmazonProductRaw[]
 
   if (items.length === 0) {
     throw new Error(`Product not found: ${input.productUrl}`)
@@ -139,32 +186,36 @@ export async function scrapeAmazonProduct(
   const product = items[0]
 
   return {
-    asin: product.asin,
-    title: product.title,
+    asin: product.asin ?? "",
+    title: product.title ?? "",
     url: product.url || input.productUrl,
     price: product.price,
     currency: product.currency,
     priceString: product.priceString,
     originalPrice: product.originalPrice,
-    discount: product.discount,
+    discount: typeof product.discount === "string"
+      ? product.discount
+      : product.discount != null
+        ? String(product.discount)
+        : undefined,
     rating: product.stars || product.rating,
     stars: product.stars,
     reviewsCount: product.reviews || product.reviewsCount,
     description: product.description,
     features: product.features || product.featureBullets,
     images: product.images,
-    variants: product.variants,
+    variants: product.variants as ProductVariant[] | undefined,
     availability: product.availability,
     inStock: product.inStock,
     seller: product.seller,
     brand: product.brand,
     category: product.category,
-    reviews: product.topReviews?.map((r: any) => ({
-      id: r.id,
-      title: r.title,
-      text: r.text || r.body,
-      rating: r.stars || r.rating,
-      date: r.date,
+    reviews: product.topReviews?.map((r: AmazonReviewRaw) => ({
+      id: r.id || r.reviewId || "",
+      title: r.title || "",
+      text: r.text || r.body || "",
+      rating: r.stars ?? r.rating ?? 0,
+      date: r.date || "",
       verifiedPurchase: r.verified,
       helpful: r.helpful,
       reviewerName: r.reviewer,
@@ -225,14 +276,14 @@ export async function scrapeAmazonReviews(
   const items = await dataset.listItems({
     limit: input.maxResults || 1000,
     offset: input.offset || 0
-  })
+  }) as AmazonReviewRaw[]
 
-  return items.map((review: any) => ({
-    id: review.id || review.reviewId,
-    title: review.title,
-    text: review.text || review.body,
-    rating: review.stars || review.rating,
-    date: review.date,
+  return items.map((review: AmazonReviewRaw) => ({
+    id: review.id || review.reviewId || "",
+    title: review.title || "",
+    text: review.text || review.body || "",
+    rating: review.stars ?? review.rating ?? 0,
+    date: review.date || "",
     verifiedPurchase: review.verifiedPurchase || review.verified,
     helpful: review.helpful || review.helpfulCount,
     reviewerName: review.reviewerName || review.author,
