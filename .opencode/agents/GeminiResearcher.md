@@ -1,7 +1,7 @@
 ---
-description: Multi-perspective researcher using Google Gemini. Called BY Research skill workflows only. Breaks complex queries into 3-10 variations, launches parallel investigations for comprehensive coverage.
+description: Multi-perspective researcher. Uses research-shell MCP to query Gemini with grounding when configured.
 #mode: subagent
-model: google/gemini-2.5-pro
+model: openai/gpt-5.2
 temperature: 0.3
 steps: 15
 color: "#EAB308"
@@ -15,12 +15,13 @@ tools:
   bash: false
   webfetch: true
   websearch: true
+  research-shell_*: true
   task: false
   voice_notify: true
 permission:
   edit:
     "*": deny
-    "/Users/zuul/.config/opencode/scratchpad/**": allow
+    "~/.config/opencode/scratchpad/**": allow
   bash: deny
   webfetch: ask
   task: deny
