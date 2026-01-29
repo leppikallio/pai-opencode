@@ -342,12 +342,16 @@ function renderArtifactMarkdown(record: ArtifactRecord): string {
     out += `${record.content}\n\n`;
   }
 
-  if (citations.length > 0) {
+  if (citations.length > 0 && record.provider !== 'gemini') {
     out += '## Citations\n\n';
     for (const url of citations) {
       out += `- ${url}\n`;
     }
     out += '\n';
+  } else if (citations.length > 0 && record.provider === 'gemini') {
+    out += '## Citations\n\n';
+    out +=
+      'Note: Gemini citations are grounding redirect URLs; use Resolved References above.\n\n';
   }
 
   if (!record.success && record.error) {
