@@ -19,12 +19,13 @@ tools:
   bash: false
   webfetch: true
   websearch: true
+  research-shell_*: true
   task: false
   voice_notify: true
 permission:
   edit:
     "*": deny
-    "/Users/zuul/.config/opencode/scratchpad/**": allow
+    "~/.config/opencode/scratchpad/**": allow
   bash: deny
   webfetch: ask
   task: deny
