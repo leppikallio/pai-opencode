@@ -60,6 +60,8 @@ const TRACKING_QUERY_PARAMS = new Set([
   'utm_term',
   'utm_content',
   'utm_id',
+  'source',
+  'referrer',
   'gclid',
   'dclid',
   'gbraid',
@@ -152,6 +154,13 @@ function unwrapKnownRedirectors(urlString: string): string {
     const url = new URL(urlString);
     const host = url.hostname.toLowerCase();
 
+    // ShieldSquare/PerimeterX-style wrapper used by some sites.
+    // Example we observed: validate.perfdrive.com?ssc=<encoded final url>
+    if (host === 'validate.perfdrive.com') {
+      const ssc = url.searchParams.get('ssc');
+      if (ssc) return ssc;
+    }
+
     // Google redirector.
     if ((host === 'google.com' || host === 'www.google.com') && url.pathname === '/url') {
       const q = url.searchParams.get('q') || url.searchParams.get('url');
@@ -209,56 +218,98 @@ async function resolveOnce(
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  const tryFetch = async (method: 'HEAD' | 'GET') => {
-    const res = await fetch(redirectUrl, {
+  const tryFetch = async (method: 'HEAD' | 'GET', url: string) => {
+    const res = await fetch(url, {
       method,
-      redirect: 'follow',
+      // Manual redirect handling so we can capture Location
+      // without fetching the final destination (which may 403).
+      redirect: 'manual',
       signal: controller.signal,
       headers: {
-        // Minimal UA helps some redirectors.
-        'User-Agent': 'research-shell/redirect-resolver',
-        Accept: '*/*',
+        // Use a browser-like UA to avoid trivial bot blocks.
+        'User-Agent':
+          'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
       },
     });
     return res;
   };
 
   try {
-    let res = await tryFetch('HEAD');
+    const redirectStatuses = new Set([301, 302, 303, 307, 308]);
+    const maxHops = 10;
 
-    // Some redirectors disallow HEAD.
-    if (res.status === 405 || res.status === 403) {
-      res = await tryFetch('GET');
-    }
+    let currentUrl = redirectUrl;
+    let lastRetryAfterMs: number | undefined;
+    let lastStatus: number | undefined;
 
-    // Abort body consumption; we only need final URL.
-    try {
-      await res.body?.cancel();
-    } catch {
-      // ignore
-    }
+    for (let hop = 0; hop < maxHops; hop++) {
+      let res = await tryFetch('HEAD', currentUrl);
 
-    const retryAfterMs = parseRetryAfterMs(res.headers);
+      // Some redirectors disallow HEAD.
+      if (res.status === 405 || res.status === 403) {
+        res = await tryFetch('GET', currentUrl);
+      }
 
-    if (!res.ok && isRetryableStatus(res.status)) {
+      lastStatus = res.status;
+      lastRetryAfterMs = parseRetryAfterMs(res.headers);
+
+      const location = res.headers.get('location');
+
+      // If it's a redirect with a location, follow it ourselves.
+      if (redirectStatuses.has(res.status) && location) {
+        const nextUrl = new URL(location, currentUrl).toString();
+        const candidate = canonicalizeResolvedUrl(nextUrl);
+
+        // If we've escaped the grounding redirect host, we can stop immediately.
+        try {
+          const host = new URL(candidate).hostname.toLowerCase();
+          if (host !== 'vertexaisearch.cloud.google.com') {
+            return { ok: true, resolvedUrl: candidate, status: res.status };
+          }
+        } catch {
+          // If candidate isn't parseable, keep hopping.
+        }
+
+        currentUrl = nextUrl;
+        continue;
+      }
+
+      // Non-redirect response. If we've already moved off the redirect host,
+      // treat the current URL as resolved even if status is 403.
+      try {
+        const host = new URL(currentUrl).hostname.toLowerCase();
+        if (host !== 'vertexaisearch.cloud.google.com') {
+          return { ok: true, resolvedUrl: canonicalizeResolvedUrl(currentUrl), status: res.status };
+        }
+      } catch {
+        // ignore
+      }
+
+      if (!res.ok) {
+        return {
+          ok: false,
+          status: res.status,
+          error: `HTTP ${res.status}`,
+          retryAfterMs: lastRetryAfterMs,
+        };
+      }
+
       return {
         ok: false,
         status: res.status,
-        error: `HTTP ${res.status}`,
-        retryAfterMs,
+        error: 'No redirect Location header',
+        retryAfterMs: lastRetryAfterMs,
       };
     }
 
-    if (!res.ok) {
-      return {
-        ok: false,
-        status: res.status,
-        error: `HTTP ${res.status}`,
-        retryAfterMs,
-      };
-    }
-
-    return { ok: true, resolvedUrl: res.url, status: res.status };
+    return {
+      ok: false,
+      status: lastStatus,
+      error: `Too many redirects (>${maxHops})`,
+      retryAfterMs: lastRetryAfterMs,
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const retryable = isRetryableErrorMessage(message);
