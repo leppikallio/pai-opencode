@@ -32,6 +32,7 @@ import { perplexitySearch } from './clients/perplexity.js';
 import { loadConfig } from './config.js';
 import { type RetryConfig, withRetry } from './retry.js';
 import type { SearchResult } from './types.js';
+import { renderGeminiWithGrounding } from './GeminiGrounding.js';
 
 // ============================================================================
 // Configuration
@@ -165,8 +166,35 @@ interface ArtifactRecord {
   finishedAt: string;
   durationMs: number;
   success: boolean;
+  warning?: string;
   content?: string;
   citations?: string[];
+  citationStyle?: 'ieee';
+  webSearchQueries?: string[];
+  groundingStatus?: 'ok' | 'missing' | 'partial' | 'offset_mismatch';
+  resolvedReferences?: Array<{
+    refNum: number;
+    chunkIndex: number;
+    redirectUrl: string;
+    resolvedUrl: string;
+    title?: string;
+    domain?: string;
+  }>;
+  droppedReferences?: Array<{
+    chunkIndex: number;
+    redirectUrl: string;
+    title?: string;
+    domain?: string;
+    lastStatus?: number;
+    lastError?: string;
+  }>;
+  redirectResolution?: {
+    attemptsTotal: number;
+    resolvedCount: number;
+    droppedCount: number;
+    usedCacheCount: number;
+    durationMs: number;
+  };
   error?: string;
   raw?: unknown;
 }
@@ -262,6 +290,10 @@ function renderArtifactMarkdown(record: ArtifactRecord): string {
   out += `- duration_ms: ${record.durationMs}\n`;
   out += `- success: ${record.success}\n\n`;
 
+  if (record.warning) {
+    out += `WARNING: ${record.warning}\n\n`;
+  }
+
   out += '## Query\n\n';
   out += `Original: ${record.queryOriginal}\n\n`;
   out += `Sanitized: ${record.querySanitized}\n\n`;
@@ -270,6 +302,40 @@ function renderArtifactMarkdown(record: ArtifactRecord): string {
   out += '```json\n';
   out += `${configJson}\n`;
   out += '```\n\n';
+
+  if (record.citationStyle || record.groundingStatus || record.webSearchQueries) {
+    out += '## Grounding\n\n';
+    if (record.citationStyle) out += `- citation_style: ${record.citationStyle}\n`;
+    if (record.groundingStatus) out += `- grounding_status: ${record.groundingStatus}\n`;
+    if (record.redirectResolution) {
+      out += `- redirect_resolution: attempts=${record.redirectResolution.attemptsTotal}, resolved=${record.redirectResolution.resolvedCount}, dropped=${record.redirectResolution.droppedCount}, cache_hits=${record.redirectResolution.usedCacheCount}, duration_ms=${record.redirectResolution.durationMs}\n`;
+    }
+    out += '\n';
+
+    if (record.webSearchQueries && record.webSearchQueries.length > 0) {
+      out += '### webSearchQueries\n\n';
+      for (const q of record.webSearchQueries) out += `- ${q}\n`;
+      out += '\n';
+    }
+
+    if (record.resolvedReferences && record.resolvedReferences.length > 0) {
+      out += '### Resolved References\n\n';
+      for (const r of record.resolvedReferences) {
+        out += `- [${r.refNum}] ${r.resolvedUrl}\n`;
+      }
+      out += '\n';
+    }
+
+    if (record.droppedReferences && record.droppedReferences.length > 0) {
+      out += '### Dropped References\n\n';
+      for (const r of record.droppedReferences) {
+        out += `- chunk=${r.chunkIndex} status=${r.lastStatus ?? 'n/a'} url=${r.redirectUrl}`;
+        if (r.lastError) out += ` error=${r.lastError}`;
+        out += '\n';
+      }
+      out += '\n';
+    }
+  }
 
   if (record.success && record.content) {
     out += '## Content\n\n';
@@ -435,7 +501,58 @@ async function executeSearch(
   durationMs = finishedAt.getTime() - startedAt.getTime();
 
   let providerOutput = result.content || '';
-  if (result.success && result.citations && result.citations.length > 0) {
+  let warning: string | undefined;
+  let citationStyle: ArtifactRecord['citationStyle'] | undefined;
+  let webSearchQueries: string[] | undefined;
+  let groundingStatus: ArtifactRecord['groundingStatus'] | undefined;
+  let resolvedReferences: ArtifactRecord['resolvedReferences'] | undefined;
+  let droppedReferences: ArtifactRecord['droppedReferences'] | undefined;
+  let redirectResolution: ArtifactRecord['redirectResolution'] | undefined;
+
+  if (provider === 'gemini' && result.success) {
+    if (result.raw === undefined) {
+      warning = 'WARNING: Gemini response missing raw grounding payload; emitting answer without citations.';
+      groundingStatus = 'partial';
+      providerOutput = providerOutput.replace(
+        /https:\/\/vertexaisearch\.cloud\.google\.com\/grounding-api-redirect\/[^\s)\]}>"']+/g,
+        '[REDACTED_GROUNDING_REDIRECT_URL]',
+      );
+    } else {
+      try {
+        const rendered = await renderGeminiWithGrounding(result.raw, sessionDirReal, {
+          ttlMs: 7 * 24 * 60 * 60 * 1000,
+          timeoutMs: 8000,
+          maxAttempts: 7,
+          maxDelayMs: 20000,
+          concurrency: 3,
+          debug: process.env.DEBUG === '1',
+        });
+
+        providerOutput = rendered.content;
+        warning = rendered.warning;
+        citationStyle = rendered.citationStyle;
+        webSearchQueries = rendered.webSearchQueries;
+        groundingStatus = rendered.groundingStatus;
+        resolvedReferences = rendered.resolvedReferences;
+        droppedReferences = rendered.droppedReferences;
+        redirectResolution = rendered.redirectResolution;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        warning = `WARNING: Gemini grounding post-processing failed: ${message}`;
+        groundingStatus = 'partial';
+        // Never emit redirect URLs.
+        providerOutput = providerOutput.replace(
+          /https:\/\/vertexaisearch\.cloud\.google\.com\/grounding-api-redirect\/[^\s)\]}>"']+/g,
+          '[REDACTED_GROUNDING_REDIRECT_URL]',
+        );
+      }
+    }
+  } else if (
+    provider !== 'gemini' &&
+    result.success &&
+    result.citations &&
+    result.citations.length > 0
+  ) {
     providerOutput += '\n\n--- Citations ---\n';
     result.citations.forEach((url, i) => {
       providerOutput += `[${i + 1}] ${url}\n`;
@@ -457,8 +574,15 @@ async function executeSearch(
     finishedAt: finishedAt.toISOString(),
     durationMs,
     success: result.success,
+    warning,
     content: providerOutput || undefined,
     citations: result.citations,
+    citationStyle,
+    webSearchQueries,
+    groundingStatus,
+    resolvedReferences,
+    droppedReferences,
+    redirectResolution,
     error: result.error,
     raw: result.raw,
   };
@@ -477,21 +601,36 @@ async function executeSearch(
     success: result.success,
     durationMs,
     outputLength: providerOutput.length || undefined,
-    citationCount: result.citations?.length,
+    citationCount:
+      citationStyle === 'ieee'
+        ? resolvedReferences?.length
+        : result.citations?.length,
     contentSha256: contentHash,
     artifactJsonPath,
     artifactMdPath,
     error: result.error,
   });
 
-  const prefix =
+  let prefix =
     `[research-shell] Evidence saved.\n` +
     `RESEARCH_SHELL_CALL_ID=${callId}\n` +
     `RESEARCH_SHELL_ARTIFACT_JSON=${artifactJsonPath}\n` +
     `RESEARCH_SHELL_ARTIFACT_MD=${artifactMdPath}\n` +
     `RESEARCH_SHELL_EVIDENCE_JSONL=${evidenceJsonlPath}\n` +
-    `INSTRUCTION: Ground your response in the saved artifacts; include the CALL_ID and artifact paths upstream.\n` +
-    `--- BEGIN PROVIDER OUTPUT ---\n`;
+    `INSTRUCTION: Ground your response in the saved artifacts; include the CALL_ID and artifact paths upstream.\n`;
+
+  if (warning) {
+    prefix += `[research-shell] ${warning}\n`;
+  }
+
+  if (webSearchQueries && webSearchQueries.length > 0) {
+    prefix += `[research-shell] webSearchQueries:\n`;
+    for (const q of webSearchQueries) {
+      prefix += `- ${q}\n`;
+    }
+  }
+
+  prefix += `--- BEGIN PROVIDER OUTPUT ---\n`;
 
   if (result.success) {
     return {
