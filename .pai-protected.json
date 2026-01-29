@@ -182,6 +182,8 @@
             "~/.claude/skills/CORE/USER/",
             "~/.claude/MEMORY/",
             "~/.claude/History/",
+            "/Users/[a-z]+/\\.config/opencode/",
+            "/home/[a-z]+/\\.config/opencode/",
             "~/.config/opencode/skills/CORE/USER/",
             "~/.config/opencode/MEMORY/",
             "~/.config/opencode/History/",

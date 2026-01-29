@@ -529,26 +529,6 @@ function extractCitations(metadata: GroundingMetadata): string[] {
   return citations;
 }
 
-/**
- * Format citations as markdown links
- */
-function formatCitations(metadata: GroundingMetadata): string | undefined {
-  if (!metadata.groundingChunks || metadata.groundingChunks.length === 0) {
-    return undefined;
-  }
-
-  let citationsText = '\n\n---\n**Sources:**\n';
-
-  for (const [index, chunk] of metadata.groundingChunks.entries()) {
-    if (chunk.web?.uri) {
-      const title = chunk.web.title || `Source ${index + 1}`;
-      citationsText += `- [${title}](${chunk.web.uri})\n`;
-    }
-  }
-
-  return citationsText;
-}
-
 // ============================================================================
 // OAuth Method (Code Assist API)
 // ============================================================================
@@ -700,20 +680,15 @@ async function makeCodeAssistRequest(
     ? extractCitations(groundingMetadata)
     : [];
 
-  // Add formatted citations to content if available
-  let finalContent = content;
-  if (groundingMetadata && searchEnabled) {
-    const citationsText = formatCitations(groundingMetadata);
-    if (citationsText) {
-      finalContent += citationsText;
-    }
+  // Note: We intentionally DO NOT append sources/citations here.
+  // Grounding offsets are tied to the model text; formatting belongs in the MCP server.
+  const finalContent = content;
 
-    // Log search queries used in debug mode
-    if (debug && groundingMetadata.webSearchQueries) {
-      console.error('\n[gemini] Search queries used:');
-      for (const q of groundingMetadata.webSearchQueries) {
-        console.error(`  - ${q}`);
-      }
+  // Log search queries used in debug mode
+  if (debug && groundingMetadata && groundingMetadata.webSearchQueries) {
+    console.error('\n[gemini] Search queries used:');
+    for (const q of groundingMetadata.webSearchQueries) {
+      console.error(`  - ${q}`);
     }
   }
 
@@ -984,19 +959,14 @@ async function searchWithApiKey(
     const groundingMetadata = data.candidates?.[0]?.groundingMetadata;
     const citations = groundingMetadata ? extractCitations(groundingMetadata) : [];
 
-    // Add formatted citations to content if available
-    let finalContent = content;
-    if (groundingMetadata && searchEnabled) {
-      const citationsText = formatCitations(groundingMetadata);
-      if (citationsText) {
-        finalContent += citationsText;
-      }
+    // Note: We intentionally DO NOT append sources/citations here.
+    // Grounding offsets are tied to the model text; formatting belongs in the MCP server.
+    const finalContent = content;
 
-      if (debug && groundingMetadata.webSearchQueries) {
-        console.error('\n[gemini] Search queries used:');
-        for (const q of groundingMetadata.webSearchQueries) {
-          console.error(`  - ${q}`);
-        }
+    if (debug && groundingMetadata && groundingMetadata.webSearchQueries) {
+      console.error('\n[gemini] Search queries used:');
+      for (const q of groundingMetadata.webSearchQueries) {
+        console.error(`  - ${q}`);
       }
     }
 

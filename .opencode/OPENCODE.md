@@ -43,6 +43,15 @@ Each tool call persists a full copy of the response under the provided `session_
 
 Tool output is prefixed with the `CALL_ID` and artifact paths to encourage grounding.
 
+For `research-shell_gemini_search`, the MCP server post-processes grounding metadata to:
+
+- Insert IEEE-style in-text citations `[n]` (best-effort)
+- Emit a `## References` section with resolved, stable URLs
+  - Tracking parameters are stripped
+  - Google redirectors like `google.com/url?...` are unwrapped when possible
+- If grounding metadata is missing/partial, tool output includes an explicit warning
+- If present, `webSearchQueries` are included in tool output and artifacts (compliance)
+
 #### session_dir Allowlist (Security)
 
 The MCP server refuses to write outside an allowlisted root.
