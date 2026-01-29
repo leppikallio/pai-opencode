@@ -1,30 +1,19 @@
 ---
 description: Johannes - Contrarian, fact-based researcher using xAI Grok API. Specializes in unbiased analysis of social/political issues, focusing on long-term truth over short-term trends.
-mode: subagent
+mode: all
 model: openai/gpt-5.2
 reasoningEffort: high
 textVerbosity: high
 color: "#EAB308"
 tools:
-  read: true
-  glob: true
-  grep: true
-  list: true
+  "*": false
   write: true
-  edit: true
-  bash: false
-  webfetch: true
-  websearch: true
-  research-shell_*: true
-  task: false
+  research-shell_grok_search: true
   voice_notify: true
 permission:
-  edit:
+  write:
     "*": deny
     "~/.config/opencode/scratchpad/**": allow
-  bash: deny
-  webfetch: ask
-  task: deny
   voice_notify: allow
 ---
 

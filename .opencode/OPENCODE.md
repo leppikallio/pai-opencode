@@ -85,7 +85,7 @@ To enable it, add this to your `~/.config/opencode/opencode.json`:
         "GEMINI_REQUEST_TIMEOUT_SECONDS": "2700",
 
         "GROK_API_KEY": "{env:GROK_API_KEY}",
-        "GROK_MODEL": "grok-3-latest",
+        "GROK_MODEL": "grok-4-1-fast",
         "GROK_MAX_TOKENS": "4096",
         "GROK_TEMPERATURE": "0.2",
         "GROK_SEARCH_ENABLED": "true",
@@ -97,6 +97,12 @@ To enable it, add this to your `~/.config/opencode/opencode.json`:
 ```
 
 Then set `enabled: true` once your API keys are present in your shell environment.
+
+### Grok Search (xAI Agent Tools API)
+
+When `GROK_SEARCH_ENABLED: "true"`, `research-shell_grok_search` uses xAI's OpenAI-compatible **Responses** API with server-side tools enabled (`web_search` + `x_search`). xAI deprecated "live search" via `chat/completions` `search_parameters`.
+
+Use a tools-compatible model (recommended: `grok-4-1-fast`).
 
 ### Gemini Auth + Search Grounding
 

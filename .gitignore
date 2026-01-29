@@ -3,5 +3,8 @@ node_modules/
 # Runtime session data (never commit)
 .opencode/MEMORY/
 
+# Underscore-prefixed agent drafts/variants
+.opencode/agents/_*.md
+
 # Backup folders created by converter/migration tools
 .opencode.backup-*/

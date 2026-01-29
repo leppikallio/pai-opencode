@@ -1,6 +1,6 @@
 ---
 description: Multi-perspective researcher. Uses research-shell MCP to query Gemini with grounding when configured.
-mode: all
+mode: subagent
 model: openai/gpt-5.2
 reasoningEffort: high
 textVerbosity: high

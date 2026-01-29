@@ -1,8 +1,11 @@
 /**
  * Grok API Client
  *
- * Direct API client for xAI's Grok model with web search capabilities.
- * The Grok API is OpenAI-compatible with additional search parameters.
+ * Direct API client for xAI's Grok model.
+ *
+ * NOTE (2026-01): xAI deprecated "live search" via chat/completions
+ * `search_parameters`. Web/X search is now provided via the Agent Tools API
+ * using the OpenAI-compatible Responses endpoint.
  *
  * FEATURES:
  * - Web search with automatic citation extraction
@@ -68,6 +71,50 @@ interface GrokRequestBody {
   search_parameters?: GrokSearchParameters;
 }
 
+type XaiToolType = 'web_search' | 'x_search';
+
+interface XaiResponsesInputItem {
+  role: 'system' | 'user';
+  content: string;
+}
+
+interface XaiResponsesTool {
+  type: XaiToolType;
+  // Optional: filters / other parameters exist but we keep it minimal.
+  [key: string]: unknown;
+}
+
+interface XaiResponsesRequestBody {
+  model: string;
+  input: XaiResponsesInputItem[];
+  tools?: XaiResponsesTool[];
+  temperature?: number;
+  max_output_tokens?: number;
+}
+
+interface XaiResponsesMessageContentItem {
+  type?: string;
+  text?: string;
+  // Some variants may use { type: 'text', text: '...' }
+  // or { type: 'output_text', text: '...' }
+  [key: string]: unknown;
+}
+
+interface XaiResponsesOutputItem {
+  type?: string;
+  role?: string;
+  content?: XaiResponsesMessageContentItem[];
+  [key: string]: unknown;
+}
+
+interface XaiResponsesResponse {
+  id?: string;
+  output_text?: string;
+  output?: XaiResponsesOutputItem[];
+  citations?: unknown;
+  [key: string]: unknown;
+}
+
 interface GrokChoice {
   message: {
     role: string;
@@ -98,6 +145,9 @@ interface GrokResponse {
 /** xAI Grok API endpoint */
 const GROK_API_ENDPOINT = 'https://api.x.ai/v1/chat/completions';
 
+/** xAI Responses API endpoint (Agent Tools API) */
+const GROK_RESPONSES_ENDPOINT = 'https://api.x.ai/v1/responses';
+
 /** Default request timeout in milliseconds (when not configured) */
 const DEFAULT_REQUEST_TIMEOUT_MS = 120_000; // 2 minutes
 
@@ -117,14 +167,15 @@ const DEFAULT_CONFIG: GrokConfig = {
 /**
  * Get Grok API key from environment
  *
- * Checks GROK_API_KEY and GROKAI_API_KEY environment variables.
+ * Checks XAI_API_KEY, GROK_API_KEY, and GROKAI_API_KEY environment variables.
  */
 function getApiKey(): string {
-  const apiKey = process.env.GROK_API_KEY || process.env.GROKAI_API_KEY;
+  const apiKey =
+    process.env.XAI_API_KEY || process.env.GROK_API_KEY || process.env.GROKAI_API_KEY;
 
   if (!apiKey) {
     throw new Error(
-      'Grok API key not found. Set GROK_API_KEY or GROKAI_API_KEY environment variable.',
+      'Grok API key not found. Set XAI_API_KEY, GROK_API_KEY, or GROKAI_API_KEY environment variable.',
     );
   }
 
@@ -171,6 +222,38 @@ function extractCitations(response: GrokResponse): string[] {
   return [];
 }
 
+function extractCitationsFromResponses(response: XaiResponsesResponse): string[] {
+  const raw = response.citations;
+  if (!raw) return [];
+
+  if (Array.isArray(raw)) {
+    return raw.filter((url): url is string => typeof url === 'string' && url.length > 0);
+  }
+
+  return [];
+}
+
+function extractTextFromResponses(response: XaiResponsesResponse): string | undefined {
+  if (typeof response.output_text === 'string' && response.output_text.trim().length > 0) {
+    return response.output_text;
+  }
+
+  if (!Array.isArray(response.output)) return undefined;
+
+  for (const item of response.output) {
+    if (item && item.type === 'message' && item.role === 'assistant') {
+      const parts = Array.isArray(item.content) ? item.content : [];
+      const text = parts
+        .map((p) => (p && typeof p.text === 'string' ? p.text : ''))
+        .join('')
+        .trim();
+      if (text.length > 0) return text;
+    }
+  }
+
+  return undefined;
+}
+
 /**
  * Execute a search query using the Grok API
  *
@@ -212,7 +295,7 @@ export async function grokSearch(
     // Validate and merge config
     const validatedConfig = validateConfig(config);
 
-    // Build request body
+    // Build system/user messages
     const messages: GrokMessage[] = [];
 
     // Add system prompt if provided
@@ -237,13 +320,9 @@ export async function grokSearch(
       messages,
     };
 
-    // Add search parameters if enabled
-    if (validatedConfig.searchEnabled) {
-      requestBody.search_parameters = {
-        mode: 'auto',
-        return_citations: validatedConfig.returnCitations,
-      };
-    }
+    // For web/X search: use the Agent Tools API via Responses endpoint.
+    // chat/completions `search_parameters` is deprecated by xAI.
+    const useResponsesApi = validatedConfig.searchEnabled;
 
     // Create AbortController for timeout
     const controller = new AbortController();
@@ -256,14 +335,39 @@ export async function grokSearch(
       timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
     try {
+      const endpoint = useResponsesApi ? GROK_RESPONSES_ENDPOINT : GROK_API_ENDPOINT;
+
+      const bodyToSend: unknown = useResponsesApi
+        ? ((): XaiResponsesRequestBody => {
+            const input: XaiResponsesInputItem[] = [];
+            if (validatedConfig.systemPrompt) {
+              input.push({ role: 'system', content: validatedConfig.systemPrompt });
+            }
+            input.push({ role: 'user', content: query.trim() });
+
+            const tools: XaiResponsesTool[] = [
+              { type: 'web_search' },
+              { type: 'x_search' },
+            ];
+
+            return {
+              model: validatedConfig.model,
+              input,
+              tools,
+              temperature: validatedConfig.temperature,
+              max_output_tokens: validatedConfig.maxTokens,
+            };
+          })()
+        : requestBody;
+
       // Make API request
-      const response = await fetch(GROK_API_ENDPOINT, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify(bodyToSend),
         signal: controller.signal,
       });
 
@@ -281,10 +385,15 @@ export async function grokSearch(
           // Keep raw as { errorText }
         }
 
-        // Try to parse error response
+        // Try to parse error response (xAI returns either {error:"..."} or {error:{message:"..."}})
         try {
           const errorJson = JSON.parse(errorText);
-          if (errorJson.error?.message) {
+          if (typeof errorJson?.error === 'string' && errorJson.error.trim().length > 0) {
+            errorMessage = errorJson.error;
+          } else if (
+            typeof errorJson?.error?.message === 'string' &&
+            errorJson.error.message.trim().length > 0
+          ) {
             errorMessage = errorJson.error.message;
           }
         } catch {
@@ -299,6 +408,29 @@ export async function grokSearch(
       }
 
       // Parse response
+      if (useResponsesApi) {
+        const data = (await response.json()) as XaiResponsesResponse;
+        const content = extractTextFromResponses(data);
+        if (!content) {
+          return {
+            success: false,
+            error: 'Empty response content from Responses API',
+            raw: data,
+          };
+        }
+
+        const citations = validatedConfig.returnCitations
+          ? extractCitationsFromResponses(data)
+          : undefined;
+
+        return {
+          success: true,
+          content,
+          citations,
+          raw: data,
+        };
+      }
+
       const data = (await response.json()) as GrokResponse;
 
       // Extract content
@@ -321,9 +453,7 @@ export async function grokSearch(
       }
 
       // Extract citations if enabled
-      const citations = validatedConfig.returnCitations
-        ? extractCitations(data)
-        : undefined;
+      const citations = validatedConfig.returnCitations ? extractCitations(data) : undefined;
 
       return {
         success: true,
