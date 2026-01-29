@@ -15,8 +15,10 @@
  * This server runs via stdio transport and is spawned by the Agent SDK.
  */
 
-import { appendFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
+import { createHash, randomUUID } from 'node:crypto';
+import { appendFile, mkdir, realpath, rename, stat, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
+import { delimiter, isAbsolute, join, resolve, sep } from 'node:path';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -29,6 +31,7 @@ import { grokSearch } from './clients/grok.js';
 import { perplexitySearch } from './clients/perplexity.js';
 import { loadConfig } from './config.js';
 import { type RetryConfig, withRetry } from './retry.js';
+import type { SearchResult } from './types.js';
 
 // ============================================================================
 // Configuration
@@ -126,38 +129,191 @@ function validateQuery(query: string): ValidationResult {
 }
 
 // ============================================================================
-// Evidence Capture
+// Evidence + Artifact Capture
 // ============================================================================
+
+type Provider = 'perplexity' | 'gemini' | 'grok';
 
 interface EvidenceEntry {
   timestamp: string;
+  callId: string;
   tool: string;
-  query: string;
+  provider: Provider;
+  queryOriginal: string;
+  querySanitized: string;
   success: boolean;
+  durationMs?: number;
   outputLength?: number;
   citationCount?: number;
+  contentSha256?: string;
+  artifactJsonPath: string;
+  artifactMdPath: string;
   /** Error message if success=false (captures final error after retries) */
   error?: string;
 }
 
-/**
- * Log evidence of a research query for audit trail
- */
-async function logEvidence(
-  sessionDir: string,
-  entry: EvidenceEntry,
+interface ArtifactRecord {
+  schemaVersion: 1;
+  timestamp: string;
+  callId: string;
+  tool: string;
+  provider: Provider;
+  queryOriginal: string;
+  querySanitized: string;
+  config: unknown;
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  success: boolean;
+  content?: string;
+  citations?: string[];
+  error?: string;
+  raw?: unknown;
+}
+
+const DEFAULT_ALLOWED_SESSION_DIR_PREFIXES = [
+  join(homedir(), '.config', 'opencode', 'scratchpad', 'sessions'),
+];
+
+function parseAllowedSessionDirPrefixes(): string[] {
+  const raw = process.env.RESEARCH_SHELL_ALLOWED_SESSION_DIR_PREFIXES;
+  if (!raw || raw.trim().length === 0) return DEFAULT_ALLOWED_SESSION_DIR_PREFIXES;
+
+  const prefixes = raw
+    .split(delimiter)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0);
+
+  return prefixes.length > 0 ? prefixes : DEFAULT_ALLOWED_SESSION_DIR_PREFIXES;
+}
+
+function isWithinPrefix(targetPath: string, prefixPath: string): boolean {
+  if (targetPath === prefixPath) return true;
+  return targetPath.startsWith(prefixPath.endsWith(sep) ? prefixPath : prefixPath + sep);
+}
+
+async function validateSessionDirOrThrow(sessionDirRaw: string): Promise<string> {
+  if (!sessionDirRaw || sessionDirRaw.trim().length === 0) {
+    throw new Error('session_dir cannot be empty');
+  }
+
+  if (!isAbsolute(sessionDirRaw)) {
+    throw new Error(`session_dir must be an absolute path, got: "${sessionDirRaw}"`);
+  }
+
+  const sessionDirReal = await realpath(sessionDirRaw);
+  const st = await stat(sessionDirReal);
+  if (!st.isDirectory()) {
+    throw new Error(`session_dir must be a directory, got: "${sessionDirReal}"`);
+  }
+
+  const allowedPrefixes = parseAllowedSessionDirPrefixes();
+  const allowedPrefixReals: string[] = [];
+  for (const prefix of allowedPrefixes) {
+    try {
+      allowedPrefixReals.push(await realpath(prefix));
+    } catch {
+      allowedPrefixReals.push(resolve(prefix));
+    }
+  }
+
+  if (!allowedPrefixReals.some((p) => isWithinPrefix(sessionDirReal, p))) {
+    throw new Error(
+      `session_dir is not allowed: "${sessionDirReal}". Allowed prefixes: ${allowedPrefixes.join(', ')}`,
+    );
+  }
+
+  return sessionDirReal;
+}
+
+function formatTimestampForFilename(timestampIso: string): string {
+  // ISO contains ':' which is awkward in filenames.
+  return timestampIso.replace(/[:.]/g, '-');
+}
+
+function sha256(text: string): string {
+  return createHash('sha256').update(text, 'utf8').digest('hex');
+}
+
+async function writeFileAtomic(
+  filePath: string,
+  contents: string,
+  mode: number = 0o600,
 ): Promise<void> {
-  try {
-    const evidenceDir = join(sessionDir, 'evidence');
-    await mkdir(evidenceDir, { recursive: true });
+  const tmpPath = `${filePath}.tmp-${randomUUID()}`;
+  await writeFile(tmpPath, contents, { encoding: 'utf8', mode });
+  await rename(tmpPath, filePath);
+}
 
-    const evidencePath = join(evidenceDir, 'research-shell.jsonl');
-    const line = `${JSON.stringify(entry)}\n`;
+function renderArtifactMarkdown(record: ArtifactRecord): string {
+  const citations = record.citations ?? [];
+  const configJson = JSON.stringify(record.config, null, 2);
+  const rawJson =
+    record.raw === undefined ? undefined : JSON.stringify(record.raw, null, 2);
 
-    await appendFile(evidencePath, line);
-  } catch (error) {
-    // Don't fail the main operation if evidence logging fails
-    console.error('Failed to log evidence:', error);
+  let out = '';
+  out += '# Research Shell Result\n\n';
+  out += `- timestamp: ${record.timestamp}\n`;
+  out += `- call_id: ${record.callId}\n`;
+  out += `- tool: ${record.tool}\n`;
+  out += `- provider: ${record.provider}\n`;
+  out += `- started_at: ${record.startedAt}\n`;
+  out += `- finished_at: ${record.finishedAt}\n`;
+  out += `- duration_ms: ${record.durationMs}\n`;
+  out += `- success: ${record.success}\n\n`;
+
+  out += '## Query\n\n';
+  out += `Original: ${record.queryOriginal}\n\n`;
+  out += `Sanitized: ${record.querySanitized}\n\n`;
+
+  out += '## Config\n\n';
+  out += '```json\n';
+  out += `${configJson}\n`;
+  out += '```\n\n';
+
+  if (record.success && record.content) {
+    out += '## Content\n\n';
+    out += `${record.content}\n\n`;
+  }
+
+  if (citations.length > 0) {
+    out += '## Citations\n\n';
+    for (const url of citations) {
+      out += `- ${url}\n`;
+    }
+    out += '\n';
+  }
+
+  if (!record.success && record.error) {
+    out += '## Error\n\n';
+    out += '```\n';
+    out += `${record.error}\n`;
+    out += '```\n\n';
+  }
+
+  if (rawJson !== undefined) {
+    out += '## Raw Provider Payload\n\n';
+    out += '```json\n';
+    out += `${rawJson}\n`;
+    out += '```\n';
+  }
+
+  return out;
+}
+
+async function appendEvidenceOrThrow(evidenceJsonlPath: string, entry: EvidenceEntry): Promise<void> {
+  const line = `${JSON.stringify(entry)}\n`;
+  await appendFile(evidenceJsonlPath, line);
+}
+
+function providerLabel(provider: Provider): string {
+  switch (provider) {
+    case 'gemini':
+      return 'Gemini';
+    case 'perplexity':
+      return 'Perplexity';
+    case 'grok':
+      return 'Grok';
   }
 }
 
@@ -165,10 +321,17 @@ async function logEvidence(
 // API Execution
 // ============================================================================
 
-interface SearchResult {
+interface ExecuteSearchResult {
+  provider: Provider;
+  tool: string;
+  callId: string;
+  evidenceJsonlPath: string;
+  artifactJsonPath: string;
+  artifactMdPath: string;
   success: boolean;
-  content?: string;
-  citations?: string[];
+  /** Full tool return text (prefix + provider output or error). */
+  text: string;
+  /** Error message if success=false */
   error?: string;
 }
 
@@ -179,94 +342,182 @@ interface SearchResult {
  * No shell interpretation - direct HTTP API calls only.
  */
 async function executeSearch(
-  tool: 'perplexity' | 'gemini' | 'grok',
-  query: string,
-  sessionDir: string,
-): Promise<SearchResult> {
-  // Validate query
-  const validation = validateQuery(query);
+  provider: Provider,
+  toolName: string,
+  queryOriginal: string,
+  sessionDirReal: string,
+): Promise<ExecuteSearchResult> {
+  const validation = validateQuery(queryOriginal);
   if (!validation.valid) {
-    return { success: false, error: validation.error };
+    return {
+      provider,
+      tool: toolName,
+      callId: 'validation_error',
+      evidenceJsonlPath: '',
+      artifactJsonPath: '',
+      artifactMdPath: '',
+      success: false,
+      text: `Error: ${validation.error}`,
+      error: validation.error,
+    };
   }
 
   // Safe to access since we checked validation.valid above
   const sanitizedQuery = validation.sanitized as string;
+  const callId = randomUUID();
+  const startedAt = new Date();
 
-  // Load API configuration
-  const config = loadConfig();
+  const rsDir = join(sessionDirReal, 'research-shell');
+  const evidenceDir = join(rsDir, 'evidence');
+  const evidenceJsonlPath = join(evidenceDir, 'research-shell.jsonl');
+
+  await mkdir(rsDir, { recursive: true, mode: 0o700 });
+  await mkdir(evidenceDir, { recursive: true, mode: 0o700 });
+
+  const timestampIso = startedAt.toISOString();
+  const tsFile = formatTimestampForFilename(timestampIso);
+  const baseName = `${providerLabel(provider)}Search_${tsFile}_${callId}`;
+  const artifactJsonPath = join(rsDir, `${baseName}.json`);
+  const artifactMdPath = join(rsDir, `${baseName}.md`);
+
+  let config: ReturnType<typeof loadConfig> | null = null;
+  let configForArtifact: unknown;
+
+  let result: SearchResult = { success: false, error: 'Uninitialized' };
+  let durationMs = 0;
 
   try {
-    let result: SearchResult;
-
-    // Call appropriate API client with retry logic
-    // Wraps each call with exponential backoff to handle transient failures
-    switch (tool) {
-      case 'perplexity':
-        result = await withRetry(
-          () => perplexitySearch(sanitizedQuery, config.perplexity),
-          'perplexity_search',
-          RETRY_CONFIG,
-        );
-        break;
-      case 'gemini':
-        result = await withRetry(
-          () => geminiSearch(sanitizedQuery, config.gemini),
-          'gemini_search',
-          RETRY_CONFIG,
-        );
-        break;
-      case 'grok':
-        result = await withRetry(
-          () => grokSearch(sanitizedQuery, config.grok),
-          'grok_search',
-          RETRY_CONFIG,
-        );
-        break;
-      default:
-        return { success: false, error: `Unknown tool: ${tool}` };
-    }
-
-    // Log evidence of search result (after all retries)
-    await logEvidence(sessionDir, {
-      timestamp: new Date().toISOString(),
-      tool,
-      query: sanitizedQuery,
-      success: result.success,
-      outputLength: result.content?.length,
-      citationCount: result.citations?.length,
-      error: result.error,
-    });
-
-    // Return failure if search ultimately failed
-    if (!result.success) {
-      return result;
-    }
-
-    // Format response with citations
-    let output = result.content || '';
-    if (result.citations && result.citations.length > 0) {
-      output += '\n\n--- Citations ---\n';
-      result.citations.forEach((url, i) => {
-        output += `[${i + 1}] ${url}\n`;
-      });
-    }
-
-    return { success: true, content: output };
+    config = loadConfig();
+    configForArtifact =
+      provider === 'gemini'
+        ? config.gemini
+        : provider === 'perplexity'
+          ? config.perplexity
+          : config.grok;
   } catch (error) {
-    const errorMessage =
-      error instanceof Error ? error.message : 'Unknown error';
-
-    // Log evidence of failure
-    await logEvidence(sessionDir, {
-      timestamp: new Date().toISOString(),
-      tool,
-      query: sanitizedQuery,
-      success: false,
-      error: errorMessage,
-    });
-
-    return { success: false, error: errorMessage };
+    const message = error instanceof Error ? error.message : String(error);
+    result = { success: false, error: message, raw: { configError: message } };
+    configForArtifact = { configError: message };
   }
+
+  if (config) {
+    try {
+      switch (provider) {
+        case 'perplexity':
+          result = await withRetry(
+            () => perplexitySearch(sanitizedQuery, config.perplexity),
+            toolName,
+            RETRY_CONFIG,
+          );
+          break;
+        case 'gemini':
+          result = await withRetry(
+            () => geminiSearch(sanitizedQuery, config.gemini),
+            toolName,
+            RETRY_CONFIG,
+          );
+          break;
+        case 'grok':
+          result = await withRetry(
+            () => grokSearch(sanitizedQuery, config.grok),
+            toolName,
+            RETRY_CONFIG,
+          );
+          break;
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      result = { success: false, error: message };
+    }
+  }
+
+  const finishedAt = new Date();
+  durationMs = finishedAt.getTime() - startedAt.getTime();
+
+  let providerOutput = result.content || '';
+  if (result.success && result.citations && result.citations.length > 0) {
+    providerOutput += '\n\n--- Citations ---\n';
+    result.citations.forEach((url, i) => {
+      providerOutput += `[${i + 1}] ${url}\n`;
+    });
+  }
+
+  const contentHash = providerOutput.length > 0 ? sha256(providerOutput) : undefined;
+
+  const artifact: ArtifactRecord = {
+    schemaVersion: 1,
+    timestamp: timestampIso,
+    callId,
+    tool: toolName,
+    provider,
+    queryOriginal,
+    querySanitized: sanitizedQuery,
+    config: configForArtifact,
+    startedAt: startedAt.toISOString(),
+    finishedAt: finishedAt.toISOString(),
+    durationMs,
+    success: result.success,
+    content: providerOutput || undefined,
+    citations: result.citations,
+    error: result.error,
+    raw: result.raw,
+  };
+
+  // Persist artifacts first, then append to evidence log.
+  await writeFileAtomic(artifactJsonPath, `${JSON.stringify(artifact, null, 2)}\n`);
+  await writeFileAtomic(artifactMdPath, `${renderArtifactMarkdown(artifact)}\n`);
+
+  await appendEvidenceOrThrow(evidenceJsonlPath, {
+    timestamp: timestampIso,
+    callId,
+    tool: toolName,
+    provider,
+    queryOriginal,
+    querySanitized: sanitizedQuery,
+    success: result.success,
+    durationMs,
+    outputLength: providerOutput.length || undefined,
+    citationCount: result.citations?.length,
+    contentSha256: contentHash,
+    artifactJsonPath,
+    artifactMdPath,
+    error: result.error,
+  });
+
+  const prefix =
+    `[research-shell] Evidence saved.\n` +
+    `RESEARCH_SHELL_CALL_ID=${callId}\n` +
+    `RESEARCH_SHELL_ARTIFACT_JSON=${artifactJsonPath}\n` +
+    `RESEARCH_SHELL_ARTIFACT_MD=${artifactMdPath}\n` +
+    `RESEARCH_SHELL_EVIDENCE_JSONL=${evidenceJsonlPath}\n` +
+    `INSTRUCTION: Ground your response in the saved artifacts; include the CALL_ID and artifact paths upstream.\n` +
+    `--- BEGIN PROVIDER OUTPUT ---\n`;
+
+  if (result.success) {
+    return {
+      provider,
+      tool: toolName,
+      callId,
+      evidenceJsonlPath,
+      artifactJsonPath,
+      artifactMdPath,
+      success: true,
+      text: `${prefix}${providerOutput}`,
+    };
+  }
+
+  const errorText = result.error || 'Unknown error';
+  return {
+    provider,
+    tool: toolName,
+    callId,
+    evidenceJsonlPath,
+    artifactJsonPath,
+    artifactMdPath,
+    success: false,
+    text: `${prefix}Error: ${errorText}`,
+    error: errorText,
+  };
 }
 
 // ============================================================================
@@ -421,50 +672,72 @@ server.setRequestHandler(
       };
     }
 
-    let result: SearchResult;
-
-    switch (name) {
-      case 'perplexity_search':
-        result = await executeSearch('perplexity', query, session_dir);
-        break;
-      case 'gemini_search':
-        result = await executeSearch('gemini', query, session_dir);
-        break;
-      case 'grok_search':
-        result = await executeSearch('grok', query, session_dir);
-        break;
-      default:
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Error: Unknown tool "${name}"`,
-            },
-          ],
-          isError: true,
-        };
-    }
-
-    if (result.success) {
+    let sessionDirReal: string;
+    try {
+      sessionDirReal = await validateSessionDirOrThrow(session_dir);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       return {
         content: [
           {
             type: 'text',
-            text: result.content || 'No results returned',
-          },
-        ],
-      };
-    } else {
-      return {
-        content: [
-          {
-            type: 'text',
-            text: `Error: ${result.error}`,
+            text: `Error: ${message}`,
           },
         ],
         isError: true,
       };
     }
+
+    let execResult: ExecuteSearchResult;
+    try {
+      switch (name) {
+        case 'perplexity_search':
+          execResult = await executeSearch(
+            'perplexity',
+            name,
+            query,
+            sessionDirReal,
+          );
+          break;
+        case 'gemini_search':
+          execResult = await executeSearch('gemini', name, query, sessionDirReal);
+          break;
+        case 'grok_search':
+          execResult = await executeSearch('grok', name, query, sessionDirReal);
+          break;
+        default:
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Error: Unknown tool "${name}"`,
+              },
+            ],
+            isError: true,
+          };
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Error: ${message}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: execResult.text || 'No results returned',
+        },
+      ],
+      isError: !execResult.success,
+    };
   },
 );
 

@@ -154,7 +154,7 @@ catch (error) {
 
 ### Evidence Logging (Lines 108-141)
 1. **logEvidence()** function - Unchanged implementation
-2. **JSONL format** - Audit trail in `evidence/research-shell.jsonl`
+2. **JSONL format** - Audit trail in `research-shell/evidence/research-shell.jsonl`
 3. **Enhanced tracking** - Now includes citation counts
 
 ## Security Improvements

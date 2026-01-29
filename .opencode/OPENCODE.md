@@ -32,6 +32,25 @@ It exposes these MCP tools (prefixed by server name):
 - `research-shell_gemini_search`
 - `research-shell_grok_search`
 
+### Evidence + Result Artifacts
+
+Each tool call persists a full copy of the response under the provided `session_dir`:
+
+- Artifacts: `session_dir/research-shell/`
+  - `{Provider}Search_<timestamp>_<callId>.json` (raw-ish structured payload + normalized wrapper)
+  - `{Provider}Search_<timestamp>_<callId>.md` (human-readable rendering)
+- Evidence index: `session_dir/research-shell/evidence/research-shell.jsonl` (JSONL; links to artifact paths)
+
+Tool output is prefixed with the `CALL_ID` and artifact paths to encourage grounding.
+
+#### session_dir Allowlist (Security)
+
+The MCP server refuses to write outside an allowlisted root.
+
+- Configure via environment variable: `RESEARCH_SHELL_ALLOWED_SESSION_DIR_PREFIXES`
+  - Use the platform path delimiter (`:` on macOS/Linux)
+- Default: `~/.config/opencode/scratchpad/sessions/`
+
 To enable it, add this to your `~/.config/opencode/opencode.json`:
 
 ```jsonc
@@ -40,6 +59,7 @@ To enable it, add this to your `~/.config/opencode/opencode.json`:
     "research-shell": {
       "type": "local",
       "enabled": false,
+      "timeout": 2700000,
       "command": ["bash", "-lc", "bun run ~/.config/opencode/mcp/research-shell/index.ts"],
       "environment": {
         "PERPLEXITY_API_KEY": "{env:PERPLEXITY_API_KEY}",
@@ -53,6 +73,7 @@ To enable it, add this to your `~/.config/opencode/opencode.json`:
         "GEMINI_MAX_TOKENS": "8192",
         "GEMINI_TEMPERATURE": "0.2",
         "GEMINI_SEARCH_ENABLED": "true",
+        "GEMINI_REQUEST_TIMEOUT_SECONDS": "2700",
 
         "GROK_API_KEY": "{env:GROK_API_KEY}",
         "GROK_MODEL": "grok-3-latest",
@@ -94,6 +115,16 @@ This file may contain an `access_token`, optional `refresh_token`, optional `exp
 #### Applying Config Changes
 
 The MCP server is a subprocess. After changing `~/.config/opencode/opencode.json`, restart OpenCode so the `research-shell` process picks up the new environment.
+
+#### MCP Request Timeout
+
+OpenCode enforces an MCP request timeout per server via `mcp.<server>.timeout` (milliseconds). For long-running research (e.g. Gemini), increase `mcp.research-shell.timeout` to cover your longest expected run.
+
+Separately, the research-shell clients support per-provider HTTP timeouts (seconds) via environment variables:
+
+- `GEMINI_REQUEST_TIMEOUT_SECONDS`
+- `PERPLEXITY_REQUEST_TIMEOUT_SECONDS`
+- `GROK_REQUEST_TIMEOUT_SECONDS`
 
 For full documentation, see the README.md in the repository root.
 

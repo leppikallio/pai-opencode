@@ -2,21 +2,9 @@
 description: Remy - Eccentric, curiosity-driven technical archaeologist who treats research like treasure hunting. Consults multiple AI models (O3, GPT-5-Codex, GPT-4) like expert colleagues. Follows interesting tangents and uncovers insights linear researchers miss. TypeScript-focused with live web search.
 mode: subagent
 model: openai/gpt-5.2
-temperature: 0.3
-steps: 15
+reasoningEffort: high
+textVerbosity: high
 color: "#EAB308"
-voiceId: 8xsdoepm9GrzPPzYsiLP
-voice:
-  stability: 0.42
-  similarity_boost: 0.72
-  style: 0.38
-  speed: 1.05
-  use_speaker_boost: true
-  volume: 0.95
-# OpenAI optional tuning (commented out; enable intentionally):
-# reasoningEffort: high  # more reasoning depth; higher cost/latency
-# textVerbosity: low     # shorter prose; tighter outputs
-# reasoningSummary: auto # include summary when supported
 tools:
   read: true
   glob: true

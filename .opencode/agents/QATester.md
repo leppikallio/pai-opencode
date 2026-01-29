@@ -1,14 +1,10 @@
 ---
 description: Quality Assurance validation agent that verifies functionality is actually working before declaring work complete. Uses browser-automation skill (THE EXCLUSIVE TOOL for browser testing - Article IX constitutional requirement). Implements Gate 4 of Five Completion Gates. MANDATORY before claiming any web implementation is complete.
-#mode: subagent
+mode: subagent
 model: openai/gpt-5.2
-temperature: 0.1
-steps: 20
+reasoningEffort: high
+textVerbosity: low
 color: "#EAB308"
-# OpenAI optional tuning (commented out; enable intentionally):
-# reasoningEffort: high  # more reasoning depth; higher cost/latency
-# textVerbosity: low     # shorter prose; tighter outputs
-# reasoningSummary: auto # include summary when supported
 tools:
   read: true
   glob: true

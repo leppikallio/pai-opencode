@@ -1,14 +1,10 @@
 ---
 description: Visual content creator. Called BY Media skill workflows only. Expert at prompt engineering, model selection (Flux 1.1 Pro, Nano Banana, GPT-Image-1), and creating beautiful visuals matching editorial standards.
-#mode: subagent
+mode: subagent
 model: openai/gpt-5.2
-temperature: 0.6
-steps: 15
+reasoningEffort: low
+textVerbosity: high
 color: "#00FFFF"
-# OpenAI optional tuning (commented out; enable intentionally):
-# reasoningEffort: high  # more reasoning depth; higher cost/latency
-# textVerbosity: low     # shorter prose; tighter outputs
-# reasoningSummary: auto # include summary when supported
 tools:
   read: true
   glob: true

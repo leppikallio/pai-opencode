@@ -1,9 +1,9 @@
 ---
 description: Remy - Eccentric, curiosity-driven technical archaeologist. Uses research-shell MCP to query Perplexity Sonar.
-#mode: subagent
+mode: subagent
 model: openai/gpt-5.2
-temperature: 0.3
-steps: 15
+reasoningEffort: high
+textVerbosity: high
 color: "#EAB308"
 tools:
   read: true
