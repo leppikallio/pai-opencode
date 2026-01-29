@@ -5,6 +5,8 @@ export interface SearchResult {
   success: boolean;
   content?: string;
   citations?: string[];
+  /** Raw provider response payload (best-effort, no secrets). */
+  raw?: unknown;
   error?: string;
 }
 

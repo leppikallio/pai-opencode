@@ -10,6 +10,8 @@ export interface PerplexityConfig {
   maxTokens: number;
   temperature: number;
   systemPrompt?: string;
+  /** Optional request timeout for API calls (milliseconds) */
+  requestTimeoutMs?: number;
 }
 
 /**
@@ -21,6 +23,8 @@ export interface GeminiConfig {
   temperature: number;
   authMethod: 'oauth' | 'apikey';
   searchEnabled: boolean;
+  /** Optional request timeout for API calls (milliseconds) */
+  requestTimeoutMs?: number;
 }
 
 /**
@@ -33,6 +37,8 @@ export interface GrokConfig {
   searchEnabled: boolean;
   returnCitations: boolean;
   systemPrompt?: string;
+  /** Optional request timeout for API calls (milliseconds) */
+  requestTimeoutMs?: number;
 }
 
 /**
@@ -103,6 +109,33 @@ function requireNumericEnv(name: string): number {
 }
 
 /**
+ * Read optional numeric environment variable.
+ */
+function optionalNumericEnv(name: string): number | undefined {
+  const raw = optionalEnv(name);
+  if (!raw) return undefined;
+  const num = Number.parseFloat(raw);
+  if (Number.isNaN(num)) {
+    throw new Error(
+      `Environment variable ${name} must be a number, got: "${raw}"`,
+    );
+  }
+  return num;
+}
+
+/**
+ * Read optional timeout environment variable in seconds.
+ * - Undefined/empty: no explicit timeout configured
+ * - 0: disable timeout
+ */
+function optionalTimeoutMsFromSeconds(nameSeconds: string): number | undefined {
+  const seconds = optionalNumericEnv(nameSeconds);
+  if (seconds === undefined) return undefined;
+  if (seconds <= 0) return 0;
+  return Math.round(seconds * 1000);
+}
+
+/**
  * Read optional environment variable.
  */
 function optionalEnv(name: string): string | undefined {
@@ -153,6 +186,9 @@ export function loadConfig(): ResearchShellConfig {
       maxTokens: requireNumericEnv('PERPLEXITY_MAX_TOKENS'),
       temperature: requireNumericEnv('PERPLEXITY_TEMPERATURE'),
       systemPrompt: undefined,
+      requestTimeoutMs: optionalTimeoutMsFromSeconds(
+        'PERPLEXITY_REQUEST_TIMEOUT_SECONDS',
+      ),
     },
     gemini: {
       model: requireEnv('GEMINI_MODEL'),
@@ -160,6 +196,9 @@ export function loadConfig(): ResearchShellConfig {
       temperature: requireNumericEnv('GEMINI_TEMPERATURE'),
       authMethod: parseGeminiAuthMethod(),
       searchEnabled: requireEnv('GEMINI_SEARCH_ENABLED') !== 'false',
+      requestTimeoutMs: optionalTimeoutMsFromSeconds(
+        'GEMINI_REQUEST_TIMEOUT_SECONDS',
+      ),
     },
     grok: {
       model: requireEnv('GROK_MODEL'),
@@ -168,6 +207,9 @@ export function loadConfig(): ResearchShellConfig {
       searchEnabled: requireEnv('GROK_SEARCH_ENABLED') !== 'false',
       returnCitations: requireEnv('GROK_RETURN_CITATIONS') !== 'false',
       systemPrompt: undefined,
+      requestTimeoutMs: optionalTimeoutMsFromSeconds(
+        'GROK_REQUEST_TIMEOUT_SECONDS',
+      ),
     },
   };
 

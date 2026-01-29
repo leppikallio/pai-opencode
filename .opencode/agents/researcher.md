@@ -1,14 +1,10 @@
 ---
 description: Web research, source verification, analysis
-#mode: subagent
+mode: subagent
 model: openai/gpt-5.2
-temperature: 0.3
-steps: 15
+reasoningEffort: high
+textVerbosity: low
 color: "#06B6D4"
-# OpenAI optional tuning (commented out; enable intentionally):
-# reasoningEffort: high  # more reasoning depth; higher cost/latency
-# textVerbosity: low     # shorter prose; tighter outputs
-# reasoningSummary: auto # include summary when supported
 tools:
   read: true
   glob: true
@@ -27,6 +23,7 @@ permission:
   bash: deny
   webfetch: ask
   task: deny
+  voice_notify: allow
 ---
 
 # Researcher - Deep Web Research Specialist

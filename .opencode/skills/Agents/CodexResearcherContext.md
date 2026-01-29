@@ -80,6 +80,20 @@ codex exec --sandbox danger-full-access --model gpt-4 "general research"
 
 ---
 
+## Research Shell Evidence Anchoring (MANDATORY)
+
+When you use any `research-shell_*_search` tool (especially `research-shell_perplexity_search`), the tool response begins with evidence pointers:
+
+- `RESEARCH_SHELL_CALL_ID=...`
+- `RESEARCH_SHELL_ARTIFACT_JSON=...`
+- `RESEARCH_SHELL_ARTIFACT_MD=...`
+- `RESEARCH_SHELL_EVIDENCE_JSONL=...`
+
+Rules:
+- Always include the `CALL_ID` and artifact paths in your response.
+- Ground all claims in the saved artifacts (not memory).
+- If you summarize, cite the artifact path(s) you used.
+
 ## Output Format
 
 ```

@@ -81,12 +81,16 @@ export interface GeminiConfig {
   searchEnabled?: boolean;
   /** Enable debug logging (default: false) */
   debug?: boolean;
+  /** Optional request timeout in milliseconds (0 disables) */
+  requestTimeoutMs?: number;
 }
 
 export interface SearchResult {
   success: boolean;
   content?: string;
   citations?: string[];
+  /** Raw provider response payload (best-effort, no secrets). */
+  raw?: unknown;
   error?: string;
 }
 
@@ -561,7 +565,7 @@ async function makeCodeAssistRequest(
   projectId: string,
   config: Required<GeminiConfig>,
 ): Promise<SearchResult> {
-  const { model, maxTokens, temperature, searchEnabled, debug } = config;
+  const { model, maxTokens, temperature, searchEnabled, debug, requestTimeoutMs } = config;
 
   const url = `${CODE_ASSIST_ENDPOINT}/${CODE_ASSIST_API_VERSION}:generateContent`;
   const userPromptId = randomBytes(16).toString('hex');
@@ -610,15 +614,36 @@ async function makeCodeAssistRequest(
 
   const startTime = Date.now();
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      'User-Agent': USER_AGENT,
-    },
-    body: JSON.stringify(requestBody),
-  });
+  const controller = new AbortController();
+  const timeoutId =
+    requestTimeoutMs > 0
+      ? setTimeout(() => controller.abort(), requestTimeoutMs)
+      : null;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'User-Agent': USER_AGENT,
+      },
+      body: JSON.stringify(requestBody),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (timeoutId) clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      return {
+        success: false,
+        error: `Request timed out after ${requestTimeoutMs}ms`,
+      };
+    }
+    throw error;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 
   const duration = Date.now() - startTime;
 
@@ -631,9 +656,11 @@ async function makeCodeAssistRequest(
   if (!response.ok) {
     const errorText = await response.text();
     let errorMessage = `API request failed (${response.status})`;
+    let raw: unknown = { errorText };
 
     try {
       const errorJson = JSON.parse(errorText);
+      raw = errorJson;
       if (errorJson.error?.message) {
         errorMessage = errorJson.error.message;
       }
@@ -644,6 +671,7 @@ async function makeCodeAssistRequest(
     return {
       success: false,
       error: errorMessage,
+      raw,
     };
   }
 
@@ -662,6 +690,7 @@ async function makeCodeAssistRequest(
     return {
       success: false,
       error: 'No content in response',
+      raw: data,
     };
   }
 
@@ -692,6 +721,7 @@ async function makeCodeAssistRequest(
     success: true,
     content: finalContent,
     citations,
+    raw: data,
   };
 }
 
@@ -833,7 +863,7 @@ async function searchWithApiKey(
   query: string,
   config: Required<GeminiConfig>,
 ): Promise<SearchResult> {
-  const { model, maxTokens, temperature, searchEnabled, debug } = config;
+  const { model, maxTokens, temperature, searchEnabled, debug, requestTimeoutMs } = config;
 
   try {
     if (!GEMINI_API_KEY) {
@@ -882,14 +912,26 @@ async function searchWithApiKey(
 
     const startTime = Date.now();
 
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': USER_AGENT,
-      },
-      body: JSON.stringify(requestBody),
-    });
+    const controller = new AbortController();
+    const timeoutId =
+      requestTimeoutMs > 0
+        ? setTimeout(() => controller.abort(), requestTimeoutMs)
+        : null;
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': USER_AGENT,
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
 
     const duration = Date.now() - startTime;
 
@@ -902,9 +944,11 @@ async function searchWithApiKey(
     if (!response.ok) {
       const errorText = await response.text();
       let errorMessage = `API request failed (${response.status})`;
+      let raw: unknown = { errorText };
 
       try {
         const errorJson = JSON.parse(errorText);
+        raw = errorJson;
         if (errorJson.error?.message) {
           errorMessage = errorJson.error.message;
         }
@@ -915,6 +959,7 @@ async function searchWithApiKey(
       return {
         success: false,
         error: errorMessage,
+        raw,
       };
     }
 
@@ -931,6 +976,7 @@ async function searchWithApiKey(
       return {
         success: false,
         error: 'No content in response',
+        raw: data,
       };
     }
 
@@ -958,8 +1004,15 @@ async function searchWithApiKey(
       success: true,
       content: finalContent,
       citations,
+      raw: data,
     };
   } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      return {
+        success: false,
+        error: `Request timed out after ${requestTimeoutMs ?? 'unknown'}ms`,
+      };
+    }
     const message = error instanceof Error ? error.message : String(error);
     return {
       success: false,
@@ -996,6 +1049,7 @@ export async function searchGemini(
     authMethod: config.authMethod || 'oauth',
     searchEnabled: config.searchEnabled ?? true,
     debug: config.debug ?? false,
+    requestTimeoutMs: config.requestTimeoutMs ?? 0,
   };
 
   // Validate query
@@ -1028,16 +1082,7 @@ export async function searchGemini(
 
   // Execute search with selected method
   if (fullConfig.authMethod === 'oauth') {
-    const result = await searchWithOAuth(query, fullConfig);
-
-    // If OAuth fails and API key is available, try falling back
-    if (!result.success && GEMINI_API_KEY && fullConfig.debug) {
-      console.error('[gemini] OAuth failed, falling back to API key method...');
-      fullConfig.authMethod = 'apikey';
-      return await searchWithApiKey(query, fullConfig);
-    }
-
-    return result;
+    return await searchWithOAuth(query, fullConfig);
   } else {
     return await searchWithApiKey(query, fullConfig);
   }

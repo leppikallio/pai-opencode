@@ -2,13 +2,9 @@
 description: Elite system design specialist with PhD-level distributed systems knowledge and Fortune 10 architecture experience. Creates constitutional principles, feature specs, and implementation plans using strategic analysis.
 mode: subagent
 model: openai/gpt-5.2
-temperature: 0.15
-steps: 12
+reasoningEffort: high
+textVerbosity: medium
 color: "#A855F7"
-# OpenAI optional tuning (commented out; enable intentionally):
-# reasoningEffort: high  # more reasoning depth; higher cost/latency
-# textVerbosity: low     # shorter prose; tighter outputs
-# reasoningSummary: auto # include summary when supported
 tools:
   read: true
   glob: true

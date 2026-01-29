@@ -1,14 +1,10 @@
 ---
 description: Academic researcher using Claude's WebSearch. Called BY Research skill workflows only. Excels at multi-query decomposition, parallel search execution, and synthesizing scholarly sources.
-#mode: subagent
+mode: subagent
 model: openai/gpt-5.2
-temperature: 0.3
-steps: 15
+reasoningEffort: high
+textVerbosity: high
 color: "#EAB308"
-# OpenAI optional tuning (commented out; enable intentionally):
-# reasoningEffort: high  # more reasoning depth; higher cost/latency
-# textVerbosity: low     # shorter prose; tighter outputs
-# reasoningSummary: auto # include summary when supported
 tools:
   read: true
   glob: true

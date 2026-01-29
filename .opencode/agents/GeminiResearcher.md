@@ -1,30 +1,19 @@
 ---
 description: Multi-perspective researcher. Uses research-shell MCP to query Gemini with grounding when configured.
-#mode: subagent
+mode: all
 model: openai/gpt-5.2
-temperature: 0.3
-steps: 15
+reasoningEffort: high
+textVerbosity: high
 color: "#EAB308"
 tools:
-  read: true
-  glob: true
-  grep: true
-  list: true
+  "*": false
   write: true
-  edit: true
-  bash: false
-  webfetch: true
-  websearch: true
-  research-shell_*: true
-  task: false
+  research-shell_gemini_search: true
   voice_notify: true
 permission:
-  edit:
+  write:
     "*": deny
     "~/.config/opencode/scratchpad/**": allow
-  bash: deny
-  webfetch: ask
-  task: deny
   voice_notify: allow
 ---
 

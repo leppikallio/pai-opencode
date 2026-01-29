@@ -1,14 +1,10 @@
 ---
 description: Content creation, docs, technical writing
-#mode: subagent
+mode: subagent
 model: openai/gpt-5.2
-temperature: 0.3
-steps: 12
+reasoningEffort: high
+textVerbosity: medium
 color: "#EAB308"
-# OpenAI optional tuning (commented out; enable intentionally):
-# reasoningEffort: high  # more reasoning depth; higher cost/latency
-# textVerbosity: low     # shorter prose; tighter outputs
-# reasoningSummary: auto # include summary when supported
 tools:
   read: true
   glob: true

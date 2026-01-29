@@ -33,6 +33,8 @@ export interface GrokConfig {
   returnCitations: boolean;
   /** Custom system prompt (optional) */
   systemPrompt?: string;
+  /** Optional request timeout in milliseconds (0 disables) */
+  requestTimeoutMs?: number;
 }
 
 export interface SearchResult {
@@ -42,6 +44,8 @@ export interface SearchResult {
   content?: string;
   /** Array of citation URLs (if returnCitations=true) */
   citations?: string[];
+  /** Raw provider response payload (best-effort, no secrets). */
+  raw?: unknown;
   /** Error message if success=false */
   error?: string;
 }
@@ -94,8 +98,8 @@ interface GrokResponse {
 /** xAI Grok API endpoint */
 const GROK_API_ENDPOINT = 'https://api.x.ai/v1/chat/completions';
 
-/** Request timeout in milliseconds */
-const REQUEST_TIMEOUT_MS = 120_000; // 2 minutes
+/** Default request timeout in milliseconds (when not configured) */
+const DEFAULT_REQUEST_TIMEOUT_MS = 120_000; // 2 minutes
 
 /** Default configuration */
 const DEFAULT_CONFIG: GrokConfig = {
@@ -243,7 +247,13 @@ export async function grokSearch(
 
     // Create AbortController for timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const timeoutMs =
+      typeof validatedConfig.requestTimeoutMs === 'number'
+        ? validatedConfig.requestTimeoutMs
+        : DEFAULT_REQUEST_TIMEOUT_MS;
+
+    const timeoutId =
+      timeoutMs > 0 ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
     try {
       // Make API request
@@ -257,12 +267,19 @@ export async function grokSearch(
         signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
 
       // Check response status
       if (!response.ok) {
         const errorText = await response.text();
         let errorMessage = `API error (${response.status}): ${response.statusText}`;
+        let raw: unknown = { errorText };
+
+        try {
+          raw = JSON.parse(errorText);
+        } catch {
+          // Keep raw as { errorText }
+        }
 
         // Try to parse error response
         try {
@@ -277,6 +294,7 @@ export async function grokSearch(
         return {
           success: false,
           error: errorMessage,
+          raw,
         };
       }
 
@@ -288,6 +306,7 @@ export async function grokSearch(
         return {
           success: false,
           error: 'No response choices returned from API',
+          raw: data,
         };
       }
 
@@ -297,6 +316,7 @@ export async function grokSearch(
         return {
           success: false,
           error: 'Empty response content from API',
+          raw: data,
         };
       }
 
@@ -309,15 +329,16 @@ export async function grokSearch(
         success: true,
         content,
         citations,
+        raw: data,
       };
     } catch (error) {
-      clearTimeout(timeoutId);
+      if (timeoutId) clearTimeout(timeoutId);
 
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           return {
             success: false,
-            error: `Request timed out after ${REQUEST_TIMEOUT_MS}ms`,
+            error: `Request timed out after ${timeoutMs}ms`,
           };
         }
 

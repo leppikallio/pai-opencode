@@ -1,5 +1,5 @@
-import type { PerplexityConfig } from '../config.ts';
-import { loadApiKey } from '../config.ts';
+import type { PerplexityConfig } from '../config.js';
+import { loadApiKey } from '../config.js';
 import type {
   PerplexityRequest,
   PerplexityResponse,
@@ -62,6 +62,13 @@ export class PerplexityClient {
       };
 
       // Make the API request
+      const controller = new AbortController();
+      const timeoutMs = this.config.requestTimeoutMs;
+      const timeoutId =
+        typeof timeoutMs === 'number' && timeoutMs > 0
+          ? setTimeout(() => controller.abort(), timeoutMs)
+          : null;
+
       const response = await fetch(this.endpoint, {
         method: 'POST',
         headers: {
@@ -69,14 +76,24 @@ export class PerplexityClient {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody),
+        signal: controller.signal,
       });
+
+      if (timeoutId) clearTimeout(timeoutId);
 
       // Handle HTTP errors
       if (!response.ok) {
         const errorText = await response.text();
+        let raw: unknown = { errorText };
+        try {
+          raw = JSON.parse(errorText);
+        } catch {
+          // Keep raw as { errorText }
+        }
         return {
           success: false,
           error: `API request failed (${response.status}): ${errorText}`,
+          raw,
         };
       }
 
@@ -88,6 +105,7 @@ export class PerplexityClient {
         return {
           success: false,
           error: data.error.message || 'Unknown API error',
+          raw: data,
         };
       }
 
@@ -97,6 +115,7 @@ export class PerplexityClient {
         return {
           success: false,
           error: 'No content in API response',
+          raw: data,
         };
       }
 
@@ -105,8 +124,16 @@ export class PerplexityClient {
         success: true,
         content,
         citations: data.citations || [],
+        raw: data,
       };
     } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        const timeoutMs = this.config.requestTimeoutMs;
+        return {
+          success: false,
+          error: `Request timed out after ${timeoutMs ?? 'unknown'}ms`,
+        };
+      }
       // Handle any unexpected errors
       const errorMessage =
         error instanceof Error ? error.message : String(error);

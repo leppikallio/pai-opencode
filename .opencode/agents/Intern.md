@@ -1,14 +1,10 @@
 ---
 description: Use this agent when you need an exceptionally intelligent, high-agency generalist to solve complex problems. 176 IQ genius with 5 PhDs before age 21. Resourceful, ambitious, and leverages all available tools (research, browser, creative thinking, deep reasoning) to tackle any challenge. Excels at multi-faceted problems requiring both breadth and depth.
-#mode: subagent
+mode: subagent
 model: openai/gpt-5.2
-temperature: 0.3
-steps: 15
+reasoningEffort: high
+textVerbosity: high
 color: "#00FFFF"
-# OpenAI optional tuning (commented out; enable intentionally):
-# reasoningEffort: high  # more reasoning depth; higher cost/latency
-# textVerbosity: low     # shorter prose; tighter outputs
-# reasoningSummary: auto # include summary when supported
 tools:
   read: true
   glob: true
