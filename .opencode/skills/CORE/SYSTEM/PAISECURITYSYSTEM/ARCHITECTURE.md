@@ -196,7 +196,7 @@ git stash
 |------|---------|
 | `.opencode/plugins/handlers/security-validator.ts` | Security validation logic |
 | `.opencode/plugins/adapters/types.ts` | Dangerous + warning pattern registry |
-| `PAISECURITYSYSTEM/patterns.example.yaml` | Legacy template (not loaded today) |
+| `patterns.example.yaml` | Legacy template (not loaded today) |
 | `$PAI_DIR/plugins/debug.log` | Plugin debug/audit log |
 
 ---
@@ -205,12 +205,12 @@ git stash
 
 To customize security for your environment:
 
-1. Copy `PAISECURITYSYSTEM/patterns.example.yaml` to `USER/PAISECURITYSYSTEM/patterns.yaml`
+1. Copy `patterns.example.yaml` to `~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/patterns.yaml`
 2. Edit patterns to match your needs
 3. Add project-specific rules in the `projects` section
 4. The hook automatically loads USER patterns when available
 
-See `PAISECURITYSYSTEM/HOOKS.md` for plugin integration details.
+See `HOOKS.md` for plugin integration details.
 
 ---
 

@@ -29,7 +29,7 @@
 
 import { $ } from "bun";
 import { join } from "node:path";
-import { getPaiDir } from "../../../pai-tools/PaiRuntime";
+import { getPaiDir } from "../../../pai-tools/PaiRuntime.ts";
 
 const VOICE_SERVER_PATH = join(getPaiDir(), "VoiceServer");
 const PORT = 8888;

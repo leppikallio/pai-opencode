@@ -22,7 +22,7 @@
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
 | `source` | Yes | - | TELOS directory or analysis context |
-| `client_name` | Yes | - | Client/project name for the report title |
+| `client_name` | YES | - | Client/project name for the report title |
 | `output_dir` | No | `{source}/report` | Where to generate the report |
 
 ---
@@ -150,8 +150,9 @@ If artifacts don't exist, run the assessment workflow first (CreateNarrativePoin
 ### Step 2: Copy Report Template
 
 ```bash
-# Copy template to output directory (if not already done)
-cp -r ~/.config/opencode/skills/_TELOS/report-template/* {output_dir}/
+# Copy template to output directory (optional)
+# Provide your own template directory as {template_dir}.
+cp -r {template_dir}/* {output_dir}/
 
 # Install dependencies
 cd {output_dir} && bun install
@@ -463,7 +464,7 @@ cd {output_dir} && bun dev
 **CRITICAL: The report template lives at:**
 
 ```
-~/.config/opencode/skills/_TELOS/report-template/
+{template_dir}
 ```
 
 This template includes:
@@ -480,7 +481,7 @@ When generating a report:
    - `reportTitle`: The engagement title
    - `reportDate`: Current month/year
    - All findings, recommendations, roadmap from TELOS analysis
-3. Update `app/layout.tsx` metadata with client name
+3. Update `app/layout.tsx` metadata with organization name
 
 ---
 
@@ -513,7 +514,7 @@ Before finalizing the report:
 
 - [ ] UL logo displays correctly (125x125, left-justified)
 - [ ] "TELOS Assessment" label visible above title
-- [ ] Cover page has correct client name and date
+- [ ] Cover page has correct organization name and date
 - [ ] Cover title uses Advocate Wide font
 - [ ] Section headings use Concourse Medium font
 - [ ] Body text uses Valkyrie font (readable, elegant)
@@ -609,11 +610,11 @@ Before board presentation:
 **To update fonts:**
 ```bash
 # Copy latest fonts from ULSite
-cp ~/Projects/ULSite/public/fonts/*.woff2 ~/.config/opencode/skills/_TELOS/report-template/public/fonts/
+cp {your_font_source_dir}/*.woff2 {template_dir}/public/fonts/
 ```
 
 **To update template components:**
-Edit files in `~/.config/opencode/skills/_TELOS/report-template/components/`
+Edit files in `{template_dir}/components/`
 
 **To change color scheme:**
-Edit CSS custom properties in `~/.config/opencode/skills/_TELOS/report-template/app/globals.css`
+Edit CSS custom properties in `{template_dir}/app/globals.css`
