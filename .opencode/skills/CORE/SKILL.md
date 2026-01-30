@@ -530,7 +530,7 @@ Critical PAI documentation organized by domain. Load on-demand based on context.
 |--------|------|---------|
 | **System Architecture** | `SYSTEM/PAISYSTEMARCHITECTURE.md` | Core PAI design and principles |
 | **Memory System** | `SYSTEM/MEMORYSYSTEM.md` | WORK, STATE, LEARNING directories |
-| **Skill System** | `SYSTEM/SKILLSYSTEM.md` | How skills work, structure, triggers |
+| **Skill System** | `SYSTEM/SkillSystem.md` | How skills work, structure, triggers |
 | **Plugin System** | `SYSTEM/THEPLUGINSYSTEM.md` | OpenCode plugins, hooks mapping, implementation |
 | **Agent System** | `SYSTEM/PAIAGENTSYSTEM.md` | Agent types, spawning, delegation |
 | **Delegation** | `SYSTEM/THEDELEGATIONSYSTEM.md` | Background work, parallelization |
@@ -545,7 +545,7 @@ Critical PAI documentation organized by domain. Load on-demand based on context.
 
 | Trigger | Path | Purpose |
 |---------|------|---------|
-| "projects", "my projects", "project paths", "deploy" | `USER/PROJECTS/PROJECTS.md` | Technical project registry—paths, deployment, routing aliases |
+| "projects", "my projects", "project paths", "deploy" | `USER/TELOS/PROJECTS.md` | Technical project registry—paths, deployment, routing aliases |
 | "Telos", "life goals", "goals", "challenges" | `USER/TELOS/PROJECTS.md` | Life goals, challenges, predictions (Telos Life System) |
 
 ---

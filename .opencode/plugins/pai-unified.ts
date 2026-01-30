@@ -158,7 +158,7 @@ export const PaiUnified: Plugin = async (ctx) => {
   ) {
     try {
       const tui = getRecordProp(client, "tui");
-      const showToastFn = tui ? tui.showToast : undefined;
+      const showToastFn = tui ? (tui as unknown as { showToast?: unknown }).showToast : undefined;
       if (typeof showToastFn !== "function") return;
       // duration is not documented in all builds; pass through best-effort.
       const body: UnknownRecord = {
@@ -166,7 +166,11 @@ export const PaiUnified: Plugin = async (ctx) => {
         variant,
         ...(typeof durationMs === "number" ? { duration: durationMs } : {}),
       };
-      await (showToastFn as (args: { body: UnknownRecord }) => Promise<unknown>)({ body });
+      // NOTE: call with the tui context (SDK methods expect `this`).
+      await (showToastFn as (this: unknown, args: { body: UnknownRecord }) => Promise<unknown>).call(
+        tui,
+        { body }
+      );
     } catch (error) {
       fileLogError("Toast failed", error);
     }
@@ -175,9 +179,10 @@ export const PaiUnified: Plugin = async (ctx) => {
   async function clearPrompt() {
     try {
       const tui = getRecordProp(client, "tui");
-      const clearPromptFn = tui ? tui.clearPrompt : undefined;
+      const clearPromptFn = tui ? (tui as unknown as { clearPrompt?: unknown }).clearPrompt : undefined;
       if (typeof clearPromptFn !== "function") return;
-      await (clearPromptFn as () => Promise<unknown>)();
+      // NOTE: call with the tui context (SDK methods expect `this`).
+      await (clearPromptFn as (this: unknown) => Promise<unknown>).call(tui);
     } catch (error) {
       fileLogError("clearPrompt failed", error);
     }
@@ -186,11 +191,12 @@ export const PaiUnified: Plugin = async (ctx) => {
   async function _appendPrompt(text: string) {
     try {
       const tui = getRecordProp(client, "tui");
-      const appendPromptFn = tui ? tui.appendPrompt : undefined;
+      const appendPromptFn = tui ? (tui as unknown as { appendPrompt?: unknown }).appendPrompt : undefined;
       if (typeof appendPromptFn !== "function") return;
-      await (appendPromptFn as (args: { body: { text: string } }) => Promise<unknown>)(
-        { body: { text } }
-      );
+      // NOTE: call with the tui context (SDK methods expect `this`).
+      await (
+        appendPromptFn as (this: unknown, args: { body: { text: string } }) => Promise<unknown>
+      ).call(tui, { body: { text } });
     } catch (error) {
       fileLogError("appendPrompt failed", error);
     }

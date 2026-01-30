@@ -15,6 +15,38 @@ import type {
 } from "../adapters/types";
 import { DANGEROUS_PATTERNS, WARNING_PATTERNS } from "../adapters/types";
 
+function summarizeArgKeys(args: Record<string, unknown> | undefined): string {
+  if (!args) return "";
+  const keys = Object.keys(args);
+  if (keys.length === 0) return "";
+  return keys.slice(0, 20).join(",") + (keys.length > 20 ? ",..." : "");
+}
+
+function redactSensitiveText(text: string): string {
+  // Best-effort redaction for logs only. Never intended to be perfect.
+  const replacements: Array<[RegExp, string]> = [
+    [/\bsk-[A-Za-z0-9]{20,}\b/g, "sk-[REDACTED]"],
+    [/\bghp_[A-Za-z0-9]{20,}\b/g, "ghp_[REDACTED]"],
+    [/\bAIza[0-9A-Za-z_-]{20,}\b/g, "AIza[REDACTED]"],
+    [/\bxox[baprs]-[0-9A-Za-z-]{10,}\b/g, "xox-[REDACTED]"],
+    [
+      /(-----BEGIN [A-Z ]+ PRIVATE KEY-----)[\s\S]*?(-----END [A-Z ]+ PRIVATE KEY-----)/g,
+      "$1\n[REDACTED]\n$2",
+    ],
+    [
+      /([?&](?:token|key|api_key|apikey|secret|password)=)[^&\s]+/gi,
+      "$1[REDACTED]",
+    ],
+  ];
+
+  let out = text;
+  for (const [re, repl] of replacements) out = out.replace(re, repl);
+
+  const max = 240;
+  if (out.length > max) out = out.slice(0, max) + "…";
+  return out;
+}
+
 /**
  * Check if a command matches any dangerous pattern
  */
@@ -52,8 +84,14 @@ function extractCommand(input: PermissionInput | ToolInput): string | null {
   }
 
   // Write tool - check for sensitive paths
-  if (toolName === "write" && typeof input.args?.file_path === "string") {
-    return `write:${input.args.file_path}`;
+  if (toolName === "write") {
+    const filePath =
+      typeof input.args?.filePath === "string"
+        ? input.args.filePath
+        : typeof input.args?.file_path === "string"
+          ? input.args.file_path
+          : undefined;
+    if (typeof filePath === "string") return `write:${filePath}`;
   }
 
   return null;
@@ -91,7 +129,8 @@ export async function validateSecurity(
 ): Promise<SecurityResult> {
   try {
     fileLog(`Security check for tool: ${input.tool}`);
-    fileLog(`Args: ${JSON.stringify(input.args ?? {}).substring(0, 300)}`, "debug");
+    const argKeys = summarizeArgKeys(input.args);
+    if (argKeys) fileLog(`Arg keys: ${argKeys}`, "debug");
 
     const command = extractCommand(input);
 
@@ -104,7 +143,7 @@ export async function validateSecurity(
       };
     }
 
-    fileLog(`Extracted command: ${command}`, "info");
+    fileLog(`Extracted command: ${redactSensitiveText(command)}`, "info");
 
     // Check for dangerous patterns (BLOCK)
     const dangerousMatch = matchesDangerousPattern(command);
@@ -145,7 +184,19 @@ export async function validateSecurity(
 
     // Check for sensitive file writes
     if (input.tool.toLowerCase() === "write") {
-      const filePath = input.args?.file_path as string;
+      const filePath =
+        typeof input.args?.filePath === "string"
+          ? (input.args.filePath as string)
+          : typeof input.args?.file_path === "string"
+            ? (input.args.file_path as string)
+            : undefined;
+      if (!filePath) {
+        fileLog("Write tool used without file path", "warn");
+        return {
+          action: "allow",
+          reason: "Write tool used without a file path",
+        };
+      }
       const sensitivePaths = [
         /\/etc\//,
         /\/var\/log\//,
