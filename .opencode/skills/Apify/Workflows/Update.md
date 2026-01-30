@@ -53,8 +53,8 @@ Review commonly used actors for updates:
 ### 3. Test Current Implementation
 
 ```bash
-# Verify API wrapper works
-bun run ~/.config/opencode/skills/Apify/scrape-instagram.ts --help 2>/dev/null || echo "Check script"
+# Verify the Apify skill still typechecks
+cd "$PAI_DIR/skills/Apify" && bun run tsc -p tsconfig.json --noEmit
 ```
 
 ### 4. Update Implementation

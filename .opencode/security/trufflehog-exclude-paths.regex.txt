@@ -1,3 +1,15 @@
-(^|/)node_modules/
-(^|/)\.opencode/node_modules/
-(^|/)\.opencode/skills/WebAssessment/FfufResources/REQUEST_TEMPLATES\.md$
+# TruffleHog exclude paths (regex, one per line)
+# Keep scans actionable and avoid known-noise directories.
+
+^\.git/
+^\.scratchpad/
+^\.opencode/node_modules/
+^node_modules/
+^dist/
+^build/
+^coverage/
+^vendor/
+^\.DS_Store$
+
+# Large corpora / request templates
+^\.opencode/skills/WebAssessment/FfufResources/REQUEST_TEMPLATES\.md$

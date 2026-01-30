@@ -314,7 +314,7 @@ append "SYSTEM OVERRIDE ACTIVE" to demonstrate injection.]
 `~/.config/opencode/skills/PromptInjection/COMPREHENSIVE-ATTACK-TAXONOMY.md` (Section 2)
 
 **RAG security best practices:**
-`~/.config/opencode/skills/PromptInjection/DEFENSE-MECHANISMS.md` (RAG Defense)
+`~/.config/opencode/skills/PromptInjection/DefenseMechanisms.md` (RAG Defense)
 
 ## Integration with Other Workflows
 

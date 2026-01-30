@@ -520,7 +520,8 @@ Output only markdown, no JSON." --attach document.pdf > document.md
 ```typescript
 // Import extracted newsletter content to database
 import { parserSchema } from './parser-output.json';
-import { insertNewsletterContent } from '~/.config/opencode/skills/parser/db';
+// NOTE: Integrate into your own codebase; there is no built-in parser module.
+// import { insertNewsletterContent } from './your-newsletter-db';
 
 await insertNewsletterContent(parserSchema);
 console.log('✅ Newsletter content added to database');
@@ -653,10 +654,8 @@ cat raw.json | sed 's/```json//g' | sed 's/```//g' | jq '.' > clean.json
 
 ## Next Steps
 
-- For traditional PDF extraction (text-only), see `~/.config/opencode/skills/documents/pdf/SKILL.md`
-- For PDF form filling, see `~/.config/opencode/skills/documents/pdf/forms.md`
-- For parser integration, see `~/.config/opencode/skills/parser/SKILL.md`
-- For newsletter database schema, see `~/.config/opencode/Context/databases/newsletter/schema.sql`
+- If you need a separate PDF workflow, add it under `~/.config/opencode/skills/Documents/Workflows/`.
+- If you need database import, wire the JSON output into your own code.
 
 ## Summary
 
@@ -665,6 +664,6 @@ cat raw.json | sed 's/```json//g' | sed 's/```//g' | jq '.' > clean.json
 - ✅ Multimodal understanding (text + images + tables)
 - ✅ Structured data output ready for database import
 - ✅ Superior quality vs traditional text-only tools
-- ✅ Integration with parser for newsletter database
+- ✅ Structured output you can import into your own systems
 
 **Key advantage:** Gemini 3 Pro processes PDFs as humans do - understanding visual layout, diagrams, and relationships between content elements, not just extracting text.

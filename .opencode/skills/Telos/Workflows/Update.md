@@ -78,7 +78,7 @@ This is the main command you'll use. It takes three parameters:
 - Content to add (the actual text)
 - Description of the change (for the changelog)
 
-!`FILE="$1"; CONTENT="$2"; DESCRIPTION="$3"; bun ~/.config/opencode/commands/update-telos.ts "$FILE" "$CONTENT" "$DESCRIPTION"`
+!`FILE="$1"; CONTENT="$2"; DESCRIPTION="$3"; bun run "$PAI_DIR/skills/Telos/Tools/UpdateTelos.ts" "$FILE" "$CONTENT" "$DESCRIPTION"`
 
 ## List Valid TELOS Files
 !`echo "Valid TELOS files:
@@ -140,7 +140,7 @@ Use the update-telos command with:
 
 Example:
 ```bash
-bun ~/.config/opencode/commands/update-telos.ts "BOOKS.md" "- *Project Hail Mary* by Andy Weir" "Added favorite book: Project Hail Mary"
+bun run "$PAI_DIR/skills/Telos/Tools/UpdateTelos.ts" "BOOKS.md" "- *Project Hail Mary* by Andy Weir" "Added favorite book: Project Hail Mary"
 ```
 
 ## Step 4: Confirm and Engage
@@ -286,7 +286,7 @@ The TypeScript implementation handles:
 - Content appending (preserves existing content)
 - Pacific Time timezone for consistency
 
-The script is at: `~/.config/opencode/commands/update-telos.ts`
+The tool is at: `~/.config/opencode/skills/Telos/Tools/UpdateTelos.ts`
 
 All backups are stored in: `~/.config/opencode/skills/CORE/USER/TELOS/Backups/`
 

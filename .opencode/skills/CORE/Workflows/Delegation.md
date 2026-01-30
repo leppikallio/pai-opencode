@@ -349,8 +349,8 @@ Task({
 ## Related
 
 - **Agents skill**: `~/.config/opencode/skills/Agents/` - Complete agent composition system
-  - Agent personalities: `AgentPersonalities.md`
-  - Traits: `Data/Traits.yaml`
-  - Agent factory: `Tools/AgentFactory.ts`
-  - Workflows: `Workflows/CreateCustomAgent.md`, `Workflows/SpawnParallelAgents.md`
+  - Agent personalities: `~/.config/opencode/skills/Agents/AgentPersonalities.md`
+  - Traits: `~/.config/opencode/skills/Agents/Data/Traits.yaml`
+  - Agent factory: `~/.config/opencode/skills/Agents/Tools/AgentFactory.ts`
+  - Workflows: `~/.config/opencode/skills/Agents/Workflows/CreateCustomAgent.md`, `~/.config/opencode/skills/Agents/Workflows/SpawnParallelAgents.md`
 - Background delegation: `~/.config/opencode/skills/CORE/Workflows/BackgroundDelegation.md`

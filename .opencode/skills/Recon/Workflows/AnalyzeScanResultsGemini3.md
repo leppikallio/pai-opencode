@@ -110,8 +110,8 @@ cat $SCAN_FILE
 **Parse into structured format:**
 ```typescript
 // For nmap XML
-import { parseNmapXML } from '../Tools/nmap-parser.ts';
-const parsedScan = await parseNmapXML(scanFile);
+// Implement your own parser for nmap XML (no built-in nmap parser shipped).
+// const parsedScan = await parseNmapXML(scanFile);
 
 // For masscan JSON
 const masscanData = JSON.parse(await Deno.readTextFile(masscanFile));
