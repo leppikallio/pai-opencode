@@ -113,7 +113,7 @@ Users rate responses by typing a number 1-10:
 - "6: needs improvement" also works
 
 **Storage:**
-- Ratings stored in `MEMORY/SIGNALS/ratings.jsonl`
+- Ratings stored in `MEMORY/LEARNING/SIGNALS/ratings.jsonl`
 - Low ratings (<6) capture to `MEMORY/LEARNING/`
 
 ---

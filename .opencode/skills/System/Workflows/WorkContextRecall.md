@@ -22,7 +22,7 @@ Retrieves context from past work by searching:
 ```typescript
 // 1. Parse user query to extract keywords and context
 // 2. Search PAISYSTEMUPDATES index using UpdateSearch.ts
-// 3. Query MEMORY/SESSIONS for relevant session docs
+// 3. Query MEMORY/WORK for relevant work sessions
 // 4. Search MEMORY/WORK for related work items
 // 5. Scan git history for matching commits
 // 6. Aggregate and rank results by relevance
@@ -112,17 +112,17 @@ interface UpdateSearchResult {
 
 ### 3. Session Document Search
 
-Query MEMORY/SESSIONS for relevant sessions:
+Query MEMORY/WORK for relevant work sessions:
 
 ```bash
 # Find sessions in timeframe
-find "$PAI_DIR/MEMORY/SESSIONS" -name "*SESSION*.md" -mtime -${days}
+find "$PAI_DIR/MEMORY/WORK" -type f -name "META.yaml" -mtime -${days}
 
 # Grep for keywords in session files
-grep -l "security.*hook" "$PAI_DIR/MEMORY/SESSIONS"/**/*.md
+grep -l "security.*hook" "$PAI_DIR/MEMORY/WORK"/**/**/*.yaml 2>/dev/null || true
 
 # Get session titles and dates
-grep "^# " "$PAI_DIR/MEMORY/SESSIONS"/**/*.md
+grep -R "title:" "$PAI_DIR/MEMORY/WORK"/**/META.yaml 2>/dev/null || true
 ```
 
 Rank sessions by relevance:
@@ -497,7 +497,7 @@ export default function securityValidator(context: HookContext) {
 ## Related Artifacts
 
 ### Session Documents
-- [Hook development workflow]($PAI_DIR/MEMORY/SESSIONS/2026-01/20260118T225343_SESSION_hook-development.md)
+- [Hook development workflow]($PAI_DIR/MEMORY/WORK/2026-01/20260118T225343_hook-development/)
 
 ### Learning Documents
 - [Git hook security patterns]($PAI_DIR/MEMORY/LEARNING/Security/20260118_git-hook-security.md)
@@ -562,7 +562,7 @@ Added pre-tool-use validation with dangerous pattern detection.
 2026-01-18 23:58 - Committed changes
 
 Full context report:
-$PAI_DIR/MEMORY/SESSIONS/{date}/work-recall_{slug}.md
+$PAI_DIR/MEMORY/STATE/integrity/{date}_work-recall_{slug}.md
 
 Need more details on any of these?
 ```

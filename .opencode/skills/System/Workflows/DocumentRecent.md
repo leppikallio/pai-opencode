@@ -68,8 +68,8 @@ git reflog --since="${timeRange}"
 Search for update documents covering this period:
 
 ```bash
-# Search MEMORY/SESSIONS for recent session docs
-find $PAI_DIR/MEMORY/SESSIONS -type f -mtime -${days}
+# Search MEMORY/WORK for recent work sessions
+find $PAI_DIR/MEMORY/WORK -type f -mtime -${days}
 
 # Search MEMORY/LEARNING for recent learnings
 find $PAI_DIR/MEMORY/LEARNING -type f -mtime -${days}
@@ -142,7 +142,7 @@ Type: {work|feature|bugfix|refactor}
 Generated via DocumentRecent workflow
 ```
 
-Save to: `$PAI_DIR/MEMORY/SESSIONS/{YYYY-MM}/{timestamp}_SESSION_{slug}.md`
+Save to: `$PAI_DIR/MEMORY/PAISYSTEMUPDATES/{YYYY}/{MM}/{timestamp}_{slug}.md`
 
 #### Project Update Format
 
@@ -325,7 +325,7 @@ Commits found: 15
 Generating documents...
 
 ✅ Session: "Hook development workflow"
-   → $PAI_DIR/MEMORY/SESSIONS/2026-01/20260118T225343_SESSION_hook-development.md
+   → $PAI_DIR/MEMORY/WORK/2026-01/20260118T225343_hook-development/
 
 ✅ Learning: "Git hook security patterns"
    → $PAI_DIR/MEMORY/LEARNING/Security/20260118_git-hook-security.md
@@ -334,12 +334,12 @@ Generating documents...
    → $PAI_DIR/MEMORY/PAISYSTEMUPDATES/2026/01/20260118_session-2-complete.md
 
 ✅ Session: "MEMORY structure consolidation"
-   → $PAI_DIR/MEMORY/SESSIONS/2026-01/20260118T230000_SESSION_memory-consolidation.md
+   → $PAI_DIR/MEMORY/WORK/2026-01/20260118T230000_memory-consolidation/
 
 Documentation coverage: 80% (12/15 commits)
 
 Summary report:
-$PAI_DIR/MEMORY/SESSIONS/2026-01/20260119T120000_document-recent-summary.md
+$PAI_DIR/MEMORY/PAISYSTEMUPDATES/2026/01/20260119T120000_document-recent-summary.md
 ```
 
 ## Integration Points
@@ -424,7 +424,7 @@ Generating documents for undocumented work...
 Documentation coverage is now 80%.
 
 Full summary saved to:
-$PAI_DIR/MEMORY/SESSIONS/2026-01/20260119_document-recent-summary.md
+$PAI_DIR/MEMORY/PAISYSTEMUPDATES/2026/01/20260119_document-recent-summary.md
 
 Would you like me to review any of the generated documents?
 ```

@@ -102,7 +102,7 @@ export function detectRating(message: string): RatingEntry | null {
  *
  * Writes to:
  * - MEMORY/LEARNING/SIGNALS/ratings.jsonl (all ratings)
- * - MEMORY/LEARNING/ALGORITHM/{YYYY-MM}/*.md (for low ratings, learnings)
+ * - MEMORY/LEARNING/FAILURES/{YYYY-MM}/*.md (for low ratings, learnings)
  */
 export async function captureRating(
   message: string,
@@ -154,14 +154,12 @@ async function createLearningFromRating(rating: RatingEntry): Promise<boolean> {
     const yearMonth = getYearMonth();
     const timestamp = getTimestamp();
 
-    // Determine category based on comment
-    const category = inferCategory(rating.comment);
-    const categoryDir = path.join(learningDir, category, yearMonth);
-    await ensureDir(categoryDir);
+    const failuresDir = path.join(learningDir, "FAILURES", yearMonth);
+    await ensureDir(failuresDir);
 
     const slug = slugify(rating.comment.slice(0, 30));
     const filename = `${timestamp}_rating_${slug}.md`;
-    const filepath = path.join(categoryDir, filename);
+    const filepath = path.join(failuresDir, filename);
 
     const content = `# Learning from Rating: ${rating.score}/10
 
@@ -198,26 +196,8 @@ Based on this feedback, consider:
 }
 
 /**
- * Infer learning category from comment
- */
-function inferCategory(comment: string): string {
-  const lower = comment.toLowerCase();
-
-  if (/algorithm|process|workflow|method/i.test(lower)) {
-    return "ALGORITHM";
-  }
-  if (/system|infra|config|setup/i.test(lower)) {
-    return "SYSTEM";
-  }
-  if (/code|bug|error|fix/i.test(lower)) {
-    return "CODE";
-  }
-  if (/response|format|output/i.test(lower)) {
-    return "RESPONSE";
-  }
-
-  return "GENERAL";
-}
+  * NOTE: We intentionally store all low-rating learnings under FAILURES.
+  */
 
 /**
  * Get recent ratings

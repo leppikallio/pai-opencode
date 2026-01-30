@@ -215,7 +215,6 @@ for (const file of systemFiles) {
 const memoryPrivacyLevels = {
   // High privacy - personal context
   "MEMORY/WORK/": "PRIVATE",
-  "MEMORY/SESSIONS/": "PRIVATE",
 
   // Medium privacy - could be sanitized
   "MEMORY/LEARNING/": "SEMI-PRIVATE",
@@ -602,7 +601,7 @@ Issues to fix: 5 (3 medium, 2 low)
 Auto-fixes available: 3
 
 Full report:
-$PAI_DIR/MEMORY/SESSIONS/{date}/privacy-compliance-report.md
+$PAI_DIR/MEMORY/STATE/integrity/{date}_privacy-compliance-report.md
 
 Apply auto-fixes? [y/N]:
 ```

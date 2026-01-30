@@ -28,7 +28,7 @@ import { getPaiDir } from "../../../pai-tools/PaiRuntime";
 const PAI_DIR = getPaiDir();
 const LEARNING_DIR = path.join(PAI_DIR, "MEMORY", "LEARNING");
 const RATINGS_FILE = path.join(LEARNING_DIR, "SIGNALS", "ratings.jsonl");
-const SYNTHESIS_DIR = path.join(LEARNING_DIR, "SYNTHESIS");
+const OUTPUT_DIR = path.join(LEARNING_DIR, "SYSTEM");
 
 // ============================================================================
 // Types
@@ -276,17 +276,13 @@ ${result.recommendations.map((r, i) => `${i + 1}. ${r}`).join('\n')}
 
 function writeSynthesis(result: SynthesisResult, period: string): string {
   const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-
-  const monthDir = path.join(SYNTHESIS_DIR, `${year}-${month}`);
-  if (!fs.existsSync(monthDir)) {
-    fs.mkdirSync(monthDir, { recursive: true });
+  if (!fs.existsSync(OUTPUT_DIR)) {
+    fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   }
 
   const dateStr = now.toISOString().split('T')[0];
-  const filename = `${dateStr}_${period.toLowerCase().replace(/\s+/g, '-')}-patterns.md`;
-  const filepath = path.join(monthDir, filename);
+  const filename = `${dateStr}_pattern-synthesis_${period.toLowerCase().replace(/\s+/g, '-')}.md`;
+  const filepath = path.join(OUTPUT_DIR, filename);
 
   const content = formatSynthesisReport(result);
   fs.writeFileSync(filepath, content);
@@ -319,7 +315,7 @@ Usage:
   bun run LearningPatternSynthesis.ts --all       Analyze all ratings
   bun run LearningPatternSynthesis.ts --dry-run   Preview without writing
 
-Output: Creates synthesis report in MEMORY/LEARNING/SYNTHESIS/YYYY-MM/
+Output: Creates synthesis report in MEMORY/LEARNING/SYSTEM/
 `);
   process.exit(0);
 }
