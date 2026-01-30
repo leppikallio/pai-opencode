@@ -1,0 +1,8 @@
+# Security patterns configuration (user-editable)
+#
+# This is a safe default template. Customize as needed.
+
+version: 1
+
+blocked_patterns: []
+warning_patterns: []

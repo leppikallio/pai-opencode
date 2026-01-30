@@ -161,7 +161,7 @@ Skill Response:
 ---
 
 **Related Documentation:**
-- `~/.config/opencode/skills/CORE/SkillSystem.md` - Canonical structure guide
+- `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md` - Canonical structure guide
 - `~/.config/opencode/skills/CORE/CONSTITUTION.md` - Overall PAI philosophy
 
 **Last Updated:** 2025-11-23

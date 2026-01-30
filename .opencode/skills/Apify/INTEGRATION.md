@@ -6,9 +6,10 @@
 
 ## Integration with PAI Skills
 
-### Social Skill Integration
+### Social Integration (Optional)
 
-**Location:** `~/.config/opencode/skills/social/SKILL.md`
+There is no dedicated `social/` skill shipped in this repo.
+If you want a Social skill, create one and integrate it with Apify.
 
 **Updated Section:** "Fetching Tweet Content"
 
@@ -200,7 +201,7 @@ Other Apify actors worth implementing:
 
 **For Users:**
 - Quick reference: `~/.config/opencode/filesystem-mcps/SCRIPTS-REFERENCE.md`
-- Social skill: `~/.config/opencode/skills/social/SKILL.md`
+- Apify skill: `~/.config/opencode/skills/Apify/SKILL.md`
 
 **For Developers:**
 - Implementation: `~/.config/opencode/filesystem-mcps/apify/README.md`

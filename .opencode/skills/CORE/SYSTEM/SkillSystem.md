@@ -464,7 +464,7 @@ Use dynamic loading for skills with:
 
 Don't bother for:
 - ❌ Simple skills (< 50 lines total)
-- ❌ Pure utility wrappers (use CORE/SYSTEM/TOOLS.md instead)
+- ❌ Pure utility wrappers (use `~/.config/opencode/skills/CORE/SYSTEM/TOOLS.md` instead)
 - ❌ Skills that are already minimal
 
 ---
