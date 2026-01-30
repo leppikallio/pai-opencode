@@ -16,10 +16,56 @@
  */
 
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
+import { getSkillsDir } from '../../../pai-tools/PaiRuntime';
 
-const INDEX_FILE = join(import.meta.dir, '..', 'Skills', 'skill-index.json');
+type Options = {
+  indexFile: string;
+};
+
+function usage(opts?: Partial<Options>) {
+  const skillsDir = getSkillsDir();
+  const indexFile = opts?.indexFile || join(skillsDir, 'skill-index.json');
+  console.log('SkillSearch.ts - Search skill-index.json for matching skills');
+  console.log('');
+  console.log('Usage:');
+  console.log('  bun run ~/.config/opencode/skills/CORE/Tools/SkillSearch.ts <query>');
+  console.log('  bun run ~/.config/opencode/skills/CORE/Tools/SkillSearch.ts --list');
+  console.log('  bun run ~/.config/opencode/skills/CORE/Tools/SkillSearch.ts --tier always');
+  console.log('');
+  console.log('Options:');
+  console.log('  --skills-dir <dir>   Override skills root (uses <dir>/skill-index.json)');
+  console.log(`  --index <file>       Override index file (default: ${indexFile})`);
+  console.log('  -h, --help           Show help');
+}
+
+function parseArgs(argv: string[]): { opts: Options; args: string[] } | null {
+  let indexFile = join(getSkillsDir(), 'skill-index.json');
+  const args: string[] = [];
+
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '-h' || a === '--help') return null;
+    if (a === '--skills-dir') {
+      const v = argv[i + 1];
+      if (!v) throw new Error('Missing value for --skills-dir');
+      indexFile = join(resolve(v), 'skill-index.json');
+      i++;
+      continue;
+    }
+    if (a === '--index') {
+      const v = argv[i + 1];
+      if (!v) throw new Error('Missing value for --index');
+      indexFile = resolve(v);
+      i++;
+      continue;
+    }
+    args.push(a);
+  }
+
+  return { opts: { indexFile }, args };
+}
 
 interface SkillEntry {
   name: string;
@@ -146,17 +192,24 @@ function listSkills(index: SkillIndex, tier?: 'always' | 'deferred'): void {
 }
 
 async function main() {
+  const parsed = parseArgs(process.argv.slice(2));
+  if (!parsed) {
+    usage();
+    process.exit(0);
+  }
+
+  const { opts, args } = parsed;
+
   // Check if index exists
-  if (!existsSync(INDEX_FILE)) {
-    console.error('❌ Skill index not found. Run GenerateSkillIndex.ts first:');
-    console.error('   bun run ~/.config/opencode/skills/CORE/Tools/GenerateSkillIndex.ts');
+  if (!existsSync(opts.indexFile)) {
+    console.error(`❌ Skill index not found: ${opts.indexFile}`);
+    console.error('Run GenerateSkillIndex.ts first:');
+    console.error('  bun run ~/.config/opencode/skills/CORE/Tools/GenerateSkillIndex.ts');
     process.exit(1);
   }
 
-  const indexContent = await readFile(INDEX_FILE, 'utf-8');
+  const indexContent = await readFile(opts.indexFile, 'utf-8');
   const index: SkillIndex = JSON.parse(indexContent);
-
-  const args = process.argv.slice(2);
 
   // Handle flags
   if (args.includes('--list') || args.length === 0) {

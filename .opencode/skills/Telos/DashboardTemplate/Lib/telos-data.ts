@@ -9,7 +9,8 @@ export interface TelosFile {
   type: 'markdown' | 'csv'
 }
 
-const TELOS_DIR = path.join(os.homedir(), '.opencode/skills/CORE/USER/TELOS')
+const PAI_DIR = process.env.PAI_DIR || path.join(os.homedir(), '.config', 'opencode')
+const TELOS_DIR = path.join(PAI_DIR, 'skills', 'CORE', 'USER', 'TELOS')
 
 export function getAllTelosData(): TelosFile[] {
   const files: TelosFile[] = []

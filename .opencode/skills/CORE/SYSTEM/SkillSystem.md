@@ -389,6 +389,33 @@ Complete visual content system using **charcoal architectural sketch** aesthetic
 
 ### Loading Additional Context Files
 
+## Skill Index (Discovery)
+
+PAI maintains a generated skill index at:
+
+- `${PAI_DIR}/skills/skill-index.json` (runtime default: `~/.config/opencode/skills/skill-index.json`)
+
+This index is used by PAI helper tooling (e.g. `SkillSearch.ts`) to deterministically discover which skill matches a request.
+
+### Regenerate the Index
+
+Run this after:
+- adding/removing skills
+- editing skill frontmatter (`name`, `description`)
+- renaming skills
+
+```bash
+bun run ~/.config/opencode/skills/CORE/Tools/GenerateSkillIndex.ts
+```
+
+### ALWAYS_LOADED_SKILLS
+
+The generator assigns each skill a `tier` of `always` or `deferred`.
+
+- The list is maintained in: `~/.config/opencode/skills/CORE/Tools/GenerateSkillIndex.ts` (`ALWAYS_LOADED_SKILLS`).
+- Keep it small and foundational (high-frequency skills).
+- Note: OpenCode does not auto-load skill bodies; this tiering is for discovery only.
+
 Workflows call SkillSearch to load context files as needed:
 
 ```bash

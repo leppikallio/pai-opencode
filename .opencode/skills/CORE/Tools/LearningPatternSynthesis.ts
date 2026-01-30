@@ -19,14 +19,14 @@
 import { parseArgs } from "node:util";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { getPaiDir } from "../../../pai-tools/PaiRuntime";
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
-const HOME_DIR = process.env.HOME ?? process.cwd();
-const CLAUDE_DIR = path.join(HOME_DIR, ".opencode");
-const LEARNING_DIR = path.join(CLAUDE_DIR, "MEMORY", "LEARNING");
+const PAI_DIR = getPaiDir();
+const LEARNING_DIR = path.join(PAI_DIR, "MEMORY", "LEARNING");
 const RATINGS_FILE = path.join(LEARNING_DIR, "SIGNALS", "ratings.jsonl");
 const SYNTHESIS_DIR = path.join(LEARNING_DIR, "SYNTHESIS");
 

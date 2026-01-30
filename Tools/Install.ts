@@ -31,6 +31,30 @@ type Options = {
   prune: boolean;
 };
 
+function maybeGenerateSkillIndex(args: { targetDir: string; dryRun: boolean }) {
+  const toolPath = path.join(args.targetDir, "skills", "CORE", "Tools", "GenerateSkillIndex.ts");
+  if (!isFile(toolPath)) {
+    console.log("[write] skill index: skipped (missing skills/CORE/Tools/GenerateSkillIndex.ts)");
+    return;
+  }
+
+  if (args.dryRun) {
+    console.log("[dry] skill index: would generate skills/skill-index.json");
+    return;
+  }
+
+  try {
+    console.log("[write] skill index: generating skills/skill-index.json");
+    execSync(`bun run "${toolPath}"`, {
+      stdio: "inherit",
+      env: { ...process.env, PAI_DIR: args.targetDir },
+    });
+  } catch {
+    // Best-effort: do not fail install on index generation.
+    console.log("[write] skill index: failed (continuing)");
+  }
+}
+
 const AGENTS_BLOCK_BEGIN = "<!-- PAI-OPENCODE:BEGIN -->";
 const AGENTS_BLOCK_END = "<!-- PAI-OPENCODE:END -->";
 
@@ -631,6 +655,9 @@ function sync(mode: Mode, opts: Options) {
   // Ensure runtime agent frontmatter models match selected provider profile.
   // This prevents ProviderModelNotFoundError when switching providers.
   maybeApplyProfile({ targetDir, sourceDir, dryRun, enabled: applyProfile });
+
+  // Generate skills/skill-index.json for deterministic skill discovery.
+  maybeGenerateSkillIndex({ targetDir, dryRun });
 
   console.log("\nDone.");
   console.log("Next:");

@@ -34,14 +34,22 @@
  * - WRONG.md - Things I was wrong about
  */
 
-import { readFileSync, writeFileSync, copyFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, copyFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { getPrincipal } from '../../../plugins/lib/identity';
 
-const HOME_DIR = process.env.HOME ?? process.cwd();
-const TELOS_DIR = join(HOME_DIR, '.opencode', 'context', 'life', 'telos');
-const BACKUPS_DIR = join(TELOS_DIR, 'backups');
-const UPDATES_FILE = join(TELOS_DIR, 'updates.md');
+import { getPaiDir } from '../../../pai-tools/PaiRuntime';
+
+const PAI_DIR = getPaiDir();
+
+// Canonical TELOS lives under CORE/USER.
+const TELOS_DIR = join(PAI_DIR, 'skills', 'CORE', 'USER', 'TELOS');
+
+// Backups are stored under MEMORY to avoid cluttering TELOS.
+const BACKUPS_DIR = join(PAI_DIR, 'MEMORY', 'Backups', 'TELOS');
+
+// Change log lives with the TELOS files.
+const UPDATES_FILE = join(TELOS_DIR, 'UPDATES.md');
 
 // Valid TELOS files
 const VALID_FILES = [
@@ -115,6 +123,16 @@ async function main() {
   const backupFilename = filename.replace('.md', `-${timestamp}.md`);
   const backupPath = join(BACKUPS_DIR, backupFilename);
 
+  // Ensure backups directory exists
+  try {
+    if (!existsSync(BACKUPS_DIR)) {
+      mkdirSync(BACKUPS_DIR, { recursive: true });
+    }
+  } catch (error) {
+    console.error(`❌ Failed to create backups directory: ${error}`);
+    process.exit(1);
+  }
+
   try {
     copyFileSync(targetFile, backupPath);
     console.log(`✅ Backup created: ${backupFilename}`);
@@ -143,11 +161,13 @@ async function main() {
 - **File Modified**: ${filename}
 - **Change Type**: Content Addition
 - **Description**: ${changeDescription}
-- **Backup Location**: \`backups/${backupFilename}\`
+- **Backup Location**: \`${backupPath}\`
 
 `;
 
-    const updatesContent = readFileSync(UPDATES_FILE, 'utf-8');
+    const updatesContent = existsSync(UPDATES_FILE)
+      ? readFileSync(UPDATES_FILE, 'utf-8')
+      : '# TELOS Updates\n\n## Future Changes\n\nDocument all changes below this line.\n';
 
     // Insert the new entry after "## Future Changes" section
     const futureChangesMarker = '## Future Changes';
@@ -164,21 +184,21 @@ async function main() {
 
       const updatedUpdates = beforeMarker + headerSection + logEntry + changesList;
       writeFileSync(UPDATES_FILE, updatedUpdates, 'utf-8');
-      console.log(`✅ Change logged in updates.md`);
+      console.log(`✅ Change logged in UPDATES.md`);
     } else {
       // Fallback: just append
       const updatedUpdates = `${updatesContent.trimEnd()}\n${logEntry}`;
       writeFileSync(UPDATES_FILE, updatedUpdates, 'utf-8');
-      console.log(`✅ Change logged in updates.md (appended)`);
+      console.log(`✅ Change logged in UPDATES.md (appended)`);
     }
   } catch (error) {
-    console.error(`❌ Failed to update updates.md: ${error}`);
+    console.error(`❌ Failed to update UPDATES.md: ${error}`);
     process.exit(1);
   }
 
   console.log('\n🎯 TELOS update complete!');
   console.log(`   File: ${filename}`);
-  console.log(`   Backup: backups/${backupFilename}`);
+  console.log(`   Backup: ${backupPath}`);
   console.log(`   Change: ${changeDescription}`);
 }
 

@@ -17,14 +17,14 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { existsSync } from "node:fs";
+import { getPaiDir } from "../../../pai-tools/PaiRuntime";
 
 // ============================================================================
 // Environment Loading
 // ============================================================================
 
 async function loadEnv(): Promise<void> {
-  const homeDir = process.env.HOME ?? process.cwd();
-  const envPath = resolve(homeDir, ".opencode/.env");
+  const envPath = resolve(getPaiDir(), ".env");
   try {
     const envContent = await readFile(envPath, "utf-8");
     for (const line of envContent.split("\n")) {

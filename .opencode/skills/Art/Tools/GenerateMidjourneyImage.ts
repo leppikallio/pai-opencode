@@ -12,10 +12,11 @@
  * @see ~/.config/opencode/skills/art/SKILL.md
  */
 
-import { DiscordBotClient } from '../lib/discord-bot.js';
-import { MidjourneyClient, MidjourneyError } from '../lib/midjourney-client.js';
+import { DiscordBotClient } from '../Lib/discord-bot.js';
+import { MidjourneyClient, MidjourneyError } from '../Lib/midjourney-client.js';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
+import { getPaiDir } from '../../../pai-tools/PaiRuntime';
 
 // ============================================================================
 // Environment Loading
@@ -26,8 +27,7 @@ import { resolve } from 'node:path';
  * This ensures API keys are available regardless of how the CLI is invoked
  */
 async function loadEnv(): Promise<void> {
-  const homeDir = process.env.HOME ?? process.cwd();
-  const paiDir = process.env.PAI_DIR || resolve(homeDir, '.opencode');
+  const paiDir = getPaiDir();
   const envPath = resolve(paiDir, '.env');
   try {
     const envContent = await readFile(envPath, 'utf-8');

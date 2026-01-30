@@ -20,16 +20,16 @@ import { parseArgs } from "node:util";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { getLearningCategory, isLearningCapture } from "../../../plugins/lib/learning-utils";
+import { getPaiDir } from "../../../pai-tools/PaiRuntime";
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
-const HOME_DIR = process.env.HOME ?? process.cwd();
-const CLAUDE_DIR = path.join(HOME_DIR, ".opencode");
+const PAI_DIR = getPaiDir();
 const USERNAME = process.env.USER || require("node:os").userInfo().username;
-const PROJECTS_DIR = path.join(CLAUDE_DIR, "projects", `-Users-${USERNAME}--claude`);
-const LEARNING_DIR = path.join(CLAUDE_DIR, "MEMORY", "LEARNING");
+const PROJECTS_DIR = path.join(PAI_DIR, "projects", `-Users-${USERNAME}--claude`);
+const LEARNING_DIR = path.join(PAI_DIR, "MEMORY", "LEARNING");
 
 // Patterns indicating learning moments in conversations
 const CORRECTION_PATTERNS = [

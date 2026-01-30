@@ -12,7 +12,7 @@ import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { parseArgs } from 'node:util';
-import { $ } from 'bun';
+import { getPaiDir } from '../../../pai-tools/PaiRuntime';
 
 const EVALS_DIR = join(import.meta.dir, '..');
 const RESULTS_DIR = join(EVALS_DIR, 'Results');
@@ -157,9 +157,46 @@ export function formatForISC(result: AlgorithmEvalResult): string {
  * Update ISC row with eval result
  */
 export async function updateISCWithResult(result: AlgorithmEvalResult): Promise<void> {
-  const status = result.passed ? 'DONE' : 'BLOCKED';
+  const paiDir = getPaiDir();
+  const statePath = join(paiDir, 'MEMORY', 'STATE', 'current-work.json');
+  if (!existsSync(statePath)) {
+    throw new Error(`No active work session found (missing ${statePath})`);
+  }
 
-  await $`bun run ~/.config/opencode/skills/THEALGORITHM/Tools/ISCManager.ts update --row ${result.isc_row} --status ${status} --note "${formatForISC(result)}"`.quiet();
+  const state = JSON.parse(readFileSync(statePath, 'utf-8')) as { work_dir?: string };
+  const workDir = state.work_dir;
+  if (!workDir) {
+    throw new Error(`No active work session found (invalid ${statePath})`);
+  }
+
+  const iscPath = join(workDir, 'ISC.json');
+  const isc = existsSync(iscPath)
+    ? (JSON.parse(readFileSync(iscPath, 'utf-8')) as {
+        criteria: Array<{ description: string; status: string }>;
+        anti_criteria?: unknown[];
+      })
+    : ({ criteria: [], anti_criteria: [] } as {
+        criteria: Array<{ description: string; status: string }>;
+        anti_criteria: unknown[];
+      });
+
+  const entry = {
+    description: formatForISC(result),
+    status: result.passed ? 'VERIFIED' : 'FAILED',
+  };
+
+  const row = Number.isFinite(result.isc_row) ? result.isc_row : 0;
+  if (row > 0) {
+    const idx = row - 1;
+    while (isc.criteria.length <= idx) {
+      isc.criteria.push({ description: '', status: 'PENDING' });
+    }
+    isc.criteria[idx] = entry;
+  } else {
+    isc.criteria.push(entry);
+  }
+
+  writeFileSync(iscPath, JSON.stringify(isc, null, 2));
 }
 
 // CLI interface
