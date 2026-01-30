@@ -21,16 +21,12 @@ extracted_from: SKILL.md lines 993-1022
 - User asks "Google Maps businesses" or lead generation → Use MCP Skill
 - Questions about "web scraping" or "data extraction" → Use MCP Skill
 
-### Web Scraping: Use MCP Skill
+### Web Scraping: Use MCP Runtime
 
-**The MCP Skill is THE skill for web scraping and data extraction.**
-- Location: ~/.config/opencode/skills/mcp/
-- Handles: Bright Data, Apify, and future web scraping providers
-- Implementation: TypeScript wrappers that call APIs directly (not old MCP protocol tools)
-- **When user says "use the MCP" or "use Bright Data" or "use Apify"** → Use MCP Skill
-- Execute with: `bun run script.ts` using TypeScript imports
-- Example: `import { scrapeAsMarkdown } from '~/.config/opencode/skills/mcp/Providers/brightdata/actors'`
-- 99% token savings by filtering data in TypeScript code BEFORE model context
+**MCP is the runtime integration point for web scraping providers.**
+- Location: `~/.config/opencode/mcp/`
+- Implementation: TypeScript wrappers that call provider APIs directly
+- Goal: filter results in code before adding to model context
 
 **Why TypeScript Wrappers (not old MCP protocol):**
 - Direct API calls (faster, more efficient)
@@ -42,5 +38,4 @@ extracted_from: SKILL.md lines 993-1022
 
 **See Also:**
 - SKILL.md > Web Scraping - Condensed trigger
-- skills/mcp/SKILL.md - Complete MCP skill documentation
-- skills/mcp/Providers/ - Bright Data and Apify integrations
+- `~/.config/opencode/mcp/` - Runtime MCP implementations

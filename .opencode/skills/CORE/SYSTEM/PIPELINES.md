@@ -378,7 +378,7 @@ Add a completed execution example showing all steps passed with their verificati
 
 ## Related Documentation
 
-- **Actions:** `~/.config/opencode/skills/CORE/SYSTEM/ACTIONS.md`
+- **Actions:** `~/.config/opencode/skills/CORE/SYSTEM/Actions.md`
 - **Architecture:** `~/.config/opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md`
 - **Template:** `~/.config/opencode/PIPELINES/PIPELINE-TEMPLATE.md`
 - **Example:** `~/.config/opencode/PIPELINES/Blog_Publish-Post/PIPELINE.md`

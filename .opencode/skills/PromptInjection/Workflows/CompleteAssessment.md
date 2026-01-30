@@ -371,7 +371,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 **Required reading:**
 - Attack taxonomy: `COMPREHENSIVE-ATTACK-TAXONOMY.md`
 - Testing tools: `AUTOMATED-TESTING-TOOLS.md`
-- Defense guide: `DEFENSE-MECHANISMS.md`
+- Defense guide: `DefenseMechanisms.md`
 - Quick start: `QuickStartGuide.md`
 
 ## Success Criteria

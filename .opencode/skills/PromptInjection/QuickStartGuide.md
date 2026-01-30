@@ -182,15 +182,15 @@ Actual: [Document]
 ## Essential Resources
 
 **Must-read before testing:**
-- `Resources/COMPREHENSIVE-ATTACK-TAXONOMY.md` - All attack types
-- `Resources/APPLICATION-RECONNAISSANCE-METHODOLOGY.md` - Intel gathering
+- `COMPREHENSIVE-ATTACK-TAXONOMY.md` - All attack types
+- `APPLICATION-RECONNAISSANCE-METHODOLOGY.md` - Intel gathering
 
 **Reference during testing:**
-- `Resources/DEFENSE-MECHANISMS.md` - Defense evaluation
-- `Resources/AUTOMATED-TESTING-TOOLS.md` - Tool options
+- `DefenseMechanisms.md` - Defense evaluation
+- `AutomatedTestingTools.md` - Tool options
 
 **Use for reporting:**
-- `Resources/Reporting.md` - Report structure and templates
+- `Reporting.md` - Report structure and templates
 
 ## Skill Escalation
 

@@ -312,7 +312,7 @@ If you've run 3+ comparisons without meaningful improvement, STOP and ask:
 - The test cases might be too easy or too homogeneous
 - The entire approach might need rethinking (different architecture)
 
-When stuck, invoke explicit Science workflow: `Science/Workflows/StructuredInvestigation.md`
+When stuck, invoke explicit workflow: `Evals/Workflows/StructuredInvestigation.md`
 
 This forces stepping back from the eval loop to question the frame itself.
 

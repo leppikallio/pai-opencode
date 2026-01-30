@@ -165,7 +165,7 @@ Parse JSON output and format into readable table with:
 
 Save scan results to:
 ```
-$PAI_DIR/MEMORY/security/YYYY-MM-DD_secret-scan.jsonl
+$PAI_DIR/MEMORY/SECURITY/YYYY-MM-DD_secret-scan.jsonl
 ```
 
 Log format:

@@ -68,14 +68,11 @@ git reflog --since="${timeRange}"
 Search for update documents covering this period:
 
 ```bash
-# Search MEMORY/sessions for recent session docs
-find $PAI_DIR/MEMORY/sessions -type f -mtime -${days}
+# Search MEMORY/SESSIONS for recent session docs
+find $PAI_DIR/MEMORY/SESSIONS -type f -mtime -${days}
 
-# Search MEMORY/projects for project updates
-find $PAI_DIR/MEMORY/projects -type f -mtime -${days}
-
-# Search MEMORY/Learning for recent learnings
-find $PAI_DIR/MEMORY/Learning -type f -mtime -${days}
+# Search MEMORY/LEARNING for recent learnings
+find $PAI_DIR/MEMORY/LEARNING -type f -mtime -${days}
 ```
 
 ### 4. Analyze Gaps
@@ -145,11 +142,11 @@ Type: {work|feature|bugfix|refactor}
 Generated via DocumentRecent workflow
 ```
 
-Save to: `$PAI_DIR/MEMORY/sessions/{YYYY-MM}/{timestamp}_SESSION_{slug}.md`
+Save to: `$PAI_DIR/MEMORY/SESSIONS/{YYYY-MM}/{timestamp}_SESSION_{slug}.md`
 
 #### Project Update Format
 
-If changes relate to an existing project in `$PAI_DIR/MEMORY/projects/`:
+If changes relate to an existing project, prefer documenting under PAISYSTEMUPDATES/.
 
 ```markdown
 # Update: {Update Title}
@@ -173,7 +170,7 @@ Date: {ISO timestamp}
 Auto-generated via DocumentRecent workflow
 ```
 
-Save to: `$PAI_DIR/MEMORY/projects/{project}/Updates/{timestamp}_{slug}.md`
+Save to: `$PAI_DIR/MEMORY/PAISYSTEMUPDATES/{YYYY}/{MM}/{timestamp}_{slug}.md`
 
 #### Learning Document Format
 
@@ -201,14 +198,14 @@ Tags: {relevant tags}
 Captured via DocumentRecent workflow
 ```
 
-Save to: `$PAI_DIR/MEMORY/Learning/{category}/{timestamp}_{slug}.md`
+Save to: `$PAI_DIR/MEMORY/LEARNING/{category}/{timestamp}_{slug}.md`
 
 ### 6. Update Indexes
 
 After generating documents:
 
 1. **Update Learning README**
-   - Add new learning entries to `$PAI_DIR/MEMORY/Learning/README.md`
+   - Add new learning entries to `$PAI_DIR/MEMORY/LEARNING/README.md`
 
 2. **Update Project Status**
    - If project docs were created, update project README or status file
@@ -328,21 +325,21 @@ Commits found: 15
 Generating documents...
 
 ✅ Session: "Hook development workflow"
-   → $PAI_DIR/MEMORY/sessions/2026-01/20260118T225343_SESSION_hook-development.md
+   → $PAI_DIR/MEMORY/SESSIONS/2026-01/20260118T225343_SESSION_hook-development.md
 
 ✅ Learning: "Git hook security patterns"
-   → $PAI_DIR/MEMORY/Learning/Security/20260118_git-hook-security.md
+   → $PAI_DIR/MEMORY/LEARNING/Security/20260118_git-hook-security.md
 
 ✅ Project Update: PAI Upgrade - Session 2 completion
-   → $PAI_DIR/MEMORY/projects/pai-upgrade/Updates/20260118_session-2-complete.md
+   → $PAI_DIR/MEMORY/PAISYSTEMUPDATES/2026/01/20260118_session-2-complete.md
 
 ✅ Session: "MEMORY structure consolidation"
-   → $PAI_DIR/MEMORY/sessions/2026-01/20260118T230000_SESSION_memory-consolidation.md
+   → $PAI_DIR/MEMORY/SESSIONS/2026-01/20260118T230000_SESSION_memory-consolidation.md
 
 Documentation coverage: 80% (12/15 commits)
 
 Summary report:
-$PAI_DIR/MEMORY/sessions/2026-01/20260119T120000_document-recent-summary.md
+$PAI_DIR/MEMORY/SESSIONS/2026-01/20260119T120000_document-recent-summary.md
 ```
 
 ## Integration Points
@@ -427,7 +424,7 @@ Generating documents for undocumented work...
 Documentation coverage is now 80%.
 
 Full summary saved to:
-$PAI_DIR/MEMORY/sessions/2026-01/20260119_document-recent-summary.md
+$PAI_DIR/MEMORY/SESSIONS/2026-01/20260119_document-recent-summary.md
 
 Would you like me to review any of the generated documents?
 ```

@@ -523,10 +523,13 @@ function sync(mode: Mode, opts: Options) {
 
   // Core runtime directories (OpenCode uses plural names)
   const copyAlways = [
+    "BACKUPS",
     "agents",
+    "docs",
     "mcp",
     "plugins",
     "profiles",
+    "security",
     "skills",
     "pai-tools",
     "PAISYSTEM",

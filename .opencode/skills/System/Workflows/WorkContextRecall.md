@@ -11,8 +11,8 @@ Search past work when the user asks about previous fixes, implementations, or de
 Retrieves context from past work by searching:
 
 1. **Session Documents** - Recent session transcripts and work logs
-2. **MEMORY Work Items** - Structured work artifacts in MEMORY/Work/
-3. **Project Updates** - Changes documented in MEMORY/projects/
+2. **MEMORY Work Items** - Structured work artifacts in MEMORY/WORK/
+3. **Project Updates** - Changes documented in MEMORY/PAISYSTEMUPDATES/
 4. **Learning Documents** - Captured learnings and patterns
 5. **System Updates Index** - Using UpdateSearch.ts tool for indexed searches
 6. **Git History** - Commit messages and diffs for technical details
@@ -22,8 +22,8 @@ Retrieves context from past work by searching:
 ```typescript
 // 1. Parse user query to extract keywords and context
 // 2. Search PAISYSTEMUPDATES index using UpdateSearch.ts
-// 3. Query MEMORY/sessions for relevant session docs
-// 4. Search MEMORY/Work for related work items
+// 3. Query MEMORY/SESSIONS for relevant session docs
+// 4. Search MEMORY/WORK for related work items
 // 5. Scan git history for matching commits
 // 6. Aggregate and rank results by relevance
 // 7. Present consolidated context to user
@@ -112,17 +112,17 @@ interface UpdateSearchResult {
 
 ### 3. Session Document Search
 
-Query MEMORY/sessions for relevant sessions:
+Query MEMORY/SESSIONS for relevant sessions:
 
 ```bash
 # Find sessions in timeframe
-find "$PAI_DIR/MEMORY/sessions" -name "*SESSION*.md" -mtime -${days}
+find "$PAI_DIR/MEMORY/SESSIONS" -name "*SESSION*.md" -mtime -${days}
 
 # Grep for keywords in session files
-grep -l "security.*hook" "$PAI_DIR/MEMORY/sessions"/**/*.md
+grep -l "security.*hook" "$PAI_DIR/MEMORY/SESSIONS"/**/*.md
 
 # Get session titles and dates
-grep "^# " "$PAI_DIR/MEMORY/sessions"/**/*.md
+grep "^# " "$PAI_DIR/MEMORY/SESSIONS"/**/*.md
 ```
 
 Rank sessions by relevance:
@@ -156,13 +156,13 @@ Search structured work artifacts:
 
 ```bash
 # Find work items
-find "$PAI_DIR/MEMORY/Work" -type f -name "*.yaml" -o -name "*.md"
+find "$PAI_DIR/MEMORY/WORK" -type f -name "*.yaml" -o -name "*.md"
 
 # Search work item content
-grep -r "${keyword}" "$PAI_DIR/MEMORY/Work" --include="*.yaml" --include="*.md"
+grep -r "${keyword}" "$PAI_DIR/MEMORY/WORK" --include="*.yaml" --include="*.md"
 
 # Get work item metadata
-cat "$PAI_DIR/MEMORY/Work"/*/items/*.yaml | grep -E "title:|status:|date:"
+cat "$PAI_DIR/MEMORY/WORK"/*/items/*.yaml | grep -E "title:|status:|date:"
 ```
 
 Parse work items:
@@ -180,7 +180,7 @@ interface WorkItem {
 
 // Extract relevant work items
 function searchWorkItems(keywords: string[]): WorkItem[] {
-  const workItemFiles = glob("$PAI_DIR/MEMORY/Work/**/items/*.yaml");
+  const workItemFiles = glob("$PAI_DIR/MEMORY/WORK/**/items/*.yaml");
 
   return workItemFiles
     .map(file => parseWorkItem(file))
@@ -195,13 +195,13 @@ Query project-specific updates:
 
 ```bash
 # Search all project updates
-find "$PAI_DIR/MEMORY/projects" -name "Updates" -type d
+find "$PAI_DIR/MEMORY/PAISYSTEMUPDATES" -type f -name "*.md" -maxdepth 4
 
 # Find updates matching keywords
-grep -r "${keyword}" "$PAI_DIR/MEMORY/projects"/*/Updates/
+grep -r "${keyword}" "$PAI_DIR/MEMORY/PAISYSTEMUPDATES" --include="*.md"
 
 # Get recent project activity
-find "$PAI_DIR/MEMORY/projects" -name "*.md" -mtime -30
+find "$PAI_DIR/MEMORY/PAISYSTEMUPDATES" -name "*.md" -mtime -30
 ```
 
 Match projects to query:
@@ -240,21 +240,21 @@ Search captured learnings:
 
 ```bash
 # Search learning docs
-grep -r "${keyword}" "$PAI_DIR/MEMORY/Learning" --include="*.md"
+grep -r "${keyword}" "$PAI_DIR/MEMORY/LEARNING" --include="*.md"
 
 # List recent learnings
-find "$PAI_DIR/MEMORY/Learning" -name "*.md" -mtime -30
+find "$PAI_DIR/MEMORY/LEARNING" -name "*.md" -mtime -30
 
 # Search by tag/category
-find "$PAI_DIR/MEMORY/Learning" -path "*/Security/*.md"
-find "$PAI_DIR/MEMORY/Learning" -path "*/TypeScript/*.md"
+find "$PAI_DIR/MEMORY/LEARNING" -path "*/Security/*.md"
+find "$PAI_DIR/MEMORY/LEARNING" -path "*/TypeScript/*.md"
 ```
 
 Extract relevant learnings:
 
 ```typescript
 function searchLearnings(keywords: string[]): Learning[] {
-  const learningFiles = glob("$PAI_DIR/MEMORY/Learning/**/*.md");
+  const learningFiles = glob("$PAI_DIR/MEMORY/LEARNING/**/*.md");
 
   return learningFiles
     .map(file => {
@@ -497,13 +497,13 @@ export default function securityValidator(context: HookContext) {
 ## Related Artifacts
 
 ### Session Documents
-- [Hook development workflow]($PAI_DIR/MEMORY/sessions/2026-01/20260118T225343_SESSION_hook-development.md)
+- [Hook development workflow]($PAI_DIR/MEMORY/SESSIONS/2026-01/20260118T225343_SESSION_hook-development.md)
 
 ### Learning Documents
-- [Git hook security patterns]($PAI_DIR/MEMORY/Learning/Security/20260118_git-hook-security.md)
+- [Git hook security patterns]($PAI_DIR/MEMORY/LEARNING/Security/20260118_git-hook-security.md)
 
 ### Project Updates
-- [PAI Upgrade - Session 2]($PAI_DIR/MEMORY/projects/pai-upgrade/Updates/20260118_session-2-complete.md)
+- [PAI Upgrade - Session 2]($PAI_DIR/MEMORY/PAISYSTEMUPDATES/2026/01/20260118_session-2-complete.md)
 
 ### Commits
 - 3de3b79 - feat(hooks): Add security-validator hook
@@ -562,7 +562,7 @@ Added pre-tool-use validation with dangerous pattern detection.
 2026-01-18 23:58 - Committed changes
 
 Full context report:
-$PAI_DIR/MEMORY/sessions/{date}/work-recall_{slug}.md
+$PAI_DIR/MEMORY/SESSIONS/{date}/work-recall_{slug}.md
 
 Need more details on any of these?
 ```

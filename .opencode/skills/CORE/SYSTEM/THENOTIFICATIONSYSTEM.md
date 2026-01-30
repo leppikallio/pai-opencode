@@ -84,7 +84,7 @@ Use the `voice_notify` tool:
 | **{DAIDENTITY.NAME}** (default) | `{DAIDENTITY.VOICEID}` | Use for most workflows |
 | **Priya** (Artist) | `ZF6FPAbjXT4488VcRRnw` | Art skill workflows |
 
-**Full voice registry:** `~/.config/opencode/skills/CORE/SYSTEM/AGENTPERSONALITIES.md`
+**Full voice registry:** `~/.config/opencode/skills/Agents/AgentPersonalities.md`
 
 ---
 

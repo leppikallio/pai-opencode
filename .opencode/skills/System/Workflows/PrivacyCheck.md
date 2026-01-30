@@ -214,20 +214,19 @@ for (const file of systemFiles) {
 ```typescript
 const memoryPrivacyLevels = {
   // High privacy - personal context
-  "MEMORY/Work/": "PRIVATE",
-  "MEMORY/sessions/": "PRIVATE",
-  "MEMORY/projects/*/private/": "PRIVATE",
+  "MEMORY/WORK/": "PRIVATE",
+  "MEMORY/SESSIONS/": "PRIVATE",
 
   // Medium privacy - could be sanitized
-  "MEMORY/Learning/": "SEMI-PRIVATE",
-  "MEMORY/research/": "SEMI-PRIVATE",
+  "MEMORY/LEARNING/": "SEMI-PRIVATE",
+  "MEMORY/RESEARCH/": "SEMI-PRIVATE",
 
   // Low privacy - technical only
-  "MEMORY/State/": "TECHNICAL",
+  "MEMORY/STATE/": "TECHNICAL",
 
   // Structured data
   "MEMORY/raw-outputs/": "STRUCTURED",
-  "MEMORY/security/": "AUDIT_LOG"
+  "MEMORY/SECURITY/": "AUDIT_LOG"
 };
 
 // Scan each area for privacy compliance
@@ -429,8 +428,8 @@ Generated: {timestamp}
    - Severity: MEDIUM
    - Auto-fix: Available
 
-3. **SYSTEM/workflows/example.md:78**
-   - Contains: "steffen@gmail.com"
+   3. **SYSTEM/workflows/example.md:78**
+    - Contains: "user@example.com"
    - Should be: "user@example.com"
    - Severity: MEDIUM
    - Auto-fix: Available
@@ -448,12 +447,12 @@ Generated: {timestamp}
 
 **Issues Found:**
 
-1. **MEMORY/Learning/Generic/typescript-patterns.md**
+1. **MEMORY/LEARNING/Generic/typescript-patterns.md**
    - Contains personal project reference
-   - Should be moved to: MEMORY/Learning/Personal/
+   - Should be moved to: MEMORY/LEARNING/Personal/
    - Severity: LOW
 
-2. **MEMORY/research/2026-01/api-comparison.md**
+2. **MEMORY/RESEARCH/2026-01/api-comparison.md**
    - Contains API key in example code
    - Should be: placeholder value
    - Severity: MEDIUM
@@ -490,7 +489,7 @@ Generated: {timestamp}
 
 ### Credentials
 - Passwords: 0 ✅
-- API keys: 1 ⚠️ (in MEMORY/research/api-comparison.md)
+- API keys: 1 ⚠️ (in MEMORY/RESEARCH/api-comparison.md)
 - Tokens: 0 ✅
 - Status: MINOR ISSUE
 
@@ -520,11 +519,11 @@ None found ✅
 ### Medium (3)
 1. SYSTEM/docs/setup.md - hardcoded path
 2. SYSTEM/workflows/example.md - real email
-3. MEMORY/research/2026-01/api-comparison.md - API key in example
+3. MEMORY/RESEARCH/2026-01/api-comparison.md - API key in example
 
 ### Low (2)
 1. SYSTEM/architecture/decisions/ADR-003.md - personal name
-2. MEMORY/Learning/Generic/typescript-patterns.md - wrong category
+2. MEMORY/LEARNING/Generic/typescript-patterns.md - wrong category
 
 ## Recommendations
 
@@ -603,7 +602,7 @@ Issues to fix: 5 (3 medium, 2 low)
 Auto-fixes available: 3
 
 Full report:
-$PAI_DIR/MEMORY/sessions/{date}/privacy-compliance-report.md
+$PAI_DIR/MEMORY/SESSIONS/{date}/privacy-compliance-report.md
 
 Apply auto-fixes? [y/N]:
 ```
@@ -629,7 +628,7 @@ const autoFixes = [
   {
     file: "SYSTEM/workflows/example.md",
     line: 78,
-    original: "steffen@gmail.com",
+    original: "user@example.com",
     replacement: "user@example.com",
     description: "Replace real email with placeholder"
   }
