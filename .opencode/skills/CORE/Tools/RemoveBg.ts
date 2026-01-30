@@ -4,14 +4,14 @@
  * remove-bg - Background Removal CLI
  *
  * Remove backgrounds from images using the remove.bg API.
- * Part of the Images skill for PAI system.
+ * Background-removal post-processing utility for PAI.
  *
  * Usage:
  *   remove-bg input.png                    # Overwrites original
  *   remove-bg input.png output.png         # Saves to new file
  *   remove-bg file1.png file2.png file3.png # Batch process
  *
- * @see ~/.config/opencode/skills/Images/SKILL.md
+ * @see ~/.config/opencode/skills/CORE/Tools/RemoveBg.ts
  */
 
 import { readFile, writeFile } from "node:fs/promises";

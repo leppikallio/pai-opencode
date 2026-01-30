@@ -5,7 +5,7 @@
  * with Midjourney bot. Handles connection, message sending, monitoring,
  * and image downloads.
  *
- * @see ~/.config/opencode/skills/art/SKILL.md
+ * @see ~/.config/opencode/skills/Art/SKILL.md
  */
 
 import {
@@ -76,7 +76,7 @@ export class DiscordBotClient {
         resolve();
       });
 
-      this.client.on('error', (error) => {
+      this.client.on('error', (error: unknown) => {
         console.error('❌ Discord client error:', error);
       });
 

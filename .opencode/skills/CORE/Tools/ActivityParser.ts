@@ -87,7 +87,7 @@ const PATTERNS = {
   skills: /skills\/[^/]+\/(SKILL\.md|Workflows\/|Tools\/|Data\/)/,
   workflows: /Workflows\/.*\.md$/,
   tools: /skills\/[^/]+\/Tools\/.*\.ts$/,
-  hooks: /hooks\/.*\.ts$/,
+  hooks: /(hooks|plugins)\/.*\.(ts|js)$/,
   architecture: /(ARCHITECTURE|PAISYSTEMARCHITECTURE|SKILLSYSTEM)\.md$/i,
   documentation: /\.(md|txt)$/,
 };
