@@ -21,6 +21,7 @@
  */
 
 import { $ } from "bun";
+import { join, resolve } from "node:path";
 
 interface BountyProgram {
   name: string;
@@ -45,9 +46,10 @@ interface BountyProgramsResult {
 // ProjectDiscovery Chaos bounty list URL
 const CHAOS_BOUNTY_URL = "https://raw.githubusercontent.com/projectdiscovery/public-bugbounty-programs/main/chaos-bugbounty-list.json";
 
-// Local cache path
-const CACHE_DIR = `${process.env.HOME}/.opencode/skills/Recon/Data`;
-const CACHE_FILE = `${CACHE_DIR}/BountyPrograms.json`;
+// Local cache path (relative to this skill)
+const SKILL_DIR = resolve(join(import.meta.dir, '..'));
+const CACHE_DIR = join(SKILL_DIR, 'Data');
+const CACHE_FILE = join(CACHE_DIR, 'BountyPrograms.json');
 const CACHE_MAX_AGE_HOURS = 24;
 
 interface ChaosProgram {

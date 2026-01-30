@@ -3,7 +3,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import os from 'node:os'
 
-const TELOS_DIR = path.join(os.homedir(), '.opencode/skills/life/telos')
+const PAI_DIR = process.env.PAI_DIR || path.join(os.homedir(), '.config', 'opencode')
+const TELOS_DIR = path.join(PAI_DIR, 'skills', 'CORE', 'USER', 'TELOS')
 
 export async function POST(request: Request) {
   try {
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
     const timestamp = new Date().toISOString()
     const logMessage = `\n## ${timestamp}\n\n- **Action:** File edited via dashboard\n- **File:** ${filename}\n`
 
-    const updatesPath = path.join(TELOS_DIR, 'updates.md')
+    const updatesPath = path.join(TELOS_DIR, 'UPDATES.md')
     if (fs.existsSync(updatesPath)) {
       fs.appendFileSync(updatesPath, logMessage)
     }

@@ -16,17 +16,28 @@
 import { parseArgs } from "node:util";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { getPaiDir } from "../../../pai-tools/PaiRuntime";
 
 // ============================================================================
 // Configuration
 // ============================================================================
 
-const HOME_DIR = process.env.HOME ?? process.cwd();
-const CLAUDE_DIR = path.join(HOME_DIR, ".opencode");
-const MEMORY_DIR = path.join(CLAUDE_DIR, "MEMORY");
+const PAI_DIR = getPaiDir();
+const MEMORY_DIR = path.join(PAI_DIR, "MEMORY");
 const USERNAME = process.env.USER || require("node:os").userInfo().username;
-const PROJECTS_DIR = path.join(CLAUDE_DIR, "projects", `-Users-${USERNAME}--claude`);  // Claude Code native storage
+const PROJECTS_DIR = path.join(PAI_DIR, "projects", `-Users-${USERNAME}--claude`);  // Claude Code native storage
 const SYSTEM_UPDATES_DIR = path.join(MEMORY_DIR, "PAISYSTEMUPDATES");  // Canonical system change history
+
+function normalizeSlashes(p: string): string {
+  return p.replace(/\\/g, "/");
+}
+
+const PAI_DIR_POSIX = normalizeSlashes(PAI_DIR);
+
+function isPaiPath(filePath: string): boolean {
+  const fp = normalizeSlashes(filePath);
+  return fp.includes("/.opencode/") || fp.startsWith(`${PAI_DIR_POSIX}/`) || fp.includes(`/${PAI_DIR_POSIX}/`);
+}
 
 // ============================================================================
 // Types
@@ -87,7 +98,7 @@ function shouldSkip(filePath: string): boolean {
 
 function categorizeFile(filePath: string): keyof ParsedActivity["categories"] | null {
   if (shouldSkip(filePath)) return null;
-  if (!filePath.includes("/.opencode/")) return null;
+  if (!isPaiPath(filePath)) return null;
 
   if (PATTERNS.skills.test(filePath)) return "skills";
   if (PATTERNS.workflows.test(filePath)) return "workflows";
@@ -105,9 +116,18 @@ function extractSkillName(filePath: string): string | null {
 }
 
 function getRelativePath(filePath: string): string {
-  const claudeIndex = filePath.indexOf("/.opencode/");
-  if (claudeIndex === -1) return filePath;
-  return filePath.substring(claudeIndex + 9); // Skip "/.opencode/"
+  const fp = normalizeSlashes(filePath);
+  if (fp.includes(`/${PAI_DIR_POSIX}/`)) {
+    const idx = fp.indexOf(`/${PAI_DIR_POSIX}/`);
+    return fp.substring(idx + PAI_DIR_POSIX.length + 2);
+  }
+  if (fp.startsWith(`${PAI_DIR_POSIX}/`)) {
+    return fp.substring(PAI_DIR_POSIX.length + 1);
+  }
+
+  const legacyIdx = fp.indexOf("/.opencode/");
+  if (legacyIdx === -1) return fp;
+  return fp.substring(legacyIdx + 9); // Skip "/.opencode/"
 }
 
 // ============================================================================
@@ -204,7 +224,7 @@ async function parseEvents(sessionFilter?: string): Promise<ParsedActivity> {
       // Write tool = new files
       if (contentItem.name === "Write" && contentItem.input?.file_path) {
         const filePath = contentItem.input.file_path;
-        if (filePath.includes("/.opencode/")) {
+        if (isPaiPath(filePath)) {
           filesCreated.add(filePath);
         }
       }
@@ -212,7 +232,7 @@ async function parseEvents(sessionFilter?: string): Promise<ParsedActivity> {
       // Edit tool = modified files
       if (contentItem.name === "Edit" && contentItem.input?.file_path) {
         const filePath = contentItem.input.file_path;
-        if (filePath.includes("/.opencode/")) {
+        if (isPaiPath(filePath)) {
           filesModified.add(filePath);
         }
       }
@@ -378,7 +398,7 @@ function generateTitle(activity: ParsedActivity): string {
   // New tool created - most specific
   if (categories.tools.some((c) => c.action === "created")) {
     const newTool = categories.tools.find((c) => c.action === "created");
-    const name = extractName(newTool?.file);
+    const name = extractName(newTool?.file ?? "");
     if (skills_affected.length === 1) {
       return `Added ${name} Tool to ${skills_affected[0]} Skill`;
     }
@@ -388,7 +408,7 @@ function generateTitle(activity: ParsedActivity): string {
   // New workflow created
   if (categories.workflows.some((c) => c.action === "created")) {
     const newWorkflow = categories.workflows.find((c) => c.action === "created");
-    const name = extractName(newWorkflow?.file);
+    const name = extractName(newWorkflow?.file ?? "");
     if (skills_affected.length === 1) {
       return `Added ${name} Workflow to ${skills_affected[0]}`;
     }

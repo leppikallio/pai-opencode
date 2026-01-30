@@ -17,6 +17,7 @@ import OpenAI from "openai";
 import { GoogleGenAI } from "@google/genai";
 import { writeFile, readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
+import { getPaiDir } from "../../../pai-tools/PaiRuntime";
 
 // ============================================================================
 // Environment Loading
@@ -27,8 +28,7 @@ import { extname, resolve } from "node:path";
  * This ensures API keys are available regardless of how the CLI is invoked
  */
 async function loadEnv(): Promise<void> {
-  const homeDir = process.env.HOME ?? process.cwd();
-  const paiDir = process.env.PAI_DIR || resolve(homeDir, '.opencode');
+  const paiDir = getPaiDir();
   const envPath = resolve(paiDir, '.env');
   try {
     const envContent = await readFile(envPath, 'utf-8');
@@ -127,7 +127,7 @@ function handleError(error: unknown): never {
 // ============================================================================
 
 // PAI directory for documentation paths
-const PAI_DIR = process.env.PAI_DIR || `${process.env.HOME}/.opencode`;
+const PAI_DIR = getPaiDir();
 
 function showHelp(): void {
   console.log(`
@@ -471,7 +471,7 @@ async function generateWithFlux(prompt: string, size: ReplicateSize, output: str
     },
   });
 
-  await writeFile(output, result);
+  await writeReplicateResult(output, result);
   console.log(`✅ Image saved to ${output}`);
 }
 
@@ -493,8 +493,53 @@ async function generateWithNanoBanana(prompt: string, size: ReplicateSize, outpu
     },
   });
 
-  await writeFile(output, result);
+  await writeReplicateResult(output, result);
   console.log(`✅ Image saved to ${output}`);
+}
+
+async function writeReplicateResult(outputPath: string, result: unknown): Promise<void> {
+  // Replicate can return a URL string, an array of URLs, or binary-ish output.
+  if (typeof result === 'string') {
+    await writeReplicateUrl(outputPath, result);
+    return;
+  }
+
+  if (Array.isArray(result) && typeof result[0] === 'string') {
+    await writeReplicateUrl(outputPath, result[0]);
+    return;
+  }
+
+  if (result instanceof ArrayBuffer) {
+    await writeFile(outputPath, new Uint8Array(result));
+    return;
+  }
+
+  if (result instanceof Uint8Array) {
+    await writeFile(outputPath, result);
+    return;
+  }
+
+  // Last resort: try common object shapes.
+  const rec = result as Record<string, unknown>;
+  const url = typeof rec?.url === 'string' ? (rec.url as string) : undefined;
+  if (url) {
+    await writeReplicateUrl(outputPath, url);
+    return;
+  }
+
+  throw new CLIError('Unexpected Replicate output type');
+}
+
+async function writeReplicateUrl(outputPath: string, url: string): Promise<void> {
+  if (!/^https?:\/\//.test(url)) {
+    throw new CLIError(`Unexpected Replicate output (not a URL): ${url}`);
+  }
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new CLIError(`Failed to download image (${res.status}): ${url}`);
+  }
+  const buf = Buffer.from(await res.arrayBuffer());
+  await writeFile(outputPath, buf);
 }
 
 async function generateWithGPTImage(prompt: string, size: OpenAISize, output: string): Promise<void> {
@@ -514,7 +559,7 @@ async function generateWithGPTImage(prompt: string, size: OpenAISize, output: st
     n: 1,
   });
 
-  const imageData = response.data[0].b64_json;
+  const imageData = response.data?.[0]?.b64_json;
   if (!imageData) {
     throw new CLIError("No image data returned from OpenAI API");
   }
@@ -600,12 +645,14 @@ async function generateWithNanoBananaPro(
   let imageData: string | undefined;
 
   if (response.candidates && response.candidates.length > 0) {
-    const parts = response.candidates[0].content.parts;
-    for (const part of parts) {
+    const parts = response.candidates[0]?.content?.parts;
+    if (Array.isArray(parts)) {
+      for (const part of parts) {
       // Check if this part contains inline image data
-      if (part.inlineData?.data) {
-        imageData = part.inlineData.data;
-        break;
+        if ((part as { inlineData?: { data?: string } }).inlineData?.data) {
+          imageData = (part as { inlineData: { data: string } }).inlineData.data;
+          break;
+        }
       }
     }
   }

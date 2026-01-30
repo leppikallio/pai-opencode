@@ -7,7 +7,7 @@
  * than Markdown because models are less likely to corrupt structured data.
  *
  * Usage:
- *   bun run ~/.config/opencode/Tools/FeatureRegistry.ts <command> [options]
+ *   bun run ~/.config/opencode/skills/CORE/Tools/FeatureRegistry.ts <command> [options]
  *
  * Commands:
  *   init <project>              Initialize feature registry for project
@@ -20,6 +20,7 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { getPaiDir } from '../../../pai-tools/PaiRuntime';
 
 interface TestStep {
   step: string;
@@ -55,7 +56,7 @@ interface FeatureRegistry {
   };
 }
 
-const REGISTRY_DIR = join(process.env.HOME || '', '.opencode', 'MEMORY', 'progress');
+const REGISTRY_DIR = join(getPaiDir(), 'MEMORY', 'STATE', 'progress');
 
 function getRegistryPath(project: string): string {
   return join(REGISTRY_DIR, `${project}-features.json`);

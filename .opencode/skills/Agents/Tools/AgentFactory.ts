@@ -29,13 +29,14 @@
 
 import { parseArgs } from "node:util";
 import { readFileSync, existsSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import Handlebars from "handlebars";
 
-// Paths
-const HOME = process.env.HOME || "~";
-const TRAITS_PATH = `${HOME}/.opencode/skills/Agents/Data/Traits.yaml`;
-const TEMPLATE_PATH = `${HOME}/.opencode/skills/Agents/Templates/DynamicAgent.hbs`;
+// Paths (resolved relative to this skill)
+const SKILL_DIR = resolve(join(import.meta.dir, ".."));
+const TRAITS_PATH = join(SKILL_DIR, "Data", "Traits.yaml");
+const TEMPLATE_PATH = join(SKILL_DIR, "Templates", "DynamicAgent.hbs");
 
 // Types
 interface TraitDefinition {

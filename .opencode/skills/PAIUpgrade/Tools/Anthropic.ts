@@ -26,8 +26,7 @@
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join } from 'node:path';
-import { homedir } from 'node:os';
+import { join, resolve } from 'node:path';
 
 // Types
 interface Source {
@@ -97,9 +96,10 @@ interface State {
   }>;
 }
 
-// Config
-const HOME = homedir();
-const SKILL_DIR = join(HOME, '.opencode', 'skills', 'Upgrade');
+// Config (resolve relative to this tool)
+// Tools live at: <paiDir>/skills/PAIUpgrade/Tools/*.ts
+// Skill root is: <paiDir>/skills/PAIUpgrade/
+const SKILL_DIR = resolve(join(import.meta.dir, '..'));
 const STATE_DIR = join(SKILL_DIR, 'State');
 const STATE_FILE = join(STATE_DIR, 'last-check.json');
 const SOURCES_FILE = join(SKILL_DIR, 'sources.json');

@@ -20,8 +20,8 @@
  */
 
 import { readFileSync } from 'node:fs'
-import { homedir } from 'node:os'
 import { join } from 'node:path'
+import { getPaiDir } from '../../../pai-tools/PaiRuntime'
 
 // ANSI colors
 const colors = {
@@ -37,7 +37,7 @@ const colors = {
 
 // Load environment
 function loadEnv(): Record<string, string> {
-  const envPath = join(homedir(), '.opencode', '.env')
+  const envPath = join(getPaiDir(), '.env')
   const env: Record<string, string> = {}
   try {
     const content = readFileSync(envPath, 'utf-8')
@@ -72,10 +72,10 @@ async function apiGet<T>(endpoint: string, params: Record<string, string>): Prom
   }
   const res = await fetch(url.toString())
   if (!res.ok) {
-    const err = await res.json()
-    throw new Error(err.error?.message || `API error: ${res.status}`)
+    const err = (await res.json()) as { error?: { message?: string } }
+    throw new Error(err?.error?.message || `API error: ${res.status}`)
   }
-  return res.json()
+  return (await res.json()) as T
 }
 
 // Format numbers with commas

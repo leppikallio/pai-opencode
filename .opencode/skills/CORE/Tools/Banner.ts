@@ -11,9 +11,9 @@
 import { readdirSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { getPaiDir } from "../../../pai-tools/PaiRuntime";
 
-const HOME = process.env.HOME ?? process.cwd();
-const CLAUDE_DIR = join(HOME, ".opencode");
+const PAI_DIR = getPaiDir();
 const ANSI_PATTERN = String.raw`\u001b\[[0-9;]*m`;
 const ANSI_REGEX = new RegExp(ANSI_PATTERN, "g");
 
@@ -114,7 +114,7 @@ function getStats(): SystemStats {
   let name = "PAI";
   let paiVersion = "2.0";
   try {
-    const settings = JSON.parse(readFileSync(join(CLAUDE_DIR, "settings.json"), "utf-8"));
+    const settings = JSON.parse(readFileSync(join(PAI_DIR, "settings.json"), "utf-8"));
     name = settings.daidentity?.displayName || settings.daidentity?.name || "PAI";
     paiVersion = settings.pai?.version || "2.0";
   } catch {}
@@ -122,14 +122,14 @@ function getStats(): SystemStats {
   let skills = 0, workflows = 0, hooks = 0, learnings = 0, userFiles = 0, sessions = 0;
 
   try {
-    for (const e of readdirSync(join(CLAUDE_DIR, "skills"), { withFileTypes: true })) {
-      if (e.isDirectory() && existsSync(join(CLAUDE_DIR, "skills", e.name, "SKILL.md"))) skills++;
+    for (const e of readdirSync(join(PAI_DIR, "skills"), { withFileTypes: true })) {
+      if (e.isDirectory() && existsSync(join(PAI_DIR, "skills", e.name, "SKILL.md"))) skills++;
     }
   } catch {}
 
   // Count workflows in skills/CORE/Workflows
   try {
-    const workflowsDir = join(CLAUDE_DIR, "skills/CORE/Workflows");
+    const workflowsDir = join(PAI_DIR, "skills/CORE/Workflows");
     if (existsSync(workflowsDir)) {
       for (const e of readdirSync(workflowsDir, { withFileTypes: true })) {
         if (e.isFile() && e.name.endsWith(".md")) workflows++;
@@ -138,7 +138,7 @@ function getStats(): SystemStats {
   } catch {}
 
   try {
-    for (const e of readdirSync(join(CLAUDE_DIR, "plugins"), { withFileTypes: true })) {
+    for (const e of readdirSync(join(PAI_DIR, "plugins"), { withFileTypes: true })) {
       if (e.isFile() && e.name.endsWith(".ts")) hooks++;
     }
   } catch {}
@@ -154,11 +154,11 @@ function getStats(): SystemStats {
     return c;
   };
 
-  learnings = countFiles(join(CLAUDE_DIR, "MEMORY/LEARNING"));
-  userFiles = countFiles(join(CLAUDE_DIR, "skills/CORE/USER"));
+  learnings = countFiles(join(PAI_DIR, "MEMORY/LEARNING"));
+  userFiles = countFiles(join(PAI_DIR, "skills/CORE/USER"));
 
   try {
-    const historyFile = join(CLAUDE_DIR, "history.jsonl");
+    const historyFile = join(PAI_DIR, "history.jsonl");
     if (existsSync(historyFile)) {
       const content = readFileSync(historyFile, "utf-8");
       sessions = content.split("\n").filter(line => line.trim()).length;

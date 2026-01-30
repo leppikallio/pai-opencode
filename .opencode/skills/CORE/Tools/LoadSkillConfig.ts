@@ -16,8 +16,8 @@
 
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, basename } from 'node:path';
-import { homedir } from 'node:os';
 import { parse as parseYaml } from 'yaml';
+import { getPaiDir } from '../../../pai-tools/PaiRuntime';
 
 // Types
 interface CustomizationMetadata {
@@ -34,8 +34,7 @@ interface ExtendManifest {
 }
 
 // Constants
-const HOME = homedir();
-const CUSTOMIZATION_DIR = join(HOME, '.opencode', 'skills', 'CORE', 'USER', 'SKILLCUSTOMIZATIONS');
+const CUSTOMIZATION_DIR = join(getPaiDir(), 'skills', 'CORE', 'USER', 'SKILLCUSTOMIZATIONS');
 
 /**
  * Deep merge two objects recursively
@@ -97,12 +96,14 @@ function mergeConfigs<T>(
     default: {
       // For append, concatenate all arrays found at the top level
       const result = { ...base } as Record<string, unknown>;
-      for (const key of Object.keys(customData)) {
-        if (Array.isArray(result[key]) && Array.isArray(customData[key])) {
-          result[key] = [...result[key], ...customData[key]];
-        } else if (customData[key] !== undefined) {
+      const customRec = customData as Record<string, unknown>;
+      for (const key of Object.keys(customRec)) {
+        const v = customRec[key];
+        if (Array.isArray(result[key]) && Array.isArray(v)) {
+          result[key] = [...(result[key] as unknown[]), ...v];
+        } else if (v !== undefined) {
           // For non-arrays, just add/override the key
-          result[key] = customData[key];
+          result[key] = v;
         }
       }
       return result as T;
@@ -220,7 +221,7 @@ export function getCustomizationPath(skillName: string): string {
  */
 export function hasCustomizations(skillName: string): boolean {
   const manifest = loadExtendManifest(skillName);
-  return manifest?.enabled;
+  return !!manifest?.enabled;
 }
 
 /**

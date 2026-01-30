@@ -14,8 +14,7 @@
 
 import { AgentContextLoader } from "./LoadAgentContext";
 import { existsSync, } from "node:fs";
-import { join } from "node:path";
-import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 
 export interface AgentProfile {
   name: string;
@@ -34,7 +33,7 @@ export class AgentProfileLoader {
 
   constructor() {
     this.contextLoader = new AgentContextLoader();
-    this.agentsDir = join(homedir(), ".opencode", "skills", "Agents");
+    this.agentsDir = resolve(join(import.meta.dir, ".."));
   }
 
   /**

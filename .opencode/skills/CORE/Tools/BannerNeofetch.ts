@@ -13,9 +13,9 @@
 import { readdirSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
+import { getPaiDir } from "../../../pai-tools/PaiRuntime";
 
-const HOME = process.env.HOME ?? process.cwd();
-const CLAUDE_DIR = join(HOME, ".opencode");
+const PAI_DIR = getPaiDir();
 const ANSI_PATTERN = String.raw`\u001b\[[0-9;]*m`;
 const ANSI_REGEX = new RegExp(ANSI_PATTERN, "g");
 
@@ -241,7 +241,7 @@ interface SystemStats {
 }
 
 function readDAIdentity(): string {
-  const settingsPath = join(CLAUDE_DIR, "settings.json");
+  const settingsPath = join(PAI_DIR, "settings.json");
   try {
     const settings = JSON.parse(readFileSync(settingsPath, "utf-8"));
     return settings.daidentity?.displayName || settings.daidentity?.name || settings.env?.DA || "PAI";
@@ -251,7 +251,7 @@ function readDAIdentity(): string {
 }
 
 function countSkills(): number {
-  const skillsDir = join(CLAUDE_DIR, "skills");
+  const skillsDir = join(PAI_DIR, "skills");
   if (!existsSync(skillsDir)) return 66;
   let count = 0;
   try {
@@ -263,7 +263,7 @@ function countSkills(): number {
 }
 
 function countHooks(): number {
-  const hooksDir = join(CLAUDE_DIR, "hooks");
+  const hooksDir = join(PAI_DIR, "plugins");
   if (!existsSync(hooksDir)) return 31;
   let count = 0;
   try {
@@ -275,7 +275,7 @@ function countHooks(): number {
 }
 
 function countWorkItems(): number {
-  const workDir = join(CLAUDE_DIR, "MEMORY/WORK");
+  const workDir = join(PAI_DIR, "MEMORY/WORK");
   if (!existsSync(workDir)) return 100;
   let count = 0;
   try {
@@ -287,7 +287,7 @@ function countWorkItems(): number {
 }
 
 function countLearnings(): number {
-  const learningDir = join(CLAUDE_DIR, "MEMORY/LEARNING");
+  const learningDir = join(PAI_DIR, "MEMORY/LEARNING");
   if (!existsSync(learningDir)) return 1425;
   let count = 0;
   const countFiles = (dir: string) => {
@@ -303,7 +303,7 @@ function countLearnings(): number {
 }
 
 function countUserFiles(): number {
-  const userDir = join(CLAUDE_DIR, "skills/CORE/USER");
+  const userDir = join(PAI_DIR, "skills/CORE/USER");
   if (!existsSync(userDir)) return 47;
   let count = 0;
   const countRecursive = (dir: string) => {

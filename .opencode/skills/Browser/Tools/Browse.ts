@@ -17,12 +17,14 @@
  * Session auto-starts on first use. No explicit start needed.
  */
 
+import { getPaiRuntimeInfo } from '../../../pai-tools/PaiRuntime'
+
 
 const VOICE_SERVER = 'http://localhost:8888/notify'
 const STATE_FILE = '/tmp/browser-session.json'
 const DEFAULT_PORT = 9222
 const _SESSION_TIMEOUT = 5000 // 5s to wait for session start
-const SETTINGS_PATH = `${process.env.HOME}/.opencode/settings.json`
+const SETTINGS_PATH = getPaiRuntimeInfo().settingsPath
 
 // ============================================
 // SETTINGS

@@ -11,11 +11,9 @@
  */
 
 import { readdir, readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { existsSync } from 'node:fs';
-
-const SKILLS_DIR = join(import.meta.dir, '..', 'Skills');
-const OUTPUT_FILE = join(SKILLS_DIR, 'skill-index.json');
+import { getSkillsDir } from '../../../pai-tools/PaiRuntime';
 
 interface SkillEntry {
   name: string;
@@ -35,13 +33,59 @@ interface SkillIndex {
 }
 
 // Skills that should always be fully loaded (Tier 1)
-const ALWAYS_LOADED_SKILLS = [
-  'CORE',
-  'Development',
-  'Research',
-  'Blogging',
-  'Art',
-];
+//
+// Maintenance:
+// - Keep this list small (these are the highest-frequency, foundational skills).
+// - After adding/removing skills or changing frontmatter, re-run this generator.
+// - This tiering is ONLY used inside skill-index.json for discovery tooling.
+//   OpenCode does NOT auto-load these skill bodies into context.
+const ALWAYS_LOADED_SKILLS = ['CORE', 'System', 'Research', 'Agents'];
+
+type Options = {
+  skillsDir: string;
+  outputFile: string;
+};
+
+function usage(opts?: Partial<Options>) {
+  const skillsDir = opts?.skillsDir || getSkillsDir();
+  const outputFile = opts?.outputFile || join(skillsDir, 'skill-index.json');
+  console.log('GenerateSkillIndex.ts - Build skill-index.json for discovery');
+  console.log('');
+  console.log('Usage:');
+  console.log('  bun run ~/.config/opencode/skills/CORE/Tools/GenerateSkillIndex.ts [options]');
+  console.log('');
+  console.log('Options:');
+  console.log(`  --skills-dir <dir>   Skills root (default: ${skillsDir})`);
+  console.log(`  --output <file>      Output file (default: ${outputFile})`);
+  console.log('  -h, --help           Show help');
+}
+
+function parseArgs(argv: string[]): Options | null {
+  let skillsDir = getSkillsDir();
+  let outputFile: string | null = null;
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === '-h' || arg === '--help') return null;
+    if (arg === '--skills-dir') {
+      const v = argv[i + 1];
+      if (!v) throw new Error('Missing value for --skills-dir');
+      skillsDir = resolve(v);
+      i++;
+      continue;
+    }
+    if (arg === '--output') {
+      const v = argv[i + 1];
+      if (!v) throw new Error('Missing value for --output');
+      outputFile = resolve(v);
+      i++;
+      continue;
+    }
+    throw new Error(`Unknown option: ${arg}`);
+  }
+
+  return { skillsDir, outputFile: outputFile || join(skillsDir, 'skill-index.json') };
+}
 
 async function findSkillFiles(dir: string): Promise<string[]> {
   const skillFiles: string[] = [];
@@ -158,7 +202,7 @@ function extractWorkflows(content: string): string[] {
   return [...new Set(workflows)];
 }
 
-async function parseSkillFile(filePath: string): Promise<SkillEntry | null> {
+async function parseSkillFile(filePath: string, skillsDir: string): Promise<SkillEntry | null> {
   try {
     const content = await readFile(filePath, 'utf-8');
     const frontmatter = parseFrontmatter(content);
@@ -174,7 +218,7 @@ async function parseSkillFile(filePath: string): Promise<SkillEntry | null> {
 
     return {
       name: frontmatter.name,
-      path: filePath.replace(SKILLS_DIR, '').replace(/^\//, ''),
+      path: filePath.replace(skillsDir, '').replace(/^\//, ''),
       fullDescription: frontmatter.description,
       triggers,
       workflows,
@@ -187,9 +231,15 @@ async function parseSkillFile(filePath: string): Promise<SkillEntry | null> {
 }
 
 async function main() {
+  const opts = parseArgs(process.argv.slice(2));
+  if (!opts) {
+    usage();
+    process.exit(0);
+  }
+
   console.log('Generating skill index...\n');
 
-  const skillFiles = await findSkillFiles(SKILLS_DIR);
+  const skillFiles = await findSkillFiles(opts.skillsDir);
   console.log(`Found ${skillFiles.length} SKILL.md files\n`);
 
   const index: SkillIndex = {
@@ -201,7 +251,7 @@ async function main() {
   };
 
   for (const filePath of skillFiles) {
-    const skill = await parseSkillFile(filePath);
+    const skill = await parseSkillFile(filePath, opts.skillsDir);
     if (skill) {
       const key = skill.name.toLowerCase();
       index.skills[key] = skill;
@@ -218,9 +268,9 @@ async function main() {
   }
 
   // Write the index
-  await writeFile(OUTPUT_FILE, JSON.stringify(index, null, 2));
+  await writeFile(opts.outputFile, JSON.stringify(index, null, 2));
 
-  console.log(`\n✅ Index generated: ${OUTPUT_FILE}`);
+  console.log(`\n✅ Index generated: ${opts.outputFile}`);
   console.log(`   Total: ${index.totalSkills} skills`);
   console.log(`   Always loaded: ${index.alwaysLoadedCount}`);
   console.log(`   Deferred: ${index.deferredCount}`);

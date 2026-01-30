@@ -11,8 +11,7 @@
  */
 
 import { readFileSync, existsSync, readdirSync } from "node:fs";
-import { join } from "node:path";
-import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 
 interface AgentContext {
   agentType: string;
@@ -21,12 +20,13 @@ interface AgentContext {
 }
 
 export class AgentContextLoader {
-  private claudeHome: string;
   private agentsDir: string;
 
   constructor() {
-    this.claudeHome = join(homedir(), ".opencode");
-    this.agentsDir = join(this.claudeHome, "Skills", "Agents");
+    // This tool lives at: <paiDir>/skills/Agents/Tools/LoadAgentContext.ts
+    // The agent context files live in the Agents skill root:
+    //   <paiDir>/skills/Agents/*Context.md
+    this.agentsDir = resolve(join(import.meta.dir, ".."));
   }
 
   /**
