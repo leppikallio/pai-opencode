@@ -131,4 +131,4 @@ enabled: false  # Skill uses defaults, customizations ignored
 
 ## Full Documentation
 
-See: `~/.config/opencode/skills/CORE/SYSTEM/SKILLSYSTEM.md` (Skill Customization System section)
+See: `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md` (Skill Customization System section)

@@ -3,7 +3,7 @@ description: Use this agent when you need an exceptionally intelligent, high-age
 mode: subagent
 model: openai/gpt-5.2
 reasoningEffort: high
-textVerbosity: high
+textVerbosity: low
 color: "#00FFFF"
 tools:
   read: true

@@ -31,6 +31,8 @@
 
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 interface TruffleHogFinding {
   SourceMetadata: {
@@ -80,6 +82,14 @@ async function runTruffleHog(targetDir: string, options: string[]): Promise<stri
     trufflehog.on('error', (err) => {
       reject(err);
     });
+  });
+}
+
+async function checkTruffleHogInstalled(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const proc = spawn('trufflehog', ['--version'], { stdio: 'ignore' });
+    proc.on('error', () => resolve(false));
+    proc.on('close', (code) => resolve(code === 0));
   });
 }
 
@@ -153,7 +163,12 @@ function formatFindings(findings: TruffleHogFinding[], verbose: boolean) {
 function displayFinding(finding: TruffleHogFinding, verbose: boolean) {
   const file = finding.SourceMetadata.Data.Filesystem.file;
   const line = finding.SourceMetadata.Data.Filesystem.line || 'unknown';
-  const type = finding.DetectorType;
+  const type = String(
+    // Prefer stable names when present; fall back to whatever is available.
+    (finding as unknown as { DetectorName?: unknown }).DetectorName ??
+      finding.DecoderName ??
+      finding.DetectorType
+  );
   const verified = finding.Verified ? '✓ VERIFIED' : '✗ Unverified';
   
   console.log(`\n📄 ${file}`);
@@ -185,10 +200,76 @@ function displayFinding(finding: TruffleHogFinding, verbose: boolean) {
 }
 
 async function main() {
-  const targetDir = process.argv[2] || process.cwd();
-  const verbose = process.argv.includes('--verbose');
-  const jsonOutput = process.argv.includes('--json');
-  const verify = process.argv.includes('--verify');
+  const argv = process.argv.slice(2);
+
+  let targetDir: string | undefined;
+  let verbose = false;
+  let jsonOutput = false;
+  let verify = false;
+  let noDefaultExcludes = false;
+  let excludePathsFile: string | undefined;
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    const next = argv[i + 1];
+
+    if (arg === '--help' || arg === '-h') {
+      console.log(`
+Usage:
+  bun ~/.config/opencode/skills/CORE/Tools/SecretScan.ts [directory] [options]
+
+Options:
+  --verbose              Show redacted finding details
+  --json                 Output raw TruffleHog JSONL
+  --verify               Enable verification (slower)
+  --exclude-paths FILE   Regex file for path exclusions
+  --no-default-excludes  Disable bundled exclusions
+  -h, --help             Show this help
+`);
+      process.exit(0);
+    }
+
+    if (arg === '--verbose') {
+      verbose = true;
+      continue;
+    }
+    if (arg === '--json') {
+      jsonOutput = true;
+      continue;
+    }
+    if (arg === '--verify') {
+      verify = true;
+      continue;
+    }
+    if (arg === '--no-default-excludes') {
+      noDefaultExcludes = true;
+      continue;
+    }
+    if (arg === '--exclude-paths') {
+      if (!next) {
+        console.error('❌ Error: --exclude-paths requires a value');
+        process.exit(1);
+      }
+      excludePathsFile = next;
+      i++;
+      continue;
+    }
+
+    if (arg.startsWith('-')) {
+      console.error(`❌ Error: Unknown argument: ${arg}`);
+      process.exit(1);
+    }
+
+    if (!targetDir) {
+      targetDir = arg;
+      continue;
+    }
+
+    console.error(`❌ Error: Unexpected extra argument: ${arg}`);
+    process.exit(1);
+  }
+
+  if (!targetDir) targetDir = process.cwd();
   
   if (!existsSync(targetDir)) {
     console.error(`❌ Directory not found: ${targetDir}`);
@@ -196,9 +277,7 @@ async function main() {
   }
   
   // Check if trufflehog is installed
-  try {
-    await runTruffleHog('--help', []);
-  } catch (_error) {
+  if (!(await checkTruffleHogInstalled())) {
     console.error('❌ TruffleHog is not installed or not in PATH');
     console.error('Install with: brew install trufflehog');
     process.exit(1);
@@ -206,6 +285,21 @@ async function main() {
   
   try {
     const options = [];
+
+    // Default exclude list (keeps scans actionable and avoids known false positives).
+    if (!noDefaultExcludes && !excludePathsFile) {
+      const __filename = fileURLToPath(import.meta.url);
+      const __dirname = path.dirname(__filename);
+      const defaultExclude = path.resolve(
+        __dirname,
+        '../../../security/trufflehog-exclude-paths.regex.txt'
+      );
+      if (existsSync(defaultExclude)) excludePathsFile = defaultExclude;
+    }
+
+    if (excludePathsFile) {
+      options.push('--exclude-paths', excludePathsFile);
+    }
     if (verify) {
       options.push('--verify');
     }

@@ -296,7 +296,7 @@ Brief description.
 - **No nested workflows**: Flat structure under `Workflows/`
 - **Personal vs System**: `_ALLCAPS` = personal (never share), `TitleCase` = system (shareable)
 
-**Full documentation:** `SYSTEM/SKILLSYSTEM.md`
+**Full documentation:** `SYSTEM/SkillSystem.md`
 
 ---
 

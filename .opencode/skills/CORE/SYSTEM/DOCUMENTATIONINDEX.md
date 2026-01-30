@@ -19,7 +19,7 @@ extracted_from: SKILL.md lines 339-401
 - `SYSTEM/PAISYSTEMARCHITECTURE.md` - System architecture and philosophy, foundational principles (CLI-First, Deterministic Code, Prompts Wrap Code) | ⭐ PRIMARY REFERENCE | Triggers: "system architecture", "how does the system work", "system principles"
 - `SYSTEM/SYSTEM_USER_EXTENDABILITY.md` - Two-tier SYSTEM/USER architecture for extensibility | Triggers: "two tier", "system vs user", "how to extend", "customization pattern"
 - `SYSTEM/CLIFIRSTARCHITECTURE.md` - CLI-First pattern details
-- `SYSTEM/SKILLSYSTEM.md` - Custom skill system with triggers and workflow routing | ⭐ CRITICAL | Triggers: "how to structure a skill", "skill routing", "create new skill"
+- `SYSTEM/SkillSystem.md` - Custom skill system with triggers and workflow routing | ⭐ CRITICAL | Triggers: "how to structure a skill", "skill routing", "create new skill"
 
 **Skill Execution:**
 
@@ -43,7 +43,7 @@ description: Complete blog workflow. USE WHEN user mentions their blog, website,
 - Do NOT list exact phrases like `'write a blog post'`
 - Max 1024 characters
 
-See `SYSTEM/SKILLSYSTEM.md` for complete documentation.
+See `SYSTEM/SkillSystem.md` for complete documentation.
 
 **Development & Testing:**
 - `USER/TECHSTACKPREFERENCES.md` - Core technology stack (TypeScript, bun, Cloudflare) | Triggers: "what stack do I use", "TypeScript or Python", "bun or npm"

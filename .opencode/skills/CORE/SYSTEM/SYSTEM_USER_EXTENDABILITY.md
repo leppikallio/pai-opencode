@@ -265,5 +265,5 @@ Currently, no. USER replaces SYSTEM entirely for that component. If you only wan
 ## Related Documentation
 
 - `SYSTEM/PAISECURITYSYSTEM/` — Security system architecture and patterns
-- `SYSTEM/SKILLSYSTEM.md` — Skill naming conventions (public vs private)
+- `SYSTEM/SkillSystem.md` — Skill naming conventions (public vs private)
 - `SYSTEM/PAISYSTEMARCHITECTURE.md` — Overall PAI architecture

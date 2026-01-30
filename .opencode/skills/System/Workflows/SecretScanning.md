@@ -21,6 +21,14 @@ trufflehog --version
 
 ## Workflow Steps
 
+### 0. Exclusions / Whitelist (Recommended)
+
+PAI ships with a TruffleHog exclude list to keep scans actionable and avoid
+known false positives (including request-template corpora).
+
+- Runtime path (after install): `~/.config/opencode/security/trufflehog-exclude-paths.regex.txt`
+- Repo path (source): `.opencode/security/trufflehog-exclude-paths.regex.txt`
+
 ### 1. Check TruffleHog Installation
 
 ```bash
@@ -34,26 +42,32 @@ fi
 
 ```bash
 # Scan current directory
-trufflehog filesystem --directory=. --only-verified --json
+trufflehog filesystem . --only-verified --json \
+  --exclude-paths "$HOME/.config/opencode/security/trufflehog-exclude-paths.regex.txt"
 
 # Scan specific directory
-trufflehog filesystem --directory=/path/to/scan --only-verified --json
+trufflehog filesystem /path/to/scan --only-verified --json \
+  --exclude-paths "$HOME/.config/opencode/security/trufflehog-exclude-paths.regex.txt"
 
 # Scan without verification (more findings, higher false positive rate)
-trufflehog filesystem --directory=. --json
+trufflehog filesystem . --json \
+  --exclude-paths "$HOME/.config/opencode/security/trufflehog-exclude-paths.regex.txt"
 ```
 
 ### 3. Run Git Repository Scan
 
 ```bash
 # Scan git history
-trufflehog git file://. --only-verified --json
+trufflehog git file://. --only-verified --json \
+  --exclude-globs "**/node_modules/**,**/.opencode/node_modules/**,.opencode/skills/WebAssessment/FfufResources/REQUEST_TEMPLATES.md"
 
 # Scan specific branch
-trufflehog git file://. --branch=main --only-verified --json
+trufflehog git file://. --branch=main --only-verified --json \
+  --exclude-globs "**/node_modules/**,**/.opencode/node_modules/**,.opencode/skills/WebAssessment/FfufResources/REQUEST_TEMPLATES.md"
 
 # Scan commits since specific date
-trufflehog git file://. --since-commit=HEAD~10 --only-verified --json
+trufflehog git file://. --since-commit=HEAD~10 --only-verified --json \
+  --exclude-globs "**/node_modules/**,**/.opencode/node_modules/**,.opencode/skills/WebAssessment/FfufResources/REQUEST_TEMPLATES.md"
 ```
 
 ### 4. Parse and Categorize Results
