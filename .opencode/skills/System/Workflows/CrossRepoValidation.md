@@ -104,7 +104,6 @@ const sensitivePatterns = [
   "**/config/api-keys.*",
 
   // Session data
-  "**/MEMORY/SESSIONS/**/*SESSION*.md",
   "**/MEMORY/WORK/**",
 
   // Personal data
@@ -219,7 +218,7 @@ Compare MEMORY directories between repos:
 # - State/ (template only)
 
 # Validate public MEMORY doesn't contain session transcripts
-find "$PUBLIC_REPO/.opencode/MEMORY/SESSIONS" -type f | wc -l
+find "$PUBLIC_REPO/.opencode/MEMORY/WORK" -type f | wc -l
 # Should be 0 or very small (examples only)
 ```
 
@@ -454,7 +453,7 @@ Critical Issues: 0
 Issues to Fix: 2 (medium priority)
 
 Full report:
-$PAI_DIR/MEMORY/SESSIONS/{date}/cross-repo-validation-report.md
+$PAI_DIR/MEMORY/STATE/integrity/{date}_cross-repo-validation-report.md
 
 Fix issues automatically? [y/N]:
 ```

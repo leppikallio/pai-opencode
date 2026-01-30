@@ -26,7 +26,7 @@ Hook Events trigger domain-specific captures:
     ↓
 Harvesting (periodic):
     ├── SessionHarvester → LEARNING/ (extracts corrections, errors, insights)
-    ├── LearningPatternSynthesis → LEARNING/SYNTHESIS/ (aggregates ratings)
+    ├── LearningPatternSynthesis → LEARNING/SYSTEM/ (aggregates ratings)
     └── Observability reads from projects/
 ```
 
@@ -167,7 +167,7 @@ It is updated by tools (e.g. `skills/Evals/Tools/AlgorithmBridge.ts`) and/or man
 **Structure:**
 - `LEARNING/SYSTEM/YYYY-MM/` - PAI/tooling learnings (infrastructure issues)
 - `LEARNING/ALGORITHM/YYYY-MM/` - Task execution learnings (approach errors)
-- `LEARNING/SYNTHESIS/YYYY-MM/` - Aggregated pattern analysis (weekly/monthly reports)
+- `LEARNING/SYSTEM/` - Aggregated pattern analysis reports
 - `LEARNING/SIGNALS/ratings.jsonl` - All user satisfaction ratings
 
 **Categorization logic:**
@@ -268,7 +268,7 @@ This is mutable state that changes during execution - not historical records. If
 | Tool | Purpose | Reads From | Writes To |
 |------|---------|------------|-----------|
 | SessionHarvester.ts | Extract learnings from transcripts | projects/ | LEARNING/ |
-| LearningPatternSynthesis.ts | Aggregate ratings into patterns | LEARNING/SIGNALS/ | LEARNING/SYNTHESIS/ |
+| LearningPatternSynthesis.ts | Aggregate ratings into patterns | LEARNING/SIGNALS/ | LEARNING/SYSTEM/ |
 | (not implemented) | Failure context dumps for low ratings | projects/, SIGNALS/ | LEARNING/FAILURES/ |
 | ActivityParser.ts | Parse recent file changes | projects/ | (analysis only) |
 
@@ -328,7 +328,7 @@ tail ~/.config/opencode/projects/-Users-{username}--claude/$(ls -t ~/.config/ope
 ```bash
 ls $PAI_DIR/MEMORY/LEARNING/SYSTEM/
 ls $PAI_DIR/MEMORY/LEARNING/ALGORITHM/
-ls $PAI_DIR/MEMORY/LEARNING/SYNTHESIS/
+ls $PAI_DIR/MEMORY/LEARNING/SYSTEM/
 ```
 
 ### Check failures
@@ -377,7 +377,7 @@ bun run ~/.config/opencode/skills/CORE/Tools/LearningPatternSynthesis.ts --week
 - Created SessionHarvester.ts to extract learnings from projects/ transcripts
 - Added `plugins/handlers/learning-capture.ts` for session-end learning capture
 - Created LearningPatternSynthesis.ts for rating pattern aggregation
-- Added LEARNING/SYNTHESIS/ for pattern reports
+- Store pattern synthesis reports under LEARNING/SYSTEM/
 - Updated Observability to read from projects/ instead of RAW/
 - Updated ActivityParser.ts to use projects/ as data source
 - Removed archive functionality from legacy launcher (projects/ is source of truth)
