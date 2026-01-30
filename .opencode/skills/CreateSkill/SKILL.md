@@ -16,7 +16,7 @@ MANDATORY skill creation framework for ALL skill creation requests.
 
 ## Authoritative Source
 
-**Before creating ANY skill, READ:** `~/.config/opencode/skills/CORE/SkillSystem.md`
+**Before creating ANY skill, READ:** `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md`
 
 **Canonical example to follow:** `~/.config/opencode/skills/_BLOGGING/SKILL.md`
 
@@ -85,7 +85,7 @@ skills/SkillName/Tools/Utils/Helper.ts           # THREE levels - NO
 - Good: `Workflows/CompanyDueDiligence.md`
 - Bad: `Workflows/Company/DueDiligence.md`
 
-**See:** `~/.config/opencode/skills/CORE/SkillSystem.md` (Flat Folder Structure section)
+**See:** `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md` (Flat Folder Structure section)
 
 ---
 
@@ -198,7 +198,7 @@ Brief description.
 - **Efficiency:** Workflows load only what they actually need
 - **Maintainability:** Easier to update individual sections
 
-**See:** `~/.config/opencode/skills/CORE/SkillSystem.md` (Dynamic Loading Pattern section)
+**See:** `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md` (Dynamic Loading Pattern section)
 
 ---
 
