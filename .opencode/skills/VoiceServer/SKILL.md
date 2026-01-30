@@ -53,7 +53,7 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 ### EXECUTE
 - **Notify**: `voice_notify` (message: "...")
-- **Manage**: `~/.config/opencode/VoiceServer/{start,stop,status,restart}.sh`
+- **Manage**: `$PAI_DIR/VoiceServer/{start,stop,status,restart}.sh` (default: `~/.config/opencode/VoiceServer/...`)
 - **Workflow**: `Workflows/Status.md`
 
 ---
@@ -68,10 +68,10 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 | pentester | ${PENTESTER_VOICE_ID} | Configure pentester voice |
 | architect | ${ARCHITECT_VOICE_ID} | Configure architect voice |
 
-Configure voice IDs in your environment or `~/.config/opencode/VoiceServer/voices.json`
+Configure voice IDs in your environment or `$PAI_DIR/VoiceServer/voices.json` (default: `~/.config/opencode/VoiceServer/voices.json`)
 
 **Prosody Quick Reference**:
 - Emotional: `[💥 excited]` `[✨ success]` `[⚠️ caution]` `[🚨 urgent]`
 - Emphasis: `**bold**` for key words, `...` for pause, `--` for break
 
-**Infrastructure**: Server at `~/.config/opencode/VoiceServer/`, Port 8888, Config `voices.json`
+**Infrastructure**: Server at `$PAI_DIR/VoiceServer/`, Port 8888, Config `voices.json` (default `~/.config/opencode/VoiceServer/`)

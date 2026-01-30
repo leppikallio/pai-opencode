@@ -20,7 +20,7 @@
  *   bun VoiceServerManager.ts status
  *   bun VoiceServerManager.ts test "Hello from PAI"
  *
- * Infrastructure: ~/.config/opencode/VoiceServer/
+ * Infrastructure: $PAI_DIR/VoiceServer (default: ~/.config/opencode/VoiceServer)
  * Port: 8888
  *
  * @author PAI
@@ -29,8 +29,9 @@
 
 import { $ } from "bun";
 import { join } from "node:path";
+import { getPaiDir } from "../../../pai-tools/PaiRuntime";
 
-const VOICE_SERVER_PATH = join(process.env.HOME || "", ".claude/VoiceServer");
+const VOICE_SERVER_PATH = join(getPaiDir(), "VoiceServer");
 const PORT = 8888;
 // Voice ID is read from settings.json via identity module
 // Fallback only used if settings not available

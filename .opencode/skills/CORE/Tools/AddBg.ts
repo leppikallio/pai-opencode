@@ -4,13 +4,13 @@
  * add-bg - Add Background Color CLI
  *
  * Add a solid background color to transparent PNG images.
- * Part of the Images skill for PAI system.
+ * Background-color post-processing utility for PAI.
  *
  * Usage:
  *   add-bg input.png "#EAE9DF" output.png
  *   add-bg input.png --ul-brand output.png
  *
- * @see ~/.config/opencode/skills/Images/SKILL.md
+ * @see ~/.config/opencode/skills/CORE/Tools/AddBg.ts
  */
 
 import { existsSync } from "node:fs";

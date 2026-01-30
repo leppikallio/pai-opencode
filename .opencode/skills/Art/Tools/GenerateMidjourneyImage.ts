@@ -9,7 +9,7 @@
  * Usage:
  *   generate-midjourney-image --prompt "..." --aspect-ratio 16:9 --output /tmp/image.png
  *
- * @see ~/.config/opencode/skills/art/SKILL.md
+ * @see ~/.config/opencode/skills/Art/SKILL.md
  */
 
 import { DiscordBotClient } from '../Lib/discord-bot.js';

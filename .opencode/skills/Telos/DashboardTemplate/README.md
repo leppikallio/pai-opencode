@@ -163,7 +163,7 @@ The Ask page uses Claude Haiku 4.5 via Anthropic API:
 
 **Environment Variable Required**:
 ```
-ANTHROPIC_API_KEY=sk-ant-api03-...
+ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
 ```
 
 ## Dynamic File System
@@ -179,8 +179,8 @@ The template includes a complete file management system for TELOS files (markdow
 - `getAllTelosData()` - Scans TELOS directory and returns all files
 - `getTelosFileCount()` - Returns total file count
 - `getTelosFileList()` - Returns array of filenames
-- Searches `~/.config/opencode/skills/life/telos/` for `.md` files
-- Searches `~/.config/opencode/skills/life/telos/data/` for `.csv` files
+- Searches `~/.config/opencode/skills/CORE/USER/TELOS/` for `.md` files
+- Searches `~/.config/opencode/skills/CORE/USER/TELOS/data/` for `.csv` files
 
 ### File Upload
 **Page**: `app/add-file/page.tsx`
@@ -194,7 +194,7 @@ The template includes a complete file management system for TELOS files (markdow
 - Handles file upload via FormData
 - Validates file types
 - Saves to appropriate TELOS directory
-- Logs uploads to `updates.md`
+- Logs uploads to `UPDATES.md`
 
 ### File Viewing and Editing
 **Page**: `app/file/[slug]/page.tsx`
@@ -214,7 +214,7 @@ The template includes a complete file management system for TELOS files (markdow
 - Save/Cancel buttons with visual feedback
 - Success message after save
 - Automatic content refresh after save
-- Logs all edits to `updates.md`
+- Logs all edits to `UPDATES.md`
 
 ### Sidebar Integration
 **File**: `components/sidebar.tsx`
