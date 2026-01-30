@@ -1,7 +1,7 @@
 # Phase 8 Changes: Research Shell MCP Server Rewrite
 
 ## Overview
-Rewrote `/Users/zuul/Projects/shovel-cite-redesign/src/mcp/research-shell/index.ts` to use direct API calls instead of CLI wrappers.
+Rewrote `mcp/research-shell/index.ts` to use direct API calls instead of CLI wrappers.
 
 ## File Statistics
 - **Before**: 453 lines (CLI wrapper approach)
@@ -167,10 +167,10 @@ catch (error) {
 ## Dependencies on Parallel Work
 
 This rewrite depends on other agents creating:
-1. `/Users/zuul/Projects/shovel-cite-redesign/src/mcp/research-shell/clients/perplexity.ts`
-2. `/Users/zuul/Projects/shovel-cite-redesign/src/mcp/research-shell/clients/gemini.ts`
-3. `/Users/zuul/Projects/shovel-cite-redesign/src/mcp/research-shell/clients/grok.ts`
-4. `/Users/zuul/Projects/shovel-cite-redesign/src/mcp/research-shell/config.ts`
+1. `mcp/research-shell/clients/perplexity.ts`
+2. `mcp/research-shell/clients/gemini.ts`
+3. `mcp/research-shell/clients/grok.ts`
+4. `mcp/research-shell/config.ts`
 
 ## Testing Recommendations
 

@@ -192,10 +192,11 @@ To add USER extensibility to an existing component:
 
 ## Examples in Practice
 
-### Security Hook Loading
+### Security Pattern Loading (Example)
 
 ```typescript
-// From SecurityValidator.hook.ts
+// Example for a future file-driven security pattern loader.
+// The current OpenCode plugin uses in-code patterns (see plugins/adapters/types.ts).
 const USER_PATTERNS_PATH = paiPath('USER', 'PAISECURITYSYSTEM', 'patterns.yaml');
 const SYSTEM_PATTERNS_PATH = paiPath('skills', 'CORE', 'SYSTEM', 'PAISECURITYSYSTEM', 'patterns.example.yaml');
 

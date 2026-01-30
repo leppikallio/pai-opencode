@@ -91,7 +91,7 @@ Plugins transform the AI from a passive chatbot into an **active system** that e
 PAI includes built-in security patterns:
 
 - **Command validation**: Blocks `rm -rf /`, reverse shells, data exfiltration
-- **Secret scanning**: Prevents committing API keys, passwords
+- **Credential scanning**: Prevents committing API keys, passwords
 - **Authorization checks**: Ensures you approve destructive actions
 - **Privacy protection**: Validates cross-repo operations
 

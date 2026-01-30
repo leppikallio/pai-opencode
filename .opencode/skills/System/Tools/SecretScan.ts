@@ -2,7 +2,7 @@
 
 /**
  * SecretScan.ts
- * TruffleHog wrapper for secret scanning
+ * TruffleHog wrapper for credential scanning
  */
 
 import { spawn } from 'node:child_process';

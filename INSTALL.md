@@ -190,7 +190,7 @@ After installation, verify everything works:
    ```
 
 3. **Verify Plugins**
-   - Check: `tail -f /tmp/pai-opencode-debug.log`
+   - Check: `tail -f ~/.config/opencode/plugins/debug.log`
    - Should show: "PAI-OpenCode Plugin Loaded"
 
 ## Troubleshooting
@@ -222,7 +222,7 @@ ls -la .opencode/skills/*/SKILL.md
 
 Check debug log for errors:
 ```bash
-cat /tmp/pai-opencode-debug.log
+cat ~/.config/opencode/plugins/debug.log
 ```
 
 ## Configuration

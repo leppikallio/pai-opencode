@@ -65,7 +65,7 @@ PAI is built around a universal algorithm for accomplishing any task: **Current 
 
 **Why everything else exists:**
 - The **Memory System** captures signals from every interaction
-- The **Hook System** detects sentiment, ratings, and behavioral patterns
+- The **Plugin System** detects sentiment, ratings, and behavioral patterns
 - The **Learning Directories** organize evidence by algorithm phase
 - The **Sentiment Analysis** extracts implicit feedback from user messages
 - The **Rating System** captures explicit quality signals
@@ -300,7 +300,7 @@ Brief description.
 
 ---
 
-## Hook System Architecture
+## Plugin System Architecture
 
 ### Hook Lifecycle
 
@@ -429,7 +429,7 @@ The System skill is the centralized mechanism for PAI self-management. It ensure
 | Function | Description | Workflow |
 |----------|-------------|----------|
 | **Integrity Audits** | Parallel agents verify broken references across ~/.claude | `IntegrityCheck.md` |
-| **Secret Scanning** | TruffleHog credential detection in any directory | `SecretScanning.md` |
+| **Credential Scanning** | TruffleHog credential detection in any directory | `SecretScanning.md` |
 | **Privacy Validation** | Ensures USER/WORK content isolation from regular skills | `PrivacyCheck.md` |
 | **Documentation Updates** | Records system changes to MEMORY/PAISYSTEMUPDATES/ | `DocumentSession.md` |
 
@@ -451,7 +451,7 @@ The System skill runs in the foreground so you can see all output, progress, and
 ### When to Use
 
 - **Integrity Checks:** After major refactoring, before releases, periodic health checks
-- **Secret Scanning:** Before any git commit to public repos
+- **Credential Scanning:** Before any git commit to public repos
 - **Privacy Validation:** After working with USER/WORK content, before public commits
 - **Documentation:** End of significant work sessions, after creating new skills
 

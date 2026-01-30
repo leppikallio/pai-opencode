@@ -95,7 +95,7 @@ const ENDPOINT_PATTERNS = {
   templatePath: /`[^`]*(\$\{[^}]+\})?\/[a-zA-Z][^`]{1,200}`/g,
 };
 
-// Secret patterns
+// Credential patterns
 const SECRET_PATTERNS = {
   awsKey: /(?:AKIA|ABIA|ACCA|ASIA)[A-Z0-9]{16}/g,
   awsSecret: /["'`]([A-Za-z0-9/+=]{40})["'`]/g,

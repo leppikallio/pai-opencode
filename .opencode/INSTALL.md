@@ -74,7 +74,7 @@ See `docs/CONVERTER.md` for detailed migration guide.
 Start OpenCode and verify:
 - **Skills load**: Ask "What skills do I have?"
 - **Agents work**: Try `@intern hello`
-- **Security active**: Check `/tmp/pai-opencode-debug.log`
+- **Security active**: Check `~/.config/opencode/plugins/debug.log`
 
 ## Configuration
 
@@ -112,7 +112,7 @@ export PATH="$PATH:$(go env GOPATH)/bin"
 
 ### Plugin doesn't load
 ```bash
-cat /tmp/pai-opencode-debug.log
+cat ~/.config/opencode/plugins/debug.log
 # Should show: "PAI-OpenCode Plugin Loaded"
 ```
 

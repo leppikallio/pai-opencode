@@ -22,7 +22,7 @@ Take a deep breath and think step-by-step about how best to achieve the best out
 -- A giveaway of something useful or valuable to the audience.
 -- Untold and interesting stories with valuable takeaways.
 -- Sharing of an uncommonly valuable resource.
--- Sharing of secret knowledge.
+-- Sharing of confidential knowledge.
 -- Exclusive content that's never been revealed before.
 -- Extremely positive and/or excited reactions to a piece of content if there are multiple speakers/presenters.
 

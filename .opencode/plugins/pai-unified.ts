@@ -578,7 +578,7 @@ export const PaiUnified: Plugin = async (ctx) => {
 
       // Expand tilde paths in tool args (OpenCode does not expand '~' reliably).
       // This prevents errors like:
-      //   ENOENT scandir '/Users/zuul/~/.config/opencode/...'
+      //   ENOENT scandir '~/.config/opencode/...'
       if (output.args && typeof output.args === "object") {
         output.args = normalizeArgsTilde(output.args) as Record<string, unknown>;
       }

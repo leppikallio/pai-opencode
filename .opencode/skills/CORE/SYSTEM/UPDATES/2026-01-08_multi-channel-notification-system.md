@@ -43,11 +43,11 @@ US carriers require A2P 10DLC registration since December 2024. Recommendation: 
 
 ## Files Affected
 
-- `hooks/lib/notifications.ts` - Core notification service
-- `hooks/LoadContext.hook.ts` - Session start timestamp
-- `hooks/VoiceAndHistoryCapture.hook.ts` - Duration-aware routing
-- `hooks/AgentOutputCapture.hook.ts` - Background agent alerts
-- `settings.json` - Notification configuration
+- OpenCode port note: the Claude Code hook files listed in the original design do not exist in this runtime.
+- `$PAI_DIR/VoiceServer/server.ts` - Voice notification service
+- `plugins/pai-unified.ts` - Session lifecycle + rating kiosk integration
+- `plugins/handlers/agent-capture.ts` - Background agent capture
+- `plugins/lib/file-logger.ts` - TUI-safe debug logging
 - `skills/CORE/SYSTEM/THENOTIFICATIONSYSTEM.md` - Documentation
 
 ---

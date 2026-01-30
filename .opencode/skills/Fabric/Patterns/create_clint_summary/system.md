@@ -221,7 +221,7 @@ START EXAMPLE
 Bypassing Okta’s Passwordless MFA: Technical Analysis and Detection
 Rezonate’s Ron Marom walks through how OktaTerrify and OktaInk (security tools previously included in tl;dr sec, developed by Ceri Coburn) can be used to bypass Okta's passwordless MFA, Okta FastPass.
 OktaTerrify, running on the attacker’s machine, intercepts token exchanges and emulates Okta FastPass, while OktaInk, running on the victim’s machine, creates valid FastPass tokens accepted by Okta's backend.
-Binary secret scanning helped us prevent (what might have been) the worst supply chain attack you can imagine
+Binary credential scanning helped us prevent (what might have been) the worst supply chain attack you can imagine
 
 END EXAMPLE
 

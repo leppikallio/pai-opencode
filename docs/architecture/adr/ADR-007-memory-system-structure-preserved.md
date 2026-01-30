@@ -276,7 +276,8 @@ ls .opencode/MEMORY/LEARNING/
 
 1. **Copy MEMORY/ directory:**
    ```bash
-   cp -r ~/.claude/MEMORY ~/.config/opencode/MEMORY
+   PAI_DIR=${PAI_DIR:-$HOME/.config/opencode}
+   cp -r ~/.claude/MEMORY "$PAI_DIR/MEMORY"
    ```
 
 2. **No format changes needed** - files transfer directly

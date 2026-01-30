@@ -3,7 +3,7 @@
 **The unified system memory - what happened, what we learned, what we're working on.**
 
 **Version:** 7.0 (Projects-native architecture, 2026-01-12)
-**Location:** `~/.config/opencode/MEMORY/`
+**Location:** `$PAI_DIR/MEMORY/`
 
 ---
 
@@ -37,7 +37,7 @@ Harvesting (periodic):
 ## Directory Structure
 
 ```
-~/.config/opencode/MEMORY/
+$PAI_DIR/MEMORY/
 ├── WORK/                   # PRIMARY work tracking
 │   └── {work_id}/
 │       ├── META.yaml       # Status, session, lineage
@@ -103,18 +103,17 @@ This is the actual "firehose" - every message, tool call, and response. PAI leve
 ### WORK/ - Primary Work Tracking
 
 **What populates it:**
-- `AutoWorkCreation.hook.ts` on UserPromptSubmit (creates work dir)
-- `ResponseCapture.hook.ts` on Stop (updates work items)
-- `SessionSummary.hook.ts` on SessionEnd (marks COMPLETED)
+- `plugins/handlers/work-tracker.ts` on `chat.message` (creates work dir)
+- `plugins/handlers/work-tracker.ts` on `session.ended` (marks COMPLETED)
 
 **Content:** Work directories with metadata, items, verification artifacts
 **Format:** `WORK/{work_id}/` with META.yaml, items/, verification/, etc.
 **Purpose:** Track all discrete work units with lineage, verification, and feedback
 
 **Work Directory Lifecycle:**
-1. `UserPromptSubmit` → AutoWorkCreation creates work dir + first item
-2. `Stop` → ResponseCapture updates item with response summary + captures ISC
-3. `SessionEnd` → SessionSummary marks work COMPLETED, clears state
+1. `chat.message` → work-tracker creates work dir + ISC.json
+2. Subsequent user messages append to THREAD.md
+3. `session.ended` → learning-capture runs, work-tracker completes work
 
 **ISC.json - Ideal State Criteria Tracking:**
 
@@ -152,20 +151,18 @@ The `ISC.json` file captures the Ideal State Criteria from PAI Algorithm executi
 
 **Why JSON over JSONL:** ISC is bounded versioned state (<10KB), not an unbounded log. JSON with `current` + `history` explicitly models what verification tools need (current criteria) vs debugging needs (history).
 
-**Parsing Source:** ResponseCapture extracts ISC from algorithm output patterns:
-- `✅ CRITERIA:` / `❌ ANTI-CRITERIA:` blocks → Initial criteria
-- `♻︎ Updated the ISC…` blocks → Phase updates
-- `📊 ISC Satisfaction:` → Final verification results
+**In the OpenCode port:** `ISC.json` is created empty by `plugins/handlers/work-tracker.ts`.
+It is updated by tools (e.g. `skills/Evals/Tools/AlgorithmBridge.ts`) and/or manual edits during work.
 
 ### LEARNING/ - Categorized Learnings
 
 **What populates it:**
-- `ResponseCapture.hook.ts` (if content qualifies as learning)
-- `ExplicitRatingCapture.hook.ts` (explicit ratings + low-rating learnings)
-- `ImplicitSentimentCapture.hook.ts` (detected frustration)
-- `WorkCompletionLearning.hook.ts` (significant work session completions)
+- `plugins/handlers/rating-capture.ts` (explicit ratings + low-rating learnings)
+- `plugins/handlers/learning-capture.ts` (work session end extraction)
 - `SessionHarvester.ts` (periodic extraction from projects/ transcripts)
 - `LearningPatternSynthesis.ts` (aggregates ratings into pattern reports)
+
+**Not implemented yet (OpenCode port):** implicit sentiment capture.
 
 **Structure:**
 - `LEARNING/SYSTEM/YYYY-MM/` - PAI/tooling learnings (infrastructure issues)
@@ -184,9 +181,9 @@ The `ISC.json` file captures the Ideal State Criteria from PAI Algorithm executi
 ### LEARNING/FAILURES/ - Full Context Failure Analysis
 
 **What populates it:**
-- `ImplicitSentimentCapture.hook.ts` via `FailureCapture.ts` (for ratings 1-3)
-- `ExplicitRatingCapture.hook.ts` via `FailureCapture.ts` (for explicit 1-3 ratings)
-- Manual migration via `bun FailureCapture.ts --migrate`
+- Not auto-populated in the OpenCode port yet.
+- Low ratings create learning files via `plugins/handlers/rating-capture.ts`.
+- If you need full failure captures, store artifacts under WORK/*/scratch/.
 
 **Content:** Complete context dumps for low-sentiment events
 **Format:** `FAILURES/YYYY-MM/{timestamp}_{8-word-description}/`
@@ -220,16 +217,16 @@ The `ISC.json` file captures the Ideal State Criteria from PAI Algorithm executi
 
 ### RESEARCH/ - Agent Outputs
 
-**What populates it:** `AgentOutputCapture.hook.ts` on SubagentStop
+**What populates it:** `plugins/handlers/agent-capture.ts` on `tool.execute.after` (Task)
 **Content:** Agent completion outputs (researchers, architects, engineers, etc.)
 **Format:** `RESEARCH/YYYY-MM/YYYY-MM-DD-HHMMSS_AGENT-type_description.md`
 **Purpose:** Archive of all spawned agent work
 
 ### SECURITY/ - Security Events
 
-**What populates it:** `SecurityValidator.hook.ts` on tool validation
+**What populates it:** `plugins/handlers/security-validator.ts` on `tool.execute.before`
 **Content:** Security audit events (blocks, confirmations, alerts)
-**Format:** `SECURITY/security-events.jsonl`
+**Current logging:** `$PAI_DIR/plugins/debug.log` (default: `~/.config/opencode/plugins/debug.log`)
 **Purpose:** Security decision audit trail
 
 ### STATE/ - Fast Runtime Data
@@ -256,18 +253,15 @@ This is mutable state that changes during execution - not historical records. If
 
 ---
 
-## Hook Integration
+## Plugin Integration
 
-| Hook | Trigger | Writes To |
-|------|---------|-----------|
-| AutoWorkCreation.hook.ts | UserPromptSubmit | WORK/, STATE/current-work.json |
-| ResponseCapture.hook.ts | Stop | WORK/items, LEARNING/ (if applicable) |
-| WorkCompletionLearning.hook.ts | SessionEnd | LEARNING/ (significant work) |
-| SessionSummary.hook.ts | SessionEnd | WORK/META.yaml (status), clears STATE |
-| ExplicitRatingCapture.hook.ts | UserPromptSubmit | LEARNING/SIGNALS/, LEARNING/, FAILURES/ (1-3) |
-| ImplicitSentimentCapture.hook.ts | UserPromptSubmit | LEARNING/SIGNALS/, LEARNING/, FAILURES/ (1-3) |
-| AgentOutputCapture.hook.ts | SubagentStop | RESEARCH/ |
-| SecurityValidator.hook.ts | PreToolUse | SECURITY/ |
+| Plugin/Handler | OpenCode Event | Writes To |
+|---------------|----------------|----------|
+| `plugins/handlers/work-tracker.ts` | `chat.message` / `session.ended` | WORK/, STATE/current-work.json |
+| `plugins/handlers/rating-capture.ts` | `chat.message` | LEARNING/SIGNALS/ratings.jsonl (+ low-rating learnings) |
+| `plugins/handlers/learning-capture.ts` | `session.ended` | LEARNING/ |
+| `plugins/handlers/agent-capture.ts` | `tool.execute.after` (Task) | RESEARCH/ |
+| `plugins/handlers/security-validator.ts` | `tool.execute.before` | plugins/debug.log (security audit) |
 
 ## Harvesting Tools
 
@@ -311,13 +305,13 @@ LearningPatternSynthesis → analyzes SIGNALS/ → writes SYNTHESIS/
 
 ### Check current work
 ```bash
-cat ~/.config/opencode/MEMORY/STATE/current-work.json
-ls ~/.config/opencode/MEMORY/WORK/ | tail -5
+cat $PAI_DIR/MEMORY/STATE/current-work.json
+ls $PAI_DIR/MEMORY/WORK/ | tail -5
 ```
 
 ### Check ratings
 ```bash
-tail ~/.config/opencode/MEMORY/LEARNING/SIGNALS/ratings.jsonl
+tail $PAI_DIR/MEMORY/LEARNING/SIGNALS/ratings.jsonl
 ```
 
 ### View session transcripts
@@ -332,18 +326,18 @@ tail ~/.config/opencode/projects/-Users-{username}--claude/$(ls -t ~/.config/ope
 
 ### Check learnings
 ```bash
-ls ~/.config/opencode/MEMORY/LEARNING/SYSTEM/
-ls ~/.config/opencode/MEMORY/LEARNING/ALGORITHM/
-ls ~/.config/opencode/MEMORY/LEARNING/SYNTHESIS/
+ls $PAI_DIR/MEMORY/LEARNING/SYSTEM/
+ls $PAI_DIR/MEMORY/LEARNING/ALGORITHM/
+ls $PAI_DIR/MEMORY/LEARNING/SYNTHESIS/
 ```
 
 ### Check failures
 ```bash
 # List recent failure captures
-ls -lt ~/.config/opencode/MEMORY/LEARNING/FAILURES/$(date +%Y-%m)/ 2>/dev/null | head -10
+ls -lt $PAI_DIR/MEMORY/LEARNING/FAILURES/$(date +%Y-%m)/ 2>/dev/null | head -10
 
 # View a specific failure
-cat ~/.config/opencode/MEMORY/LEARNING/FAILURES/2026-01/*/CONTEXT.md | head -100
+cat $PAI_DIR/MEMORY/LEARNING/FAILURES/2026-01/*/CONTEXT.md | head -100
 
 # Migrate historical low ratings to FAILURES
 bun run ~/.config/opencode/skills/CORE/Tools/FailureCapture.ts --migrate
@@ -351,7 +345,7 @@ bun run ~/.config/opencode/skills/CORE/Tools/FailureCapture.ts --migrate
 
 ### Check multi-session progress
 ```bash
-ls ~/.config/opencode/MEMORY/STATE/progress/
+ls $PAI_DIR/MEMORY/STATE/progress/
 ```
 
 ### Run harvesting tools
@@ -369,17 +363,16 @@ bun run ~/.config/opencode/skills/CORE/Tools/LearningPatternSynthesis.ts --week
 
 **2026-01-17:** v7.1 - Full Context Failure Analysis
 - Added LEARNING/FAILURES/ directory for comprehensive failure captures
-- Created FailureCapture.ts tool for generating context dumps
-- Updated ImplicitSentimentCapture.hook.ts to create failure captures for ratings 1-3
+- OpenCode port note: automated failure-capture tooling is not implemented yet
 - Each failure gets its own directory with transcript, sentiment, tool-calls, and context
 - Directory names use 8-word descriptions generated by fast inference
 - Added migration capability via `bun FailureCapture.ts --migrate`
 
 **2026-01-12:** v7.0 - Projects-native architecture
 - Eliminated RAW/ directory entirely - Claude Code's `projects/` is the source of truth
-- Removed EventLogger.hook.ts (was duplicating what projects/ already captures)
+- Removed legacy duplicate logging (projects/ is the source of truth)
 - Created SessionHarvester.ts to extract learnings from projects/ transcripts
-- Created WorkCompletionLearning.hook.ts for session-end learning capture
+- Added `plugins/handlers/learning-capture.ts` for session-end learning capture
 - Created LearningPatternSynthesis.ts for rating pattern aggregation
 - Added LEARNING/SYNTHESIS/ for pattern reports
 - Updated Observability to read from projects/ instead of RAW/
@@ -388,7 +381,7 @@ bun run ~/.config/opencode/skills/CORE/Tools/LearningPatternSynthesis.ts --week
 
 **2026-01-11:** v6.1 - Removed RECOVERY system
 - Deleted RECOVERY/ directory (5GB of redundant snapshots)
-- Removed RecoveryJournal.hook.ts, recovery-engine.ts, snapshot-manager.ts
+- Removed recovery-journal tooling (git is rollback)
 - Git provides all necessary rollback capability
 
 **2026-01-11:** v6.0 - Major consolidation
@@ -397,8 +390,8 @@ bun run ~/.config/opencode/skills/CORE/Tools/LearningPatternSynthesis.ts --week
 - Merged SIGNALS/ into LEARNING/SIGNALS/
 - Merged PROGRESS/ into STATE/progress/
 - Merged integrity-checks/ into STATE/integrity/
-- Fixed AutoWorkCreation hook (prompt vs user_prompt field)
-- Updated all hooks to use correct paths
+- Fixed work session creation logic
+- Updated plugin handlers to use correct paths
 
 **2026-01-10:** v5.0 - Documentation consolidation
 - Consolidated WORKSYSTEM.md into MEMORYSYSTEM.md
@@ -410,12 +403,12 @@ bun run ~/.config/opencode/skills/CORE/Tools/LearningPatternSynthesis.ts --week
 
 **2026-01-05:** v1.0 - Unified Memory System migration
 - Previous: `~/.config/opencode/history/`, `~/.config/opencode/context/`, `~/.config/opencode/progress/`
-- Current: `~/.config/opencode/MEMORY/`
+- Current: `$PAI_DIR/MEMORY/`
 - Files migrated: 8,415+
 
 ---
 
 ## Related Documentation
 
-- **Hook System:** `THEHOOKSYSTEM.md`
+ - **Plugin System:** `THEPLUGINSYSTEM.md` (legacy: `THEHOOKSYSTEM.md`)
 - **Architecture:** `PAISYSTEMARCHITECTURE.md`

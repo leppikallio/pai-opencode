@@ -10,15 +10,19 @@
  */
 
 import { appendFileSync, mkdirSync, existsSync, writeFileSync } from "node:fs";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
+import { getPaiDir } from "./pai-runtime";
 
-const LOG_PATH = "/tmp/pai-opencode-debug.log";
+// Log inside the active PAI runtime directory.
+// In the repo source tree this resolves to: .opencode/plugins/debug.log
+// In the installed runtime this resolves to: ~/.config/opencode/plugins/debug.log
+const LOG_PATH = join(getPaiDir(), "plugins", "debug.log");
 
 /**
  * Log a message to file (TUI-safe)
  *
  * IMPORTANT: This function NEVER uses console.log
- * All output goes to /tmp/pai-opencode-debug.log
+ * All output goes to $PAI_DIR/plugins/debug.log
  *
  * @param message - The message to log
  * @param level - Log level (info, warn, error, debug)

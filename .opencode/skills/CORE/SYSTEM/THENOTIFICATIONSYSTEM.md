@@ -185,7 +185,7 @@ Located in `~/.config/opencode/settings.json`:
     },
     "discord": {
       "enabled": false,
-      "webhook": "https://discord.com/api/webhooks/..."
+      "webhook": "$DISCORD_WEBHOOK_URL"
     },
     "thresholds": {
       "longTaskMinutes": 5
@@ -237,24 +237,17 @@ Topic name acts as password - use random string for security.
 
 ### Implementation
 
-The notification service is in `~/.config/opencode/hooks/lib/notifications.ts`:
+In the OpenCode port, notifications are primarily handled via the local **VoiceServer** plus the `voice_notify` tool.
 
-```typescript
-import { notify, notifyTaskComplete, notifyBackgroundAgent, notifyError } from './lib/notifications';
+- **VoiceServer**: `$PAI_DIR/VoiceServer/server.ts` (default: `~/.config/opencode/VoiceServer/server.ts`)
+- **Notify endpoint**: `http://localhost:8888/notify`
+- **Health endpoint**: `http://localhost:8888/health`
 
-// Smart routing based on task duration
-await notifyTaskComplete("Task completed successfully");
+To send a notification, use the `voice_notify` tool:
 
-// Explicit background agent notification
-await notifyBackgroundAgent("Researcher", "Found 5 relevant articles");
-
-// Error notification
-await notifyError("Database connection failed");
-
-// Direct channel access
-await sendPush("Message", { title: "Title", priority: "high" });
-await sendDiscord("Message", { title: "Title", color: 0x00ff00 });
-```
+- `message`: short, speakable status line
+- `title`: optional title
+- `voice_id`: optional voice override
 
 ### Design Principles
 

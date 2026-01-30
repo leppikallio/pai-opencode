@@ -70,7 +70,8 @@ ls -la ~/.config/opencode/plugins/pai-unified.ts 2>/dev/null || echo "No pai-uni
 
 ```bash
 # Check for MEMORY directory structure
-ls -la ~/.config/opencode/MEMORY/ 2>/dev/null || echo "No MEMORY directory"
+PAI_DIR=${PAI_DIR:-$HOME/.config/opencode}
+ls -la "$PAI_DIR/MEMORY/" 2>/dev/null || echo "No MEMORY directory"
 ```
 
 **Health indicators:**

@@ -19,7 +19,7 @@ tools:
 permission:
   edit:
     "*": deny
-    "/Users/zuul/.config/opencode/scratchpad/**": allow
+    "$HOME/.config/opencode/scratchpad/**": allow
   bash: deny
   webfetch: ask
   task: deny

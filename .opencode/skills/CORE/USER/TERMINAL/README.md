@@ -77,11 +77,11 @@ When a tab is inactive (not focused), the background color indicates the current
 
 ---
 
-## Hook Integration
+## Legacy Hook Integration
 
-Three hooks work together to manage dynamic tab updates:
+**OpenCode port note:** This tab-state system is described for legacy Claude Code hooks and is not currently implemented in the OpenCode plugin runtime.
 
-### 1. UpdateTabTitle.hook.ts (UserPromptSubmit)
+### 1. UpdateTabTitle (legacy) (UserPromptSubmit)
 
 **Trigger:** Every time a user submits a prompt
 
@@ -102,7 +102,7 @@ Three hooks work together to manage dynamic tab updates:
 - "Creating component"
 - "Fixing type errors"
 
-### 2. SetQuestionTab.hook.ts (PreToolUse: AskUserQuestion)
+### 2. SetQuestionTab (legacy) (PreToolUse: AskUserQuestion)
 
 **Trigger:** When Claude invokes the AskUserQuestion tool
 

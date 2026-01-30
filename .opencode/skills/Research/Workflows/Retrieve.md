@@ -401,12 +401,12 @@ mcp__Apify__apify-slash-rag-web-browser({
 
 ## 📁 Scratch → History Pattern
 
-**Working Directory (Scratch):** `~/.config/opencode/MEMORY/WORK/{current_work}/scratch/`
+**Working Directory (Scratch):** `$PAI_DIR/MEMORY/WORK/{current_work}/scratch/`
 
 **Getting Current Work Directory:**
-1. Read `~/.config/opencode/MEMORY/STATE/current-work.json`
+1. Read `$PAI_DIR/MEMORY/STATE/current-work.json`
 2. Extract the `work_dir` value
-3. Use `~/.config/opencode/MEMORY/WORK/{work_dir}/scratch/` for temporary artifacts
+3. Use `$PAI_DIR/MEMORY/WORK/{work_dir}/scratch/` for temporary artifacts
 
 **Process:**
 
@@ -433,7 +433,7 @@ mcp__Apify__apify-slash-rag-web-browser({
 
 **Scratch (temporary workspace in current work item):**
 ```
-~/.config/opencode/MEMORY/WORK/20260111-172408_retrieve-react19-docs/scratch/
+$PAI_DIR/MEMORY/WORK/20260111-172408_retrieve-react19-docs/scratch/
 ├── raw-content/
 │   ├── page1.md (Layer 2 output)
 │   ├── page2.md (Layer 2 output)

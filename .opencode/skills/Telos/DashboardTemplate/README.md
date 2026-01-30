@@ -56,10 +56,10 @@ cp .env.example .env
 
 Edit `.env`:
 ```
-ANTHROPIC_API_KEY=your_api_key_here
+ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
 ```
 
-**Note**: The template includes a pre-configured `.env` file with a working API key for testing. Replace it with your own key for production use.
+**Note**: No API keys are included. Set your own key via environment variables.
 
 ### 4. Customize Your Dashboard
 
@@ -401,7 +401,7 @@ This template works with any Next.js hosting platform:
 
 **Remember to set environment variables** in your hosting platform:
 ```
-ANTHROPIC_API_KEY=your_key_here
+ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
 ```
 
 ## Tech Stack

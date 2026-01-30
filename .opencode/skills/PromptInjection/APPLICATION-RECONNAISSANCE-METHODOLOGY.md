@@ -40,9 +40,9 @@ This methodology uses browser automation to systematically extract and analyze w
 **Documentation:**
 ```bash
 # Create testing directory in current work
-WORK_DIR=$(jq -r '.work_dir' ~/.config/opencode/MEMORY/STATE/current-work.json)
-mkdir -p ~/.config/opencode/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d-%H%M%S)_prompt-injection-test-TARGET/
-cd ~/.config/opencode/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d-%H%M%S)_prompt-injection-test-TARGET/
+WORK_DIR=$(jq -r '.work_dir' $PAI_DIR/MEMORY/STATE/current-work.json)
+mkdir -p $PAI_DIR/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d-%H%M%S)_prompt-injection-test-TARGET/
+cd $PAI_DIR/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d-%H%M%S)_prompt-injection-test-TARGET/
 
 # Document authorization
 cat > AUTHORIZATION.md << 'EOF'
@@ -536,15 +536,16 @@ import Anthropic from '@anthropic-ai/sdk'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 // Or API key patterns:
-const OPENAI_API_KEY = 'sk-...'
-const ANTHROPIC_API_KEY = 'sk-ant-...'
+// (Never commit real keys; treat any key found as a vulnerability.)
+const OPENAI_API_KEY = '<OPENAI_API_KEY>'
+const ANTHROPIC_API_KEY = '<ANTHROPIC_API_KEY>'
 ```
 
 **HTTP Header Indicators:**
 ```bash
 # Look for these headers in network logs:
-Authorization: Bearer sk-...
-x-api-key: sk-...
+Authorization: Bearer <TOKEN>
+x-api-key: <TOKEN>
 anthropic-version: 2023-06-01
 openai-organization: org-...
 ```

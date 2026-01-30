@@ -531,7 +531,7 @@ Critical PAI documentation organized by domain. Load on-demand based on context.
 | **System Architecture** | `SYSTEM/PAISYSTEMARCHITECTURE.md` | Core PAI design and principles |
 | **Memory System** | `SYSTEM/MEMORYSYSTEM.md` | WORK, STATE, LEARNING directories |
 | **Skill System** | `SYSTEM/SKILLSYSTEM.md` | How skills work, structure, triggers |
-| **Hook System** | `SYSTEM/THEHOOKSYSTEM.md` | Event hooks, patterns, implementation |
+| **Plugin System** | `SYSTEM/THEPLUGINSYSTEM.md` | OpenCode plugins, hooks mapping, implementation |
 | **Agent System** | `SYSTEM/PAIAGENTSYSTEM.md` | Agent types, spawning, delegation |
 | **Delegation** | `SYSTEM/THEDELEGATIONSYSTEM.md` | Background work, parallelization |
 | **Browser Automation** | `SYSTEM/BROWSERAUTOMATION.md` | Playwright, screenshots, testing |

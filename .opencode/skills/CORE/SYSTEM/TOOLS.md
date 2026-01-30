@@ -358,7 +358,7 @@ brew install trufflehog
 - YouTube analytics: `YouTubeApi.ts`
 
 ### Security Workflows
-- Secret scanning: `trufflehog` (system tool)
+- Credential scanning: `trufflehog` (system tool)
 
 ---
 
