@@ -91,40 +91,11 @@ model_comparison:
 
 ### Step 4: Run Model Comparison
 
-**Option A: CLI (Sequential)**
+This repo does not ship the `EvalServer/` multi-model runner yet.
 
-```bash
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli-run.ts \
-  --use-case <name> \
-  --models claude-3-5-sonnet-20241022,gpt-4o,gemini-1.5-pro
-```
-
-**Option B: CLI (Parallel)**
-
-```bash
-# Run each model in parallel for speed
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli-run.ts \
-  --use-case <name> \
-  --model claude-3-5-sonnet-20241022 &
-
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli-run.ts \
-  --use-case <name> \
-  --model gpt-4o &
-
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli-run.ts \
-  --use-case <name> \
-  --model gemini-1.5-pro &
-
-wait
-```
-
-**Option C: Web UI**
-
-1. Open http://localhost:5173
-2. Select use case
-3. Enable multiple models
-4. Run evaluation
-5. View side-by-side results
+Current path:
+- Convert the comparison into an eval suite and run it via `AlgorithmBridge.ts`, OR
+- Use an external eval harness and store results under `Results/`.
 
 ### Step 5: Collect Results
 
@@ -137,7 +108,7 @@ Results stored in:
 Use Report template:
 
 ```bash
-bun run ~/.config/opencode/Templates/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
   -t Evals/Report.hbs \
   -d Results/<use-case>/models/<run-id>/summary.yaml \
   -o Results/<use-case>/models/<run-id>/report.md

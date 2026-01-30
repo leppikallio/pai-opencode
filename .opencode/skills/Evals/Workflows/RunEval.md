@@ -29,39 +29,21 @@ ls ~/.config/opencode/skills/Evals/UseCases/<use-case>/config.yaml
 
 If missing, redirect to `CreateUseCase.md` workflow.
 
-### Step 2: Check EvalServer Status
+### Step 2: Run Evaluation (Current Implementation)
+
+This repo does not ship an `EvalServer/` web UI + CLI yet.
+
+For now, run a suite-based eval through the Evals toolchain:
 
 ```bash
-# Check if server is running
-curl -s http://localhost:5173 > /dev/null 2>&1 && echo "Running" || echo "Not running"
-```
-
-If not running, start it:
-```bash
-cd ~/.config/opencode/skills/Evals/EvalServer && bun run dev &
-```
-
-### Step 3: Run Evaluation
-
-**Option A: Web UI (Recommended)**
-1. Open http://localhost:5173
-2. Select use case from dropdown
-3. Choose model(s) to evaluate
-4. Click "Run Evaluation"
-5. Watch real-time streaming results
-
-**Option B: CLI**
-```bash
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli-run.ts \
-  --use-case <name> \
-  --model claude-3-5-sonnet-20241022
+# Run an eval suite (regression/capability)
+bun run ~/.config/opencode/skills/Evals/Tools/AlgorithmBridge.ts -s <suite>
 ```
 
 ### Step 4: Collect Results
 
 Results are stored in:
-- `Results/<use-case>/<run-id>/results.json`
-- `EvalServer/storage/evals.db` (queryable)
+- `~/.config/opencode/skills/Evals/Results/<suite>/<run-id>/run.json`
 
 ### Step 5: Report Summary
 

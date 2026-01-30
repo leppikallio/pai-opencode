@@ -5,7 +5,7 @@
 This skill follows the CLI-First Architecture pattern:
 
 ```
-User Request -> AI orchestrates -> EvalServer CLI -> Deterministic results
+User Request -> AI orchestrates -> Evals Tools -> Deterministic results
 ```
 
 ---
@@ -14,50 +14,22 @@ User Request -> AI orchestrates -> EvalServer CLI -> Deterministic results
 
 ### Use Case Management
 
-```bash
-# Create new use case
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts use-case create --name <name>
+Use cases are file-backed under `UseCases/`. There is no `EvalServer/cli.ts` in this repo.
 
-# List all use cases
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts use-case list
-
-# Show use case details
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts use-case show <name>
-```
-
-### Test Case Management
-
-```bash
-# Add test case to use case
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts test-case add --use-case <name>
-
-# List test cases for use case
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts test-case list --use-case <name>
-```
+Test cases are file-backed under `UseCases/<name>/test-cases/`.
 
 ### Run Evaluations
 
 ```bash
-# Run eval for use case (optional model specification)
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli-run.ts --use-case <name> [--model <model>]
+# Run an eval suite and optionally update ISC
+bun run ~/.config/opencode/skills/Evals/Tools/AlgorithmBridge.ts -s <suite>
 ```
 
 ---
 
 ## Web UI
 
-Start the EvalServer for visual evaluation:
-
-```bash
-cd ~/.config/opencode/skills/Evals/EvalServer
-bun run dev  # Starts on http://localhost:5173
-```
-
-**Features:**
-- Real-time eval execution with streaming
-- Visual test case management
-- Results comparison dashboard
-- Bi-directional file <-> UI sync
+Not shipped in this repo.
 
 ---
 
@@ -79,11 +51,9 @@ bun run dev  # Starts on http://localhost:5173
 ├── Results/
 │   └── <use-case>/
 │       └── <run-id>/           # Per-run results
-└── EvalServer/                 # Web UI + execution engine
+└── (no EvalServer shipped)
 ```
 
 ### SQLite (Query Optimization)
 
-- Database: `EvalServer/storage/evals.db`
-- **Used ONLY for**: Fast queries, analytics, comparisons
-- **Can be rebuilt** from files
+Not shipped in this repo.

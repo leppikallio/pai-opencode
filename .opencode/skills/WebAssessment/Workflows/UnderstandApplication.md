@@ -148,6 +148,6 @@ bun ~/.config/opencode/skills/Recon/Tools/EndpointDiscovery.ts https://target.co
 ## Output Location
 
 Save understanding document to:
-`~/.config/opencode/skills/Webassessment/Data/{client}/understanding.md`
+`~/.config/opencode/skills/WebAssessment/Data/{client}/understanding.md`
 
 Or return inline for immediate use in threat modeling.

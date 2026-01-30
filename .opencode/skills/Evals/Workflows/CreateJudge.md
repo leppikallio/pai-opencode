@@ -62,7 +62,7 @@ output:
 ### Step 3: Render Judge Prompt
 
 ```bash
-bun run ~/.config/opencode/Templates/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
   -t Evals/Judge.hbs \
   -d ~/.config/opencode/skills/Evals/UseCases/<name>/judge-config.yaml \
   -o ~/.config/opencode/skills/Evals/UseCases/<name>/judge-prompt.md \
@@ -96,10 +96,8 @@ criteria:
 Run a single test case to verify:
 
 ```bash
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli-run.ts \
-  --use-case <name> \
-  --test-id <single-test> \
-  --verbose
+Note: this repo does not ship the EvalServer runner yet.
+For now, validate the judge prompt by inspection and by running any existing suite you have.
 ```
 
 Review:

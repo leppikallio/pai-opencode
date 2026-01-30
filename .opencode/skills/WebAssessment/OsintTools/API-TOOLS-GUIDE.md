@@ -154,7 +154,7 @@ OSINT_INDUSTRIES_API_KEY=your_actual_osint_industries_key_here
 ### Step 5: Test Your Setup
 
 ```bash
-cd ~/.config/opencode/skills/Webassessment/osint-tools/
+cd ~/.config/opencode/skills/WebAssessment/osint-tools/
 python3 osint-api-tools.py --test
 ```
 
@@ -228,7 +228,7 @@ vuln:CVE-2014-0160           # Devices vulnerable to Heartbleed
 email:user@example.com           # Search by email
 username:johndoe                 # Search by username
 domain:example.com               # Search by domain
-password:123456                  # Search by password (ethical use only)
+password:"<REDACTED>"            # Search by password (ethical use only)
 ip_address:192.168.1.1          # Search by IP
 name:"John Doe"                  # Search by name
 ```
@@ -332,7 +332,7 @@ if result.success:
         print(f"Database: {entry.get('database_name', 'Unknown')}")
         print(f"  Email: {entry.get('email', 'N/A')}")
         print(f"  Username: {entry.get('username', 'N/A')}")
-        print(f"  Password: {entry.get('password', '[REDACTED]')}")
+        print("  Password: \"<REDACTED>\"")
         print()
 ```
 
