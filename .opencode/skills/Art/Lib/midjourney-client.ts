@@ -8,7 +8,7 @@
  * @see ~/.config/opencode/skills/Art/SKILL.md
  */
 
-import type { DiscordBotClient } from './discord-bot.js';
+import type { DiscordBotClient } from './discord-bot';
 import type { Message } from 'discord.js';
 
 // ============================================================================

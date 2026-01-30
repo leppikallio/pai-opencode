@@ -176,7 +176,6 @@ Quick Push:         GitPush (if docs already created)
 | **CreateUpdate.ts** | Create new system update entries | `Tools/CreateUpdate.ts` |
 | **UpdateIndex.ts** | Regenerate index.json and CHANGELOG.md | `Tools/UpdateIndex.ts` |
 | **UpdateSearch.ts** | Search and query system updates | `Tools/UpdateSearch.ts` |
-| **ExtractArchitectureUpdates.ts** | Historical migration tool (one-time use) | `Tools/ExtractArchitectureUpdates.ts` |
 
 ## Templates
 

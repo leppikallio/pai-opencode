@@ -148,7 +148,7 @@ ASN and BGP reconnaissance:
 - API Key: `process.env.IPINFO_API_KEY`
 - Capabilities: Geolocation, ASN, organization, abuse contacts, privacy detection
 - Rate limits: Check API plan
-- Client: `tools/ipinfo-client.ts`
+- Client: `Tools/IpinfoClient.ts`
 
 **System Tools** (always available)
 - `whois` - Domain and IP WHOIS lookups
@@ -185,7 +185,7 @@ ASN and BGP reconnaissance:
 
 ## TypeScript Utilities
 
-Located in `tools/` directory:
+Located in `Tools/` directory:
 
 **ipinfo-client.ts**
 - IPInfo API wrapper with error handling

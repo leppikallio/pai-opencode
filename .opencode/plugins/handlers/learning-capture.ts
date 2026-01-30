@@ -197,7 +197,7 @@ function extractLearningsFromText(
   // Pattern: "Learning: ..." or "Learned: ..." or "Key insight: ..."
   const patterns = [
     /(?:Learning|Learned|Key insight|Insight|Takeaway):\s*(.+?)(?:\n\n|\n(?=[A-Z#*-]))/gis,
-    /## (?:Learning|Learned|Key insight|Insight|Takeaway)[^\n]*\n\n(.+?)(?:\n##|\n---|z)/gis,
+    /## (?:Learning|Learned|Key insight|Insight|Takeaway)[^\n]*\n\n(.+?)(?:\n##|\n---|$)/gis,
   ];
 
   for (const pattern of patterns) {

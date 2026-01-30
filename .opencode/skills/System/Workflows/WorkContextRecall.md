@@ -86,13 +86,13 @@ Use the UpdateSearch.ts tool to query PAISYSTEMUPDATES index:
 
 ```bash
 # Search system updates index
-bun run "$PAI_DIR/tools/UpdateSearch.ts" "security hook"
+bun run "$PAI_DIR/skills/System/Tools/UpdateSearch.ts" "security hook"
 
 # With time filter
-bun run "$PAI_DIR/tools/UpdateSearch.ts" "garrett-ai" --since "2026-01-15"
+bun run "$PAI_DIR/skills/System/Tools/UpdateSearch.ts" "garrett-ai" --since "2026-01-15"
 
 # Multiple keywords
-bun run "$PAI_DIR/tools/UpdateSearch.ts" "typescript error fix"
+bun run "$PAI_DIR/skills/System/Tools/UpdateSearch.ts" "typescript error fix"
 ```
 
 Parse UpdateSearch results:

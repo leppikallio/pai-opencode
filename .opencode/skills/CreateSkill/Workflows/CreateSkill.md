@@ -6,7 +6,7 @@ Create a new skill following the canonical structure with proper TitleCase namin
 
 **REQUIRED FIRST:**
 
-1. Read the skill system documentation: `~/.config/opencode/skills/CORE/SkillSystem.md`
+1. Read the skill system documentation: `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md`
 2. Read the canonical example: `~/.config/opencode/skills/_BLOGGING/SKILL.md`
 
 ## Step 2: Understand the Request
@@ -141,7 +141,7 @@ bun ToolName.ts \
 - Workflows should expose this flexibility, not hardcode single patterns
 - Users speak naturally; workflows translate to precise CLI
 
-**Reference:** `~/.config/opencode/skills/CORE/CliFirstArchitecture.md` (Workflow-to-Tool Integration section)
+**Reference:** `~/.config/opencode/skills/CORE/SYSTEM/CLIFIRSTARCHITECTURE.md` (Workflow-to-Tool Integration section)
 
 **Examples (TitleCase):**
 ```bash
@@ -192,7 +192,7 @@ Verify ALL files use TitleCase:
 - [ ] No `backups/` directory inside skill
 
 ### CLI-First Integration (for skills with CLI tools)
-- [ ] CLI tools expose configuration via flags (see CliFirstArchitecture.md)
+- [ ] CLI tools expose configuration via flags (see CLIFIRSTARCHITECTURE.md)
 - [ ] Workflows that call CLI tools have intent-to-flag mapping tables
 - [ ] Flag mappings cover: mode selection, output options, post-processing (where applicable)
 

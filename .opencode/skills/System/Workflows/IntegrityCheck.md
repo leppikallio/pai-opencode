@@ -177,12 +177,7 @@ IntegrityCheck (Complete)
 
 ### Step 5: Save Report
 
-Save full report to user's home directory for easy access:
-```
-~/YYYY-MM-DD_PAI-System-Integrity-Audit.md
-```
-
-Also optionally save to MEMORY:
+Save report to MEMORY for durable verification:
 ```
 $PAI_DIR/MEMORY/STATE/integrity/YYYY-MM-DD.md
 ```

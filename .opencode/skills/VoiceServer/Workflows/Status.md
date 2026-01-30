@@ -45,8 +45,8 @@ lsof -i :8888
 
 **Check logs:**
 ```bash
-tail -50 ~/.config/opencode/VoiceServer/logs/server.log
+tail -50 ~/Library/Logs/pai-voice-server.log
 
 # Or:
-#   tail -50 "$PAI_DIR/VoiceServer/logs/server.log"
+#   tail -50 ~/Library/Logs/pai-voice-server.log
 ```

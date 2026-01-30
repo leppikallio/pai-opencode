@@ -571,6 +571,22 @@ function sync(mode: Mode, opts: Options) {
     });
   }
 
+  // Sync VoiceServer bundle (managed runtime scripts + server).
+  // Source lives in repo Packs so it stays decoupled from .opencode.
+  const voiceServerSrc = path.join(repoRoot, "Packs", "pai-voice-system", "src", "VoiceServer");
+  if (isDir(voiceServerSrc)) {
+    const dest = path.join(targetDir, "VoiceServer");
+    console.log(`${dryRun ? "[dry]" : "[sync]"} dir VoiceServer`);
+    ensureDir(dest, dryRun);
+    copyDirRecursive(voiceServerSrc, dest, {
+      dryRun,
+      overwrite: true,
+      // Allow local tweaks to the voice registry.
+      preserveIfExistsPrefixes: ["VoiceServer/voices.json"],
+      relBase: "VoiceServer/",
+    });
+  }
+
   // Cleanup legacy PAI helper scripts in OpenCode tool namespace.
   removeLegacyOpenCodeTools({ targetDir, dryRun });
 

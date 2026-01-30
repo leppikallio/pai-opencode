@@ -5,6 +5,8 @@
  * Search past updates by keywords, date range, type
  */
 
+import { getPaiDir } from '../../../pai-tools/PaiRuntime';
+
 interface SearchArgs {
   query?: string;
   type?: string;
@@ -76,6 +78,11 @@ function parseArgs(): SearchArgs | null {
         process.exit(0);
         break;
       default:
+        // Back-compat: allow a single positional query string
+        if (!arg.startsWith('-') && !parsed.query) {
+          parsed.query = arg;
+          break;
+        }
         console.error(`Error: Unknown argument: ${arg}`);
         return null;
     }
@@ -137,13 +144,7 @@ async function searchContent(filePath: string, query: string): Promise<string | 
 }
 
 async function searchUpdates(args: SearchArgs): Promise<void> {
-  const PAI_DIR = process.env.PAI_DIR;
-  if (!PAI_DIR) {
-    console.error('Error: PAI_DIR environment variable not set');
-    process.exit(1);
-  }
-
-  const baseDir = `${PAI_DIR}/MEMORY/PAISYSTEMUPDATES`;
+  const baseDir = `${getPaiDir()}/MEMORY/PAISYSTEMUPDATES`;
 
   console.log('Loading index...');
   const indexData = await loadIndex(baseDir);

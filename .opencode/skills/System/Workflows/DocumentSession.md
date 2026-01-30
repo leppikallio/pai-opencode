@@ -103,11 +103,10 @@ const learnings = extractLearnings(sessionContent);
 
 ```bash
 # Use CreateUpdate.ts tool
-bun run $PAI_DIR/tools/CreateUpdate.ts \
+bun run "$PAI_DIR/skills/System/Tools/CreateUpdate.ts" \
   --type session \
   --title "Brief session summary" \
   --content "Generated markdown content" \
-  --tags "session,topic1,topic2" \
   --significance "standard"
 ```
 
@@ -115,9 +114,8 @@ bun run $PAI_DIR/tools/CreateUpdate.ts \
 
 ```bash
 # Use UpdateIndex.ts tool
-bun run $PAI_DIR/tools/UpdateIndex.ts \
-  --file "$PAI_DIR/MEMORY/PAISYSTEMUPDATES/2026/01/20260119T143022_SESSION_summary.md" \
-  --type session
+bun run "$PAI_DIR/skills/System/Tools/UpdateIndex.ts" \
+  --rebuild
 ```
 
 ## Integration with System Skill
