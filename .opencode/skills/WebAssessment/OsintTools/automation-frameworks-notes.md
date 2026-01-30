@@ -14,12 +14,12 @@
 
 ### Installation Details
 
-**Location:** `~/.config/opencode/skills/Webassessment/osint-tools/spiderfoot/`
+**Location:** `~/.config/opencode/skills/WebAssessment/osint-tools/spiderfoot/`
 
 **Installation Method:**
 ```bash
 # Cloned from GitHub repository
-cd ~/.config/opencode/skills/Webassessment/osint-tools/
+cd ~/.config/opencode/skills/WebAssessment/osint-tools/
 git clone https://github.com/smicallef/spiderfoot.git
 cd spiderfoot
 pip3 install -r requirements.txt
@@ -51,7 +51,7 @@ SpiderFoot requires Python 3.9 (system Python). Use `/usr/bin/python3` explicitl
 
 **Basic scan:**
 ```bash
-cd ~/.config/opencode/skills/Webassessment/osint-tools/spiderfoot
+cd ~/.config/opencode/skills/WebAssessment/osint-tools/spiderfoot
 /usr/bin/python3 ./sf.py -s <TARGET> -t <EVENT_TYPES>
 ```
 
@@ -98,7 +98,7 @@ cd ~/.config/opencode/skills/Webassessment/osint-tools/spiderfoot
 
 **Start web interface:**
 ```bash
-cd ~/.config/opencode/skills/Webassessment/osint-tools/spiderfoot
+cd ~/.config/opencode/skills/WebAssessment/osint-tools/spiderfoot
 /usr/bin/python3 ./sf.py -l 127.0.0.1:5001
 ```
 
@@ -360,7 +360,7 @@ open /Applications/Maltego.app
 
 ```bash
 # 1. SpiderFoot reconnaissance
-cd ~/.config/opencode/skills/Webassessment/osint-tools/spiderfoot
+cd ~/.config/opencode/skills/WebAssessment/osint-tools/spiderfoot
 /usr/bin/python3 ./sf.py -s target.com -u investigate -o json > target-recon.json
 
 # 2. Process results in Maltego
@@ -387,13 +387,13 @@ Maltego (updated graph) → Final report
 
 **SpiderFoot CLI Scan:**
 ```bash
-cd ~/.config/opencode/skills/Webassessment/osint-tools/spiderfoot
+cd ~/.config/opencode/skills/WebAssessment/osint-tools/spiderfoot
 /usr/bin/python3 ./sf.py -s <target> -u passive -o json > output.json
 ```
 
 **SpiderFoot Web UI:**
 ```bash
-cd ~/.config/opencode/skills/Webassessment/osint-tools/spiderfoot
+cd ~/.config/opencode/skills/WebAssessment/osint-tools/spiderfoot
 /usr/bin/python3 ./sf.py -l 127.0.0.1:5001
 # Visit: http://127.0.0.1:5001
 ```
@@ -405,7 +405,7 @@ open /Applications/Maltego.app
 
 **Update SpiderFoot:**
 ```bash
-cd ~/.config/opencode/skills/Webassessment/osint-tools/spiderfoot
+cd ~/.config/opencode/skills/WebAssessment/osint-tools/spiderfoot
 git pull origin master
 pip3 install -r requirements.txt --upgrade
 ```
@@ -424,7 +424,7 @@ brew upgrade --cask maltego
 **Problem: Module import errors**
 ```bash
 # Solution: Reinstall requirements
-cd ~/.config/opencode/skills/Webassessment/osint-tools/spiderfoot
+cd ~/.config/opencode/skills/WebAssessment/osint-tools/spiderfoot
 pip3 install -r requirements.txt --force-reinstall
 ```
 

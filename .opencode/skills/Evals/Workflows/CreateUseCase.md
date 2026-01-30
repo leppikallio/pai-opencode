@@ -205,7 +205,9 @@ Create `~/.config/opencode/skills/Evals/UseCases/<name>/README.md`:
 ## Running Evaluations
 
 \`\`\`bash
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli-run.ts --use-case <name>
+# This repo does not ship the EvalServer runner yet.
+# If you have a suite, run:
+bun run ~/.config/opencode/skills/Evals/Tools/AlgorithmBridge.ts -s <suite>
 \`\`\`
 
 ## Version History
@@ -219,18 +221,16 @@ bun run ~/.config/opencode/skills/Evals/EvalServer/cli-run.ts --use-case <name>
 # Check structure
 ls -la ~/.config/opencode/skills/Evals/UseCases/<name>/
 
-# Validate config
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts use-case show <name>
+# Validate config (manual for now)
+cat ~/.config/opencode/skills/Evals/UseCases/<name>/config.yaml
 ```
 
 ### Step 9: Run Initial Eval
 
 ```bash
-# Run first evaluation to verify setup
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli-run.ts \
-  --use-case <name> \
-  --test-id 001-basic \
-  --verbose
+# This repo does not ship the EvalServer runner yet.
+# If you have a suite, run:
+bun run ~/.config/opencode/skills/Evals/Tools/AlgorithmBridge.ts -s <suite>
 ```
 
 Review:

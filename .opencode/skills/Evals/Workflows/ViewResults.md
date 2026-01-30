@@ -27,114 +27,43 @@ Ask the user:
 3. What to show? (summary, details, comparison, trends)
 4. What format? (table, report, chart)
 
-### Step 2: Quick Status Check
-
-**Latest Results for Use Case:**
+### Step 2: Quick Status Check (File-Based)
 
 ```bash
-# Show most recent run
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts results \
-  --use-case <name> \
-  --latest
+# List suites with results
+ls -la ~/.config/opencode/skills/Evals/Results
+
+# List runs for a suite
+ls -la ~/.config/opencode/skills/Evals/Results/<suite>
 ```
 
-**All Recent Runs:**
+### Step 3: View Detailed Results (File-Based)
 
 ```bash
-# List last 10 runs
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts results \
-  --use-case <name> \
-  --limit 10
-```
-
-### Step 3: View Detailed Results
-
-**Single Run Details:**
-
-```bash
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts results \
-  --run-id <run-id> \
-  --verbose
-```
-
-**Per-Test-Case Breakdown:**
-
-```bash
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts results \
-  --run-id <run-id> \
-  --show-cases
+# View the raw run payload
+cat ~/.config/opencode/skills/Evals/Results/<suite>/<run-id>/run.json
 ```
 
 ### Step 4: Generate Report
 
-**Standard Report:**
+This is not yet standardized in the repo. If you have a report template, render it with:
 
 ```bash
-# Generate markdown report
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts report \
-  --run-id <run-id> \
-  --output ~/.config/opencode/skills/Evals/Results/<use-case>/<run-id>/report.md
-```
-
-**Using Report Template:**
-
-```bash
-# Render with template
-bun run ~/.config/opencode/Templates/Tools/RenderTemplate.ts \
-  -t Evals/Report.hbs \
-  -d ~/.config/opencode/skills/Evals/Results/<use-case>/<run-id>/results.yaml \
-  -o ~/.config/opencode/skills/Evals/Results/<use-case>/<run-id>/report.md
+bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts --help
 ```
 
 ### Step 5: Query Database
 
-**Direct SQLite Queries:**
-
-```bash
-cd ~/.config/opencode/skills/Evals/EvalServer
-
-# Recent runs by use case
-sqlite3 storage/evals.db "
-  SELECT run_id, model, pass_rate, mean_score, created_at
-  FROM eval_runs
-  WHERE use_case = '<name>'
-  ORDER BY created_at DESC
-  LIMIT 10
-"
-
-# Failed test cases
-sqlite3 storage/evals.db "
-  SELECT test_id, score, failure_reason
-  FROM eval_results
-  WHERE run_id = '<run-id>' AND passed = 0
-"
-
-# Score trends over time
-sqlite3 storage/evals.db "
-  SELECT date(created_at), avg(mean_score)
-  FROM eval_runs
-  WHERE use_case = '<name>'
-  GROUP BY date(created_at)
-  ORDER BY created_at
-"
-```
+This repo does not ship the EvalServer SQLite layer.
 
 ### Step 6: Compare Runs
 
-**Two Runs Side-by-Side:**
+Manual comparison for now:
 
 ```bash
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts compare \
-  --run-a <run-id-1> \
-  --run-b <run-id-2>
-```
-
-**Trend Analysis:**
-
-```bash
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts trend \
-  --use-case <name> \
-  --days 30
+diff -u \
+  ~/.config/opencode/skills/Evals/Results/<suite>/<run-a>/run.json \
+  ~/.config/opencode/skills/Evals/Results/<suite>/<run-b>/run.json
 ```
 
 ### Step 7: Report Summary
@@ -266,103 +195,39 @@ Uses Report.hbs template to generate full report.
 
 For spreadsheet analysis.
 
-## Trend Analysis
+## Trend Analysis (File-Based)
 
-### Regression Detection
+This repo does not ship an EvalServer trend CLI or web UI.
+
+Use the on-disk results in `Results/`:
 
 ```bash
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts trend \
-  --use-case <name> \
-  --detect-regression \
-  --threshold 0.10  # Alert if >10% drop
+# List runs (newest last if you sort)
+ls -la ~/.config/opencode/skills/Evals/Results/<suite>
+
+# Inspect a run
+cat ~/.config/opencode/skills/Evals/Results/<suite>/<run-id>/run.json
 ```
 
-### Performance Over Time
+If you have `jq`, you can quickly extract headline metrics:
 
-```
-📈 Trend: newsletter_summaries (last 30 days)
-
-Date       | Pass Rate | Mean Score | Change
------------|-----------|------------|--------
-2024-01-15 | 92%       | 4.3        | +5%
-2024-01-10 | 87%       | 4.1        | -2%
-2024-01-05 | 89%       | 4.2        | baseline
-
-Trend: ↑ Improving
-Alert: None
+```bash
+jq -r '.pass_rate, .mean_score, .n_trials' \
+  ~/.config/opencode/skills/Evals/Results/<suite>/<run-id>/run.json
 ```
 
-## Web UI Options
-
-### Dashboard View
-
-1. Open http://localhost:5173
-2. Select use case from sidebar
-3. View:
-   - Latest run summary
-   - Pass rate trend chart
-   - Failing test cases
-   - Model comparison
-
-### Run Details
-
-1. Click on specific run
-2. View:
-   - Per-test-case scores
-   - Judge reasoning
-   - Output samples
-   - Diff against baseline
-
-### Export Options
-
-- Download JSON
-- Export to CSV
-- Generate PDF report
-
-## Common Queries
+## Common Queries (File-Based)
 
 ### "How did the last eval go?"
 
 ```bash
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts results \
-  --use-case <name> \
-  --latest \
-  --summary
+ls -la ~/.config/opencode/skills/Evals/Results/<suite> | tail -n 5
 ```
 
-### "Why did test X fail?"
+### "Show me the summary for a run"
 
 ```bash
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts results \
-  --run-id <run-id> \
-  --test-id <test-id> \
-  --verbose
-```
-
-### "Is performance improving or declining?"
-
-```bash
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts trend \
-  --use-case <name> \
-  --days 14
-```
-
-### "Which model is best for this task?"
-
-```bash
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts compare \
-  --use-case <name> \
-  --compare-models \
-  --recent
-```
-
-### "Show me all failures this week"
-
-```bash
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli.ts results \
-  --use-case <name> \
-  --since "7 days ago" \
-  --failures-only
+cat ~/.config/opencode/skills/Evals/Results/<suite>/<run-id>/run.json
 ```
 
 ## Done

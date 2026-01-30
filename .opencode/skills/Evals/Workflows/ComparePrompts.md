@@ -113,23 +113,11 @@ comparison:
 
 ### Step 4: Run Comparison
 
-**Option A: Via CLI**
+This repo does not ship the `EvalServer/` prompt comparison runner yet.
 
-```bash
-bun run ~/.config/opencode/skills/Evals/EvalServer/cli-run.ts \
-  --use-case <name> \
-  --compare prompts/v1.0.0.md prompts/v1.1.0.md \
-  --position-swap
-```
-
-**Option B: Via Web UI**
-
-1. Open http://localhost:5173
-2. Select use case
-3. Click "Compare" tab
-4. Select both prompt versions
-5. Enable position swapping
-6. Run comparison
+Current path:
+- Run separate suites per prompt version and compare `Results/`, OR
+- Use an external harness and commit the comparison config alongside the use case.
 
 ### Step 5: Position Swapping Protocol
 
@@ -299,7 +287,7 @@ focus: "depth"
 For detailed comparison setup, use the Comparison template:
 
 ```bash
-bun run ~/.config/opencode/Templates/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
   -t Evals/Comparison.hbs \
   -d ~/.config/opencode/skills/Evals/UseCases/<name>/comparisons/<name>.yaml \
   -o ~/.config/opencode/skills/Evals/UseCases/<name>/comparisons/<name>-setup.md \
