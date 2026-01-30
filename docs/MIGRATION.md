@@ -118,7 +118,7 @@ opencode
 
 1. **Skills load:** "What skills do I have?"
 2. **Agents work:** `@Intern hello`
-3. **Security active:** Check `/tmp/pai-opencode-debug.log`
+3. **Security active:** Check `~/.config/opencode/plugins/debug.log`
 
 ---
 
@@ -195,7 +195,7 @@ export PATH="$PATH:$(go env GOPATH)/bin"
 ### Plugin doesn't load
 
 ```bash
-cat /tmp/pai-opencode-debug.log
+cat ~/.config/opencode/plugins/debug.log
 # Should show: "PAI-OpenCode Plugin Loaded"
 ```
 
@@ -210,7 +210,7 @@ ls -la .opencode/agents/
 ### CORE skill not loading
 
 ```bash
-grep "Context" /tmp/pai-opencode-debug.log
+grep "Context" ~/.config/opencode/plugins/debug.log
 # Should show: "Context injected successfully"
 ```
 

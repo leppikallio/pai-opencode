@@ -24,7 +24,7 @@ Open Source Intelligence gathering for authorized investigations.
    Use the `voice_notify` tool:
 
 - `message`: "Running the WORKFLOWNAME workflow from the OSINT skill"
-~/.config/opencode/MEMORY/WORK/$(jq -r '.work_dir' ~/.config/opencode/MEMORY/STATE/current-work.json)/scratch/YYYY-MM-DD-HHMMSS_osint-[target]/
+$PAI_DIR/MEMORY/WORK/$(jq -r '.work_dir' $PAI_DIR/MEMORY/STATE/current-work.json)/scratch/YYYY-MM-DD-HHMMSS_osint-[target]/
 ```
 
 **Archived reports:**

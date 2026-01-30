@@ -3,6 +3,9 @@ node_modules/
 # Runtime session data (never commit)
 .opencode/MEMORY/
 
+# Plugin debug logs
+.opencode/plugins/*.log
+
 # Underscore-prefixed agent drafts/variants
 .opencode/agents/_*.md
 

@@ -2,7 +2,7 @@
 
 Scratchpad root:
 
-- `/Users/zuul/.config/opencode/scratchpad/`
+- `~/.config/opencode/scratchpad/` (or `$PAI_DIR/scratchpad/`)
 
 Rules:
 

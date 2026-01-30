@@ -807,7 +807,8 @@ ls -la ~/.config/opencode/plugins/ 2>/dev/null
 ls -la ~/.config/opencode/skills/ 2>/dev/null
 
 # 3. Check MEMORY exists
-ls -la ~/.config/opencode/MEMORY/ 2>/dev/null
+PAI_DIR=${PAI_DIR:-$HOME/.config/opencode}
+ls -la "$PAI_DIR/MEMORY/" 2>/dev/null
 
 # 5. Restart OpenCode to activate plugins
 ```

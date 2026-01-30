@@ -1,6 +1,6 @@
 ---
 name: System
-description: System maintenance - integrity check, document session, secret scanning. USE WHEN integrity, audit, document session, secrets, security scan.
+description: System maintenance - integrity check, document session, secret scan. USE WHEN integrity, audit, document session, secrets, security scan.
 ---
 
 ## Customization
@@ -65,7 +65,7 @@ User: "Git Push"
 
 ### Security Workflows
 
-**Example 5: Secret Scanning**
+**Example 5: Credential Scanning**
 ```
 User: "Check for secrets before I push"
 → Invokes SecretScanning workflow

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * SecretScan.ts - Secret Scanning CLI
+ * SecretScan.ts - Credential Scanning CLI
  *
  * Scan directories for sensitive information using TruffleHog.
  * Detects 700+ credential types with entropy analysis and pattern matching.
@@ -145,7 +145,7 @@ function formatFindings(findings: TruffleHogFinding[], verbose: boolean) {
   console.log('\n🛡️  RECOMMENDATIONS:');
   console.log('1. Never commit secrets to git repositories');
   console.log('2. Use .env files for local development (add to .gitignore)');
-  console.log('3. Use secret management services for production');
+  console.log('3. Use secrets management services for production');
   console.log('4. Set up pre-commit hooks to prevent secret commits');
   console.log('5. Run: git filter-branch or BFG to remove secrets from git history');
 }
@@ -179,7 +179,7 @@ function displayFinding(finding: TruffleHogFinding, verbose: boolean) {
   
   const recommendation = Object.entries(recommendations)
     .find(([key]) => String(type).includes(key))?.[1] || 
-    'Remove from code and use secure secret management';
+    'Remove from code and use secure secrets management';
     
   console.log(`   💡 Fix: ${recommendation}`);
 }

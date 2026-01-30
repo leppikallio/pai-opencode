@@ -4,6 +4,8 @@
 
 The PAI system uses Kitty terminal tab colors and title suffixes to provide instant visual feedback on session state. At a glance, you can see which tabs are working, completed, waiting for input, or have errors.
 
+**OpenCode port note:** This terminal tab state system is not currently implemented in the OpenCode plugin runtime. The sections below describe the legacy Claude Code hook-based design.
+
 ## State System
 
 | State | Icon | Format | Suffix | Inactive Background | When |
@@ -24,16 +26,16 @@ The PAI system uses Kitty terminal tab colors and title suffixes to provide inst
 
 ## How It Works
 
-### Two-Hook Architecture
+### Legacy Hook Architecture
 
 **1. UserPromptSubmit (Start of Work)**
-- Hook: `UpdateTabTitle.hook.ts`
+- Legacy hook (not present in OpenCode): UpdateTabTitle
 - Sets title with `…` suffix
 - Sets background to orange (working)
 - Announces via voice server
 
 **2. Stop (End of Work)**
-- Hook: `VoiceAndHistoryCapture.hook.ts`
+- Legacy hook (not present in OpenCode): VoiceAndHistoryCapture
 - Detects final state (completed, awaiting input, error)
 - Sets appropriate suffix and color
 - Voice notification with completion message
@@ -100,21 +102,21 @@ kitten @ set-tab-color --self \
 
 | File | Event | Purpose |
 |------|-------|---------|
-| `UpdateTabTitle.hook.ts` | UserPromptSubmit | Set working state (italic text) |
-| `SetQuestionTab.hook.ts` | PreToolUse (AskUserQuestion) | Set question state (bold caps) |
-| `VoiceAndHistoryCapture.hook.ts` | Stop | Set final state |
+| `UpdateTabTitle` (legacy) | UserPromptSubmit | Set working state (italic text) |
+| `SetQuestionTab` (legacy) | PreToolUse (AskUserQuestion) | Set question state (bold caps) |
+| `VoiceAndHistoryCapture` (legacy) | Stop | Set final state |
 
 ### Color Constants
 
 ```typescript
-// In UpdateTabTitle.hook.ts
+// Legacy: UpdateTabTitle
 const TAB_WORKING_BG = '#804000';      // Dark orange (inactive tabs only)
 const TAB_INFERENCE_BG = '#1E0A3C';    // Dark purple (AI thinking)
 const ACTIVE_TAB_BG = '#002B80';       // Dark blue (always for active tab)
 const ACTIVE_TEXT = '#FFFFFF';          // White
 const INACTIVE_TEXT = '#A0A0A0';        // Gray
 
-// In SetQuestionTab.hook.ts
+// Legacy: SetQuestionTab
 const TAB_AWAITING_BG = '#085050';     // Dark teal (waiting for input)
 
 // In handlers/tab-state.ts

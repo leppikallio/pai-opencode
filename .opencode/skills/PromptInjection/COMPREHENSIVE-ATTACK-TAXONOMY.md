@@ -279,7 +279,7 @@ Prompt Injection Attacks
 **"The Hypnotist" Attack (5 turns):**
 1. Build rapport and compliance
 2. Establish role reversal
-3. Plant secret password in memory
+3. Plant a password in memory
 4. Set up conditional trigger
 5. Activate trigger to extract information
 
@@ -566,7 +566,7 @@ This is not a bug - it's an architectural limitation requiring fundamental redes
 ### 9.3 Multi-Agent Security Threats (May 2025 Research)
 
 **Novel Threats from Agent Interactions:**
-- Secret collusion channels through steganographic communication
+- Covert collusion channels through steganographic communication
 - Coordinated attacks appear innocuous individually but harmful collectively
 - Network effects amplify vulnerabilities through cascading privacy leaks
 - Cannot be addressed in isolation - requires system-level analysis

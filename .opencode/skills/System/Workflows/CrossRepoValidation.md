@@ -12,7 +12,7 @@ Validates isolation between repositories:
 
 1. **Sensitive File Detection** - Checks if private files leaked to public repo
 2. **USER Directory Check** - Ensures no personal data in public repo
-3. **Secret Scanning** - Validates no API keys, tokens, or credentials in public
+3. **Credential Scanning** - Validates no API keys, tokens, or credentials in public
 4. **Personal Data Validation** - Checks for names, emails, personal info
 5. **Configuration Drift** - Identifies intentional vs accidental differences
 
@@ -30,7 +30,7 @@ Validates isolation between repositories:
 **ALLOWED in Public Repo:**
 - SYSTEM/ architecture documentation (generic)
 - Skills (if generalized, no personal references)
-- Hooks (if no secrets embedded)
+- Plugins (if no secrets embedded)
 - Tools and utilities (generic implementations)
 - Public-safe configuration templates
 - Generic workflow documentation
@@ -39,8 +39,9 @@ Validates isolation between repositories:
 
 ```typescript
 // 1. Locate both repositories
-const privateRepo = "/Users/steffen/workspace/github.com/Steffen025/jeremy-2.0-claudecode"
-const publicRepo = "/Users/steffen/workspace/github.com/Steffen025/pai-opencode"
+// Use environment variables to avoid hardcoding machine-specific paths.
+const privateRepo = process.env.PRIVATE_REPO || "/path/to/private/repo"
+const publicRepo = process.env.PUBLIC_REPO || "/path/to/public/repo"
 
 // 2. Compare directory structures
 // 3. Scan for sensitive patterns
@@ -328,13 +329,13 @@ Generated: {timestamp}
 ## Repository Status
 
 **Private Repository**
-- Path: /Users/steffen/workspace/github.com/Steffen025/jeremy-2.0-claudecode
+- Path: $PRIVATE_REPO
 - Remote: git@github.com:Steffen025/jeremy-2.0-claudecode.git
 - Branch: main
 - Last Commit: {hash} - {subject}
 
 **Public Repository**
-- Path: /Users/steffen/workspace/github.com/Steffen025/pai-opencode
+- Path: $PUBLIC_REPO
 - Remote: git@github.com:Steffen025/pai-opencode.git
 - Branch: main
 - Last Commit: {hash} - {subject}
@@ -346,7 +347,7 @@ Generated: {timestamp}
 - No references to USER/ content in public files
 - Status: PASS
 
-### ✅ Secret Scanning
+### ✅ Credential Scanning
 - Files scanned: 247
 - API key patterns: 0 matches
 - Token patterns: 0 matches
@@ -441,7 +442,7 @@ Locating repositories...
 Running validation checks...
 
 ✅ USER Directory Isolation (0.2s)
-✅ Secret Scanning (1.1s)
+✅ Credential Scanning (1.1s)
 ⚠️ Personal Data Check - 2 warnings (0.8s)
 ✅ MEMORY Structure (0.4s)
 ✅ Configuration Files (0.3s)

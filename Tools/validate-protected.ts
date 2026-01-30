@@ -397,8 +397,8 @@ async function main() {
       console.log('  - pii_ssn_financial (SSN, EIN, credit cards)');
       console.log('  - pii_phone         (phone numbers)');
       console.log('  - personal_emails   (@gmail, @yahoo, etc.)');
-      console.log('  - private_paths     (/Users/daniel/, ~/.claude/, ~/.config/opencode/)');
-      console.log('  - internal_infrastructure (private IPs, .internal.)');
+      console.log('  - private_paths     (/Users/*/, ~/.claude/)');
+      console.log('  - internal_infrastructure (.internal, .corp, localhost patterns)');
       console.log('  - customer_data     (customer_id, client_name)');
       console.log('  - team_members      (real names of team members)');
       console.log('  - credentials_inline (password=, secret=)');

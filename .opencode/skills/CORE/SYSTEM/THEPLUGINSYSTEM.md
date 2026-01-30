@@ -17,7 +17,7 @@ The PAI plugin system is an event-driven automation infrastructure built on Open
 - **Security Validation** - Block dangerous commands before execution
 - **Tool Lifecycle** - Pre/post processing for tool executions
 - **Voice Notifications** - Text-to-speech announcements for task completions
-- **History Capture** - Automatic work/learning documentation to `~/.config/opencode/MEMORY/`
+- **History Capture** - Automatic work/learning documentation to `$PAI_DIR/MEMORY/`
 
 **Key Principle:** Plugins run asynchronously and fail gracefully. They enhance the user experience but never block OpenCode's core functionality.
 

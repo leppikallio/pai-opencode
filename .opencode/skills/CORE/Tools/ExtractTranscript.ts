@@ -235,9 +235,9 @@ async function main() {
   if (!process.env.OPENAI_API_KEY) {
     console.error("Error: OPENAI_API_KEY environment variable not set");
     console.log("\nSet your API key:");
-    console.log('  export OPENAI_API_KEY="sk-..."');
+    console.log('  export OPENAI_API_KEY=$OPENAI_API_KEY');
     console.log("\nOr add to ~/.zshrc for persistence:");
-    console.log('  echo \'export OPENAI_API_KEY="sk-..."\' >> ~/.zshrc');
+    console.log('  echo \'export OPENAI_API_KEY=$OPENAI_API_KEY\' >> ~/.zshrc');
     process.exit(1);
   }
 

@@ -616,7 +616,7 @@ Target: John Smith
 ### Recommendations
 1. Employee security awareness training
 2. Social media policy enforcement
-3. GitHub repository review and secret scanning
+3. GitHub repository review and credential scanning
 4. LinkedIn profile guidelines for technical staff
 ```
 

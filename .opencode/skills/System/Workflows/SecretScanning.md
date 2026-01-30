@@ -1,4 +1,4 @@
-# Secret Scanning Workflow
+# Credential Scanning Workflow
 
 ## Purpose
 Find exposed API keys and credentials before they leak.
@@ -119,14 +119,14 @@ Parse JSON output and format into readable table with:
 3. **Generic API Key** (lib/api.ts:128)
    - Manually verify if credential is active
    - If active, rotate immediately
-   - Move to secure secret management (environment variables, vault)
+   - Move to secure secrets management (environment variables, vault)
 
 ### Prevention Measures
 - Add pre-commit hook with TruffleHog
 - Use environment variables for all secrets
 - Review .gitignore coverage
-- Enable secret scanning in GitHub repository settings
-- Consider using secret management tools (AWS Secrets Manager, HashiCorp Vault)
+- Enable credential scanning in GitHub repository settings
+- Consider using secrets management tools (AWS Secrets Manager, HashiCorp Vault)
 ```
 
 ## Safety Protocol
@@ -230,7 +230,7 @@ When executing secret scan:
 ```bash
 #!/usr/bin/env bash
 
-# Secret Scanning Workflow Execution
+# Credential Scanning Workflow Execution
 TARGET_DIR="${1:-.}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 RESULTS_FILE="/tmp/trufflehog_${TIMESTAMP}.json"

@@ -13,7 +13,7 @@ tools:
 permission:
   write:
     "*": deny
-    "~/.config/opencode/scratchpad/**": allow
+    "$HOME/.config/opencode/scratchpad/**": allow
   voice_notify: allow
 ---
 

@@ -74,7 +74,7 @@ Every OSINT investigation requires:
 - Privacy torts
 
 ### Company OSINT
-- Trade secret protections
+- Trade secrets protections
 - Competitive intelligence boundaries
 - Securities law (insider trading)
 - CFAA for technical recon

@@ -184,7 +184,7 @@ Save full report to user's home directory for easy access:
 
 Also optionally save to MEMORY:
 ```
-~/.config/opencode/MEMORY/State/integrity/YYYY-MM-DD.md
+$PAI_DIR/MEMORY/STATE/integrity/YYYY-MM-DD.md
 ```
 
 ### Step 6: Completion

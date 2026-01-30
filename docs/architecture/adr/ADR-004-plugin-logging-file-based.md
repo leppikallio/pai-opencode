@@ -41,7 +41,7 @@ fileLog("Warning: config missing", "warn");
 console.log("Plugin loaded"); // CORRUPTS TUI!
 ```
 
-**Log Location:** `/tmp/pai-opencode-debug.log`
+**Log Location:** `~/.config/opencode/plugins/debug.log`
 
 ---
 
@@ -63,7 +63,7 @@ Any `console.log()` from plugins:
 
 File logging provides:
 - **Persistence:** Logs survive crashes
-- **Tail-ability:** `tail -f /tmp/pai-opencode-debug.log` for live monitoring
+- **Tail-ability:** `tail -f ~/.config/opencode/plugins/debug.log` for live monitoring
 - **Grep-ability:** Search historical logs
 - **No Size Limit:** Unlike in-memory buffers
 
@@ -111,7 +111,7 @@ File logging is common for in-process extensions:
 
 - **TUI Stability:** Interface never corrupted → reliable UX
 - **Persistent Logs:** Debug trail survives crashes → better debugging
-- **Tail-Friendly:** `tail -f /tmp/pai-opencode-debug.log` → real-time monitoring
+- **Tail-Friendly:** `tail -f ~/.config/opencode/plugins/debug.log` → real-time monitoring
 - **No External Deps:** No network logging services → simple setup
 - **Privacy:** Logs stay local → no data leakage
 
@@ -172,16 +172,16 @@ clearLog();
 opencode chat
 
 # Terminal 2: Tail logs
-tail -f /tmp/pai-opencode-debug.log
+tail -f ~/.config/opencode/plugins/debug.log
 ```
 
 **Search logs:**
 ```bash
 # Find all errors
-grep "\[ERROR\]" /tmp/pai-opencode-debug.log
+grep "\[ERROR\]" ~/.config/opencode/plugins/debug.log
 
 # Find recent warnings
-tail -100 /tmp/pai-opencode-debug.log | grep "\[WARN\]"
+tail -100 ~/.config/opencode/plugins/debug.log | grep "\[WARN\]"
 ```
 
 ---

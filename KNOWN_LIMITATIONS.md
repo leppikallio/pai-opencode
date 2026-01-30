@@ -13,7 +13,7 @@ This document lists features that are planned but not yet implemented in v1.0.
 - **Planned:** v1.1 - VoiceServer skill + ElevenLabs integration
 
 ### Observability Dashboard
-- Event logging to `/tmp/pai-opencode-debug.log` works
+- Event logging to `~/.config/opencode/plugins/debug.log` works
 - No visualization dashboard yet
 - **Planned:** v1.1 - Web dashboard for session history
 
@@ -57,7 +57,7 @@ This document lists features that are planned but not yet implemented in v1.0.
 ### Plugin not loading?
 ```bash
 # Check plugin log
-tail -f /tmp/pai-opencode-debug.log
+tail -f ~/.config/opencode/plugins/debug.log
 
 # Verify plugin exists
 ls -la .opencode/plugins/pai-unified.ts

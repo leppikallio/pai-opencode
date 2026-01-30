@@ -25,7 +25,7 @@ PAI-OpenCode implements all PAI functionality in a **single unified plugin** (`p
 | **Blocking** | `exit(2)` blocks execution | `throw Error()` blocks execution |
 | **Communication** | JSON via stdout | Direct function return |
 | **Configuration** | `.claude/hooks/` directory | `opencode.json` plugins array |
-| **Logging** | stdout/stderr | File logging (`/tmp/pai-opencode-debug.log`) |
+| **Logging** | stdout/stderr | File logging (`~/.config/opencode/plugins/debug.log`) |
 
 ![Hooks vs Plugins](images/hooks-vs-plugins.png)
 
@@ -137,7 +137,7 @@ fileLog("Error message", "error");
 fileLogError("Error with stack trace", error);
 ```
 
-Logs appear in: `/tmp/pai-opencode-debug.log`
+Logs appear in: `~/.config/opencode/plugins/debug.log`
 
 ### 4. Configuration
 
@@ -224,7 +224,7 @@ Always check OpenCode release notes when updating.
 opencode
 
 # Tail the debug log in another terminal
-tail -f /tmp/pai-opencode-debug.log
+tail -f ~/.config/opencode/plugins/debug.log
 ```
 
 ### 2. Testing Changes
@@ -244,10 +244,10 @@ fileLog(`DEBUG: input = ${JSON.stringify(input)}`, "debug");
 fileLog(`DEBUG: output = ${JSON.stringify(output)}`, "debug");
 ```
 
-Check `/tmp/pai-opencode-debug.log`:
+Check `~/.config/opencode/plugins/debug.log`:
 
 ```bash
-cat /tmp/pai-opencode-debug.log | grep DEBUG
+cat ~/.config/opencode/plugins/debug.log | grep DEBUG
 ```
 
 ---

@@ -111,7 +111,7 @@ Modular, reusable capabilities invoked by name:
 - **CORE** — Identity, preferences, auto-loaded at session start
 - **Art** — Excalidraw-style visual diagrams
 - **Browser** — Code-first browser automation
-- **Security** — Pentesting, secret scanning
+- **Security** — Pentesting, credential scanning
 - **Research** — Deep web research with 242+ Fabric patterns
 
 ### 🤖 Agent Orchestration

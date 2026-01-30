@@ -21,7 +21,7 @@ tools:
 permission:
   edit:
     "*": deny
-    "~/.config/opencode/scratchpad/**": allow
+    "$HOME/.config/opencode/scratchpad/**": allow
   bash: deny
   webfetch: ask
   task: deny

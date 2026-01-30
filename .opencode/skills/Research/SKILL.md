@@ -98,8 +98,8 @@ Route to the appropriate workflow based on the request.
 
 ## File Organization
 
-**Scratch (temporary work artifacts):** `~/.config/opencode/MEMORY/WORK/{current_work}/scratch/`
-- Read `~/.config/opencode/MEMORY/STATE/current-work.json` to get the `work_dir` value
+**Scratch (temporary work artifacts):** `$PAI_DIR/MEMORY/WORK/{current_work}/scratch/`
+- Read `$PAI_DIR/MEMORY/STATE/current-work.json` to get the `work_dir` value
 - All iterative work artifacts go in the current work item's scratch/ subdirectory
 - This ties research artifacts to the work item for learning and context
 

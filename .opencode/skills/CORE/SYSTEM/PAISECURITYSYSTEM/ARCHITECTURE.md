@@ -112,36 +112,35 @@ ZERO TRUST:    External websites, APIs, unknown documents
 
 ---
 
-## Hook Execution Flow
+## Plugin Execution Flow
 
 ```
-User Action (Bash/Edit/Write/Read)
+User Action (tool execution)
             ↓
-    PreToolUse Hook Triggered
+OpenCode plugin `tool.execute.before`
             ↓
-SecurityValidator.hook.ts Runs
+`plugins/handlers/security-validator.ts`
             ↓
-    Loads patterns.yaml (USER first, then root fallback)
+Evaluates against in-code patterns:
+• Bash: blocked + confirm patterns
+• Basic prompt-injection patterns in content
+• Sensitive path write confirmations
             ↓
-    Evaluates against pattern layers:
-    • Bash: blocked, confirm, alert patterns
-    • Paths: zeroAccess, readOnly, confirmWrite, noDelete
-    • Projects: special rules per project
+Decision:
+├─ block    → throw Error (tool execution blocked)
+├─ confirm  → request confirmation via OpenCode permissions
+└─ allow    → proceed normally
             ↓
-    Decision:
-    ├─ block    → exit(2), hard block
-    ├─ confirm  → JSON {"decision":"ask"}, prompt user
-    ├─ alert    → log, allow execution
-    └─ allow    → proceed normally
-            ↓
-    Logs event to MEMORY/SECURITY/YYYY/MM/security-{summary}-{timestamp}.jsonl
+Logs to `$PAI_DIR/plugins/debug.log`
 ```
 
 ---
 
 ## Security Event Logging
 
-**Security events are logged as individual files:** `~/.config/opencode/MEMORY/SECURITY/YYYY/MM/security-{summary}-{timestamp}.jsonl`
+Security decisions are logged to:
+
+- `$PAI_DIR/plugins/debug.log` (default: `~/.config/opencode/plugins/debug.log`)
 
 Each event gets a descriptive filename for easy scanning:
 - `security-block-filesystem-destruction-20260114-143052.jsonl`
@@ -195,11 +194,10 @@ git stash
 
 | File | Purpose |
 |------|---------|
-| `USER/PAISECURITYSYSTEM/patterns.yaml` | User's security rules (primary) |
-| `PAISECURITYSYSTEM/patterns.example.yaml` | Default template (fallback) |
-| `hooks/SecurityValidator.hook.ts` | Enforcement logic |
-| `settings.json` | Hook configuration |
-| `MEMORY/SECURITY/YYYY/MM/security-*.jsonl` | Security event logs (one per event) |
+| `.opencode/plugins/handlers/security-validator.ts` | Security validation logic |
+| `.opencode/plugins/adapters/types.ts` | Dangerous + warning pattern registry |
+| `PAISECURITYSYSTEM/patterns.example.yaml` | Legacy template (not loaded today) |
+| `$PAI_DIR/plugins/debug.log` | Plugin debug/audit log |
 
 ---
 
@@ -212,7 +210,7 @@ To customize security for your environment:
 3. Add project-specific rules in the `projects` section
 4. The hook automatically loads USER patterns when available
 
-See `PAISECURITYSYSTEM/HOOKS.md` for hook configuration details.
+See `PAISECURITYSYSTEM/HOOKS.md` for plugin integration details.
 
 ---
 

@@ -95,7 +95,7 @@ hooks/initialize-session.ts     → plugins/pai-unified.ts (event handler)
 ```typescript
 // lib/file-logger.ts
 export function fileLog(message: string, level = "info") {
-  appendFileSync("/tmp/pai-opencode-debug.log",
+  appendFileSync("~/.config/opencode/plugins/debug.log",
     `[${level}] ${message}\n`);
 }
 ```
