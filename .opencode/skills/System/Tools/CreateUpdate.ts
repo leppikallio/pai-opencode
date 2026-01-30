@@ -5,11 +5,16 @@
  * Creates update documents with proper formatting in PAISYSTEMUPDATES
  */
 
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { getPaiDir } from "../../../pai-tools/PaiRuntime";
+
 interface CreateUpdateArgs {
   type: 'session' | 'project' | 'learning';
   title: string;
   content: string;
   significance: 'minor' | 'standard' | 'major';
+  tags?: string;
 }
 
 function parseArgs(): CreateUpdateArgs | null {
@@ -53,6 +58,14 @@ function parseArgs(): CreateUpdateArgs | null {
         parsed.significance = next as CreateUpdateArgs['significance'];
         i++;
         break;
+      case '--tags':
+        if (!next) {
+          console.error('Error: --tags requires a value');
+          return null;
+        }
+        parsed.tags = next;
+        i++;
+        break;
       case '--help':
       case '-h':
         showHelp();
@@ -76,7 +89,7 @@ function parseArgs(): CreateUpdateArgs | null {
 
 function showHelp(): void {
   console.log(`
-Usage: bun run CreateUpdate.ts --type TYPE --title TITLE --content CONTENT --significance LEVEL
+Usage: bun run CreateUpdate.ts --type TYPE --title TITLE --content CONTENT --significance LEVEL [--tags TAGS]
 
 Required Arguments:
   --type           Update type (session|project|learning)
@@ -84,11 +97,14 @@ Required Arguments:
   --content        Update content
   --significance   Significance level (minor|standard|major)
 
+Optional Arguments:
+  --tags           Comma-separated tags
+
 Options:
   -h, --help       Show this help message
 
 Example:
-  bun run CreateUpdate.ts --type session --title "Hook Development" --content "Created new hooks" --significance standard
+  bun run CreateUpdate.ts --type session --title "Hook Development" --content "Created new hooks" --significance standard --tags "session,hooks"
 `);
 }
 
@@ -100,11 +116,7 @@ function slugify(text: string): string {
 }
 
 async function createUpdate(args: CreateUpdateArgs): Promise<void> {
-  const PAI_DIR = process.env.PAI_DIR;
-  if (!PAI_DIR) {
-    console.error('Error: PAI_DIR environment variable not set');
-    process.exit(1);
-  }
+  const paiDir = getPaiDir();
 
   const now = new Date();
   const year = now.getFullYear();
@@ -113,24 +125,30 @@ async function createUpdate(args: CreateUpdateArgs): Promise<void> {
 
   const slug = slugify(args.title);
   const filename = `${timestamp}_${args.type}_${slug}.md`;
-  const dirPath = `${PAI_DIR}/MEMORY/PAISYSTEMUPDATES/${year}/${month}`;
-  const filePath = `${dirPath}/${filename}`;
+  const dirPath = path.join(paiDir, "MEMORY", "PAISYSTEMUPDATES", String(year), month);
+  const filePath = path.join(dirPath, filename);
 
-  // Create directory structure
   try {
-    await Bun.write(`${dirPath}/.keep`, '');
-  } catch (_error) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  } catch {
     console.error(`Error: Failed to create directory ${dirPath}`);
     process.exit(1);
   }
 
   // Create update document
+  const tags = (args.tags || "")
+    .split(",")
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const tagsLine = tags.length ? `tags: [${tags.join(", ")}]
+` : "";
+
   const content = `---
 type: ${args.type}
 title: ${args.title}
 timestamp: ${now.toISOString()}
 significance: ${args.significance}
----
+${tagsLine}---
 
 # ${args.title}
 

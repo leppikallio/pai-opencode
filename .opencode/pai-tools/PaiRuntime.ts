@@ -9,9 +9,9 @@
  * - Avoid hardcoding legacy ~/.opencode paths
  */
 
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export type PaiRuntimeInfo = {
@@ -49,7 +49,7 @@ function xdgConfigHome(): string {
  */
 export function getPaiDir(): string {
   const fromEnv = process.env.PAI_DIR;
-  if (fromEnv?.trim()) return path.resolve(fromEnv.trim());
+  if (fromEnv?.trim()) return path.resolve(expandTilde(fromEnv.trim()));
 
   // This file lives at: <paiDir>/pai-tools/PaiRuntime.ts
   // In the repo source tree: <repo>/.opencode/pai-tools/PaiRuntime.ts

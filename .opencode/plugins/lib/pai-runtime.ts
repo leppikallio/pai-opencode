@@ -16,8 +16,8 @@
 
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import os from "node:os";
-import fs from "node:fs";
+import * as os from "node:os";
+import * as fs from "node:fs";
 
 export type PaiRuntimeInfo = {
   paiDir: string;
@@ -33,6 +33,14 @@ function xdgConfigHome(): string {
 
 function defaultPaiDir(): string {
   return join(xdgConfigHome(), "opencode");
+}
+
+function expandTilde(p: string): string {
+  if (p === "~") return os.homedir();
+  if (p.startsWith("~/") || p.startsWith("~\\")) {
+    return join(os.homedir(), p.slice(2));
+  }
+  return p;
 }
 
 function dirExists(p: string): boolean {
@@ -54,7 +62,7 @@ function dirExists(p: string): boolean {
  */
 export function getPaiDir(): string {
   const fromEnv = process.env.PAI_DIR;
-  if (fromEnv?.trim()) return resolve(fromEnv.trim());
+  if (fromEnv?.trim()) return resolve(expandTilde(fromEnv.trim()));
 
   // This file lives at: <paiDir>/plugins/lib/pai-runtime.ts (installed)
   // or: <repo>/.opencode/plugins/lib/pai-runtime.ts (source tree)
@@ -62,6 +70,12 @@ export function getPaiDir(): string {
   const fromHere = resolve(join(here, "..", "..", ".."));
   if (dirExists(join(fromHere, "plugins")) && dirExists(join(fromHere, "skills"))) {
     return fromHere;
+  }
+
+  // Source tree layout: <repo>/.opencode/{plugins,skills}
+  const fromRepo = join(fromHere, ".opencode");
+  if (dirExists(join(fromRepo, "plugins")) && dirExists(join(fromRepo, "skills"))) {
+    return fromRepo;
   }
 
   const xdg = defaultPaiDir();

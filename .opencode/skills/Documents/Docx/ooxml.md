@@ -265,7 +265,7 @@ When adding content, update these files:
 
 ## Document Library (Python)
 
-Use the Document class from `scripts/document.py` for all tracked changes and comments. It automatically handles infrastructure setup (people.xml, RSIDs, settings.xml, comment files, relationships, content types). Only use direct XML manipulation for complex scenarios not supported by the library.
+Use the Document class from `Scripts/document.py` for all tracked changes and comments. It automatically handles infrastructure setup (people.xml, RSIDs, settings.xml, comment files, relationships, content types). Only use direct XML manipulation for complex scenarios not supported by the library.
 
 **Working with Unicode and Entities:**
 - **Searching**: Both entity notation and Unicode characters work - `contains="&#8220;Company"` and `contains="\u201cCompany"` find the same text
@@ -273,7 +273,7 @@ Use the Document class from `scripts/document.py` for all tracked changes and co
 
 ### Initialization
 
-**Find the docx skill root** (directory containing `scripts/` and `ooxml/`):
+**Find the docx skill root** (directory containing `Scripts/` and `Ooxml/`):
 ```bash
 # Search for document.py to locate the skill root
 # Note: /mnt/skills is used here as an example; check your context for the actual location

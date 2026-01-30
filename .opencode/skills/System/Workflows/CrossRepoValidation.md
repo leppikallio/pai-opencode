@@ -521,7 +521,7 @@ Identify which files SHOULD be synced between repos:
 ```typescript
 // Files that should be identical (generic infrastructure)
 const shouldMatch = [
-  ".opencode/tools/SkillSearch.ts",
+  "skills/CORE/Tools/SkillSearch.ts",
   ".opencode/skills/Art/SKILL.md",
   // ... other generic files
 ];

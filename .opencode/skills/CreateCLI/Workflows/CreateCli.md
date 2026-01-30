@@ -265,7 +265,7 @@ const format = formatIdx !== -1 ? args[formatIdx + 1] : 'json';
 4. **Value flags**: `--flag <value>` for choices
 5. **Composable**: Flags should combine logically
 
-**Reference:** `~/.config/opencode/skills/CORE/CliFirstArchitecture.md` (Configuration Flags section)
+**Reference:** `~/.config/opencode/skills/CORE/SYSTEM/CLIFIRSTARCHITECTURE.md` (Configuration Flags section)
 
 ---
 
@@ -795,7 +795,7 @@ Before reporting CLI as complete, verify:
 
 ### Workflow Integration
 - [ ] If this CLI will be called by workflows, document the intent-to-flag mapping pattern
-- [ ] Flag names match standard conventions (see CliFirstArchitecture.md)
+- [ ] Flag names match standard conventions (see CLIFIRSTARCHITECTURE.md)
 
 ---
 

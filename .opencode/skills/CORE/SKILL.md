@@ -546,7 +546,7 @@ Critical PAI documentation organized by domain. Load on-demand based on context.
 | Trigger | Path | Purpose |
 |---------|------|---------|
 | "projects", "my projects", "project paths", "deploy" | `USER/TELOS/PROJECTS.md` | Technical project registry—paths, deployment, routing aliases |
-| "Telos", "life goals", "goals", "challenges" | `USER/TELOS/PROJECTS.md` | Life goals, challenges, predictions (Telos Life System) |
+| "Telos", "life goals", "goals", "challenges" | `USER/TELOS/TELOS.md` | Life goals, challenges, predictions (Telos Life System) |
 
 ---
 

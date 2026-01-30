@@ -523,23 +523,30 @@ const _server = serve({
 
         console.log(`Notification: "${title}" - "${message}" (voice: ${voiceEnabled}, voiceId: ${voiceId || DEFAULT_VOICE_ID})`);
 
-        await sendNotification(title, message, voiceEnabled, voiceId, voiceSettings);
+        // Fire-and-forget: speaking + playback can exceed client timeouts.
+        // Return immediately so callers don't treat long TTS as failure.
+        void sendNotification(title, message, voiceEnabled, voiceId, voiceSettings).catch(
+          (err: unknown) => {
+            const errMsg = err instanceof Error ? err.message : String(err);
+            console.error("Notification async error:", errMsg);
+          }
+        );
 
         return new Response(
-          JSON.stringify({ status: "success", message: "Notification sent" }),
+          JSON.stringify({ status: "accepted", message: "Notification queued" }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200
+            status: 202,
           }
         );
       } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error("Notification error:", message);
+        const errMsg = error instanceof Error ? error.message : String(error);
+        console.error("Notification error:", errMsg);
         return new Response(
-          JSON.stringify({ status: "error", message: error.message || "Internal server error" }),
+          JSON.stringify({ status: "error", message: errMsg || "Internal server error" }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: error.message?.includes('Invalid') ? 400 : 500
+            status: errMsg.includes("Invalid") ? 400 : 500,
           }
         );
       }
@@ -553,23 +560,26 @@ const _server = serve({
 
         console.log(`PAI notification: "${title}" - "${message}"`);
 
-        await sendNotification(title, message, true, null);
+        void sendNotification(title, message, true, null).catch((err: unknown) => {
+          const errMsg = err instanceof Error ? err.message : String(err);
+          console.error("PAI notification async error:", errMsg);
+        });
 
         return new Response(
-          JSON.stringify({ status: "success", message: "PAI notification sent" }),
+          JSON.stringify({ status: "accepted", message: "PAI notification queued" }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: 200
+            status: 202,
           }
         );
       } catch (error: unknown) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error("PAI notification error:", message);
+        const errMsg = error instanceof Error ? error.message : String(error);
+        console.error("PAI notification error:", errMsg);
         return new Response(
-          JSON.stringify({ status: "error", message: error.message || "Internal server error" }),
+          JSON.stringify({ status: "error", message: errMsg || "Internal server error" }),
           {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
-            status: error.message?.includes('Invalid') ? 400 : 500
+            status: errMsg.includes("Invalid") ? 400 : 500,
           }
         );
       }

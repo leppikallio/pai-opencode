@@ -5,8 +5,9 @@
  * Regenerates index.json and INDEX.md from PAISYSTEMUPDATES files
  */
 
-import { readdirSync, } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { getPaiDir } from '../../../pai-tools/PaiRuntime';
 
 interface UpdateMetadata {
   type: string;
@@ -175,13 +176,7 @@ ${Object.entries(bySignificance).map(([sig, count]) => `- **${sig}**: ${count}`)
 }
 
 async function updateIndex(): Promise<void> {
-  const PAI_DIR = process.env.PAI_DIR;
-  if (!PAI_DIR) {
-    console.error('Error: PAI_DIR environment variable not set');
-    process.exit(1);
-  }
-
-  const baseDir = `${PAI_DIR}/MEMORY/PAISYSTEMUPDATES`;
+  const baseDir = `${getPaiDir()}/MEMORY/PAISYSTEMUPDATES`;
   const indexJsonPath = `${baseDir}/index.json`;
   const indexMdPath = `${baseDir}/INDEX.md`;
 

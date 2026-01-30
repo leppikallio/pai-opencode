@@ -17,8 +17,8 @@
  */
 
 import { tool, type Plugin, type Hooks } from "@opencode-ai/plugin";
-import os from "node:os";
-import path from "node:path";
+import * as os from "node:os";
+import * as path from "node:path";
 import { loadContext } from "./handlers/context-loader";
 import { validateSecurity } from "./handlers/security-validator";
 import { restoreSkillFiles } from "./handlers/skill-restore";
@@ -405,7 +405,7 @@ export const PaiUnified: Plugin = async (ctx) => {
         },
         async execute(args, _context) {
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 2500);
+          const timeout = setTimeout(() => controller.abort(), 15000);
           try {
             const body: Record<string, unknown> = {
               message: args.message,
@@ -522,49 +522,6 @@ export const PaiUnified: Plugin = async (ctx) => {
       } catch (error) {
         fileLogError("Compaction context injection failed", error);
         // Don't throw - compaction should continue
-      }
-    },
-
-    /**
-     * SECURITY BLOCKING (PreToolUse exit(2) equivalent)
-     *
-     * Validates tool executions for security threats.
-     * Can BLOCK dangerous operations by setting output.status = "deny".
-     * Equivalent to PAI v2.4 security-validator.ts hook.
-     */
-    "permission.ask": async (input, output) => {
-      try {
-        fileLog(`>>> PERMISSION.ASK CALLED <<<`, "info");
-        fileLog(
-          `permission.ask input: ${JSON.stringify(input).substring(0, 200)}`,
-          "debug"
-        );
-
-        // Extract tool info from Permission input
-        const tool = getStringProp(input, "tool") ?? "unknown";
-        const args = getRecordProp(input, "args") ?? {};
-
-        const result = await validateSecurity({ tool, args });
-
-        switch (result.action) {
-          case "block":
-            output.status = "deny";
-            fileLog(`BLOCKED: ${result.reason}`, "error");
-            break;
-
-          case "confirm":
-            output.status = "ask";
-            fileLog(`CONFIRM: ${result.reason}`, "warn");
-            break;
-
-          default:
-            // Don't modify output.status - let it proceed
-            fileLog(`ALLOWED: ${tool}`, "debug");
-            break;
-        }
-      } catch (error) {
-        fileLogError("Permission check failed", error);
-        // Fail-open: on error, don't block
       }
     },
 

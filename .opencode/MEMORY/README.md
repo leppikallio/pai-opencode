@@ -6,8 +6,7 @@ PAI's memory system for continuous learning.
 
 | Directory | Purpose |
 |-----------|---------|
-| LEARNINGS/ | Captured insights and patterns |
-| SIGNALS/ | User feedback ratings |
+| LEARNING/ | Captured insights, patterns, and signals |
 | SESSIONS/ | Session summaries |
 | RESEARCH/ | Research artifacts |
 | PAISYSTEMUPDATES/ | System upgrade documentation |

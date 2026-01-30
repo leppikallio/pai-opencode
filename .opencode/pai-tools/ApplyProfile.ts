@@ -13,7 +13,7 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import os from "node:os";
+import * as os from "node:os";
 
 type ApplyProfileOptions = {
   opencodeDir: string;
