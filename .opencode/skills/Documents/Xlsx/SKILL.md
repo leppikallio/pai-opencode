@@ -1,6 +1,6 @@
 ---
 name: Xlsx
-description: Excel file processing. USE WHEN xlsx, Excel, spreadsheet. SkillSearch('xlsx') for docs.
+description: Spreadsheet creation, editing, and analysis. USE WHEN user mentions Excel/XLSX/CSV/TSV, formulas, financial models, recalculation, or spreadsheet data analysis. SkillSearch('xlsx') for docs.
 ---
 
 # Requirements for Outputs

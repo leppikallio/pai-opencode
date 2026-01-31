@@ -1,6 +1,6 @@
 ---
 name: PAIUpgrade
-description: Extract system improvements and monitor Anthropic ecosystem. USE WHEN upgrade, check Anthropic, new Claude features.
+description: System upgrade analysis and ecosystem monitoring. USE WHEN upgrade ideas, analyze content for improvements, check Anthropic/Claude updates, release notes, source monitoring.
 context: fork
 ---
 

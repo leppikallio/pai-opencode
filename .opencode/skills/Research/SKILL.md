@@ -1,6 +1,6 @@
 ---
 name: Research
-description: Comprehensive research and content extraction. USE WHEN research, investigate, extract wisdom, analyze content. For OSINT use OSINT skill.
+description: Comprehensive research and content analysis. USE WHEN topic research, summarize sources, extract insights, analyze content; NOT people/company due diligence (use OSINT).
 context: fork
 ---
 

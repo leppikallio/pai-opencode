@@ -1,6 +1,6 @@
 ---
 name: Documents
-description: Document processing. USE WHEN document, process file. SkillSearch('documents') for docs.
+description: Document processing router for PDF/DOCX/PPTX/XLSX. USE WHEN user asks to create, edit, convert, or analyze documents or mentions Word, PDF, PowerPoint, Excel, or .docx/.pdf/.pptx/.xlsx. SkillSearch('documents') for docs.
 ---
 
 ## Customization

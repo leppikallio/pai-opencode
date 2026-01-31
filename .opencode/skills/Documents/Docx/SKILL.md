@@ -1,6 +1,6 @@
 ---
 name: Docx
-description: Word document processing. USE WHEN docx, Word document. SkillSearch('docx') for docs.
+description: Word document creation, editing, and review. USE WHEN user mentions Word/DOCX, tracked changes/redlining, edit/convert documents, extract content, or provides .docx files. SkillSearch('docx') for docs.
 ---
 
 # DOCX creation, editing, and analysis

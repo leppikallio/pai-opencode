@@ -1,6 +1,6 @@
 ---
 name: Pdf
-description: PDF processing. USE WHEN pdf, PDF file. SkillSearch('pdf') for docs.
+description: PDF creation, extraction, and manipulation. USE WHEN user mentions PDF, OCR, merge/split, extract text/tables/images, fill forms, watermark, encrypt, or rotate pages. SkillSearch('pdf') for docs.
 ---
 
 # PDF Processing Guide
@@ -313,7 +313,7 @@ qpdf input.pdf --pages . 6-10 -- pages6-10.pdf
 qpdf input.pdf output.pdf --rotate=+90:1  # Rotate page 1 by 90 degrees
 
 # Remove password
-qpdf --password=mypassword --decrypt encrypted.pdf decrypted.pdf
+qpdf --password=*** --decrypt encrypted.pdf decrypted.pdf
 ```
 
 ### pdftk (if available)
