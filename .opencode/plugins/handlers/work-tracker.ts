@@ -29,7 +29,7 @@ export interface WorkSession {
   path: string;
   title: string;
   started_at: string;
-  status: "ACTIVE" | "COMPLETED";
+  status: "ACTIVE" | "PAUSED" | "COMPLETED";
 }
 
 /**
@@ -52,6 +52,53 @@ export interface CompleteWorkResult {
 
 // In-memory cache for current session
 let currentSession: WorkSession | null = null;
+
+export interface IscCriterion {
+  id: string;
+  text: string;
+  status: string;
+  evidenceRefs?: string[];
+  sourceEventIds?: string[];
+}
+
+export interface IscState {
+  v: "0.1";
+  ideal: string;
+  criteria: IscCriterion[];
+  antiCriteria: { id: string; text: string }[];
+  updatedAt: string;
+}
+
+export interface IscSnapshot {
+  v: "0.1";
+  ts: string;
+  delta: "add" | "adjust" | "verify" | "fail" | "remove";
+  criterionId: string;
+  from?: string;
+  to?: string;
+  sourceEventId: string;
+}
+
+function createEmptyIscState(): IscState {
+  return {
+    v: "0.1",
+    ideal: "",
+    criteria: [],
+    antiCriteria: [],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+function normalizeStatus(status: string): string {
+  const upper = status.trim().toUpperCase();
+  if (upper.includes("VERIFIED") || upper.includes("DONE")) return "VERIFIED";
+  if (upper.includes("FAILED")) return "FAILED";
+  if (upper.includes("IN_PROGRESS") || upper.includes("IN-PROGRESS")) return "IN_PROGRESS";
+  if (upper.includes("PENDING")) return "PENDING";
+  if (upper.includes("ADJUSTED")) return "ADJUSTED";
+  if (upper.includes("REMOVED")) return "REMOVED";
+  return upper || "PENDING";
+}
 
 /**
  * Infer title from user prompt
@@ -116,10 +163,10 @@ export async function createWorkSession(
       `status: ${meta.status}\nstarted_at: ${meta.started_at}\ntitle: "${meta.title}"\nsession_id: ${meta.session_id}\n`
     );
 
-    // Create empty ISC.json
+    // Create empty ISC.json (v0.1)
     await fs.promises.writeFile(
       path.join(sessionPath, "ISC.json"),
-      JSON.stringify({ criteria: [], anti_criteria: [] }, null, 2)
+      JSON.stringify(createEmptyIscState(), null, 2)
     );
 
     // Create THREAD.md
@@ -159,6 +206,37 @@ export function getCurrentSession(): WorkSession | null {
 }
 
 /**
+ * Load current session from disk if cache is empty
+ */
+export async function getOrLoadCurrentSession(): Promise<WorkSession | null> {
+  if (currentSession) return currentSession;
+  const sessionPath = await getCurrentWorkPath();
+  if (!sessionPath) return null;
+
+  const metaPath = path.join(sessionPath, "META.yaml");
+  try {
+    const metaContent = await fs.promises.readFile(metaPath, "utf-8");
+    const title = (metaContent.match(/title:\s*"?(.+?)"?\s*$/m) || [])[1];
+    const status =
+      (metaContent.match(/status:\s*(\w+)/) || [])[1] || "ACTIVE";
+    const started_at =
+      (metaContent.match(/started_at:\s*(.+)/) || [])[1] || new Date().toISOString();
+
+    currentSession = {
+      id: path.basename(sessionPath),
+      path: sessionPath,
+      title: title || "work-session",
+      started_at,
+      status: status as WorkSession["status"],
+    };
+    return currentSession;
+  } catch (error) {
+    fileLogError("Failed to load current session", error);
+    return null;
+  }
+}
+
+/**
  * Complete the current work session
  *
  * Called at session end. Updates META.yaml with completion timestamp.
@@ -184,7 +262,7 @@ export async function completeWorkSession(): Promise<CompleteWorkResult> {
 
     // Update status
     metaContent = metaContent
-      .replace(/status: ACTIVE/, "status: COMPLETED")
+      .replace(/status: (ACTIVE|PAUSED)/, "status: COMPLETED")
       .trim();
     metaContent += `\ncompleted_at: ${completed_at}\n`;
 
@@ -207,6 +285,46 @@ export async function completeWorkSession(): Promise<CompleteWorkResult> {
 }
 
 /**
+ * Pause the current work session (soft finalize)
+ */
+export async function pauseWorkSession(): Promise<void> {
+  const sessionPath = await getCurrentWorkPath();
+  if (!sessionPath) return;
+
+  const metaPath = path.join(sessionPath, "META.yaml");
+  const paused_at = new Date().toISOString();
+  try {
+    let metaContent = await fs.promises.readFile(metaPath, "utf-8");
+    metaContent = metaContent.replace(/status: (ACTIVE|PAUSED)/, "status: PAUSED").trim();
+    metaContent += `\npaused_at: ${paused_at}\n`;
+    await fs.promises.writeFile(metaPath, metaContent);
+    if (currentSession) currentSession.status = "PAUSED";
+  } catch (error) {
+    fileLogError("Failed to pause work session", error);
+  }
+}
+
+/**
+ * Resume a paused work session
+ */
+export async function resumeWorkSession(): Promise<void> {
+  const sessionPath = await getCurrentWorkPath();
+  if (!sessionPath) return;
+
+  const metaPath = path.join(sessionPath, "META.yaml");
+  const resumed_at = new Date().toISOString();
+  try {
+    let metaContent = await fs.promises.readFile(metaPath, "utf-8");
+    metaContent = metaContent.replace(/status: (PAUSED|ACTIVE)/, "status: ACTIVE").trim();
+    metaContent += `\nresumed_at: ${resumed_at}\n`;
+    await fs.promises.writeFile(metaPath, metaContent);
+    if (currentSession) currentSession.status = "ACTIVE";
+  } catch (error) {
+    fileLogError("Failed to resume work session", error);
+  }
+}
+
+/**
  * Append to THREAD.md
  */
 export async function appendToThread(content: string): Promise<void> {
@@ -225,18 +343,109 @@ export async function appendToThread(content: string): Promise<void> {
 /**
  * Update ISC.json
  */
-export async function updateISC(
-  criteria: { description: string; status: string }[]
-): Promise<void> {
+export async function updateISC(state: IscState): Promise<void> {
   const sessionPath = await getCurrentWorkPath();
   if (!sessionPath) return;
 
   const iscPath = path.join(sessionPath, "ISC.json");
 
   try {
-    const isc = { criteria, anti_criteria: [], updated_at: new Date().toISOString() };
-    await fs.promises.writeFile(iscPath, JSON.stringify(isc, null, 2));
+    await fs.promises.writeFile(iscPath, JSON.stringify(state, null, 2));
   } catch (error) {
     fileLogError("Failed to update ISC.json", error);
+  }
+}
+
+/**
+ * Apply ISC update with snapshots
+ */
+export async function applyIscUpdate(
+  state: IscState,
+  sourceEventId: string
+): Promise<void> {
+  const sessionPath = await getCurrentWorkPath();
+  if (!sessionPath) return;
+
+  const iscPath = path.join(sessionPath, "ISC.json");
+  const snapshotsPath = path.join(sessionPath, "isc.snapshots.jsonl");
+
+  let previous = createEmptyIscState();
+  try {
+    const prevContent = await fs.promises.readFile(iscPath, "utf-8");
+    previous = JSON.parse(prevContent) as IscState;
+  } catch {
+    // ignore
+  }
+
+  if (!state.ideal) state.ideal = previous.ideal;
+  if (state.antiCriteria.length === 0) state.antiCriteria = previous.antiCriteria;
+
+  const normalizedCriteria = state.criteria.map((c) => ({
+    ...c,
+    status: normalizeStatus(c.status),
+  }));
+  state.criteria = normalizedCriteria;
+
+  const prevById = new Map(previous.criteria.map((c) => [c.id, c]));
+  const nextById = new Map(state.criteria.map((c) => [c.id, c]));
+  const snapshots: IscSnapshot[] = [];
+
+  for (const next of state.criteria) {
+    const prev = prevById.get(next.id);
+    if (!prev) {
+      snapshots.push({
+        v: "0.1",
+        ts: new Date().toISOString(),
+        delta: "add",
+        criterionId: next.id,
+        to: next.status,
+        sourceEventId,
+      });
+      continue;
+    }
+    const prevStatus = normalizeStatus(prev.status);
+    const nextStatus = normalizeStatus(next.status);
+    if (prevStatus !== nextStatus) {
+      const delta: IscSnapshot["delta"] =
+        nextStatus === "VERIFIED"
+          ? "verify"
+          : nextStatus === "FAILED"
+            ? "fail"
+            : "adjust";
+      snapshots.push({
+        v: "0.1",
+        ts: new Date().toISOString(),
+        delta,
+        criterionId: next.id,
+        from: prevStatus,
+        to: nextStatus,
+        sourceEventId,
+      });
+    }
+  }
+
+  for (const prev of previous.criteria) {
+    if (!nextById.has(prev.id)) {
+      snapshots.push({
+        v: "0.1",
+        ts: new Date().toISOString(),
+        delta: "remove",
+        criterionId: prev.id,
+        from: prev.status,
+        sourceEventId,
+      });
+    }
+  }
+
+  state.updatedAt = new Date().toISOString();
+  await updateISC(state);
+
+  if (snapshots.length > 0) {
+    const lines = `${snapshots.map((s) => JSON.stringify(s)).join("\n")}\n`;
+    try {
+      await fs.promises.appendFile(snapshotsPath, lines);
+    } catch (error) {
+      fileLogError("Failed to append ISC snapshots", error);
+    }
   }
 }

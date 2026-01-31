@@ -1,165 +1,149 @@
-# PAI Security Patterns - EXAMPLE TEMPLATE
-# Single source of truth for security validation
-# Used by SecurityValidator.hook.ts
-#
-# INSTRUCTIONS:
-# 1. Copy this file to USER/PAISECURITYSYSTEM/patterns.yaml
-# 2. Customize patterns for your environment
-# 3. The hook will load USER patterns first, falling back to this example
----
-version: "1.0"
-last_updated: "2026-01-14"
+# PAI Security System - Example Patterns Configuration
+# This file demonstrates the security patterns that can be customized
+# Copy this file to patterns.yaml and modify rules as needed for your environment
 
-# Philosophy: Safe but functional by default
-# Block catastrophic operations, confirm dangerous ones, allow everything else
-philosophy:
-  mode: safe_functional
-  principle: "Meaningful protection without friction that drives people to disable security"
+# DANGEROUS_PATTERNS: Patterns that will be BLOCKED and require explicit override
+# These are high-risk operations that could cause system damage
+DANGEROUS_PATTERNS:
+  # Destructive filesystem operations
+  - pattern: "rm\\s+(-rf|-r|--recursive)\\s+(/|~|\\.\\./|\\/.*)"
+    description: "Recursive delete from root or home directory"
+    severity: "CRITICAL"
+    suggestion: "Use specific paths and verify before deleting"
 
-# ========================================
-# BASH COMMAND PATTERNS
-# ========================================
-bash:
-  # BLOCKED - Catastrophic/irreversible (exit 2)
-  # These operations are NEVER allowed - they cause irreversible damage
-  blocked:
-    # Filesystem destruction
-    - pattern: "rm -rf /"
-      reason: "Filesystem destruction"
-    - pattern: "rm -rf ~"
-      reason: "Home directory destruction"
-    - pattern: "sudo rm -rf /"
-      reason: "Filesystem destruction with sudo"
-    - pattern: "sudo rm -rf ~"
-      reason: "Home directory destruction with sudo"
+  - pattern: "mkfs"
+    description: "Create filesystem (wipes disk)"
+    severity: "CRITICAL"
+    suggestion: "Only run on intended target disk with explicit confirmation"
 
-    # Disk operations
-    - pattern: "diskutil eraseDisk"
-      reason: "Disk destruction"
-    - pattern: "diskutil zeroDisk"
-      reason: "Disk destruction"
-    - pattern: "diskutil partitionDisk"
-      reason: "Disk partitioning"
-    - pattern: "diskutil apfs deleteContainer"
-      reason: "APFS container deletion"
-    - pattern: "diskutil apfs eraseVolume"
-      reason: "Volume destruction"
-    - pattern: "dd if=/dev/zero"
-      reason: "Disk overwrite"
-    - pattern: "mkfs"
-      reason: "Filesystem format"
+  - pattern: "dd\\s+if=.*of=(/dev/|/|~)"
+    description: "Disk copy to critical location"
+    severity: "CRITICAL"
+    suggestion: "Verify source and destination carefully"
 
-    # Repository operations
-    - pattern: "gh repo delete"
-      reason: "Repository deletion"
-    - pattern: "gh repo edit --visibility public"
-      reason: "Repository exposure"
+  # Process/system termination
+  - pattern: "kill\\s+(-9|-KILL)\\s+1"
+    description: "Kill init process (system crash)"
+    severity: "CRITICAL"
+    suggestion: "Only use on non-critical processes"
 
-  # CONFIRM - Dangerous but sometimes legitimate (exit 0 + JSON prompt)
-  # User will be prompted to confirm before execution
-  confirm:
-    # Git operations
-    - pattern: "git push --force"
-      reason: "Force push can lose commits"
-    - pattern: "git push -f"
-      reason: "Force push can lose commits"
-    - pattern: "git push origin --force"
-      reason: "Force push can lose commits"
-    - pattern: "git push origin -f"
-      reason: "Force push can lose commits"
-    - pattern: "git reset --hard"
-      reason: "Loses uncommitted changes"
+  # Password/credential exposure
+  - pattern: "(password|secret|token|apikey)\\s*[=:]\\s*['\"](.*)['\"]"
+    description: "Hardcoded credentials in command"
+    severity: "HIGH"
+    suggestion: "Use environment variables or secure vaults"
 
-    # Cloud - AWS
-    - pattern: "aws s3 rm.*--recursive"
-      reason: "Bulk S3 deletion"
-    - pattern: "aws ec2 terminate"
-      reason: "EC2 instance termination"
-    - pattern: "aws rds delete"
-      reason: "RDS deletion"
+  # Reverse shells / remote execution
+  - pattern: "(bash|sh)\\s+-i\\s+>(&?\\s*/dev/|<)"
+    description: "Reverse shell pattern"
+    severity: "CRITICAL"
+    suggestion: "Only use in controlled security testing with approval"
 
-    # Cloud - GCP
-    - pattern: "gcloud.*delete"
-      reason: "GCP resource deletion"
+  - pattern: "curl\\s+.*\\|\\s*(bash|sh|python|perl)"
+    description: "Remote code execution via pipe"
+    severity: "CRITICAL"
+    suggestion: "Download and inspect script before execution"
 
-    # Infrastructure as Code
-    - pattern: "terraform destroy"
-      reason: "Infrastructure destruction"
-    - pattern: "terraform apply.*-auto-approve"
-      reason: "Auto-approve bypasses review"
-    - pattern: "pulumi destroy"
-      reason: "Infrastructure destruction"
+# WARNING_PATTERNS: Patterns that trigger warnings but allow continuation
+# These are potentially risky and should be reviewed before execution
+WARNING_PATTERNS:
+  # Privilege escalation
+  - pattern: "sudo\\s+(su|passwd|visudo)"
+    description: "Privilege escalation operation"
+    severity: "HIGH"
+    suggestion: "Verify the necessity and scope of privilege increase"
 
-    # Containers
-    - pattern: "docker system prune"
-      reason: "Container/image cleanup"
-    - pattern: "docker volume rm"
-      reason: "Volume data deletion"
-    - pattern: "kubectl delete namespace"
-      reason: "Namespace deletion"
+  # Network operations
+  - pattern: "nc\\s+(-l|--listen)\\s+.*"
+    description: "Opening listening network socket"
+    severity: "MEDIUM"
+    suggestion: "Ensure firewall rules and intended clients"
 
-    # Databases
-    - pattern: "DELETE FROM.*WHERE"
-      reason: "Database deletion (confirm scope)"
-    - pattern: "DROP DATABASE"
-      reason: "Database destruction"
-    - pattern: "DROP TABLE"
-      reason: "Table destruction"
-    - pattern: "TRUNCATE"
-      reason: "Table data destruction"
+  - pattern: "iptables|ufw\\s+(--delete|delete)"
+    description: "Removing firewall rules"
+    severity: "MEDIUM"
+    suggestion: "Verify you don't break essential connectivity"
 
-  # ALERT - Suspicious but allowed (log only, no block)
-  # These are logged for security review but not blocked
-  alert:
-    - pattern: "curl.*\\|.*sh"
-      reason: "Piping curl to shell"
-    - pattern: "curl.*\\|.*bash"
-      reason: "Piping curl to bash"
-    - pattern: "wget.*\\|.*sh"
-      reason: "Piping wget to shell"
-    - pattern: "wget.*\\|.*bash"
-      reason: "Piping wget to bash"
+  # Package/system modifications
+  - pattern: "apt-get\\s+(remove|purge)\\s+[a-z-]+"
+    description: "Removing system packages"
+    severity: "MEDIUM"
+    suggestion: "Verify dependencies before removal"
 
-# ========================================
-# PATH PROTECTION
-# ========================================
-paths:
-  # ZERO ACCESS - Complete denial for all operations (read/write/delete)
-  # These paths contain secrets that should never be accessed
-  zeroAccess:
-    - "~/.ssh/id_*"
-    - "~/.ssh/*.pem"
-    - "~/.aws/credentials"
-    - "~/.gnupg/private*"
-    - "**/credentials.json"
-    - "**/service-account*.json"
+  - pattern: "npm\\s+(uninstall|remove)\\s+-g"
+    description: "Removing global npm packages"
+    severity: "LOW"
+    suggestion: "Check for dependent projects"
 
-  # READ ONLY - Can read but cannot modify or delete
-  readOnly:
-    - "/etc/**"
+  # File modifications in system directories
+  - pattern: "(cp|mv|sed|ed|nano|vi)\\s+.*(/etc/|/boot/|/sys/)"
+    description: "Modifying system configuration"
+    severity: "MEDIUM"
+    suggestion: "Backup original and test in staging first"
 
-  # CONFIRM WRITE - Can read freely, writing requires confirmation
-  confirmWrite:
-    - "**/.env"
-    - "**/.env.*"
-    - "~/.ssh/*"
+  # Database operations
+  - pattern: "(mysql|psql|sqlite3)\\s+.*DROP\\s+(DATABASE|TABLE)"
+    description: "Dropping database or table"
+    severity: "HIGH"
+    suggestion: "Backup database before destructive operations"
 
-  # NO DELETE - Can read and modify but cannot delete
-  # Add paths to important configuration or infrastructure files
-  noDelete:
-    - ".git/**"
-    - "LICENSE*"
-    - "README.md"
+# ALLOWED_PATTERNS: Optional whitelist of patterns that bypass warnings
+# Useful for known-safe repetitive operations
+ALLOWED_PATTERNS:
+  - pattern: "ls\\s+.*"
+    description: "Directory listing is always safe"
 
-# ========================================
-# SPECIAL PROJECT RULES
-# ========================================
-# Add project-specific rules here
-# Example:
-# projects:
-#   my-project:
-#     path: "~/Projects/my-project"
-#     rules:
-#       - action: "block_git_push"
-#         reason: "Deploy via custom method only"
-projects: {}
+  - pattern: "pwd"
+    description: "Print working directory"
+
+  - pattern: "echo\\s+.*"
+    description: "Echo is safe unless piped to sensitive locations"
+
+  - pattern: "cat\\s+[^/]*(?!(/etc/|/root/|/home/\\.))"
+    description: "Read non-sensitive files"
+
+# SECURITY_RULES: General security configuration
+SECURITY_RULES:
+  # Enable pattern matching
+  enabled: true
+
+  # Block dangerous patterns by default (true) or warn (false)
+  block_dangerous: true
+
+  # Require explicit confirmation for warnings
+  require_confirmation_for_warnings: true
+
+  # Audit logging (informational only)
+  # Actual log path: MEMORY/SECURITY/YYYY-MM/security.jsonl
+  audit_log_path: "MEMORY/SECURITY/YYYY-MM/security.jsonl"
+
+  # Maximum command length before triggering inspection
+  max_command_length: 1000
+
+  # Additional environment variable checks
+  check_for_credentials: true
+  credential_keywords:
+    - "password"
+    - "secret"
+    - "token"
+    - "api_key"
+    - "apikey"
+    - "auth"
+    - "aws_access"
+    - "aws_secret"
+
+# CUSTOM_RULES: Define environment-specific security rules
+# Example: Customize for your workspace
+CUSTOM_RULES:
+  development:
+    # More permissive in development
+    block_dangerous: false
+    require_confirmation_for_warnings: false
+
+  production:
+    # Strict in production
+    block_dangerous: true
+    require_confirmation_for_warnings: true
+    additional_dangerous_patterns:
+      - pattern: "deploy|release|push.*main"
+        description: "Production deployment"

@@ -6,7 +6,10 @@ A foundational security framework for Personal AI Infrastructure.
 
 ## Two-Layer Design
 
-This directory (`skills/CORE/SYSTEM/PAISECURITYSYSTEM/`) contains the **base system**—default patterns, documentation, and the security hook. It provides sensible defaults that work out of the box.
+This directory (`skills/CORE/SYSTEM/PAISECURITYSYSTEM/`) is the **canonical base system**—default patterns, documentation, and the security hook. It provides sensible defaults that work out of the box.
+
+Compatibility note:
+- `.opencode/PAISECURITYSYSTEM/` is a symlink to this directory for legacy references.
 
 Your personal security policies live in `USER/PAISECURITYSYSTEM/`. This is where you:
 - Define your own blocked/confirm/alert patterns
@@ -57,7 +60,7 @@ USER/PAISECURITYSYSTEM/                  # Your customizations
 └── ...                                  # Your additions
 ```
 
-The hook loads `USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `patterns.example.yaml` if not found.
+The validator loads `USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `PAISECURITYSYSTEM/patterns.example.yaml` if not found.
 
 ---
 
@@ -66,7 +69,7 @@ The hook loads `USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `pa
 1. Security works out of the box with `patterns.example.yaml`
 2. To customize, copy to `USER/PAISECURITYSYSTEM/patterns.yaml`
 3. Add your own blocked/confirm/alert patterns
-4. Events log to `MEMORY/SECURITY/YYYY/MM/`
+4. Events log to `MEMORY/SECURITY/YYYY-MM/security.jsonl`
 
 ---
 
@@ -88,6 +91,7 @@ Contributions and feedback welcome.
 |----------|---------|
 | `ARCHITECTURE.md` | Security layers, trust hierarchy, philosophy |
 | `HOOKS.md` | SecurityValidator implementation details |
+| `PLUGINS.md` | OpenCode plugin integration details |
 | `PROMPTINJECTION.md` | Defense against prompt injection attacks |
 | `COMMANDINJECTION.md` | Defense against command injection |
 | `patterns.example.yaml` | Default pattern template |

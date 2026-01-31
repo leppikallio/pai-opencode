@@ -49,6 +49,20 @@ export function getResearchDir(): string {
 }
 
 /**
+ * Get RAW directory path (event log)
+ */
+export function getRawDir(): string {
+  return path.join(getMemoryDir(), "RAW");
+}
+
+/**
+ * Get SECURITY directory path
+ */
+export function getSecurityDir(): string {
+  return path.join(getMemoryDir(), "SECURITY");
+}
+
+/**
  * Get STATE directory path
  */
 export function getStateDir(): string {

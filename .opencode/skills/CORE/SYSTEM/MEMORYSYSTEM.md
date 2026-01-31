@@ -103,17 +103,18 @@ This is the actual "firehose" - every message, tool call, and response. PAI leve
 ### WORK/ - Primary Work Tracking
 
 **What populates it:**
-- `plugins/handlers/work-tracker.ts` on `chat.message` (creates work dir)
-- `plugins/handlers/work-tracker.ts` on `session.ended` (marks COMPLETED)
+- `plugins/handlers/history-capture.ts` on `message.updated` + `message.part.updated`
+- `plugins/handlers/history-capture.ts` on `session.status` (idle) + `session.deleted`
 
 **Content:** Work directories with metadata, items, verification artifacts
 **Format:** `WORK/{work_id}/` with META.yaml, items/, verification/, etc.
 **Purpose:** Track all discrete work units with lineage, verification, and feedback
 
 **Work Directory Lifecycle:**
-1. `chat.message` → work-tracker creates work dir + ISC.json
-2. Subsequent user messages append to THREAD.md
-3. `session.ended` → learning-capture runs, work-tracker completes work
+1. `message.updated` (user) + first `TextPart` → create work dir + ISC.json
+2. `message.part.updated` (TextPart) → assemble full text in memory
+3. `session.status` idle → commit assistant response + update ISC.json
+4. `session.deleted` → learning extraction + work completion
 
 **ISC.json - Ideal State Criteria Tracking:**
 
@@ -133,32 +134,27 @@ The `ISC.json` file captures the Ideal State Criteria from PAI Algorithm executi
 **ISC Document Format (JSON):**
 ```json
 {
-  "workId": "20260118-...",
-  "effortTier": "STANDARD",
-  "current": {
-    "criteria": ["Criterion 1", "Criterion 2"],
-    "antiCriteria": ["Anti-criterion 1"],
-    "phase": "BUILD",
-    "timestamp": "2026-01-18T..."
-  },
-  "history": [
-    {"version": 1, "phase": "OBSERVE", "criteria": [...], "anti_criteria": [...], "timestamp": "..."},
-    {"version": 2, "phase": "THINK", "updates": [...], "timestamp": "..."}
+  "v": "0.1",
+  "ideal": "Ideal outcome text",
+  "criteria": [
+    {"id": "abc123", "text": "Criterion text", "status": "VERIFIED", "sourceEventIds": ["assistant.committed:..."]}
   ],
-  "satisfaction": {"satisfied": 3, "partial": 1, "failed": 0, "total": 4}
+  "antiCriteria": [
+    {"id": "def456", "text": "Anti-criterion text"}
+  ],
+  "updatedAt": "2026-01-18T..."
 }
 ```
 
 **Why JSON over JSONL:** ISC is bounded versioned state (<10KB), not an unbounded log. JSON with `current` + `history` explicitly models what verification tools need (current criteria) vs debugging needs (history).
 
-**In the OpenCode port:** `ISC.json` is created empty by `plugins/handlers/work-tracker.ts`.
-It is updated by tools (e.g. `skills/Evals/Tools/AlgorithmBridge.ts`) and/or manual edits during work.
+**In the OpenCode port:** `ISC.json` is created and updated by `plugins/handlers/history-capture.ts`.
 
 ### LEARNING/ - Categorized Learnings
 
 **What populates it:**
 - `plugins/handlers/rating-capture.ts` (explicit ratings + low-rating learnings)
-- `plugins/handlers/learning-capture.ts` (work session end extraction)
+- `plugins/handlers/history-capture.ts` (idle checkpoint + session.deleted extraction)
 - `SessionHarvester.ts` (periodic extraction from projects/ transcripts)
 - `LearningPatternSynthesis.ts` (aggregates ratings into pattern reports)
 
@@ -226,7 +222,7 @@ It is updated by tools (e.g. `skills/Evals/Tools/AlgorithmBridge.ts`) and/or man
 
 **What populates it:** `plugins/handlers/security-validator.ts` on `tool.execute.before`
 **Content:** Security audit events (blocks, confirmations, alerts)
-**Current logging:** `$PAI_DIR/plugins/debug.log` (default: `~/.config/opencode/plugins/debug.log`)
+**Current logging:** `MEMORY/SECURITY/YYYY-MM/security.jsonl`
 **Purpose:** Security decision audit trail
 
 ### STATE/ - Fast Runtime Data
@@ -257,11 +253,11 @@ This is mutable state that changes during execution - not historical records. If
 
 | Plugin/Handler | OpenCode Event | Writes To |
 |---------------|----------------|----------|
-| `plugins/handlers/work-tracker.ts` | `chat.message` / `session.ended` | WORK/, STATE/current-work.json |
-| `plugins/handlers/rating-capture.ts` | `chat.message` | LEARNING/SIGNALS/ratings.jsonl (+ low-rating learnings) |
-| `plugins/handlers/learning-capture.ts` | `session.ended` | LEARNING/ |
+| `plugins/handlers/history-capture.ts` | `message.*`, `session.status`, `session.deleted` | WORK/, RAW/, STATE/current-work.json |
+| `plugins/handlers/rating-capture.ts` | user message commit | LEARNING/SIGNALS/ratings.jsonl (+ low-rating learnings) |
+| `plugins/handlers/learning-capture.ts` | idle checkpoint, session.deleted | LEARNING/ |
 | `plugins/handlers/agent-capture.ts` | `tool.execute.after` (Task) | RESEARCH/ |
-| `plugins/handlers/security-validator.ts` | `tool.execute.before` | plugins/debug.log (security audit) |
+| `plugins/handlers/security-validator.ts` | `tool.execute.before` | MEMORY/SECURITY/YYYY-MM/security.jsonl |
 
 ## Harvesting Tools
 
@@ -279,9 +275,9 @@ This is mutable state that changes during execution - not historical records. If
 ```
 User Request
     ↓
-Claude Code → projects/{uuid}.jsonl (native transcript)
+OpenCode events (message.updated / message.part.updated)
     ↓
-AutoWorkCreation → WORK/{id}/ + STATE/current-work.json
+History Capture → WORK/{id}/ + RAW/{session}.jsonl + STATE/current-work.json
     ↓
 [Work happens - all tool calls captured in projects/]
     ↓

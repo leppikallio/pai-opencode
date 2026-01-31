@@ -74,7 +74,7 @@ See `docs/CONVERTER.md` for detailed migration guide.
 Start OpenCode and verify:
 - **Skills load**: Ask "What skills do I have?"
 - **Agents work**: Try `@intern hello`
-- **Security active**: Check `~/.config/opencode/plugins/debug.log`
+- **Security active**: Check `~/.config/opencode/MEMORY/SECURITY/YYYY-MM/security.jsonl`
 
 ## Configuration
 

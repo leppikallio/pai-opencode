@@ -127,7 +127,7 @@ USER   → Your overrides (never overwritten)
 | Component | SYSTEM Default | USER Override |
 |-----------|----------------|---------------|
 | Response format | `SYSTEM/RESPONSEFORMAT.md` | `USER/RESPONSEFORMAT.md` |
-| Security patterns | `PAISECURITYSYSTEM/` | `USER/PAISECURITYSYSTEM/` |
+| Security patterns | `skills/CORE/SYSTEM/PAISECURITYSYSTEM/` | `USER/PAISECURITYSYSTEM/` |
 | Skill behavior | Skill's `SKILL.md` | `USER/SKILLCUSTOMIZATIONS/[Skill]/` |
 
 ---

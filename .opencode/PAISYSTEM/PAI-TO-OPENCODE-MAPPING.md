@@ -180,7 +180,7 @@ These exist in PAI-OpenCode but not in PAI 2.4:
 |-----------|---------|
 | `plugins/` | OpenCode plugin system |
 | `profiles/` | API provider profiles (anthropic, openai, local) |
-| `PAISECURITYSYSTEM/` | Security documentation (moved from CORE/SYSTEM) |
+| `skills/CORE/SYSTEM/PAISECURITYSYSTEM/` | Security docs (canonical); `PAISECURITYSYSTEM/` is a symlink |
 | `package.json` | Bun dependencies |
 | `tsconfig.json` | TypeScript configuration |
 

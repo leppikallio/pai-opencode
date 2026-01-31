@@ -415,6 +415,22 @@ function copyDirRecursive(
       continue;
     }
 
+    if (ent.isSymbolicLink()) {
+      if (preserveIfExists && fs.existsSync(destPath)) continue;
+      if (!overwrite && fs.existsSync(destPath)) continue;
+      const linkTarget = fs.readlinkSync(srcPath);
+      if (!dryRun) {
+        ensureDir(path.dirname(destPath), dryRun);
+        try {
+          fs.rmSync(destPath, { recursive: true, force: true });
+        } catch {
+          // ignore
+        }
+        fs.symlinkSync(linkTarget, destPath);
+      }
+      continue;
+    }
+
     if (!ent.isFile()) continue;
 
     if (preserveIfExists && fs.existsSync(destPath)) {
@@ -541,6 +557,23 @@ function sync(mode: Mode, opts: Options) {
 
   for (const name of copyAlways) {
     const src = path.join(sourceDir, name);
+    if (!fs.existsSync(src)) continue;
+    const srcStat = fs.lstatSync(src);
+    if (srcStat.isSymbolicLink()) {
+      const linkTarget = fs.readlinkSync(src);
+      const dest = path.join(targetDir, name);
+      console.log(`${dryRun ? "[dry]" : "[sync]"} symlink ${name} -> ${linkTarget}`);
+      if (!dryRun) {
+        try {
+          fs.rmSync(dest, { recursive: true, force: true });
+        } catch {
+          // ignore
+        }
+        ensureDir(path.dirname(dest), dryRun);
+        fs.symlinkSync(linkTarget, dest);
+      }
+      continue;
+    }
     if (!isDir(src)) continue;
     const dest = path.join(targetDir, name);
     console.log(`${dryRun ? "[dry]" : "[sync]"} dir ${name}`);

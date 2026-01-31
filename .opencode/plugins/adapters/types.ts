@@ -41,9 +41,11 @@ export interface ToolInput {
   /** Tool name (Bash, Read, Write, etc.) */
   tool: string;
   /** Tool arguments */
-  args: Record<string, unknown>;
+  args?: Record<string, unknown>;
   /** Session ID */
-  sessionId?: string;
+  sessionID?: string;
+  /** Tool call ID */
+  callID?: string;
 }
 
 /**
@@ -66,8 +68,8 @@ export interface EventInput {
   event: {
     /** Event type (e.g., "session.ended", "session.created") */
     type: string;
-    /** Event data */
-    data?: Record<string, unknown>;
+    /** Event properties */
+    properties?: Record<string, unknown>;
   };
 }
 
@@ -107,8 +109,12 @@ export interface ToolBeforeOutput {
  * Used for tool.execute.after hook
  */
 export interface ToolAfterOutput {
-  /** Tool result (read-only in most cases) */
-  result?: unknown;
+  /** Tool result output string */
+  output?: string;
+  /** Tool result title */
+  title?: string;
+  /** Tool result metadata */
+  metadata?: unknown;
 }
 
 /**

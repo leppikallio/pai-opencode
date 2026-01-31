@@ -44,7 +44,7 @@ The result: you get meaningful protection without the friction that drives peopl
 
 ## Permission Model
 
-> **⚠️ NEVER TEST DANGEROUS COMMANDS** — Do not attempt to run blocked commands to verify the security system works. The patterns below are intentionally misspelled to prevent accidental execution. Trust the unit tests.
+> **⚠️ NEVER TEST DANGEROUS COMMANDS** — Do not attempt to run blocked commands to verify the security system works. Trust the test fixtures and audit logs.
 
 ### Allow (no prompts)
 - All standard tools: Bash, Read, Write, Edit, Glob, Grep, etc.
@@ -70,24 +70,15 @@ Suspicious but allowed:
 
 ---
 
-## Pattern Categories
+## Pattern Categories (YAML)
 
-### Bash Patterns
+Patterns are loaded from YAML (USER override → SYSTEM fallback):
 
-| Level | Exit Code | Behavior |
-|-------|-----------|----------|
-| `blocked` | 2 | Hard block, operation prevented |
-| `confirm` | 0 + JSON | User prompted for confirmation |
-| `alert` | 0 | Logged but allowed |
+- `DANGEROUS_PATTERNS` → block or confirm (based on config)
+- `WARNING_PATTERNS` → confirm or allow (based on config)
+- `ALLOWED_PATTERNS` → allow immediately
 
-### Path Patterns
-
-| Level | Read | Write | Delete |
-|-------|------|-------|--------|
-| `zeroAccess` | NO | NO | NO |
-| `readOnly` | YES | NO | NO |
-| `confirmWrite` | YES | CONFIRM | YES |
-| `noDelete` | YES | YES | NO |
+For file tools (Read/Write/Edit/ApplyPatch), file paths are validated as `path_access` events.
 
 ---
 
@@ -121,17 +112,21 @@ OpenCode plugin `tool.execute.before`
             ↓
 `plugins/handlers/security-validator.ts`
             ↓
-Evaluates against in-code patterns:
-• Bash: blocked + confirm patterns
+Loads patterns:
+• USER/PAISECURITYSYSTEM/patterns.yaml (if present)
+• PAISECURITYSYSTEM/patterns.example.yaml (fallback)
+            ↓
+Evaluates:
+• Bash commands (dangerous/warning/allowed)
+• File paths (read/write/edit/apply_patch)
 • Basic prompt-injection patterns in content
-• Sensitive path write confirmations
             ↓
 Decision:
 ├─ block    → throw Error (tool execution blocked)
 ├─ confirm  → request confirmation via OpenCode permissions
 └─ allow    → proceed normally
             ↓
-Logs to `$PAI_DIR/plugins/debug.log`
+Logs to `MEMORY/SECURITY/YYYY-MM/security.jsonl`
 ```
 
 ---
@@ -140,12 +135,7 @@ Logs to `$PAI_DIR/plugins/debug.log`
 
 Security decisions are logged to:
 
-- `$PAI_DIR/plugins/debug.log` (default: `~/.config/opencode/plugins/debug.log`)
-
-Each event gets a descriptive filename for easy scanning:
-- `security-block-filesystem-destruction-20260114-143052.jsonl`
-- `security-confirm-git-push-force-20260114-143105.jsonl`
-- `security-allow-ls-directory-listing-20260114-143110.jsonl`
+- `MEMORY/SECURITY/YYYY-MM/security.jsonl`
 
 **Event schema:**
 ```json
@@ -195,9 +185,9 @@ git stash
 | File | Purpose |
 |------|---------|
 | `.opencode/plugins/handlers/security-validator.ts` | Security validation logic |
-| `.opencode/plugins/adapters/types.ts` | Dangerous + warning pattern registry |
-| `patterns.example.yaml` | Legacy template (not loaded today) |
-| `$PAI_DIR/plugins/debug.log` | Plugin debug/audit log |
+| `skills/CORE/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml` | Default pattern template |
+| `USER/PAISECURITYSYSTEM/patterns.yaml` | Personal overrides |
+| `MEMORY/SECURITY/YYYY-MM/security.jsonl` | Security audit log |
 
 ---
 
@@ -205,7 +195,7 @@ git stash
 
 To customize security for your environment:
 
-1. Copy `patterns.example.yaml` to `~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/patterns.yaml`
+1. Copy `patterns.example.yaml` to `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml`
 2. Edit patterns to match your needs
 3. Add project-specific rules in the `projects` section
 4. The hook automatically loads USER patterns when available

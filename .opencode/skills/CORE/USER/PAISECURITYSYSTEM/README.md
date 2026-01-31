@@ -21,24 +21,26 @@ Define security rules specific to your environment:
 
 ### patterns.yaml
 
-Your personal security patterns:
+Your personal security patterns (override defaults):
 
 ```yaml
 # Example patterns.yaml
-sensitive_patterns:
-  - pattern: "my-company-api-key-.*"
-    description: "Company API keys"
-  - pattern: "/Users/yourname/private/.*"
-    description: "Personal private directory"
+DANGEROUS_PATTERNS:
+  - pattern: "npm publish"
+    description: "Accidental package publish"
 
-protected_paths:
-  - "~/private-projects/"
-  - "~/client-work/"
+WARNING_PATTERNS:
+  - pattern: "git push --force"
+    description: "Force push can lose commits"
 
-never_commit:
-  - "*.pem"
-  - "*.key"
-  - ".env.local"
+ALLOWED_PATTERNS:
+  - pattern: "rg\\s+.*"
+    description: "Search commands are safe"
+
+SECURITY_RULES:
+  block_dangerous: true
+  require_confirmation_for_warnings: true
+  max_command_length: 1000
 ```
 
 ---
@@ -48,4 +50,4 @@ never_commit:
 1. PAI checks USER/PAISECURITYSYSTEM/ first
 2. If patterns.yaml exists, it's used for security validation
 3. If not, falls back to default PAISECURITYSYSTEM patterns
-4. Your patterns can ADD to or OVERRIDE defaults
+4. Your patterns override defaults (USER always wins)

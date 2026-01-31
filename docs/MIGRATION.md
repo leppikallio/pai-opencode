@@ -354,7 +354,7 @@ After successful migration:
 
 1. **Customize** - Edit `.opencode/settings.json`
 2. **Explore** - Try all skills and agents
-3. **Secure** - Review `.opencode/PAISECURITYSYSTEM/patterns.yaml`
+3. **Secure** - Review `USER/PAISECURITYSYSTEM/patterns.yaml` (copy from `skills/CORE/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml`)
 4. **Learn** - Read skill documentation in `.opencode/skills/*/SKILL.md`
 
 ---

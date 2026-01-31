@@ -42,7 +42,7 @@ When PAI needs configuration, it follows a cascading lookup:
 ### Security System
 
 ```
-skills/CORE/SYSTEM/PAISECURITYSYSTEM/  # SYSTEM tier (base)
+skills/CORE/SYSTEM/PAISECURITYSYSTEM/  # SYSTEM tier (base, canonical)
 ├── README.md                          # Overview
 ├── ARCHITECTURE.md                    # Security layers
 ├── HOOKS.md                           # Hook documentation
@@ -56,7 +56,10 @@ USER/PAISECURITYSYSTEM/                # USER tier (personal)
 └── ...
 ```
 
-The SecurityValidator hook checks `USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `skills/CORE/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml`.
+The SecurityValidator checks `USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `PAISECURITYSYSTEM/patterns.example.yaml`.
+
+Compatibility:
+- `.opencode/PAISECURITYSYSTEM/` is a symlink to `skills/CORE/SYSTEM/PAISECURITYSYSTEM/`.
 
 ### Response Format
 
@@ -102,10 +105,9 @@ The SYSTEM tier must always provide functional defaults. A fresh PAI installatio
 ```yaml
 # SYSTEM tier: patterns.example.yaml
 # Provides reasonable defaults that protect against catastrophic operations
-bash:
-  blocked:
-    - pattern: "rm -rf /"
-      reason: "Filesystem destruction"
+DANGEROUS_PATTERNS:
+  - pattern: "rm\\s+(-rf|-r|--recursive)\\s+(/|~|\\.\\./|\\/.*)"
+    description: "Recursive delete from root or home directory"
 ```
 
 ### 2. USER Overrides Completely
@@ -116,12 +118,11 @@ When a USER file exists, it replaces (not merges with) the SYSTEM equivalent. Th
 # USER tier: patterns.yaml
 # Completely replaces patterns.example.yaml
 # Can add, remove, or modify any pattern
-bash:
-  blocked:
-    - pattern: "rm -rf /"
-      reason: "Filesystem destruction"
-    - pattern: "npm publish"
-      reason: "Accidental package publish"  # Personal addition
+DANGEROUS_PATTERNS:
+  - pattern: "rm\\s+(-rf|-r|--recursive)\\s+(/|~|\\.\\./|\\/.*)"
+    description: "Recursive delete from root or home directory"
+  - pattern: "npm publish"
+    description: "Accidental package publish"  # Personal addition
 ```
 
 ### 3. USER Content Stays Private
@@ -195,10 +196,9 @@ To add USER extensibility to an existing component:
 ### Security Pattern Loading (Example)
 
 ```typescript
-// Example for a future file-driven security pattern loader.
-// The current OpenCode plugin uses in-code patterns (see plugins/adapters/types.ts).
+// File-driven security pattern loader (current implementation).
 const USER_PATTERNS_PATH = paiPath('USER', 'PAISECURITYSYSTEM', 'patterns.yaml');
-const SYSTEM_PATTERNS_PATH = paiPath('skills', 'CORE', 'SYSTEM', 'PAISECURITYSYSTEM', 'patterns.example.yaml');
+const SYSTEM_PATTERNS_PATH = paiPath('PAISECURITYSYSTEM', 'patterns.example.yaml');
 
 function getPatternsPath(): string | null {
   // USER first

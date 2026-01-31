@@ -124,7 +124,8 @@ type(scope): subject
 ├── agents/           # Agent configurations (PascalCase)
 ├── plugins/          # Lifecycle plugins (TypeScript)
 ├── MEMORY/           # Execution history (not in git)
-├── PAISECURITYSYSTEM/ # Security patterns
+├── skills/CORE/SYSTEM/PAISECURITYSYSTEM/ # Security patterns (canonical)
+├── PAISECURITYSYSTEM/ # Symlink to canonical security docs
 ├── PAISYSTEM/        # System documentation
 └── settings.json     # Configuration
 ```

@@ -6,7 +6,7 @@ In the OpenCode port, security validation is implemented as a **plugin**, not a 
 
 - Plugin entrypoint: `.opencode/plugins/pai-unified.ts`
 - Validator implementation: `.opencode/plugins/handlers/security-validator.ts`
-- Pattern registry (dangerous + warning patterns): `.opencode/plugins/adapters/types.ts`
+- Pattern registry (YAML): `PAISECURITYSYSTEM/patterns.yaml` (USER override → SYSTEM fallback)
 
 ## What It Does
 
@@ -22,5 +22,10 @@ In the OpenCode port, security validation is implemented as a **plugin**, not a 
 
 ## How To Update Patterns
 
-1. Edit patterns in `.opencode/plugins/adapters/types.ts` (`DANGEROUS_PATTERNS`, `WARNING_PATTERNS`).
-2. Reinstall to runtime: `bun Tools/Install.ts --target "$PAI_DIR"`
+1. Copy `patterns.example.yaml` to `USER/PAISECURITYSYSTEM/patterns.yaml`.
+2. Edit patterns (DANGEROUS_PATTERNS / WARNING_PATTERNS / ALLOWED_PATTERNS).
+3. Reinstall to runtime: `bun Tools/Install.ts --target "$PAI_DIR"`
+
+Notes:
+- `PAISECURITYSYSTEM/` is a symlink to `skills/CORE/SYSTEM/PAISECURITYSYSTEM/`.
+- Security decisions are logged to `MEMORY/SECURITY/YYYY-MM/security.jsonl`.
