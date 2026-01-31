@@ -20,7 +20,7 @@ Running **SearchAphorisms** in **Aphorisms**...
 - Discovering what's available in database
 
 **Prerequisites:**
-- Aphorism database exists at `~/.config/opencode/skills/aphorisms/Database/aphorisms.md`
+- Aphorism database exists at `~/.config/opencode/skills/Aphorisms/Database/aphorisms.md`
 - Search query or theme provided
 - Database Read for comprehensive search
 
@@ -77,7 +77,7 @@ User: "Short quotes about action"
 ### Step 2: Read Database
 
 ```bash
-Read ~/.config/opencode/skills/aphorisms/Database/aphorisms.md
+Read ~/.config/opencode/skills/Aphorisms/Database/aphorisms.md
 ```
 
 **Load full context:**

@@ -4,7 +4,7 @@
 
 The PAI system uses Kitty terminal tab colors and title suffixes to provide instant visual feedback on session state. At a glance, you can see which tabs are working, completed, waiting for input, or have errors.
 
-**OpenCode port note:** This terminal tab state system is not currently implemented in the OpenCode plugin runtime. The sections below describe the legacy Claude Code hook-based design.
+**OpenCode port note:** This terminal tab state system is not currently implemented in the OpenCode plugin runtime. The sections below describe the legacy Claude Code hook-based design and Kitty-specific remote control.
 
 ## State System
 
@@ -119,12 +119,8 @@ const INACTIVE_TEXT = '#A0A0A0';        // Gray
 // Legacy: SetQuestionTab
 const TAB_AWAITING_BG = '#085050';     // Dark teal (waiting for input)
 
-// In handlers/tab-state.ts
-const TAB_COLORS = {
-  awaitingInput: '#0D6969', // Dark teal
-  completed: '#022800',     // Dark green
-  error: '#804000',         // Dark orange
-};
+// OpenCode port: no runtime tab-state handler is implemented.
+// Treat the mapping below as conceptual only.
 
 // Tab icons and formatting
 const TAB_ICONS = {
@@ -190,4 +186,4 @@ kitten @ set-tab-color --self active_bg=#002B80 inactive_bg=#085050
 ---
 
 **Last Updated:** 2026-01-13
-**Status:** Production - Implemented via hook system
+**Status:** Legacy - Not implemented in OpenCode runtime

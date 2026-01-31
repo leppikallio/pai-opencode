@@ -17,6 +17,7 @@
  */
 
 import { tool, type Plugin, type Hooks } from "@opencode-ai/plugin";
+import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { loadContext } from "./handlers/context-loader";
@@ -35,6 +36,8 @@ import {
 } from "./handlers/agent-capture";
 import { extractLearningsFromWork } from "./handlers/learning-capture";
 import { fileLog, fileLogError, clearLog } from "./lib/file-logger";
+import { getVoiceId } from "./lib/identity";
+import { ensureDir, getLearningDir, getStateDir, getMemoryDir } from "./lib/paths";
 import {
   ensureScratchpadSession,
   clearScratchpadSession,
@@ -123,6 +126,8 @@ export const PaiUnified: Plugin = async (ctx) => {
   // If the user is actively typing, don't pop the rating kiosk.
   let lastPromptAppendAt = 0;
   let lastKioskPromptLogAt = 0;
+
+  // (capability audit logging removed)
 
   function expandTilde(p: string): string {
     if (p === "~") return os.homedir();
@@ -410,7 +415,11 @@ export const PaiUnified: Plugin = async (ctx) => {
             const body: Record<string, unknown> = {
               message: args.message,
             };
+
+            const defaultVoiceId = getVoiceId();
             if (args.voice_id) body.voice_id = args.voice_id;
+            else if (defaultVoiceId) body.voice_id = defaultVoiceId;
+
             if (args.title) body.title = args.title;
 
             const res = await fetch("http://localhost:8888/notify", {
@@ -443,6 +452,41 @@ export const PaiUnified: Plugin = async (ctx) => {
       try {
         const scratchpad = await ensureScratchpadSession();
         fileLog("Injecting context...");
+
+        // Best-effort: initialize expected MEMORY state files so docs stay accurate.
+        try {
+          await ensureDir(getStateDir());
+          await ensureDir(path.join(getLearningDir(), "SIGNALS"));
+          await ensureDir(path.join(getMemoryDir(), "PAISYSTEMUPDATES"));
+
+          const currentWorkFile = path.join(getStateDir(), "current-work.json");
+          if (!fs.existsSync(currentWorkFile)) {
+            await fs.promises.writeFile(
+              currentWorkFile,
+              JSON.stringify({ work_dir: null }, null, 2)
+            );
+          }
+
+          const ratingsFile = path.join(getLearningDir(), "SIGNALS", "ratings.jsonl");
+          if (!fs.existsSync(ratingsFile)) {
+            await fs.promises.writeFile(ratingsFile, "");
+          }
+
+          const updatesIndex = path.join(getMemoryDir(), "PAISYSTEMUPDATES", "index.json");
+          if (!fs.existsSync(updatesIndex)) {
+            await fs.promises.writeFile(updatesIndex, JSON.stringify({ updates: [] }, null, 2));
+          }
+
+          const updatesChangelog = path.join(getMemoryDir(), "PAISYSTEMUPDATES", "CHANGELOG.md");
+          if (!fs.existsSync(updatesChangelog)) {
+            await fs.promises.writeFile(
+              updatesChangelog,
+              "# PAI System Updates Changelog\n\nThis file is generated/updated by System tooling.\n"
+            );
+          }
+        } catch (error) {
+          fileLogError("Memory initialization failed", error);
+        }
 
         const result = await loadContext();
 
@@ -664,6 +708,8 @@ export const PaiUnified: Plugin = async (ctx) => {
       try {
         const eventObj = getRecordProp(input, "event");
         const eventType = getStringProp(eventObj, "type") ?? "";
+
+        // (capability audit logging removed)
 
         // === TUI RATING KIOSK ===
         // Intercept single keypresses during the short rating window.
