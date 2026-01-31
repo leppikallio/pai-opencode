@@ -122,7 +122,7 @@ Aphorisms categorized by themes matching user content:
 
 ## Database Structure
 
-**Location:** `~/.config/opencode/skills/aphorisms/Database/aphorisms.md`
+**Location:** `~/.config/opencode/skills/Aphorisms/Database/aphorisms.md`
 
 **Current Collections:**
 1. **Initial Collection (Rahil Arora)** - 15 curated quotes covering core themes
@@ -343,7 +343,7 @@ All five thinkers align with TELOS themes of **wisdom, rationality, truth-seekin
 - "Search aphorisms about [theme]" → Theme-based search
 
 **Database Location:**
-`~/.config/opencode/skills/aphorisms/Database/aphorisms.md`
+`~/.config/opencode/skills/Aphorisms/Database/aphorisms.md`
 
 **Current Collection Size:**
 - 15 initial quotes (Rahil Arora collection)

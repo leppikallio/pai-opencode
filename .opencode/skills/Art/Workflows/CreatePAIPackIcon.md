@@ -196,11 +196,7 @@ Before marking icon complete:
 
 ## Related Workflows
 
-> **Note:** The PAI skill workflows referenced below are planned but not yet implemented.
-
-- `~/.config/opencode/skills/PAI/Workflows/CreatePack.md` - *(NOT IMPLEMENTED)* Would use this for icon generation
-- `~/.config/opencode/skills/PAI/Workflows/ValidatePack.md` - *(NOT IMPLEMENTED)* Would validate icon exists
-- `~/.config/opencode/skills/PAI/Workflows/PAIIntegrityCheck.md` - *(NOT IMPLEMENTED)* Would check all icons
+Note: The pack-management workflows that would normally validate icons are planned but not implemented in this runtime.
 
 ---
 

@@ -7,7 +7,11 @@ In the OpenCode port, hooks are implemented as **plugins**.
 ## OpenCode Source Of Truth
 
 - Plugin system overview: `SYSTEM/THEPLUGINSYSTEM.md`
-- Hook-to-plugin mapping: `.opencode/PAISYSTEM/PAI-TO-OPENCODE-MAPPING.md`
+- Hook-to-plugin mapping: `PAISYSTEM/PAI-TO-OPENCODE-MAPPING.md`
+
+Note:
+- Runtime path: `~/.config/opencode/PAISYSTEM/PAI-TO-OPENCODE-MAPPING.md`
+- Repo path: `.opencode/PAISYSTEM/PAI-TO-OPENCODE-MAPPING.md`
 
 ## Directory Convention (OpenCode)
 

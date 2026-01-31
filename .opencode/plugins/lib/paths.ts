@@ -107,6 +107,16 @@ export async function getCurrentWorkPath(): Promise<string | null> {
     const state = JSON.parse(content);
     return state.work_dir || null;
   } catch {
+    // Ensure the state file exists (best effort) so docs remain accurate.
+    try {
+      await ensureDir(getStateDir());
+      await fs.promises.writeFile(
+        stateFile,
+        JSON.stringify({ work_dir: null }, null, 2)
+      );
+    } catch {
+      // Best effort only
+    }
     return null;
   }
 }
@@ -134,9 +144,20 @@ export async function clearCurrentWork(): Promise<void> {
   const stateFile = path.join(getStateDir(), "current-work.json");
 
   try {
-    await fs.promises.unlink(stateFile);
+    await ensureDir(getStateDir());
+    await fs.promises.writeFile(
+      stateFile,
+      JSON.stringify(
+        {
+          work_dir: null,
+          cleared_at: new Date().toISOString(),
+        },
+        null,
+        2
+      )
+    );
   } catch {
-    // File doesn't exist, that's fine
+    // Best effort: absence is acceptable
   }
 }
 

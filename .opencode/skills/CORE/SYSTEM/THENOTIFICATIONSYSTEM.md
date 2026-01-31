@@ -46,13 +46,9 @@ Use the `voice_notify` tool:
 
 ## Effort Level in Voice Notifications
 
-**Automatic:** THE ALGORITHM tasks automatically include effort level in voice:
+In the OpenCode port, voice notifications are primarily produced by explicitly calling the `voice_notify` tool.
 
-| Event | Hook | Voice Format |
-|-------|------|--------------|
-| Task Start | `TaskNotifier.ts` | "Running THE ALGORITHM at **thorough** effort **with multi-agent analysis** to [summary]" |
-| Phase Transition | `AlgorithmPhaseNotifier.ts` | "Entering observe phase - gathering context at **thorough** effort" |
-| Task Completion | `PAICompletion.ts` | "[COMPLETED line content]" |
+Legacy notifier modules like `TaskNotifier.ts`, `AlgorithmPhaseNotifier.ts`, and `PAICompletion.ts` are not part of the current runtime.
 
 **Effort levels and capability hints spoken:**
 
@@ -73,7 +69,7 @@ Use the `voice_notify` tool:
 - Thorough: "Running THE ALGORITHM at thorough effort with multi-agent analysis and deep thinking to design the architecture"
 - Exhaustive: "Running THE ALGORITHM at exhaustive effort with fleet operations and full decision support to build the new feature"
 
-**State file:** `~/.config/opencode/current-effort.json` stores current effort for downstream hooks.
+Note: There is no `~/.config/opencode/current-effort.json` state file in the current runtime.
 
 ---
 
@@ -122,15 +118,12 @@ This skill handles requests directly without workflows. When executing, simply d
 
 ---
 
-## Why Direct curl (Not Shell Script)
+## Why Use voice_notify
 
-Direct curl is:
-- **More reliable** - No script execution dependencies
-- **Faster** - No shell script overhead
-- **Visible** - The command is explicit in the skill file
-- **Debuggable** - Easy to test in isolation
-
-The backgrounded `&` and redirected output (`> /dev/null 2>&1`) ensure the curl doesn't block workflow execution.
+Using `voice_notify` is:
+- **More reliable** - Tool-call based, no shell dependencies
+- **Visible** - Notification intent is explicit in chat
+- **Debuggable** - Errors show up as tool results
 
 ---
 

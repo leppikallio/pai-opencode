@@ -164,7 +164,7 @@ These PAI 2.4 components are not applicable to OpenCode:
 | Component | Reason |
 |-----------|--------|
 | `Observability/` | Vue dashboard - not ported |
-| `VoiceServer/` | macOS voice server - not ported |
+| `VoiceServer/` | Voice notifications server - present in runtime |
 | `lib/migration/` | PAI version migration tools |
 | `PAIInstallWizard.ts` | Claude Code specific installer |
 | `statusline-command.sh` | Terminal statusline integration |
