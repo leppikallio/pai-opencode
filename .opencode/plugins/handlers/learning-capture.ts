@@ -123,7 +123,7 @@ export async function extractLearningsFromWork(): Promise<CaptureLearningResult>
       // Extract learnings from completed criteria
       if (Array.isArray(isc.criteria)) {
         const completed = isc.criteria.filter((c: unknown) => {
-          const status = getStringProp(c, "status");
+          const status = getStringProp(c, "status")?.toUpperCase();
           return status === "DONE" || status === "VERIFIED";
         });
 
@@ -132,7 +132,8 @@ export async function extractLearningsFromWork(): Promise<CaptureLearningResult>
             title: "ISC Completion Summary",
             content: `Completed ${completed.length} criteria:\n\n${completed
               .map((c: unknown) => {
-                const description = getStringProp(c, "description") ?? "(no description)";
+                const description =
+                  getStringProp(c, "text") ?? getStringProp(c, "description") ?? "(no description)";
                 const status = getStringProp(c, "status") ?? "UNKNOWN";
                 return `- ${description}: ${status}`;
               })

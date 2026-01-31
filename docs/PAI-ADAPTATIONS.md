@@ -105,7 +105,8 @@ export function fileLog(message: string, level = "info") {
 ### 5. Security System Documentation
 
 **What changed:**
-- Added `PAISECURITYSYSTEM/PLUGINS.md`
+- Added `skills/CORE/SYSTEM/PAISECURITYSYSTEM/PLUGINS.md`
+- `PAISECURITYSYSTEM/` is now a symlink to the canonical location
 - Documents plugin-specific security implementation
 
 **Why:**

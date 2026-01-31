@@ -33,8 +33,8 @@ PAI-OpenCode translates Claude Code hook concepts to OpenCode plugin hooks:
 | PreToolUse | `tool.execute.before` | `throw Error()` to block |
 | PreToolUse (blocking) | `permission.ask` | `output.status = "deny"` |
 | PostToolUse | `tool.execute.after` | Read-only observation |
-| UserPromptSubmit | `chat.message` | Filter `role === "user"` |
-| Stop | `event` | Filter `session.ended` |
+| UserPromptSubmit | `event` (message.*) | Parse `message.updated` / `message.part.updated` |
+| Stop | `event` | Filter `session.deleted` / `session.status` idle |
 | SubagentStop | `tool.execute.after` | Filter `tool === "Task"` |
 
 **Reference Implementation:** `plugins/pai-unified.ts`
@@ -90,7 +90,7 @@ OpenCode supports the following plugin hooks:
 **Current Implementation:**
 - `security-validator.ts` - Validates Bash commands against security patterns
 - Blocks destructive commands (rm -rf /, reverse shells, etc.)
-- See `plugins/adapters/types.ts` for `DANGEROUS_PATTERNS`
+- See `PAISECURITYSYSTEM/patterns.example.yaml` for defaults
 
 ---
 
@@ -138,32 +138,30 @@ OpenCode supports the following plugin hooks:
 ```
 
 **Current Implementation:**
-- Logs tool completions for debugging
-- Future: Learning capture, signal processing, work session tracking
+- Captures subagent outputs (Task tool)
+- Passes tool lifecycle to history capture
 
 ---
 
-### 5. **chat.message** (UserPromptSubmit equivalent)
+### 5. **event (message.*)** (UserPromptSubmit equivalent)
 
-**When:** When a chat message is sent
-**Purpose:** Process user input, format enforcement, rating capture
+**When:** OpenCode emits `message.updated` / `message.part.updated`
+**Purpose:** Process user input, assemble assistant output, trigger ISC capture
 
 **Example:**
 ```typescript
-"chat.message": async (input, output) => {
-  const role = input.message?.role || "unknown";
-  const content = input.message?.content || "";
-
-  // Only process user messages
-  if (role !== "user") return;
-
-  // Format enforcement, rating capture, etc.
+event: async (input) => {
+  if (input.event.type === "message.updated") {
+    const role = input.event.properties?.info?.role;
+    const messageId = input.event.properties?.info?.id;
+    // Use role + messageId to commit user/assistant messages
+  }
 }
 ```
 
 **Current Implementation:**
-- Filters for user messages only
-- Future: Auto-work creation, rating capture, skill trigger detection
+- Uses event stream for message metadata + parts
+- Assembles full text from `message.part.updated` (TextPart)
 
 ---
 
@@ -181,15 +179,15 @@ event: async (input) => {
     // Session initialization
   }
 
-  if (eventType.includes("session.ended") || eventType.includes("session.idle")) {
+  if (eventType.includes("session.deleted") || eventType.includes("session.status")) {
     // Session cleanup, save state
   }
 }
 ```
 
 **Current Implementation:**
-- Logs session lifecycle events
-- Future: Session cleanup, work session state persistence
+- Uses `session.status` (idle) for commit boundaries
+- Uses `session.deleted` for hard finalization
 
 ---
 
@@ -200,7 +198,10 @@ plugins/
 ├── pai-unified.ts          # Main plugin (combines all functionality)
 ├── handlers/
 │   ├── context-loader.ts   # SessionStart → CORE context injection
-│   └── security-validator.ts  # PreToolUse → Security validation
+│   ├── security-validator.ts  # PreToolUse → Security validation
+│   ├── history-capture.ts   # message.* + session.* → WORK/RAW/ISC
+│   ├── isc-parser.ts        # Parse ISC from assistant response
+│   └── work-tracker.ts      # Work session lifecycle + ISC snapshots
 ├── adapters/
 │   └── types.ts            # Shared types + PAI_TO_OPENCODE_HOOKS mapping
 └── lib/
@@ -270,7 +271,8 @@ fileLog("Warning message", "warn");
 fileLogError("Something failed", error);
 ```
 
-Log file location: `~/.config/opencode/plugins/debug.log`
+Plugin log location: `~/.config/opencode/plugins/debug.log`
+Security audit log: `~/.config/opencode/MEMORY/SECURITY/YYYY-MM/security.jsonl`
 
 ---
 
@@ -292,7 +294,7 @@ Security validation uses pattern matching against dangerous commands:
 - `npm install -g` - Global installs
 - `docker rm` - Container removal
 
-See `plugins/adapters/types.ts` for full pattern definitions.
+See `PAISECURITYSYSTEM/patterns.example.yaml` for full pattern definitions.
 
 ---
 
@@ -317,9 +319,10 @@ See `plugins/adapters/types.ts` for full pattern definitions.
 ### Security Blocking Everything
 
 **Check:**
-1. Review `debug.log` for which pattern matched
+1. Review `MEMORY/SECURITY/YYYY-MM/security.jsonl` for matched rule id
 2. Verify command is actually safe
 3. Check for false positives in pattern matching
+4. Check `plugins/debug.log` for validator errors
 
 ### TUI Corruption
 
@@ -354,10 +357,10 @@ If migrating from PAI's Claude Code implementation:
 - **Memory System:** `SYSTEM/MEMORYSYSTEM.md`
 - **Agent System:** `SYSTEM/PAIAGENTSYSTEM.md`
 - **Architecture:** `SYSTEM/PAISYSTEMARCHITECTURE.md`
-- **Security Patterns:** `plugins/adapters/types.ts`
+- **Security Patterns:** `skills/CORE/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml`
 
 ---
 
-**Last Updated:** 2026-01-22
+**Last Updated:** 2026-01-31
 **Status:** Production - All plugins active and tested
 **Maintainer:** PAI System

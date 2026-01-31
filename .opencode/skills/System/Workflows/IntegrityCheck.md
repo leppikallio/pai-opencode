@@ -40,7 +40,7 @@ Use the Task tool to launch agents in a SINGLE message (parallel execution). Eac
 |---|------------|-------|-----------|
 | 1 | CORE SKILL.md | `skills/CORE/SKILL.md` | Broken file references, outdated paths |
 | 2 | Identity System | `plugins/lib/identity.ts`, `settings.json` | Config consistency |
-| 3 | Plugin Scripts | `plugins/*.ts` | Imports, identity usage, TypeScript validity |
+| 3 | Plugin Hooks & Events | `plugins/*.ts`, `plugins/handlers/*.ts`, `plugins/adapters/types.ts` | Hook coverage vs OpenCode docs, message.* and session.* usage |
 | 4 | System Docs | `skills/CORE/SYSTEM/*.md` | Cross-references, broken links |
 | 5 | User Docs | `skills/CORE/USER/*.md` | Personal config references |
 | 6 | Workflows | `skills/*/Workflows/*.md` | File paths, tool references |
@@ -48,7 +48,7 @@ Use the Task tool to launch agents in a SINGLE message (parallel execution). Eac
 | 8 | Settings | `settings.json` | Schema validity, env vars |
 | 9 | Notifications | Voice/notification-related files | Config consistency |
 | 10 | Memory System | `MEMORY/` structure | Path references, directory structure |
-| 11 | Security | Security-related hooks and configs | Policy consistency |
+| 11 | Security | `PAISECURITYSYSTEM/`, `plugins/handlers/security-validator.ts` | Pattern loading, rule ids, logging, enforcement |
 | 12 | Cross-References | All `*.md` files | Non-existent file refs |
 
 ### Step 2: Agent Prompt Template
@@ -84,6 +84,35 @@ You are auditing the PAI system for integrity issues.
 
 Be thorough but concise. Focus on actionable issues.
 ```
+
+### Hook Coverage Checklist (Plugins)
+
+Use this checklist when auditing `plugins/*.ts` and `plugins/handlers/*.ts`:
+
+Message events:
+- `message.updated`
+- `message.part.updated`
+- `message.removed`
+- `message.part.removed`
+
+Session events:
+- `session.created`
+- `session.status` (idle/busy/retry)
+- `session.idle`
+- `session.compacted`
+- `session.deleted`
+
+Tool hooks:
+- `tool.execute.before`
+- `tool.execute.after`
+
+Permission hooks/events:
+- `permission.ask` (hook)
+- `permission.asked` / `permission.replied` (events)
+
+TUI / compaction (if used):
+- `tui.prompt.append`
+- `experimental.session.compacting`
 
 ### Step 3: Synthesize Results
 

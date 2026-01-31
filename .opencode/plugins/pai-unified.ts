@@ -23,18 +23,12 @@ import * as path from "node:path";
 import { loadContext } from "./handlers/context-loader";
 import { validateSecurity } from "./handlers/security-validator";
 import { restoreSkillFiles } from "./handlers/skill-restore";
-import {
-  createWorkSession,
-  completeWorkSession,
-  getCurrentSession,
-  appendToThread,
-} from "./handlers/work-tracker";
-import { captureRating, detectRating } from "./handlers/rating-capture";
+import { captureRating } from "./handlers/rating-capture";
 import {
   captureAgentOutput,
   isTaskTool,
 } from "./handlers/agent-capture";
-import { extractLearningsFromWork } from "./handlers/learning-capture";
+import { createHistoryCapture } from "./handlers/history-capture";
 import { fileLog, fileLogError, clearLog } from "./lib/file-logger";
 import { getVoiceId } from "./lib/identity";
 import { ensureDir, getLearningDir, getStateDir, getMemoryDir } from "./lib/paths";
@@ -128,6 +122,8 @@ export const PaiUnified: Plugin = async (ctx) => {
   let lastKioskPromptLogAt = 0;
 
   // (capability audit logging removed)
+
+  const historyCapture = createHistoryCapture();
 
   function expandTilde(p: string): string {
     if (p === "~") return os.homedir();
@@ -590,10 +586,21 @@ export const PaiUnified: Plugin = async (ctx) => {
         output.args = normalizeArgsTilde(output.args) as Record<string, unknown>;
       }
 
+      await historyCapture.handleToolBefore(
+        {
+          tool: input.tool,
+          sessionID: (input as UnknownRecord).sessionID as string | undefined,
+          callID: (input as UnknownRecord).callID as string | undefined,
+        },
+        (output.args ?? {}) as Record<string, unknown>
+      );
+
       // Security validation - throws error to block dangerous commands
       const result = await validateSecurity({
         tool: input.tool,
         args: output.args ?? {},
+        sessionID: (input as UnknownRecord).sessionID as string | undefined,
+        callID: (input as UnknownRecord).callID as string | undefined,
       });
 
       if (result.action === "block") {
@@ -621,13 +628,31 @@ export const PaiUnified: Plugin = async (ctx) => {
       try {
         fileLog(`Tool after: ${input.tool}`, "debug");
 
+        await historyCapture.handleToolAfter(
+          {
+            tool: input.tool,
+            sessionID: (input as UnknownRecord).sessionID as string | undefined,
+            callID: (input as UnknownRecord).callID as string | undefined,
+          },
+          {
+            title: getStringProp(output, "title") ?? undefined,
+            output: getStringProp(output, "output") ?? undefined,
+            metadata: getProp(output, "metadata"),
+          }
+        );
+
         // === AGENT OUTPUT CAPTURE ===
         // Check for Task tool (subagent) completion
         if (isTaskTool(input.tool)) {
           fileLog("Subagent task completed, capturing output...", "info");
 
-          const args = getRecordProp(input, "args") ?? getRecordProp(output, "args") ?? {};
-          const result = getProp(output, "result");
+          const sessionID = (input as UnknownRecord).sessionID as string | undefined;
+          const callID = (input as UnknownRecord).callID as string | undefined;
+          const args = historyCapture.getToolArgs(sessionID, callID) ?? {};
+          const result = {
+            output: getStringProp(output, "output") ?? "",
+            metadata: getProp(output, "metadata"),
+          };
 
           const captureResult = await captureAgentOutput(args, result);
           if (captureResult.success && captureResult.filepath) {
@@ -636,64 +661,6 @@ export const PaiUnified: Plugin = async (ctx) => {
         }
       } catch (error) {
         fileLogError("Tool after hook failed", error);
-      }
-    },
-
-    /**
-     * CHAT MESSAGE HANDLER
-     * (UserPromptSubmit: AutoWorkCreation + ExplicitRatingCapture + FormatReminder)
-     *
-     * Called when user submits a message.
-     * Equivalent to PAI v2.4 AutoWorkCreation + ExplicitRatingCapture hooks.
-     */
-    "chat.message": async (input, _output) => {
-      try {
-        const msg = getRecordProp(input, "message");
-        const role = getStringProp(msg, "role") ?? "unknown";
-        const content = getStringProp(msg, "content") ?? "";
-
-        // Only process user messages
-        if (role !== "user") return;
-
-        fileLog(
-          `[chat.message] User: ${content.substring(0, 100)}...`,
-          "debug"
-        );
-
-        // === AUTO-WORK CREATION ===
-        // Create work session on first user prompt if none exists
-        const currentSession = getCurrentSession();
-        if (!currentSession) {
-          const workResult = await createWorkSession(content);
-          if (workResult.success && workResult.session) {
-            fileLog(`Work session started: ${workResult.session.id}`, "info");
-          }
-        } else {
-          // Append to existing thread
-          await appendToThread(`**User:** ${content.substring(0, 200)}...`);
-        }
-
-        // === EXPLICIT RATING CAPTURE ===
-        // Check if message is a rating (e.g., "8", "7 - needs work", "9/10")
-        const rating = detectRating(content);
-        if (rating) {
-          // Prevent the kiosk from immediately re-arming after the user submits a rating.
-          ratingKiosk.lastCapturedAt = Date.now();
-          disarmRatingKiosk("explicit rating message");
-          const ratingResult = await captureRating(content, "user message");
-          if (ratingResult.success && ratingResult.rating) {
-            fileLog(`Rating captured: ${ratingResult.rating.score}/10`, "info");
-          }
-        }
-
-        // === FORMAT REMINDER ===
-        // For non-trivial prompts, nudge towards Algorithm format
-        // (Not blocking, just logging for awareness)
-        if (content.length > 100 && !content.toLowerCase().includes("trivial")) {
-          fileLog("Non-trivial prompt detected, Algorithm format recommended", "debug");
-        }
-      } catch (error) {
-        fileLogError("chat.message handler failed", error);
       }
     },
 
@@ -806,11 +773,10 @@ export const PaiUnified: Plugin = async (ctx) => {
           fileLog("Session idle (armed rating kiosk)", "debug");
         }
 
-        // === SESSION END ===
-        if (eventType === "session.ended" || eventType.includes("session.ended")) {
-          disarmRatingKiosk("session ended");
-
-          fileLog("=== Session Ended ===", "info");
+        // === SESSION DELETE (hard finalize) ===
+        if (eventType === "session.deleted" || eventType.includes("session.deleted")) {
+          disarmRatingKiosk("session deleted");
+          fileLog("=== Session Deleted ===", "info");
 
           // Session scratchpad cleanup (best-effort)
           try {
@@ -818,35 +784,13 @@ export const PaiUnified: Plugin = async (ctx) => {
           } catch (error) {
             fileLogError("Scratchpad cleanup failed", error);
           }
-
-          // WORK COMPLETION LEARNING
-          // Extract learnings from the work session
-          try {
-            const learningResult = await extractLearningsFromWork();
-            if (learningResult.success && learningResult.learnings.length > 0) {
-              fileLog(
-                `Extracted ${learningResult.learnings.length} learnings`,
-                "info"
-              );
-            }
-          } catch (error) {
-            fileLogError("Learning extraction failed", error);
-          }
-
-          // SESSION SUMMARY
-          // Complete the work session
-          try {
-            const completeResult = await completeWorkSession();
-            if (completeResult.success) {
-              fileLog("Work session completed", "info");
-            }
-          } catch (error) {
-            fileLogError("Work session completion failed", error);
-          }
         }
 
         // Log all events for debugging
         fileLog(`Event: ${eventType}`, "debug");
+
+        // History + ISC capture (event-driven)
+        await historyCapture.handleEvent(eventObj ?? {});
       } catch (error) {
         fileLogError("Event handler failed", error);
       }

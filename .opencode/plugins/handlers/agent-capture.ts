@@ -180,7 +180,7 @@ ${resultText}
  * Check if tool is a Task (subagent) tool
  */
 export function isTaskTool(toolName: string): boolean {
-  return toolName === "Task";
+  return toolName.toLowerCase() === "task";
 }
 
 /**
