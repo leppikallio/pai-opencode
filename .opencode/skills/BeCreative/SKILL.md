@@ -1,6 +1,6 @@
 ---
 name: BeCreative
-description: Extended thinking mode. USE WHEN be creative, deep thinking, deep thinking, extended reasoning. SkillSearch('becreative') for docs.
+description: Extended creativity and deep reasoning workflows. USE WHEN user asks for creative ideas, brainstorming, novel approaches, or extended reasoning. SkillSearch('becreative') for docs.
 ---
 
 ## Customization

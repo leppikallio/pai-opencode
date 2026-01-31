@@ -1,6 +1,6 @@
 ---
 name: CORE
-description: Personal AI Infrastructure core. The authoritative reference for how PAI works.
+description: Personal AI Infrastructure core reference. USE WHEN system rules, response format, algorithm, memory, architecture, tool references.
 ---
 
 # Intro to PAI and The Algorithm

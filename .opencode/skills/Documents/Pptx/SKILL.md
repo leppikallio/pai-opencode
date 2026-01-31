@@ -1,6 +1,6 @@
 ---
 name: Pptx
-description: PowerPoint processing. USE WHEN pptx, PowerPoint, slides. SkillSearch('pptx') for docs.
+description: Presentation creation, editing, and analysis. USE WHEN user mentions PowerPoint/PPTX, slide decks, pitch decks, templates, speaker notes, or provides .pptx files. SkillSearch('pptx') for docs.
 ---
 
 # PPTX creation, editing, and analysis
