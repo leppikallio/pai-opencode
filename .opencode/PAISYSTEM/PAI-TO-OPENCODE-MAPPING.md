@@ -16,11 +16,11 @@ PAI-OpenCode is a vanilla PAI 2.4 implementation adapted for OpenCode's architec
 
 | Aspect | PAI 2.4 (Claude Code) | PAI-OpenCode |
 |--------|----------------------|--------------|
-| **Root Directory** | `.claude/` | `.opencode/` |
+| **Root Directory** | `.claude/` | `~/.config/opencode/` |
 | **Lifecycle Events** | `hooks/*.hook.ts` | `plugins/handlers/*.ts` |
 | **Config Schema** | Claude Code settings.json | OpenCode settings.json |
 | **Meta File** | `CLAUDE.md` | `OPENCODE.md` |
-| **Path Variable** | `$PAI_DIR` → `~/.claude` | `$PAI_DIR` → `.opencode` |
+| **Path Variable** | `$PAI_DIR` → `~/.claude` | `~/.config/opencode/` (no env macros in markdown) |
 
 ---
 
@@ -32,7 +32,7 @@ PAI-OpenCode is a vanilla PAI 2.4 implementation adapted for OpenCode's architec
 
 ```
 PAI 2.4:        .claude/skills/{SkillName}/
-PAI-OpenCode:   .opencode/skills/{SkillName}/
+PAI-OpenCode:   ~/.config/opencode/skills/{SkillName}/
 
 Structure preserved:
 ├── SKILL.md              # Required: Skill definition
@@ -50,7 +50,7 @@ Structure preserved:
 
 ```
 PAI 2.4:        .claude/agents/*.md
-PAI-OpenCode:   .opencode/agents/*.md
+PAI-OpenCode:   ~/.config/opencode/agents/*.md
 ```
 
 **OpenCode Requirement:** Colors must be hex format (`#00FFFF`), not names (`cyan`).
@@ -70,7 +70,7 @@ PAI-OpenCode:   .opencode/agents/*.md
 
 **Plugin Structure:**
 ```
-.opencode/plugins/
+~/.config/opencode/plugins/
 ├── pai-unified.ts          # Main orchestrator
 ├── handlers/               # Event handlers
 │   ├── context-loader.ts
@@ -87,35 +87,34 @@ PAI-OpenCode:   .opencode/agents/*.md
 **Rule:** CORE skill has sub-structures that must be preserved.
 
 ```
-.opencode/skills/CORE/
-├── SKILL.md                # The Algorithm + Core Instructions
-├── SYSTEM/                 # System documentation (updatable)
-│   ├── PAISYSTEMARCHITECTURE.md
-│   ├── SKILLSYSTEM.md
-│   ├── THEHOOKSYSTEM.md → THEPLUGINSYSTEM.md (renamed)
-│   └── ...
-├── USER/                   # User customization (never overwrite)
-│   ├── TELOS/
-│   ├── SKILLCUSTOMIZATIONS/
-│   └── ...
-├── Tools/                  # TypeScript utilities
-└── Workflows/              # Workflow guides
+~/.config/opencode/skills/CORE/
+├── SKILL.md                                 # The Algorithm + Core Instructions
+├── SYSTEM/                                  # System documentation (updatable)
+├── USER/                                    # User customization (never overwrite)
+├── Tools/                                   # TypeScript utilities
+└── Workflows/                               # Workflow guides
+
+Canonical doc paths:
+- ~/.config/opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md
+- ~/.config/opencode/skills/CORE/SYSTEM/THEPLUGINSYSTEM.md
+- ~/.config/opencode/skills/CORE/USER/DAIDENTITY.md
 ```
 
-**Path References:** Replace all `~/.claude/` with `.opencode/` in documentation.
+**Path References:** Replace all `~/.claude/` references with `~/.config/opencode/` for runtime docs.
 
-### 5. MEMORY (1:1 Mapping)
+### 5. MEMORY (OpenCode Layout)
 
-**Rule:** Direct copy, same subdirectory structure.
+**Rule:** Mirror upstream intent, but OpenCode uses `RAW/` as the firehose.
 
 ```
-.opencode/MEMORY/
+~/.config/opencode/MEMORY/
+├── RAW/
+├── WORK/
 ├── LEARNING/
-│   └── ALGORITHM/
+├── RESEARCH/
 ├── SECURITY/
 ├── STATE/
-├── VOICE/
-└── WORK/
+└── PAISYSTEMUPDATES/
 ```
 
 ### 6. Fabric Patterns (1:1 Mapping)
@@ -124,7 +123,7 @@ PAI-OpenCode:   .opencode/agents/*.md
 
 ```
 PAI 2.4:        .claude/skills/Fabric/Patterns/
-PAI-OpenCode:   .opencode/skills/Fabric/Patterns/
+PAI-OpenCode:   ~/.config/opencode/skills/Fabric/Patterns/
 
 ⚠️ DO NOT copy to CORE/Tools/fabric/ - that creates duplicates!
 ```
@@ -146,7 +145,7 @@ PAI-OpenCode:   .opencode/skills/Fabric/Patterns/
 2. Replace `subagent_type: "Plan"` with `subagent_type: "Architect"`
 3. Replace `subagent_type: "general-purpose"` with appropriate agent
 
-**Available OpenCode agents** (from `.opencode/agents/`):
+**Available OpenCode agents** (from `~/.config/opencode/agents/`):
 - `Intern` - Fast parallel grunt work
 - `Architect` - System design
 - `Engineer` - Implementation
@@ -180,7 +179,7 @@ These exist in PAI-OpenCode but not in PAI 2.4:
 |-----------|---------|
 | `plugins/` | OpenCode plugin system |
 | `profiles/` | API provider profiles (anthropic, openai, local) |
-| `skills/CORE/SYSTEM/PAISECURITYSYSTEM/` | Security docs (canonical); `PAISECURITYSYSTEM/` is a symlink |
+| `~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/` | Security docs (canonical); `~/.config/opencode/PAISECURITYSYSTEM/` is a symlink |
 | `package.json` | Bun dependencies |
 | `tsconfig.json` | TypeScript configuration |
 

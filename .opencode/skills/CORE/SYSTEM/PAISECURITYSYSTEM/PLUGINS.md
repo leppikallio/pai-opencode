@@ -6,17 +6,17 @@
 
 ## Canonical Location
 
-`skills/CORE/SYSTEM/PAISECURITYSYSTEM/` is the source of truth.
+`~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/` is the source of truth.
 
 Compatibility:
-- `.opencode/PAISECURITYSYSTEM/` is a symlink to this directory.
+- `~/.config/opencode/PAISECURITYSYSTEM/` is a symlink to this directory.
 
 ---
 
 ## Where It Runs
 
-- Entry point: `.opencode/plugins/pai-unified.ts`
-- Validator: `.opencode/plugins/handlers/security-validator.ts`
+- Entry point: `~/.config/opencode/plugins/pai-unified.ts`
+- Validator: `~/.config/opencode/plugins/handlers/security-validator.ts`
 
 ---
 
@@ -32,7 +32,7 @@ Compatibility:
 
 Order of precedence:
 
-1. `USER/PAISECURITYSYSTEM/patterns.yaml` (user override)
+1. `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml` (user override)
 2. `PAISECURITYSYSTEM/patterns.example.yaml` (system fallback)
 3. Fail‑open if neither exists
 
@@ -67,6 +67,6 @@ Each entry includes:
 
 ## Quick Update Workflow
 
-1. Edit `USER/PAISECURITYSYSTEM/patterns.yaml`
-2. Deploy: `bun Tools/Install.ts --target "$PAI_DIR"`
+1. Edit `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml`
+2. Deploy: `bun Tools/Install.ts --target "~/.config/opencode"`
 3. Restart OpenCode

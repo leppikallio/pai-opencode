@@ -47,7 +47,11 @@ SECURITY_RULES:
 
 ## How It Works
 
-1. PAI checks USER/PAISECURITYSYSTEM/ first
+1. PAI checks `~/.config/opencode/USER/PAISECURITYSYSTEM/` first
 2. If patterns.yaml exists, it's used for security validation
 3. If not, falls back to default PAISECURITYSYSTEM patterns
 4. Your patterns override defaults (USER always wins)
+
+Paths:
+- System defaults: `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml`
+- Your overrides: `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml`

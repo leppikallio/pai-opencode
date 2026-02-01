@@ -36,7 +36,7 @@ Use the `voice_notify` tool:
 | **Schneier on Security** | https://schneier.com | Bruce Schneier's security blog |
 | **Risky Business** | https://risky.biz | Security podcast/news |
 
-**Custom sources:** Add to `USER/SKILLCUSTOMIZATIONS/SECUpdates/sources.json`
+**Custom sources:** Add to `~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/SECUpdates/sources.json`
 
 ---
 

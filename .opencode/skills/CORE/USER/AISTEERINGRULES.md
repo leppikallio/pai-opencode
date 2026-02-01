@@ -1,6 +1,6 @@
 # AI Steering Rules - Personal
 
-Personal behavioral rules for {PRINCIPAL.NAME}. These extend and override `SYSTEM/AISTEERINGRULES.md`.
+Personal behavioral rules for {PRINCIPAL.NAME}. These extend and override `~/.config/opencode/skills/CORE/SYSTEM/AISTEERINGRULES.md`.
 
 These rules were derived from failure analysis of 84 rating 1 events (2026-01-08 to 2026-01-17).
 
@@ -94,4 +94,4 @@ None. This rule has no exceptions. Even if "it should work", verify it.
 
 ---
 
-These rules extend `CORE/SYSTEM/AISTEERINGRULES.md`. Both must be followed.
+These rules extend `~/.config/opencode/skills/CORE/SYSTEM/AISTEERINGRULES.md`. Both must be followed.

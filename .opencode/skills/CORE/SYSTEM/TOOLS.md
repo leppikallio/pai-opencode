@@ -376,7 +376,7 @@ When adding a new utility tool to this system:
    - When to use triggers
    - Environment variables (if any)
 
-3. **Update `~/.config/opencode/skills/CORE/SKILL.md`:** Ensure SYSTEM/TOOLS.md is in the documentation index
+3. **Update `~/.config/opencode/skills/CORE/SKILL.md`:** Ensure `~/.config/opencode/skills/CORE/SYSTEM/TOOLS.md` is in the documentation index
 
 4. **Test:** Verify tool works from new location
 

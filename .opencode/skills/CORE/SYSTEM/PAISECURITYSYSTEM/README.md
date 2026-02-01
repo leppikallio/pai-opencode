@@ -6,12 +6,12 @@ A foundational security framework for Personal AI Infrastructure.
 
 ## Two-Layer Design
 
-This directory (`skills/CORE/SYSTEM/PAISECURITYSYSTEM/`) is the **canonical base system**—default patterns, documentation, and the security hook. It provides sensible defaults that work out of the box.
+This directory (`~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/`) is the **canonical base system**—default patterns, documentation, and the security hook. It provides sensible defaults that work out of the box.
 
 Compatibility note:
-- `.opencode/PAISECURITYSYSTEM/` is a symlink to this directory for legacy references.
+- `~/.config/opencode/PAISECURITYSYSTEM/` is a symlink to this directory for legacy references.
 
-Your personal security policies live in `USER/PAISECURITYSYSTEM/`. This is where you:
+Your personal security policies live in `~/.config/opencode/USER/PAISECURITYSYSTEM/`. This is where you:
 - Define your own blocked/confirm/alert patterns
 - Add project-specific rules
 - Customize path protections
@@ -20,7 +20,7 @@ Your personal security policies live in `USER/PAISECURITYSYSTEM/`. This is where
 **The hook checks USER first, then falls back to this base system.** This means:
 - New PAI users get working security immediately
 - You can override any default with your own rules
-- Your personal policies stay private (USER/ is never synced to public PAI)
+- Your personal policies stay private (USER tier is never synced to public PAI)
 
 ---
 
@@ -46,7 +46,7 @@ This security system provides essential protection against catastrophic operatio
 ## Architecture
 
 ```
-skills/CORE/SYSTEM/PAISECURITYSYSTEM/   # System defaults (this directory)
+~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/   # System defaults
 ├── README.md                            # This file
 ├── ARCHITECTURE.md                      # Security layer design
 ├── HOOKS.md                             # Hook implementation docs
@@ -54,20 +54,20 @@ skills/CORE/SYSTEM/PAISECURITYSYSTEM/   # System defaults (this directory)
 ├── COMMANDINJECTION.md                  # Command injection defense
 └── patterns.example.yaml                # Default security patterns
 
-USER/PAISECURITYSYSTEM/                  # Your customizations
+~/.config/opencode/USER/PAISECURITYSYSTEM/                  # Your customizations
 ├── patterns.yaml                        # Your security rules
 ├── QUICKREF.md                          # Quick lookup
 └── ...                                  # Your additions
 ```
 
-The validator loads `USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `PAISECURITYSYSTEM/patterns.example.yaml` if not found.
+The validator loads `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml` if not found.
 
 ---
 
 ## Quick Start
 
 1. Security works out of the box with `patterns.example.yaml`
-2. To customize, copy to `USER/PAISECURITYSYSTEM/patterns.yaml`
+2. To customize, copy to `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml`
 3. Add your own blocked/confirm/alert patterns
 4. Events log to `MEMORY/SECURITY/YYYY-MM/security.jsonl`
 

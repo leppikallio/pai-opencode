@@ -9,7 +9,7 @@ This directory stores information your AI needs about YOU. Content here is NEVER
 ## Directory Structure
 
 ```
-USER/
+~/.config/opencode/skills/CORE/USER/
 ├── README.md              ← You are here
 │
 ├── ─── Identity & Preferences ───
@@ -108,7 +108,7 @@ USER/
 
 ## Two-Tier Pattern
 
-PAI uses a SYSTEM/USER two-tier pattern everywhere:
+PAI uses a SYSTEM and USER two-tier pattern everywhere:
 
 ```
 SYSTEM → Provides defaults (updated with PAI releases)
@@ -126,9 +126,9 @@ USER   → Your overrides (never overwritten)
 
 | Component | SYSTEM Default | USER Override |
 |-----------|----------------|---------------|
-| Response format | `SYSTEM/RESPONSEFORMAT.md` | `USER/RESPONSEFORMAT.md` |
-| Security patterns | `skills/CORE/SYSTEM/PAISECURITYSYSTEM/` | `USER/PAISECURITYSYSTEM/` |
-| Skill behavior | Skill's `SKILL.md` | `USER/SKILLCUSTOMIZATIONS/[Skill]/` |
+| Response format | `~/.config/opencode/skills/CORE/SYSTEM/RESPONSEFORMAT.md` | `~/.config/opencode/skills/CORE/USER/RESPONSEFORMAT.md` |
+| Security patterns | `~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/` | `~/.config/opencode/USER/PAISECURITYSYSTEM/` |
+| Skill behavior | Skill's `SKILL.md` | `~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/[Skill]/` |
 
 ---
 

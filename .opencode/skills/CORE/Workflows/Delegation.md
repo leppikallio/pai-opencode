@@ -32,7 +32,7 @@ Task tool subagent_types (Architect, Designer, Engineer, etc.) are pre-built wor
 
 **For custom agents, invoke the Agents skill** → `Skill("Agents")` or follow CreateCustomAgent workflow.
 
-See: `SYSTEM/PAIAGENTSYSTEM.md` for full routing rules | `skills/Agents/SKILL.md` for agent composition system.
+See: `~/.config/opencode/skills/CORE/SYSTEM/PAIAGENTSYSTEM.md` for routing rules | `~/.config/opencode/skills/Agents/SKILL.md` for agent composition.
 
 ---
 
@@ -186,26 +186,8 @@ bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --list
 
 ## Model Selection
 
-**CRITICAL FOR SPEED**: Always specify the right model for the task.
-
-| Task Type | Model | Why |
-|-----------|-------|-----|
-| Deep reasoning, architecture | `opus` | Maximum intelligence |
-| Standard implementation, analysis | `sonnet` | Balance of speed + capability |
-| Simple checks, parallel grunt work | `haiku` | 10-20x faster, sufficient |
-
-```typescript
-// WRONG - defaults to Opus, takes minutes
-Task({ prompt: "Check if file exists", subagent_type: "Intern" })
-
-// RIGHT - Haiku for simple task
-Task({ prompt: "Check if file exists", subagent_type: "Intern", model: "haiku" })
-```
-
-**Rule of Thumb:**
-- Grunt work or verification → `haiku`
-- Implementation or research → `sonnet`
-- Strategic/architectural → `opus` or default
+The Task tool input does not include a `model` field.
+Model selection is controlled by the agent configuration itself.
 
 ## Foreground Delegation
 
@@ -218,7 +200,6 @@ Task({
   description: "Research competitor",
   prompt: "Investigate Acme Corp's recent product launches...",
   subagent_type: "PerplexityResearcher",
-  model: "sonnet"
 })
 // Blocks until complete, returns result
 ```
@@ -233,19 +214,16 @@ Task({
   description: "Research company A",
   prompt: "Investigate Company A...",
   subagent_type: "Intern",
-  model: "haiku"
 })
 Task({
   description: "Research company B",
   prompt: "Investigate Company B...",
   subagent_type: "Intern",
-  model: "haiku"
 })
 Task({
   description: "Research company C",
   prompt: "Investigate Company C...",
   subagent_type: "Intern",
-  model: "haiku"
 })
 // All run in parallel, all results returned together
 ```
@@ -260,7 +238,6 @@ Task({
   description: "Spotcheck parallel results",
   prompt: "Review these results for consistency and completeness: [results]",
   subagent_type: "Intern",
-  model: "haiku"
 })
 ```
 
@@ -272,19 +249,15 @@ See: `Workflows/BackgroundDelegation.md` for full details.
 
 ```typescript
 Task({
-  description: "Background research",
+  description: "Parallel research",
   prompt: "Research X...",
-  subagent_type: "PerplexityResearcher",
-  model: "haiku",
-  run_in_background: true  // Returns immediately
+  subagent_type: "PerplexityResearcher"  // must exist as an agent name
 })
-// Returns { agent_id: "abc123", status: "running" }
 
-// Check later
-TaskOutput({ agentId: "abc123", block: false })
-
-// Retrieve when ready
-TaskOutput({ agentId: "abc123", block: true })
+Note:
+- OpenCode has no separate Task output retrieval tool.
+- Task results return in-band when the Task call completes.
+- Runtime plugin captures Task outputs under `~/.config/opencode/MEMORY/RESEARCH/`.
 ```
 
 ## Decision Matrix
@@ -342,7 +315,6 @@ Task({
     - Remediation recommendations
   `,
   subagent_type: "Pentester",
-  model: "sonnet"
 })
 ```
 

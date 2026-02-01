@@ -68,21 +68,23 @@ bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --traits "researc
 
 ## Task Tool Subagent Types (Internal Use Only)
 
-These are pre-built agents in the Claude Code Task tool. They are for **internal workflow use**, not for user-requested "custom agents."
+These are pre-built agents available via OpenCode's Task tool. They are for **internal workflow use**, not for user-requested "custom agents."
 
 | Subagent Type | Purpose | When Used |
 |---------------|---------|-----------|
+| `Algorithm` | Ideal-state criteria thinking | ISC creation, verification planning |
 | `Architect` | System design | Development skill workflows |
 | `Designer` | UX/UI design | Development skill workflows |
 | `Engineer` | Code implementation | Development skill workflows |
 | `Intern` | General-purpose parallel work | Parallel grunt work, research |
 | `Explore` | Codebase exploration | Finding files, understanding structure |
-| `Plan` | Implementation planning | Plan mode |
 | `QATester` | Quality assurance | Browser testing workflows |
 | `Pentester` | Security testing | WebAssessment workflows |
 | `ClaudeResearcher` | Claude-based research | Research skill workflows |
 | `GeminiResearcher` | Gemini-based research | Research skill workflows |
 | `GrokResearcher` | Grok-based research | Research skill workflows |
+| `PerplexityResearcher` | Perplexity Sonar research | Research skill workflows |
+| `CodexResearcher` | Code-focused research | TypeScript archaeology and patterns |
 
 **These do NOT have unique voices or AgentFactory composition.**
 

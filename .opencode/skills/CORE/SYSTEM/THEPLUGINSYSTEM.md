@@ -17,7 +17,7 @@ The PAI plugin system is an event-driven automation infrastructure built on Open
 - **Security Validation** - Block dangerous commands before execution
 - **Tool Lifecycle** - Pre/post processing for tool executions
 - **Voice Notifications** - Text-to-speech announcements for task completions
-- **History Capture** - Automatic work/learning documentation to `$PAI_DIR/MEMORY/`
+- **History Capture** - Automatic work/learning documentation to `~/.config/opencode/MEMORY/`
 
 **Key Principle:** Plugins run asynchronously and fail gracefully. They enhance the user experience but never block OpenCode's core functionality.
 
@@ -62,9 +62,9 @@ OpenCode supports the following plugin hooks:
 ```
 
 **Current Implementation:**
-- `context-loader.ts` - Reads `skills/CORE/SKILL.md` and injects PAI context
-- Loads SYSTEM/*.md files for architecture documentation
-- Loads USER/TELOS/*.md for personal context
+- `context-loader.ts` - Reads `~/.config/opencode/skills/CORE/SKILL.md` and injects PAI context
+- Loads `~/.config/opencode/skills/CORE/SYSTEM/*.md` for system documentation
+- Loads `~/.config/opencode/skills/CORE/USER/TELOS/*.md` for personal context
 
 ---
 
@@ -225,7 +225,7 @@ plugins/
 OpenCode **automatically discovers** plugins from the `plugins/` directory - **no config entry needed!**
 
 ```
-.opencode/
+~/.config/opencode/
   plugins/
     pai-unified.ts    # ✅ Auto-discovered and loaded
     my-plugin.ts      # ✅ Also auto-discovered
@@ -251,9 +251,9 @@ If you must explicitly register a plugin (e.g., from npm or absolute path), use:
 ### Identity Configuration
 
 PAI-specific identity configuration is handled via:
-- `USER/DAIDENTITY.md` → AI personality and voice settings
-- `USER/TELOS/` → User context, goals, and preferences
-- `opencode.json` → `username` field
+- `~/.config/opencode/skills/CORE/USER/DAIDENTITY.md` → AI personality and voice settings
+- `~/.config/opencode/skills/CORE/USER/TELOS/` → User context, goals, and preferences
+- `~/.config/opencode/opencode.json` → `username` field
 
 ---
 
@@ -294,7 +294,7 @@ Security validation uses pattern matching against dangerous commands:
 - `npm install -g` - Global installs
 - `docker rm` - Container removal
 
-See `PAISECURITYSYSTEM/patterns.example.yaml` for full pattern definitions.
+See `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml` for full pattern definitions.
 
 ---
 
@@ -303,8 +303,8 @@ See `PAISECURITYSYSTEM/patterns.example.yaml` for full pattern definitions.
 ### Plugin Not Loading
 
 **Check:**
-1. Is the plugin file in `.opencode/plugins/`? (Auto-discovery location)
-2. Can Bun parse the TypeScript? `bun run .opencode/plugins/pai-unified.ts`
+1. Is the plugin file in `~/.config/opencode/plugins/`? (Auto-discovery location)
+2. Can Bun parse the TypeScript? `bun run ~/.config/opencode/plugins/pai-unified.ts`
 3. Are there TypeScript errors? Check `~/.config/opencode/plugins/debug.log`
 4. If using `opencode.json`: Use `plugin` (singular), not `plugins` (plural)
 5. If using explicit paths: Use `file://` URL format, not relative paths
@@ -312,7 +312,7 @@ See `PAISECURITYSYSTEM/patterns.example.yaml` for full pattern definitions.
 ### Context Not Injecting
 
 **Check:**
-1. Does `skills/CORE/SKILL.md` exist?
+1. Does `~/.config/opencode/skills/CORE/SKILL.md` exist?
 2. Check `~/.config/opencode/plugins/debug.log` for loading errors
 3. Verify `context-loader.ts` can find the CORE skill directory
 
@@ -354,10 +354,10 @@ If migrating from PAI's Claude Code implementation:
 
 ## Related Documentation
 
-- **Memory System:** `SYSTEM/MEMORYSYSTEM.md`
-- **Agent System:** `SYSTEM/PAIAGENTSYSTEM.md`
-- **Architecture:** `SYSTEM/PAISYSTEMARCHITECTURE.md`
-- **Security Patterns:** `skills/CORE/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml`
+- **Memory System:** `~/.config/opencode/skills/CORE/SYSTEM/MEMORYSYSTEM.md`
+- **Agent System:** `~/.config/opencode/skills/CORE/SYSTEM/PAIAGENTSYSTEM.md`
+- **Architecture:** `~/.config/opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md`
+- **Security Patterns:** `~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml`
 
 ---
 

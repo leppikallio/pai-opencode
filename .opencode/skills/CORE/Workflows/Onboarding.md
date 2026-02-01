@@ -20,11 +20,11 @@ This workflow creates the personal context files that make PAI truly yours.
 
 | Component | File | Purpose |
 |-----------|------|---------|
-| **TELOS** | `skills/CORE/USER/TELOS.md` | Your mission, goals, values, challenges |
-| **Identity** | `skills/CORE/USER/DAIDENTITY.md` | AI name, personality, voice preferences |
-| **Contacts** | `skills/CORE/USER/Contacts.md` | Important people in your life/work |
-| **Stack** | `skills/CORE/USER/CoreStack.md` | Technology preferences |
-| **Steering Rules** | `skills/CORE/USER/AISTEERINGRULES.md` | Custom AI behavior rules |
+| **TELOS** | `~/.config/opencode/skills/CORE/USER/TELOS/TELOS.md` | Your mission, goals, values, challenges |
+| **Identity** | `~/.config/opencode/skills/CORE/USER/DAIDENTITY.md` | AI name, personality, voice preferences |
+| **Contacts** | `~/.config/opencode/skills/CORE/USER/CONTACTS.md` | Important people in your life/work |
+| **Stack** | `~/.config/opencode/skills/CORE/USER/TECHSTACKPREFERENCES.md` | Technology preferences |
+| **Steering Rules** | `~/.config/opencode/skills/CORE/USER/AISTEERINGRULES.md` | Custom AI behavior rules |
 
 ---
 
@@ -306,7 +306,7 @@ After collecting answers, generate the configuration files:
 
 ### Phase 6: Write Files & Confirm
 
-1. Write all generated files to `skills/CORE/USER/`
+1. Write all generated files to `~/.config/opencode/skills/CORE/USER/`
 2. Show summary of what was created
 3. Explain how to update these files later
 
@@ -345,10 +345,10 @@ For users who want to update specific sections:
 
 ## Notes
 
-- **Privacy:** All data stays local in your `.opencode/` directory
+- **Privacy:** All data stays local in `~/.config/opencode/`
 - **No Upload:** Nothing is sent externally - this is YOUR context
 - **Editable:** All files are plain markdown - edit manually anytime
-- **Portable:** Copy `skills/CORE/USER/` to migrate to new installations
+- **Portable:** Copy `~/.config/opencode/skills/CORE/USER/` to migrate to new installations
 
 ---
 

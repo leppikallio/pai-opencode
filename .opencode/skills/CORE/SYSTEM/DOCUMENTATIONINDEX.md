@@ -13,13 +13,15 @@ extracted_from: SKILL.md lines 339-401
 
 ## 📚 Documentation Index & Route Triggers
 
-**All documentation files are in `~/.config/opencode/skills/CORE/` with SYSTEM/ and USER/ subdirectories. Read these files when you need deeper context.**
+**All documentation files are in `~/.config/opencode/skills/CORE/` under:**
+- `~/.config/opencode/skills/CORE/SYSTEM/`
+- `~/.config/opencode/skills/CORE/USER/`
 
 **Core Architecture & Philosophy:**
-- `SYSTEM/PAISYSTEMARCHITECTURE.md` - System architecture and philosophy, foundational principles (CLI-First, Deterministic Code, Prompts Wrap Code) | ⭐ PRIMARY REFERENCE | Triggers: "system architecture", "how does the system work", "system principles"
-- `SYSTEM/SYSTEM_USER_EXTENDABILITY.md` - Two-tier SYSTEM/USER architecture for extensibility | Triggers: "two tier", "system vs user", "how to extend", "customization pattern"
-- `SYSTEM/CLIFIRSTARCHITECTURE.md` - CLI-First pattern details
-- `SYSTEM/SkillSystem.md` - Custom skill system with triggers and workflow routing | ⭐ CRITICAL | Triggers: "how to structure a skill", "skill routing", "create new skill"
+- `~/.config/opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md` - System architecture and philosophy | ⭐ PRIMARY REFERENCE
+- `~/.config/opencode/skills/CORE/SYSTEM/SYSTEM_USER_EXTENDABILITY.md` - SYSTEM/USER extensibility pattern
+- `~/.config/opencode/skills/CORE/SYSTEM/CLIFIRSTARCHITECTURE.md` - CLI-first pattern details
+- `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md` - Skill structure, routing, triggers | ⭐ CRITICAL
 
 **Skill Execution:**
 
@@ -43,10 +45,10 @@ description: Complete blog workflow. USE WHEN user mentions their blog, website,
 - Do NOT list exact phrases like `'write a blog post'`
 - Max 1024 characters
 
-See `SYSTEM/SkillSystem.md` for complete documentation.
+See `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md` for complete documentation.
 
 **Development & Testing:**
-- `USER/TECHSTACKPREFERENCES.md` - Core technology stack (TypeScript, bun, Cloudflare) | Triggers: "what stack do I use", "TypeScript or Python", "bun or npm"
+- `~/.config/opencode/skills/CORE/USER/TECHSTACKPREFERENCES.md` - Core technology stack | Triggers: "what stack do I use", "bun or npm"
 - Testing standards → Development Skill
 
 **Agent System:**
@@ -54,21 +56,21 @@ See `SYSTEM/SkillSystem.md` for complete documentation.
 - Delegation patterns are documented inline in the "Delegation & Parallelization" section below
 
 **Response & Communication:**
-- `SYSTEM/RESPONSEFORMAT.md` - Mandatory response format | Triggers: "output format", "response format"
-- `SYSTEM/THEFABRICSYSTEM.md` - Fabric patterns | Triggers: "fabric patterns", "prompt engineering"
+- `~/.config/opencode/skills/CORE/SYSTEM/RESPONSEFORMAT.md` - Mandatory response format
+- `~/.config/opencode/skills/CORE/SYSTEM/THEFABRICSYSTEM.md` - Fabric patterns
 - Voice notifications → VoiceServer (system alerts, agent feedback)
 
 **Configuration & Systems:**
-- `SYSTEM/THEPLUGINSYSTEM.md` - Plugin configuration | Triggers: "plugins configuration", "create custom plugins", "hooks mapping"
-- `SYSTEM/MEMORYSYSTEM.md` - Memory documentation | Triggers: "memory system", "capture system", "work tracking", "session history"
-- `SYSTEM/TERMINALTABS.md` - Terminal tab state system (colors + suffixes for working/completed/awaiting/error states) | Triggers: "tab colors", "tab state", "kitty tabs"
+- `~/.config/opencode/skills/CORE/SYSTEM/THEPLUGINSYSTEM.md` - Plugin system
+- `~/.config/opencode/skills/CORE/SYSTEM/MEMORYSYSTEM.md` - Memory documentation
+- `~/.config/opencode/skills/CORE/SYSTEM/TERMINALTABS.md` - Terminal tab state system
 
 **Reference Data:**
-- `USER/ASSETMANAGEMENT.md` - Digital assets registry for instant recognition & vulnerability management | ⭐ CRITICAL | Triggers: "my site", "vulnerability", "what uses React", "upgrade path", "tech stack"
-- `USER/CONTACTS.md` - Complete contact directory | Triggers: "who is Angela", "Bunny's email", "show contacts" | Top 7 quick ref below
-- `USER/DEFINITIONS.md` - Canonical definitions | Triggers: "definition of AGI", "how do we define X"
-- `SYSTEM/PAISECURITYSYSTEM/` - Security architecture, patterns, and defense protocols | Triggers: "security system", "security patterns", "prompt injection"
-- `USER/PAISECURITYSYSTEM/` - Personal security policies (private) | See security section below for critical always-active rules
+- `~/.config/opencode/skills/CORE/USER/ASSETMANAGEMENT.md` - Digital assets registry | ⭐ CRITICAL
+- `~/.config/opencode/skills/CORE/USER/CONTACTS.md` - Contact directory
+- `~/.config/opencode/skills/CORE/USER/DEFINITIONS.md` - Canonical definitions
+- `~/.config/opencode/PAISECURITYSYSTEM/` - Security docs + patterns
+- `~/.config/opencode/USER/PAISECURITYSYSTEM/` - Personal security policies (private)
 
 **Workflows:**
 - `Workflows/` - Operational procedures (git, delegation, MCP, blog deployment, etc.)

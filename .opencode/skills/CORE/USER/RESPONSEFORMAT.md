@@ -93,4 +93,4 @@ Add your own sections if needed:
 
 ---
 
-*This file overrides SYSTEM/RESPONSEFORMAT.md when present.*
+*This file overrides `~/.config/opencode/skills/CORE/SYSTEM/RESPONSEFORMAT.md` when present.*

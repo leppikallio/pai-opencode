@@ -127,9 +127,9 @@ Remote: git@github.com:Steffen025/jeremy-2.0-claudecode.git
 Branch: main
 
 Files Changed: 5
-- M .opencode/plugins/handlers/context-loader.ts
-- M .opencode/MEMORY/State/algorithm-state.json
-- A .opencode/skills/System/Workflows/GitPush.md
+ - M ~/.config/opencode/plugins/handlers/context-loader.ts
+- M ~/.config/opencode/MEMORY/STATE/algorithm-state.json
+ - A ~/.config/opencode/skills/System/Workflows/GitPush.md
 + 2 more...
 
 Security Scan: ✅ Passed (private repo - skipped)

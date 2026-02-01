@@ -113,7 +113,7 @@ OpenCode plugin `tool.execute.before`
 `plugins/handlers/security-validator.ts`
             ↓
 Loads patterns:
-• USER/PAISECURITYSYSTEM/patterns.yaml (if present)
+• ~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml (if present)
 • PAISECURITYSYSTEM/patterns.example.yaml (fallback)
             ↓
 Evaluates:
@@ -184,9 +184,9 @@ git stash
 
 | File | Purpose |
 |------|---------|
-| `.opencode/plugins/handlers/security-validator.ts` | Security validation logic |
-| `skills/CORE/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml` | Default pattern template |
-| `USER/PAISECURITYSYSTEM/patterns.yaml` | Personal overrides |
+| `~/.config/opencode/plugins/handlers/security-validator.ts` | Security validation logic |
+| `~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml` | Default pattern template |
+| `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml` | Personal overrides |
 | `MEMORY/SECURITY/YYYY-MM/security.jsonl` | Security audit log |
 
 ---

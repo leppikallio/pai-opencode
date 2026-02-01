@@ -147,7 +147,7 @@ read ~/.config/opencode/skills/CORE/USER/TELOS/GOALS.md
 read ~/.config/opencode/skills/CORE/USER/TELOS/BELIEFS.md
 
 # View recent updates
-read ~/.config/opencode/skills/CORE/USER/TELOS/updates.md
+read ~/.config/opencode/skills/CORE/USER/TELOS/UPDATES.md
 ```
 
 ### Update Personal TELOS

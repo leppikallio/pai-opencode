@@ -41,8 +41,8 @@ Use the Task tool to launch agents in a SINGLE message (parallel execution). Eac
 | 1 | CORE SKILL.md | `skills/CORE/SKILL.md` | Broken file references, outdated paths |
 | 2 | Identity System | `plugins/lib/identity.ts`, `settings.json` | Config consistency |
 | 3 | Plugin Hooks & Events | `plugins/*.ts`, `plugins/handlers/*.ts`, `plugins/adapters/types.ts` | Hook coverage vs OpenCode docs, message.* and session.* usage |
-| 4 | System Docs | `skills/CORE/SYSTEM/*.md` | Cross-references, broken links |
-| 5 | User Docs | `skills/CORE/USER/*.md` | Personal config references |
+| 4 | System Docs | `~/.config/opencode/skills/CORE/SYSTEM/*.md` | Cross-references, broken links |
+| 5 | User Docs | `~/.config/opencode/skills/CORE/USER/*.md` | Personal config references |
 | 6 | Workflows | `skills/*/Workflows/*.md` | File paths, tool references |
 | 7 | Tools | `skills/*/Tools/*.ts` | Imports, hardcoded paths |
 | 8 | Settings | `settings.json` | Schema validity, env vars |
@@ -208,7 +208,7 @@ IntegrityCheck (Complete)
 
 Save report to MEMORY for durable verification:
 ```
-$PAI_DIR/MEMORY/STATE/integrity/YYYY-MM-DD.md
+~/.config/opencode/MEMORY/STATE/integrity/YYYY-MM-DD.md
 ```
 
 ### Step 6: Completion

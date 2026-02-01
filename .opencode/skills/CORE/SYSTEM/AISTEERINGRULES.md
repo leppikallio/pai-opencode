@@ -1,6 +1,6 @@
 # AI Steering Rules — SYSTEM
 
-Universal behavioral rules for PAI. Mandatory. Personal customizations in `USER/AISTEERINGRULES.md` extend and override these.
+Universal behavioral rules for PAI. Mandatory. Personal customizations in `~/.config/opencode/skills/CORE/USER/AISTEERINGRULES.md` extend and override these.
 
 ## Build ISC From Every Request
 **Statement:** Decompose every request into Ideal State Criteria before acting. Read entire request, session context, CORE context. Turn each component (including negatives) into verifiable criteria.
@@ -89,4 +89,4 @@ Universal behavioral rules for PAI. Mandatory. Personal customizations in `USER/
 **Correct:** Review, identify violation, revert, explain, capture learning.
 
 ---
-*Personal customizations: `USER/AISTEERINGRULES.md`*
+*Personal customizations: `~/.config/opencode/skills/CORE/USER/AISTEERINGRULES.md`*
