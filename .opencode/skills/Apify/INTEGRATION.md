@@ -25,7 +25,7 @@ console.log(top);
 
 ### Legacy Note
 
-Older installations sometimes include extra scripts under `~/.config/opencode/filesystem-mcps/apify/`.
+Older installations sometimes include extra `filesystem-mcps` scripts.
 They are not required for this Apify skill.
 
 ## Migration from MCP
@@ -136,14 +136,7 @@ Other Apify actors worth implementing:
 ## Documentation
 
 **For Users:**
-- Legacy scripts quick reference (optional): `~/.config/opencode/filesystem-mcps/SCRIPTS-REFERENCE.md`
 - Apify skill: `~/.config/opencode/skills/Apify/SKILL.md`
-
-**For Developers:**
-- Optional implementation docs (if you installed filesystem-mcps):
-  - `~/.config/opencode/filesystem-mcps/apify/README.md`
-  - `~/.config/opencode/filesystem-mcps/STANDARDS.md`
-  - `~/.config/opencode/filesystem-mcps/README.md`
 
 ## Support
 

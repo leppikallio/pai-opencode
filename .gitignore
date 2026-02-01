@@ -15,3 +15,7 @@ node_modules/
 # Backup folders created by converter/migration tools
 .opencode.backup-*/
 .scratchpad/
+
+# Local config/state artifacts (never commit)
+.opencode/config/
+.opencode/skills/PAIUpgrade/State/
