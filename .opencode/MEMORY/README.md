@@ -6,18 +6,12 @@ PAI's memory system for continuous learning.
 
 | Directory | Purpose |
 |-----------|---------|
-| LEARNING/ | Captured insights, patterns, and signals |
-| SESSIONS/ | Session summaries |
-| RESEARCH/ | Research artifacts |
+| RAW/ | Append-only source-of-truth event log |
+| WORK/ | Work session directories, THREAD.md, ISC.json |
+| LEARNING/ | Learnings, failures, and ratings signals |
+| RESEARCH/ | Captured subagent outputs (Task tool) |
+| SECURITY/ | Security audit log events |
+| STATE/ | Runtime state (current-work pointer, caches) |
 | PAISYSTEMUPDATES/ | System upgrade documentation |
-
-## OpenCode Additions
-
-| Directory | Purpose |
-|-----------|---------|
-| History/ | Session history |
-| STATE/ | State tracking |
-| WORK/ | Work artifacts |
-| SECURITY/ | Security event logs |
 
 These directories populate automatically as you use PAI.

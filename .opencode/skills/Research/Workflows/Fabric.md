@@ -22,13 +22,13 @@ This provides access to:
 
 ```bash
 # Check if Fabric repo exists
-if [ ! -d "$HOME/.opencode/skills/fabric/fabric-repo" ]; then
+if [ ! -d "$HOME/.config/opencode/skills/Fabric/fabric-repo" ]; then
   echo "Fabric repository not found. Cloning..."
-  cd "$HOME/.opencode/skills/fabric"
+  cd "$HOME/.config/opencode/skills/Fabric"
   git clone https://github.com/fabric-project/fabric.git fabric-repo
   echo "Fabric repository cloned successfully."
 else
-  echo "Fabric repository found at $HOME/.opencode/skills/fabric/fabric-repo"
+  echo "Fabric repository found at $HOME/.config/opencode/skills/Fabric/fabric-repo"
 fi
 ```
 

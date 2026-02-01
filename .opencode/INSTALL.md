@@ -32,7 +32,7 @@ cd pai-opencode
 # Install/upgrade the runtime tree
 bun Tools/Install.ts
 
-# Note: Agent models are defined explicitly in `.opencode/agents/*.md`.
+# Note: Agent models are defined explicitly in `~/.config/opencode/agents/*.md`.
 # The installer does not rewrite agent models unless you opt in.
 
 # Configure your identity + provider (writes into ~/.config/opencode)
@@ -53,7 +53,7 @@ OpenCode loads global rules from `~/.config/opencode/AGENTS.md`.
 
 PAI-OpenCode installs a managed block there that enforces:
 - Do not edit `~/.config/opencode/` directly.
-- Make shareable changes in this repository under `.opencode/`, then deploy.
+- Make shareable changes in this repository under the `.opencode` directory, then deploy.
 
 ### Method 2: Migration from Claude Code PAI
 
@@ -97,7 +97,7 @@ Edit `~/.config/opencode/opencode.json` for OpenCode platform settings.
 | PAI 2.4 (Claude Code) | PAI-OpenCode |
 |-----------------------|--------------|
 | `hooks/` | `plugins/` |
-| `.claude/` | `.opencode/` |
+| `.claude/` | `~/.config/opencode/` |
 | Claude Code CLI | OpenCode CLI |
 | Exit code blocking | Throw Error blocking |
 
@@ -123,7 +123,7 @@ reset && opencode
 
 ## Getting Help
 
-- **Documentation**: `skills/CORE/SKILL.md`
+- **Documentation**: `~/.config/opencode/skills/CORE/SKILL.md`
 - **GitHub**: [github.com/leppikallio/pai-opencode](https://github.com/leppikallio/pai-opencode)
 
 ---

@@ -86,13 +86,13 @@ Use the UpdateSearch.ts tool to query PAISYSTEMUPDATES index:
 
 ```bash
 # Search system updates index
-bun run "$PAI_DIR/skills/System/Tools/UpdateSearch.ts" "security hook"
+bun run "~/.config/opencode/skills/System/Tools/UpdateSearch.ts" "security hook"
 
 # With time filter
-bun run "$PAI_DIR/skills/System/Tools/UpdateSearch.ts" "garrett-ai" --since "2026-01-15"
+bun run "~/.config/opencode/skills/System/Tools/UpdateSearch.ts" "garrett-ai" --since "2026-01-15"
 
 # Multiple keywords
-bun run "$PAI_DIR/skills/System/Tools/UpdateSearch.ts" "typescript error fix"
+bun run "~/.config/opencode/skills/System/Tools/UpdateSearch.ts" "typescript error fix"
 ```
 
 Parse UpdateSearch results:
@@ -116,13 +116,13 @@ Query MEMORY/WORK for relevant work sessions:
 
 ```bash
 # Find sessions in timeframe
-find "$PAI_DIR/MEMORY/WORK" -type f -name "META.yaml" -mtime -${days}
+find "~/.config/opencode/MEMORY/WORK" -type f -name "META.yaml" -mtime -${days}
 
 # Grep for keywords in session files
-grep -l "security.*hook" "$PAI_DIR/MEMORY/WORK"/**/**/*.yaml 2>/dev/null || true
+grep -l "security.*hook" "~/.config/opencode/MEMORY/WORK"/**/**/*.yaml 2>/dev/null || true
 
 # Get session titles and dates
-grep -R "title:" "$PAI_DIR/MEMORY/WORK"/**/META.yaml 2>/dev/null || true
+grep -R "title:" "~/.config/opencode/MEMORY/WORK"/**/META.yaml 2>/dev/null || true
 ```
 
 Rank sessions by relevance:
@@ -156,13 +156,13 @@ Search structured work artifacts:
 
 ```bash
 # Find work items
-find "$PAI_DIR/MEMORY/WORK" -type f -name "*.yaml" -o -name "*.md"
+find "~/.config/opencode/MEMORY/WORK" -type f -name "*.yaml" -o -name "*.md"
 
 # Search work item content
-grep -r "${keyword}" "$PAI_DIR/MEMORY/WORK" --include="*.yaml" --include="*.md"
+grep -r "${keyword}" "~/.config/opencode/MEMORY/WORK" --include="*.yaml" --include="*.md"
 
 # Get work item metadata
-cat "$PAI_DIR/MEMORY/WORK"/*/items/*.yaml | grep -E "title:|status:|date:"
+cat "~/.config/opencode/MEMORY/WORK"/*/items/*.yaml | grep -E "title:|status:|date:"
 ```
 
 Parse work items:
@@ -180,7 +180,7 @@ interface WorkItem {
 
 // Extract relevant work items
 function searchWorkItems(keywords: string[]): WorkItem[] {
-  const workItemFiles = glob("$PAI_DIR/MEMORY/WORK/**/items/*.yaml");
+  const workItemFiles = glob("~/.config/opencode/MEMORY/WORK/**/items/*.yaml");
 
   return workItemFiles
     .map(file => parseWorkItem(file))
@@ -195,13 +195,13 @@ Query project-specific updates:
 
 ```bash
 # Search all project updates
-find "$PAI_DIR/MEMORY/PAISYSTEMUPDATES" -type f -name "*.md" -maxdepth 4
+find "~/.config/opencode/MEMORY/PAISYSTEMUPDATES" -type f -name "*.md" -maxdepth 4
 
 # Find updates matching keywords
-grep -r "${keyword}" "$PAI_DIR/MEMORY/PAISYSTEMUPDATES" --include="*.md"
+grep -r "${keyword}" "~/.config/opencode/MEMORY/PAISYSTEMUPDATES" --include="*.md"
 
 # Get recent project activity
-find "$PAI_DIR/MEMORY/PAISYSTEMUPDATES" -name "*.md" -mtime -30
+find "~/.config/opencode/MEMORY/PAISYSTEMUPDATES" -name "*.md" -mtime -30
 ```
 
 Match projects to query:
@@ -240,21 +240,21 @@ Search captured learnings:
 
 ```bash
 # Search learning docs
-grep -r "${keyword}" "$PAI_DIR/MEMORY/LEARNING" --include="*.md"
+grep -r "${keyword}" "~/.config/opencode/MEMORY/LEARNING" --include="*.md"
 
 # List recent learnings
-find "$PAI_DIR/MEMORY/LEARNING" -name "*.md" -mtime -30
+find "~/.config/opencode/MEMORY/LEARNING" -name "*.md" -mtime -30
 
 # Search by tag/category
-find "$PAI_DIR/MEMORY/LEARNING" -path "*/Security/*.md"
-find "$PAI_DIR/MEMORY/LEARNING" -path "*/TypeScript/*.md"
+find "~/.config/opencode/MEMORY/LEARNING" -path "*/Security/*.md"
+find "~/.config/opencode/MEMORY/LEARNING" -path "*/TypeScript/*.md"
 ```
 
 Extract relevant learnings:
 
 ```typescript
 function searchLearnings(keywords: string[]): Learning[] {
-  const learningFiles = glob("$PAI_DIR/MEMORY/LEARNING/**/*.md");
+  const learningFiles = glob("~/.config/opencode/MEMORY/LEARNING/**/*.md");
 
   return learningFiles
     .map(file => {
@@ -417,7 +417,7 @@ Found {total} relevant artifacts:
 **2026-01-18 23:57** - Session: Hook development workflow
 - Implemented security-validator hook
 - Added pre-tool-use validation
-- Files: `.opencode/plugins/handlers/security-validator.ts`
+- Files: `~/.config/opencode/plugins/handlers/security-validator.ts`
 - Session: [link]
 
 **2026-01-18 22:30** - Learning: Git hook security patterns
@@ -441,8 +441,8 @@ Found {total} relevant artifacts:
 - Exit code 2 signals blocked command
 
 **Files Modified:**
-- `.opencode/plugins/handlers/security-validator.ts` (created)
-- `.opencode/config/settings.json` (hook registration)
+- `~/.config/opencode/plugins/handlers/security-validator.ts` (created)
+- `~/.config/opencode/settings.json` (plugin configuration)
 
 **Key Decisions:**
 - Used exit code 2 for blocked commands (vs throwing errors)
@@ -484,9 +484,9 @@ export default function securityValidator(context: HookContext) {
 ```
 
 ### Files Involved
-- `.opencode/plugins/handlers/security-validator.ts` (98 lines)
-- `.opencode/plugins/handlers/event-capture.ts` (modified)
-- `.opencode/config/settings.json` (hook registration)
+- `~/.config/opencode/plugins/handlers/security-validator.ts` (updated)
+- `~/.config/opencode/plugins/pai-unified.ts` (event capture)
+- `~/.config/opencode/settings.json` (plugin configuration)
 
 ### Tests Run
 - ✅ Blocked `rm -rf /`
@@ -497,13 +497,13 @@ export default function securityValidator(context: HookContext) {
 ## Related Artifacts
 
 ### Session Documents
-- [Hook development workflow]($PAI_DIR/MEMORY/WORK/2026-01/20260118T225343_hook-development/)
+- [Hook development workflow](~/.config/opencode/MEMORY/WORK/2026-01/20260118T225343_hook-development/)
 
 ### Learning Documents
-- [Git hook security patterns]($PAI_DIR/MEMORY/LEARNING/Security/20260118_git-hook-security.md)
+- [Git hook security patterns](~/.config/opencode/MEMORY/LEARNING/Security/20260118_git-hook-security.md)
 
 ### Project Updates
-- [PAI Upgrade - Session 2]($PAI_DIR/MEMORY/PAISYSTEMUPDATES/2026/01/20260118_session-2-complete.md)
+- [PAI Upgrade - Session 2](~/.config/opencode/MEMORY/PAISYSTEMUPDATES/2026/01/20260118_session-2-complete.md)
 
 ### Commits
 - 3de3b79 - feat(hooks): Add security-validator hook
@@ -562,7 +562,7 @@ Added pre-tool-use validation with dangerous pattern detection.
 2026-01-18 23:58 - Committed changes
 
 Full context report:
-$PAI_DIR/MEMORY/STATE/integrity/{date}_work-recall_{slug}.md
+~/.config/opencode/MEMORY/STATE/integrity/{date}_work-recall_{slug}.md
 
 Need more details on any of these?
 ```
@@ -658,8 +658,8 @@ Key technical details:
 - Conversation state managed server-side
 
 Files created:
-- .opencode/mcp-servers/garrett-ai/index.ts
-- .opencode/mcp-servers/garrett-ai/README.md
+- ~/.config/opencode/mcp-servers/garrett-ai/index.ts
+- ~/.config/opencode/mcp-servers/garrett-ai/README.md
 
 Want me to show you the implementation details or related work?
 ```

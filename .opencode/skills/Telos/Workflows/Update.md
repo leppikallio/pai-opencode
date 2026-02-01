@@ -102,7 +102,7 @@ This is the main command you'll use. It takes three parameters:
 - WRONG.md - Things I was wrong about"`
 
 ## View Recent TELOS Updates
-!`head -50 ~/.config/opencode/skills/CORE/USER/TELOS/updates.md`
+!`head -50 ~/.config/opencode/skills/CORE/USER/TELOS/UPDATES.md`
 
 ## View Specific TELOS File
 !`FILE="$1"; cat ~/.config/opencode/skills/CORE/USER/TELOS/"$FILE"`
@@ -290,4 +290,4 @@ The tool is at: `~/.config/opencode/skills/Telos/Tools/UpdateTelos.ts`
 
 All backups are stored in: `~/.config/opencode/skills/CORE/USER/TELOS/Backups/`
 
-All changes are logged in: `~/.config/opencode/skills/CORE/USER/TELOS/updates.md`
+All changes are logged in: `~/.config/opencode/skills/CORE/USER/TELOS/UPDATES.md`

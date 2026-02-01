@@ -124,62 +124,12 @@ export interface ToolAfterOutput {
  */
 export const PAI_TO_OPENCODE_HOOKS = {
   SessionStart: "experimental.chat.system.transform",
+  SessionCompacting: "experimental.session.compacting",
   PreToolUse: "tool.execute.before",
-  PreToolUseBlock: "permission.ask",
+  // OpenCode permissions can be observed via `event` (permission.*).
+  // Blocking is enforced by throwing in `tool.execute.before`.
+  PreToolUseBlock: "tool.execute.before",
   PostToolUse: "tool.execute.after",
   Stop: "event",
   SubagentStop: "tool.execute.after", // Filter for Task tool
 } as const;
-
-/**
- * Dangerous command patterns for security validation
- *
- * These patterns will trigger a BLOCK action
- */
-export const DANGEROUS_PATTERNS = [
-  // Destructive file operations
-  /rm\s+-rf\b[^\n]*\s\/(?=\s|$|[;&|])/, // rm -rf / (exact root token)
-  /rm\s+-rf\b[^\n]*\s\/\*(?=\s|$|[;&|])/, // rm -rf /* (root glob)
-  /rm\s+-rf\s+~\//,        // rm -rf ~/ (home)
-  /rm\s+-rf\s+\*/,         // rm -rf * (wildcard)
-  /rm\s+-rf\s+\.\./,       // rm -rf .. (parent traversal - any path starting with ..)
-  /mkfs\./,
-  /dd\s+if=.*of=\/dev\//,
-
-  // System compromise
-  /chmod\s+777\s+\//,
-  /chown\s+-R\s+.*\s+\//,
-
-  // Reverse shells
-  /bash\s+-i\s+>&/,
-  /nc\s+-e\s+\/bin\/(ba)?sh/,
-  /python.*socket.*connect/,
-
-  // Remote code execution
-  /curl.*\|\s*(ba)?sh/,
-  /wget.*\|\s*(ba)?sh/,
-
-  // Credential theft
-  /cat.*\.ssh\/id_/,
-  /cat.*\.aws\/credentials/,
-  /cat.*\.env/,
-] as const;
-
-/**
- * Warning command patterns for security validation
- *
- * These patterns will trigger a CONFIRM action
- */
-export const WARNING_PATTERNS = [
-  // Git operations that could be destructive
-  /git\s+push\s+--force/,
-  /git\s+reset\s+--hard/,
-
-  // Package installs
-  /npm\s+install\s+-g/,
-  /pip\s+install/,
-
-  // Docker operations
-  /docker\s+rm/,
-  /docker\s+rmi/,
-] as const;

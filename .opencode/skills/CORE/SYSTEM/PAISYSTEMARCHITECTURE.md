@@ -18,12 +18,12 @@ WHAT DOES NOT GO HERE:
 - Personal projects or deployment details
 - User-specific updates or changelog entries
 
-USER CUSTOMIZATIONS GO IN: USER/ARCHITECTURE.md
+USER CUSTOMIZATIONS GO IN: `~/.config/opencode/skills/CORE/USER/ARCHITECTURE.md`
 -->
 
 **The Founding Principles and Universal Architecture Patterns for Personal AI Infrastructure**
 
-This document defines the foundational architecture that applies to ALL PAI implementations. For user-specific customizations, see `USER/ARCHITECTURE.md`.
+This document defines the foundational architecture that applies to ALL PAI implementations. For user-specific customizations, see `~/.config/opencode/skills/CORE/USER/ARCHITECTURE.md`.
 
 ---
 
@@ -296,7 +296,7 @@ Brief description.
 - **No nested workflows**: Flat structure under `Workflows/`
 - **Personal vs System**: `_ALLCAPS` = personal (never share), `TitleCase` = system (shareable)
 
-**Full documentation:** `SYSTEM/SkillSystem.md`
+**Full documentation:** `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md`
 
 ---
 
@@ -369,7 +369,7 @@ MEMORY/
 YYYY-MM-DD-HHMMSS_[TYPE]_[description].md
 ```
 
-**Full documentation:** `SYSTEM/MEMORYSYSTEM.md`
+**Full documentation:** `~/.config/opencode/skills/CORE/SYSTEM/MEMORYSYSTEM.md`
 
 ---
 
@@ -393,7 +393,7 @@ YYYY-MM-DD-HHMMSS_[TYPE]_[description].md
 
 ### Event Routing
 
-Route notifications based on event type and priority. User-specific configuration in `USER/ARCHITECTURE.md`.
+Route notifications based on event type and priority. User-specific configuration in `~/.config/opencode/skills/CORE/USER/ARCHITECTURE.md`.
 
 ---
 
@@ -428,21 +428,21 @@ The System skill is the centralized mechanism for PAI self-management. It ensure
 
 | Function | Description | Workflow |
 |----------|-------------|----------|
-| **Integrity Audits** | Parallel agents verify broken references across ~/.claude | `IntegrityCheck.md` |
+| **Integrity Audits** | Parallel agents verify broken references across `~/.config/opencode/` | `IntegrityCheck.md` |
 | **Credential Scanning** | TruffleHog credential detection in any directory | `SecretScanning.md` |
 | **Privacy Validation** | Ensures USER/WORK content isolation from regular skills | `PrivacyCheck.md` |
 | **Documentation Updates** | Records system changes to MEMORY/PAISYSTEMUPDATES/ | `DocumentSession.md` |
 
-**Note:** Additional private workflows (repo sync, cross-validation) can be added via USER/SKILLCUSTOMIZATIONS/System/.
+**Note:** Additional private workflows (repo sync, cross-validation) can be added via `~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/System/`.
 
 ### Protected Directories
 
 | Directory | Contains | Protection Level |
 |-----------|----------|------------------|
-| `skills/CORE/USER/` | Personal data, finances, health, contacts | RESTRICTED |
+| `~/.config/opencode/skills/CORE/USER/` | Personal data, finances, health, contacts | RESTRICTED |
 | `skills/CORE/WORK/` | Customer data, consulting, client deliverables | RESTRICTED |
 
-**Rule:** Content from USER/ and WORK/ must NEVER appear outside of them or in the public PAI repository.
+**Rule:** Content from the USER tier and WORK tier must NEVER appear outside them or in public PAI.
 
 ### Foreground Execution
 
@@ -472,9 +472,9 @@ The System skill runs in the foreground so you can see all output, progress, and
 
 ## Updates
 
-System-level updates are tracked in `SYSTEM/UPDATES/` as individual files.
-User-specific updates are tracked in `USER/UPDATES/`.
+System-level updates are tracked in `~/.config/opencode/skills/CORE/SYSTEM/UPDATES/` as individual files.
+User-specific updates are tracked in `~/.config/opencode/skills/CORE/USER/UPDATES/`.
 
 ---
 
-**This is a TEMPLATE.** User-specific implementation details belong in `USER/ARCHITECTURE.md`.
+**This is a TEMPLATE.** User-specific implementation details belong in `~/.config/opencode/skills/CORE/USER/ARCHITECTURE.md`.

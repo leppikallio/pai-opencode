@@ -27,7 +27,7 @@ PAI ships with a TruffleHog exclude list to keep scans actionable and avoid
 known false positives (including request-template corpora).
 
 - Runtime path (after install): `~/.config/opencode/security/trufflehog-exclude-paths.regex.txt`
-- Repo path (source): `.opencode/security/trufflehog-exclude-paths.regex.txt`
+- Source path (in repository .opencode directory): `security/trufflehog-exclude-paths.regex.txt`
 
 ### 1. Check TruffleHog Installation
 
@@ -59,15 +59,15 @@ trufflehog filesystem . --json \
 ```bash
 # Scan git history
 trufflehog git file://. --only-verified --json \
-  --exclude-globs "**/node_modules/**,**/.opencode/node_modules/**,.opencode/skills/WebAssessment/FfufResources/REQUEST_TEMPLATES.md"
+  --exclude-globs "**/node_modules/**,**/skills/WebAssessment/FfufResources/REQUEST_TEMPLATES.md"
 
 # Scan specific branch
 trufflehog git file://. --branch=main --only-verified --json \
-  --exclude-globs "**/node_modules/**,**/.opencode/node_modules/**,.opencode/skills/WebAssessment/FfufResources/REQUEST_TEMPLATES.md"
+  --exclude-globs "**/node_modules/**,**/skills/WebAssessment/FfufResources/REQUEST_TEMPLATES.md"
 
 # Scan commits since specific date
 trufflehog git file://. --since-commit=HEAD~10 --only-verified --json \
-  --exclude-globs "**/node_modules/**,**/.opencode/node_modules/**,.opencode/skills/WebAssessment/FfufResources/REQUEST_TEMPLATES.md"
+  --exclude-globs "**/node_modules/**,**/skills/WebAssessment/FfufResources/REQUEST_TEMPLATES.md"
 ```
 
 ### 4. Parse and Categorize Results
@@ -165,7 +165,7 @@ Parse JSON output and format into readable table with:
 
 Save scan results to:
 ```
-$PAI_DIR/MEMORY/SECURITY/YYYY-MM-DD_secret-scan.jsonl
+~/.config/opencode/MEMORY/SECURITY/YYYY-MM-DD_secret-scan.jsonl
 ```
 
 Log format:

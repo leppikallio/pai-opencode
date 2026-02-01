@@ -34,38 +34,58 @@ import os
 import sys
 import json
 import argparse
-from typing import Dict, List, Optional, Union, Tuple
+from typing import Any, Dict, List, Optional, Union, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
 # Try to import optional dependencies
+shodan: Any
+requests: Any
 try:
-    import shodan
+    import shodan  # type: ignore[import-not-found]
+
     SHODAN_AVAILABLE = True
 except ImportError:
+    shodan = None
     SHODAN_AVAILABLE = False
-    print("Warning: 'shodan' package not installed. Run: pip install shodan", file=sys.stderr)
+    print(
+        "Warning: 'shodan' package not installed. Run: pip install shodan",
+        file=sys.stderr,
+    )
 
 try:
-    import requests
+    import requests  # type: ignore[import-not-found]
+
     REQUESTS_AVAILABLE = True
 except ImportError:
+    requests = None
     REQUESTS_AVAILABLE = False
-    print("Warning: 'requests' package not installed. Run: pip install requests", file=sys.stderr)
+    print(
+        "Warning: 'requests' package not installed. Run: pip install requests",
+        file=sys.stderr,
+    )
 
 try:
-    from dotenv import load_dotenv
-    load_dotenv(os.path.expanduser(os.environ.get("PAI_DIR", "~/.claude") + "/.env"))
+    from dotenv import load_dotenv  # type: ignore[import-not-found]
+
+    load_dotenv(
+        os.path.expanduser(os.environ.get("PAI_DIR", "~/.config/opencode") + "/.env")
+    )
 except ImportError:
-    print("Warning: 'python-dotenv' not installed. Falling back to os.environ", file=sys.stderr)
+    print(
+        "Warning: 'python-dotenv' not installed. Falling back to os.environ",
+        file=sys.stderr,
+    )
 
 
 # ============================================================================
 # Error Classes (TypeScript-style error handling)
 # ============================================================================
 
+
 class OSINTError(Exception):
     """Base exception for OSINT API errors"""
+
     def __init__(self, message: str, service: str, error_code: Optional[str] = None):
         self.message = message
         self.service = service
@@ -77,27 +97,31 @@ class OSINTError(Exception):
             "error": self.__class__.__name__,
             "message": self.message,
             "service": self.service,
-            "error_code": self.error_code
+            "error_code": self.error_code,
         }
 
 
 class APIKeyMissingError(OSINTError):
     """Raised when API key is not configured"""
+
     pass
 
 
 class APIKeyInvalidError(OSINTError):
     """Raised when API key is invalid or expired"""
+
     pass
 
 
 class RateLimitError(OSINTError):
     """Raised when API rate limit is exceeded"""
+
     pass
 
 
 class ServiceUnavailableError(OSINTError):
     """Raised when API service is unavailable"""
+
     pass
 
 
@@ -105,9 +129,11 @@ class ServiceUnavailableError(OSINTError):
 # Result Data Classes
 # ============================================================================
 
+
 @dataclass
 class APIResult:
     """Base class for API results"""
+
     success: bool
     service: str
     data: Optional[Dict] = None
@@ -118,7 +144,7 @@ class APIResult:
             "success": self.success,
             "service": self.service,
             "data": self.data,
-            "error": self.error
+            "error": self.error,
         }
 
     def to_json(self, indent: int = 2) -> str:
@@ -128,6 +154,7 @@ class APIResult:
 # ============================================================================
 # Shodan Client
 # ============================================================================
+
 
 class ShodanClient:
     """
@@ -167,7 +194,7 @@ class ShodanClient:
         if not self.api_key:
             raise APIKeyMissingError(
                 "Shodan API key not found. Set SHODAN_API_KEY in ${PAI_DIR}/.env",
-                service="Shodan"
+                service="Shodan",
             )
 
         if not SHODAN_AVAILABLE:
@@ -198,9 +225,9 @@ class ShodanClient:
                 service="Shodan",
                 data={
                     "query": query,
-                    "total": results['total'],
-                    "matches": results['matches']
-                }
+                    "total": results["total"],
+                    "matches": results["matches"],
+                },
             )
 
         except shodan.APIError as e:
@@ -214,7 +241,7 @@ class ShodanClient:
                 return APIResult(
                     success=False,
                     service="Shodan",
-                    error={"message": error_msg, "type": "APIError"}
+                    error={"message": error_msg, "type": "APIError"},
                 )
 
     def host(self, ip: str) -> APIResult:
@@ -234,17 +261,13 @@ class ShodanClient:
         try:
             host_info = self.api.host(ip)
 
-            return APIResult(
-                success=True,
-                service="Shodan",
-                data=host_info
-            )
+            return APIResult(success=True, service="Shodan", data=host_info)
 
         except shodan.APIError as e:
             return APIResult(
                 success=False,
                 service="Shodan",
-                error={"message": str(e), "type": "APIError"}
+                error={"message": str(e), "type": "APIError"},
             )
 
     def test_connection(self) -> APIResult:
@@ -252,21 +275,16 @@ class ShodanClient:
         try:
             info = self.api.info()
             return APIResult(
-                success=True,
-                service="Shodan",
-                data={"account_info": info}
+                success=True, service="Shodan", data={"account_info": info}
             )
         except shodan.APIError as e:
-            return APIResult(
-                success=False,
-                service="Shodan",
-                error={"message": str(e)}
-            )
+            return APIResult(success=False, service="Shodan", error={"message": str(e)})
 
 
 # ============================================================================
 # Dehashed Client
 # ============================================================================
+
 
 class DehashedClient:
     """
@@ -308,17 +326,19 @@ class DehashedClient:
         if not self.api_key:
             raise APIKeyMissingError(
                 "Dehashed API key not found. Set DEHASHED_API_KEY in ${PAI_DIR}/.env",
-                service="Dehashed"
+                service="Dehashed",
             )
 
         if not self.email:
             raise APIKeyMissingError(
                 "Dehashed email not found. Set DEHASHED_EMAIL in ${PAI_DIR}/.env",
-                service="Dehashed"
+                service="Dehashed",
             )
 
         if not REQUESTS_AVAILABLE:
-            raise ImportError("requests package not installed. Run: pip install requests")
+            raise ImportError(
+                "requests package not installed. Run: pip install requests"
+            )
 
         self.session = requests.Session()
         self.session.auth = (self.email, self.api_key)
@@ -344,15 +364,11 @@ class DehashedClient:
 
             if response.status_code == 401:
                 raise APIKeyInvalidError(
-                    "Invalid Dehashed credentials",
-                    service="Dehashed",
-                    error_code="401"
+                    "Invalid Dehashed credentials", service="Dehashed", error_code="401"
                 )
             elif response.status_code == 429:
                 raise RateLimitError(
-                    "Dehashed rate limit exceeded",
-                    service="Dehashed",
-                    error_code="429"
+                    "Dehashed rate limit exceeded", service="Dehashed", error_code="429"
                 )
 
             response.raise_for_status()
@@ -364,15 +380,15 @@ class DehashedClient:
                 data={
                     "query": query,
                     "total": data.get("total", 0),
-                    "entries": data.get("entries", [])
-                }
+                    "entries": data.get("entries", []),
+                },
             )
 
         except requests.RequestException as e:
             return APIResult(
                 success=False,
                 service="Dehashed",
-                error={"message": str(e), "type": "RequestError"}
+                error={"message": str(e), "type": "RequestError"},
             )
 
     def search_email(self, email: str) -> APIResult:
@@ -414,32 +430,33 @@ class DehashedClient:
     def test_connection(self) -> APIResult:
         """Test API key validity."""
         try:
-            response = self.session.get(self.BASE_URL, params={"query": "test", "size": 1}, timeout=10)
+            response = self.session.get(
+                self.BASE_URL, params={"query": "test", "size": 1}, timeout=10
+            )
 
             if response.status_code == 401:
                 return APIResult(
                     success=False,
                     service="Dehashed",
-                    error={"message": "Invalid credentials"}
+                    error={"message": "Invalid credentials"},
                 )
 
             return APIResult(
                 success=True,
                 service="Dehashed",
-                data={"message": "Connection successful"}
+                data={"message": "Connection successful"},
             )
 
         except requests.RequestException as e:
             return APIResult(
-                success=False,
-                service="Dehashed",
-                error={"message": str(e)}
+                success=False, service="Dehashed", error={"message": str(e)}
             )
 
 
 # ============================================================================
 # OSINT Industries Client
 # ============================================================================
+
 
 class OSINTIndustriesClient:
     """
@@ -480,17 +497,18 @@ class OSINTIndustriesClient:
         if not self.api_key:
             raise APIKeyMissingError(
                 "OSINT Industries API key not found. Set OSINT_INDUSTRIES_API_KEY in ${PAI_DIR}/.env",
-                service="OSINT Industries"
+                service="OSINT Industries",
             )
 
         if not REQUESTS_AVAILABLE:
-            raise ImportError("requests package not installed. Run: pip install requests")
+            raise ImportError(
+                "requests package not installed. Run: pip install requests"
+            )
 
         self.session = requests.Session()
-        self.session.headers.update({
-            "Authorization": f"Bearer {self.api_key}",
-            "Accept": "application/json"
-        })
+        self.session.headers.update(
+            {"Authorization": f"Bearer {self.api_key}", "Accept": "application/json"}
+        )
 
     def search(self, query_type: str, query_value: str) -> APIResult:
         """
@@ -516,13 +534,13 @@ class OSINTIndustriesClient:
                 raise APIKeyInvalidError(
                     "Invalid OSINT Industries API key",
                     service="OSINT Industries",
-                    error_code="401"
+                    error_code="401",
                 )
             elif response.status_code == 429:
                 raise RateLimitError(
                     "OSINT Industries rate limit exceeded",
                     service="OSINT Industries",
-                    error_code="429"
+                    error_code="429",
                 )
 
             response.raise_for_status()
@@ -534,15 +552,15 @@ class OSINTIndustriesClient:
                 data={
                     "query_type": query_type,
                     "query_value": query_value,
-                    "results": data
-                }
+                    "results": data,
+                },
             )
 
         except requests.RequestException as e:
             return APIResult(
                 success=False,
                 service="OSINT Industries",
-                error={"message": str(e), "type": "RequestError"}
+                error={"message": str(e), "type": "RequestError"},
             )
 
     def search_email(self, email: str) -> APIResult:
@@ -572,26 +590,25 @@ class OSINTIndustriesClient:
                 return APIResult(
                     success=False,
                     service="OSINT Industries",
-                    error={"message": "Invalid API key"}
+                    error={"message": "Invalid API key"},
                 )
 
             return APIResult(
                 success=True,
                 service="OSINT Industries",
-                data={"message": "Connection successful"}
+                data={"message": "Connection successful"},
             )
 
         except requests.RequestException as e:
             return APIResult(
-                success=False,
-                service="OSINT Industries",
-                error={"message": str(e)}
+                success=False, service="OSINT Industries", error={"message": str(e)}
             )
 
 
 # ============================================================================
 # CLI Interface
 # ============================================================================
+
 
 def main():
     """CLI interface for OSINT API tools."""
@@ -611,17 +628,27 @@ Examples:
 
   # Search OSINT Industries for username
   python3 osint-api-tools.py --osint-username "target_user"
-        """
+        """,
     )
 
     parser.add_argument("--test", action="store_true", help="Test all API connections")
     parser.add_argument("--shodan", metavar="QUERY", help="Search Shodan")
     parser.add_argument("--shodan-host", metavar="IP", help="Get Shodan host info")
     parser.add_argument("--dehashed", metavar="QUERY", help="Search Dehashed")
-    parser.add_argument("--dehashed-email", metavar="EMAIL", help="Search Dehashed by email")
-    parser.add_argument("--dehashed-username", metavar="USERNAME", help="Search Dehashed by username")
-    parser.add_argument("--osint-email", metavar="EMAIL", help="Search OSINT Industries by email")
-    parser.add_argument("--osint-username", metavar="USERNAME", help="Search OSINT Industries by username")
+    parser.add_argument(
+        "--dehashed-email", metavar="EMAIL", help="Search Dehashed by email"
+    )
+    parser.add_argument(
+        "--dehashed-username", metavar="USERNAME", help="Search Dehashed by username"
+    )
+    parser.add_argument(
+        "--osint-email", metavar="EMAIL", help="Search OSINT Industries by email"
+    )
+    parser.add_argument(
+        "--osint-username",
+        metavar="USERNAME",
+        help="Search OSINT Industries by username",
+    )
     parser.add_argument("--json", action="store_true", help="Output results as JSON")
 
     args = parser.parse_args()
@@ -637,7 +664,8 @@ Examples:
             status = "✓ PASS" if result.success else "✗ FAIL"
             print(f"Shodan: {status}")
             if not result.success:
-                print(f"  Error: {result.error['message']}")
+                if result.error and result.error.get("message"):
+                    print(f"  Error: {result.error['message']}")
         except (APIKeyMissingError, ImportError) as e:
             print(f"Shodan: ✗ SKIP - {str(e)}")
 
@@ -648,7 +676,8 @@ Examples:
             status = "✓ PASS" if result.success else "✗ FAIL"
             print(f"Dehashed: {status}")
             if not result.success:
-                print(f"  Error: {result.error['message']}")
+                if result.error and result.error.get("message"):
+                    print(f"  Error: {result.error['message']}")
         except (APIKeyMissingError, ImportError) as e:
             print(f"Dehashed: ✗ SKIP - {str(e)}")
 
@@ -659,7 +688,8 @@ Examples:
             status = "✓ PASS" if result.success else "✗ FAIL"
             print(f"OSINT Industries: {status}")
             if not result.success:
-                print(f"  Error: {result.error['message']}")
+                if result.error and result.error.get("message"):
+                    print(f"  Error: {result.error['message']}")
         except (APIKeyMissingError, ImportError) as e:
             print(f"OSINT Industries: ✗ SKIP - {str(e)}")
 

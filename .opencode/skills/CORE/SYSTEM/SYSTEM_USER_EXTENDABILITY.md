@@ -1,4 +1,4 @@
-# SYSTEM/USER Two-Tier Architecture
+# SYSTEM and USER Two-Tier Architecture
 
 **The foundational pattern for PAI extensibility and personalization**
 
@@ -28,7 +28,7 @@ When PAI needs configuration, it follows a cascading lookup:
 ```
 1. Check USER location first
    ↓ (if not found)
-2. Fall back to SYSTEM/root location
+2. Fall back to SYSTEM defaults
    ↓ (if not found)
 3. Use hardcoded defaults or fail-open
 ```
@@ -42,7 +42,7 @@ When PAI needs configuration, it follows a cascading lookup:
 ### Security System
 
 ```
-skills/CORE/SYSTEM/PAISECURITYSYSTEM/  # SYSTEM tier (base, canonical)
+~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/  # SYSTEM tier (base, canonical)
 ├── README.md                          # Overview
 ├── ARCHITECTURE.md                    # Security layers
 ├── HOOKS.md                           # Hook documentation
@@ -50,22 +50,22 @@ skills/CORE/SYSTEM/PAISECURITYSYSTEM/  # SYSTEM tier (base, canonical)
 ├── COMMANDINJECTION.md                # Command injection defense
 └── patterns.example.yaml              # Default security patterns
 
-USER/PAISECURITYSYSTEM/                # USER tier (personal)
+~/.config/opencode/USER/PAISECURITYSYSTEM/                # USER tier (personal)
 ├── patterns.yaml                      # Your security rules
 ├── QUICKREF.md                        # Your quick reference
 └── ...
 ```
 
-The SecurityValidator checks `USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `PAISECURITYSYSTEM/patterns.example.yaml`.
+The SecurityValidator checks `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml`.
 
 Compatibility:
-- `.opencode/PAISECURITYSYSTEM/` is a symlink to `skills/CORE/SYSTEM/PAISECURITYSYSTEM/`.
+- `~/.config/opencode/PAISECURITYSYSTEM/` is a symlink to `~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/`.
 
 ### Response Format
 
 ```
-skills/CORE/SYSTEM/RESPONSEFORMAT.md  # SYSTEM tier (base format rules)
-skills/CORE/USER/RESPONSEFORMAT.md    # USER tier (personal overrides)
+~/.config/opencode/skills/CORE/SYSTEM/RESPONSEFORMAT.md  # SYSTEM tier (base format rules)
+~/.config/opencode/skills/CORE/USER/RESPONSEFORMAT.md    # USER tier (personal overrides)
 ```
 
 ### Skills
@@ -81,7 +81,7 @@ Private skills use the `_ALLCAPS` prefix and are never synced to public PAI.
 
 ```
 settings.json                         # Base identity (name, voice)
-USER/DAIDENTITY.md                    # Personal identity expansion
+~/.config/opencode/skills/CORE/USER/DAIDENTITY.md          # Personal identity expansion
 ```
 
 ### Configuration Files
@@ -90,8 +90,8 @@ Many configuration files follow this pattern implicitly:
 
 | SYSTEM Default | USER Override |
 |----------------|---------------|
-| `patterns.example.yaml` | `USER/.../patterns.yaml` |
-| `SYSTEM/RESPONSEFORMAT.md` | `USER/RESPONSEFORMAT.md` |
+| `patterns.example.yaml` | `~/.config/opencode/USER/.../patterns.yaml` |
+| `~/.config/opencode/skills/CORE/SYSTEM/RESPONSEFORMAT.md` | `~/.config/opencode/skills/CORE/USER/RESPONSEFORMAT.md` |
 | `settings.json` defaults | `settings.json` user values |
 
 ---
@@ -127,7 +127,7 @@ DANGEROUS_PATTERNS:
 
 ### 3. USER Content Stays Private
 
-The `USER/` directory is excluded from public PAI sync. Anything in USER:
+The `~/.config/opencode/skills/CORE/USER/` directory is excluded from public PAI sync. Anything in the USER tier:
 - Never appears in public PAI repository
 - Contains personal preferences, private rules, sensitive paths
 - Is safe to include API keys, project names, personal workflows
@@ -157,7 +157,7 @@ When creating a new configurable component:
 
 2. **Document USER tier location**
    ```
-   USER/ComponentName/
+   ~/.config/opencode/USER/ComponentName/
    ├── config.yaml            # User's configuration
    └── ...
    ```
@@ -264,6 +264,6 @@ Currently, no. USER replaces SYSTEM entirely for that component. If you only wan
 
 ## Related Documentation
 
-- `SYSTEM/PAISECURITYSYSTEM/` — Security system architecture and patterns
-- `SYSTEM/SkillSystem.md` — Skill naming conventions (public vs private)
-- `SYSTEM/PAISYSTEMARCHITECTURE.md` — Overall PAI architecture
+- `~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/` — Security system architecture and patterns
+- `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md` — Skill naming conventions (public vs private)
+- `~/.config/opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md` — Overall PAI architecture

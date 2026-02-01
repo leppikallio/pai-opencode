@@ -646,6 +646,19 @@ function sync(mode: Mode, opts: Options) {
     }
   }
 
+  // Always keep MEMORY/README.md up to date (managed documentation).
+  // Do not overwrite any other MEMORY content.
+  const srcMemoryReadme = path.join(sourceDir, "MEMORY", "README.md");
+  const destMemoryReadme = path.join(targetDir, "MEMORY", "README.md");
+  if (fs.existsSync(srcMemoryReadme)) {
+    const prefix = dryRun ? "[dry]" : "[write]";
+    console.log(`${prefix} MEMORY/README.md (overwrite): ${destMemoryReadme}`);
+    if (!dryRun) {
+      ensureDir(path.dirname(destMemoryReadme), dryRun);
+      fs.copyFileSync(srcMemoryReadme, destMemoryReadme);
+    }
+  }
+
   // Seed USER/TELOS etc from source if requested.
   if (migrateFromRepo) {
     const srcUser = path.join(sourceDir, "skills", "CORE", "USER");

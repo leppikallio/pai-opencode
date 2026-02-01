@@ -1,6 +1,6 @@
 # Background Delegation Workflow
 
-Launch agents that run in the background while you continue working. Results are retrieved on demand.
+Launch parallel Task calls while you continue working.
 
 ## Triggers
 
@@ -12,55 +12,36 @@ Launch agents that run in the background while you continue working. Results are
 ## How It Works
 
 1. Parse the task(s) to delegate
-2. Launch each agent with `run_in_background: true`
-3. Report launched agents with their IDs
-4. Continue working - agents run independently
-5. Check status or retrieve results when ready
+2. Launch each agent as a normal Task call
+3. Continue working while tasks run
+4. Collect results when each Task completes
 
 ## Launching Background Agents
 
-Use the Task tool with `run_in_background: true`:
+OpenCode does not expose a background execution flag in the Task tool.
+To emulate background work, run multiple Task calls and keep working while they execute.
 
 ```typescript
 Task({
   description: "Research OpenAI news",
   prompt: "Research the latest OpenAI developments...",
-  subagent_type: "PerplexityResearcher",  // or Intern, ClaudeResearcher, etc.
-  model: "haiku",  // Use haiku for parallel grunt work
-  run_in_background: true
+  subagent_type: "PerplexityResearcher"  // must exist as an agent name
 })
-// Returns immediately: { agent_id: "abc123", status: "running" }
 ```
 
-**Model Selection for Background Agents:**
-- `haiku` - Fast, cheap, good for research/exploration (DEFAULT for background)
-- `sonnet` - Balanced, use for complex analysis
-- `opus` - Deep reasoning, use sparingly
+**Model Selection for Delegated Agents:**
+- The Task tool input does not include a `model` field.
+- Model selection is controlled by the agent configuration itself.
 
 ## Checking Status
 
-When user says: "check background agents", "agent status", "how are my agents doing"
-
-```typescript
-TaskOutput({
-  agentId: "abc123",
-  block: false  // Don't wait, just check
-})
-// Returns: { status: "running|completed|failed", output: "..." }
-```
+OpenCode does not provide a separate Task output retrieval tool.
+Task outputs are returned in-band when the Task call completes.
 
 ## Retrieving Results
 
-When user says: "get background results", "what did the agents find"
-
-```typescript
-TaskOutput({
-  agentId: "abc123",
-  block: true,  // Wait for completion
-  wait_up_to: 300  // Max 5 minutes
-})
-// Returns full output when agent completes
-```
+Task outputs are returned as the Task tool result.
+Additionally, the runtime plugin captures Task outputs to `~/.config/opencode/MEMORY/RESEARCH/`.
 
 ## Example Flows
 
@@ -112,10 +93,10 @@ User: "Background agents explore the codebase for
 
 | Aspect | Foreground (default) | Background |
 |--------|---------------------|------------|
-| Blocking | Yes - waits for all | No - immediate return |
+| Blocking | Yes - waits for each | No dedicated background mode |
 | When to use | Need results now | Can work on other things |
-| Syntax | Normal Task call | `run_in_background: true` |
-| Retrieval | Automatic | Manual via TaskOutput |
+| Syntax | Normal Task call | (no background flag) |
+| Retrieval | Automatic | In-band Task result |
 
 ## Integration
 

@@ -4,13 +4,13 @@
 "privacy check", "data isolation", "validate privacy", "check data boundaries", "privacy audit"
 
 ## Purpose
-Validate data isolation between USER/ (personal data), SYSTEM/ (architecture docs), and MEMORY/ (execution history) to ensure no cross-contamination or sensitive data exposure within the PAI infrastructure.
+Validate data isolation between the USER tier (personal data), SYSTEM tier (architecture docs), and MEMORY (execution history) to ensure no cross-contamination or sensitive data exposure.
 
 ## What It Does
 
 Validates internal PAI data boundaries:
 
-1. **USER Directory Isolation** - Personal data stays in USER/, not leaked elsewhere
+1. **USER Directory Isolation** - Personal data stays in USER tier, not leaked elsewhere
 2. **SYSTEM Documentation Purity** - Architecture docs remain generic, no personal examples
 3. **MEMORY Sanitization** - Execution history properly anonymizes or isolates sensitive data
 4. **Cross-Boundary References** - Validates references between directories are intentional
@@ -18,22 +18,22 @@ Validates internal PAI data boundaries:
 
 ## Privacy Principles
 
-**USER/ Directory:**
+**USER tier directory:**
 - Contains: Personal projects, private notes, sensitive data
 - Privacy Level: PRIVATE
-- Should NEVER be referenced directly from SYSTEM/ or shared skills
-- Can be referenced from MEMORY/ (execution history is private)
+- Should NEVER be referenced directly from system docs or shared skills
+- Can be referenced from MEMORY (execution history is private)
 
-**SYSTEM/ Directory:**
+**SYSTEM tier directory:**
 - Contains: Architecture documentation, design decisions, technical specs
 - Privacy Level: SEMI-PUBLIC (could be sanitized and shared)
 - Should contain NO personal identifiers
 - Should use placeholders: ${ENGINEER_NAME}, ${DA}, example.com
 
-**MEMORY/ Directory:**
+**MEMORY directory:**
 - Contains: Execution history, session logs, work artifacts
 - Privacy Level: PRIVATE (but structured for potential sanitization)
-- Can reference USER/ (private context)
+- Can reference the USER tier (private context)
 - Should separate personal from technical learnings
 
 ## Execution Pattern
@@ -54,12 +54,12 @@ Verify expected privacy boundaries exist:
 
 ```bash
 # Check directory structure
-test -d "$PAI_DIR/USER" || echo "WARNING: USER directory missing"
-test -d "$PAI_DIR/SYSTEM" || echo "WARNING: SYSTEM directory missing"
-test -d "$PAI_DIR/MEMORY" || echo "WARNING: MEMORY directory missing"
+test -d "~/.config/opencode/skills/CORE/USER" || echo "WARNING: USER tier directory missing"
+test -d "~/.config/opencode/skills/CORE/SYSTEM" || echo "WARNING: SYSTEM tier directory missing"
+test -d "~/.config/opencode/MEMORY" || echo "WARNING: MEMORY directory missing"
 
 # List top-level structure
-ls -la "$PAI_DIR" | grep -E "USER|SYSTEM|MEMORY"
+ls -la "~/.config/opencode" | grep -E "skills|MEMORY|plugins|USER"
 ```
 
 ### 2. Personal Identifier Detection
@@ -117,26 +117,27 @@ const results = {
 };
 ```
 
-### 3. USER Directory Isolation Check
+### 3. USER Tier Isolation Check
 
-**Validate USER/ data stays contained:**
+**Validate USER tier data stays contained:**
 
 ```bash
-# Find any references TO USER/ from outside USER/
-cd "$PAI_DIR"
+# Find references to USER tier paths from outside
+cd "~/.config/opencode"
 
-# Check SYSTEM/ for USER/ references
-grep -r "USER/" SYSTEM/ --include="*.md" --include="*.ts" 2>/dev/null
+# Check core system docs for USER tier path references
+grep -r "~/.config/opencode/skills/CORE/USER/" "skills/CORE/SYSTEM/" --include="*.md" --include="*.ts" 2>/dev/null
+grep -r "~/.config/opencode/USER/" "skills/CORE/SYSTEM/" --include="*.md" --include="*.ts" 2>/dev/null
 
 # Allowed patterns (generic references):
-# - Documentation: "store in USER/ directory"
-# - Examples: "e.g., USER/projects/example"
+# - Documentation: "store in the USER tier"
 # Not allowed:
-# - Direct paths: "see USER/steffen/project.md"
-# - Specific content: "as configured in USER/config.json"
+# - Direct paths: "see ~/.config/opencode/skills/CORE/USER/..."
+# - Specific content: personal identifiers in SYSTEM tier docs
 
-# Check skills (outside CORE) for USER/ references
-grep -r "USER/" .opencode/skills/*/SKILL.md | grep -v "CORE/SKILL.md"
+# Check skills (outside CORE) for USER tier path references
+grep -r "~/.config/opencode/skills/CORE/USER/" "skills/" --include="SKILL.md" | grep -v "skills/CORE/SKILL.md"
+grep -r "~/.config/opencode/USER/" "skills/" --include="SKILL.md" | grep -v "skills/CORE/SKILL.md"
 ```
 
 **Validation rules:**
@@ -153,7 +154,7 @@ function validateUserReference(file: string, match: string): Issue | null {
     return null;
   }
 
-  // Allow MEMORY (execution history can reference USER/)
+  // Allow MEMORY (execution history can reference the USER tier)
   if (file.includes("MEMORY/")) {
     return null;
   }
@@ -164,18 +165,18 @@ function validateUserReference(file: string, match: string): Issue | null {
     type: "USER_REFERENCE_FROM_PUBLIC",
     severity: "HIGH",
     match,
-    message: "Public/shared file references USER/ directory"
+    message: "Public/shared file references USER tier directory"
   };
 }
 ```
 
-### 4. SYSTEM Directory Sanitization Check
+### 4. SYSTEM Tier Sanitization Check
 
-**Ensure SYSTEM/ docs are generic:**
+**Ensure SYSTEM tier docs are generic:**
 
 ```typescript
-// SYSTEM/ should use placeholders, not real values
-const systemFiles = glob("SYSTEM/**/*.md");
+// SYSTEM tier should use placeholders, not real values
+const systemFiles = glob("~/.config/opencode/skills/CORE/SYSTEM/**/*.md");
 
 for (const file of systemFiles) {
   const content = readFile(file);
@@ -197,7 +198,7 @@ for (const file of systemFiles) {
   const placeholders = [
     "${ENGINEER_NAME}",
     "${DA}",
-    "$PAI_DIR",
+    "~/.config/opencode",
     "example.com",
     "user@example.com"
   ];
@@ -224,7 +225,7 @@ const memoryPrivacyLevels = {
   "MEMORY/STATE/": "TECHNICAL",
 
   // Structured data
-  "MEMORY/raw-outputs/": "STRUCTURED",
+  "MEMORY/RAW/": "STRUCTURED",
   "MEMORY/SECURITY/": "AUDIT_LOG"
 };
 
@@ -346,8 +347,8 @@ function scanForSensitiveData(content: string, directory: string) {
 ```typescript
 function calculatePrivacyScore(results) {
   const weights = {
-    userIsolation: 0.30,        // 30% - USER/ not leaked
-    systemSanitization: 0.25,   // 25% - SYSTEM/ is generic
+    userIsolation: 0.30,        // 30% - USER tier not leaked
+    systemSanitization: 0.25,   // 25% - SYSTEM tier is generic
     memoryCategorization: 0.20, // 20% - MEMORY/ properly stratified
     crossReferences: 0.15,      // 15% - Valid cross-refs only
     sensitiveData: 0.10         // 10% - No unexpected sensitive data
@@ -395,7 +396,7 @@ Generated: {timestamp}
 
 ## Directory Analysis
 
-### USER/ Directory
+### USER Tier Directory
 - Files scanned: 127
 - Personal data found: 247 instances (EXPECTED)
 - Leaked to other directories: 0 ✅
@@ -407,7 +408,7 @@ Generated: {timestamp}
 - Local paths: 135 occurrences
 - API keys: 0 (good - should use env vars)
 
-### SYSTEM/ Directory
+### SYSTEM Tier Directory
 - Files scanned: 43
 - Personal data found: 3 instances ⚠️
 - Placeholder usage: 87% (good)
@@ -415,19 +416,19 @@ Generated: {timestamp}
 
 **Issues Found:**
 
-1. **SYSTEM/architecture/decisions/ADR-003.md:45**
+1. **~/.config/opencode/skills/CORE/SYSTEM/architecture/decisions/ADR-003.md:45**
    - Contains: "Steffen prefers Bun over npm"
    - Should be: "${ENGINEER_NAME} prefers Bun over npm"
    - Severity: LOW
    - Auto-fix: Available
 
-2. **SYSTEM/docs/setup.md:12**
-   - Contains: "/Users/username/.opencode"
-   - Should be: "$PAI_DIR" or "$HOME/.opencode"
+2. **~/.config/opencode/skills/CORE/SYSTEM/docs/setup.md:12**
+    - Contains: "/Users/username/.opencode" (legacy)
+    - Should be: "~/.config/opencode"
    - Severity: MEDIUM
    - Auto-fix: Available
 
-   3. **SYSTEM/workflows/example.md:78**
+   3. **~/.config/opencode/skills/CORE/SYSTEM/workflows/example.md:78**
     - Contains: "user@example.com"
    - Should be: "user@example.com"
    - Severity: MEDIUM
@@ -516,18 +517,18 @@ None found ✅
 None found ✅
 
 ### Medium (3)
-1. SYSTEM/docs/setup.md - hardcoded path
-2. SYSTEM/workflows/example.md - real email
-3. MEMORY/RESEARCH/2026-01/api-comparison.md - API key in example
+1. ~/.config/opencode/skills/CORE/SYSTEM/docs/setup.md - hardcoded path
+2. ~/.config/opencode/skills/CORE/SYSTEM/workflows/example.md - real email
+3. ~/.config/opencode/MEMORY/RESEARCH/2026-01/api-comparison.md - API key in example
 
 ### Low (2)
-1. SYSTEM/architecture/decisions/ADR-003.md - personal name
-2. MEMORY/LEARNING/Generic/typescript-patterns.md - wrong category
+1. ~/.config/opencode/skills/CORE/SYSTEM/architecture/decisions/ADR-003.md - personal name
+2. ~/.config/opencode/MEMORY/LEARNING/Generic/typescript-patterns.md - wrong category
 
 ## Recommendations
 
 1. ✅ USER isolation is excellent - maintain current practices
-2. ⚠️ Apply auto-fixes to 3 SYSTEM files to improve sanitization
+2. ⚠️ Apply auto-fixes to 3 SYSTEM tier files to improve sanitization
 3. 💡 Consider automated placeholder replacement in SYSTEM docs
 4. ⚠️ Review API key in research document - replace with placeholder
 5. 📁 Move 1 learning doc to correct privacy category
@@ -544,13 +545,13 @@ Apply auto-fixes? Run: `jeremy privacy-fix`
 ## Privacy Best Practices
 
 ✅ **Currently Following:**
-- USER/ directory properly isolated
+- USER tier directory properly isolated
 - Cross-references are intentional and validated
 - No credentials in code
 - MEMORY properly categorizes execution history
 
 ⚠️ **Room for Improvement:**
-- Increase placeholder usage in SYSTEM docs to 95%+
+- Increase placeholder usage in SYSTEM tier docs to 95%+
 - Review all API keys/tokens, even in examples
 - Regularly audit MEMORY categorization
 
@@ -574,16 +575,16 @@ Overall Status: PASS WITH WARNINGS (94/100)
 
 Scanning privacy boundaries...
 
-✅ USER/ Isolation (0.4s)
+✅ USER tier Isolation (0.4s)
    Personal data: 247 instances (contained)
    Leaks: 0
 
-⚠️ SYSTEM/ Sanitization (0.6s)
+⚠️ SYSTEM tier Sanitization (0.6s)
    Files: 43
    Personal data: 3 instances found
    Placeholder usage: 87%
 
-✅ MEMORY/ Categorization (1.2s)
+✅ MEMORY Categorization (1.2s)
    Files: 1,247
    Stratification: 95% correct
 
@@ -601,7 +602,7 @@ Issues to fix: 5 (3 medium, 2 low)
 Auto-fixes available: 3
 
 Full report:
-$PAI_DIR/MEMORY/STATE/integrity/{date}_privacy-compliance-report.md
+~/.config/opencode/MEMORY/STATE/integrity/{date}_privacy-compliance-report.md
 
 Apply auto-fixes? [y/N]:
 ```
@@ -611,21 +612,21 @@ Apply auto-fixes? [y/N]:
 ```typescript
 const autoFixes = [
   {
-    file: "SYSTEM/architecture/decisions/ADR-003.md",
+    file: "~/.config/opencode/skills/CORE/SYSTEM/architecture/decisions/ADR-003.md",
     line: 45,
     original: "Steffen prefers",
     replacement: "${ENGINEER_NAME} prefers",
     description: "Replace personal name with placeholder"
   },
   {
-    file: "SYSTEM/docs/setup.md",
+    file: "~/.config/opencode/skills/CORE/SYSTEM/docs/setup.md",
     line: 12,
-    original: "/Users/username/.opencode",
-    replacement: "$PAI_DIR",
+    original: "/Users/username/.opencode" (legacy),
+    replacement: "~/.config/opencode",
     description: "Replace hardcoded path with variable"
   },
   {
-    file: "SYSTEM/workflows/example.md",
+    file: "~/.config/opencode/skills/CORE/SYSTEM/workflows/example.md",
     line: 78,
     original: "user@example.com",
     replacement: "user@example.com",
@@ -650,7 +651,6 @@ for (const fix of autoFixes) {
 
 ## Integration Points
 
-- **CrossRepoValidation**: Uses similar detection patterns
 - **IntegrityCheck**: Can include privacy check as component
 - **GitPush**: Run before committing to validate no privacy leaks
 - **CORE Skill**: Privacy-aware context loading
@@ -660,7 +660,7 @@ for (const fix of autoFixes) {
 ```
 User: "privacy check"
 
-Jeremy: I'll audit data isolation across USER/, SYSTEM/, and MEMORY/ directories.
+Jeremy: I'll audit data isolation across USER tier, SYSTEM tier, and MEMORY.
 
 Scanning privacy boundaries...
 
@@ -680,7 +680,7 @@ Score: 94/100 ⚠️ PASS WITH WARNINGS
 
 I can auto-fix 3 of them:
 1. Replace personal name with ${ENGINEER_NAME}
-2. Replace hardcoded path with $PAI_DIR
+ 2. Replace hardcoded path with ~/.config/opencode
 3. Replace real email with placeholder
 
 Apply auto-fixes? [y/N]:

@@ -2,86 +2,47 @@
 
 **The unified system memory - what happened, what we learned, what we're working on.**
 
-**Version:** 7.0 (Projects-native architecture, 2026-01-12)
-**Location:** `$PAI_DIR/MEMORY/`
+**Version:** 8.0 (OpenCode events-native architecture, 2026-01-31)
+**Location:** `~/.config/opencode/MEMORY/`
 
 ---
 
 ## Architecture
 
-**Claude Code's `projects/` is the source of truth. Hooks capture domain-specific events directly. Harvesting tools extract learnings from session transcripts.**
+**Source of truth differs by platform:**
+- Upstream Claude Code PAI used `projects/` transcripts as the firehose.
+- OpenCode PAI uses `MEMORY/RAW/` as the append-only firehose.
 
 ```
 User Request
     ↓
-Claude Code projects/ (native transcript storage - 30-day retention)
+OpenCode bus events (message.*, session.*, tool.*, permission.*)
     ↓
-Hook Events trigger domain-specific captures:
-    ├── AutoWorkCreation → WORK/
-    ├── ResponseCapture → WORK/, LEARNING/
-    ├── RatingCapture → LEARNING/SIGNALS/
-    ├── WorkCompletionLearning → LEARNING/
-    ├── AgentOutputCapture → RESEARCH/
-    └── SecurityValidator → SECURITY/
+Plugins capture an append-only firehose:
+    └── RAW/ (per-session JSONL)
     ↓
-Harvesting (periodic):
-    ├── SessionHarvester → LEARNING/ (extracts corrections, errors, insights)
-    ├── LearningPatternSynthesis → LEARNING/SYSTEM/ (aggregates ratings)
-    └── Observability reads from projects/
+Plugins maintain projections:
+    ├── WORK/ (THREAD.md + ISC.json + snapshots)
+    ├── LEARNING/ (ratings + learnings)
+    ├── RESEARCH/ (Task tool outputs)
+    └── SECURITY/ (security.jsonl)
 ```
 
-**Key insight:** Hooks write directly to specialized directories. There is no intermediate "firehose" layer - Claude Code's `projects/` serves that purpose natively.
+**Key insight:** OpenCode requires an explicit firehose. `RAW/` is the source of truth; everything else is a projection.
 
 ---
 
 ## Directory Structure
 
 ```
-$PAI_DIR/MEMORY/
-├── WORK/                   # PRIMARY work tracking
-│   └── {work_id}/
-│       ├── META.yaml       # Status, session, lineage
-│       ├── ISC.json        # Ideal State Criteria (auto-captured by hooks)
-│       ├── items/          # Individual work items
-│       ├── agents/         # Sub-agent work
-│       ├── research/       # Research findings
-│       ├── scratch/        # Iterative artifacts (diagrams, prototypes, drafts)
-│       ├── verification/   # Evidence
-│       └── children/       # Nested work
-├── LEARNING/               # Learnings (includes signals)
-│   ├── SYSTEM/             # PAI/tooling learnings
-│   │   └── YYYY-MM/
-│   ├── ALGORITHM/          # Task execution learnings
-│   │   └── YYYY-MM/
-│   ├── FAILURES/           # Full context dumps for low ratings (1-3)
-│   │   └── YYYY-MM/
-│   │       └── {timestamp}_{8-word-description}/
-│   │           ├── CONTEXT.md      # Human-readable analysis
-│   │           ├── transcript.jsonl # Raw conversation
-│   │           ├── sentiment.json  # Sentiment metadata
-│   │           └── tool-calls.json # Tool invocations
-│   ├── SYNTHESIS/          # Aggregated pattern analysis
-│   │   └── YYYY-MM/
-│   │       └── weekly-patterns.md
-│   └── SIGNALS/            # User satisfaction ratings
-│       └── ratings.jsonl
-├── RESEARCH/               # Agent output captures
-│   └── YYYY-MM/
-├── SECURITY/               # Security audit events
-│   └── security-events.jsonl
-├── STATE/                  # Operational state
-│   ├── algorithm-state.json
-│   ├── current-work.json
-│   ├── format-streak.json
-│   ├── algorithm-streak.json
-│   ├── trending-cache.json
-│   ├── progress/           # Multi-session project tracking
-│   └── integrity/          # System health checks
-├── PAISYSTEMUPDATES/         # Architecture change history
-│   ├── index.json
-│   ├── CHANGELOG.md
-│   └── YYYY/MM/
-└── README.md
+~/.config/opencode/MEMORY/
+├── RAW/                         # Append-only event firehose (JSONL)
+├── WORK/                        # Work sessions (thread + ISC)
+├── LEARNING/                    # Learnings + ratings signals
+├── RESEARCH/                    # Subagent captures (Task tool)
+├── SECURITY/                    # Security audit log events
+├── STATE/                       # Runtime state (current-work pointer, caches)
+└── PAISYSTEMUPDATES/            # System upgrade documentation
 ```
 
 ---
@@ -155,8 +116,10 @@ The `ISC.json` file captures the Ideal State Criteria from PAI Algorithm executi
 **What populates it:**
 - `plugins/handlers/rating-capture.ts` (explicit ratings + low-rating learnings)
 - `plugins/handlers/history-capture.ts` (idle checkpoint + session.deleted extraction)
-- `SessionHarvester.ts` (periodic extraction from projects/ transcripts)
-- `LearningPatternSynthesis.ts` (aggregates ratings into pattern reports)
+
+Legacy note:
+- Upstream Claude Code PAI used harvesting tools to scan `projects/` transcripts.
+- OpenCode PAI uses `MEMORY/RAW/` as the firehose and does not require harvesting.
 
 **Not implemented yet (OpenCode port):** implicit sentiment capture.
 
@@ -169,10 +132,10 @@ The `ISC.json` file captures the Ideal State Criteria from PAI Algorithm executi
 **Categorization logic:**
 | Directory | When Used | Example Triggers |
 |-----------|-----------|------------------|
-| `SYSTEM/` | Tooling/infrastructure failures | hook crash, config error, deploy failure |
-| `ALGORITHM/` | Task execution issues | wrong approach, over-engineered, missed the point |
-| `FAILURES/` | Full context for low ratings (1-3) | severe frustration, repeated errors |
-| `SYNTHESIS/` | Pattern aggregation | weekly analysis, recurring issues |
+| `LEARNING/SYSTEM/` | Tooling/infrastructure failures | hook crash, config error, deploy failure |
+| `LEARNING/ALGORITHM/` | Task execution issues | wrong approach, over-engineered, missed the point |
+| `LEARNING/FAILURES/` | Full context for low ratings (1-3) | severe frustration, repeated errors |
+| `LEARNING/SYNTHESIS/` | Pattern aggregation | weekly analysis, recurring issues |
 
 ### LEARNING/FAILURES/ - Full Context Failure Analysis
 
@@ -257,16 +220,16 @@ This is mutable state that changes during execution - not historical records. If
 | `plugins/handlers/rating-capture.ts` | user message commit | LEARNING/SIGNALS/ratings.jsonl (+ low-rating learnings) |
 | `plugins/handlers/learning-capture.ts` | idle checkpoint, session.deleted | LEARNING/ |
 | `plugins/handlers/agent-capture.ts` | `tool.execute.after` (Task) | RESEARCH/ |
-| `plugins/handlers/security-validator.ts` | `tool.execute.before` | MEMORY/SECURITY/YYYY-MM/security.jsonl |
+| `plugins/handlers/security-validator.ts` | `tool.execute.before` | `~/.config/opencode/MEMORY/SECURITY/YYYY-MM/security.jsonl` |
 
 ## Harvesting Tools
 
-| Tool | Purpose | Reads From | Writes To |
-|------|---------|------------|-----------|
-| SessionHarvester.ts | Extract learnings from transcripts | projects/ | LEARNING/ |
-| LearningPatternSynthesis.ts | Aggregate ratings into patterns | LEARNING/SIGNALS/ | LEARNING/SYSTEM/ |
-| (not implemented) | Failure context dumps for low ratings | projects/, SIGNALS/ | LEARNING/FAILURES/ |
-| ActivityParser.ts | Parse recent file changes | projects/ | (analysis only) |
+Upstream Claude Code PAI included "harvesting" tools that scanned transcript storage.
+
+In OpenCode PAI:
+- `MEMORY/RAW/` is the firehose.
+- Projections (WORK/LEARNING/RESEARCH/SECURITY) are updated directly from events.
+- Harvesting tools are not required.
 
 ---
 
@@ -279,20 +242,15 @@ OpenCode events (message.updated / message.part.updated)
     ↓
 History Capture → WORK/{id}/ + RAW/{session}.jsonl + STATE/current-work.json
     ↓
-[Work happens - all tool calls captured in projects/]
+session.status (idle)
     ↓
-ResponseCapture → Updates WORK/items, optionally LEARNING/
+assistant.committed → THREAD.md + ISC.json + isc.snapshots.jsonl
     ↓
-RatingCapture/SentimentCapture → LEARNING/SIGNALS/ + LEARNING/
+SecurityValidator → MEMORY/SECURITY/YYYY-MM/security.jsonl
     ↓
-WorkCompletionLearning → LEARNING/ (for significant work)
+session.deleted
     ↓
-SessionSummary → WORK/META.yaml (COMPLETED), clears STATE/current-work.json
-
-[Periodic harvesting]
-    ↓
-SessionHarvester → scans projects/ → writes LEARNING/
-LearningPatternSynthesis → analyzes SIGNALS/ → writes SYNTHESIS/
+Learning extraction → LEARNING/ (checkpoint + finalize)
 ```
 
 ---
@@ -301,60 +259,51 @@ LearningPatternSynthesis → analyzes SIGNALS/ → writes SYNTHESIS/
 
 ### Check current work
 ```bash
-cat $PAI_DIR/MEMORY/STATE/current-work.json
-ls $PAI_DIR/MEMORY/WORK/ | tail -5
+cat ~/.config/opencode/MEMORY/STATE/current-work.json
+ls ~/.config/opencode/MEMORY/WORK/ | tail -5
 ```
 
 ### Check ratings
 ```bash
-tail $PAI_DIR/MEMORY/LEARNING/SIGNALS/ratings.jsonl
+tail ~/.config/opencode/MEMORY/LEARNING/SIGNALS/ratings.jsonl
 ```
 
-### View session transcripts
+### View RAW events
 ```bash
-# List recent sessions (newest first)
-# Replace {username} with your system username
-ls -lt ~/.config/opencode/projects/-Users-{username}--claude/*.jsonl | head -5
-
-# View last session events
-tail ~/.config/opencode/projects/-Users-{username}--claude/$(ls -t ~/.config/opencode/projects/-Users-{username}--claude/*.jsonl | head -1) | jq .
+# List recent RAW event logs
+ls -lt ~/.config/opencode/MEMORY/RAW/$(date +%Y-%m)/ | head -5
 ```
 
 ### Check learnings
 ```bash
-ls $PAI_DIR/MEMORY/LEARNING/SYSTEM/
-ls $PAI_DIR/MEMORY/LEARNING/ALGORITHM/
-ls $PAI_DIR/MEMORY/LEARNING/SYSTEM/
+ls ~/.config/opencode/MEMORY/LEARNING/SYSTEM/
+ls ~/.config/opencode/MEMORY/LEARNING/ALGORITHM/
+ls ~/.config/opencode/MEMORY/LEARNING/SYSTEM/
 ```
 
 ### Check failures
 ```bash
 # List recent failure captures
-ls -lt $PAI_DIR/MEMORY/LEARNING/FAILURES/$(date +%Y-%m)/ 2>/dev/null | head -10
+ls -lt ~/.config/opencode/MEMORY/LEARNING/FAILURES/$(date +%Y-%m)/ 2>/dev/null | head -10
 
 # View a specific failure
-cat $PAI_DIR/MEMORY/LEARNING/FAILURES/2026-01/*/CONTEXT.md | head -100
+cat ~/.config/opencode/MEMORY/LEARNING/FAILURES/2026-01/*/CONTEXT.md | head -100
+```
 
-## Failure capture tooling
+### Failure capture tooling
 
 Automated failure-capture tooling is not implemented yet. Low-rating signals are captured to:
 
-- `$PAI_DIR/MEMORY/LEARNING/SIGNALS/ratings.jsonl`
-```
+- `~/.config/opencode/MEMORY/LEARNING/SIGNALS/ratings.jsonl`
 
 ### Check multi-session progress
 ```bash
-ls $PAI_DIR/MEMORY/STATE/progress/
+ls ~/.config/opencode/MEMORY/STATE/progress/
 ```
 
-### Run harvesting tools
-```bash
-# Harvest learnings from recent sessions
-bun run ~/.config/opencode/skills/CORE/Tools/SessionHarvester.ts --recent 10
+### Harvesting tools
 
-# Generate pattern synthesis
-bun run ~/.config/opencode/skills/CORE/Tools/LearningPatternSynthesis.ts --week
-```
+Not used in the OpenCode port.
 
 ---
 
@@ -368,15 +317,7 @@ bun run ~/.config/opencode/skills/CORE/Tools/LearningPatternSynthesis.ts --week
 - Failure capture remains manual (no migration tool)
 
 **2026-01-12:** v7.0 - Projects-native architecture
-- Eliminated RAW/ directory entirely - Claude Code's `projects/` is the source of truth
-- Removed legacy duplicate logging (projects/ is the source of truth)
-- Created SessionHarvester.ts to extract learnings from projects/ transcripts
-- Added `plugins/handlers/learning-capture.ts` for session-end learning capture
-- Created LearningPatternSynthesis.ts for rating pattern aggregation
-- Store pattern synthesis reports under LEARNING/SYSTEM/
-- Updated Observability to read from projects/ instead of RAW/
-- Updated ActivityParser.ts to use projects/ as data source
-- Removed archive functionality from legacy launcher (projects/ is source of truth)
+- Legacy upstream (Claude Code): projects-native architecture (not applicable to OpenCode)
 
 **2026-01-11:** v6.1 - Removed RECOVERY system
 - Deleted RECOVERY/ directory (5GB of redundant snapshots)
@@ -402,7 +343,7 @@ bun run ~/.config/opencode/skills/CORE/Tools/LearningPatternSynthesis.ts --week
 
 **2026-01-05:** v1.0 - Unified Memory System migration
 - Previous: `~/.config/opencode/history/`, `~/.config/opencode/context/`, `~/.config/opencode/progress/`
-- Current: `$PAI_DIR/MEMORY/`
+ - Current: `~/.config/opencode/MEMORY/`
 - Files migrated: 8,415+
 
 ---

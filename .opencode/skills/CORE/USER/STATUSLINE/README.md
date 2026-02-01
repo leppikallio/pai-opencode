@@ -14,7 +14,7 @@ The status line is configured in `settings.json`:
 {
   "statusLine": {
     "type": "command",
-    "command": "${PAI_DIR}/statusline-command.sh"
+    "command": "~/.config/opencode/statusline-command.sh"
   }
 }
 ```
@@ -51,11 +51,11 @@ To customize the status line:
 3. **Update settings.json:**
    ```json
    {
-     "statusLine": {
-       "type": "command",
-       "command": "${PAI_DIR}/skills/CORE/USER/STATUSLINE/custom-statusline.sh"
-     }
-   }
+  "statusLine": {
+    "type": "command",
+    "command": "~/.config/opencode/skills/CORE/USER/STATUSLINE/custom-statusline.sh"
+  }
+}
    ```
 
 ---

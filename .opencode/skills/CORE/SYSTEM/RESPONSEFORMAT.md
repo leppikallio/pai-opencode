@@ -2,7 +2,7 @@
 
 **Universal PAI response format specification.**
 
-This defines the base response format for any PAI implementation. User-specific customizations belong in `USER/RESPONSEFORMAT.md`.
+This defines the base response format for any PAI implementation. User-specific customizations belong in `~/.config/opencode/skills/CORE/USER/RESPONSEFORMAT.md`.
 
 ## Variables
 
@@ -183,4 +183,4 @@ Users rate responses by typing a number 1-10:
 
 ---
 
-**For user-specific customizations, see:** `USER/RESPONSEFORMAT.md`
+**For user-specific customizations, see:** `~/.config/opencode/skills/CORE/USER/RESPONSEFORMAT.md`
