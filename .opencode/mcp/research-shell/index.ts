@@ -201,6 +201,7 @@ interface ArtifactRecord {
 
 const DEFAULT_ALLOWED_SESSION_DIR_PREFIXES = [
   join(homedir(), '.config', 'opencode', 'scratchpad', 'sessions'),
+  join(homedir(), '.config', 'opencode', 'MEMORY', 'WORK'),
 ];
 
 function parseAllowedSessionDirPrefixes(): string[] {

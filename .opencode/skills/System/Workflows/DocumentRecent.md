@@ -69,10 +69,10 @@ Search for update documents covering this period:
 
 ```bash
 # Search MEMORY/WORK for recent work sessions
-find $PAI_DIR/MEMORY/WORK -type f -mtime -${days}
+find ~/.config/opencode/MEMORY/WORK -type f -mtime -${days}
 
 # Search MEMORY/LEARNING for recent learnings
-find $PAI_DIR/MEMORY/LEARNING -type f -mtime -${days}
+find ~/.config/opencode/MEMORY/LEARNING -type f -mtime -${days}
 ```
 
 ### 4. Analyze Gaps
@@ -142,7 +142,7 @@ Type: {work|feature|bugfix|refactor}
 Generated via DocumentRecent workflow
 ```
 
-Save to: `$PAI_DIR/MEMORY/PAISYSTEMUPDATES/{YYYY}/{MM}/{timestamp}_{slug}.md`
+Save to: `~/.config/opencode/MEMORY/PAISYSTEMUPDATES/{YYYY}/{MM}/{timestamp}_{slug}.md`
 
 #### Project Update Format
 
@@ -170,7 +170,7 @@ Date: {ISO timestamp}
 Auto-generated via DocumentRecent workflow
 ```
 
-Save to: `$PAI_DIR/MEMORY/PAISYSTEMUPDATES/{YYYY}/{MM}/{timestamp}_{slug}.md`
+Save to: `~/.config/opencode/MEMORY/PAISYSTEMUPDATES/{YYYY}/{MM}/{timestamp}_{slug}.md`
 
 #### Learning Document Format
 
@@ -198,14 +198,14 @@ Tags: {relevant tags}
 Captured via DocumentRecent workflow
 ```
 
-Save to: `$PAI_DIR/MEMORY/LEARNING/{category}/{timestamp}_{slug}.md`
+Save to: `~/.config/opencode/MEMORY/LEARNING/{category}/{timestamp}_{slug}.md`
 
 ### 6. Update Indexes
 
 After generating documents:
 
 1. **Update Learning README**
-   - Add new learning entries to `$PAI_DIR/MEMORY/LEARNING/README.md`
+   - Add new learning entries to `~/.config/opencode/MEMORY/LEARNING/README.md`
 
 2. **Update Project Status**
    - If project docs were created, update project README or status file
@@ -315,7 +315,9 @@ Time Range: {range scanned}
 ```
 ## DocumentRecent Workflow
 
-Scanning commits from: 2026-01-17 to 2026-01-19 (48 hours)
+Example output (paths may not exist):
+
+Scanning commits from: YYYY-MM-DD to YYYY-MM-DD (N hours)
 
 Commits found: 15
 ├─ Already documented: 8
@@ -324,22 +326,22 @@ Commits found: 15
 
 Generating documents...
 
-✅ Session: "Hook development workflow"
-   → $PAI_DIR/MEMORY/WORK/2026-01/20260118T225343_hook-development/
+✅ Session: "<work title>"
+   → ~/.config/opencode/MEMORY/WORK/YYYY-MM/YYYYMMDDTHHMMSS_<slug>/
 
-✅ Learning: "Git hook security patterns"
-   → $PAI_DIR/MEMORY/LEARNING/Security/20260118_git-hook-security.md
+✅ Learning: "<learning title>"
+   → ~/.config/opencode/MEMORY/LEARNING/<Category>/YYYYMMDDTHHMMSS_<slug>.md
 
-✅ Project Update: PAI Upgrade - Session 2 completion
-   → $PAI_DIR/MEMORY/PAISYSTEMUPDATES/2026/01/20260118_session-2-complete.md
+✅ Project Update: <project update title>
+   → ~/.config/opencode/MEMORY/PAISYSTEMUPDATES/YYYY/MM/YYYYMMDDTHHMMSS_<slug>.md
 
-✅ Session: "MEMORY structure consolidation"
-   → $PAI_DIR/MEMORY/WORK/2026-01/20260118T230000_memory-consolidation/
+✅ Session: "<work title>"
+   → ~/.config/opencode/MEMORY/WORK/YYYY-MM/YYYYMMDDTHHMMSS_<slug>/
 
 Documentation coverage: 80% (12/15 commits)
 
 Summary report:
-$PAI_DIR/MEMORY/PAISYSTEMUPDATES/2026/01/20260119T120000_document-recent-summary.md
+~/.config/opencode/MEMORY/PAISYSTEMUPDATES/YYYY/MM/YYYYMMDDTHHMMSS_document-recent-summary.md
 ```
 
 ## Integration Points
@@ -424,14 +426,14 @@ Generating documents for undocumented work...
 Documentation coverage is now 80%.
 
 Full summary saved to:
-$PAI_DIR/MEMORY/PAISYSTEMUPDATES/2026/01/20260119_document-recent-summary.md
+~/.config/opencode/MEMORY/PAISYSTEMUPDATES/2026/01/20260119_document-recent-summary.md
 
 Would you like me to review any of the generated documents?
 ```
 
 ## Configuration Options
 
-Store in `$PAI_DIR/config/document-recent.json`:
+Store in `~/.config/opencode/config/document-recent.json`:
 
 ```json
 {

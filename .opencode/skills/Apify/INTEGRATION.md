@@ -6,91 +6,27 @@
 
 ## Integration with PAI Skills
 
-### Social Integration (Optional)
+This repo ships a **code-first** Apify interface under:
 
-There is no dedicated `social/` skill shipped in this repo.
-If you want a Social skill, create one and integrate it with Apify.
+- `~/.config/opencode/skills/Apify/`
 
-**Updated Section:** "Fetching Tweet Content"
+The key integration pattern is: run Apify actors in code, then filter results BEFORE anything reaches model context.
 
-The social skill now uses code-based Apify scripts instead of `mcp__apify` MCP tool.
+### Example: Use Apify from another skill/tool
 
-**Trigger → Script Mapping:**
+```typescript
+// Run from: ~/.config/opencode/skills/Apify/
+import { searchGoogleMaps } from "./actors";
 
-| User Says | Script to Run |
-|-----------|---------------|
-| "my latest tweet" | `get-latest-tweet.ts` |
-| "my latest thread" | `get-latest-thread.ts` |
-| "get tweets from @user" | `get-user-tweets.ts user 5` |
-| "what has @user been talking about" | `get-user-tweets.ts user 10` |
-
-**Example Workflow:**
-
-1. User: "Turn my latest tweet into a LinkedIn post"
-2. System runs: `bun ~/.config/opencode/filesystem-mcps/apify/get-latest-tweet.ts`
-3. Script returns: Tweet text + metadata (~500 tokens)
-4. System transforms tweet into LinkedIn format
-5. **Token savings: 98%** (vs fetching unfiltered profile data)
-
-### Research Skill Integration
-
-**Use Case:** Monitor influential developers' Twitter activity
-
-```bash
-# Research what ThePrimeagen is discussing
-bun ~/.config/opencode/filesystem-mcps/apify/get-user-tweets.ts ThePrimeagen 10
-
-# Analyze Paul Graham's recent thoughts
-bun ~/.config/opencode/filesystem-mcps/apify/get-user-tweets.ts paulg 20
-
-# Track Simon Willison's posts
-bun ~/.config/opencode/filesystem-mcps/apify/get-user-tweets.ts simonw 15
+const places = await searchGoogleMaps({ query: "coffee vienna", maxResults: 50 });
+const top = places.filter((p) => (p.rating ?? 0) >= 4.6).slice(0, 10);
+console.log(top);
 ```
 
-**Token Efficiency:**
-- 10 tweets unfiltered: ~80,000 tokens
-- 10 tweets filtered: ~8,000 tokens
-- **Savings: 90%**
+### Legacy Note
 
-### Writing Skill Integration
-
-**Use Case:** Generate blog content from Twitter discussions
-
-```bash
-# Get user's thread about AI topic
-bun ~/.config/opencode/filesystem-mcps/apify/get-latest-thread.ts
-
-# Expand thread into blog post format
-# Token efficient: only thread content in context
-```
-
-## Available Scripts Summary
-
-### 1. get-latest-tweet.ts
-**Purpose:** User's most recent single tweet
-**Usage:** `bun get-latest-tweet.ts`
-**Returns:** Text, date, URL, engagement stats
-**Tokens:** ~500
-
-### 2. get-latest-thread.ts
-**Purpose:** User's most recent Twitter thread
-**Usage:** `bun get-latest-thread.ts`
-**Returns:** All thread tweets chronologically
-**Tokens:** ~5,500 (for 5-tweet thread)
-**Savings:** 87-90% vs unfiltered
-
-### 3. get-user-tweets.ts
-**Purpose:** Any user's recent tweets
-**Usage:** `bun get-user-tweets.ts <username> <limit>`
-**Returns:** Recent tweets with metadata
-**Tokens:** ~800 per tweet
-**Savings:** 90-95% vs unfiltered
-
-### 4. debug-tweet-structure.ts
-**Purpose:** Inspect raw API response
-**Usage:** `bun debug-tweet-structure.ts`
-**Returns:** Full JSON structure + available fields
-**Use:** Development/debugging only
+Older installations sometimes include extra scripts under `~/.config/opencode/filesystem-mcps/apify/`.
+They are not required for this Apify skill.
 
 ## Migration from MCP
 
@@ -113,10 +49,10 @@ mcp__Apify__get-actor-output(runId)
 
 ```typescript
 // All in one script, filtering in code
-bun ~/.config/opencode/filesystem-mcps/apify/get-latest-tweet.ts
+bun run ~/.config/opencode/skills/Apify/examples/instagram-scraper.ts
 
-// Returns only filtered result: ~500 tokens
-// Savings: 98.2%
+// Returns only filtered result set
+// Savings: typically 90%+ vs unfiltered
 ```
 
 ## Best Practices
@@ -200,13 +136,14 @@ Other Apify actors worth implementing:
 ## Documentation
 
 **For Users:**
-- Quick reference: `~/.config/opencode/filesystem-mcps/SCRIPTS-REFERENCE.md`
+- Legacy scripts quick reference (optional): `~/.config/opencode/filesystem-mcps/SCRIPTS-REFERENCE.md`
 - Apify skill: `~/.config/opencode/skills/Apify/SKILL.md`
 
 **For Developers:**
-- Implementation: `~/.config/opencode/filesystem-mcps/apify/README.md`
-- Standards: `~/.config/opencode/filesystem-mcps/STANDARDS.md`
-- Parent guide: `~/.config/opencode/filesystem-mcps/README.md`
+- Optional implementation docs (if you installed filesystem-mcps):
+  - `~/.config/opencode/filesystem-mcps/apify/README.md`
+  - `~/.config/opencode/filesystem-mcps/STANDARDS.md`
+  - `~/.config/opencode/filesystem-mcps/README.md`
 
 ## Support
 
@@ -216,13 +153,13 @@ Q: Why not use MCP?
 A: 90-98% token savings, faster execution, better control.
 
 Q: What if script fails?
-A: Check `APIFY_TOKEN` in `${PAI_DIR}/.env`, verify network, check Apify status.
+A: Check `APIFY_TOKEN` in `~/.config/opencode/.env`, verify network, check Apify status.
 
 Q: Can I add new actors?
-A: Yes! Follow `STANDARDS.md` pattern, hardcode actor ID, filter in code.
+A: Yes! Add a wrapper in `~/.config/opencode/skills/Apify/actors/` and filter in code.
 
 Q: How do I debug?
-A: Use `debug-tweet-structure.ts` to inspect raw data, check console output.
+A: Start with the actor wrapper output, then log/filter in code.
 
 ## Success Metrics
 
@@ -233,4 +170,4 @@ A: Use `debug-tweet-structure.ts` to inspect raw data, check console output.
 - ✅ 4 production-ready scripts
 - ✅ Comprehensive documentation
 
-**This is now the standard for all Twitter operations in PAI.**
+**This is the standard for large-result Apify integrations in PAI.**

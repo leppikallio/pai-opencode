@@ -797,10 +797,10 @@ sudo masscan -iL hosts.txt --top-ports 100 --rate=5000
 - Assetnote Wordlists: https://wordlists.assetnote.io/
 
 **Related Workflows:**
-- `master-guide.md` - Complete OSINT methodology
-- `automation.md` - SpiderFoot automated reconnaissance
-- `../pentest/reconnaissance.md` - Penetration testing recon phase
-- `../ffuf/ffuf-guide.md` - Content discovery after recon
+- `MasterGuide.md` - Complete OSINT methodology
+- `Automation.md` - SpiderFoot automated reconnaissance
+- `../pentest/Reconnaissance.md` - Penetration testing recon phase
+- `../ffuf/FfufGuide.md` - Content discovery after recon
 
 ---
 

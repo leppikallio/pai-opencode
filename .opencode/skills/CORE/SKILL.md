@@ -278,10 +278,9 @@ Every phase must show `🔧 Capabilities Selected:` declaring what tools are bei
 | **Be Creative** (`~/.config/opencode/skills/BeCreative/SKILL.md`) | Expanded creativity mode | Ideation, can combine with others |
 | **Parallelization** | Multiple agents/threads in background | Large non-serial work |
 | **Creative Branching** | Explore multiple ideas separately | Divergent exploration |
-| **Plan Mode** (EnterPlanMode tool) | Extra IQ for complex tasks | Major/complex/high-quality work |
 | **Evals** (`~/.config/opencode/skills/Evals/SKILL.md`) | Automated bakeoffs between ideas | Comparing solutions objectively |
 | **Git Branching** | Isolated work trees for experiments | Paired with Be Creative + Evals |
-| **Task Management** (TaskCreate/Update/List/Get) | Persistent task tracking with dependencies | Multi-turn work, parallel agents, complex ISC |
+| **Todo Tracking** (`todowrite`/`todoread`) | Lightweight task list in-session | Multi-step tasks, progress visibility |
 
 | Capability | Short Code | Reference |
 
@@ -355,55 +354,14 @@ Anti-criteria follow the same rules: **exactly 8 words, granular, discrete, test
 These are the tools available to the algorithm. **Consult this list throughout execution** and ask: "Should I be using any of these to speed up or improve chances of Euphoric Surprise?"
 
 
-### Task Management System (v2.1.16+)
+### Todo Tracking Tools
 
-The Task tools provide **persistent, dependency-aware task tracking** that enhances ISC:
+This runtime provides lightweight todo tracking tools:
 
-| Tool | Purpose |
-|------|---------|
-| `TaskCreate` | Create tasks with subject, description, activeForm |
-| `TaskUpdate` | Update status, add `blocks`/`blockedBy` dependencies |
-| `TaskList` | View all tasks with status, owner, blockers |
-| `TaskGet` | Retrieve full task details by ID |
+- `todoread` - Read the current todo list
+- `todowrite` - Create/update the current todo list
 
-**ISC → Task Mapping:**
-
-| ISC Concept | Task Equivalent |
-|-------------|-----------------|
-| Criterion text (8 words) | `subject` field |
-| Criterion details | `description` field |
-| Status (⬜/🔄/✅/❌) | `status` (pending/in_progress/completed) |
-| Dependency order | `blockedBy` array |
-| Verification evidence | `metadata.evidence` |
-
-**When to Use Tasks:**
-
-| Scenario | Use ISC Only | Use Tasks + ISC |
-|----------|--------------|-----------------|
-| Single-turn task | ✅ | ❌ |
-| Multi-turn work (Ralph loops) | ❌ | ✅ |
-| Parallel agent work | ❌ | ✅ |
-| Complex dependencies | ❌ | ✅ |
-| Need persistent state | ❌ | ✅ |
-
-**Integration Pattern:**
-
-```
-PLAN Phase:
-  1. Define ISC criteria as usual
-  2. For complex work: TaskCreate for each criterion
-  3. TaskUpdate to set blockedBy dependencies
-
-BUILD/EXECUTE Phase:
-  1. TaskUpdate status → in_progress when starting
-  2. Work toward criterion
-  3. TaskUpdate status → completed with evidence
-
-VERIFY Phase:
-  1. TaskList to see overall progress
-  2. ISC table shows final state
-  3. Both should match
-```
+Use these when a task has multiple steps and you want progress visibility.
 
 ---
 
@@ -450,7 +408,7 @@ At each phase, mentally evaluate:
 | **Research** | External info needed, assumptions to verify, unfamiliar domain | Info already in context, working in user's codebase only |
 | **Parallelization** | 2+ independent subtasks, multiple criteria to verify | Sequential dependency between tasks |
 | **Domain Skills** | Skill exists for this domain (check first!) | No matching skill exists |
-| **Task Management** | Multi-turn work, 3+ criteria with dependencies, parallel agents | Single-turn, simple independent criteria |
+| **Todo Tracking** | Multi-step work needing visible progress tracking | Single-turn, simple independent criteria |
 
 ### Agent Selection Guide
 
@@ -471,7 +429,7 @@ At each phase, mentally evaluate:
 
 **Use Research** (`~/.config/opencode/skills/Research/SKILL.md`) **when:** Unsure about current state, making recommendations that depend on external info
 
-**Use Task Management** (TaskCreate/Update/List/Get) **when:** Multi-turn work expected, criteria have dependencies, parallel agents need coordination, state must persist across turns
+**Use Todo Tracking** (`todowrite`/`todoread`) **when:** Multi-step work needs visible progress tracking
 
 ### Invalid Justifications for "Direct"
 

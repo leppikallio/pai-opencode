@@ -19,8 +19,8 @@
 - [ ] Communication channel with client established
 
 **📚 Knowledge Prep:**
-- [ ] Read attack taxonomy: `Resources/COMPREHENSIVE-ATTACK-TAXONOMY.md`
-- [ ] Review reconnaissance methodology: `Resources/APPLICATION-RECONNAISSANCE-METHODOLOGY.md`
+- [ ] Read attack taxonomy: `COMPREHENSIVE-ATTACK-TAXONOMY.md`
+- [ ] Review reconnaissance methodology: `APPLICATION-RECONNAISSANCE-METHODOLOGY.md`
 - [ ] Understand target application's purpose
 - [ ] Note any special requirements or constraints
 

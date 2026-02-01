@@ -136,11 +136,11 @@ Choose which services you need and create accounts:
 
 ### Step 4: Configure Environment Variables
 
-Add your API keys to `${PAI_DIR}/.env`:
+Add your API keys to `~/.config/opencode/.env`:
 
 ```bash
 # Open .env file
-nano ${PAI_DIR}/.env
+nano ~/.config/opencode/.env
 
 # Add these lines (replace with your actual keys):
 SHODAN_API_KEY=your_actual_shodan_api_key_here
@@ -149,7 +149,7 @@ DEHASHED_EMAIL=your_dehashed_account_email@example.com
 OSINT_INDUSTRIES_API_KEY=your_actual_osint_industries_key_here
 ```
 
-**CRITICAL:** Ensure `${PAI_DIR}/.env` is in `.gitignore` and NEVER commit it to any repository.
+**CRITICAL:** Ensure `~/.config/opencode/.env` is in `.gitignore` and NEVER commit it to any repository.
 
 ### Step 5: Test Your Setup
 
@@ -638,11 +638,11 @@ if __name__ == "__main__":
 
 **Error:**
 ```
-APIKeyMissingError: Shodan API key not found. Set SHODAN_API_KEY in ${PAI_DIR}/.env
+APIKeyMissingError: Shodan API key not found. Set SHODAN_API_KEY in ~/.config/opencode/.env
 ```
 
 **Solution:**
-1. Verify API key is in `${PAI_DIR}/.env`
+1. Verify API key is in `~/.config/opencode/.env`
 2. Ensure no typos in environment variable name
 3. Restart your shell or reload environment:
    ```bash
@@ -781,7 +781,7 @@ logging.basicConfig(level=logging.DEBUG)
 ## Next Steps
 
 1. **Subscribe to Services**: Choose which services fit your budget and needs
-2. **Configure API Keys**: Add keys to `${PAI_DIR}/.env`
+2. **Configure API Keys**: Add keys to `~/.config/opencode/.env`
 3. **Test Connections**: Run `python3 osint-api-tools.py --test`
 4. **Run Example Queries**: Test with sample data
 5. **Integrate with Workflows**: Build custom reconnaissance scripts
@@ -809,7 +809,7 @@ logging.basicConfig(level=logging.DEBUG)
 This guide provides complete setup and usage instructions for integrating Shodan, Dehashed, and OSINT Industries into your webassessment workflow. These tools are essential for modern security assessments but must be used responsibly and legally.
 
 **Key Takeaways:**
-- ✅ All three services require API keys (configure in `${PAI_DIR}/.env`)
+- ✅ All three services require API keys (configure in `~/.config/opencode/.env`)
 - ✅ Python wrapper provides unified interface
 - ✅ CLI tool available for quick queries
 - ✅ Always obtain authorization before testing

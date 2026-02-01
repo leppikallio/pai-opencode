@@ -15,9 +15,9 @@ import {
   getYearMonth,
   getTimestamp,
   ensureDir,
-  getCurrentWorkPath,
-  setCurrentWorkPath,
-  clearCurrentWork,
+  getCurrentWorkPathForSession,
+  setCurrentWorkPathForSession,
+  clearCurrentWorkForSession,
   slugify,
 } from "../lib/paths";
 
@@ -50,8 +50,12 @@ export interface CompleteWorkResult {
   error?: string;
 }
 
-// In-memory cache for current session
-let currentSession: WorkSession | null = null;
+// In-memory cache for work sessions (keyed by OpenCode sessionID)
+const currentSessions = new Map<string, WorkSession>();
+
+function normalizeSessionId(sessionId: string): string {
+  return sessionId.replace(/[^a-zA-Z0-9_-]/g, "");
+}
 
 export interface IscCriterion {
   id: string;
@@ -125,23 +129,35 @@ function inferTitle(prompt: string): string {
  * Creates MEMORY/WORK/{timestamp}_{title}/ structure.
  */
 export async function createWorkSession(
-  prompt: string
+  sessionIdRaw: string,
+  seed: string
 ): Promise<CreateWorkResult> {
   try {
+    const sessionId = normalizeSessionId(sessionIdRaw);
+    if (!sessionId) {
+      return { success: false, error: "Invalid session id" };
+    }
+
     // Check if session already exists
-    const existingPath = await getCurrentWorkPath();
-    if (existingPath && currentSession) {
+    const existingPath = await getCurrentWorkPathForSession(sessionId);
+    const cached = currentSessions.get(sessionId);
+    if (existingPath && cached) {
       fileLog("Work session already exists, reusing", "debug");
-      return { success: true, session: currentSession };
+      return { success: true, session: cached };
+    }
+
+    if (existingPath && !cached) {
+      const loaded = await getOrLoadCurrentSession(sessionId);
+      if (loaded) return { success: true, session: loaded };
     }
 
     // Create session directory
     const workDir = getWorkDir();
     const yearMonth = getYearMonth();
     const timestamp = getTimestamp();
-    const title = inferTitle(prompt);
+    const title = inferTitle(seed);
     const slug = slugify(title);
-    const sessionId = `${timestamp}_${slug}`;
+    const workId = `${timestamp}_${slug}`;
 
     const sessionPath = path.join(workDir, yearMonth, sessionId);
     await ensureDir(sessionPath);
@@ -155,12 +171,13 @@ export async function createWorkSession(
       status: "ACTIVE",
       started_at: new Date().toISOString(),
       title: title,
-      session_id: sessionId,
+      opencode_session_id: sessionId,
+      work_id: workId,
     };
 
     await fs.promises.writeFile(
       path.join(sessionPath, "META.yaml"),
-      `status: ${meta.status}\nstarted_at: ${meta.started_at}\ntitle: "${meta.title}"\nsession_id: ${meta.session_id}\n`
+      `status: ${meta.status}\nstarted_at: ${meta.started_at}\ntitle: "${meta.title}"\nopencode_session_id: ${meta.opencode_session_id}\nwork_id: ${meta.work_id}\n`
     );
 
     // Create empty ISC.json (v0.1)
@@ -176,9 +193,9 @@ export async function createWorkSession(
     );
 
     // Update state
-    await setCurrentWorkPath(sessionPath);
+    await setCurrentWorkPathForSession(sessionId, sessionPath);
 
-    currentSession = {
+    const session: WorkSession = {
       id: sessionId,
       path: sessionPath,
       title: title,
@@ -186,9 +203,11 @@ export async function createWorkSession(
       status: "ACTIVE",
     };
 
+    currentSessions.set(sessionId, session);
+
     fileLog(`Work session created: ${sessionId}`, "info");
 
-    return { success: true, session: currentSession };
+    return { success: true, session };
   } catch (error) {
     fileLogError("Failed to create work session", error);
     return {
@@ -201,16 +220,22 @@ export async function createWorkSession(
 /**
  * Get current work session
  */
-export function getCurrentSession(): WorkSession | null {
-  return currentSession;
+export function getCurrentSession(sessionIdRaw: string): WorkSession | null {
+  const sessionId = normalizeSessionId(sessionIdRaw);
+  if (!sessionId) return null;
+  return currentSessions.get(sessionId) ?? null;
 }
 
 /**
  * Load current session from disk if cache is empty
  */
-export async function getOrLoadCurrentSession(): Promise<WorkSession | null> {
-  if (currentSession) return currentSession;
-  const sessionPath = await getCurrentWorkPath();
+export async function getOrLoadCurrentSession(sessionIdRaw: string): Promise<WorkSession | null> {
+  const sessionId = normalizeSessionId(sessionIdRaw);
+  if (!sessionId) return null;
+  const cached = currentSessions.get(sessionId);
+  if (cached) return cached;
+
+  const sessionPath = await getCurrentWorkPathForSession(sessionId);
   if (!sessionPath) return null;
 
   const metaPath = path.join(sessionPath, "META.yaml");
@@ -222,14 +247,15 @@ export async function getOrLoadCurrentSession(): Promise<WorkSession | null> {
     const started_at =
       (metaContent.match(/started_at:\s*(.+)/) || [])[1] || new Date().toISOString();
 
-    currentSession = {
-      id: path.basename(sessionPath),
+    const session: WorkSession = {
+      id: sessionId,
       path: sessionPath,
       title: title || "work-session",
       started_at,
       status: status as WorkSession["status"],
     };
-    return currentSession;
+    currentSessions.set(sessionId, session);
+    return session;
   } catch (error) {
     fileLogError("Failed to load current session", error);
     return null;
@@ -241,9 +267,12 @@ export async function getOrLoadCurrentSession(): Promise<WorkSession | null> {
  *
  * Called at session end. Updates META.yaml with completion timestamp.
  */
-export async function completeWorkSession(): Promise<CompleteWorkResult> {
+export async function completeWorkSession(sessionIdRaw: string): Promise<CompleteWorkResult> {
   try {
-    const sessionPath = await getCurrentWorkPath();
+    const sessionId = normalizeSessionId(sessionIdRaw);
+    if (!sessionId) return { success: true };
+
+    const sessionPath = await getCurrentWorkPathForSession(sessionId);
     if (!sessionPath) {
       fileLog("No active work session to complete", "debug");
       return { success: true };
@@ -269,8 +298,8 @@ export async function completeWorkSession(): Promise<CompleteWorkResult> {
     await fs.promises.writeFile(metaPath, metaContent);
 
     // Clear state
-    await clearCurrentWork();
-    currentSession = null;
+    await clearCurrentWorkForSession(sessionId);
+    currentSessions.delete(sessionId);
 
     fileLog(`Work session completed: ${sessionPath}`, "info");
 
@@ -288,7 +317,13 @@ export async function completeWorkSession(): Promise<CompleteWorkResult> {
  * Pause the current work session (soft finalize)
  */
 export async function pauseWorkSession(): Promise<void> {
-  const sessionPath = await getCurrentWorkPath();
+  throw new Error("pauseWorkSession() now requires a sessionID");
+}
+
+export async function pauseWorkSessionForSession(sessionIdRaw: string): Promise<void> {
+  const sessionId = normalizeSessionId(sessionIdRaw);
+  if (!sessionId) return;
+  const sessionPath = await getCurrentWorkPathForSession(sessionId);
   if (!sessionPath) return;
 
   const metaPath = path.join(sessionPath, "META.yaml");
@@ -298,7 +333,8 @@ export async function pauseWorkSession(): Promise<void> {
     metaContent = metaContent.replace(/status: (ACTIVE|PAUSED)/, "status: PAUSED").trim();
     metaContent += `\npaused_at: ${paused_at}\n`;
     await fs.promises.writeFile(metaPath, metaContent);
-    if (currentSession) currentSession.status = "PAUSED";
+    const cached = currentSessions.get(sessionId);
+    if (cached) cached.status = "PAUSED";
   } catch (error) {
     fileLogError("Failed to pause work session", error);
   }
@@ -308,7 +344,13 @@ export async function pauseWorkSession(): Promise<void> {
  * Resume a paused work session
  */
 export async function resumeWorkSession(): Promise<void> {
-  const sessionPath = await getCurrentWorkPath();
+  throw new Error("resumeWorkSession() now requires a sessionID");
+}
+
+export async function resumeWorkSessionForSession(sessionIdRaw: string): Promise<void> {
+  const sessionId = normalizeSessionId(sessionIdRaw);
+  if (!sessionId) return;
+  const sessionPath = await getCurrentWorkPathForSession(sessionId);
   if (!sessionPath) return;
 
   const metaPath = path.join(sessionPath, "META.yaml");
@@ -318,7 +360,8 @@ export async function resumeWorkSession(): Promise<void> {
     metaContent = metaContent.replace(/status: (PAUSED|ACTIVE)/, "status: ACTIVE").trim();
     metaContent += `\nresumed_at: ${resumed_at}\n`;
     await fs.promises.writeFile(metaPath, metaContent);
-    if (currentSession) currentSession.status = "ACTIVE";
+    const cached = currentSessions.get(sessionId);
+    if (cached) cached.status = "ACTIVE";
   } catch (error) {
     fileLogError("Failed to resume work session", error);
   }
@@ -328,7 +371,13 @@ export async function resumeWorkSession(): Promise<void> {
  * Append to THREAD.md
  */
 export async function appendToThread(content: string): Promise<void> {
-  const sessionPath = await getCurrentWorkPath();
+  throw new Error("appendToThread() now requires a sessionID");
+}
+
+export async function appendToThreadForSession(sessionIdRaw: string, content: string): Promise<void> {
+  const sessionId = normalizeSessionId(sessionIdRaw);
+  if (!sessionId) return;
+  const sessionPath = await getCurrentWorkPathForSession(sessionId);
   if (!sessionPath) return;
 
   const threadPath = path.join(sessionPath, "THREAD.md");
@@ -344,7 +393,13 @@ export async function appendToThread(content: string): Promise<void> {
  * Update ISC.json
  */
 export async function updateISC(state: IscState): Promise<void> {
-  const sessionPath = await getCurrentWorkPath();
+  throw new Error("updateISC() now requires a sessionID");
+}
+
+export async function updateISCForSession(sessionIdRaw: string, state: IscState): Promise<void> {
+  const sessionId = normalizeSessionId(sessionIdRaw);
+  if (!sessionId) return;
+  const sessionPath = await getCurrentWorkPathForSession(sessionId);
   if (!sessionPath) return;
 
   const iscPath = path.join(sessionPath, "ISC.json");
@@ -363,7 +418,17 @@ export async function applyIscUpdate(
   state: IscState,
   sourceEventId: string
 ): Promise<void> {
-  const sessionPath = await getCurrentWorkPath();
+  throw new Error("applyIscUpdate() now requires a sessionID");
+}
+
+export async function applyIscUpdateForSession(
+  sessionIdRaw: string,
+  state: IscState,
+  sourceEventId: string
+): Promise<void> {
+  const sessionId = normalizeSessionId(sessionIdRaw);
+  if (!sessionId) return;
+  const sessionPath = await getCurrentWorkPathForSession(sessionId);
   if (!sessionPath) return;
 
   const iscPath = path.join(sessionPath, "ISC.json");
@@ -438,7 +503,7 @@ export async function applyIscUpdate(
   }
 
   state.updatedAt = new Date().toISOString();
-  await updateISC(state);
+  await updateISCForSession(sessionId, state);
 
   if (snapshots.length > 0) {
     const lines = `${snapshots.map((s) => JSON.stringify(s)).join("\n")}\n`;

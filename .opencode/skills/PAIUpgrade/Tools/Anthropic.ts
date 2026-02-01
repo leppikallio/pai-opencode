@@ -437,11 +437,11 @@ function generateRecommendation(update: Update): string {
       `**Action:** Check if this affects PAI's agent definitions or hook configurations. Test existing agent workflows.`;
   }
 
-  // Claude Code releases
+  // Claude Code releases (upstream platform signals)
   if (type === 'release' && source.includes('claude-code')) {
     return `**PAI Impact:** CRITICAL - Core platform update\n` +
-      `**Why:** PAI runs on Claude Code - releases may include new features, breaking changes, or performance improvements.\n` +
-      `**Action:** Review changelog carefully. Test PAI's critical workflows. Update skills/commands if APIs changed.`;
+      `**Why:** PAI runs on OpenCode; upstream CLI/platform changes can inform our tooling.\n` +
+      `**Action:** Review changelog carefully. Test PAI's critical workflows. Update skills/plugins if behavior changed.`;
   }
 
   // MCP releases
@@ -462,7 +462,7 @@ function generateRecommendation(update: Update): string {
   if (source.includes('cookbook') || source.includes('quickstart') || source.includes('courses')) {
     return `**PAI Impact:** MEDIUM - Implementation patterns\n` +
       `**Why:** Cookbooks/examples show best practices and patterns we can adopt in PAI's codebase.\n` +
-      `**Action:** Review for reusable patterns, especially around skills, agents, or Claude Code features. Extract learnings for PAI.`;
+      `**Action:** Review for reusable patterns, especially around skills, agents, or runtime features. Extract learnings for PAI.`;
   }
 
   // GitHub commits
@@ -476,13 +476,13 @@ function generateRecommendation(update: Update): string {
   if (titleLower.includes('doc') || type === 'docs') {
     return `**PAI Impact:** MEDIUM - Capability discovery\n` +
       `**Why:** Doc updates often reveal new features or best practices not yet in PAI.\n` +
-      `**Action:** Review for new Claude Code features, API capabilities, or configuration options to leverage.`;
+      `**Action:** Review for new runtime features, API capabilities, or configuration options to leverage.`;
   }
 
   // SDK releases
   if (source.includes('sdk')) {
     return `**PAI Impact:** LOW - SDK update\n` +
-      `**Why:** SDK updates are less relevant since PAI uses Claude Code CLI, not raw API SDKs.\n` +
+      `**Why:** SDK updates are less relevant since PAI uses the OpenCode runtime, not raw API SDKs.\n` +
       `**Action:** Note for reference. Only investigate if mentions features relevant to PAI's agent implementations.`;
   }
 
@@ -490,7 +490,7 @@ function generateRecommendation(update: Update): string {
   if (type === 'blog') {
     return `**PAI Impact:** LOW-MEDIUM - Awareness\n` +
       `**Why:** Blogs announce new features and directions that may eventually affect PAI.\n` +
-      `**Action:** Skim for strategic announcements about Claude Code, Skills, or MCP. Track for future planning.`;
+      `**Action:** Skim for strategic announcements about CLIs, Skills, or MCP. Track for future planning.`;
   }
 
   // Generic

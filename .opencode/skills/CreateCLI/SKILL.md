@@ -165,24 +165,20 @@ Every generated CLI follows:
 **For detailed information, read these files:**
 
 ### Workflow Documentation
-- `Workflows/Create-cli.md` - Main CLI generation workflow (decision tree, 10-step process)
-- `Workflows/Add-command.md` - Add commands to existing CLIs
-- `Workflows/Upgrade-tier.md` - Migrate simple → complex
-- `Workflows/Add-testing.md` - Test suite generation
-- `Workflows/Setup-distribution.md` - Publishing configuration
+- `Workflows/CreateCli.md` - Main CLI generation workflow (decision tree, 10-step process)
+- `Workflows/AddCommand.md` - Add commands to existing CLIs
+- `Workflows/UpgradeTier.md` - Migrate simple → complex
 
 ### Reference Documentation
-- `framework-comparison.md` - Manual vs Commander vs oclif (with research)
-- `patterns.md` - Common CLI patterns (from llcli analysis)
-- `testing-strategies.md` - CLI testing approaches (Jest, Vitest, Playwright)
-- `distribution.md` - Publishing strategies (npm, standalone binaries)
-- `typescript-patterns.md` - Type safety patterns (from tsx, vite, bun research)
+- `FrameworkComparison.md` - Manual vs Commander vs oclif (with research)
+- `Patterns.md` - Common CLI patterns (from llcli analysis)
+- `TypescriptPatterns.md` - Type safety patterns (from tsx, vite, bun research)
 
 ### Tools & Templates
-- `Tools/templates/tier1/` - llcli-style templates (default)
-- `Tools/templates/tier2/` - Commander.js templates (escalation)
-- `Tools/generators/` - Generation scripts (TypeScript)
-- `Tools/validators/` - Quality gates (validation)
+
+This skill currently ships workflow + reference docs only.
+
+Do not assume a `Tools/` directory exists for CreateCLI.
 
 ### Examples
 - `examples/api-cli/` - API client (reference: llcli)

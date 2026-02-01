@@ -28,7 +28,8 @@ Research agents hallucinate URLs. A single broken link is a catastrophic failure
 **When executing a workflow, do BOTH:**
 
 1. **Send voice notification**:
-   ```voice_notify` (message: "Running the WORKFLOWNAME workflow from the Research skill")``
+   Use the `voice_notify` tool:
+   - `message`: "Running WORKFLOWNAME workflow from Research skill"
 
 2. **Output text notification**:
    ```
@@ -98,8 +99,8 @@ Route to the appropriate workflow based on the request.
 
 ## File Organization
 
-**Scratch (temporary work artifacts):** `$PAI_DIR/MEMORY/WORK/{current_work}/scratch/`
-- Read `$PAI_DIR/MEMORY/STATE/current-work.json` to get the `work_dir` value
+**Scratch (temporary work artifacts):** `~/.config/opencode/MEMORY/WORK/{current_work}/scratch/`
+- Read `~/.config/opencode/MEMORY/STATE/current-work.json` to get the `work_dir` value
 - All iterative work artifacts go in the current work item's scratch/ subdirectory
 - This ties research artifacts to the work item for learning and context
 

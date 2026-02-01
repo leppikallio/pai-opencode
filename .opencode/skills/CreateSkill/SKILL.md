@@ -1,12 +1,12 @@
 ---
 name: CreateSkill
-description: "Create and validate skills. USE WHEN create skill, new skill, skill structure, canonicalize. SkillSearch('createskill') for docs."
+description: "Create and validate skills. USE WHEN create skill, new skill, skill structure, canonicalize."
 ---
 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/CreateSkill/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/<CreateSkill>/` (optional)
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -18,7 +18,7 @@ MANDATORY skill creation framework for ALL skill creation requests.
 
 **Before creating ANY skill, READ:** `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md`
 
-**Canonical example to follow:** `~/.config/opencode/skills/_BLOGGING/SKILL.md`
+**Canonical example to follow:** `~/.config/opencode/skills/System/SKILL.md`
 
 ## TitleCase Naming Convention
 
@@ -44,7 +44,7 @@ MANDATORY skill creation framework for ALL skill creation requests.
 
 ### The Rule
 
-**Maximum depth:** `skills/SkillName/Category/`
+**Maximum depth:** `skills/<SkillName>/<Category>/`
 
 ### ✅ ALLOWED (2 levels max)
 
@@ -82,8 +82,8 @@ skills/SkillName/Tools/Utils/Helper.ts           # THREE levels - NO
 4. **Consistency** - Every skill follows same pattern
 
 **If you need to organize many workflows, use clear filenames instead of subdirectories:**
-- Good: `Workflows/CompanyDueDiligence.md`
-- Bad: `Workflows/Company/DueDiligence.md`
+ - Good: `Workflows/<CompanyDueDiligence>.md`
+ - Bad: `Workflows/<Company>/<DueDiligence>.md`
 
 **See:** `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md` (Flat Folder Structure section)
 
@@ -168,7 +168,7 @@ Brief description.
 
 | Trigger | Workflow |
 |---------|----------|
-| "trigger" | `Workflows/WorkflowName.md` |
+| "trigger" | `Workflows/<WorkflowName>.md` |
 
 ## Quick Reference
 

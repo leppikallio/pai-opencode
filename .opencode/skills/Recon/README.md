@@ -15,7 +15,7 @@ User: "Do passive recon on example.com"
      - Subdomain discovery (47 found)
      - IP mapping (3 unique IPs)
 
-Report: $PAI_DIR/MEMORY/WORK/{current_work}/scratch/recon-example-com/
+Report: ~/.config/opencode/MEMORY/WORK/{current_work}/scratch/recon-example-com/
 ```
 
 ### IP Address Investigation
@@ -258,8 +258,8 @@ Requires **security MCP profile**:
 ## Output Formats
 
 ### Report Locations
-- **Iterative Work:** `$PAI_DIR/MEMORY/WORK/{current_work}/scratch/` (tied to work item for learning)
-- **Formal Assessments:** `$PAI_DIR/MEMORY/RESEARCH/YYYY-MM/`
+- **Iterative Work:** `~/.config/opencode/MEMORY/WORK/{current_work}/scratch/` (tied to work item for learning)
+- **Formal Assessments:** `~/.config/opencode/MEMORY/RESEARCH/YYYY-MM/`
 
 ### Report Structure
 - Executive summary

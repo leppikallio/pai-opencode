@@ -100,12 +100,12 @@ Based on combined results, advise on:
 
 ## State Tracking
 
-**Anthropic state:** `State/last-check.json`
+**Anthropic state:** `../State/last-check.json`
 - Last check timestamp
 - Content hashes for each source
 - Last seen commit SHAs, release versions, blog titles
 
-**YouTube state:** `State/youtube-videos.json`
+**YouTube state:** `../State/youtube-videos.json`
 - Last check timestamp per channel
 - Seen video IDs (prevents duplicate processing)
 

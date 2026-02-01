@@ -285,13 +285,13 @@ Brief description.
 
 ## Workflow Routing
 
-  - **WorkflowOne** - description → `Workflows/WorkflowOne.md`
+  - **WorkflowOne** - description → `Workflows/<WorkflowOne>.md`
 ```
 
 ### Key Rules
 
 - **Description max**: 1024 characters
-- **USE WHEN required**: Claude Code parses this for skill matching
+- **USE WHEN required**: Skill index parses this for routing
 - **Workflow files**: TitleCase naming
 - **No nested workflows**: Flat structure under `Workflows/`
 - **Personal vs System**: `_ALLCAPS` = personal (never share), `TitleCase` = system (shareable)

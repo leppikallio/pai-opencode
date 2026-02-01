@@ -73,14 +73,6 @@ User: "Check for secrets before I push"
 → Reports any API keys, credentials found
 ```
 
-**Example 6: Cross-Repo Validation**
-```
-User: "Make sure nothing leaked to public"
-→ Invokes CrossRepoValidation workflow
-→ Compares ~/.config/opencode with ~/Projects/PAI
-→ Reports private content in wrong place
-```
-
 ### Utility
 
 **Example 7: Recall Past Work**
@@ -118,7 +110,6 @@ Quick Push:         GitPush (if docs already created)
 | Audit Type | Tool | Scope | Duration |
 |------------|------|-------|----------|
 | Secret Scan | TruffleHog | Any directory | ~30s-2min |
-| Cross-Repo | Diff agents | Both repos | ~1 min |
 | Privacy Check | grep/patterns | skills/ (excl USER/WORK) | ~30s |
 
 ### Documentation Format
@@ -172,7 +163,7 @@ Quick Push:         GitPush (if docs already created)
 
 | Tool | Purpose | Location |
 |------|---------|----------|
-| **SecretScan.ts** | TruffleHog wrapper for credential detection | `CORE/Tools/SecretScan.ts` |
+| **SecretScan.ts** | TruffleHog wrapper for credential detection | `Tools/SecretScan.ts` |
 | **CreateUpdate.ts** | Create new system update entries | `Tools/CreateUpdate.ts` |
 | **UpdateIndex.ts** | Regenerate index.json and CHANGELOG.md | `Tools/UpdateIndex.ts` |
 | **UpdateSearch.ts** | Search and query system updates | `Tools/UpdateSearch.ts` |
@@ -189,10 +180,10 @@ Quick Push:         GitPush (if docs already created)
 
 | Output | Location |
 |--------|----------|
-| Integrity Reports | `MEMORY/STATE/integrity/YYYY-MM-DD.md` |
-| System Updates | `MEMORY/PAISYSTEMUPDATES/YYYY/MM/*.md` |
-| Update Index | `MEMORY/PAISYSTEMUPDATES/index.json` |
-| Changelog | `MEMORY/PAISYSTEMUPDATES/CHANGELOG.md` |
+| Integrity Reports | `~/.config/opencode/MEMORY/STATE/integrity/<YYYY-MM-DD>.md` |
+| System Updates | `~/.config/opencode/MEMORY/PAISYSTEMUPDATES/YYYY/MM/*.md` |
+| Update Index | `~/.config/opencode/MEMORY/PAISYSTEMUPDATES/index.json` |
+| Changelog | `~/.config/opencode/MEMORY/PAISYSTEMUPDATES/CHANGELOG.md` |
 
 ---
 

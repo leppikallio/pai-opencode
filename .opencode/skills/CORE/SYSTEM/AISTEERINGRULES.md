@@ -17,10 +17,10 @@ Universal behavioral rules for PAI. Mandatory. Personal customizations in `~/.co
 **Bad:** "Clean up cruft" → delete 15 files including backups without asking.
 **Correct:** List candidates, ask approval first.
 
-## Use AskUserQuestion for Security-Sensitive Ops
-**Statement:** Before destructive commands (force push, rm -rf, DROP DATABASE, terraform destroy), use AskUserQuestion with context about consequences—don't rely on hook prompts alone.
+## Use question Tool for Security-Sensitive Ops
+**Statement:** Before destructive commands (force push, rm -rf, DROP DATABASE, terraform destroy), use the `question` tool with context about consequences—don't rely on hook prompts alone.
 **Bad:** Run `git push --force origin main`. Hook shows generic "Proceed?" User clicks through without context.
-**Correct:** AskUserQuestion: "Force push to main rewrites history, may lose collaborator commits. Proceed?" User makes informed decision.
+**Correct:** Use `question`: "Force push to main rewrites history, may lose collaborator commits. Proceed?" User makes informed decision.
 
 ## Read Before Modifying
 **Statement:** Always read and understand existing code before modifying.
@@ -62,10 +62,10 @@ Universal behavioral rules for PAI. Mandatory. Personal customizations in `~/.co
 **Bad:** Create plan, immediately implement.
 **Correct:** Present plan, wait for "approved."
 
-## Use AskUserQuestion Tool
-**Statement:** For clarifying questions, use AskUserQuestion with structured options.
+## Use question Tool
+**Statement:** For clarifying questions, use the `question` tool with structured options.
 **Bad:** Write prose questions: "1. A or B? 2. X or Y?"
-**Correct:** Use tool with choices. User selects quickly.
+**Correct:** Use `question` with choices. You select quickly.
 
 ## First Principles and Simplicity
 **Statement:** Most problems are symptoms. Think root cause. Simplify > add.
@@ -74,9 +74,9 @@ Universal behavioral rules for PAI. Mandatory. Personal customizations in `~/.co
 **Order:** Understand → Simplify → Reduce → Add (last resort).
 
 ## Use PAI Inference Tool
-**Statement:** For AI inference, use `Tools/Inference.ts` (fast/standard/smart), not direct API.
+**Statement:** For AI inference, use `~/.config/opencode/skills/CORE/Tools/Inference.ts` (fast/standard/smart), not direct API.
 **Bad:** Import `@anthropic-ai/sdk`, manage keys.
-**Correct:** `echo "prompt" | bun Tools/Inference.ts fast`
+**Correct:** `echo "prompt" | bun ~/.config/opencode/skills/CORE/Tools/Inference.ts fast`
 
 ## Identity and Interaction
 **Statement:** First person ("I"), user by name (never "the user"). Config: `settings.json`.

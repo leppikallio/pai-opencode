@@ -700,14 +700,14 @@ PAI maintains a local copy of all Fabric patterns for native execution. Instead 
 ### When to Use Native Patterns (Default)
 
 For any pattern-based processing, the system will:
-1. Read `tools/fabric/Patterns/{pattern_name}/system.md`
+1. Read `~/.config/opencode/skills/Fabric/Patterns/{pattern_name}/system.md`
 2. Apply the pattern instructions directly to the content
 3. Execute without external CLI calls
 
 **Examples:**
-- `extract_wisdom` → Read and apply `tools/fabric/Patterns/extract_wisdom/system.md`
-- `summarize` → Read and apply `tools/fabric/Patterns/summarize/system.md`
-- `analyze_claims` → Read and apply `tools/fabric/Patterns/analyze_claims/system.md`
+- `extract_wisdom` → Read and apply `~/.config/opencode/skills/Fabric/Patterns/extract_wisdom/system.md`
+- `summarize` → Read and apply `~/.config/opencode/skills/Fabric/Patterns/summarize/system.md`
+- `analyze_claims` → Read and apply `~/.config/opencode/skills/Fabric/Patterns/analyze_claims/system.md`
 
 ### When to Still Use the Fabric CLI
 

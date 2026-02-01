@@ -36,10 +36,10 @@ Capture and document the current session's work to MEMORY for historical trackin
 ## Output Location
 
 ```
-$PAI_DIR/MEMORY/PAISYSTEMUPDATES/YYYY/MM/YYYYMMDDTHHMMSS_SESSION_summary.md
+~/.config/opencode/MEMORY/PAISYSTEMUPDATES/YYYY/MM/YYYYMMDDTHHMMSS_SESSION_summary.md
 ```
 
-Example: `$PAI_DIR/MEMORY/PAISYSTEMUPDATES/2026/01/20260119T143022_SESSION_document-session-workflow.md`
+Example: `~/.config/opencode/MEMORY/PAISYSTEMUPDATES/YYYY/MM/YYYYMMDDTHHMMSS_SESSION_<slug>.md`
 
 ## Document Format
 
@@ -103,7 +103,7 @@ const learnings = extractLearnings(sessionContent);
 
 ```bash
 # Use CreateUpdate.ts tool
-bun run "$PAI_DIR/skills/System/Tools/CreateUpdate.ts" \
+bun run ~/.config/opencode/skills/System/Tools/CreateUpdate.ts \
   --type session \
   --title "Brief session summary" \
   --content "Generated markdown content" \
@@ -114,7 +114,7 @@ bun run "$PAI_DIR/skills/System/Tools/CreateUpdate.ts" \
 
 ```bash
 # Use UpdateIndex.ts tool
-bun run "$PAI_DIR/skills/System/Tools/UpdateIndex.ts" \
+bun run ~/.config/opencode/skills/System/Tools/UpdateIndex.ts \
   --rebuild
 ```
 

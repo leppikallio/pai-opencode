@@ -90,7 +90,7 @@ Running the **WorkflowName** workflow from the **SkillName** skill...
 
 | Workflow | Trigger | File |
 |----------|---------|------|
-| **WorkflowOne** | "trigger phrase" | `Workflows/WorkflowOne.md` |
+| **WorkflowOne** | "trigger phrase" | `Workflows/<WorkflowOne>.md` |
 ```
 
 **Check for violations:**

@@ -99,8 +99,24 @@ async function createNewSession(): Promise<ScratchpadState> {
   return state;
 }
 
-export async function ensureScratchpadSession(): Promise<ScratchpadState> {
+function normalizeSessionId(sessionId: string): string {
+  return sessionId.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+export async function ensureScratchpadSession(sessionIdRaw?: string): Promise<ScratchpadState> {
   try {
+    const sessionId = sessionIdRaw ? normalizeSessionId(sessionIdRaw) : "";
+
+    // If the OpenCode sessionID is known, use a deterministic directory.
+    // Do NOT persist pointer state in scratchpad.json for this case.
+    if (sessionId) {
+      const sessionsRoot = getScratchpadSessionsRoot();
+      await ensureDir(sessionsRoot);
+      const dir = path.join(sessionsRoot, sessionId);
+      await ensureDir(dir);
+      return { id: sessionId, dir, created_at: new Date().toISOString() };
+    }
+
     const existing = await readState();
     if (existing?.dir && isSafeSessionDir(existing.dir)) {
       try {
@@ -139,9 +155,10 @@ export async function clearScratchpadSession(): Promise<void> {
       return;
     }
 
-    await fs.promises.rm(existing.dir, { recursive: true, force: true });
+    // Do not delete historical scratchpad directories automatically.
+    // Only clear the pointer state so a future session can create a new one.
     await fs.promises.unlink(getStatePath()).catch(() => undefined);
-    fileLog(`Scratchpad session deleted: ${existing.dir}`, "info");
+    fileLog(`Scratchpad session finalized (kept): ${existing.dir}`, "info");
   } catch (error) {
     fileLogError("Failed to clear scratchpad session", error);
   }

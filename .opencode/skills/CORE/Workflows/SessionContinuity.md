@@ -57,7 +57,7 @@ pwd
 Automatic via startup hook - PAI context loaded
 
 ### Step 3: Check for Active Tasks
-**Automatic!** The runtime checks `$PAI_DIR/MEMORY/STATE/progress/` for active work and displays it at session start. You'll see:
+**Automatic!** The runtime checks `~/.config/opencode/MEMORY/STATE/progress/` for active work and displays it at session start. You'll see:
 
 ```
 📋 ACTIVE WORK (from previous sessions):

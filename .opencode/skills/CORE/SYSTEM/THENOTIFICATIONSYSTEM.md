@@ -232,7 +232,7 @@ Topic name acts as password - use random string for security.
 
 In the OpenCode port, notifications are primarily handled via the local **VoiceServer** plus the `voice_notify` tool.
 
-- **VoiceServer**: `$PAI_DIR/VoiceServer/server.ts` (default: `~/.config/opencode/VoiceServer/server.ts`)
+- **VoiceServer**: `~/.config/opencode/VoiceServer/server.ts`
 - **Notify endpoint**: `http://localhost:8888/notify`
 - **Health endpoint**: `http://localhost:8888/health`
 

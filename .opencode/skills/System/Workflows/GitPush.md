@@ -15,7 +15,7 @@ Safe git commit and push workflow with mandatory repository selection, security 
 
 ### 1. Repository Selection
 
-Use AskUserQuestion tool to ask:
+Use the `question` tool to ask:
 
 ```
 Which repository do you want to push to?
@@ -36,8 +36,8 @@ Run in parallel:
 - `git branch --show-current` - Get current branch
 
 Validate the remote matches the selected repository:
-- Option 1: Should contain `Steffen025/jeremy-2.0-claudecode`
-- Option 2: Should contain `Steffen025/pai-opencode`
+- Option 1: Should contain `<github_username>/<repo>`
+- Option 2: Should contain `<github_username>/<repo>`
 
 If mismatch detected, STOP and warn user.
 
@@ -54,7 +54,7 @@ If repository selection was Option 2 (pai-opencode):
 2. If secrets detected, STOP and require user to fix
 3. Only proceed if scan passes clean
 
-For Option 1 (jeremy-2.0-claudecode):
+For Option 1 (private repo):
 - Skip security scan (private repo)
 - Still check for common patterns (.env, credentials.json) and warn
 
@@ -122,8 +122,8 @@ After successful push:
 ```
 ## GitPush Workflow Results
 
-Repository: jeremy-2.0-claudecode
-Remote: git@github.com:Steffen025/jeremy-2.0-claudecode.git
+Repository: <private_repo>
+Remote: git@github.com:<github_username>/<repo>.git
 Branch: main
 
 Files Changed: 5
@@ -155,7 +155,7 @@ Status: Clean working directory
 ❌ ERROR: Repository Mismatch
 
 Selected: pai-opencode (public)
-Current Remote: git@github.com:Steffen025/jeremy-2.0-claudecode.git
+Current Remote: git@github.com:<github_username>/<repo>.git
 
 Action Required:
 - Change to correct directory, OR

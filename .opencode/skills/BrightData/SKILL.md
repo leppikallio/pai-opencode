@@ -68,7 +68,7 @@ Examples: "scrape this URL", "fetch this page", "get content from [URL]", "pull 
 ## Core Capabilities
 
 **Progressive Escalation Strategy:**
-1. **Tier 1: WebFetch** - Fast, simple, built-in Claude Code tool
+1. **Tier 1: webfetch** - Fast, simple, built-in tool
 2. **Tier 2: Customized Curl** - Chrome-like browser headers to bypass basic bot detection
 3. **Tier 3: Browser Automation** - Full browser automation using Playwright for JavaScript-heavy sites
 4. **Tier 4: Bright Data MCP** - Professional scraping service that handles CAPTCHA and advanced bot detection
@@ -94,7 +94,7 @@ Examples: "scrape this URL", "fetch this page", "get content from [URL]", "pull 
 ## Extended Context
 
 **Integration Points:**
-- **WebFetch Tool** - Built-in Claude Code tool for basic URL fetching
+- **webfetch tool** - Built-in tool for basic URL fetching
 - **Bash Tool** - For executing curl commands with custom headers
 - **Browser Automation** - Playwright-based browser automation for JavaScript rendering
 - **Bright Data MCP** - `mcp__Brightdata__scrape_as_markdown` for advanced scraping
@@ -106,7 +106,7 @@ Examples: "scrape this URL", "fetch this page", "get content from [URL]", "pull 
 - **Tier 4 (Bright Data):** Sites with CAPTCHA, advanced bot detection, residential proxy requirements
 
 **Configuration:**
-No configuration required - all tools are available by default in Claude Code
+No additional configuration required for `webfetch` + `bash` + Browser. Bright Data requires credentials.
 
 ---
 

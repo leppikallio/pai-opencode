@@ -20,7 +20,7 @@ PAI-OpenCode is a vanilla PAI 2.4 implementation adapted for OpenCode's architec
 | **Lifecycle Events** | `hooks/*.hook.ts` | `plugins/handlers/*.ts` |
 | **Config Schema** | Claude Code settings.json | OpenCode settings.json |
 | **Meta File** | `CLAUDE.md` | `OPENCODE.md` |
-| **Path Variable** | `$PAI_DIR` → `~/.claude` | `~/.config/opencode/` (no env macros in markdown) |
+| **Path Variable** | (none) | `~/.config/opencode/` (use explicit paths in markdown) |
 
 ---
 
@@ -309,7 +309,7 @@ Use getModel("agents.intern") from plugins/lib/model-config.ts
 ## References
 
 - PAI 2.4 Source: `github.com/danielmiessler/Personal_AI_Infrastructure`
-- PAI-OpenCode: `github.com/Steffen025/pai-opencode`
+- PAI-OpenCode: `github.com/leppikallio/pai-opencode`
 - OpenCode Plugin API: `@opencode-ai/plugin`
 
 ---

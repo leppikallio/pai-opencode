@@ -84,7 +84,7 @@ Many companies run direct bug bounty programs:
 ```bash
 # Use bug bounty automation tool
 cd ~/.config/opencode/skills/WebAssessment/BugBountyTool
-./bounty.sh recon [program-id]
+bash ./bounty.sh recon [program-id]
 
 # Manual recon workflow
 1. Subdomain enumeration

@@ -32,7 +32,7 @@ bun install  # Using bun (preferred)
 ```
 
 ### Configuration
-Configure API keys in `${PAI_DIR}/.env`:
+Configure API keys in `~/.config/opencode/.env`:
 ```bash
 HACKERONE_API_KEY=your_key_here
 BUGCROWD_API_KEY=your_key_here
@@ -44,7 +44,7 @@ BUGCROWD_API_KEY=your_key_here
 
 **Update Programs:**
 ```bash
-./bounty.sh update
+bash ./bounty.sh update
 ```
 - Fetches latest programs from platforms
 - Updates local database
@@ -52,7 +52,7 @@ BUGCROWD_API_KEY=your_key_here
 
 **List Active Programs:**
 ```bash
-./bounty.sh list
+bash ./bounty.sh list
 ```
 - Shows all tracked programs
 - Displays program metrics (scope, bounty range)
@@ -60,7 +60,7 @@ BUGCROWD_API_KEY=your_key_here
 
 **Program Details:**
 ```bash
-./bounty.sh show [program-id]
+bash ./bounty.sh show [program-id]
 ```
 - Full program details
 - Scope information
@@ -69,7 +69,7 @@ BUGCROWD_API_KEY=your_key_here
 
 **Initiate Reconnaissance:**
 ```bash
-./bounty.sh recon [program-id]
+bash ./bounty.sh recon [program-id]
 ```
 - Starts automated recon workflow
 - Subdomain enumeration
@@ -80,7 +80,7 @@ BUGCROWD_API_KEY=your_key_here
 
 **Search Programs:**
 ```bash
-./bounty.sh search [keyword]
+bash ./bounty.sh search [keyword]
 ```
 - Search by company name
 - Search by technology (e.g., "Node.js", "React")
@@ -90,7 +90,7 @@ BUGCROWD_API_KEY=your_key_here
 
 ### Automated Recon Process
 
-When you run `./bounty.sh recon [program-id]`, the tool:
+When you run `bash ./bounty.sh recon [program-id]`, the tool:
 
 1. **Extracts Scope**
    - Parses program policy
@@ -211,7 +211,7 @@ export async function awsRecon(domains: string[]) {
 Configure notifications for new programs:
 
 ```bash
-# In ${PAI_DIR}/.env
+# In ~/.config/opencode/.env
 SLACK_WEBHOOK_URL=your_webhook
 DISCORD_WEBHOOK_URL=your_webhook
 ```
@@ -227,13 +227,13 @@ Track testing progress per program:
 
 ```bash
 # Mark program as in-progress
-./bounty.sh status [program-id] --status testing
+bash ./bounty.sh status [program-id] --status testing
 
 # Add notes
-./bounty.sh notes [program-id] --add "Found XSS in /search endpoint"
+bash ./bounty.sh notes [program-id] --add "Found XSS in /search endpoint"
 
 # View testing history
-./bounty.sh history [program-id]
+bash ./bounty.sh history [program-id]
 ```
 
 ## Report Management
@@ -241,7 +241,7 @@ Track testing progress per program:
 ### Generate Report Drafts
 
 ```bash
-./bounty.sh report [program-id] --vulnerability xss
+bash ./bounty.sh report [program-id] --vulnerability xss
 
 # Generates template report:
 # - Pre-filled program information
@@ -254,16 +254,16 @@ Track testing progress per program:
 
 ```bash
 # Log submission
-./bounty.sh submit [program-id] \
+bash ./bounty.sh submit [program-id] \
   --title "XSS in search function" \
   --severity high \
   --report-id H1-12345
 
 # Check submission status
-./bounty.sh submissions --status pending
+bash ./bounty.sh submissions --status pending
 
 # Mark as resolved
-./bounty.sh submit H1-12345 --status resolved --bounty 500
+bash ./bounty.sh submit H1-12345 --status resolved --bounty 500
 ```
 
 ## Integration with Pentest Workflow
@@ -271,8 +271,8 @@ Track testing progress per program:
 ### Phase 0: Scoping
 ```bash
 # Select program and understand scope
-./bounty.sh show [program-id]
-./bounty.sh recon [program-id]
+bash ./bounty.sh show [program-id]
+bash ./bounty.sh recon [program-id]
 ```
 
 ### Phase 1: Reconnaissance
@@ -304,7 +304,7 @@ export const RATE_LIMITS = {
 cat logs/recon-[program-id].log
 
 # Re-run specific phase
-./bounty.sh recon [program-id] --phase subdomain-enum
+bash ./bounty.sh recon [program-id] --phase subdomain-enum
 ```
 
 ### Database Corruption
@@ -313,7 +313,7 @@ cat logs/recon-[program-id].log
 cp src/Database/programs.json programs-backup.json
 
 # Rebuild from cache
-./bounty.sh rebuild-db
+bash ./bounty.sh rebuild-db
 ```
 
 ## Best Practices

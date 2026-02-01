@@ -29,6 +29,7 @@ type Options = {
   migrateFromRepo: boolean;
   applyProfile: boolean;
   prune: boolean;
+  installDeps: boolean;
 };
 
 function maybeGenerateSkillIndex(args: { targetDir: string; dryRun: boolean }) {
@@ -89,6 +90,7 @@ function usage(opts: Partial<Options> = {}) {
   console.log("  --migrate-from-repo    Seed runtime USER/MEMORY from source tree");
   console.log("  --apply-profile        Rewrite agent model frontmatter (disabled by default)");
   console.log("  --prune                Delete unmanaged files from target (safe)");
+  console.log("  --no-install-deps      Skip bun install dependency step");
   console.log("  --dry-run              Print actions without writing");
   console.log("  -h, --help             Show help");
 }
@@ -100,6 +102,7 @@ function parseArgs(argv: string[]): Options | null {
   let migrateFromRepo = false;
   let applyProfile = false;
   let prune = false;
+  let installDeps = true;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -120,6 +123,10 @@ function parseArgs(argv: string[]): Options | null {
       prune = true;
       continue;
     }
+    if (arg === "--no-install-deps") {
+      installDeps = false;
+      continue;
+    }
     if (arg === "--target") {
       const v = argv[i + 1];
       if (!v) throw new Error("Missing value for --target");
@@ -137,7 +144,97 @@ function parseArgs(argv: string[]): Options | null {
     throw new Error(`Unknown option: ${arg}`);
   }
 
-  return { targetDir, sourceDir, dryRun, migrateFromRepo, applyProfile, prune };
+  return { targetDir, sourceDir, dryRun, migrateFromRepo, applyProfile, prune, installDeps };
+}
+
+function hasNodeModule(pkgDir: string, name: string): boolean {
+  return isDir(path.join(pkgDir, "node_modules", name));
+}
+
+function msPlaywrightCacheDir(): string {
+  // Default Playwright browser cache location.
+  // https://playwright.dev/docs/browsers#managing-browser-binaries
+  if (process.platform === "darwin") {
+    return path.join(os.homedir(), "Library", "Caches", "ms-playwright");
+  }
+  return path.join(os.homedir(), ".cache", "ms-playwright");
+}
+
+function hasChromiumHeadlessShell(cacheDir: string): boolean {
+  try {
+    if (!isDir(cacheDir)) return false;
+    const entries = fs.readdirSync(cacheDir, { withFileTypes: true });
+    return entries.some((e) => e.isDirectory() && e.name.startsWith("chromium_headless_shell-"));
+  } catch {
+    return false;
+  }
+}
+
+function ensurePlaywrightBrowsers(args: { targetDir: string; browserPkgDir: string; dryRun: boolean }) {
+  // The Browser skill uses Playwright's chromium headless shell. Ensure it's installed.
+  const cacheDir = msPlaywrightCacheDir();
+  if (hasChromiumHeadlessShell(cacheDir)) {
+    console.log("[write] deps: Playwright browsers (ok)");
+    return;
+  }
+
+  if (args.dryRun) {
+    console.log(`[dry] deps: would run bunx playwright install chromium (cache: ${cacheDir})`);
+    return;
+  }
+
+  console.log("[write] deps: installing Playwright browsers (chromium)");
+  execSync("bunx playwright install chromium", {
+    cwd: args.browserPkgDir,
+    stdio: "inherit",
+    env: { ...process.env, PAI_DIR: args.targetDir },
+  });
+}
+
+function maybeInstallDependencies(args: { targetDir: string; dryRun: boolean; enabled: boolean }) {
+  if (!args.enabled) {
+    console.log("[write] deps: skipped (--no-install-deps)");
+    return;
+  }
+
+  const packages: Array<{ rel: string; label: string; requireModule?: string }> = [
+    { rel: ".", label: "root" },
+    { rel: "skills/Browser", label: "Browser", requireModule: "playwright" },
+    { rel: "skills/Apify", label: "Apify", requireModule: "apify-client" },
+    { rel: "skills/Agents/Tools", label: "Agents tools", requireModule: "yaml" },
+  ];
+
+  for (const pkg of packages) {
+    const pkgDir = path.join(args.targetDir, pkg.rel);
+    const pkgJson = path.join(pkgDir, "package.json");
+    if (!isFile(pkgJson)) continue;
+
+    const alreadyHasNodeModules = isDir(path.join(pkgDir, "node_modules"));
+    const alreadyHasRequired = pkg.requireModule ? hasNodeModule(pkgDir, pkg.requireModule) : false;
+    if (alreadyHasNodeModules && (!pkg.requireModule || alreadyHasRequired)) {
+      console.log(`[write] deps: ${pkg.label} (ok)`);
+      if (pkg.rel === "skills/Browser") {
+        ensurePlaywrightBrowsers({ targetDir: args.targetDir, browserPkgDir: pkgDir, dryRun: args.dryRun });
+      }
+      continue;
+    }
+
+    if (args.dryRun) {
+      console.log(`[dry] deps: would run bun install (${pkg.label}) in ${pkgDir}`);
+      continue;
+    }
+
+    console.log(`[write] deps: bun install (${pkg.label})`);
+    execSync("bun install", {
+      cwd: pkgDir,
+      stdio: "inherit",
+      env: { ...process.env, PAI_DIR: args.targetDir },
+    });
+
+    if (pkg.rel === "skills/Browser") {
+      ensurePlaywrightBrowsers({ targetDir: args.targetDir, browserPkgDir: pkgDir, dryRun: args.dryRun });
+    }
+  }
 }
 
 function isDir(p: string): boolean {
@@ -521,7 +618,7 @@ function pruneDirRecursive(
 function sync(mode: Mode, opts: Options) {
   if (mode !== "sync") throw new Error(`Unsupported mode: ${mode}`);
 
-  const { sourceDir, targetDir, dryRun, migrateFromRepo, applyProfile, prune } = opts;
+  const { sourceDir, targetDir, dryRun, migrateFromRepo, applyProfile, prune, installDeps } = opts;
   if (!isDir(sourceDir)) {
     throw new Error(`Source directory not found: ${sourceDir}`);
   }
@@ -542,6 +639,7 @@ function sync(mode: Mode, opts: Options) {
     "ACTIONS",
     "BACKUPS",
     "agents",
+    "config",
     "docs",
     "History",
     "mcp",
@@ -582,6 +680,7 @@ function sync(mode: Mode, opts: Options) {
     // Preserve personal content and runtime state.
     const preserve: string[] = [
       "MEMORY/",
+      "config/",
       "skills/CORE/USER/",
       "skills/CORE/WORK/",
     ];
@@ -659,6 +758,18 @@ function sync(mode: Mode, opts: Options) {
     }
   }
 
+  // Seed MEMORY/LEARNING/README.md if missing (safe, non-destructive).
+  const srcLearningReadme = path.join(sourceDir, "MEMORY", "LEARNING", "README.md");
+  const destLearningReadme = path.join(targetDir, "MEMORY", "LEARNING", "README.md");
+  if (fs.existsSync(srcLearningReadme) && !fs.existsSync(destLearningReadme)) {
+    const prefix = dryRun ? "[dry]" : "[seed]";
+    console.log(`${prefix} MEMORY/LEARNING/README.md (no-overwrite): ${destLearningReadme}`);
+    if (!dryRun) {
+      ensureDir(path.dirname(destLearningReadme), dryRun);
+      fs.copyFileSync(srcLearningReadme, destLearningReadme);
+    }
+  }
+
   // Seed USER/TELOS etc from source if requested.
   if (migrateFromRepo) {
     const srcUser = path.join(sourceDir, "skills", "CORE", "USER");
@@ -726,6 +837,10 @@ function sync(mode: Mode, opts: Options) {
 
   // Generate skills/skill-index.json for deterministic skill discovery.
   maybeGenerateSkillIndex({ targetDir, dryRun });
+
+  // Ensure runtime dependencies exist for code-first tools (e.g., Playwright).
+  // This is best-effort but runs by default so skills work immediately.
+  maybeInstallDependencies({ targetDir, dryRun, enabled: installDeps });
 
   console.log("\nDone.");
   console.log("Next:");

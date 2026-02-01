@@ -40,9 +40,9 @@ This methodology uses browser automation to systematically extract and analyze w
 **Documentation:**
 ```bash
 # Create testing directory in current work
-WORK_DIR=$(jq -r '.work_dir' $PAI_DIR/MEMORY/STATE/current-work.json)
-mkdir -p $PAI_DIR/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d-%H%M%S)_prompt-injection-test-TARGET/
-cd $PAI_DIR/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d-%H%M%S)_prompt-injection-test-TARGET/
+WORK_DIR=$(jq -r '.work_dir' ~/.config/opencode/MEMORY/STATE/current-work.json)
+mkdir -p ~/.config/opencode/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d-%H%M%S)_prompt-injection-test-TARGET/
+cd ~/.config/opencode/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d-%H%M%S)_prompt-injection-test-TARGET/
 
 # Document authorization
 cat > AUTHORIZATION.md << 'EOF'

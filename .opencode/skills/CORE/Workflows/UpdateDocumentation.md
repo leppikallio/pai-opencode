@@ -31,7 +31,7 @@ Keeps PAI Architecture tracking current by:
 
 ```bash
 # DISABLED - PaiArchitecture.ts does not exist
-# bun run $PAI_DIR/Tools/PaiArchitecture.ts generate
+# bun run ~/.config/opencode/Tools/PaiArchitecture.ts generate
 ```
 
 ### Step 2: Log the Change (If Applicable)
@@ -41,20 +41,20 @@ If this was triggered by an installation or upgrade:
 ```bash
 # DISABLED - PaiArchitecture.ts does not exist
 # # For pack installations
-# bun run $PAI_DIR/Tools/PaiArchitecture.ts log-upgrade "Installed [pack-name] v[version]" pack
+# bun run ~/.config/opencode/Tools/PaiArchitecture.ts log-upgrade "Installed [pack-name] v[version]" pack
 #
 # # For bundle installations
-# bun run $PAI_DIR/Tools/PaiArchitecture.ts log-upgrade "Installed [bundle-name] bundle" bundle
+# bun run ~/.config/opencode/Tools/PaiArchitecture.ts log-upgrade "Installed [bundle-name] bundle" bundle
 #
 # # For config changes
-# bun run $PAI_DIR/Tools/PaiArchitecture.ts log-upgrade "[description of change]" config
+# bun run ~/.config/opencode/Tools/PaiArchitecture.ts log-upgrade "[description of change]" config
 ```
 
 ### Step 3: Verify Health
 
 ```bash
 # DISABLED - PaiArchitecture.ts does not exist
-# bun run $PAI_DIR/Tools/PaiArchitecture.ts check
+# bun run ~/.config/opencode/Tools/PaiArchitecture.ts check
 ```
 
 ### Step 4: Report Status
@@ -77,8 +77,8 @@ After all installation steps complete:
 \`\`\`bash
 # DISABLED - PaiArchitecture.ts does not exist
 # # Auto-run after pack installation
-# bun run $PAI_DIR/Tools/PaiArchitecture.ts log-upgrade "Installed [pack-name] v[version]" pack
-# bun run $PAI_DIR/Tools/PaiArchitecture.ts generate
+# bun run ~/.config/opencode/Tools/PaiArchitecture.ts log-upgrade "Installed [pack-name] v[version]" pack
+# bun run ~/.config/opencode/Tools/PaiArchitecture.ts generate
 \`\`\`
 ```
 

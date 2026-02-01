@@ -51,8 +51,8 @@ Official Playwright MCP tools (core):
 ### 4. Update FileMCP if Needed
 
 For missing critical functionality:
-1. Add method to `index.ts`
-2. Add CLI command to `Tools/Browse.ts`
+1. Add method to `~/.config/opencode/skills/Browser/index.ts`
+2. Add CLI command to `~/.config/opencode/skills/Browser/Tools/Browse.ts`
 3. Update SKILL.md documentation
 
 ### 5. Test

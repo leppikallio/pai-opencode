@@ -88,6 +88,13 @@ type SecurityConfig = {
   dangerous: CompiledRule[];
   warning: CompiledRule[];
   allowed: CompiledRule[];
+  alert: CompiledRule[];
+  pathRules: {
+    zeroAccess: string[];
+    readOnly: string[];
+    confirmWrite: string[];
+    noDelete: string[];
+  };
 };
 
 let configCache: SecurityConfig | null = null;
@@ -108,12 +115,189 @@ function parsePatternsYaml(content: string): {
   dangerous: RawRule[];
   warning: RawRule[];
   allowed: RawRule[];
+  alert: RawRule[];
+  pathRules: {
+    zeroAccess: string[];
+    readOnly: string[];
+    confirmWrite: string[];
+    noDelete: string[];
+  };
   rules: Partial<SecurityRules>;
 } {
+  // Detect upstream v2.4 schema (bash/paths). This avoids false “empty patterns”
+  // when a v2.4-style USER patterns.yaml exists.
+  if (/^\s*bash\s*:/m.test(content) && /^\s*paths\s*:/m.test(content)) {
+    const dangerous: RawRule[] = [];
+    const warning: RawRule[] = [];
+    const allowed: RawRule[] = [];
+    const alert: RawRule[] = [];
+    const rules: Partial<SecurityRules> = {};
+    const pathRules: {
+      zeroAccess: string[];
+      readOnly: string[];
+      confirmWrite: string[];
+      noDelete: string[];
+    } = { zeroAccess: [], readOnly: [], confirmWrite: [], noDelete: [] };
+
+    type BashList = "blocked" | "confirm" | "alert" | "";
+    type PathList = "zeroAccess" | "readOnly" | "confirmWrite" | "noDelete" | "";
+
+    let rootSection: "bash" | "paths" | "security_rules" | "" = "";
+    let bashList: BashList = "";
+    let pathList: PathList = "";
+    let current: RawRule | null = null;
+
+    function finishCurrent() {
+      if (!current) return;
+      if (!current.pattern) {
+        current = null;
+        return;
+      }
+      const asWarn: RawRule = {
+        pattern: current.pattern,
+        description: current.description,
+      };
+      if (rootSection === "bash") {
+        if (bashList === "blocked") dangerous.push(asWarn);
+        if (bashList === "confirm") warning.push(asWarn);
+        if (bashList === "alert") alert.push(asWarn);
+      }
+      current = null;
+    }
+
+    for (const rawLine of content.split(/\r?\n/)) {
+      const line = rawLine.replace(/\t/g, "  ");
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#") || trimmed === "---") continue;
+
+      // Root section switches (indent 0)
+      if (/^bash\s*:\s*$/.test(trimmed)) {
+        finishCurrent();
+        rootSection = "bash";
+        bashList = "";
+        pathList = "";
+        continue;
+      }
+      if (/^paths\s*:\s*$/.test(trimmed)) {
+        finishCurrent();
+        rootSection = "paths";
+        bashList = "";
+        pathList = "";
+        continue;
+      }
+      if (/^SECURITY_RULES\s*:\s*$/.test(trimmed) || /^security_rules\s*:\s*$/.test(trimmed)) {
+        finishCurrent();
+        rootSection = "security_rules";
+        bashList = "";
+        pathList = "";
+        continue;
+      }
+
+      // bash lists
+      if (rootSection === "bash") {
+        if (/^blocked\s*:\s*$/.test(trimmed)) {
+          finishCurrent();
+          bashList = "blocked";
+          continue;
+        }
+        if (/^confirm\s*:\s*$/.test(trimmed)) {
+          finishCurrent();
+          bashList = "confirm";
+          continue;
+        }
+        if (/^alert\s*:\s*$/.test(trimmed)) {
+          finishCurrent();
+          bashList = "alert";
+          continue;
+        }
+
+        if (trimmed.startsWith("-")) {
+          finishCurrent();
+          current = { pattern: "" };
+          const inline = trimmed.replace(/^[-\s]+/, "");
+          const match = inline.match(/^([a-zA-Z_]+)\s*:\s*(.+)$/);
+          if (match) {
+            const key = match[1];
+            const val = stripQuotes(match[2]);
+            if (key === "pattern") current.pattern = val;
+            if (key === "reason") current.description = val;
+            if (key === "description") current.description = val;
+          }
+          continue;
+        }
+
+        if (current) {
+          const match = trimmed.match(/^([a-zA-Z_]+)\s*:\s*(.+)$/);
+          if (match) {
+            const key = match[1];
+            const val = stripQuotes(match[2]);
+            if (key === "pattern") current.pattern = val;
+            if (key === "reason") current.description = val;
+            if (key === "description") current.description = val;
+          }
+        }
+
+        continue;
+      }
+
+      // paths lists
+      if (rootSection === "paths") {
+        if (/^zeroAccess\s*:\s*$/.test(trimmed)) {
+          pathList = "zeroAccess";
+          continue;
+        }
+        if (/^readOnly\s*:\s*$/.test(trimmed)) {
+          pathList = "readOnly";
+          continue;
+        }
+        if (/^confirmWrite\s*:\s*$/.test(trimmed)) {
+          pathList = "confirmWrite";
+          continue;
+        }
+        if (/^noDelete\s*:\s*$/.test(trimmed)) {
+          pathList = "noDelete";
+          continue;
+        }
+
+        if (trimmed.startsWith("-")) {
+          const item = stripQuotes(trimmed.replace(/^[-\s]+/, ""));
+          if (!item) continue;
+          if (pathList === "zeroAccess") pathRules.zeroAccess.push(item);
+          if (pathList === "readOnly") pathRules.readOnly.push(item);
+          if (pathList === "confirmWrite") pathRules.confirmWrite.push(item);
+          if (pathList === "noDelete") pathRules.noDelete.push(item);
+        }
+        continue;
+      }
+
+      // SECURITY_RULES in v2.4 schema are not used; keep defaults.
+      if (rootSection === "security_rules") {
+        const match = trimmed.match(/^([a-zA-Z_]+)\s*:\s*(.+)$/);
+        if (match) {
+          const key = match[1];
+          const val = stripQuotes(match[2]);
+          if (key === "enabled") (rules as UnknownRecord).enabled = val !== "false";
+        }
+        continue;
+      }
+    }
+
+    finishCurrent();
+
+    return { dangerous, warning, allowed, alert, pathRules, rules };
+  }
+
   const dangerous: RawRule[] = [];
   const warning: RawRule[] = [];
   const allowed: RawRule[] = [];
+  const alert: RawRule[] = [];
   const rules: Partial<SecurityRules> = {};
+  const pathRules: {
+    zeroAccess: string[];
+    readOnly: string[];
+    confirmWrite: string[];
+    noDelete: string[];
+  } = { zeroAccess: [], readOnly: [], confirmWrite: [], noDelete: [] };
 
   let section = "";
   let current: RawRule | null = null;
@@ -170,11 +354,16 @@ function parsePatternsYaml(content: string): {
     }
   }
 
-  return { dangerous, warning, allowed, rules };
+  return { dangerous, warning, allowed, alert, pathRules, rules };
 }
 
 function compileRules(raw: RawRule[]): CompiledRule[] {
   const compiled: CompiledRule[] = [];
+
+  function escapeRegExp(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
   for (const rule of raw) {
     if (!rule.pattern) continue;
     try {
@@ -184,7 +373,18 @@ function compileRules(raw: RawRule[]): CompiledRule[] {
         regex: new RegExp(rule.pattern),
       });
     } catch {
-      // Skip invalid patterns
+      // Match literal substring (upstream-compatible fallback)
+      try {
+        compiled.push({
+          ...rule,
+          id: rule.id || hashRule(rule.pattern),
+          regex: new RegExp(escapeRegExp(rule.pattern)),
+        });
+        const preview = rule.pattern.length > 120 ? `${rule.pattern.slice(0, 120)}…` : rule.pattern;
+        fileLog(`Invalid regex in security patterns; using literal match: ${preview}`, "warn");
+      } catch {
+        // If even literal compilation fails, drop the rule.
+      }
     }
   }
   return compiled;
@@ -195,18 +395,43 @@ function loadSecurityConfig(): SecurityConfig {
 
   const paiDir = getPaiDir();
   const baseDir = path.join(paiDir, "PAISECURITYSYSTEM");
-  const userDir = path.join(paiDir, "USER", "PAISECURITYSYSTEM");
-  const overridePath = path.join(userDir, "patterns.yaml");
+  const overridePaths = [
+    // Preferred: preserved user tier (not overwritten by installer).
+    path.join(paiDir, "skills", "CORE", "USER", "PAISECURITYSYSTEM", "patterns.yaml"),
+    // Back-compat: legacy top-level USER dir (may not exist in runtime).
+    path.join(paiDir, "USER", "PAISECURITYSYSTEM", "patterns.yaml"),
+  ];
   const defaultPath = path.join(baseDir, "patterns.example.yaml");
 
-  let content = "";
-  if (fs.existsSync(overridePath)) {
-    content = fs.readFileSync(overridePath, "utf-8");
-  } else if (fs.existsSync(defaultPath)) {
-    content = fs.readFileSync(defaultPath, "utf-8");
+  const overridePath = overridePaths.find((p) => fs.existsSync(p));
+  const defaultContent = fs.existsSync(defaultPath) ? fs.readFileSync(defaultPath, "utf-8") : "";
+  const overrideContent = overridePath ? fs.readFileSync(overridePath, "utf-8") : "";
+
+  function parsedIsEmpty(p: ReturnType<typeof parsePatternsYaml>): boolean {
+    const pr = p.pathRules;
+    return (
+      p.dangerous.length === 0 &&
+      p.warning.length === 0 &&
+      p.allowed.length === 0 &&
+      p.alert.length === 0 &&
+      pr.zeroAccess.length === 0 &&
+      pr.readOnly.length === 0 &&
+      pr.confirmWrite.length === 0 &&
+      pr.noDelete.length === 0
+    );
   }
 
-  const parsed = parsePatternsYaml(content);
+  let parsed = parsePatternsYaml(overrideContent || defaultContent);
+
+  // Critical guardrail: if an override exists but produces empty pattern sets,
+  // fall back to defaults (otherwise security becomes silently disabled).
+  if (overridePath && overrideContent && parsedIsEmpty(parsed) && defaultContent) {
+    fileLog(
+      `Security override patterns file produced zero rules; falling back to defaults: ${overridePath}`,
+      "warn"
+    );
+    parsed = parsePatternsYaml(defaultContent);
+  }
   const rawMax = (parsed.rules as UnknownRecord).max_command_length;
   const maxCommandLength =
     typeof parsed.rules.maxCommandLength === "number"
@@ -225,14 +450,183 @@ function loadSecurityConfig(): SecurityConfig {
     maxCommandLength,
   };
 
+  const compiledDangerous = compileRules(parsed.dangerous);
+  const compiledWarning = compileRules(parsed.warning);
+  const compiledAllowed = compileRules(parsed.allowed);
+  const compiledAlert = compileRules(parsed.alert ?? []);
+
+  const compiledPathRules = parsed.pathRules ?? {
+    zeroAccess: [],
+    readOnly: [],
+    confirmWrite: [],
+    noDelete: [],
+  };
+
+  const compiledEmpty =
+    compiledDangerous.length === 0 &&
+    compiledWarning.length === 0 &&
+    compiledAllowed.length === 0 &&
+    compiledAlert.length === 0 &&
+    compiledPathRules.zeroAccess.length === 0 &&
+    compiledPathRules.readOnly.length === 0 &&
+    compiledPathRules.confirmWrite.length === 0 &&
+    compiledPathRules.noDelete.length === 0;
+
+  // Guardrail: if an override exists but results in empty compiled rules,
+  // fall back to defaults (avoid silent security disablement).
+  if (compiledEmpty && defaultContent) {
+    fileLog("Security rules compiled empty; falling back to defaults", "warn");
+    const fallbackParsed = parsePatternsYaml(defaultContent);
+    configCache = {
+      rules,
+      dangerous: compileRules(fallbackParsed.dangerous),
+      warning: compileRules(fallbackParsed.warning),
+      allowed: compileRules(fallbackParsed.allowed),
+      alert: compileRules(fallbackParsed.alert ?? []),
+      pathRules:
+        fallbackParsed.pathRules ?? { zeroAccess: [], readOnly: [], confirmWrite: [], noDelete: [] },
+    };
+    return configCache;
+  }
+
   configCache = {
     rules,
-    dangerous: compileRules(parsed.dangerous),
-    warning: compileRules(parsed.warning),
-    allowed: compileRules(parsed.allowed),
+    dangerous: compiledDangerous,
+    warning: compiledWarning,
+    allowed: compiledAllowed,
+    alert: compiledAlert,
+    pathRules: compiledPathRules,
   };
 
   return configCache;
+}
+
+function expandHome(p: string): string {
+  if (p.startsWith("~")) {
+    const home = process.env.HOME || "/Users/zuul";
+    if (p === "~") return home;
+    if (p.startsWith("~/")) return path.join(home, p.slice(2));
+  }
+  return p;
+}
+
+function matchesPathPattern(filePath: string, pattern: string): boolean {
+  const expandedPattern = expandHome(pattern);
+  const expandedPath = path.resolve(expandHome(filePath));
+
+  function normalize(p: string): string[] {
+    // Absolute patterns (/...) and home patterns (~...) match against absolute paths.
+    if (p.startsWith("/") || p.startsWith("~")) return [p];
+
+    // For relative patterns (e.g. ".git/**", "README.md"), match anywhere.
+    // Interpret as "**/<pattern>".
+    return [p, `**/${p}`];
+  }
+
+  const patterns = normalize(expandedPattern);
+
+  for (const pat of patterns) {
+    // glob support: ** and *
+    if (pat.includes("*")) {
+      let regexPattern = pat
+        .replace(/\*\*/g, "<<<DOUBLESTAR>>>")
+        .replace(/\*/g, "<<<SINGLESTAR>>>")
+        .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+        .replace(/<<<DOUBLESTAR>>>/g, ".*")
+        .replace(/<<<SINGLESTAR>>>/g, "[^/]*");
+
+      try {
+        const re = new RegExp(`^${regexPattern}$`);
+        if (re.test(expandedPath)) return true;
+      } catch {
+        // ignore
+      }
+      continue;
+    }
+
+    const expandedPat = expandHome(pat);
+    if (
+      expandedPath === expandedPat ||
+      expandedPath.startsWith(expandedPat.endsWith("/") ? expandedPat : expandedPat + "/")
+    ) {
+      return true;
+    }
+
+    // For relative non-glob patterns, also allow basename match.
+    if (!expandedPat.includes("/") && path.basename(expandedPath) === expandedPat) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+type PathAction = "read" | "write" | "delete";
+
+function validatePathAccess(
+  filePath: string,
+  action: PathAction,
+  cfg: SecurityConfig
+): { action: "allow" | "block" | "confirm"; reason?: string } {
+  const rules = cfg.pathRules;
+
+  for (const p of rules.zeroAccess) {
+    if (matchesPathPattern(filePath, p)) {
+      return { action: "block", reason: `Zero access path: ${p}` };
+    }
+  }
+
+  if (action === "write" || action === "delete") {
+    for (const p of rules.readOnly) {
+      if (matchesPathPattern(filePath, p)) {
+        return { action: "block", reason: `Read-only path: ${p}` };
+      }
+    }
+  }
+
+  if (action === "write") {
+    for (const p of rules.confirmWrite) {
+      if (matchesPathPattern(filePath, p)) {
+        return { action: "confirm", reason: `Writing protected path requires confirmation: ${p}` };
+      }
+    }
+  }
+
+  if (action === "delete") {
+    for (const p of rules.noDelete) {
+      if (matchesPathPattern(filePath, p)) {
+        return { action: "block", reason: `Cannot delete protected path: ${p}` };
+      }
+    }
+  }
+
+  return { action: "allow" };
+}
+
+function extractApplyPatchPaths(patchText: string): Array<{ action: PathAction; filePath: string }> {
+  const out: Array<{ action: PathAction; filePath: string }> = [];
+  const lines = patchText.split(/\r?\n/);
+
+  for (const line of lines) {
+    const m = line.match(/^\*\*\*\s+(Add File|Update File|Delete File):\s+(.+)\s*$/);
+    if (!m) continue;
+    const op = m[1];
+    const fp = m[2].trim();
+    if (!fp) continue;
+    if (op === "Delete File") out.push({ action: "delete", filePath: fp });
+    else out.push({ action: "write", filePath: fp });
+  }
+
+  return out;
+}
+
+function resolveApplyPatchPath(paiDir: string, filePathRaw: string): string {
+  const raw = filePathRaw.trim();
+  const expanded = expandHome(raw);
+  if (expanded.startsWith("/")) return path.resolve(expanded);
+  if (expanded.startsWith("./") || expanded.startsWith("../")) return path.resolve(path.join(paiDir, expanded));
+  // Treat bare relative paths as relative to the PAI dir.
+  return path.resolve(path.join(paiDir, expanded));
 }
 
 function matchesRule(rules: CompiledRule[], command: string): CompiledRule | null {
@@ -276,6 +670,12 @@ function extractCommand(input: PermissionInput | ToolInput): string | null {
 
   // File tools - check for sensitive paths
   if (["write", "read", "edit", "apply_patch"].includes(toolName)) {
+    // apply_patch carries file paths inside patchText; still return a non-null
+    // command so validateSecurity can proceed to path checks.
+    if (toolName === "apply_patch" && typeof input.args?.patchText === "string") {
+      return "apply_patch";
+    }
+
     const filePath =
       typeof input.args?.filePath === "string"
         ? input.args.filePath
@@ -323,6 +723,8 @@ export async function validateSecurity(
     if (!config.rules.enabled) {
       return { action: "allow", reason: "Security rules disabled" };
     }
+
+    // NOTE: loadSecurityConfig() now enforces fallback when compiled rules are empty.
 
     fileLog(`Security check for tool: ${input.tool}`);
     const argKeys = summarizeArgKeys(input.args);
@@ -430,6 +832,110 @@ export async function validateSecurity(
       }
     }
 
+    // File/path tools: validate path access via path rules first.
+    if (["read", "write", "edit", "apply_patch"].includes(input.tool.toLowerCase())) {
+      // Special case: apply_patch carries file paths inside patchText.
+      if (input.tool.toLowerCase() === "apply_patch" && typeof input.args?.patchText === "string") {
+        const paiDir = getPaiDir();
+        const items = extractApplyPatchPaths(input.args.patchText);
+
+        for (const it of items) {
+          const resolvedPath = resolveApplyPatchPath(paiDir, it.filePath);
+          const res = validatePathAccess(resolvedPath, it.action, config);
+          if (res.action === "block") {
+            await appendSecurityLog({
+              v: "0.1",
+              ts: new Date().toISOString(),
+              sessionId: (input as ToolInput).sessionID ?? "",
+              tool: input.tool,
+              action: "block",
+              category: "path_access",
+              targetPreview: redactSensitiveText(resolvedPath),
+              ruleId: "path.block",
+              reason: res.reason ?? "Path blocked",
+              sourceEventId: `${input.tool}:${(input as ToolInput).sessionID ?? ""}:${(input as ToolInput).callID ?? ""}`,
+            });
+            return {
+              action: "block",
+              reason: res.reason ?? "Blocked path access",
+              message: "This patch targets a blocked file path.",
+            };
+          }
+          if (res.action === "confirm") {
+            await appendSecurityLog({
+              v: "0.1",
+              ts: new Date().toISOString(),
+              sessionId: (input as ToolInput).sessionID ?? "",
+              tool: input.tool,
+              action: "confirm",
+              category: "path_access",
+              targetPreview: redactSensitiveText(resolvedPath),
+              ruleId: "path.confirm",
+              reason: res.reason ?? "Protected path write",
+              sourceEventId: `${input.tool}:${(input as ToolInput).sessionID ?? ""}:${(input as ToolInput).callID ?? ""}`,
+            });
+            return {
+              action: "confirm",
+              reason: res.reason ?? "Protected path write",
+              message: "This patch targets a protected file path. Please confirm.",
+            };
+          }
+        }
+
+        // No file paths found or all allowed.
+      }
+
+      const filePath =
+        typeof input.args?.filePath === "string"
+          ? (input.args.filePath as string)
+          : typeof input.args?.file_path === "string"
+            ? (input.args.file_path as string)
+            : undefined;
+
+      if (filePath) {
+        const act: PathAction = input.tool.toLowerCase() === "read" ? "read" : "write";
+        const res = validatePathAccess(filePath, act, config);
+        if (res.action === "block") {
+          await appendSecurityLog({
+            v: "0.1",
+            ts: new Date().toISOString(),
+            sessionId: (input as ToolInput).sessionID ?? "",
+            tool: input.tool,
+            action: "block",
+            category: "path_access",
+            targetPreview: redactSensitiveText(filePath),
+            ruleId: "path.block",
+            reason: res.reason ?? "Path blocked",
+            sourceEventId: `${input.tool}:${(input as ToolInput).sessionID ?? ""}:${(input as ToolInput).callID ?? ""}`,
+          });
+          return {
+            action: "block",
+            reason: res.reason ?? "Blocked path access",
+            message: "This file path is blocked by security rules.",
+          };
+        }
+        if (res.action === "confirm") {
+          await appendSecurityLog({
+            v: "0.1",
+            ts: new Date().toISOString(),
+            sessionId: (input as ToolInput).sessionID ?? "",
+            tool: input.tool,
+            action: "confirm",
+            category: "path_access",
+            targetPreview: redactSensitiveText(filePath),
+            ruleId: "path.confirm",
+            reason: res.reason ?? "Protected path write",
+            sourceEventId: `${input.tool}:${(input as ToolInput).sessionID ?? ""}:${(input as ToolInput).callID ?? ""}`,
+          });
+          return {
+            action: "confirm",
+            reason: res.reason ?? "Protected path write",
+            message: "Writing to a protected path. Please confirm.",
+          };
+        }
+      }
+    }
+
     // Check for warning patterns (CONFIRM)
     const warningMatch = matchesRule(config.warning, command);
     if (warningMatch) {
@@ -453,6 +959,27 @@ export async function validateSecurity(
         message:
           "This command may have unintended consequences. Please confirm.",
       };
+    }
+
+    // Check for alert patterns (LOG + ALLOW)
+    // NOTE: Alerts must not bypass confirm-level checks. This is intentionally
+    // evaluated *after* warning patterns.
+    const alertMatch = matchesRule(config.alert, command);
+    if (alertMatch) {
+      await appendSecurityLog({
+        v: "0.1",
+        ts: new Date().toISOString(),
+        sessionId: (input as ToolInput).sessionID ?? "",
+        tool: input.tool,
+        action: "allow",
+        category,
+        targetPreview: redactedCommand,
+        ruleId: alertMatch.id,
+        reason: alertMatch.description ?? "Alert pattern",
+        sourceEventId: `${input.tool}:${(input as ToolInput).sessionID ?? ""}:${(input as ToolInput).callID ?? ""}`,
+      });
+      fileLog(`ALERT: Pattern matched (allowed): ${alertMatch.pattern}`, "warn");
+      return { action: "allow", reason: "Alert pattern (logged)" };
     }
 
     // Check for sensitive file writes
@@ -524,11 +1051,12 @@ export async function validateSecurity(
     };
   } catch (error) {
     fileLogError("Security validation error", error);
-    // Fail-open: on error, allow the operation
-    // This is a design decision - fail-closed would be safer but more disruptive
+    // Fail-safe: require confirmation on validator errors.
+    // This avoids silent fail-open while keeping a recovery path.
     return {
-      action: "allow",
-      reason: "Security check error - allowing by default",
+      action: "confirm",
+      reason: "Security validator error",
+      message: "Security validator encountered an error. Please confirm to proceed.",
     };
   }
 }

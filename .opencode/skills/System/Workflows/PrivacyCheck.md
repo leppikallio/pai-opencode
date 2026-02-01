@@ -70,20 +70,19 @@ Scan for personal data across directories:
 const personalIdentifiers = {
   // Names (real ones, not variables)
   names: [
-    /\bSteffen\b(?!ENGINEER_NAME|_)/g,  // Real name, not variable
-    /\bSteffens\b/g,                     // Possessive form
+    /\bYOUR_NAME\b(?!ENGINEER_NAME|_)/g,  // Replace with your real name
+    /\bYOUR_NAMES\b/g,                    // Possessive form
   ],
 
   // Email addresses
   emails: [
-    /steffen\.025@gmail\.com/gi,
     /[a-z0-9._%+-]+@(?!example\.com|placeholder\.)[a-z0-9.-]+\.[a-z]{2,}/gi
   ],
 
   // Local paths with username
   paths: [
-    /\/Users\/steffen\//g,
-    /C:\\Users\\steffen\\/gi,
+    /\/Users\/YOUR_USERNAME\//g,
+    /C:\\Users\\YOUR_USERNAME\\/gi,
   ],
 
   // Phone numbers (various formats)

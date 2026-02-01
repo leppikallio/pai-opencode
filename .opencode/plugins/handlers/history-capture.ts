@@ -12,12 +12,12 @@ import {
   getYearMonth,
 } from "../lib/paths";
 import {
-  appendToThread,
-  applyIscUpdate,
+  appendToThreadForSession,
+  applyIscUpdateForSession,
   createWorkSession,
   getOrLoadCurrentSession,
-  pauseWorkSession,
-  resumeWorkSession,
+  pauseWorkSessionForSession,
+  resumeWorkSessionForSession,
   completeWorkSession,
   type IscState,
   type IscCriterion,
@@ -25,6 +25,7 @@ import {
 import { parseIscResponse, type ParsedIsc } from "./isc-parser";
 import { captureRating, detectRating } from "./rating-capture";
 import { extractLearningsFromWork } from "./learning-capture";
+import { getPermissionRequestId, getSessionStatusType, type UnknownRecord as NormRecord } from "../lib/event-normalize";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -181,13 +182,13 @@ async function commitUserMessage(sessionId: string, messageId: string) {
 
   const capped = capText(text, MAX_TEXT);
 
-  const session = await getOrLoadCurrentSession();
+  const session = await getOrLoadCurrentSession(sessionId);
   if (!session) {
-    const createResult = await createWorkSession(capped);
+    const createResult = await createWorkSession(sessionId, capped);
     if (!createResult.success) return;
   }
 
-  await appendToThread(`**User:** ${capped}`);
+  await appendToThreadForSession(sessionId, `**User:** ${capped}`);
   state.committedMessages.add(messageId);
 
   const rating = detectRating(capped);
@@ -231,14 +232,14 @@ async function commitAssistantMessage(sessionId: string) {
     length: capped.length,
   });
 
-  await appendToThread(`**Assistant:** ${capped}`);
+  await appendToThreadForSession(sessionId, `**Assistant:** ${capped}`);
 
   const parsed = parseIscResponse(capped);
   const iscState = buildIscState(parsed, eventId);
-  await applyIscUpdate(iscState, eventId);
+  await applyIscUpdateForSession(sessionId, iscState, eventId);
 
   if (parsed.warnings.length > 0) {
-    await appendToThread(`**ISC Warning:** ${parsed.warnings.join("; ")}`);
+    await appendToThreadForSession(sessionId, `**ISC Warning:** ${parsed.warnings.join("; ")}`);
   }
 
   state.lastCommittedAssistantId = messageId;
@@ -270,10 +271,10 @@ async function scheduleSoftFinalize(sessionId: string) {
     const now = Date.now();
     if (!state.idleAt) return;
     if (now - state.lastActivityAt < SOFT_FINALIZE_MS) return;
-    await pauseWorkSession();
+    await pauseWorkSessionForSession(sessionId);
     state.paused = true;
-    await extractLearningsFromWork();
-    await appendToThread(`**Status:** PAUSED (idle > 30m)`);
+    await extractLearningsFromWork(sessionId);
+    await appendToThreadForSession(sessionId, `**Status:** PAUSED (idle > 30m)`);
   }, SOFT_FINALIZE_MS + 50);
 }
 
@@ -283,9 +284,9 @@ async function markActive(sessionId: string) {
   state.idleAt = undefined;
   clearTimers(state);
   if (state.paused) {
-    await resumeWorkSession();
+    await resumeWorkSessionForSession(sessionId);
     state.paused = false;
-    await appendToThread(`**Status:** ACTIVE (resumed)`);
+    await appendToThreadForSession(sessionId, `**Status:** ACTIVE (resumed)`);
   }
 }
 
@@ -349,10 +350,13 @@ async function handleMessagePartUpdated(eventProps: UnknownRecord) {
     if (status === "completed") {
       const output = getStringProp(stateRec, "output") ?? "";
       const summary = capText(output, MAX_TOOL_OUTPUT);
-      await appendToThread(`**Tool:** ${toolName}\n\n${summary}`);
+      await appendToThreadForSession(sessionId, `**Tool:** ${toolName}\n\n${summary}`);
     } else if (status === "error") {
       const error = getStringProp(stateRec, "error") ?? "unknown error";
-      await appendToThread(`**Tool Error:** ${toolName} — ${capText(error, 500)}`);
+      await appendToThreadForSession(
+        sessionId,
+        `**Tool Error:** ${toolName} — ${capText(error, 500)}`
+      );
     }
   }
 }
@@ -399,7 +403,7 @@ export function createHistoryCapture() {
 
       if (eventType === "permission.asked") {
         const sessionId = getStringProp(props, "sessionID") ?? "";
-        const requestId = getStringProp(props, "id") ?? "";
+        const requestId = getPermissionRequestId(props as NormRecord);
         if (sessionId && requestId) {
           await appendRawEvent(
             sessionId,
@@ -414,7 +418,7 @@ export function createHistoryCapture() {
 
       if (eventType === "permission.replied") {
         const sessionId = getStringProp(props, "sessionID") ?? "";
-        const requestId = getStringProp(props, "requestID") ?? "";
+        const requestId = getPermissionRequestId(props as NormRecord);
         if (sessionId && requestId) {
           await appendRawEvent(
             sessionId,
@@ -430,8 +434,7 @@ export function createHistoryCapture() {
       if (eventType === "session.status") {
         const sessionId = getStringProp(props, "sessionID") ?? "";
         if (!sessionId) return;
-        const status = getRecordProp(props, "status");
-        const statusType = getStringProp(status, "type") ?? "";
+        const statusType = getSessionStatusType({ properties: props } as unknown);
         await appendRawEvent(
           sessionId,
           `session.status:${sessionId}:${statusType}`,
@@ -480,6 +483,17 @@ export function createHistoryCapture() {
         return;
       }
 
+      if (eventType === "session.created") {
+        const info = getRecordProp(props, "info");
+        const sessionId = getStringProp(info, "id") ?? "";
+        const title = getStringProp(info, "title") ?? "work-session";
+        if (sessionId) {
+          await createWorkSession(sessionId, title);
+          await appendToThreadForSession(sessionId, `**Session:** CREATED (${title})`);
+        }
+        return;
+      }
+
       if (eventType === "session.deleted") {
         const info = getRecordProp(props, "info");
         const sessionId = getStringProp(info, "id") ?? "";
@@ -491,8 +505,8 @@ export function createHistoryCapture() {
             "session.deleted",
             {}
           );
-          await extractLearningsFromWork();
-          await completeWorkSession();
+          await extractLearningsFromWork(sessionId);
+          await completeWorkSession(sessionId);
         }
         return;
       }

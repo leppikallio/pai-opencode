@@ -14,6 +14,7 @@ permission:
   write:
     "*": deny
     "$HOME/.config/opencode/scratchpad/**": allow
+    "$HOME/.config/opencode/MEMORY/WORK/**/scratch/**": allow
   voice_notify: allow
 ---
 

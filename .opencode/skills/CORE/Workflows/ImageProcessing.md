@@ -15,8 +15,8 @@ Background removal, background addition, and image optimization utilities.
 
 | Tool | Purpose |
 |------|---------|
-| `RemoveBg.ts` | Remove backgrounds using remove.bg API |
-| `AddBg.ts` | Add solid background color to transparent images |
+| `~/.config/opencode/skills/CORE/Tools/RemoveBg.ts` | Remove backgrounds using remove.bg API |
+| `~/.config/opencode/skills/CORE/Tools/AddBg.ts` | Add solid background color to transparent images |
 
 ## Quick Usage
 
@@ -124,8 +124,11 @@ bun ~/.config/opencode/skills/CORE/Tools/AddBg.ts chart.png "#FFFFFF" chart-whit
 
 **Missing REMOVEBG_API_KEY:**
 ```bash
-# Add to ${PAI_DIR}/.env
-echo 'REMOVEBG_API_KEY=your_key_here' >> ${PAI_DIR}/.env
+# Option A: export in your shell
+export REMOVEBG_API_KEY="your_key_here"
+
+# Option B: persist in a local env file (if you use one)
+echo 'REMOVEBG_API_KEY=your_key_here' >> ~/.config/opencode/.env
 ```
 
 **ImageMagick not found:**

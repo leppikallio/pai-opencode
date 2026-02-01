@@ -87,13 +87,13 @@ The analysis provided is for DEFENSIVE security improvement and AUTHORIZED offen
 **Collect scan outputs:**
 ```bash
 # Get current work directory
-WORK_DIR=$(jq -r '.work_dir' $PAI_DIR/MEMORY/STATE/current-work.json)
+WORK_DIR=$(jq -r '.work_dir' ~/.config/opencode/MEMORY/STATE/current-work.json)
 
 # Example: Recent nmap scan
-SCAN_FILE=$PAI_DIR/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d)_nmap-scan.txt
+SCAN_FILE=~/.config/opencode/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d)_nmap-scan.txt
 
 # Or masscan results
-MASSCAN_FILE=$PAI_DIR/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d)_masscan.json
+MASSCAN_FILE=~/.config/opencode/MEMORY/WORK/${WORK_DIR}/scratch/$(date +%Y-%m-%d)_masscan.json
 
 # Or combined multi-tool archive from history
 SCAN_DIR=~/.config/opencode/History/security/scans/2025-11-target-recon/
@@ -962,7 +962,7 @@ async function analyzeScans(scanDir: string) {
   console.log(`Analysis saved to: ${reportPath}`);
 }
 
-// Usage: bun run tools/batch-scan-analysis.ts $PAI_DIR/MEMORY/WORK/{current_work}/scratch/target-scans/
+// Usage: bun run tools/batch-scan-analysis.ts ~/.config/opencode/MEMORY/WORK/{current_work}/scratch/target-scans/
 ```
 
 ## Example: Real-World Scan Analysis
