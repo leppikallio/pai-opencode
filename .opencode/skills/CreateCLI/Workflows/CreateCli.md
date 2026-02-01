@@ -202,7 +202,7 @@ function loadConfig(): Config {
       ?.trim();
 
     if (!apiKey) {
-      console.error('Error: {{ENV_VAR_NAME}} not found in ${PAI_DIR}/.env');
+      console.error('Error: {{ENV_VAR_NAME}} not found in ~/.config/opencode/.env');
       process.exit(1);
     }
 
@@ -212,8 +212,8 @@ function loadConfig(): Config {
       {{ADDITIONAL_CONFIG}}
     };
   } catch (error) {
-    console.error(`Error: Cannot read ${PAI_DIR}/.env file`);
-    console.error('Make sure {{ENV_VAR_NAME}} is set in ${PAI_DIR}/.env');
+    console.error('Error: Cannot read ~/.config/opencode/.env file');
+    console.error('Make sure {{ENV_VAR_NAME}} is set in ~/.config/opencode/.env');
     process.exit(1);
   }
 }
@@ -611,7 +611,7 @@ Files generated:
 - QUICKSTART.md
 
 Next steps:
-1. Configure: Add {{ENV_VAR_NAME}} to ${PAI_DIR}/.env
+1. Configure: Add {{ENV_VAR_NAME}} to ~/.config/opencode/.env
 2. Test: ./{{CLI_NAME}}.ts --help
 3. Use: ./{{CLI_NAME}}.ts {{EXAMPLE_COMMAND}}
 
@@ -644,7 +644,7 @@ Commands available:
 - notioncli --help                       # Show full help
 
 Next steps:
-1. Add NOTION_API_KEY=your_key to ${PAI_DIR}/.env
+1. Add NOTION_API_KEY=your_key to ~/.config/opencode/.env
 2. Test: notioncli databases
 3. Read: ~/.config/opencode/Bin/notioncli/README.md
 

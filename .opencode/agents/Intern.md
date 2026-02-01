@@ -9,6 +9,7 @@ permission:
   edit:
     "*": deny
     "$HOME/.config/opencode/scratchpad/**": allow
+    "$HOME/.config/opencode/MEMORY/WORK/**/scratch/**": allow
   bash: allow
   webfetch: ask
   task: deny

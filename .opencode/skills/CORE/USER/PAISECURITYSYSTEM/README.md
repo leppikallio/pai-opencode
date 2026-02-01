@@ -1,57 +1,57 @@
-# PAISECURITYSYSTEM
+# PAISECURITYSYSTEM (User Overrides)
 
-**Your Personal Security Configuration**
-
-This directory contains your personal security patterns and rules that override or extend the default PAISECURITYSYSTEM.
-
----
-
-## Purpose
-
-Define security rules specific to your environment:
-
-- Custom paths to protect
-- Personal API key patterns to detect
-- Project-specific sensitive data patterns
-- Your own validation rules
-
----
-
-## Files to Create
-
-### patterns.yaml
-
-Your personal security patterns (override defaults):
-
-```yaml
-# Example patterns.yaml
-DANGEROUS_PATTERNS:
-  - pattern: "npm publish"
-    description: "Accidental package publish"
-
-WARNING_PATTERNS:
-  - pattern: "git push --force"
-    description: "Force push can lose commits"
-
-ALLOWED_PATTERNS:
-  - pattern: "rg\\s+.*"
-    description: "Search commands are safe"
-
-SECURITY_RULES:
-  block_dangerous: true
-  require_confirmation_for_warnings: true
-  max_command_length: 1000
-```
-
----
+This directory contains your personal security rules for the OpenCode runtime.
 
 ## How It Works
 
-1. PAI checks `~/.config/opencode/USER/PAISECURITYSYSTEM/` first
-2. If patterns.yaml exists, it's used for security validation
-3. If not, falls back to default PAISECURITYSYSTEM patterns
-4. Your patterns override defaults (USER always wins)
+1. The security validator checks `~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/patterns.yaml`
+2. If present, it is used as the active ruleset
+3. Otherwise, it falls back to the system defaults
 
-Paths:
-- System defaults: `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml`
-- Your overrides: `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml`
+System defaults:
+- `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml`
+
+## patterns.yaml (v2.4 schema)
+
+Use this schema (aligned with upstream v2.4):
+
+```yaml
+---
+version: "1.0"
+philosophy:
+  mode: safe_functional
+  principle: "Block catastrophic operations, confirm risky ones, allow everything else"
+
+bash:
+  blocked:
+    - pattern: "rm -rf /"
+      reason: "Filesystem destruction"
+
+  confirm:
+    - pattern: "git push --force"
+      reason: "Force push can lose commits"
+
+  alert:
+    - pattern: "curl.*\\|.*bash"
+      reason: "Piping curl to bash"
+
+paths:
+  zeroAccess:
+    - "~/.ssh/id_*"
+
+  readOnly:
+    - "/etc/**"
+
+  confirmWrite:
+    - "**/.env"
+    - "**/.env.*"
+
+  noDelete:
+    - ".git/**"
+
+projects: {}
+```
+
+Notes:
+- `bash.*.pattern` values are treated as regex; invalid regex falls back to literal match.
+- `paths.*` values are glob-like patterns (`*` and `**` supported).

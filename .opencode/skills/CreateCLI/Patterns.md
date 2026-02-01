@@ -34,7 +34,7 @@ function loadConfig(): Config {
       ?.trim();
 
     if (!apiKey) {
-      console.error('Error: API_KEY not found in ${PAI_DIR}/.env');
+      console.error('Error: API_KEY not found in ~/.config/opencode/.env');
       console.error('Add: API_KEY=your_key_here');
       process.exit(1);
     }
@@ -44,15 +44,15 @@ function loadConfig(): Config {
       baseUrl: process.env.API_BASE_URL || DEFAULTS.baseUrl,
     };
   } catch (error) {
-    console.error('Error: Cannot read ${PAI_DIR}/.env');
-    console.error('Create file: touch ${PAI_DIR}/.env');
+    console.error('Error: Cannot read ~/.config/opencode/.env');
+    console.error('Create file: touch ~/.config/opencode/.env');
     process.exit(1);
   }
 }
 ```
 
 **Key principles:**
-- Load from ${PAI_DIR}/.env (PAI standard)
+- Load from ~/.config/opencode/.env
 - Clear error messages with resolution steps
 - Defaults for optional config
 - Type-safe Config interface
@@ -238,7 +238,7 @@ OUTPUT:
   Exit code: 0 = success, 1 = error
 
 CONFIGURATION:
-  API Key: ${PAI_DIR}/.env (API_KEY=your_key)
+  API Key: ~/.config/opencode/.env (API_KEY=your_key)
   Base URL: ${DEFAULTS.baseUrl}
 
 PHILOSOPHY:
@@ -471,7 +471,7 @@ describe('CLI', () => {
 
 When building a CLI, use these patterns:
 
-- [ ] Configuration loading (from ${PAI_DIR}/.env)
+- [ ] Configuration loading (from ~/.config/opencode/.env)
 - [ ] API client with error handling
 - [ ] One function per command
 - [ ] Manual argument parsing (Tier 1) or Commander (Tier 2)

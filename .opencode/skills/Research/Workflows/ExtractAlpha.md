@@ -127,13 +127,13 @@ Capture the subtle genius buried in the content.
 **Use the current work item's scratch/ directory for all working files during analysis:**
 
 ```bash
-$PAI_DIR/MEMORY/WORK/{current_work}/scratch/
+~/.config/opencode/MEMORY/WORK/{current_work}/scratch/
 ```
 
 **To get the current work directory:**
-1. Read `$PAI_DIR/MEMORY/STATE/current-work.json`
+1. Read `~/.config/opencode/MEMORY/STATE/current-work.json`
 2. Extract the `work_dir` value
-3. Use `$PAI_DIR/MEMORY/WORK/{work_dir}/scratch/` for temporary artifacts
+3. Use `~/.config/opencode/MEMORY/WORK/{work_dir}/scratch/` for temporary artifacts
 
 **What goes in scratch/:**
 - Raw transcripts from fabric -y
@@ -149,7 +149,7 @@ $PAI_DIR/MEMORY/WORK/{current_work}/scratch/
 
 **Example scratch structure:**
 ```
-$PAI_DIR/MEMORY/WORK/20260111-172408_extract-alpha-analysis/scratch/
+~/.config/opencode/MEMORY/WORK/20260111-172408_extract-alpha-analysis/scratch/
 ├── raw-transcript.txt
 ├── deep thinking-notes.md
 ├── draft-insights.md
@@ -242,11 +242,11 @@ Create a README.md in the history directory documenting the research:
 
 ```bash
 # 1. Get current work directory
-WORK_DIR=$(jq -r '.work_dir' $PAI_DIR/MEMORY/STATE/current-work.json)
+WORK_DIR=$(jq -r '.work_dir' ~/.config/opencode/MEMORY/STATE/current-work.json)
 
 # 2. Create scratch workspace in current work item
-mkdir -p $PAI_DIR/MEMORY/WORK/${WORK_DIR}/scratch/
-cd $PAI_DIR/MEMORY/WORK/${WORK_DIR}/scratch/
+mkdir -p ~/.config/opencode/MEMORY/WORK/${WORK_DIR}/scratch/
+cd ~/.config/opencode/MEMORY/WORK/${WORK_DIR}/scratch/
 
 # 3. Extract content to scratch
 fabric -y "YOUTUBE_URL" > raw-transcript.txt
@@ -378,8 +378,8 @@ fabric -y "https://youtu.be/VIDEO_ID"
 When this skill activates, PAI should:
 
 1. **Load content** via appropriate method (fabric -y, WebFetch, Read, or paste)
-2. **Get current work directory** - Read `$PAI_DIR/MEMORY/STATE/current-work.json` for `work_dir`
-3. **Create scratch workspace** - Work in `$PAI_DIR/MEMORY/WORK/{work_dir}/scratch/`
+2. **Get current work directory** - Read `~/.config/opencode/MEMORY/STATE/current-work.json` for `work_dir`
+3. **Create scratch workspace** - Work in `~/.config/opencode/MEMORY/WORK/{work_dir}/scratch/`
 4. **Engage deep thinking mode** - Deep extended thinking through all 10 dimensions
 5. **Extract insights** - Extract 24-30 highest-alpha ideas focusing on low-probability brilliant insights
 6. **Save to history** - Final outputs to `~/.config/opencode/History/research/YYYY-MM-DD_description/`

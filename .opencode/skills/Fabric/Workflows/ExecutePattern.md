@@ -37,7 +37,7 @@ Read the pattern's system.md file:
 
 ```bash
 PATTERN_NAME="[selected_pattern]"
-PATTERN_PATH="$HOME/.config/opencode/skills/Fabric/Patterns/$PATTERN_NAME/system.md"
+PATTERN_PATH=~/.config/opencode/skills/Fabric/Patterns/$PATTERN_NAME/system.md
 
 if [ -f "$PATTERN_PATH" ]; then
   cat "$PATTERN_PATH"

@@ -1,8 +1,51 @@
-# Security patterns configuration (user-editable)
+# User Security Patterns (Optional Override)
 #
-# This is a safe default template. Customize as needed.
+# This file is optional. If present, it overrides the system defaults.
+#
+# If you don't need customization, you can delete this file and the
+# security validator will fall back to:
+#   skills/CORE/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml
+---
+version: "1.0"
+last_updated: "2026-02-01"
 
-version: 1
+philosophy:
+  mode: safe_functional
+  principle: "Block catastrophic operations, confirm risky ones, allow everything else"
 
-blocked_patterns: []
-warning_patterns: []
+bash:
+  blocked:
+    - pattern: "rm -rf /"
+      reason: "Filesystem destruction"
+    - pattern: "rm -rf ~"
+      reason: "Home directory destruction"
+
+  confirm:
+    - pattern: "git push --force"
+      reason: "Force push can lose commits"
+    - pattern: "git reset --hard"
+      reason: "Loses uncommitted changes"
+
+  alert:
+    - pattern: "curl.*\\|.*bash"
+      reason: "Piping curl to bash"
+    - pattern: "wget.*\\|.*bash"
+      reason: "Piping wget to bash"
+
+paths:
+  zeroAccess:
+    - "~/.ssh/id_*"
+    - "~/.aws/credentials"
+
+  readOnly:
+    - "/etc/**"
+
+  confirmWrite:
+    - "**/.env"
+    - "**/.env.*"
+
+  noDelete:
+    - ".git/**"
+    - "README.md"
+
+projects: {}

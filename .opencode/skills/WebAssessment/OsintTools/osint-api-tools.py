@@ -23,7 +23,7 @@ Usage:
 Requirements:
     pip install shodan requests python-dotenv
 
-Environment Variables (add to ${PAI_DIR}/.env):
+Environment Variables (add to ~/.config/opencode/.env):
     SHODAN_API_KEY=your_key_here
     DEHASHED_API_KEY=your_key_here
     DEHASHED_EMAIL=your_email_here

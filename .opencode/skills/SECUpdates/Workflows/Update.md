@@ -76,7 +76,7 @@ Use the format from SKILL.md:
 
 ### 7. Update State
 
-Write new state to `State/last-check.json`:
+Write new state to `../State/last-check.json`:
 - Update `last_check_timestamp`
 - Update per-source `last_hash` and `last_checked`
 

@@ -54,7 +54,7 @@ Review commonly used actors for updates:
 
 ```bash
 # Verify the Apify skill still typechecks
-cd "$PAI_DIR/skills/Apify" && bun run tsc -p tsconfig.json --noEmit
+cd ~/.config/opencode/skills/Apify && bun run tsc -p tsconfig.json --noEmit
 ```
 
 ### 4. Update Implementation

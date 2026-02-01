@@ -2,7 +2,7 @@
 
 Scratchpad root:
 
-- `~/.config/opencode/scratchpad/` (or `$PAI_DIR/scratchpad/`)
+- `~/.config/opencode/scratchpad/`
 
 Rules:
 

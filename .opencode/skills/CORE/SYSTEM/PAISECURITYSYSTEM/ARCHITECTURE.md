@@ -113,7 +113,7 @@ OpenCode plugin `tool.execute.before`
 `plugins/handlers/security-validator.ts`
             ↓
 Loads patterns:
-• ~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml (if present)
+• ~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/patterns.yaml (if present)
 • PAISECURITYSYSTEM/patterns.example.yaml (fallback)
             ↓
 Evaluates:
@@ -186,7 +186,7 @@ git stash
 |------|---------|
 | `~/.config/opencode/plugins/handlers/security-validator.ts` | Security validation logic |
 | `~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml` | Default pattern template |
-| `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml` | Personal overrides |
+| `~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/patterns.yaml` | Personal overrides |
 | `MEMORY/SECURITY/YYYY-MM/security.jsonl` | Security audit log |
 
 ---
@@ -195,7 +195,7 @@ git stash
 
 To customize security for your environment:
 
-1. Copy `patterns.example.yaml` to `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml`
+1. Copy `patterns.example.yaml` to `~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/patterns.yaml`
 2. Edit patterns to match your needs
 3. Add project-specific rules in the `projects` section
 4. The hook automatically loads USER patterns when available

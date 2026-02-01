@@ -64,7 +64,7 @@ sherlock --version
 ```
 
 **Configuration:**
-- Uses `sherlock_project/resources/data.json` for site definitions
+- Uses sherlock_project/resources/data.json (within the Sherlock repo) for site definitions
 - Supports proxy via `--proxy` flag
 - Can filter by site category
 
@@ -123,7 +123,7 @@ geolocation         # Get location data from posts
 
 **Configuration:**
 1. **Instagram Credentials Required:**
-   - Create `config/credentials.ini` with your Instagram login
+   - Create `<config/credentials.ini>` with your Instagram login
    - Format:
      ```ini
      [Credentials]
@@ -273,7 +273,7 @@ pip install tweepy pillow exifread jinja2 oauth2
 
 3. **Osintgram:**
    - ✅ Dependencies installed and verified
-   - ❌ **TODO:** Create `config/credentials.ini` with Instagram credentials
+   - ❌ **TODO:** Create `<config/credentials.ini>` with Instagram credentials
    - ❌ **TODO:** First authentication run
    - ⚠️ Use dedicated OSINT account, not personal
 

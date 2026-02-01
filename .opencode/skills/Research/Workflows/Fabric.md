@@ -16,23 +16,13 @@ This provides access to:
 - Voice IDs for agent routing (ElevenLabs)
 - Personal preferences and operating instructions
 
-## Setup Check - Fabric Repository
+## Setup Check - Pattern Directory
 
-**IMPORTANT: Before using this skill, verify the Fabric repository is available:**
+**IMPORTANT: Before using this skill, verify patterns exist:**
 
 ```bash
-# Check if Fabric repo exists
-if [ ! -d "$HOME/.config/opencode/skills/Fabric/fabric-repo" ]; then
-  echo "Fabric repository not found. Cloning..."
-  cd "$HOME/.config/opencode/skills/Fabric"
-  git clone https://github.com/fabric-project/fabric.git fabric-repo
-  echo "Fabric repository cloned successfully."
-else
-  echo "Fabric repository found at $HOME/.config/opencode/skills/Fabric/fabric-repo"
-fi
+test -d ~/.config/opencode/skills/Fabric/Patterns || echo "Missing patterns: ~/.config/opencode/skills/Fabric/Patterns"
 ```
-
-**If the repo doesn't exist, clone it immediately before proceeding with any pattern selection.**
 
 ## When to Activate This Skill
 
@@ -281,19 +271,22 @@ fabric "your text here" -p [pattern]
 
 ## 🔄 Updating Patterns
 
-The Fabric repository is included in this skill at `${PAI_DIR}/skills/fabric/fabric-repo/`.
+Fabric patterns shipped with this runtime live at `~/.config/opencode/skills/Fabric/Patterns/`.
 
 **To update patterns:**
 
+Update the base repo and reinstall the runtime:
+
 ```bash
-cd ${PAI_DIR}/skills/fabric/fabric-repo
-git pull origin main
+cd ~/Projects/pai-opencode
+git pull
+bun Tools/Install.ts
 ```
 
 **To see all available patterns:**
 
 ```bash
-ls ${PAI_DIR}/skills/fabric/fabric-repo/data/Patterns/
+ls ~/.config/opencode/skills/Fabric/Patterns/
 # OR from your local Fabric install:
 ls ~/.config/fabric/Patterns/
 ```
@@ -370,10 +363,10 @@ cat wisdom.txt | fabric -p create_5_sentence_summary
 
 ## 📖 Supplementary Resources
 
-**Full Pattern List:** `ls ${PAI_DIR}/skills/fabric/fabric-repo/data/Patterns/`
-**Fabric Repo:** `${PAI_DIR}/skills/fabric/fabric-repo/`
+**Full Pattern List:** `ls ~/.config/opencode/skills/Fabric/Patterns/`
+**Pattern Directory:** `~/.config/opencode/skills/Fabric/Patterns/`
 **Fabric Documentation:** https://github.com/fabric-project/fabric
-**Pattern Templates:** See `${PAI_DIR}/skills/fabric/fabric-repo/data/Patterns/official_pattern_template/`
+**Pattern Templates:** See `~/.config/opencode/skills/Fabric/Patterns/`.
 
 ## 🔑 Key Insight
 

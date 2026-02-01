@@ -50,13 +50,13 @@ When PAI needs configuration, it follows a cascading lookup:
 ├── COMMANDINJECTION.md                # Command injection defense
 └── patterns.example.yaml              # Default security patterns
 
-~/.config/opencode/USER/PAISECURITYSYSTEM/                # USER tier (personal)
+~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/    # USER tier (personal)
 ├── patterns.yaml                      # Your security rules
 ├── QUICKREF.md                        # Your quick reference
 └── ...
 ```
 
-The SecurityValidator checks `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml`.
+The SecurityValidator checks `~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml`.
 
 Compatibility:
 - `~/.config/opencode/PAISECURITYSYSTEM/` is a symlink to `~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/`.
@@ -71,8 +71,8 @@ Compatibility:
 ### Skills
 
 ```
-skills/Browser/SKILL.md               # SYSTEM tier (public skill)
-skills/_BLOGGING/SKILL.md             # USER tier (private, _PREFIX naming)
+skills/System/SKILL.md                # SYSTEM tier (public skill)
+skills/<PRIVATE_SKILL>/SKILL.md        # USER tier (private, _PREFIX naming)
 ```
 
 Private skills use the `_ALLCAPS` prefix and are never synced to public PAI.
@@ -90,7 +90,7 @@ Many configuration files follow this pattern implicitly:
 
 | SYSTEM Default | USER Override |
 |----------------|---------------|
-| `patterns.example.yaml` | `~/.config/opencode/USER/.../patterns.yaml` |
+| `patterns.example.yaml` | `~/.config/opencode/skills/CORE/USER/.../patterns.yaml` |
 | `~/.config/opencode/skills/CORE/SYSTEM/RESPONSEFORMAT.md` | `~/.config/opencode/skills/CORE/USER/RESPONSEFORMAT.md` |
 | `settings.json` defaults | `settings.json` user values |
 
@@ -103,11 +103,12 @@ Many configuration files follow this pattern implicitly:
 The SYSTEM tier must always provide functional defaults. A fresh PAI installation should work immediately without requiring USER configuration.
 
 ```yaml
-# SYSTEM tier: patterns.example.yaml
+# SYSTEM tier: patterns.example.yaml (v2.4 schema)
 # Provides reasonable defaults that protect against catastrophic operations
-DANGEROUS_PATTERNS:
-  - pattern: "rm\\s+(-rf|-r|--recursive)\\s+(/|~|\\.\\./|\\/.*)"
-    description: "Recursive delete from root or home directory"
+bash:
+  blocked:
+    - pattern: "rm -rf /"
+      reason: "Filesystem destruction"
 ```
 
 ### 2. USER Overrides Completely
@@ -115,14 +116,15 @@ DANGEROUS_PATTERNS:
 When a USER file exists, it replaces (not merges with) the SYSTEM equivalent. This keeps behavior predictable.
 
 ```yaml
-# USER tier: patterns.yaml
+# USER tier: patterns.yaml (v2.4 schema)
 # Completely replaces patterns.example.yaml
-# Can add, remove, or modify any pattern
-DANGEROUS_PATTERNS:
-  - pattern: "rm\\s+(-rf|-r|--recursive)\\s+(/|~|\\.\\./|\\/.*)"
-    description: "Recursive delete from root or home directory"
-  - pattern: "npm publish"
-    description: "Accidental package publish"  # Personal addition
+bash:
+  blocked:
+    - pattern: "rm -rf /"
+      reason: "Filesystem destruction"
+  confirm:
+    - pattern: "git push --force"
+      reason: "Force push can lose commits"  # Personal addition
 ```
 
 ### 3. USER Content Stays Private

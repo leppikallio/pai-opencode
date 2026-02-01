@@ -11,7 +11,7 @@ This directory (`~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/`) is t
 Compatibility note:
 - `~/.config/opencode/PAISECURITYSYSTEM/` is a symlink to this directory for legacy references.
 
-Your personal security policies live in `~/.config/opencode/USER/PAISECURITYSYSTEM/`. This is where you:
+Your personal security policies live in `~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/`. This is where you:
 - Define your own blocked/confirm/alert patterns
 - Add project-specific rules
 - Customize path protections
@@ -54,20 +54,20 @@ This security system provides essential protection against catastrophic operatio
 ├── COMMANDINJECTION.md                  # Command injection defense
 └── patterns.example.yaml                # Default security patterns
 
-~/.config/opencode/USER/PAISECURITYSYSTEM/                  # Your customizations
+~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/       # Your customizations
 ├── patterns.yaml                        # Your security rules
 ├── QUICKREF.md                          # Quick lookup
 └── ...                                  # Your additions
 ```
 
-The validator loads `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml` if not found.
+The validator loads `~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml` if not found.
 
 ---
 
 ## Quick Start
 
 1. Security works out of the box with `patterns.example.yaml`
-2. To customize, copy to `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml`
+2. To customize, copy to `~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/patterns.yaml`
 3. Add your own blocked/confirm/alert patterns
 4. Events log to `MEMORY/SECURITY/YYYY-MM/security.jsonl`
 

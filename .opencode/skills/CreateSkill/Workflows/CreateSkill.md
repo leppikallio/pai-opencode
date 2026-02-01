@@ -7,7 +7,7 @@ Create a new skill following the canonical structure with proper TitleCase namin
 **REQUIRED FIRST:**
 
 1. Read the skill system documentation: `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md`
-2. Read the canonical example: `~/.config/opencode/skills/_BLOGGING/SKILL.md`
+2. Read an existing skill for reference: `~/.config/opencode/skills/System/SKILL.md`
 
 ## Step 2: Understand the Request
 
@@ -69,8 +69,8 @@ Running the **WorkflowName** workflow from the **SkillName** skill...
 
 | Workflow | Trigger | File |
 |----------|---------|------|
-| **WorkflowOne** | "trigger phrase" | `Workflows/WorkflowOne.md` |
-| **WorkflowTwo** | "another trigger" | `Workflows/WorkflowTwo.md` |
+| **WorkflowOne** | "trigger phrase" | `Workflows/<WorkflowOne>.md` |
+| **WorkflowTwo** | "another trigger" | `Workflows/<WorkflowTwo>.md` |
 
 ## Examples
 
@@ -147,8 +147,6 @@ bun ToolName.ts \
 ```bash
 touch ~/.config/opencode/skills/Daemon/Workflows/UpdateDaemonInfo.md
 touch ~/.config/opencode/skills/Daemon/Workflows/UpdatePublicRepo.md
-touch ~/.config/opencode/skills/_BLOGGING/Workflows/Create.md
-touch ~/.config/opencode/skills/_BLOGGING/Workflows/Publish.md
 ```
 
 ## Step 7: Verify TitleCase

@@ -14,7 +14,7 @@ User Request -> AI orchestrates -> Evals Tools -> Deterministic results
 
 ### Use Case Management
 
-Use cases are file-backed under `UseCases/`. There is no `EvalServer/cli.ts` in this repo.
+Use cases are file-backed under `UseCases/`. There is no `<EvalServer/cli.ts>` in this repo.
 
 Test cases are file-backed under `UseCases/<name>/test-cases/`.
 

@@ -8,7 +8,7 @@
  *
  * ## Usage
  * ```bash
- * bun ${PAI_DIR}/commands/perform-claude-research.md "your complex research question here"
+ * bun ~/.config/opencode/skills/Research/Workflows/ClaudeResearch.md "your complex research question here"
  * ```
  *
  * ## Features
@@ -33,7 +33,7 @@ const originalQuestion = process.argv.slice(2).join(' ');
 
 if (!originalQuestion) {
   console.error('❌ Please provide a research question');
-  console.error('Usage: bun ${PAI_DIR}/commands/perform-claude-research.md "your question here"');
+  console.error('Usage: bun ~/.config/opencode/skills/Research/Workflows/ClaudeResearch.md "your question here"');
   process.exit(1);
 }
 

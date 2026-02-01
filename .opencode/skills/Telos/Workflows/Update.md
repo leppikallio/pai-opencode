@@ -78,7 +78,7 @@ This is the main command you'll use. It takes three parameters:
 - Content to add (the actual text)
 - Description of the change (for the changelog)
 
-!`FILE="$1"; CONTENT="$2"; DESCRIPTION="$3"; bun run "$PAI_DIR/skills/Telos/Tools/UpdateTelos.ts" "$FILE" "$CONTENT" "$DESCRIPTION"`
+!`FILE="$1"; CONTENT="$2"; DESCRIPTION="$3"; bun run ~/.config/opencode/skills/Telos/Tools/UpdateTelos.ts "$FILE" "$CONTENT" "$DESCRIPTION"`
 
 ## List Valid TELOS Files
 !`echo "Valid TELOS files:
@@ -140,7 +140,7 @@ Use the update-telos command with:
 
 Example:
 ```bash
-bun run "$PAI_DIR/skills/Telos/Tools/UpdateTelos.ts" "BOOKS.md" "- *Project Hail Mary* by Andy Weir" "Added favorite book: Project Hail Mary"
+bun run ~/.config/opencode/skills/Telos/Tools/UpdateTelos.ts "BOOKS.md" "- *Project Hail Mary* by Andy Weir" "Added favorite book: Project Hail Mary"
 ```
 
 ## Step 4: Confirm and Engage

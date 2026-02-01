@@ -4,7 +4,7 @@ This file documents single-purpose CLI utilities that have been consolidated fro
 
 **Philosophy:** Simple utilities don't need separate skills. Document them here, execute them directly.
 
-**Model:** Following the `Tools/fabric/` pattern - 242+ Fabric patterns documented as utilities rather than individual skills.
+**Model:** Similar to Fabric patterns: many prompts live under `~/.config/opencode/skills/Fabric/Patterns/`.
 
 ---
 
@@ -89,7 +89,7 @@ bun ~/.config/opencode/skills/CORE/Tools/RemoveBg.ts image1.png image2.png image
 ```
 
 **Environment Variables:**
-- `REMOVEBG_API_KEY` - Required for background removal (from `${PAI_DIR}/.env`)
+- `REMOVEBG_API_KEY` - Required for background removal (from `~/.config/opencode/.env`)
 
 **When to Use:**
 - "remove background from this image"
@@ -270,7 +270,7 @@ bun ~/.config/opencode/skills/CORE/Tools/YouTubeApi.ts --latest-videos
 ```
 
 **Environment Variables:**
-- `YOUTUBE_API_KEY` - Required for API access (from `${PAI_DIR}/.env`)
+- `YOUTUBE_API_KEY` - Required for API access (from `~/.config/opencode/.env`)
 - `YOUTUBE_CHANNEL_ID` - Default channel ID
 
 **When to Use:**
@@ -371,7 +371,7 @@ When adding a new utility tool to this system:
    - Keep the directory flat - NO subdirectories
 
 2. **Document here:** Add section to this file with:
-   - Tool location (e.g., `~/.config/opencode/skills/CORE/Tools/ToolName.ts`)
+   - Tool location (e.g., `~/.config/opencode/skills/CORE/Tools/<ToolName>.ts`)
    - Usage examples
    - When to use triggers
    - Environment variables (if any)
@@ -388,14 +388,14 @@ When adding a new utility tool to this system:
 
 The following skills have been consolidated into this Tools system:
 
-- **Images** → `Tools/RemoveBg.ts`, `Tools/AddBg.ts` (2024-12-22)
-- **VideoTranscript** → `Tools/GetTranscript.ts` (2024-12-22)
+- **Images** → `~/.config/opencode/skills/CORE/Tools/RemoveBg.ts`, `~/.config/opencode/skills/CORE/Tools/AddBg.ts` (2024-12-22)
+- **VideoTranscript** → `~/.config/opencode/skills/CORE/Tools/GetTranscript.ts` (2024-12-22)
 - **VoiceNarration** → Voice server API (2024-12-22)
-- **ExtractTranscript** → `Tools/extract-transcript.py`, `Tools/ExtractTranscript.ts` (2024-12-22)
-- **YouTube** → `Tools/YouTubeApi.ts` (2024-12-22)
+- **ExtractTranscript** → `~/.config/opencode/skills/CORE/Tools/extract-transcript.py`, `~/.config/opencode/skills/CORE/Tools/ExtractTranscript.ts` (2024-12-22)
+- **YouTube** → `~/.config/opencode/skills/CORE/Tools/YouTubeApi.ts` (2024-12-22)
 - **Sensitive** → `trufflehog` system tool (2024-12-22)
 
-See `~/.config/opencode/skills/Deprecated/` for archived skill files.
+Archived skill files may exist outside this repo.
 
 ---
 

@@ -299,8 +299,8 @@ Located in `Tools/` directory:
 ```
 
 Reports saved to:
-- **Work scratch/** (`$PAI_DIR/MEMORY/WORK/{current_work}/scratch/`) - For iterative artifacts during investigation
-- **MEMORY/RESEARCH/** (`$PAI_DIR/MEMORY/RESEARCH/YYYY-MM/`) - For pentest engagements and formal assessments
+- **Work scratch/** (`~/.config/opencode/MEMORY/WORK/{current_work}/scratch/`) - For iterative artifacts during investigation
+- **MEMORY/RESEARCH/** (`~/.config/opencode/MEMORY/RESEARCH/YYYY-MM/`) - For pentest engagements and formal assessments
 
 ## MCP Profile Requirements
 
@@ -357,7 +357,7 @@ Assistant: Activating recon skill with passive-recon workflow.
      [Performs WHOIS, DNS, cert transparency, IPInfo]
      [Generates report in scratchpad]
 
-     Report: $PAI_DIR/MEMORY/WORK/{current_work}/scratch/recon-example-com/
+     Report: ~/.config/opencode/MEMORY/WORK/{current_work}/scratch/recon-example-com/
 ```
 
 ### Example 2: IP Investigation with Active Scan

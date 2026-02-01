@@ -628,7 +628,7 @@ CDN: Cloudflare
 - `Automation.md` - SpiderFoot and Maltego automation
 - `Metadata-analysis.md` - Document and image metadata extraction
 - `../pentest/Reconnaissance.md` - Integration with penetration testing
-- `../pentest/Tool-inventory.md` - Complete tool reference
+- `../pentest/ToolInventory.md` - Complete tool reference
 
 ---
 

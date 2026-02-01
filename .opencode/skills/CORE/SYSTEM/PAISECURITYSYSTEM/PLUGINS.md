@@ -32,7 +32,7 @@ Compatibility:
 
 Order of precedence:
 
-1. `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml` (user override)
+1. `~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/patterns.yaml` (user override)
 2. `PAISECURITYSYSTEM/patterns.example.yaml` (system fallback)
 3. Fail‑open if neither exists
 
@@ -67,6 +67,6 @@ Each entry includes:
 
 ## Quick Update Workflow
 
-1. Edit `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml`
+1. Edit `~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/patterns.yaml`
 2. Deploy: `bun Tools/Install.ts --target "~/.config/opencode"`
 3. Restart OpenCode

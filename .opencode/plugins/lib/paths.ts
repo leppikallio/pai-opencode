@@ -114,64 +114,107 @@ export async function ensureDir(dirPath: string): Promise<void> {
  * Get current work session path from state file
  */
 export async function getCurrentWorkPath(): Promise<string | null> {
-  const stateFile = path.join(getStateDir(), "current-work.json");
-
-  try {
-    const content = await fs.promises.readFile(stateFile, "utf-8");
-    const state = JSON.parse(content);
-    return state.work_dir || null;
-  } catch {
-    // Ensure the state file exists (best effort) so docs remain accurate.
-    try {
-      await ensureDir(getStateDir());
-      await fs.promises.writeFile(
-        stateFile,
-        JSON.stringify({ work_dir: null }, null, 2)
-      );
-    } catch {
-      // Best effort only
-    }
-    return null;
-  }
+  throw new Error(
+    "getCurrentWorkPath() now requires a sessionID. Use getCurrentWorkPathForSession(sessionID)."
+  );
 }
 
 /**
  * Set current work session path in state file
  */
-export async function setCurrentWorkPath(workPath: string): Promise<void> {
-  const stateDir = getStateDir();
-  await ensureDir(stateDir);
+export type CurrentWorkStateV2 = {
+  v: "0.2";
+  updated_at: string;
+  sessions: Record<string, { work_dir: string; started_at?: string }>;
+};
 
-  const stateFile = path.join(stateDir, "current-work.json");
-  const state = {
-    work_dir: workPath,
-    started_at: new Date().toISOString(),
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function readString(obj: Record<string, unknown>, key: string): string | undefined {
+  const v = obj[key];
+  return typeof v === "string" ? v : undefined;
+}
+
+function sanitizeSessionId(sessionId: string): string {
+  // Allow only safe path characters.
+  return sessionId.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+async function readCurrentWorkState(stateFile: string): Promise<CurrentWorkStateV2> {
+  try {
+    const content = await fs.promises.readFile(stateFile, "utf-8");
+    const parsed = JSON.parse(content);
+    if (isRecord(parsed) && parsed.v === "0.2" && isRecord(parsed.sessions)) {
+      const sessions: Record<string, { work_dir: string; started_at?: string }> = {};
+      for (const [k, v] of Object.entries(parsed.sessions)) {
+        if (!isRecord(v)) continue;
+        const workDir = readString(v, "work_dir");
+        if (!workDir) continue;
+        const startedAt = readString(v, "started_at");
+        sessions[String(k)] = { work_dir: workDir, ...(startedAt ? { started_at: startedAt } : {}) };
+      }
+      return {
+        v: "0.2",
+        updated_at: readString(parsed, "updated_at") ?? new Date().toISOString(),
+        sessions,
+      };
+    }
+  } catch {
+    // fall through
+  }
+
+  return {
+    v: "0.2",
+    updated_at: new Date().toISOString(),
+    sessions: {},
   };
+}
 
+async function writeCurrentWorkState(stateFile: string, state: CurrentWorkStateV2): Promise<void> {
+  await ensureDir(getStateDir());
   await fs.promises.writeFile(stateFile, JSON.stringify(state, null, 2));
+}
+
+export async function getCurrentWorkPathForSession(sessionIdRaw: string): Promise<string | null> {
+  const stateFile = path.join(getStateDir(), "current-work.json");
+  const sessionId = sanitizeSessionId(sessionIdRaw);
+  if (!sessionId) return null;
+
+  const state = await readCurrentWorkState(stateFile);
+  const entry = state.sessions[sessionId];
+  if (entry?.work_dir) return entry.work_dir;
+
+  return null;
+}
+
+export async function setCurrentWorkPathForSession(sessionIdRaw: string, workPath: string): Promise<void> {
+  const stateFile = path.join(getStateDir(), "current-work.json");
+  const sessionId = sanitizeSessionId(sessionIdRaw);
+  if (!sessionId) return;
+
+  const state = await readCurrentWorkState(stateFile);
+  state.sessions[sessionId] = { work_dir: workPath, started_at: new Date().toISOString() };
+  state.updated_at = new Date().toISOString();
+  await writeCurrentWorkState(stateFile, state);
 }
 
 /**
  * Clear current work session
  */
-export async function clearCurrentWork(): Promise<void> {
+export async function clearCurrentWorkForSession(sessionIdRaw: string): Promise<void> {
   const stateFile = path.join(getStateDir(), "current-work.json");
+  const sessionId = sanitizeSessionId(sessionIdRaw);
+  if (!sessionId) return;
 
   try {
-    await ensureDir(getStateDir());
-    await fs.promises.writeFile(
-      stateFile,
-      JSON.stringify(
-        {
-          work_dir: null,
-          cleared_at: new Date().toISOString(),
-        },
-        null,
-        2
-      )
-    );
+    const state = await readCurrentWorkState(stateFile);
+    delete state.sessions[sessionId];
+    state.updated_at = new Date().toISOString();
+    await writeCurrentWorkState(stateFile, state);
   } catch {
-    // Best effort: absence is acceptable
+    // Best effort
   }
 }
 

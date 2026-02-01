@@ -245,7 +245,7 @@ Task({
 
 Non-blocking delegation - agents run while you continue working.
 
-See: `Workflows/BackgroundDelegation.md` for full details.
+See: `~/.config/opencode/skills/CORE/Workflows/BackgroundDelegation.md` for full details.
 
 ```typescript
 Task({

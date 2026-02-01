@@ -206,7 +206,7 @@ plugins/
 │   └── types.ts            # Shared types + PAI_TO_OPENCODE_HOOKS mapping
 └── lib/
     ├── file-logger.ts      # Logging (avoids TUI corruption)
-    └── model-config.js     # Model configuration
+    └── model-config.ts     # Model configuration
 ```
 
 **Key Design Decisions:**
@@ -214,7 +214,7 @@ plugins/
 1. **Single Plugin File** - `pai-unified.ts` exports all hooks from one plugin
 2. **Handler Separation** - Complex logic in `handlers/` for maintainability
 3. **File Logging** - Never use `console.log` (corrupts OpenCode TUI), use `file-logger.ts`
-4. **Fail-Open Security** - On error, don't block (avoid hanging OpenCode)
+4. **Fail-Safe Security** - On validator error, require confirmation
 
 ---
 
@@ -328,7 +328,7 @@ See `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml` for full patter
 
 **Cause:** Using `console.log` in plugin code
 
-**Fix:** Replace all `console.log` with `fileLog` from `lib/file-logger.ts`
+**Fix:** Replace all `console.log` with `fileLog` from `plugins/lib/file-logger.ts`
 
 ---
 

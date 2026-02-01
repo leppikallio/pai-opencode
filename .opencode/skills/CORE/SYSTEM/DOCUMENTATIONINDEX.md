@@ -40,7 +40,7 @@ description: Complete blog workflow. USE WHEN user mentions their blog, website,
 ```
 
 **Rules:**
-- `USE WHEN` keyword is MANDATORY (Claude Code parses this)
+- `USE WHEN` keyword is MANDATORY (skill index parses this)
 - Use intent-based triggers: `user mentions`, `user wants to`, `OR`
 - Do NOT list exact phrases like `'write a blog post'`
 - Max 1024 characters
@@ -70,7 +70,7 @@ See `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md` for complete document
 - `~/.config/opencode/skills/CORE/USER/CONTACTS.md` - Contact directory
 - `~/.config/opencode/skills/CORE/USER/DEFINITIONS.md` - Canonical definitions
 - `~/.config/opencode/PAISECURITYSYSTEM/` - Security docs + patterns
-- `~/.config/opencode/USER/PAISECURITYSYSTEM/` - Personal security policies (private)
+- `~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/` - Personal security policies (private)
 
 **Workflows:**
 - `Workflows/` - Operational procedures (git, delegation, MCP, blog deployment, etc.)

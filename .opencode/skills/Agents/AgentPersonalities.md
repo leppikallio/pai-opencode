@@ -152,7 +152,7 @@ bun run AgentFactory.ts --traits "..."  # Overkill for generic parallel work
 
 ## Named Agent Architecture
 
-- **Location**: `~/.config/opencode/skills/CORE/AgentPersonalities.md` (this file)
+- **Location**: `~/.config/opencode/skills/Agents/AgentPersonalities.md` (this file)
 - **Consumer**: `~/.config/opencode/VoiceServer/server.ts` extracts JSON config from this file
 - **Format**: Human-readable markdown with embedded JSON configuration
 

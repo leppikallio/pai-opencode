@@ -943,7 +943,7 @@ addrs                       # Extract email addresses
 - `master-guide.md` - Complete OSINT methodology and ethics
 - `reconnaissance.md` - Technical reconnaissance workflows
 - `automation.md` - SpiderFoot social media modules
-- `../pentest/master-methodology.md` - Integration with pentest phases
+- `../pentest/MasterMethodology.md` - Integration with pentest phases
 
 ---
 

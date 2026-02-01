@@ -104,29 +104,29 @@ Generates prioritized attack plan:
 - `Workflows/CreateThreatModel.md` - Attack scenario generation
 
 **Penetration Testing:**
-- `Workflows/Pentest/MasterMethodology.md` - 6-phase methodology
-- `Workflows/Pentest/ToolInventory.md` - Security tools reference
-- `Workflows/Pentest/Reconnaissance.md` - Asset discovery
-- `Workflows/Pentest/Exploitation.md` - Vulnerability testing
+- `Workflows/pentest/MasterMethodology.md` - 6-phase methodology
+- `Workflows/pentest/ToolInventory.md` - Security tools reference
+- `Workflows/pentest/Reconnaissance.md` - Asset discovery
+- `Workflows/pentest/Exploitation.md` - Vulnerability testing
 
 **Web Fuzzing:**
-- `Workflows/Ffuf/FfufGuide.md` - FFUF fuzzing guide
-- `Workflows/Ffuf/FfufHelper.md` - Automated fuzzing helper
+- `Workflows/ffuf/FfufGuide.md` - FFUF fuzzing guide
+- `Workflows/ffuf/FfufHelper.md` - Automated fuzzing helper
 
 **Bug Bounty:**
-- `Workflows/BugBounty/Programs.md` - Program tracking
-- `Workflows/BugBounty/AutomationTool.md` - Bounty automation
+- `Workflows/bug-bounty/Programs.md` - Program tracking
+- `Workflows/bug-bounty/AutomationTool.md` - Bounty automation
 
 **Web App Testing:**
-- `Workflows/Webapp/TestingGuide.md` - Playwright testing
-- `Workflows/Webapp/Examples.md` - Testing patterns
+- `Workflows/webapp/TestingGuide.md` - Playwright testing
+- `Workflows/webapp/Examples.md` - Testing patterns
 
 **OSINT:**
-- `Workflows/Osint/MasterGuide.md` - OSINT methodology
-- `Workflows/Osint/Reconnaissance.md` - Domain recon
-- `Workflows/Osint/SocialMediaIntel.md` - SOCMINT
-- `Workflows/Osint/Automation.md` - SpiderFoot/Maltego
-- `Workflows/Osint/MetadataAnalysis.md` - ExifTool analysis
+- `Workflows/osint/MasterGuide.md` - OSINT methodology
+- `Workflows/osint/Reconnaissance.md` - Domain recon
+- `Workflows/osint/SocialMediaIntel.md` - SOCMINT
+- `Workflows/osint/Automation.md` - SpiderFoot/Maltego
+- `Workflows/osint/MetadataAnalysis.md` - ExifTool analysis
 
 **AI-Powered:**
 - `Workflows/VulnerabilityAnalysisGemini3.md` - Gemini deep analysis

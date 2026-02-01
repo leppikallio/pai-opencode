@@ -6,7 +6,7 @@ Web scraping and crawling using WebFetch for simple pages, BrightData MCP for CA
 
 **Before starting any task with this skill, load complete PAI context:**
 
-`read ~/.config/opencode/skills/CORE/SKILL.md`
+Read: `~/.config/opencode/skills/CORE/SKILL.md`
 
 This provides access to:
 - Complete contact list (Angela, Bunny, Saša, Greg, team members)
@@ -69,5 +69,5 @@ This provides access to:
 - Don't overwhelm servers
 
 ## Supplementary Resources
-For advanced scraping: `read ~/.config/opencode/docs/web-scraping-advanced.md`
-For MCP tools: `read ~/.config/opencode/docs/mcp-servers-reference.md`
+For advanced scraping: `~/.config/opencode/docs/web-scraping-advanced.md`
+For MCP tools: `~/.config/opencode/docs/mcp-servers-reference.md`

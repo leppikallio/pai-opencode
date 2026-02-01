@@ -195,12 +195,13 @@ async function ensureSession(): Promise<number> {
   })
   child.unref()
 
-  // Wait for server to be ready
-  for (let i = 0; i < 30; i++) {
+  // Wait for server to be ready.
+  // First launch can take longer (cold start, browser cache warmup).
+  for (let i = 0; i < 150; i++) {
     await Bun.sleep(200)
     try {
       const res = await fetch(`http://localhost:${port}/health`, {
-        signal: AbortSignal.timeout(1000)
+        signal: AbortSignal.timeout(1500)
       })
       if (res.ok) {
         return port

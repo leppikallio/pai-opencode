@@ -38,7 +38,7 @@
 │  SOURCE FILES (you edit)         ARTIFACTS (generated)    REPORT (output)  │
 │                                                                             │
 │  {source}/                       {source}/artifacts/      {source}/report/ │
-│  ├── FINDINGS.md            →    ├── findings.json   →   lib/report-data.ts│
+│  ├── FINDINGS.md            →    ├── findings.json   →   <lib/report-data.ts>│
 │  ├── CRITICAL_ISSUES.md          ├── narrative.json                        │
 │  ├── BLOCKERS.md                 ├── recommendations.json                  │
 │  ├── VISION.md                   ├── roadmap.json                          │
@@ -127,7 +127,7 @@
 When you edit source files and say "regenerate the report":
 
 1. **Assessment Workflow** reads source files → produces `artifacts/*.json`
-2. **Report Workflow** reads `artifacts/*.json` → generates `report/lib/report-data.ts`
+2. **Report Workflow** reads `artifacts/*.json` → generates `<report/lib/report-data.ts>`
 3. **Dev server** hot-reloads → updated report visible
 
 **The artifacts/ directory is the contract between assessment and report workflows.**
@@ -213,7 +213,7 @@ const reportData = {
 }
 ```
 
-Write the assembled data to `{output_dir}/lib/report-data.ts`.
+Write the assembled data to `{output_dir}/<lib/report-data.ts>`.
 
 ### Step 4: Start Dev Server
 
@@ -476,7 +476,7 @@ This template includes:
 
 When generating a report:
 1. Copy the entire template to the output directory
-2. Generate `lib/report-data.ts` with client-specific content:
+2. Generate `<lib/report-data.ts>` with client-specific content:
    - `clientName`: The customer name (e.g., "Quorum Cyber", "Acme Corp")
    - `reportTitle`: The engagement title
    - `reportDate`: Current month/year

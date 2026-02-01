@@ -127,7 +127,7 @@ USER   → Your overrides (never overwritten)
 | Component | SYSTEM Default | USER Override |
 |-----------|----------------|---------------|
 | Response format | `~/.config/opencode/skills/CORE/SYSTEM/RESPONSEFORMAT.md` | `~/.config/opencode/skills/CORE/USER/RESPONSEFORMAT.md` |
-| Security patterns | `~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/` | `~/.config/opencode/USER/PAISECURITYSYSTEM/` |
+| Security patterns | `~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/` | `~/.config/opencode/skills/CORE/USER/PAISECURITYSYSTEM/` |
 | Skill behavior | Skill's `SKILL.md` | `~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/[Skill]/` |
 
 ---

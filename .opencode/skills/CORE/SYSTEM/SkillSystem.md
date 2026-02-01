@@ -192,9 +192,9 @@ science_cycle_time: meso         # Optional: micro | meso | macro
 **Rules:**
 - `name` uses **TitleCase**
 - `description` is a **single line** (not multi-line with `|`)
-- `USE WHEN` keyword is **MANDATORY** (Claude Code parses this for skill activation)
+- `USE WHEN` keyword is **MANDATORY** (skill index parses this)
 - Use intent-based triggers with `OR` for multiple conditions
-- Max 1024 characters (Anthropic hard limit)
+- Keep under 1024 characters (practical limit)
 - **NO separate `triggers:` or `workflows:` arrays in YAML**
 
 ### Science Protocol Compliance (Optional)
@@ -224,7 +224,7 @@ science_cycle_time: meso
 - **Research** - Investigation through hypotheses and evidence gathering
 - **Council** - Debate as parallel hypothesis testing
 
-**See:** `~/.config/opencode/skills/Science/Protocol.md` for the full protocol interface
+**See:** the Science protocol documentation for the full protocol interface
 
 ### 2. Markdown Body (Workflow Routing + Examples + Documentation)
 
@@ -371,9 +371,9 @@ Complete visual content system using **charcoal architectural sketch** aesthetic
 
 | Trigger | Workflow |
 |---------|----------|
-| Blog header/editorial | `Workflows/Essay.md` |
-| Technical diagram | `Workflows/TechnicalDiagrams.md` |
-| Mermaid flowchart | `Workflows/Mermaid.md` |
+| Blog header/editorial | `skills/Art/Workflows/Essay.md` |
+| Technical diagram | `skills/Art/Workflows/TechnicalDiagrams.md` |
+| Mermaid flowchart | `skills/Art/Workflows/Mermaid.md` |
 
 ## Quick Reference
 
@@ -393,7 +393,7 @@ Complete visual content system using **charcoal architectural sketch** aesthetic
 
 PAI maintains a generated skill index at:
 
-- `${PAI_DIR}/skills/skill-index.json` (runtime default: `~/.config/opencode/skills/skill-index.json`)
+- `~/.config/opencode/skills/skill-index.json`
 
 This index is used by PAI helper tooling (e.g. `SkillSearch.ts`) to deterministically discover which skill matches a request.
 
@@ -435,7 +435,7 @@ Context files can reference workflows and tools:
 ```markdown
 # Aesthetic.md (context file)
 
-Use the Essay workflow for blog headers: `Workflows/Essay.md`
+Use the Essay workflow for blog headers: `skills/Art/Workflows/Essay.md`
 Generate images with: `bun Tools/Generate.ts`
 ```
 
@@ -521,7 +521,7 @@ Or manually:
 2. Update YAML frontmatter to single-line description
 3. Add `## Workflow Routing` table
 4. Add `## Examples` section
-5. Move backups to `$PAI_DIR/MEMORY/Backups/`
+5. Move backups to `~/.config/opencode/MEMORY/Backups/`
 6. Verify against checklist
 
 ---
@@ -533,7 +533,7 @@ Or manually:
 **Why Examples Matter:**
 - Anthropic research shows examples improve tool selection accuracy from 72% to 90%
 - Descriptions tell Claude WHEN to activate; examples show HOW the skill works
-- Claude learns the full input→behavior→output pattern, not just trigger keywords
+- The model learns the full input→behavior→output pattern
 
 **Example Format:**
 ```markdown
@@ -581,9 +581,9 @@ description: Complete blog workflow. USE WHEN user mentions doing anything with 
 
 ---
 
-## Complete Canonical Example: Blogging Skill
+## Complete Canonical Example: System Skill
 
-**Reference:** `~/.config/opencode/skills/_BLOGGING/SKILL.md`
+**Reference:** `~/.config/opencode/skills/System/SKILL.md`
 
 ```yaml
 ---
@@ -677,7 +677,7 @@ SkillName/                    # TitleCase directory name
 
 Skills use a **flat hierarchy** - no deep nesting of subdirectories.
 
-**Maximum depth:** `skills/SkillName/Category/`
+**Maximum depth:** `skills/<SkillName>/<Category>/`
 
 ### ✅ ALLOWED (2 levels max)
 
@@ -718,18 +718,18 @@ skills/Research/Workflows/Analysis/Deep.md      # THREE levels - NO
 
 1. **Workflows/** - Execution workflows ONLY
    - All workflows go directly in `Workflows/`, NO subcategories
-   - Correct: `Workflows/CompanyDueDiligence.md`
-   - Wrong: `Workflows/Company/DueDiligence.md`
+    - Correct: `Workflows/<CompanyDueDiligence>.md`
+    - Wrong: `Workflows/<Company>/<DueDiligence>.md`
 
 2. **Tools/** - Executable scripts/tools ONLY
    - CLI tools, automation scripts
-   - Correct: `Tools/Analyze.ts`
-   - Wrong: `Tools/Analysis/Analyze.ts`
+    - Correct: `Tools/<Analyze>.ts`
+    - Wrong: `Tools/<Analysis>/<Analyze>.ts`
 
 **Templates (Prompting skill only):**
 - Templates live in `skills/Prompting/` root, NOT nested
-- Correct: `skills/Prompting/BeCreative.md`
-- Wrong: `skills/Prompting/Templates/BeCreative.md`
+- Correct: `skills/Prompting/Templates/README.md`
+- Wrong: `<skills/Prompting/Templates/Templates.md>`
 
 ### Context/Resource Files Go in Skill Root
 
@@ -758,7 +758,7 @@ skills/SkillName/ApiDocumentation.md         # YES - in root
 If you encounter nested structures deeper than 2 levels:
 1. Flatten immediately
 2. Move files up to proper level
-3. Rename files for clarity if needed (e.g., `CompanyDueDiligence.md` instead of `Company/DueDiligence.md`)
+3. Rename files for clarity if needed (e.g., `CompanyDueDiligence.md` instead of `<Company/DueDiligence.md>`)
 4. Update all references
 
 ---
@@ -943,7 +943,7 @@ bun Generate.ts \
 
 ## How It Works
 
-1. **Skill Activation**: Claude Code reads skill descriptions at startup. The `USE WHEN` clause in the description determines when the skill activates based on user intent.
+1. **Skill Activation**: Skill index generation reads skill descriptions. The `USE WHEN` clause guides routing.
 
 2. **Workflow Routing**: Once the skill is active, the `## Workflow Routing` section determines which workflow file to execute.
 

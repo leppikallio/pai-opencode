@@ -16,7 +16,7 @@ import {
   getYearMonth,
   getTimestamp,
   ensureDir,
-  getCurrentWorkPath,
+  getCurrentWorkPathForSession,
   slugify,
 } from "../lib/paths";
 
@@ -94,9 +94,16 @@ function detectCategory(content: string): string {
  * - ISC.json for completed criteria
  * - THREAD.md for significant content
  */
-export async function extractLearningsFromWork(): Promise<CaptureLearningResult> {
+function normalizeSessionId(sessionId: string): string {
+  return sessionId.replace(/[^a-zA-Z0-9_-]/g, "");
+}
+
+export async function extractLearningsFromWork(sessionIdRaw: string): Promise<CaptureLearningResult> {
   try {
-    const workPath = await getCurrentWorkPath();
+    const sessionId = normalizeSessionId(sessionIdRaw);
+    if (!sessionId) return { success: true, learnings: [] };
+
+    const workPath = await getCurrentWorkPathForSession(sessionId);
     if (!workPath) {
       fileLog("No active work session for learning extraction", "debug");
       return { success: true, learnings: [] };

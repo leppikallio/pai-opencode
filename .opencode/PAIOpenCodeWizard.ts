@@ -343,7 +343,7 @@ function generateSettingsJson(config: InstallConfig, paiDir: string): object {
       "timezone": config.TIMEZONE
     },
     "pai": {
-      "source": "github.com/Steffen025/pai-opencode",
+      "source": "github.com/leppikallio/pai-opencode",
       "upstream": "github.com/danielmiessler/PAI",
       "version": "2.4"
     },

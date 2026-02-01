@@ -102,7 +102,7 @@ main().catch(error => {
 - ✅ Fast development priority
 
 ### Reference Implementation
-**Location:** `~/.config/opencode/Bin/llcli/llcli.ts` (327 lines)
+**Location (example):** `<~/.config/opencode/Bin/llcli/llcli.ts>`
 **Commands:** today, date, search
 **Pattern:** Exactly what this tier generates
 

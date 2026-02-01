@@ -44,7 +44,7 @@ US carriers require A2P 10DLC registration since December 2024. Recommendation: 
 ## Files Affected
 
 - OpenCode port note: the Claude Code hook files listed in the original design do not exist in this runtime.
-- `$PAI_DIR/VoiceServer/server.ts` - Voice notification service
+- `~/.config/opencode/VoiceServer/server.ts` - Voice notification service
 - `plugins/pai-unified.ts` - Session lifecycle + rating kiosk integration
 - `plugins/handlers/agent-capture.ts` - Background agent capture
 - `plugins/lib/file-logger.ts` - TUI-safe debug logging

@@ -75,7 +75,7 @@ bun run ~/.config/opencode/skills/Art/Tools/Generate.ts \
 - Up to 6 object reference images
 - Maximum 14 total reference images per request
 
-**API keys in:** `${PAI_DIR}/.env`
+**API keys in:** `~/.config/opencode/.env`
 
 ## Examples
 

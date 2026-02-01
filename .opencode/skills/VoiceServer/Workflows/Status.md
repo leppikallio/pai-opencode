@@ -7,9 +7,6 @@ Check if the voice server is running and responding.
 1. **Check process:**
 ```bash
 ~/.config/opencode/VoiceServer/status.sh
-
-# If you use a custom runtime root, use:
-#   $PAI_DIR/VoiceServer/status.sh
 ```
 
 2. **Test endpoint:**
@@ -27,9 +24,6 @@ Use the `voice_notify` tool:
 **Server not running:**
 ```bash
 ~/.config/opencode/VoiceServer/start.sh
-
-# Or:
-#   $PAI_DIR/VoiceServer/start.sh
 ```
 
 **Port conflict:**
@@ -37,10 +31,6 @@ Use the `voice_notify` tool:
 lsof -i :8888
 ~/.config/opencode/VoiceServer/stop.sh
 ~/.config/opencode/VoiceServer/start.sh
-
-# Or:
-#   $PAI_DIR/VoiceServer/stop.sh
-#   $PAI_DIR/VoiceServer/start.sh
 ```
 
 **Check logs:**

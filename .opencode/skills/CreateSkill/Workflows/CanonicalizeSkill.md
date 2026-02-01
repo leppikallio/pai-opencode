@@ -118,7 +118,7 @@ find ~/.config/opencode/skills/[SkillName]/ -type d -mindepth 2 -maxdepth 3
 ### Flatten Procedure
 
 1. **Identify nested files**: Find any file 3+ levels deep
-2. **Rename for clarity**: `Category/File.md` → `CategoryFile.md`
+2. **Rename for clarity**: `<Category/File.md>` → `CategoryFile.md`
 3. **Move to parent**: Move up one level to proper location
 4. **Update references**: Search for old paths and update
 
@@ -189,8 +189,8 @@ Running the **WorkflowName** workflow from the **SkillName** skill...
 
 | Workflow | Trigger | File |
 |----------|---------|------|
-| **WorkflowOne** | "trigger phrase one" | `Workflows/WorkflowOne.md` |
-| **WorkflowTwo** | "trigger phrase two" | `Workflows/WorkflowTwo.md` |
+| **WorkflowOne** | "trigger phrase one" | `Workflows/<WorkflowOne>.md` |
+| **WorkflowTwo** | "trigger phrase two" | `Workflows/<WorkflowTwo>.md` |
 
 ## Examples
 

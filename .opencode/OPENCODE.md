@@ -147,4 +147,4 @@ For full documentation, see the README.md in the repository root.
 
 **PAI-OpenCode** - Vanilla PAI 2.4 on OpenCode
 
-Repository: [github.com/Steffen025/pai-opencode](https://github.com/Steffen025/pai-opencode)
+Repository: https://github.com/leppikallio/pai-opencode

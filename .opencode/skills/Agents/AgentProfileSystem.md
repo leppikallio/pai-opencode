@@ -257,7 +257,7 @@ The spawned agent gets:
 Potential future improvements (only if needed):
 
 1. **Dynamic Skill Loading**: If task description matches keywords, automatically append relevant Skill content
-2. **Project-Specific Context**: Load `.pai/agent-context.md` for project-specific patterns
+2. **Project-Specific Context (Optional)**: Load `<.pai/agent-context.md>` for project-specific patterns
 3. **Task History**: Track which agents worked on which tasks for continuity
 4. **Context Caching**: Cache loaded Skills to avoid repeated file reads
 

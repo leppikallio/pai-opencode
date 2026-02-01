@@ -89,7 +89,7 @@ Use the UpdateSearch.ts tool to query PAISYSTEMUPDATES index:
 bun run "~/.config/opencode/skills/System/Tools/UpdateSearch.ts" "security hook"
 
 # With time filter
-bun run "~/.config/opencode/skills/System/Tools/UpdateSearch.ts" "garrett-ai" --since "2026-01-15"
+bun run "~/.config/opencode/skills/System/Tools/UpdateSearch.ts" "<keyword>" --since "YYYY-MM-DD"
 
 # Multiple keywords
 bun run "~/.config/opencode/skills/System/Tools/UpdateSearch.ts" "typescript error fix"
@@ -414,26 +414,25 @@ Found {total} relevant artifacts:
 
 ## Timeline
 
-**2026-01-18 23:57** - Session: Hook development workflow
-- Implemented security-validator hook
-- Added pre-tool-use validation
-- Files: `~/.config/opencode/plugins/handlers/security-validator.ts`
-- Session: [link]
+Example timeline (timestamps illustrative):
 
-**2026-01-18 22:30** - Learning: Git hook security patterns
-- Learned about exit code conventions
-- Pattern: Exit 2 = blocked command
-- Learning: [link]
+**YYYY-MM-DD HH:MM** - Session: <session title>
+- <what changed>
+- Files: `~/.config/opencode/plugins/handlers/<file>.ts`
+- Session: <link>
 
-**2026-01-18 20:15** - Project Update: PAI Upgrade - Session 2
-- Completed hook system refactoring
-- Added capture-all-events hook
-- Project: [link]
+**YYYY-MM-DD HH:MM** - Learning: <learning title>
+- <what was learned>
+- Learning: <link>
+
+**YYYY-MM-DD HH:MM** - Project Update: <update title>
+- <what changed>
+- Project: <link>
 
 ## Key Findings
 
 ### 1. Security Hook Implementation
-**When:** 2026-01-18 23:57
+**When:** YYYY-MM-DD HH:MM
 **What:** Created security-validator hook to block dangerous commands
 **How:**
 - Hook intercepts Bash tool calls via PreToolUse event
@@ -442,17 +441,17 @@ Found {total} relevant artifacts:
 
 **Files Modified:**
 - `~/.config/opencode/plugins/handlers/security-validator.ts` (created)
-- `~/.config/opencode/settings.json` (plugin configuration)
+- Plugin configuration (runtime config file)
 
 **Key Decisions:**
 - Used exit code 2 for blocked commands (vs throwing errors)
 - Regex patterns for reverse shell detection
 - Allow-list for safe rm operations
 
-**Related Commit:** 3de3b79 - "feat(hooks): Add security-validator hook"
+**Related Commit:** <commit hash> - <commit subject>
 
 ### 2. Hook System Architecture
-**When:** 2026-01-18 22:00 - 23:30
+**When:** YYYY-MM-DD HH:MM - HH:MM
 **What:** Refactored hook lifecycle and event system
 **Learning:** Hooks execute in specific order, can modify context
 
@@ -462,7 +461,7 @@ Found {total} relevant artifacts:
 - Added observability integration
 
 ### 3. Testing & Validation
-**When:** 2026-01-18 23:45
+**When:** YYYY-MM-DD HH:MM
 **What:** Tested security patterns with malicious command examples
 **Results:** Successfully blocked all test cases
 
@@ -486,7 +485,7 @@ export default function securityValidator(context: HookContext) {
 ### Files Involved
 - `~/.config/opencode/plugins/handlers/security-validator.ts` (updated)
 - `~/.config/opencode/plugins/pai-unified.ts` (event capture)
-- `~/.config/opencode/settings.json` (plugin configuration)
+- Plugin configuration (runtime config file)
 
 ### Tests Run
 - ✅ Blocked `rm -rf /`
@@ -497,21 +496,21 @@ export default function securityValidator(context: HookContext) {
 ## Related Artifacts
 
 ### Session Documents
-- [Hook development workflow](~/.config/opencode/MEMORY/WORK/2026-01/20260118T225343_hook-development/)
+Example path: `~/.config/opencode/MEMORY/WORK/YYYY-MM/YYYYMMDDTHHMMSS_<slug>/`
 
 ### Learning Documents
-- [Git hook security patterns](~/.config/opencode/MEMORY/LEARNING/Security/20260118_git-hook-security.md)
+Example path: `~/.config/opencode/MEMORY/LEARNING/<Category>/YYYYMMDDTHHMMSS_<slug>.md`
 
 ### Project Updates
-- [PAI Upgrade - Session 2](~/.config/opencode/MEMORY/PAISYSTEMUPDATES/2026/01/20260118_session-2-complete.md)
+Example path: `~/.config/opencode/MEMORY/PAISYSTEMUPDATES/YYYY/MM/YYYYMMDDTHHMMSS_<slug>.md`
 
 ### Commits
-- 3de3b79 - feat(hooks): Add security-validator hook
-- 4d6631a - feat(hooks): Add capture-all-events hook
+- <commit hash> - <subject>
+- <commit hash> - <subject>
 
 ### System Updates
-- [Security Hook Implementation](found via UpdateSearch)
-- [Hook Lifecycle Documentation](found via UpdateSearch)
+- Security Hook Implementation (found via UpdateSearch)
+- Hook Lifecycle Documentation (found via UpdateSearch)
 
 ## Follow-up Questions
 
@@ -543,28 +542,30 @@ Found 10 relevant artifacts
 
 ## Most Relevant
 
-**Session: Hook development workflow** (2026-01-18 23:57)
+**Session: <session title>** (YYYY-MM-DD HH:MM)
 Created security-validator hook to block dangerous commands. Implemented
 pattern matching for reverse shells, data exfiltration, and destructive ops.
 
-**Learning: Git hook security patterns** (2026-01-18 22:30)
+**Learning: <learning title>** (YYYY-MM-DD HH:MM)
 Learned exit code conventions for hooks. Exit 2 = blocked command allows
 Claude Code to handle gracefully without throwing errors.
 
-**Commit: 3de3b79** (2026-01-18 23:58)
-feat(hooks): Add security-validator hook
+**Commit: <commit hash>** (YYYY-MM-DD HH:MM)
+<commit subject>
 Added pre-tool-use validation with dangerous pattern detection.
 
 ## Timeline
-2026-01-18 22:00 - Started hook system work
-2026-01-18 22:30 - Captured learning about hook patterns
-2026-01-18 23:57 - Completed security hook implementation
-2026-01-18 23:58 - Committed changes
+YYYY-MM-DD HH:MM - <milestone>
+YYYY-MM-DD HH:MM - <milestone>
+YYYY-MM-DD HH:MM - <milestone>
+YYYY-MM-DD HH:MM - <milestone>
 
 Full context report:
 ~/.config/opencode/MEMORY/STATE/integrity/{date}_work-recall_{slug}.md
 
 Need more details on any of these?
+
+Note: Example timestamps and paths above may not exist in your runtime.
 ```
 
 ## Advanced Features
@@ -633,23 +634,22 @@ function clusterByTime(results: RecallResult[]): Cluster[] {
 ## Example Usage
 
 ```
-User: "remember when we added the garrett-ai MCP server?"
+User: "remember when we added an MCP server?"
 
-Jeremy: Searching past work for "garrett-ai MCP server"...
+Jeremy: Searching past work for "MCP server"...
 
-Found 8 relevant artifacts from January 2026.
+Found N relevant artifacts.
 
 Most Relevant:
 
-**Session: MCP Server Development** (2026-01-15)
-Implemented garrett-ai MCP server with voice support. Added 5 functions:
-chat_with_garrett, list_conversations, create_conversation,
-get_conversation_history, and chat_with_garrett_voice.
+**Session: MCP Server Development** (YYYY-MM-DD)
+Implemented an MCP server with voice support. Added functions:
+<function_1>, <function_2>, <function_3>.
 
-**Commit: 5a3d891** (2026-01-15 14:23)
-feat(mcp): Add garrett-ai server with voice response
+**Commit: <commit hash>** (YYYY-MM-DD HH:MM)
+feat(mcp): <commit subject>
 
-**Learning: MCP Function Naming** (2026-01-15)
+**Learning: MCP Function Naming** (YYYY-MM-DD)
 Learned convention: mcp__{server-name}__{function-name}
 
 Key technical details:
@@ -658,8 +658,8 @@ Key technical details:
 - Conversation state managed server-side
 
 Files created:
-- ~/.config/opencode/mcp-servers/garrett-ai/index.ts
-- ~/.config/opencode/mcp-servers/garrett-ai/README.md
+- ~/.config/opencode/mcp/<server>/index.ts
+- ~/.config/opencode/mcp/<server>/README.md
 
 Want me to show you the implementation details or related work?
 ```

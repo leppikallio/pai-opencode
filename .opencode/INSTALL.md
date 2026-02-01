@@ -90,7 +90,8 @@ Edit `~/.config/opencode/opencode.json` for OpenCode platform settings.
 | Plugin | 1 | Unified (security + context) |
 | Converter | 1 | For migrating PAI updates |
 
-> **Note:** For detailed installation instructions including the Installation Wizard, see [INSTALL.md](../INSTALL.md) in the repository root.
+> **Note:** For detailed installation instructions including the Installation Wizard, see:
+> https://github.com/leppikallio/pai-opencode/blob/main/INSTALL.md
 
 ## What's Different from Claude Code PAI
 

@@ -18,21 +18,20 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 1. **Send voice notification**:
    Use the `voice_notify` tool:
+   - `message`: "Running WORKFLOWNAME workflow from Apify skill"
 
-- `message`: "Running the WORKFLOWNAME workflow in the Apify skill to ACTION"typescript
-import { scrapeInstagramProfile, searchGoogleMaps } from '~/.config/opencode/skills/Apify/actors'
+2. **Output text notification**:
+   "Running the **WorkflowName** workflow from the **Apify** skill to ACTION..."
 
-// 1. Call the actor wrapper
-const profile = await scrapeInstagramProfile({
-  username: 'target_username',
-  maxPosts: 50
-})
+## Quick Example
 
-// 2. Filter in code - BEFORE data reaches model!
-const viral = profile.latestPosts?.filter(p => p.likesCount > 10000)
+```typescript
+// Run from: ~/.config/opencode/skills/Apify/
+import { scrapeInstagramProfile, searchGoogleMaps } from "./actors";
 
-// 3. Only filtered results reach model context
-console.log(viral) // ~10 posts instead of 50
+const profile = await scrapeInstagramProfile({ username: "target_username", maxPosts: 50 });
+const viral = profile.latestPosts?.filter((p) => p.likesCount > 10_000);
+console.log(viral);
 ```
 
 ## 📚 Examples by Use Case
@@ -41,7 +40,7 @@ console.log(viral) // ~10 posts instead of 50
 
 **Instagram - Track engagement:**
 ```typescript
-import { scrapeInstagramProfile, scrapeInstagramPosts } from '~/.config/opencode/skills/Apify/actors'
+import { scrapeInstagramProfile, scrapeInstagramPosts } from "./actors"
 
 // Get profile with recent posts
 const profile = await scrapeInstagramProfile({
@@ -64,7 +63,7 @@ const topRecent = profile.latestPosts
 
 **LinkedIn - Job search:**
 ```typescript
-import { searchLinkedInJobs } from '~/.config/opencode/skills/Apify/actors'
+import { searchLinkedInJobs } from "./actors"
 
 const jobs = await searchLinkedInJobs({
   keywords: 'AI engineer',
@@ -82,7 +81,7 @@ const topJobs = jobs.filter(j =>
 
 **TikTok - Trend analysis:**
 ```typescript
-import { scrapeTikTokHashtag } from '~/.config/opencode/skills/Apify/actors'
+import { scrapeTikTokHashtag } from "./actors"
 
 const videos = await scrapeTikTokHashtag({
   hashtag: 'ai',
@@ -100,7 +99,7 @@ const viral = videos
 
 **Google Maps - Local business leads:**
 ```typescript
-import { searchGoogleMaps } from '~/.config/opencode/skills/Apify/actors'
+import { searchGoogleMaps } from "./actors"
 
 // Search with contact info extraction
 const places = await searchGoogleMaps({
@@ -134,7 +133,7 @@ console.log(`Found ${qualifiedLeads.length} qualified leads`)
 
 **Google Maps - Review sentiment analysis:**
 ```typescript
-import { scrapeGoogleMapsReviews } from '~/.config/opencode/skills/Apify/actors'
+import { scrapeGoogleMapsReviews } from "./actors"
 
 const reviews = await scrapeGoogleMapsReviews({
   placeUrl: 'https://maps.google.com/maps?cid=12345',
@@ -160,7 +159,7 @@ const complaints = recentNegative.map(r => r.text)
 
 **Amazon - Price monitoring:**
 ```typescript
-import { scrapeAmazonProduct } from '~/.config/opencode/skills/Apify/actors'
+import { scrapeAmazonProduct } from "./actors"
 
 const product = await scrapeAmazonProduct({
   productUrl: 'https://www.amazon.com/dp/B08L5VT894',
@@ -187,7 +186,7 @@ console.log(`Recent issues: ${recentNegative?.length} complaints`)
 
 **Any Website - Custom extraction:**
 ```typescript
-import { scrapeWebsite } from '~/.config/opencode/skills/Apify/actors'
+import { scrapeWebsite } from "./actors"
 
 const products = await scrapeWebsite({
   startUrls: ['https://example.com/products'],
@@ -224,7 +223,7 @@ import {
   scrapeInstagramHashtag,
   scrapeTikTokHashtag,
   searchYouTube
-} from '~/.config/opencode/skills/Apify/actors'
+} from "./actors"
 
 // Run all platforms in parallel
 const [instagramPosts, tiktokVideos, youtubeVideos] = await Promise.all([
@@ -246,7 +245,7 @@ console.log(`Found ${allViral.length} viral posts across 3 platforms`)
 ### Pattern 2: Lead Enrichment Pipeline
 
 ```typescript
-import { searchGoogleMaps, scrapeLinkedInProfile } from '~/.config/opencode/skills/Apify/actors'
+import { searchGoogleMaps, scrapeLinkedInProfile } from "./actors"
 
 // 1. Find businesses on Google Maps
 const restaurants = await searchGoogleMaps({
@@ -279,7 +278,7 @@ import {
   scrapeInstagramProfile,
   scrapeYouTubeChannel,
   scrapeTikTokProfile
-} from '~/.config/opencode/skills/Apify/actors'
+} from "./actors"
 
 async function analyzeCompetitor(username: string) {
   // Gather data from all platforms

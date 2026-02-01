@@ -31,11 +31,18 @@ import {
 import { createHistoryCapture } from "./handlers/history-capture";
 import { fileLog, fileLogError, clearLog } from "./lib/file-logger";
 import { getVoiceId } from "./lib/identity";
-import { ensureDir, getLearningDir, getStateDir, getMemoryDir } from "./lib/paths";
+import { getSessionStatusType } from "./lib/event-normalize";
+import {
+  ensureDir,
+  getLearningDir,
+  getStateDir,
+  getMemoryDir,
+  getCurrentWorkPathForSession,
+} from "./lib/paths";
 import {
   ensureScratchpadSession,
-  clearScratchpadSession,
 } from "./lib/scratchpad";
+import { createWorkSession } from "./handlers/work-tracker";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -446,7 +453,26 @@ export const PaiUnified: Plugin = async (ctx) => {
      */
     "experimental.chat.system.transform": async (_input, output) => {
       try {
-        const scratchpad = await ensureScratchpadSession();
+        const sessionId = getStringProp(_input, "sessionID");
+        let scratchpadDir: string | null = null;
+
+        if (sessionId) {
+          scratchpadDir = await getCurrentWorkPathForSession(sessionId);
+          if (!scratchpadDir) {
+            // Create a work session early so ScratchpadDir is stable.
+            await createWorkSession(sessionId, "work-session");
+            scratchpadDir = await getCurrentWorkPathForSession(sessionId);
+          }
+          if (scratchpadDir) {
+            scratchpadDir = path.join(scratchpadDir, "scratch");
+          }
+        }
+
+        if (!scratchpadDir) {
+          // Fallback for contexts without a sessionID (e.g. agent generation).
+          const scratchpad = await ensureScratchpadSession();
+          scratchpadDir = scratchpad.dir;
+        }
         fileLog("Injecting context...");
 
         // Best-effort: initialize expected MEMORY state files so docs stay accurate.
@@ -459,7 +485,7 @@ export const PaiUnified: Plugin = async (ctx) => {
           if (!fs.existsSync(currentWorkFile)) {
             await fs.promises.writeFile(
               currentWorkFile,
-              JSON.stringify({ work_dir: null }, null, 2)
+              JSON.stringify({ v: "0.2", updated_at: new Date().toISOString(), sessions: {} }, null, 2)
             );
           }
 
@@ -500,7 +526,7 @@ export const PaiUnified: Plugin = async (ctx) => {
         output.system.push(
           [
             "PAI SCRATCHPAD (Binding)",
-            `ScratchpadDir: ${scratchpad.dir}`,
+            `ScratchpadDir: ${scratchpadDir}`,
             "Rules:",
             "- Write ALL temporary artifacts under ScratchpadDir.",
             "- Do NOT write drafts/reviews into the current working directory.",
@@ -523,7 +549,24 @@ export const PaiUnified: Plugin = async (ctx) => {
      */
     "experimental.session.compacting": async (_input, output) => {
       try {
-        const scratchpad = await ensureScratchpadSession();
+        const sessionId = getStringProp(_input, "sessionID");
+        let scratchpadDir: string | null = null;
+
+        if (sessionId) {
+          scratchpadDir = await getCurrentWorkPathForSession(sessionId);
+          if (!scratchpadDir) {
+            await createWorkSession(sessionId, "work-session");
+            scratchpadDir = await getCurrentWorkPathForSession(sessionId);
+          }
+          if (scratchpadDir) {
+            scratchpadDir = path.join(scratchpadDir, "scratch");
+          }
+        }
+
+        if (!scratchpadDir) {
+          const scratchpad = await ensureScratchpadSession();
+          scratchpadDir = scratchpad.dir;
+        }
         fileLog("Compaction: injecting context...");
 
         const result = await loadContext();
@@ -550,7 +593,7 @@ export const PaiUnified: Plugin = async (ctx) => {
         contextArray.push(
           [
             "PAI SCRATCHPAD (Binding)",
-            `ScratchpadDir: ${scratchpad.dir}`,
+            `ScratchpadDir: ${scratchpadDir}`,
             "Rules:",
             "- Write ALL temporary artifacts under ScratchpadDir.",
             "- Do NOT write drafts/reviews into the current working directory.",
@@ -726,17 +769,8 @@ export const PaiUnified: Plugin = async (ctx) => {
         // rather than session.idle. If we see an "idle"-like status, arm kiosk.
         if (eventType === "session.status") {
           try {
-            const data = getProp(eventObj, "data");
-            const dataRec = isRecord(data) ? data : {};
-            const statusStr = String(
-              getProp(dataRec, "status") ??
-                getProp(dataRec, "state") ??
-                getProp(dataRec, "phase") ??
-                ""
-            ).toLowerCase();
-            const dataStr = JSON.stringify(dataRec).toLowerCase();
-
-            if (statusStr === "idle" || dataStr.includes("\"idle\"")) {
+            const statusType = getSessionStatusType(eventObj);
+            if (statusType === "idle") {
               armRatingKiosk();
               fileLog("Rating kiosk armed (session.status)", "debug");
             }
@@ -777,13 +811,6 @@ export const PaiUnified: Plugin = async (ctx) => {
         if (eventType === "session.deleted" || eventType.includes("session.deleted")) {
           disarmRatingKiosk("session deleted");
           fileLog("=== Session Deleted ===", "info");
-
-          // Session scratchpad cleanup (best-effort)
-          try {
-            await clearScratchpadSession();
-          } catch (error) {
-            fileLogError("Scratchpad cleanup failed", error);
-          }
         }
 
         // Log all events for debugging

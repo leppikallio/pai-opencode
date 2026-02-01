@@ -165,7 +165,7 @@ For each discovered domain:
 ## File Organization
 
 ```
-$PAI_DIR/MEMORY/WORK/$(jq -r '.work_dir' $PAI_DIR/MEMORY/STATE/current-work.json)/scratch/YYYY-MM-DD-HHMMSS_due-diligence-[company]/
+~/.config/opencode/MEMORY/WORK/$(jq -r '.work_dir' ~/.config/opencode/MEMORY/STATE/current-work.json)/scratch/YYYY-MM-DD-HHMMSS_due-diligence-[company]/
   phase1-domains.md
   phase2-technical.md
   phase3-research.md

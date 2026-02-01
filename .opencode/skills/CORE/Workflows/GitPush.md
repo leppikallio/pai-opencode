@@ -33,7 +33,7 @@ Before EVERY push: `git remote -v` must show `.claude.git` NOT `PAI.git`
 ### 1. Verify Location and Remote (CRITICAL SECURITY)
 
 ```bash
-# MUST be in ~/.config/opencode (or $PAI_DIR)
+# MUST be in ~/.config/opencode
 cd ~/.config/opencode && pwd
 # Expected output: $HOME/.opencode (your home directory + .opencode)
 

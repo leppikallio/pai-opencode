@@ -13,17 +13,14 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 ## 🚨 MANDATORY: Voice Notification (REQUIRED BEFORE ANY ACTION)
 
-**You MUST send this notification BEFORE doing anything else when this skill is invoked.**
+**When this skill is invoked, do BOTH before any action:**
 
 1. **Send voice notification**:
-   ```voice_notify` (message: "Running the WORKFLOWNAME workflow in the VoiceServer skill to ACTION")``
+   Use the `voice_notify` tool:
+   - `message`: "Running WORKFLOWNAME workflow from VoiceServer skill"
 
 2. **Output text notification**:
-   ```
-   Running the **WorkflowName** workflow in the **VoiceServer** skill to ACTION...
-   ```
-
-**This is not optional. Execute this curl command immediately upon skill invocation.**
+   "Running the **WorkflowName** workflow from the **VoiceServer** skill to ACTION..."
 
 # VoiceServer Skill
 
@@ -53,7 +50,7 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 ### EXECUTE
 - **Notify**: `voice_notify` (message: "...")
-- **Manage**: `$PAI_DIR/VoiceServer/{start,stop,status,restart}.sh` (default: `~/.config/opencode/VoiceServer/...`)
+- **Manage**: `~/.config/opencode/VoiceServer/{start,stop,status,restart}.sh`
 - **Workflow**: `Workflows/Status.md`
 
 ---
@@ -63,15 +60,15 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 **Voice Routing**:
 | Agent | Voice ID | Style |
 |-------|----------|-------|
-| kai | ${KAI_VOICE_ID} | Configure your primary voice |
-| engineer | ${ENGINEER_VOICE_ID} | Configure engineering voice |
-| pentester | ${PENTESTER_VOICE_ID} | Configure pentester voice |
-| architect | ${ARCHITECT_VOICE_ID} | Configure architect voice |
+| assistant | `voices.assistant` | Primary assistant voice |
+| engineer | `voices.engineer` | Engineering voice |
+| architect | `voices.architect` | Architecture voice |
+| security | `voices.security` | Security voice |
 
-Configure voice IDs in your environment or `$PAI_DIR/VoiceServer/voices.json` (default: `~/.config/opencode/VoiceServer/voices.json`)
+Configure voice IDs in `~/.config/opencode/VoiceServer/voices.json`.
 
 **Prosody Quick Reference**:
 - Emotional: `[💥 excited]` `[✨ success]` `[⚠️ caution]` `[🚨 urgent]`
 - Emphasis: `**bold**` for key words, `...` for pause, `--` for break
 
-**Infrastructure**: Server at `$PAI_DIR/VoiceServer/`, Port 8888, Config `voices.json` (default `~/.config/opencode/VoiceServer/`)
+**Infrastructure**: Server at `~/.config/opencode/VoiceServer/`, Port 8888, Config `voices.json`.

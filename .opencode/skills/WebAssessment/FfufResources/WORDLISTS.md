@@ -2,48 +2,50 @@
 
 ## Recommended Wordlists (SecLists)
 
+These file paths are relative to the SecLists repository root (example: `/opt/SecLists`).
+
 ### Directory/File Discovery
-- **Small (Quick scans)**: `Discovery/Web-Content/common.txt` (~4.6k entries)
-- **Medium**: `Discovery/Web-Content/directory-list-2.3-medium.txt` (~220k entries)
-- **Large**: `Discovery/Web-Content/directory-list-2.3-big.txt` (~1.2M entries)
+- **Small (Quick scans)**: Discovery/Web-Content/common.txt (~4.6k entries)
+- **Medium**: Discovery/Web-Content/directory-list-2.3-medium.txt (~220k entries)
+- **Large**: Discovery/Web-Content/directory-list-2.3-big.txt (~1.2M entries)
 - **Raft Collections**:
-  - `Discovery/Web-Content/raft-large-directories.txt`
-  - `Discovery/Web-Content/raft-large-files.txt`
-  - `Discovery/Web-Content/raft-large-words.txt`
+  - Discovery/Web-Content/raft-large-directories.txt
+  - Discovery/Web-Content/raft-large-files.txt
+  - Discovery/Web-Content/raft-large-words.txt
 
 ### API Testing
-- `Discovery/Web-Content/api/api-endpoints.txt`
-- `Discovery/Web-Content/common-api-endpoints-mazen160.txt`
-- `Discovery/Web-Content/swagger-parameters.txt`
+- Discovery/Web-Content/api/api-endpoints.txt
+- Discovery/Web-Content/common-api-endpoints-mazen160.txt
+- Discovery/Web-Content/swagger-parameters.txt
 
 ### Subdomain Discovery
 - **Top lists**:
-  - `Discovery/DNS/subdomains-top1million-5000.txt`
-  - `Discovery/DNS/subdomains-top1million-20000.txt`
-  - `Discovery/DNS/subdomains-top1million-110000.txt`
-- **Combined**: `Discovery/DNS/namelist.txt`
+  - Discovery/DNS/subdomains-top1million-5000.txt
+  - Discovery/DNS/subdomains-top1million-20000.txt
+  - Discovery/DNS/subdomains-top1million-110000.txt
+- **Combined**: Discovery/DNS/namelist.txt
 
 ### Parameter Names
-- `Discovery/Web-Content/burp-parameter-names.txt`
-- `Discovery/Web-Content/raft-large-words.txt`
+- Discovery/Web-Content/burp-parameter-names.txt
+- Discovery/Web-Content/raft-large-words.txt
 
 ### Backup/Config Files
-- `Discovery/Web-Content/backup-files-only.txt`
-- `Discovery/Web-Content/Common-DB-Backups.txt`
+- Discovery/Web-Content/backup-files-only.txt
+- Discovery/Web-Content/Common-DB-Backups.txt
 
 ### Authentication Testing
 - **Usernames**:
-  - `Usernames/top-usernames-shortlist.txt`
-  - `Usernames/xato-net-10-million-usernames.txt`
+  - Usernames/top-usernames-shortlist.txt
+  - Usernames/xato-net-10-million-usernames.txt
 - **Passwords**:
-  - `Passwords/Common-Credentials/10-million-password-list-top-1000.txt`
-  - `Passwords/Common-Credentials/top-20-common-SSH-passwords.txt`
+  - Passwords/Common-Credentials/10-million-password-list-top-1000.txt
+  - Passwords/Common-Credentials/top-20-common-SSH-passwords.txt
 
 ### Technology-Specific
-- **PHP**: `Discovery/Web-Content/PHP.fuzz.txt`
-- **ASP**: `Discovery/Web-Content/IIS.fuzz.txt`
-- **Apache**: `Discovery/Web-Content/Apache.fuzz.txt`
-- **Git**: `Discovery/Web-Content/git-head-potential-file-exposure.txt`
+- **PHP**: Discovery/Web-Content/PHP.fuzz.txt
+- **ASP**: Discovery/Web-Content/IIS.fuzz.txt
+- **Apache**: Discovery/Web-Content/Apache.fuzz.txt
+- **Git**: Discovery/Web-Content/git-head-potential-file-exposure.txt
 
 ## File Extensions by Technology
 

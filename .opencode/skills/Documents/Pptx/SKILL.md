@@ -101,7 +101,7 @@ You need raw XML access for: comments, speaker notes, slide layouts, animations,
 #### Unpacking a file
 `python Ooxml/Scripts/unpack.py <office_file> <output_dir>`
 
-**Note**: The unpack.py script is located at `skills/Documents/Pptx/Ooxml/Scripts/unpack.py` relative to `$PAI_DIR`.
+**Note**: The unpack.py script is located at `~/.config/opencode/skills/Documents/Pptx/Ooxml/Scripts/unpack.py`.
 
 #### Key file structures
 * `ppt/presentation.xml` - Main presentation metadata and slide references
