@@ -51,7 +51,7 @@ touch ~/.config/opencode/skills/[SkillName]/Workflows/[WorkflowName].md
 
 Example:
 ```bash
-touch ~/.config/opencode/skills/Daemon/Workflows/UpdatePublicRepo.md
+touch ~/.config/opencode/skills/<SkillName>/Workflows/<WorkflowName>.md
 ```
 
 3. **Add entry to `## Workflow Routing` section in SKILL.md:**

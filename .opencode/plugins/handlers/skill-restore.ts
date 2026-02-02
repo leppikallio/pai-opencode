@@ -41,17 +41,30 @@ export async function restoreSkillFiles(): Promise<RestoreResult> {
       return result;
     }
 
-    // Find modified SKILL.md files in .opencode/skills/
+    // Find modified SKILL.md files under the installed runtime tree.
+    // Some development setups may run against a repo checkout that contains `.opencode/`.
     let statusOutput = "";
     try {
       statusOutput = execFileSync(
         "git",
-        ["status", "--porcelain", ".opencode/skills/**/SKILL.md"],
+        ["status", "--porcelain", "skills/**/SKILL.md"],
         { encoding: "utf-8" }
       ).trim();
     } catch {
       // If git status fails for any reason, treat as no modified files.
       statusOutput = "";
+    }
+
+    if (!statusOutput) {
+      try {
+        statusOutput = execFileSync(
+          "git",
+          ["status", "--porcelain", ".opencode/skills/**/SKILL.md"],
+          { encoding: "utf-8" }
+        ).trim();
+      } catch {
+        statusOutput = "";
+      }
     }
 
     if (!statusOutput) {
