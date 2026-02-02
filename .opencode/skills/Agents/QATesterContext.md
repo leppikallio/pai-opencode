@@ -13,9 +13,7 @@
 - **skills/CORE/CONSTITUTION.md** - Constitutional principles (Article IX)
 
 ### Testing Standards
-- **skills/Development/TESTING.md** - Testing standards and requirements
-- **skills/Development/TestingPhilosophy.md** - Testing philosophy and approach
-- **skills/Development/METHODOLOGY.md** - Five Completion Gates (QATester is Gate 4)
+- **skills/Browser/SKILL.md** - Browser automation and screenshots
 
 ---
 
@@ -23,7 +21,6 @@
 
 Load these dynamically based on task keywords:
 
-- **CLI testing** → skills/Development/References/cli-testing-standards.md
 - **Browser automation** → skills/Browser/SKILL.md
 
 ---

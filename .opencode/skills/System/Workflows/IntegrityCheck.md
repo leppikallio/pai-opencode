@@ -30,7 +30,10 @@ Running the **IntegrityCheck** workflow from the **System** skill...
 
 ### Step 0: Choose Audit Depth (Fast / Hotspots / Full)
 
-You do NOT need to run all 12 agents every time.
+Default behavior: run the FULL suite.
+
+Only use Fast/Hotspots when you explicitly request it.
+If the request is ambiguous, assume Full.
 
 Use one of these presets:
 
@@ -48,7 +51,7 @@ Use one of these presets:
 **Full (12 agents, ~2-5 min)**
 - Run all agents below.
 
-When in doubt: run **Hotspots**.
+Default: run **Full**.
 
 ### Step 1: Launch 12 Parallel Audit Agents
 
@@ -104,7 +107,7 @@ You are auditing the PAI system for integrity issues.
 Run the low-noise scanner and include its summary:
 
 ```bash
-bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts --scope ~/.config/opencode/skills
+PAI_INTEGRITYCHECK=1 bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts --scope ~/.config/opencode/skills
 ```
 
 3. Return a structured report:
@@ -290,7 +293,7 @@ IntegrityCheck (this) -> DocumentSession -> GitPush
 Prefer the dedicated scanner tool over ad-hoc greps:
 
 ```bash
-bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts --scope ~/.config/opencode/skills
+PAI_INTEGRITYCHECK=1 bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts --scope ~/.config/opencode/skills
 ```
 
 Note: references like `~/.config/opencode/MEMORY/STATE/integrity/<YYYY-MM-DD>.md` are placeholders.

@@ -126,7 +126,6 @@ cd "~/.config/opencode"
 
 # Check core system docs for USER tier path references
 grep -r "~/.config/opencode/skills/CORE/USER/" "skills/CORE/SYSTEM/" --include="*.md" --include="*.ts" 2>/dev/null
-grep -r "~/.config/opencode/USER/" "skills/CORE/SYSTEM/" --include="*.md" --include="*.ts" 2>/dev/null
 
 # Allowed patterns (generic references):
 # - Documentation: "store in the USER tier"
@@ -136,7 +135,6 @@ grep -r "~/.config/opencode/USER/" "skills/CORE/SYSTEM/" --include="*.md" --incl
 
 # Check skills (outside CORE) for USER tier path references
 grep -r "~/.config/opencode/skills/CORE/USER/" "skills/" --include="SKILL.md" | grep -v "skills/CORE/SKILL.md"
-grep -r "~/.config/opencode/USER/" "skills/" --include="SKILL.md" | grep -v "skills/CORE/SKILL.md"
 ```
 
 **Validation rules:**
@@ -415,20 +413,20 @@ Generated: {timestamp}
 
 **Issues Found:**
 
-1. **~/.config/opencode/skills/CORE/SYSTEM/architecture/decisions/ADR-003.md:45**
-   - Contains: "Steffen prefers Bun over npm"
-   - Should be: "${ENGINEER_NAME} prefers Bun over npm"
+1. **~/.config/opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md:XXX**
+   - Contains: real personal identifier (example)
+   - Should be: placeholder like "${ENGINEER_NAME}"
    - Severity: LOW
    - Auto-fix: Available
 
-2. **~/.config/opencode/skills/CORE/SYSTEM/docs/setup.md:12**
-    - Contains: "/Users/username/.opencode" (legacy)
-    - Should be: "~/.config/opencode"
+2. **~/.config/opencode/skills/CORE/SYSTEM/THEPLUGINSYSTEM.md:XXX**
+   - Contains: legacy path example (example)
+   - Should be: "~/.config/opencode"
    - Severity: MEDIUM
    - Auto-fix: Available
 
-   3. **~/.config/opencode/skills/CORE/SYSTEM/workflows/example.md:78**
-    - Contains: "user@example.com"
+3. **~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md:XXX**
+   - Contains: example email (example)
    - Should be: "user@example.com"
    - Severity: MEDIUM
    - Auto-fix: Available
@@ -446,12 +444,12 @@ Generated: {timestamp}
 
 **Issues Found:**
 
-1. **MEMORY/LEARNING/Generic/typescript-patterns.md**
+1. **<MEMORY/LEARNING/Generic/typescript-patterns.md>**
    - Contains personal project reference
    - Should be moved to: MEMORY/LEARNING/Personal/
    - Severity: LOW
 
-2. **MEMORY/RESEARCH/2026-01/api-comparison.md**
+2. **<MEMORY/RESEARCH/2026-01/api-comparison.md>**
    - Contains API key in example code
    - Should be: placeholder value
    - Severity: MEDIUM
@@ -488,7 +486,7 @@ Generated: {timestamp}
 
 ### Credentials
 - Passwords: 0 ✅
-- API keys: 1 ⚠️ (in MEMORY/RESEARCH/api-comparison.md)
+- API keys: 1 ⚠️ (in <MEMORY/RESEARCH/api-comparison.md>)
 - Tokens: 0 ✅
 - Status: MINOR ISSUE
 
@@ -516,13 +514,13 @@ None found ✅
 None found ✅
 
 ### Medium (3)
-1. ~/.config/opencode/skills/CORE/SYSTEM/docs/setup.md - hardcoded path
-2. ~/.config/opencode/skills/CORE/SYSTEM/workflows/example.md - real email
-3. ~/.config/opencode/MEMORY/RESEARCH/2026-01/api-comparison.md - API key in example
+1. ~/.config/opencode/skills/CORE/SYSTEM/THEPLUGINSYSTEM.md - hardcoded path example
+2. ~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md - real email in example
+3. <~/.config/opencode/MEMORY/RESEARCH/2026-01/api-comparison.md> - API key in example
 
 ### Low (2)
-1. ~/.config/opencode/skills/CORE/SYSTEM/architecture/decisions/ADR-003.md - personal name
-2. ~/.config/opencode/MEMORY/LEARNING/Generic/typescript-patterns.md - wrong category
+1. ~/.config/opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md - personal name
+2. <~/.config/opencode/MEMORY/LEARNING/Generic/typescript-patterns.md> - wrong category
 
 ## Recommendations
 
@@ -611,21 +609,21 @@ Apply auto-fixes? [y/N]:
 ```typescript
 const autoFixes = [
   {
-    file: "~/.config/opencode/skills/CORE/SYSTEM/architecture/decisions/ADR-003.md",
+    file: "~/.config/opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md",
     line: 45,
     original: "Steffen prefers",
     replacement: "${ENGINEER_NAME} prefers",
     description: "Replace personal name with placeholder"
   },
   {
-    file: "~/.config/opencode/skills/CORE/SYSTEM/docs/setup.md",
+    file: "~/.config/opencode/skills/CORE/SYSTEM/THEPLUGINSYSTEM.md",
     line: 12,
     original: "/Users/username/.opencode" (legacy),
     replacement: "~/.config/opencode",
     description: "Replace hardcoded path with variable"
   },
   {
-    file: "~/.config/opencode/skills/CORE/SYSTEM/workflows/example.md",
+    file: "~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md",
     line: 78,
     original: "user@example.com",
     replacement: "user@example.com",

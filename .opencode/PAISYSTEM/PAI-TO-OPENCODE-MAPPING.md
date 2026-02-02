@@ -166,7 +166,6 @@ These PAI 2.4 components are not applicable to OpenCode:
 | `VoiceServer/` | Voice notifications server - present in runtime |
 | `lib/migration/` | PAI version migration tools |
 | `PAIInstallWizard.ts` | Claude Code specific installer |
-| `statusline-command.sh` | Terminal statusline integration |
 | `settings.json` hooks section | Different plugin architecture |
 
 ---

@@ -77,9 +77,9 @@ User: "Check for secrets before I push"
 
 **Example 7: Recall Past Work**
 ```
-User: "We just worked on the status line - why broken again?"
+User: "We just changed the plugin - why broken again?"
 → Invokes WorkContextRecall workflow
-→ Searches MEMORY/, git history for "status line"
+→ Searches MEMORY/, git history for "plugin" and related terms
 → Presents timeline of changes and possible regression
 ```
 

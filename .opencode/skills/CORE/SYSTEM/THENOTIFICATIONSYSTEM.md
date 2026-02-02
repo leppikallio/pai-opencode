@@ -238,7 +238,7 @@ In the OpenCode port, notifications are primarily handled via the local **VoiceS
 
 To send a notification, use the `voice_notify` tool:
 
-- `message`: short, speakable status line
+- `message`: short, speakable summary
 - `title`: optional title
 - `voice_id`: optional voice override
 

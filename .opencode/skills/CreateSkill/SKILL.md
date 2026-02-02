@@ -49,21 +49,21 @@ MANDATORY skill creation framework for ALL skill creation requests.
 ### ✅ ALLOWED (2 levels max)
 
 ```
-skills/SkillName/SKILL.md                    # Skill root
-skills/SkillName/Workflows/Create.md         # Workflow - one level deep - GOOD
-skills/SkillName/Tools/Manage.ts             # Tool - one level deep - GOOD
-skills/SkillName/QuickStartGuide.md          # Context file - in root - GOOD
-skills/SkillName/Examples.md                 # Context file - in root - GOOD
+skills/<SkillName>/SKILL.md                    # Skill root
+skills/<SkillName>/Workflows/Create.md         # Workflow - one level deep - GOOD
+skills/<SkillName>/Tools/Manage.ts             # Tool - one level deep - GOOD
+skills/<SkillName>/QuickStartGuide.md          # Context file - in root - GOOD
+skills/<SkillName>/Examples.md                 # Context file - in root - GOOD
 ```
 
 ### ❌ FORBIDDEN (Too deep OR wrong location)
 
 ```
-skills/SkillName/Resources/Guide.md              # Context files go in root, NOT Resources/
-skills/SkillName/Docs/Examples.md                # Context files go in root, NOT Docs/
-skills/SkillName/Workflows/Category/File.md      # THREE levels - NO
-skills/SkillName/Templates/Primitives/File.md    # THREE levels - NO
-skills/SkillName/Tools/Utils/Helper.ts           # THREE levels - NO
+skills/<SkillName>/Resources/Guide.md              # Context files go in root, NOT Resources/
+skills/<SkillName>/Docs/Examples.md                # Context files go in root, NOT Docs/
+skills/<SkillName>/Workflows/Category/File.md      # THREE levels - NO
+skills/<SkillName>/Templates/Primitives/File.md    # THREE levels - NO
+skills/<SkillName>/Tools/Utils/Helper.ts           # THREE levels - NO
 ```
 
 ### Allowed Subdirectories

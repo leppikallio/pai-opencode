@@ -24,10 +24,9 @@
 
 Load these dynamically based on task keywords:
 
-- **Academic/Scholarly** → skills/Research/Workflows/AcademicResearch.md
-- **Multi-query** → skills/Research/Workflows/QueryDecomposition.md
-- **Synthesis** → skills/Research/Workflows/SourceSynthesis.md
-- **Strategic** → skills/Research/Workflows/StrategicAnalysis.md
+- **Quick** → skills/Research/Workflows/QuickResearch.md
+- **Standard** → skills/Research/Workflows/StandardResearch.md
+- **Extensive** → skills/Research/Workflows/ExtensiveResearch.md
 
 ---
 

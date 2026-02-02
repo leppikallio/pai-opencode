@@ -75,8 +75,7 @@ This directory stores information your AI needs about YOU. Content here is NEVER
 │   ├── README.md          # Terminal setup guide
 │   ├── kitty.conf         # Kitty configuration
 │   └── ZSHRC              # Shell configuration
-└── STATUSLINE/            # Status line customization
-    └── README.md          # Status line guide
+
 ```
 
 ---

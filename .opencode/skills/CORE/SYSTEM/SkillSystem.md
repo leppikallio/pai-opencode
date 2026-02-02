@@ -428,7 +428,7 @@ SkillSearch('art tools')        # Loads Tools.md from skill root
 Or reference them directly:
 ```bash
 # Read specific context file
-Read ~/.config/opencode/skills/Art/Aesthetic.md
+Read ~/.config/opencode/skills/CORE/Aesthetic.md
 ```
 
 Context files can reference workflows and tools:

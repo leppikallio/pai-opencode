@@ -32,6 +32,10 @@ cd pai-opencode
 # Install/upgrade the runtime tree
 bun Tools/Install.ts
 
+# CI / automation: skip post-install verification if needed
+# (Default behavior runs ScanBrokenRefs and fails on missing refs)
+bun Tools/Install.ts --target "$HOME/.config/opencode" --prune --no-verify
+
 # Note: Agent models are defined explicitly in `~/.config/opencode/agents/*.md`.
 # The installer does not rewrite agent models unless you opt in.
 

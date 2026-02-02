@@ -170,7 +170,7 @@ Workflow STOPPED.
 
 Detected secrets in:
 - .env (API keys)
-- config/credentials.json (tokens)
+- <config/credentials.json> (tokens, if present)
 
 Action Required:
 1. Remove secrets from files

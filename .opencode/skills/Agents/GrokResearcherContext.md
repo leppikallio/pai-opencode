@@ -24,10 +24,9 @@
 
 Load these dynamically based on task keywords:
 
-- **Social/Political** → skills/Research/Workflows/SocialAnalysis.md
-- **X/Twitter** → skills/Research/Workflows/XResearch.md
-- **Fact-checking** → skills/Research/Workflows/FactChecking.md
-- **Unbiased** → skills/Research/Workflows/UnbiasedAnalysis.md
+- **Quick** → skills/Research/Workflows/QuickResearch.md
+- **Standard** → skills/Research/Workflows/StandardResearch.md
+- **Extensive** → skills/Research/Workflows/ExtensiveResearch.md
 
 ---
 

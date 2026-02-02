@@ -426,7 +426,7 @@ Generating documents for undocumented work...
 Documentation coverage is now 80%.
 
 Full summary saved to:
-~/.config/opencode/MEMORY/PAISYSTEMUPDATES/2026/01/20260119_document-recent-summary.md
+~/.config/opencode/MEMORY/PAISYSTEMUPDATES/YYYY/MM/YYYYMMDDTHHMMSS_document-recent-summary.md
 
 Would you like me to review any of the generated documents?
 ```
