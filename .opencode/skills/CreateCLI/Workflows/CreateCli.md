@@ -627,7 +627,7 @@ Documentation: ~/.config/opencode/Bin/{{CLI_NAME}}/README.md
 
 **Generated Output:**
 ```
-✅ CLI Created: ~/.config/opencode/Bin/notioncli/
+✅ CLI Created: ~/.config/opencode/Bin/{{CLI_NAME}}/
 
 Files generated:
 - notioncli.ts (342 lines)
@@ -646,7 +646,7 @@ Commands available:
 Next steps:
 1. Add NOTION_API_KEY=your_key to ~/.config/opencode/.env
 2. Test: notioncli databases
-3. Read: ~/.config/opencode/Bin/notioncli/README.md
+3. Read: ~/.config/opencode/Bin/{{CLI_NAME}}/README.md
 
 The CLI follows llcli pattern with type safety, error handling,
 and comprehensive documentation.
@@ -740,7 +740,7 @@ Show real usage examples, not just flag descriptions.
 Run `--help` and version command before reporting success.
 
 ### 8. **Follow llcli Pattern**
-Use proven structure from ~/.config/opencode/Bin/llcli/ as reference.
+Use proven structure from ~/.config/opencode/Bin/{{REFERENCE_CLI_NAME}}/ as reference (if present).
 
 ---
 

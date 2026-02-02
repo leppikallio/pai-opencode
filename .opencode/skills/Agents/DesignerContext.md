@@ -13,8 +13,7 @@
 - **skills/CORE/CONSTITUTION.md** - Constitutional principles
 
 ### Design Standards
-- **skills/FrontendDesign/SKILL.md** - Frontend design workflows and patterns
-- **skills/FrontendDesign/Standards.md** - Design system standards and principles
+- **skills/CORE/SYSTEM/BROWSERAUTOMATION.md** - Visual verification requirements
 
 ---
 
@@ -22,10 +21,9 @@
 
 Load these dynamically based on task keywords:
 
-- **Accessibility** → skills/FrontendDesign/References/AccessibilityGuidelines.md
-- **Responsive** → skills/FrontendDesign/References/ResponsivePatterns.md
-- **Component** → skills/FrontendDesign/References/ComponentPatterns.md
-- **Review** → skills/FrontendDesign/Workflows/DesignReview.md
+- **Accessibility** → skills/CORE/SYSTEM/BROWSERAUTOMATION.md
+- **Responsive** → skills/CORE/SYSTEM/BROWSERAUTOMATION.md
+- **Review** → skills/CORE/SYSTEM/BROWSERAUTOMATION.md
 
 ---
 

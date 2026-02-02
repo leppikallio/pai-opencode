@@ -302,33 +302,35 @@ Brief description.
 
 ## Plugin System Architecture
 
-### Hook Lifecycle
+### OpenCode Plugin Lifecycle
+
+PAI runtime behavior is implemented via OpenCode plugins, not legacy `settings.json` hook maps.
+
+At runtime, plugins are auto-discovered under `~/.config/opencode/plugins/`.
+
+Key hooks used by PAI:
+- `experimental.chat.system.transform` (session start context injection)
+- `experimental.session.compacting` (pre-compaction context injection)
+- `tool.execute.before` (security validation + tool-before capture)
+- `tool.execute.after` (tool-after capture + subagent capture)
+- `permission.ask` (best-effort permission gating)
+- `event` (session lifecycle + history capture)
+
+High-level lifecycle:
 
 ```
-┌─────────────────┐
-│  Session Start  │──► Load CORE context
-└─────────────────┘
+session.created
+  -> experimental.chat.system.transform (inject CORE context)
 
-┌─────────────────┐
-│   Tool Use      │──► Logging/validation
-└─────────────────┘
+tool calls
+  -> tool.execute.before (validate + capture)
+  -> tool.execute.after  (capture)
 
-┌─────────────────┐
-│  Session Stop   │──► Capture session summary
-└─────────────────┘
-```
+response completion
+  -> event: session.idle / session.status (idle-like)
 
-### Hook Configuration
-
-Located in `settings.json`:
-
-```json
-{
-  "hooks": {
-    "SessionStart": ["path/to/hook.ts"],
-    "Stop": ["path/to/hook.ts"]
-  }
-}
+session finalization
+  -> event: session.deleted (hard finalize)
 ```
 
 ---

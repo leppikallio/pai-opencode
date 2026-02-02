@@ -30,7 +30,60 @@ type Options = {
   applyProfile: boolean;
   prune: boolean;
   installDeps: boolean;
+  verify: boolean;
 };
+
+function verifyCrossReferences(args: { targetDir: string; dryRun: boolean; enabled: boolean }) {
+  if (!args.enabled) {
+    console.log("[write] verify: skipped (--no-verify)");
+    return;
+  }
+
+  const toolPath = path.join(args.targetDir, "skills", "System", "Tools", "ScanBrokenRefs.ts");
+  if (!isFile(toolPath)) {
+    console.log(`[write] verify: skipped (missing ${toolPath})`);
+    return;
+  }
+
+  const scope = path.join(args.targetDir, "skills");
+  if (args.dryRun) {
+    console.log(`[dry] verify: would run ScanBrokenRefs on ${scope}`);
+    return;
+  }
+
+  try {
+    const out = execSync(
+      `bun "${toolPath}" --root "${args.targetDir}" --scope "${scope}" --format json --limit 50000 --allow-standalone`,
+      {
+        encoding: "utf-8",
+        stdio: ["ignore", "pipe", "inherit"],
+        env: { ...process.env, PAI_DIR: args.targetDir, PAI_INTEGRITYCHECK: "1" },
+      }
+    );
+
+    const parsed = JSON.parse(out) as { count?: number };
+    const count = typeof parsed.count === "number" ? parsed.count : NaN;
+    if (Number.isFinite(count) && count === 0) {
+      console.log("[write] verify: ScanBrokenRefs (ok)");
+      return;
+    }
+
+    console.log("[write] verify: ScanBrokenRefs found missing refs");
+    execSync(
+      `PAI_INTEGRITYCHECK=1 bun "${toolPath}" --root "${args.targetDir}" --scope "${scope}" --limit 200 --verbose`,
+      {
+        stdio: "inherit",
+        env: { ...process.env, PAI_DIR: args.targetDir, PAI_INTEGRITYCHECK: "1" },
+      }
+    );
+    throw new Error(`verify failed: ScanBrokenRefs count=${String(parsed.count)}`);
+  } catch (err) {
+    throw new Error(
+      `Post-install verification failed (ScanBrokenRefs). ` +
+        `Fix missing references before continuing.\n${String(err)}`
+    );
+  }
+}
 
 function maybeGenerateSkillIndex(args: { targetDir: string; dryRun: boolean }) {
   const toolPath = path.join(args.targetDir, "skills", "CORE", "Tools", "GenerateSkillIndex.ts");
@@ -90,6 +143,7 @@ function usage(opts: Partial<Options> = {}) {
   console.log("  --migrate-from-repo    Seed runtime USER/MEMORY from source tree");
   console.log("  --apply-profile        Rewrite agent model frontmatter (disabled by default)");
   console.log("  --prune                Delete unmanaged files from target (safe)");
+  console.log("  --no-verify             Skip post-install verification");
   console.log("  --no-install-deps      Skip bun install dependency step");
   console.log("  --dry-run              Print actions without writing");
   console.log("  -h, --help             Show help");
@@ -103,6 +157,7 @@ function parseArgs(argv: string[]): Options | null {
   let applyProfile = false;
   let prune = false;
   let installDeps = true;
+  let verify = true;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -127,6 +182,10 @@ function parseArgs(argv: string[]): Options | null {
       installDeps = false;
       continue;
     }
+    if (arg === "--no-verify") {
+      verify = false;
+      continue;
+    }
     if (arg === "--target") {
       const v = argv[i + 1];
       if (!v) throw new Error("Missing value for --target");
@@ -144,7 +203,7 @@ function parseArgs(argv: string[]): Options | null {
     throw new Error(`Unknown option: ${arg}`);
   }
 
-  return { targetDir, sourceDir, dryRun, migrateFromRepo, applyProfile, prune, installDeps };
+  return { targetDir, sourceDir, dryRun, migrateFromRepo, applyProfile, prune, installDeps, verify };
 }
 
 function hasNodeModule(pkgDir: string, name: string): boolean {
@@ -273,6 +332,52 @@ function removeLegacyOpenCodeTools(args: { targetDir: string; dryRun: boolean })
       fs.unlinkSync(legacyPath);
     } catch {
       // best-effort
+    }
+  }
+}
+
+function removeLegacyStatusLineDocs(args: { targetDir: string; dryRun: boolean }) {
+  // Status line is not supported in OpenCode. Remove legacy docs/config artifacts.
+  const legacyUserDir = path.join(args.targetDir, "skills", "CORE", "USER", "STATUSLINE");
+  const legacyScript = path.join(args.targetDir, "statusline-command.sh");
+  const userReadme = path.join(args.targetDir, "skills", "CORE", "USER", "README.md");
+
+  if (isDir(legacyUserDir)) {
+    const prefix = args.dryRun ? "[dry]" : "[write]";
+    console.log(`${prefix} remove legacy dir skills/CORE/USER/STATUSLINE`);
+    removePath(legacyUserDir, args.dryRun);
+  }
+
+  if (isFile(legacyScript)) {
+    const prefix = args.dryRun ? "[dry]" : "[write]";
+    console.log(`${prefix} remove legacy file statusline-command.sh`);
+    removePath(legacyScript, args.dryRun);
+  }
+
+  // Remove legacy mentions from preserved USER README (best-effort, narrow match).
+  const readmeRaw = readFileSafe(userReadme);
+  if (readmeRaw.includes("STATUSLINE/")) {
+    const lines = readmeRaw.split(/\r?\n/);
+    const out: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (line.includes("STATUSLINE/")) {
+        // Also drop the next line if it's the indented README entry.
+        const next = lines[i + 1] || "";
+        if (next.includes("README.md") && (next.toLowerCase().includes("status") || next.includes("guide"))) {
+          i++;
+        }
+        continue;
+      }
+      out.push(line);
+    }
+
+    const updated = out.join("\n");
+    if (updated !== readmeRaw) {
+      const prefix = args.dryRun ? "[dry]" : "[write]";
+      console.log(`${prefix} remove legacy STATUSLINE mention from skills/CORE/USER/README.md`);
+      writeFileSafe(userReadme, updated, args.dryRun);
     }
   }
 }
@@ -618,7 +723,7 @@ function pruneDirRecursive(
 function sync(mode: Mode, opts: Options) {
   if (mode !== "sync") throw new Error(`Unsupported mode: ${mode}`);
 
-  const { sourceDir, targetDir, dryRun, migrateFromRepo, applyProfile, prune, installDeps } = opts;
+  const { sourceDir, targetDir, dryRun, migrateFromRepo, applyProfile, prune, installDeps, verify } = opts;
   if (!isDir(sourceDir)) {
     throw new Error(`Source directory not found: ${sourceDir}`);
   }
@@ -727,6 +832,9 @@ function sync(mode: Mode, opts: Options) {
 
   // Cleanup legacy PAI helper scripts in OpenCode tool namespace.
   removeLegacyOpenCodeTools({ targetDir, dryRun });
+
+  // Remove unsupported/deprecated status line artifacts.
+  removeLegacyStatusLineDocs({ targetDir, dryRun });
 
   // Seed MEMORY only if requested or missing.
   const srcMemory = path.join(sourceDir, "MEMORY");
@@ -837,6 +945,9 @@ function sync(mode: Mode, opts: Options) {
 
   // Generate skills/skill-index.json for deterministic skill discovery.
   maybeGenerateSkillIndex({ targetDir, dryRun });
+
+  // Post-install verification (default): ensure skill cross-references resolve.
+  verifyCrossReferences({ targetDir, dryRun, enabled: verify });
 
   // Ensure runtime dependencies exist for code-first tools (e.g., Playwright).
   // This is best-effort but runs by default so skills work immediately.

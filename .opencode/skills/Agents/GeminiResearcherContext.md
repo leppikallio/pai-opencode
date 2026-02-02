@@ -24,10 +24,9 @@
 
 Load these dynamically based on task keywords:
 
-- **Multi-perspective** → skills/Research/Workflows/MultiPerspectiveAnalysis.md
-- **Scenario** → skills/Research/Workflows/ScenarioPlanning.md
-- **Comprehensive** → skills/Research/Workflows/ComprehensiveCoverage.md
-- **Parallel** → skills/Research/Workflows/ParallelResearch.md
+- **Quick** → skills/Research/Workflows/QuickResearch.md
+- **Standard** → skills/Research/Workflows/StandardResearch.md
+- **Extensive** → skills/Research/Workflows/ExtensiveResearch.md
 
 ---
 

@@ -61,7 +61,7 @@ DETAILED EXPLANATION:
 - src/script_generator.py: Converts YAML data to shell scripts.
 - src/jamf_api.py: Handles Jamf Pro API interactions.
 - src/main.py: Main script to run the process.
-- config/example.yaml: Example YAML configuration file.
+- ./config/example.yaml: Example YAML configuration file.
 - logs/upload.log: Logs upload activities.
 - tests/test_yaml_parser.py: Tests YAML parser.
 - tests/test_script_generator.py: Tests script generator.

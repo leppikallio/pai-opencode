@@ -24,8 +24,8 @@ Load these dynamically based on task keywords:
 
 - **Diagram/Technical** → skills/Art/Workflows/TechnicalDiagrams.md
 - **Blog/Essay/Header** → skills/Art/Workflows/Essay.md
-- **Video** → skills/Art/Workflows/Video.md
-- **Thumbnail** → skills/Art/Workflows/YouTubeThumbnail.md
+- **Video** → (not implemented in Art workflows)
+- **Thumbnail** → skills/Art/Workflows/AdHocYouTubeThumbnail.md
 - **Framework** → skills/Art/Workflows/Frameworks.md
 - **Comparison** → skills/Art/Workflows/Comparisons.md
 

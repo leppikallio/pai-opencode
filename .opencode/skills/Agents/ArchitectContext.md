@@ -10,11 +10,11 @@
 
 ### Constitutional Foundation
 - **skills/CORE/CONSTITUTION.md** - Foundational architectural principles
-- **skills/CORE/CoreStack.md** - Stack preferences (TypeScript > Python, bun > npm, etc.)
+- **skills/CORE/CoreStack.md** - Stack preferences and tooling
 
 ### Development Methodology
-- **skills/Development/METHODOLOGY.md** - Spec-driven, test-driven development approach
-- **skills/Development/SKILL.md** - Development skill workflows and patterns
+- **skills/CORE/SYSTEM/CLIFIRSTARCHITECTURE.md** - Deterministic code-first workflow
+- **skills/CORE/SYSTEM/AISTEERINGRULES.md** - Guardrails and change discipline
 
 ### Planning & Decision-Making
 - Use **/plan mode** for non-trivial implementation tasks
@@ -26,8 +26,8 @@
 
 Load these dynamically based on task keywords:
 
-- **Testing** → skills/Development/TESTING.md, skills/Development/TestingPhilosophy.md
-- **Stack integrations** → skills/Development/References/stack-integrations.md
+- **Testing** → skills/CORE/SYSTEM/AISTEERINGRULES.md
+- **Stack integrations** → skills/CORE/CoreStack.md
 
 ---
 

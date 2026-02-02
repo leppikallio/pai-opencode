@@ -67,7 +67,7 @@ Each `*Context.md` file follows this simple structure:
 ## Required Knowledge (Pre-load from Skills)
 
 ### [Category]
-- **skills/Path/To/File.md** - Description of what this provides
+- **skills/<Path>/To/File.md** - Description of what this provides
 
 ---
 
@@ -75,7 +75,7 @@ Each `*Context.md` file follows this simple structure:
 
 Load these dynamically based on task keywords:
 
-- **keyword** → skills/Path/To/Relevant.md
+- **keyword** → skills/<Path>/To/Relevant.md
 
 ---
 

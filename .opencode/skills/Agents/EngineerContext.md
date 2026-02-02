@@ -13,10 +13,8 @@
 - **skills/CORE/CONSTITUTION.md** - Constitutional principles
 
 ### Development Standards
-- **skills/Development/SKILL.md** - Development workflows and patterns
-- **skills/Development/METHODOLOGY.md** - Spec-driven, test-driven methodology
-- **skills/Development/TESTING.md** - Testing standards and requirements
-- **skills/Development/TestingPhilosophy.md** - TDD philosophy and approach
+- **skills/CORE/SYSTEM/AISTEERINGRULES.md** - One-change-at-a-time, verify before claiming
+- **skills/CORE/SYSTEM/CLIFIRSTARCHITECTURE.md** - CLI-first, code-first integration
 
 ---
 
@@ -24,9 +22,9 @@
 
 Load these dynamically based on task keywords:
 
-- **Test/TDD** → skills/Development/TESTING.md, skills/Development/TestingPhilosophy.md
-- **CLI testing** → skills/Development/References/cli-testing-standards.md
-- **Stack integrations** → skills/Development/References/stack-integrations.md
+- **Test/TDD** → skills/CORE/SYSTEM/AISTEERINGRULES.md
+- **CLI testing** → skills/CORE/SYSTEM/CLIFIRSTARCHITECTURE.md
+- **Stack integrations** → skills/CORE/CoreStack.md
 
 ---
 

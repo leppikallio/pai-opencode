@@ -2,20 +2,26 @@
 
 Scan markdown files for local file references that do not exist.
 
+Safety: this tool refuses to run unless invoked from the System IntegrityCheck
+workflow (`PAI_INTEGRITYCHECK=1`) or you pass `--allow-standalone`.
+
 ## Usage
 
 ```bash
 bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts --help
 
 # Default: scan ~/.config/opencode/skills
-bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts
+PAI_INTEGRITYCHECK=1 bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts
 
 # Scan a narrower scope
-bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts \
+PAI_INTEGRITYCHECK=1 bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts \
   --scope ~/.config/opencode/skills/System
 
 # JSON output
-bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts --format json
+PAI_INTEGRITYCHECK=1 bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts --format json
+
+# Standalone run (explicit)
+bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts --allow-standalone
 ```
 
 ## What It Checks

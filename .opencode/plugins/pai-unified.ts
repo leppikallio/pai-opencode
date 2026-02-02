@@ -661,6 +661,50 @@ export const PaiUnified: Plugin = async (ctx) => {
     },
 
     /**
+     * PERMISSION GATING (best-effort)
+     *
+     * OpenCode may ask permission for certain operations. When it does,
+     * enforce PAI security policy by mapping:
+     * - block   -> deny
+     * - confirm -> ask
+     * - allow   -> allow
+     *
+     * Note: Hard enforcement remains in tool.execute.before (throw on block).
+     */
+    "permission.ask": async (input, output) => {
+      try {
+        const inRec = input as UnknownRecord;
+        const argsRaw = (inRec.args ?? {}) as Record<string, unknown>;
+        const args = normalizeArgsTilde(argsRaw) as Record<string, unknown>;
+
+        const result = await validateSecurity({
+          tool: String(inRec.tool ?? ""),
+          args,
+          permission: getStringProp(inRec, "permission"),
+        });
+
+        if (result.action === "block") {
+          output.status = "deny";
+          fileLog(`PERMISSION DENY: ${result.reason}`, "warn");
+          return;
+        }
+
+        if (result.action === "confirm") {
+          output.status = "ask";
+          fileLog(`PERMISSION ASK: ${result.reason}`, "info");
+          return;
+        }
+
+        output.status = "allow";
+        fileLog(`PERMISSION ALLOW: ${result.reason}`, "debug");
+      } catch (error) {
+        // Fail-safe: if validator fails, require confirmation.
+        output.status = "ask";
+        fileLogError("permission.ask security validation failed", error);
+      }
+    },
+
+    /**
      * POST-TOOL EXECUTION (PostToolUse + AgentOutputCapture equivalent)
      *
      * Called after tool execution.

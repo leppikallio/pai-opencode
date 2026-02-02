@@ -24,22 +24,22 @@ Running the **WorkflowName** workflow in the **Aphorisms** skill to ACTION...
 
 **When user requests finding perfect aphorism for newsletter content:**
 Examples: "find aphorism for this newsletter", "find quote for this content", "what aphorism fits this", "suggest quote for newsletter", "match aphorism to this article", "perfect quote for this", "aphorism recommendation"
-→ **READ:** ~/.config/opencode/skills/aphorisms/Workflows/Find-aphorism.md
+→ **READ:** ~/.config/opencode/skills/Aphorisms/Workflows/FindAphorism.md
 → **EXECUTE:** Analyze content themes and recommend matching aphorism from database
 
 **When user requests adding new aphorism to database:**
 Examples: "add this quote", "add aphorism", "save this quote", "add to aphorism database", "new aphorism", "store this quote", "include this in collection"
-→ **READ:** ~/.config/opencode/skills/aphorisms/Workflows/Add-aphorism.md
+→ **READ:** ~/.config/opencode/skills/Aphorisms/Workflows/AddAphorism.md
 → **EXECUTE:** Add new aphorism with proper metadata and theme tagging
 
 **When user requests researching specific thinker's quotes:**
 Examples: "research Hitchens quotes", "find Feynman aphorisms", "what did Spinoza say about", "get quotes from Sam Harris", "research David Deutsch wisdom", "thinker quotes on [topic]"
-→ **READ:** ~/.config/opencode/skills/aphorisms/Workflows/Research-thinker.md
+→ **READ:** ~/.config/opencode/skills/Aphorisms/Workflows/ResearchThinker.md
 → **EXECUTE:** Research thinker's relevant quotes and add to database
 
 **When user requests searching aphorisms by theme or keyword:**
 Examples: "search aphorisms about resilience", "find quotes on learning", "aphorisms about stoicism", "quotes matching [keyword]", "show me quotes about [theme]", "what aphorisms do we have on"
-→ **READ:** ~/.config/opencode/skills/aphorisms/Workflows/Search-aphorisms.md
+→ **READ:** ~/.config/opencode/skills/Aphorisms/Workflows/SearchAphorisms.md
 → **EXECUTE:** Search database by theme, keyword, or author
 
 ---

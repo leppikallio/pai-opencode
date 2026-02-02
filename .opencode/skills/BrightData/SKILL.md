@@ -26,7 +26,7 @@ Running the **WorkflowName** workflow from the **Brightdata** skill...
 
 **When user requests scraping/fetching URL content:**
 Examples: "scrape this URL", "fetch this page", "get content from [URL]", "pull content from this site", "retrieve [URL]", "can't access this site", "this site is blocking me", "use Bright Data to fetch"
-→ **READ:** ~/.config/opencode/skills/brightdata/Workflows/Four-tier-scrape.md
+→ **READ:** ~/.config/opencode/skills/BrightData/Workflows/FourTierScrape.md
 → **EXECUTE:** Four-tier progressive scraping workflow (WebFetch → Curl → Browser Automation → Bright Data MCP)
 
 ---

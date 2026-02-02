@@ -24,10 +24,9 @@
 
 Load these dynamically based on task keywords:
 
-- **Technical/Code** → skills/Research/Workflows/TechnicalResearch.md
-- **API/Framework** → skills/Research/Workflows/APIResearch.md
-- **Multi-model** → skills/Research/Workflows/MultiModelResearch.md
-- **Live Data** → skills/Research/Workflows/LiveDataResearch.md
+- **Retrieve blocked content** → skills/Research/Workflows/Retrieve.md
+- **Web scraping** → skills/Research/Workflows/WebScraping.md
+- **Extract alpha** → skills/Research/Workflows/ExtractAlpha.md
 
 ---
 

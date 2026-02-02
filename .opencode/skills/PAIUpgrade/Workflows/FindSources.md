@@ -147,7 +147,9 @@ For each potential source, score:
 ## How to Add Sources
 
 ### For YouTube Channels:
-Edit `~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/youtube-channels.json`
+
+Optional: if you want to customize YouTube sources, create/update:
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/youtube-channels.json`
 
 ### For Other Sources:
 Currently, non-YouTube sources are monitored via the base `sources.json`.
@@ -161,8 +163,10 @@ To request additions to base Anthropic monitoring, note them for next PAI releas
 If user approves recommendations:
 
 ```bash
-# Read current user config
-cat ~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/youtube-channels.json
+# Read current user config (optional)
+test -f ~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/youtube-channels.json \
+  && cat ~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/PAIUpgrade/youtube-channels.json \
+  || echo "No user youtube-channels.json; using base skill config."
 
 # Add new channels (merge with existing)
 # Update the channels array with new entries

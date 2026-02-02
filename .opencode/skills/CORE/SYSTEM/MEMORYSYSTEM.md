@@ -127,7 +127,7 @@ Legacy note:
 - `LEARNING/SYSTEM/YYYY-MM/` - PAI/tooling learnings (infrastructure issues)
 - `LEARNING/ALGORITHM/YYYY-MM/` - Task execution learnings (approach errors)
 - `LEARNING/SYSTEM/` - Aggregated pattern analysis reports
-- `LEARNING/SIGNALS/ratings.jsonl` - All user satisfaction ratings
+- `MEMORY/LEARNING/SIGNALS/ratings.jsonl` - All user satisfaction ratings
 
 **Categorization logic:**
 | Directory | When Used | Example Triggers |
@@ -217,7 +217,7 @@ This is mutable state that changes during execution - not historical records. If
 | Plugin/Handler | OpenCode Event | Writes To |
 |---------------|----------------|----------|
 | `plugins/handlers/history-capture.ts` | `message.*`, `session.status`, `session.deleted` | WORK/, RAW/, STATE/current-work.json |
-| `plugins/handlers/rating-capture.ts` | user message commit | LEARNING/SIGNALS/ratings.jsonl (+ low-rating learnings) |
+| `plugins/handlers/rating-capture.ts` | user message commit | MEMORY/LEARNING/SIGNALS/ratings.jsonl (+ low-rating learnings) |
 | `plugins/handlers/learning-capture.ts` | idle checkpoint, session.deleted | LEARNING/ |
 | `plugins/handlers/agent-capture.ts` | `tool.execute.after` (Task) | RESEARCH/ |
 | `plugins/handlers/security-validator.ts` | `tool.execute.before` | `~/.config/opencode/MEMORY/SECURITY/YYYY-MM/security.jsonl` |
