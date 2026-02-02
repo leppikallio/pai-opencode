@@ -620,13 +620,19 @@ function extractApplyPatchPaths(patchText: string): Array<{ action: PathAction; 
   return out;
 }
 
-function resolveApplyPatchPath(paiDir: string, filePathRaw: string): string {
-  const raw = filePathRaw.trim();
+function resolveApplyPatchPaths(args: { paiDir: string; cwd: string; filePathRaw: string }): string[] {
+  const raw = args.filePathRaw.trim();
   const expanded = expandHome(raw);
-  if (expanded.startsWith("/")) return path.resolve(expanded);
-  if (expanded.startsWith("./") || expanded.startsWith("../")) return path.resolve(path.join(paiDir, expanded));
-  // Treat bare relative paths as relative to the PAI dir.
-  return path.resolve(path.join(paiDir, expanded));
+  if (expanded.startsWith("/")) return [path.resolve(expanded)];
+
+  // For relative paths, OpenCode applies them relative to the session CWD.
+  // Some patches may also intentionally reference runtime-relative paths.
+  // Validate BOTH to avoid security bypass due to mismatched resolution.
+  const candidates = [
+    path.resolve(path.join(args.cwd, expanded)),
+    path.resolve(path.join(args.paiDir, expanded)),
+  ];
+  return Array.from(new Set(candidates));
 }
 
 function matchesRule(rules: CompiledRule[], command: string): CompiledRule | null {
@@ -839,10 +845,15 @@ export async function validateSecurity(
         const paiDir = getPaiDir();
         const items = extractApplyPatchPaths(input.args.patchText);
 
+        const cwd = process.cwd();
+
         for (const it of items) {
-          const resolvedPath = resolveApplyPatchPath(paiDir, it.filePath);
-          const res = validatePathAccess(resolvedPath, it.action, config);
-          if (res.action === "block") {
+          const resolvedPaths = resolveApplyPatchPaths({ paiDir, cwd, filePathRaw: it.filePath });
+
+          let confirm: { path: string; reason?: string } | null = null;
+          for (const resolvedPath of resolvedPaths) {
+            const res = validatePathAccess(resolvedPath, it.action, config);
+            if (res.action === "block") {
             await appendSecurityLog({
               v: "0.1",
               ts: new Date().toISOString(),
@@ -860,8 +871,13 @@ export async function validateSecurity(
               reason: res.reason ?? "Blocked path access",
               message: "This patch targets a blocked file path.",
             };
+            }
+            if (res.action === "confirm" && !confirm) {
+              confirm = { path: resolvedPath, reason: res.reason };
+            }
           }
-          if (res.action === "confirm") {
+
+          if (confirm) {
             await appendSecurityLog({
               v: "0.1",
               ts: new Date().toISOString(),
@@ -869,14 +885,14 @@ export async function validateSecurity(
               tool: input.tool,
               action: "confirm",
               category: "path_access",
-              targetPreview: redactSensitiveText(resolvedPath),
+              targetPreview: redactSensitiveText(confirm.path),
               ruleId: "path.confirm",
-              reason: res.reason ?? "Protected path write",
+              reason: confirm.reason ?? "Protected path write",
               sourceEventId: `${input.tool}:${(input as ToolInput).sessionID ?? ""}:${(input as ToolInput).callID ?? ""}`,
             });
             return {
               action: "confirm",
-              reason: res.reason ?? "Protected path write",
+              reason: confirm.reason ?? "Protected path write",
               message: "This patch targets a protected file path. Please confirm.",
             };
           }

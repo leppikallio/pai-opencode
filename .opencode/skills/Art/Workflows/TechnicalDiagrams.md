@@ -27,7 +27,7 @@ Technical diagrams for system architectures, process flows, and board presentati
 
 # Example image
 # Ignore for now
-# ~/.config/opencode/skills/Art/WorkflowExamples/TechnicalDiagrams/example.png
+# Optional example asset: <~/.config/opencode/skills/Art/WorkflowExamples/TechnicalDiagrams/example.png>
 
 ---
 
@@ -220,4 +220,3 @@ After rendering, ensure that you have executed properly by checking this list of
 - [ ] Generic or ugly fonts
 - [ ] Cartoony or overly casual shapes or styling
 - [ ] Over-coloring (everything purple/teal)
-

@@ -25,13 +25,12 @@ Keeps PAI Architecture tracking current by:
 
 ## Workflow Steps
 
-> **NOTE:** The PaiArchitecture.ts tool referenced in the original workflow does not exist. This workflow is currently disabled pending implementation of the architecture documentation system.
+> **NOTE:** The OpenCode port does not ship an architecture tool yet. This workflow is a placeholder and does not execute any tool.
 
 ### Step 1: Regenerate Architecture
 
 ```bash
-# DISABLED - PaiArchitecture.ts does not exist
-# bun run <~/.config/opencode/Tools/PaiArchitecture.ts> generate
+# (no-op)
 ```
 
 ### Step 2: Log the Change (If Applicable)
@@ -39,22 +38,13 @@ Keeps PAI Architecture tracking current by:
 If this was triggered by an installation or upgrade:
 
 ```bash
-# DISABLED - PaiArchitecture.ts does not exist
-# # For pack installations
-# bun run <~/.config/opencode/Tools/PaiArchitecture.ts> log-upgrade "Installed [pack-name] v[version]" pack
-#
-# # For bundle installations
-# bun run <~/.config/opencode/Tools/PaiArchitecture.ts> log-upgrade "Installed [bundle-name] bundle" bundle
-#
-# # For config changes
-# bun run <~/.config/opencode/Tools/PaiArchitecture.ts> log-upgrade "[description of change]" config
+# (no-op)
 ```
 
 ### Step 3: Verify Health
 
 ```bash
-# DISABLED - PaiArchitecture.ts does not exist
-# bun run <~/.config/opencode/Tools/PaiArchitecture.ts> check
+# (no-op)
 ```
 
 ### Step 4: Report Status
@@ -75,10 +65,7 @@ After all installation steps complete:
 3. Verify the pack appears in Architecture.md (when available)
 
 \`\`\`bash
-# DISABLED - PaiArchitecture.ts does not exist
-# # Auto-run after pack installation
-# bun run <~/.config/opencode/Tools/PaiArchitecture.ts> log-upgrade "Installed [pack-name] v[version]" pack
-# bun run <~/.config/opencode/Tools/PaiArchitecture.ts> generate
+# (no-op)
 \`\`\`
 ```
 

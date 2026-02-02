@@ -102,6 +102,11 @@ You are auditing the PAI system for integrity issues.
 - Do not flag missing optional customization directories under `skills/CORE/USER/SKILLCUSTOMIZATIONS/`.
 - Treat shell commands in backticks as commands, not filesystem paths.
 
+**Known optional/expected items (do NOT flag as Critical):**
+- `<skills/CORE/USER/pronunciations.json>` (VoiceServer handles missing)
+- `skills/**/node_modules/` (some skills install dependencies locally)
+- Any example path wrapped in `<...>` (explicit placeholder)
+
 **Cross-References execution (preferred):**
 
 Run the low-noise scanner and include its summary:

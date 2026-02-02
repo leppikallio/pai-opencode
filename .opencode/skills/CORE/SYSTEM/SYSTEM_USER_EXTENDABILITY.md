@@ -159,7 +159,7 @@ When creating a new configurable component:
 
 2. **Document USER tier location**
    ```
-   ~/.config/opencode/USER/ComponentName/
+   ~/.config/opencode/skills/CORE/USER/ComponentName/
    ├── config.yaml            # User's configuration
    └── ...
    ```

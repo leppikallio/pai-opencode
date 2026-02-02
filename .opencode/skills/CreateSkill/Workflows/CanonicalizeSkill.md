@@ -36,10 +36,10 @@ Identify what's wrong:
 ## Step 3: Backup
 
 ```bash
-cp -r ~/.config/opencode/skills/[skill-name]/ ~/.config/opencode/History/Backups/[skill-name]-backup-$(date +%Y%m%d)/
+cp -r ~/.config/opencode/skills/[skill-name]/ ~/.config/opencode/BACKUPS/skills/[skill-name]-backup-$(date +%Y%m%d)/
 ```
 
-**Note:** Backups go to `~/.config/opencode/History/Backups/`, NEVER inside skill directories.
+**Note:** Backups go to `~/.config/opencode/BACKUPS/`, NEVER inside skill directories.
 
 ---
 
@@ -99,14 +99,14 @@ find ~/.config/opencode/skills/[SkillName]/ -type d -mindepth 2 -maxdepth 3
 
 **Nested Workflows:**
 ```
-✗ WRONG: Workflows/Company/DueDiligence.md
-✓ FIX: Workflows/CompanyDueDiligence.md
+✗ WRONG: <Workflows/Company/DueDiligence.md>
+✓ FIX: <Workflows/CompanyDueDiligence.md>
 ```
 
 **Nested Templates:**
 ```
-✗ WRONG: Templates/Primitives/Extract.md
-✓ FIX: Move to skills/Prompting/Extract.md (templates belong in Prompting)
+✗ WRONG: <Templates/Primitives/Extract.md>
+✓ FIX: Move to Prompting root (e.g. <skills/Prompting/Extract.md>)
 ```
 
 **Nested Tools:**
@@ -125,10 +125,10 @@ find ~/.config/opencode/skills/[SkillName]/ -type d -mindepth 2 -maxdepth 3
 **Example:**
 ```bash
 # Before (3 levels - WRONG)
-skills/OSINT/Workflows/Company/DueDiligence.md
+<skills/OSINT/Workflows/Company/DueDiligence.md>
 
 # After (2 levels - CORRECT)
-skills/OSINT/Workflows/CompanyDueDiligence.md
+<skills/OSINT/Workflows/CompanyDueDiligence.md>
 ```
 
 **Rule:** If you need to organize many files, use clear filenames NOT subdirectories.

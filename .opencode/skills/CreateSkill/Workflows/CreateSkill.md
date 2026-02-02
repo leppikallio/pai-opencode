@@ -145,8 +145,7 @@ bun ToolName.ts \
 
 **Examples (TitleCase):**
 ```bash
-touch ~/.config/opencode/skills/Daemon/Workflows/UpdateDaemonInfo.md
-touch ~/.config/opencode/skills/Daemon/Workflows/UpdatePublicRepo.md
+touch ~/.config/opencode/skills/<SkillName>/Workflows/<WorkflowName>.md
 ```
 
 ## Step 7: Verify TitleCase
