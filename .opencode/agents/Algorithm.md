@@ -15,7 +15,7 @@ tools:
   bash: true
   webfetch: true
   websearch: true
-  task: true
+  task: false
   voice_notify: true
 permission:
   edit: ask
@@ -28,18 +28,6 @@ permission:
   webfetch: ask
   task:
     "*": deny
-    "Architect": allow
-    "Designer": allow
-    "QATester": allow
-    "researcher": allow
-    "writer": allow
-    "Intern": allow
-    "Pentester": allow
-    "ClaudeResearcher": allow
-    "GeminiResearcher": allow
-    "GrokResearcher": allow
-    "CodexResearcher": allow
-    "Artist": allow
   voice_notify: allow
 ---
 

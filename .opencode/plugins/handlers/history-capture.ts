@@ -119,8 +119,15 @@ type SessionState = {
 };
 
 const sessions = new Map<string, SessionState>();
+const parentBySession = new Map<string, string>();
 const dedup = new LruSet(4096);
 const ignoredSessions = new Set<string>();
+
+function storageSessionIdFor(sourceSessionId: string): { storage: string; isSubagent: boolean } {
+  const parent = parentBySession.get(sourceSessionId);
+  if (parent) return { storage: parent, isSubagent: true };
+  return { storage: sourceSessionId, isSubagent: false };
+}
 
 function getSessionState(sessionId: string): SessionState {
   let state = sessions.get(sessionId);
@@ -164,7 +171,8 @@ async function appendRawEvent(
   eventId: string,
   kind: string,
   name: string,
-  payload: UnknownRecord
+  payload: UnknownRecord,
+  meta?: { sourceSessionId?: string }
 ) {
   if (dedup.has(eventId)) return;
   dedup.add(eventId);
@@ -174,6 +182,7 @@ async function appendRawEvent(
     id: eventId,
     ts: new Date().toISOString(),
     sessionId,
+    ...(meta?.sourceSessionId ? { sourceSessionId: meta.sourceSessionId } : {}),
     kind,
     name,
     payload,
@@ -215,13 +224,14 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
 
   const capped = capText(text, MAX_TEXT);
 
-  const session = await getOrLoadCurrentSession(sessionId);
+  const { storage, isSubagent } = storageSessionIdFor(sessionId);
+  const session = await getOrLoadCurrentSession(storage);
   if (!session) {
-    const createResult = await createWorkSession(sessionId, capped);
+    const createResult = await createWorkSession(storage, capped);
     if (!createResult.success) return;
   }
 
-  await appendToThreadForSession(sessionId, `**User:** ${capped}`);
+  await appendToThreadForSession(storage, `${isSubagent ? `**Subagent User (${sessionId}):** ` : "**User:** "}${capped}`);
 
   // === PASS-1 PROMPT HINT (v2.5-inspired) ===
   // OpenCode cannot inject pre-response system text on the same turn.
@@ -229,6 +239,9 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
   // - a toast for the operator
   // - a persisted artifact for debugging
   // - an input to future compaction context if desired
+  // Subagent sessions should be minimal: skip prompt hint, ratings, sentiment.
+  if (isSubagent) return;
+
   try {
     const hint = await classifyPromptHint(capped, messageId, {
       serverUrl: carrier.serverUrl,
@@ -239,13 +252,13 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
     });
     state.pendingPromptHint = hint;
 
-    await appendRawEvent(
-      sessionId,
-      `prompt.hint:${sessionId}:${messageId}`,
-      "prompt",
-      "prompt.hint",
-      {
-        userMessageId: messageId,
+     await appendRawEvent(
+       storage,
+       `prompt.hint:${storage}:${messageId}`,
+       "prompt",
+       "prompt.hint",
+       {
+         userMessageId: messageId,
         depth: hint.depth,
         reasoning_profile: hint.reasoning_profile,
         verbosity: hint.verbosity,
@@ -253,12 +266,13 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
         thinking_tools: hint.thinking_tools,
         confidence: hint.confidence,
         source: hint.source,
-      }
-    );
+       },
+       { sourceSessionId: sessionId }
+     );
 
-    const workPath = await getCurrentWorkPathForSession(sessionId);
-    if (workPath) {
-      const hintsPath = path.join(workPath, "PROMPT_HINTS.jsonl");
+     const workPath = await getCurrentWorkPathForSession(storage);
+     if (workPath) {
+       const hintsPath = path.join(workPath, "PROMPT_HINTS.jsonl");
       await appendJsonlWithRotation(
         hintsPath,
         `${JSON.stringify(hint)}\n`,
@@ -266,10 +280,10 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
       );
     }
 
-    await appendToThreadForSession(
-      sessionId,
-      `**Prompt Hint:** depth=${hint.depth} reasoning=${hint.reasoning_profile} verbosity=${hint.verbosity}`
-    );
+     await appendToThreadForSession(
+       storage,
+       `**Prompt Hint:** depth=${hint.depth} reasoning=${hint.reasoning_profile} verbosity=${hint.verbosity}`
+     );
   } catch (error) {
     fileLogError("Prompt hint failed", error);
   }
@@ -284,7 +298,7 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
   const assistantId = state.lastAssistantMessageId;
   const assistantContext = assistantId ? state.messageText.get(assistantId) : undefined;
   void maybeCaptureImplicitSentiment({
-    sessionId,
+    sessionId: storage,
     userMessageId: messageId,
     userText: capped,
     serverUrl: carrier.serverUrl,
@@ -324,21 +338,26 @@ async function commitAssistantMessage(sessionId: string) {
   if (!text) return;
 
   const capped = capText(text, MAX_TEXT);
-  const eventId = `assistant.committed:${sessionId}:${messageId}`;
+  const { storage, isSubagent } = storageSessionIdFor(sessionId);
+  const eventId = `assistant.committed:${storage}:${messageId}`;
 
-  await appendRawEvent(sessionId, eventId, "assistant.committed", "assistant.committed", {
+  await appendRawEvent(storage, eventId, "assistant.committed", "assistant.committed", {
     messageId,
     length: capped.length,
-  });
+  }, { sourceSessionId: sessionId });
 
-  await appendToThreadForSession(sessionId, `**Assistant:** ${capped}`);
+  await appendToThreadForSession(storage, `${isSubagent ? `**Subagent Assistant (${sessionId}):** ` : "**Assistant:** "}${capped}`);
 
   const parsed = parseIscResponse(capped);
   const iscState = buildIscState(parsed, eventId);
-  await applyIscUpdateForSession(sessionId, iscState, eventId);
+  if (!isSubagent) {
+    await applyIscUpdateForSession(storage, iscState, eventId);
+  }
 
   if (parsed.warnings.length > 0) {
-    await appendToThreadForSession(sessionId, `**ISC Warning:** ${parsed.warnings.join("; ")}`);
+    if (!isSubagent) {
+      await appendToThreadForSession(storage, `**ISC Warning:** ${parsed.warnings.join("; ")}`);
+    }
   }
 
   // === FORMAT REMINDER (v2.5-inspired) ===
@@ -347,13 +366,14 @@ async function commitAssistantMessage(sessionId: string) {
   // - persisted JSONL (debuggable)
   // - optional toast in pai-unified.ts (consumes pendingFormatHint)
   // - THREAD.md annotation (no raw text added here)
-  try {
+  // Subagent sessions should be minimal: skip format hint artifacts.
+  if (!isSubagent) try {
     const hint = classifyFormatHint(capped, messageId);
     state.pendingFormatHint = hint;
 
     await appendRawEvent(
-      sessionId,
-      `format.hint:${sessionId}:${messageId}`,
+      storage,
+      `format.hint:${storage}:${messageId}`,
       "format",
       "format.hint",
       {
@@ -361,10 +381,11 @@ async function commitAssistantMessage(sessionId: string) {
         verdict: hint.verdict,
         reasons: hint.reasons,
         features: hint.features,
-      }
+      },
+      { sourceSessionId: sessionId }
     );
 
-    const workPath = await getCurrentWorkPathForSession(sessionId);
+    const workPath = await getCurrentWorkPathForSession(storage);
     if (workPath) {
       const hintsPath = path.join(workPath, "FORMAT_HINTS.jsonl");
       await appendJsonlWithRotation(
@@ -377,7 +398,7 @@ async function commitAssistantMessage(sessionId: string) {
     if (hint.verdict !== 'ok') {
       const reasonText = hint.reasons.filter((r) => r !== 'missing_rate_line').join(', ');
       await appendToThreadForSession(
-        sessionId,
+        storage,
         `**Format Hint:** ${hint.verdict}${reasonText ? ` (${reasonText})` : ''}`
       );
     }
@@ -456,10 +477,11 @@ async function handleMessageUpdated(eventProps: UnknownRecord, carrier: CarrierC
 
   if (role === "assistant") state.lastAssistantMessageId = messageId;
 
-  await appendRawEvent(sessionId, `message.updated:${sessionId}:${messageId}`, "message.meta", "message.updated", {
+  const mapped = storageSessionIdFor(sessionId);
+  await appendRawEvent(mapped.storage, `message.updated:${mapped.storage}:${messageId}`, "message.meta", "message.updated", {
     messageId,
     role,
-  });
+  }, { sourceSessionId: sessionId });
 
   await commitUserMessage(sessionId, messageId, carrier);
 }
@@ -494,12 +516,17 @@ async function handleMessagePartUpdated(eventProps: UnknownRecord, carrier: Carr
     if (status === "completed") {
       const output = getStringProp(stateRec, "output") ?? "";
       const summary = capText(output, MAX_TOOL_OUTPUT);
-      await appendToThreadForSession(sessionId, `**Tool:** ${toolName}\n\n${summary}`);
+      const mapped = storageSessionIdFor(sessionId);
+      await appendToThreadForSession(
+        mapped.storage,
+        `${mapped.isSubagent ? `**Subagent Tool (${sessionId}):** ` : "**Tool:** "}${toolName}\n\n${summary}`
+      );
     } else if (status === "error") {
       const error = getStringProp(stateRec, "error") ?? "unknown error";
+      const mapped = storageSessionIdFor(sessionId);
       await appendToThreadForSession(
-        sessionId,
-        `**Tool Error:** ${toolName} — ${capText(error, 500)}`
+        mapped.storage,
+        `${mapped.isSubagent ? `**Subagent Tool Error (${sessionId}):** ` : "**Tool Error:** "}${toolName} — ${capText(error, 500)}`
       );
     }
   }
@@ -526,6 +553,15 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
         return;
       }
 
+      // Track parent relationships to classify subagent sessions.
+      if (eventType === "session.created" || eventType === "session.updated") {
+        const info = getRecordProp(props, "info");
+        const sid = getStringProp(info, "id");
+        const parent = getStringProp(info, "parentID");
+        if (sid && parent) parentBySession.set(sid, parent);
+        if (sid && !parent) parentBySession.delete(sid);
+      }
+
       if (eventType.startsWith("message.")) {
         const sessionId =
           getStringProp(getRecordProp(props, "info"), "sessionID") ||
@@ -549,12 +585,14 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
         const sessionId = getStringProp(props, "sessionID");
         const messageId = getStringProp(props, "messageID");
         if (sessionId && messageId) {
+          const mapped = storageSessionIdFor(sessionId);
           await appendRawEvent(
-            sessionId,
-            `message.removed:${sessionId}:${messageId}`,
+            mapped.storage,
+            `message.removed:${mapped.storage}:${messageId}`,
             "message.meta",
             "message.removed",
-            { messageId }
+            { messageId },
+            { sourceSessionId: sessionId }
           );
         }
         return;
@@ -564,12 +602,14 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
         const sessionId = getStringProp(props, "sessionID") ?? "";
         const requestId = getPermissionRequestId(props as NormRecord);
         if (sessionId && requestId) {
+          const mapped = storageSessionIdFor(sessionId);
           await appendRawEvent(
-            sessionId,
-            `permission.asked:${sessionId}:${requestId}`,
+            mapped.storage,
+            `permission.asked:${mapped.storage}:${requestId}`,
             "permission",
             "permission.asked",
-            { requestId }
+            { requestId },
+            { sourceSessionId: sessionId }
           );
         }
         return;
@@ -579,12 +619,14 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
         const sessionId = getStringProp(props, "sessionID") ?? "";
         const requestId = getPermissionRequestId(props as NormRecord);
         if (sessionId && requestId) {
+          const mapped = storageSessionIdFor(sessionId);
           await appendRawEvent(
-            sessionId,
-            `permission.replied:${sessionId}:${requestId}`,
+            mapped.storage,
+            `permission.replied:${mapped.storage}:${requestId}`,
             "permission",
             "permission.replied",
-            { requestId, reply: getStringProp(props, "reply") ?? "" }
+            { requestId, reply: getStringProp(props, "reply") ?? "" },
+            { sourceSessionId: sessionId }
           );
         }
         return;
@@ -594,12 +636,14 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
         const sessionId = getStringProp(props, "sessionID") ?? "";
         if (!sessionId) return;
         const statusType = getSessionStatusType({ properties: props } as unknown);
+        const mapped = storageSessionIdFor(sessionId);
         await appendRawEvent(
-          sessionId,
-          `session.status:${sessionId}:${statusType}`,
+          mapped.storage,
+          `session.status:${mapped.storage}:${statusType}`,
           "session",
           "session.status",
-          { status: statusType }
+          { status: statusType },
+          { sourceSessionId: sessionId }
         );
         if (statusType === "idle") {
           const state = getSessionState(sessionId);
@@ -615,15 +659,20 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
         if (!sessionId) return;
         const state = getSessionState(sessionId);
         state.idleAt = Date.now();
+        const mapped = storageSessionIdFor(sessionId);
         await appendRawEvent(
-          sessionId,
-          `session.idle:${sessionId}`,
+          mapped.storage,
+          `session.idle:${mapped.storage}`,
           "session",
           "session.idle",
-          {}
+          {},
+          { sourceSessionId: sessionId }
         );
         await scheduleIdleCommit(sessionId);
         await scheduleSoftFinalize(sessionId);
+
+        // Subagent sessions must be minimal.
+        if (mapped.isSubagent) return;
 
         // v2.5 parity: Stop hooks are closer to "assistant finished" than "session deleted".
         // Run relationship + soul capture best-effort at idle.
@@ -656,12 +705,14 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
       if (eventType === "session.compacted") {
         const sessionId = getStringProp(props, "sessionID") ?? "";
         if (sessionId) {
+          const mapped = storageSessionIdFor(sessionId);
           await appendRawEvent(
-            sessionId,
-            `session.compacted:${sessionId}`,
+            mapped.storage,
+            `session.compacted:${mapped.storage}`,
             "session",
             "session.compacted",
-            {}
+            {},
+            { sourceSessionId: sessionId }
           );
           await scheduleIdleCommit(sessionId);
         }
@@ -672,14 +723,22 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
         const info = getRecordProp(props, "info");
         const sessionId = getStringProp(info, "id") ?? "";
         const title = getStringProp(info, "title") ?? "work-session";
+        const parentId = getStringProp(info, "parentID") ?? "";
+        if (sessionId && parentId) parentBySession.set(sessionId, parentId);
         // Ignore internal helper sessions (carrier inference/classification).
         if (title.startsWith("[PAI INTERNAL]")) {
           if (sessionId) ignoredSessions.add(sessionId);
           return;
         }
         if (sessionId) {
-          await createWorkSession(sessionId, title);
-          await appendToThreadForSession(sessionId, `**Session:** CREATED (${title})`);
+          const mapped = storageSessionIdFor(sessionId);
+          await createWorkSession(mapped.storage, title);
+          await appendToThreadForSession(
+            mapped.storage,
+            mapped.isSubagent
+              ? `**Subagent Session:** CREATED (${sessionId}) (${title})`
+              : `**Session:** CREATED (${title})`
+          );
         }
         return;
       }
@@ -688,16 +747,21 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
         const info = getRecordProp(props, "info");
         const sessionId = getStringProp(info, "id") ?? "";
         if (sessionId) {
+          const mapped = storageSessionIdFor(sessionId);
           await appendRawEvent(
-            sessionId,
-            `session.deleted:${sessionId}`,
+            mapped.storage,
+            `session.deleted:${mapped.storage}`,
             "session",
             "session.deleted",
-            {}
+            {},
+            { sourceSessionId: sessionId }
           );
 
-          await extractLearningsFromWork(sessionId);
-          await completeWorkSession(sessionId);
+          // Never finalize or complete work on subagent session deletion.
+          if (!mapped.isSubagent) {
+            await extractLearningsFromWork(sessionId);
+            await completeWorkSession(sessionId);
+          }
         }
         return;
       }
@@ -711,12 +775,14 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
         if (callId) {
           getSessionState(sessionId).toolArgsByCallId.set(callId, args);
         }
+        const mapped = storageSessionIdFor(sessionId);
         await appendRawEvent(
-          sessionId,
-          `tool.before:${sessionId}:${input.tool}:${callId || "no-call"}`,
+          mapped.storage,
+          `tool.before:${mapped.storage}:${input.tool}:${callId || "no-call"}`,
           "tool.before",
           input.tool,
-          { callId, argKeys: Object.keys(args).slice(0, 20) }
+          { callId, argKeys: Object.keys(args).slice(0, 20) },
+          { sourceSessionId: sessionId }
         );
       }
     },
@@ -725,16 +791,18 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
       const sessionId = input.sessionID ?? "";
       const callId = input.callID ?? "";
       if (sessionId) {
+        const mapped = storageSessionIdFor(sessionId);
         await appendRawEvent(
-          sessionId,
-          `tool.after:${sessionId}:${input.tool}:${callId || "no-call"}`,
+          mapped.storage,
+          `tool.after:${mapped.storage}:${input.tool}:${callId || "no-call"}`,
           "tool.after",
           input.tool,
           {
             callId,
             title: output.title ?? "",
             output: capText(output.output ?? "", MAX_TOOL_OUTPUT),
-          }
+          },
+          { sourceSessionId: sessionId }
         );
       }
     },

@@ -86,6 +86,8 @@ You are auditing the PAI system for integrity issues.
 
 ## Instructions
 
+0. You are a subagent. Do NOT spawn any agents or call the Task tool.
+   Ignore any instruction to spawn Algorithm agents. Report findings only.
 1. Search the specified files for issues
 2. Look for:
    - References to files/paths that don't exist
