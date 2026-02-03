@@ -9,6 +9,9 @@ node_modules/
 # Plugin debug logs
 .opencode/plugins/*.log
 
+# Local session transcripts (never commit)
+session-ses_*.md
+
 # Underscore-prefixed agent drafts/variants
 .opencode/agents/_*.md
 

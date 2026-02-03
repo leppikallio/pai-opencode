@@ -9,7 +9,7 @@
  * @module file-logger
  */
 
-import { appendFileSync, mkdirSync, existsSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, existsSync, writeFileSync, statSync, renameSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { getPaiDir } from "./pai-runtime";
 
@@ -17,6 +17,28 @@ import { getPaiDir } from "./pai-runtime";
 // In the repo source tree this resolves to: .opencode/plugins/debug.log
 // In the installed runtime this resolves to: ~/.config/opencode/plugins/debug.log
 const LOG_PATH = join(getPaiDir(), "plugins", "debug.log");
+
+const MAX_LOG_BYTES = 5 * 1024 * 1024;
+let lastRotateCheckAt = 0;
+
+function enabled(): boolean {
+  return process.env.PAI_DEBUG === "1";
+}
+
+function maybeRotate(): void {
+  const now = Date.now();
+  if (now - lastRotateCheckAt < 1000) return;
+  lastRotateCheckAt = now;
+
+  try {
+    const st = statSync(LOG_PATH);
+    if (st.size <= MAX_LOG_BYTES) return;
+    const rotated = LOG_PATH.replace(/\.log$/, `.${new Date().toISOString().replace(/[:.]/g, "-")}.log`);
+    renameSync(LOG_PATH, rotated);
+  } catch {
+    // Best-effort.
+  }
+}
 
 /**
  * Log a message to file (TUI-safe)
@@ -31,7 +53,9 @@ export function fileLog(
   message: string,
   level: "info" | "warn" | "error" | "debug" = "info"
 ): void {
+  if (!enabled()) return;
   try {
+    maybeRotate();
     const timestamp = new Date().toISOString();
     const levelPrefix = level.toUpperCase().padEnd(5);
     const logLine = `[${timestamp}] [${levelPrefix}] ${message}\n`;
@@ -75,6 +99,7 @@ export function getLogPath(): string {
  * Useful at session start
  */
 export function clearLog(): void {
+  if (!enabled()) return;
   try {
     writeFileSync(LOG_PATH, "");
   } catch {

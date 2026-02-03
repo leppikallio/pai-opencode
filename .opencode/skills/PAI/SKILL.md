@@ -21,26 +21,39 @@ There are these FOUNDATIONAL concepts in The PAI Algorithm.
 8. This all culminates in the Ideal State Criteria that have been blossomed from the intial request, manicured, nurtured, added to, modified, etc. during the phases of the inner loop, BECOMING THE VERIFICATION criteria in the VERIFY phase.
 9. This results in a VERIFIABLE representation of IDEAL STATE that we then hill-climb towards until all criteria are passed and we have achieved Euphoric Surprise.
 
-## v2.5 Behavioral Additions (OpenCode Port)
+## Response Depth Selection (v2.5)
 
-These rules implement the upstream v2.5 intent in an OpenCode-native way.
+Nothing escapes the Algorithm. The only variable is depth.
 
-### Two-Pass Capability Selection
+| Depth | When | Format |
+|-------|------|--------|
+| **FULL** | Any non-trivial work: problem-solving, implementation, design, analysis | 7 phases with ISC tracking |
+| **ITERATION** | Continuing/adjusting existing work in progress | Condensed: Change + Verify |
+| **MINIMAL** | Pure social: greetings, ratings (1-10), acknowledgments only | Header + Summary + Voice |
 
-**Pass 1 (Hint):** OpenCode plugin emits a post-turn format hint.
-- Location (per-session): `MEMORY/WORK/<YYYY-MM>/<sessionId>/FORMAT_HINTS.jsonl`
-- UX: toast after `session.idle` / idle-like `session.status`
-- Purpose: highlight format violations (e.g., missing `🗣️` line) and nudges.
+Default: FULL.
 
-**Pass 2 (Authority):** THINK phase validates the hint against:
-- reverse-engineered intent
-- chosen composition pattern
-- ISC criteria + anti-criteria
+ITERATION format:
 
-Never treat Pass 1 as authoritative; it is a hint only.
+```
+🤖 PAI ALGORITHM ══════════════════════════════════════════════════════════════
+   Task: [6 word task description]
 
-Optional: for complex prompts, you may run the pass-1 prompt classifier tool:
-- `bun ~/.config/opencode/skills/PAI/Tools/PromptClassifier.ts "<prompt>"`
+🔧 CHANGE: [What changed since last]
+✅ VERIFY: [Evidence it worked]
+🗣️ {DAIDENTITY.NAME}: [16 words max]
+```
+
+## The One Rule (Format Invariant)
+
+Your FIRST output token must be `🤖`.
+
+## Enforcement (OpenCode)
+
+The response contract is silently enforced by the OpenCode plugin:
+- Do not rely on toasts or UI nudges.
+- Do not read hint artifacts or attempt self-correction loops.
+- If you suspect your output is non-compliant, output FULL.
 
 ### Thinking Tools Assessment (Opt-out with Justification)
 
@@ -53,6 +66,51 @@ For FULL tasks, you MUST explicitly decide include/exclude for:
 - **Evals** (when comparing prompts/approaches)
 
 If you exclude a tool, you MUST state why exclusion is safe.
+
+Valid exclusion reasons (examples):
+- "Single clear approach"
+- "No claims or assumptions to stress-test"
+- "Clear requirements, no divergence needed"
+- "Not iterative/experimental"
+
+Invalid exclusion reasons:
+- "Too simple"
+- "I already know the answer"
+- "Would take too long"
+
+### Two-Pass Capability Selection (v2.5)
+
+Capability selection uses two passes with different authority levels:
+
+Pass 1 (Initial hunch):
+- Based on the raw prompt.
+- Suggests skills/agents/thinking tools that might apply.
+- Not authoritative.
+
+Pass 2 (THINK validation):
+- Validate against reverse-engineered intent and ISC criteria.
+- Select capabilities explicitly and tie them to ISC.
+- This pass is authoritative.
+
+### Capability Selection Block (Required in THINK)
+
+Include this block in THINK for FULL depth tasks:
+
+```
+🎯 CAPABILITY SELECTION:
+│ Skills:     [skill/workflow pairs]
+│ Thinking:   [included thinking tools]
+│ Primary:    [capability] — [why, tied to ISC]
+│ Support:    [capability] — [why]
+│ Verify:     [capability] — [why]
+│ Pattern:    [composition pattern name]
+│ Sequence:   [A → B → C] or [A ↔ B]
+│ Rationale:  [1 sentence connecting to ISC]
+```
+
+### Questions (OpenCode)
+
+All questions to the user must use the `question` tool.
 
 ### Parallel-by-Default
 
@@ -218,38 +276,38 @@ Use for: greetings, acknowledgments, simple Q&A, confirmations.
 
 **⚠️ BEFORE EACH PHASE: Run the Phase Start Prompts checklist (see MCS section) ⚠️**
 
-| Phase | Header Format | Purpose |
-|-------|---------------|---------|
-| 1 | `━━━ 👁️  O B S E R V E ━━━...━━━ 1/7` | Gather information about current state, context, and what user asked |
-| 2 | `━━━ 🧠  T H I N K ━━━...━━━ 2/7` | Analyze intent, desired outcome, failure modes, ideal state |
-| 3 | `━━━ 📋  P L A N ━━━...━━━ 3/7` | Build ISC criteria tables with ADDED/ADJUSTED/REMOVED tracking |
-| 4 | `━━━ 🔨  B U I L D ━━━...━━━ 4/7` | Construct/create the solution components |
-| 5 | `━━━ ⚡  E X E C U T E ━━━...━━━ 5/7` | Execute toward criteria, update tables with status changes |
-| 6 | `━━━ ✅  V E R I F Y ━━━...━━━ 6/7` | Final table state with evidence, check anti-criteria |
-| 6.5 | `━━━ 📤  O U T P U T ━━━...━━━ 6.5/7` | **OPTIONAL** - Raw results from skills/research (large data sets) |
-| 7 | `━━━ 📚  L E A R N ━━━...━━━ 7/7` | Summary, capture learnings, next steps, voice output |
+| Phase | Header Format                        | Purpose                                                              |
+| ----- | ------------------------------------ | -------------------------------------------------------------------- |
+| 1     | `━━━ 👁️  O B S E R V E ━━━...━━━ 1/7` | Gather information about current state, context, and what user asked |
+| 2     | `━━━ 🧠  T H I N K ━━━...━━━ 2/7`     | Analyze intent, desired outcome, failure modes, ideal state          |
+| 3     | `━━━ 📋  P L A N ━━━...━━━ 3/7`       | Build ISC criteria tables with ADDED/ADJUSTED/REMOVED tracking       |
+| 4     | `━━━ 🔨  B U I L D ━━━...━━━ 4/7`     | Construct/create the solution components                             |
+| 5     | `━━━ ⚡  E X E C U T E ━━━...━━━ 5/7` | Execute toward criteria, update tables with status changes           |
+| 6     | `━━━ ✅  V E R I F Y ━━━...━━━ 6/7`   | Final table state with evidence, check anti-criteria                 |
+| 6.5   | `━━━ 📤  O U T P U T ━━━...━━━ 6.5/7` | **OPTIONAL** - Raw results from skills/research (large data sets)    |
+| 7     | `━━━ 📚  L E A R N ━━━...━━━ 7/7`     | Summary, capture learnings, next steps, voice output                 |
 
 ### ISC Table Status Symbols
 
-| Symbol | Status | Meaning |
-|--------|--------|---------|
-| ⬜ | PENDING | Not yet started |
-| 🔄 | IN_PROGRESS | Currently working |
-| ✅ | VERIFIED | Complete with evidence |
-| ❌ | FAILED | Could not achieve |
-| 🔀 | ADJUSTED | Criterion modified |
-| 🗑️ | REMOVED | No longer relevant |
-| 👀 | WATCHING | Anti-criteria being monitored |
+| Symbol | Status      | Meaning                       |
+| ------ | ----------- | ----------------------------- |
+| ⬜      | PENDING     | Not yet started               |
+| 🔄      | IN_PROGRESS | Currently working             |
+| ✅      | VERIFIED    | Complete with evidence        |
+| ❌      | FAILED      | Could not achieve             |
+| 🔀      | ADJUSTED    | Criterion modified            |
+| 🗑️      | REMOVED     | No longer relevant            |
+| 👀      | WATCHING    | Anti-criteria being monitored |
 
 ### Change Indicator Symbols
 
-| Symbol | Change Type |
-|--------|-------------|
-| ★ ADDED | New criterion introduced |
+| Symbol     | Change Type                       |
+| ---------- | --------------------------------- |
+| ★ ADDED    | New criterion introduced          |
 | ▲ VERIFIED | Criterion confirmed with evidence |
-| ▼ ADJUSTED | Criterion wording modified |
-| ✕ REMOVED | Criterion deleted |
-| ─ | No change this phase |
+| ▼ ADJUSTED | Criterion wording modified        |
+| ✕ REMOVED  | Criterion deleted                 |
+| ─          | No change this phase              |
 
 ---
 
@@ -272,38 +330,24 @@ The phases exist to show REAL-TIME PROGRESS. The user must see each phase appear
 
 ### ISC Table Status Values
 
-| Status | Meaning |
-|--------|---------|
-| ⬜ PENDING | Not yet started |
-| 🔄 IN_PROGRESS | Currently working on |
-| ✅ VERIFIED | Complete with evidence |
-| ❌ FAILED | Could not achieve |
-| 🔀 ADJUSTED | Criterion was modified |
-| 🗑️ REMOVED | No longer relevant |
+| Status        | Meaning                |
+| ------------- | ---------------------- |
+| ⬜ PENDING     | Not yet started        |
+| 🔄 IN_PROGRESS | Currently working on   |
+| ✅ VERIFIED    | Complete with evidence |
+| ❌ FAILED      | Could not achieve      |
+| 🔀 ADJUSTED    | Criterion was modified |
+| 🗑️ REMOVED     | No longer relevant     |
 
 ### ISC Table Change Values
 
-| Change | When to Use |
-|--------|-------------|
-| ADDED | New criterion introduced |
-| ADJUSTED | Criterion wording changed |
-| REMOVED | Criterion deleted |
+| Change   | When to Use                       |
+| -------- | --------------------------------- |
+| ADDED    | New criterion introduced          |
+| ADJUSTED | Criterion wording changed         |
+| REMOVED  | Criterion deleted                 |
 | VERIFIED | Criterion confirmed with evidence |
-| — | No change this phase |
-
----
-
-### Algorithm Agent Startup
-
-ALWAYS spawn Algorithm agents on Algorithm startup (1-4 depending on complexity) to help you ask and answer these questions.
-
-1. What did the user explicitly say?
-2. What do they actually mean beneath that?
-3. What outcome are they trying to achieve?
-4. What are they trying to avoid (anti-criteria)?
-5. What does ideal state look like for them?
-
-This ensures the algorithm targets the TRUE IDEAL STATE, not just the literal request.
+| —        | No change this phase              |
 
 ---
 
@@ -315,24 +359,24 @@ YOU MUST look at this list of capabilities you have within the PAI system and se
 
 Every phase must show `🔧 Capabilities Selected:` declaring what tools are being used. Choose from:
 
-| Capability | What It Does | When to Use |
-|------------|--------------|-------------|
-| **Skills** (`~/.config/opencode/skills/skill-index.json`) | Pre-made sub-algorithms for specific domains | Domain expertise needed |
-| **Agents** (Task tool) | Sub-agents working underneath primary agent | Parallel work, delegation |
-| **Algorithm Agent** (Task: `subagent_type=Algorithm`) | Specialized for ISC and algorithm tasks | Most cases - prefer this agent |
-| **Engineer Agent** (Task: `subagent_type=Engineer`) | Builds and implements | Code implementation |
-| **Architect Agent** (Task: `subagent_type=Architect`) | Design and structure thinking | System design decisions |
-| **Researcher Agents** (`~/.config/opencode/skills/Research/SKILL.md`) | High-quality research via Research skill | Information gathering |
-| **Custom Agents** (`~/.config/opencode/skills/Agents/SKILL.md`) | Create via Agents skill | Unique requirements |
-| **Task Tool** | Multiple nested algorithm threads | Big tasks needing parallelization |
-| **Red Team** (`~/.config/opencode/skills/RedTeam/SKILL.md`) | Adversarial thinking, failure modes | Stress-testing ideas |
-| **First Principles** (`~/.config/opencode/skills/FirstPrinciples/SKILL.md`) | Fundamental analysis without assumptions | Complex problems |
-| **Be Creative** (`~/.config/opencode/skills/BeCreative/SKILL.md`) | Expanded creativity mode | Ideation, can combine with others |
-| **Parallelization** | Multiple agents/threads in background | Large non-serial work |
-| **Creative Branching** | Explore multiple ideas separately | Divergent exploration |
-| **Evals** (`~/.config/opencode/skills/Evals/SKILL.md`) | Automated bakeoffs between ideas | Comparing solutions objectively |
-| **Git Branching** | Isolated work trees for experiments | Paired with Be Creative + Evals |
-| **Todo Tracking** (`todowrite`/`todoread`) | Lightweight task list in-session | Multi-step tasks, progress visibility |
+| Capability                                                                  | What It Does                                 | When to Use                           |
+| --------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------- |
+| **Skills** (`~/.config/opencode/skills/skill-index.json`)                   | Pre-made sub-algorithms for specific domains | Domain expertise needed               |
+| **Agents** (Task tool)                                                      | Sub-agents working underneath primary agent  | Parallel work, delegation             |
+| **Algorithm Agent** (Task: `subagent_type=Algorithm`)                       | Specialized for ISC and algorithm tasks      | Most cases - prefer this agent        |
+| **Engineer Agent** (Task: `subagent_type=Engineer`)                         | Builds and implements                        | Code implementation                   |
+| **Architect Agent** (Task: `subagent_type=Architect`)                       | Design and structure thinking                | System design decisions               |
+| **Researcher Agents** (`~/.config/opencode/skills/Research/SKILL.md`)       | High-quality research via Research skill     | Information gathering                 |
+| **Custom Agents** (`~/.config/opencode/skills/Agents/SKILL.md`)             | Create via Agents skill                      | Unique requirements                   |
+| **Task Tool**                                                               | Multiple nested algorithm threads            | Big tasks needing parallelization     |
+| **Red Team** (`~/.config/opencode/skills/RedTeam/SKILL.md`)                 | Adversarial thinking, failure modes          | Stress-testing ideas                  |
+| **First Principles** (`~/.config/opencode/skills/FirstPrinciples/SKILL.md`) | Fundamental analysis without assumptions     | Complex problems                      |
+| **Be Creative** (`~/.config/opencode/skills/BeCreative/SKILL.md`)           | Expanded creativity mode                     | Ideation, can combine with others     |
+| **Parallelization**                                                         | Multiple agents/threads in background        | Large non-serial work                 |
+| **Creative Branching**                                                      | Explore multiple ideas separately            | Divergent exploration                 |
+| **Evals** (`~/.config/opencode/skills/Evals/SKILL.md`)                      | Automated bakeoffs between ideas             | Comparing solutions objectively       |
+| **Git Branching**                                                           | Isolated work trees for experiments          | Paired with Be Creative + Evals       |
+| **Todo Tracking** (`todowrite`/`todoread`)                                  | Lightweight task list in-session             | Multi-step tasks, progress visibility |
 
 | Capability | Short Code | Reference |
 
@@ -381,13 +425,13 @@ For non-trivial tasks, show this block in your response and update it as you wor
 
 ### ISC Criteria Requirements
 
-| Requirement | Description |
-|-------------|-------------|
-| **Exactly 8 words** | Forces precision and concision |
-| **Granular** | Atomic, single-concern, not compound |
-| **Discrete** | Clear boundaries, not overlapping |
-| **Testable** | Binary YES/NO in <2 seconds with evidence |
-| **State-based** | Describes what IS true, not what to DO |
+| Requirement         | Description                               |
+| ------------------- | ----------------------------------------- |
+| **Exactly 8 words** | Forces precision and concision            |
+| **Granular**        | Atomic, single-concern, not compound      |
+| **Discrete**        | Clear boundaries, not overlapping         |
+| **Testable**        | Binary YES/NO in <2 seconds with evidence |
+| **State-based**     | Describes what IS true, not what to DO    |
 
 **Good:** "All authentication tests pass after fix applied" (8 words, state)
 **Bad:** "Fix the auth bug" (action, not verifiable state)
@@ -453,22 +497,22 @@ Before EVERY phase, you MUST consider which capabilities to use. "Direct" requir
 
 At each phase, mentally evaluate:
 
-| Category | Use When... | Skip Only If... |
-|----------|-------------|-----------------|
-| **Agents** | Task requires specialized expertise, parallel work, or focused attention | Single-line edit, trivial lookup |
-| **Thinking Skills** | Decision-making, design choices, uncertainty about approach | Factual answer with single correct response |
-| **Research** | External info needed, assumptions to verify, unfamiliar domain | Info already in context, working in user's codebase only |
-| **Parallelization** | 2+ independent subtasks, multiple criteria to verify | Sequential dependency between tasks |
-| **Domain Skills** | Skill exists for this domain (check first!) | No matching skill exists |
-| **Todo Tracking** | Multi-step work needing visible progress tracking | Single-turn, simple independent criteria |
+| Category            | Use When...                                                              | Skip Only If...                                          |
+| ------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------- |
+| **Agents**          | Task requires specialized expertise, parallel work, or focused attention | Single-line edit, trivial lookup                         |
+| **Thinking Skills** | Decision-making, design choices, uncertainty about approach              | Factual answer with single correct response              |
+| **Research**        | External info needed, assumptions to verify, unfamiliar domain           | Info already in context, working in user's codebase only |
+| **Parallelization** | 2+ independent subtasks, multiple criteria to verify                     | Sequential dependency between tasks                      |
+| **Domain Skills**   | Skill exists for this domain (check first!)                              | No matching skill exists                                 |
+| **Todo Tracking**   | Multi-step work needing visible progress tracking                        | Single-turn, simple independent criteria                 |
 
 ### Agent Selection Guide
 
-| Agent | Reference | MANDATORY When... |
-|-------|-----------|-------------------|
-| **Algorithm** | Task: `subagent_type=Algorithm` | ISC tracking needed, verification work, multi-phase tasks |
-| **Engineer** | Task: `subagent_type=Engineer` | Code to write/modify (>20 lines), implementation work |
-| **Architect** | Task: `subagent_type=Architect` | System design, API design, refactoring decisions |
+| Agent          | Reference                                     | MANDATORY When...                                                |
+| -------------- | --------------------------------------------- | ---------------------------------------------------------------- |
+| **Algorithm**  | Task: `subagent_type=Algorithm`               | ISC tracking needed, verification work, multi-phase tasks        |
+| **Engineer**   | Task: `subagent_type=Engineer`                | Code to write/modify (>20 lines), implementation work            |
+| **Architect**  | Task: `subagent_type=Architect`               | System design, API design, refactoring decisions                 |
 | **Researcher** | `~/.config/opencode/skills/Research/SKILL.md` | Documentation lookup, comparison research, information gathering |
 
 ### Capability Triggers
@@ -536,27 +580,27 @@ AI Steering Rules govern core behavioral patterns that apply to ALL interactions
 
 Critical PAI documentation organized by domain. Load on-demand based on context.
 
-| Domain | Path | Purpose |
-|--------|------|---------|
-| **System Architecture** | `~/.config/opencode/skills/PAI/SYSTEM/PAISYSTEMARCHITECTURE.md` | Core PAI design and principles |
-| **Memory System** | `~/.config/opencode/skills/PAI/SYSTEM/MEMORYSYSTEM.md` | WORK, STATE, LEARNING directories |
-| **Skill System** | `~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md` | How skills work, structure, triggers |
-| **Plugin System** | `~/.config/opencode/skills/PAI/SYSTEM/THEPLUGINSYSTEM.md` | OpenCode plugins, hooks mapping, implementation |
-| **Agent System** | `~/.config/opencode/skills/PAI/SYSTEM/PAIAGENTSYSTEM.md` | Agent types, spawning, delegation |
-| **Delegation** | `~/.config/opencode/skills/PAI/SYSTEM/THEDELEGATIONSYSTEM.md` | Background work, parallelization |
-| **Browser Automation** | `~/.config/opencode/skills/PAI/SYSTEM/BROWSERAUTOMATION.md` | Playwright, screenshots, testing |
-| **CLI Architecture** | `~/.config/opencode/skills/PAI/SYSTEM/CLIFIRSTARCHITECTURE.md` | Command-line first principles |
-| **Notification System** | `~/.config/opencode/skills/PAI/SYSTEM/THENOTIFICATIONSYSTEM.md` | Voice, visual notifications |
-| **Tools Reference** | `~/.config/opencode/skills/PAI/SYSTEM/TOOLS.md` | Core tools inventory |
+| Domain                  | Path                                                            | Purpose                                         |
+| ----------------------- | --------------------------------------------------------------- | ----------------------------------------------- |
+| **System Architecture** | `~/.config/opencode/skills/PAI/SYSTEM/PAISYSTEMARCHITECTURE.md` | Core PAI design and principles                  |
+| **Memory System**       | `~/.config/opencode/skills/PAI/SYSTEM/MEMORYSYSTEM.md`          | WORK, STATE, LEARNING directories               |
+| **Skill System**        | `~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md`           | How skills work, structure, triggers            |
+| **Plugin System**       | `~/.config/opencode/skills/PAI/SYSTEM/THEPLUGINSYSTEM.md`       | OpenCode plugins, hooks mapping, implementation |
+| **Agent System**        | `~/.config/opencode/skills/PAI/SYSTEM/PAIAGENTSYSTEM.md`        | Agent types, spawning, delegation               |
+| **Delegation**          | `~/.config/opencode/skills/PAI/SYSTEM/THEDELEGATIONSYSTEM.md`   | Background work, parallelization                |
+| **Browser Automation**  | `~/.config/opencode/skills/PAI/SYSTEM/BROWSERAUTOMATION.md`     | Playwright, screenshots, testing                |
+| **CLI Architecture**    | `~/.config/opencode/skills/PAI/SYSTEM/CLIFIRSTARCHITECTURE.md`  | Command-line first principles                   |
+| **Notification System** | `~/.config/opencode/skills/PAI/SYSTEM/THENOTIFICATIONSYSTEM.md` | Voice, visual notifications                     |
+| **Tools Reference**     | `~/.config/opencode/skills/PAI/SYSTEM/TOOLS.md`                 | Core tools inventory                            |
 
 **USER Context:** `~/.config/opencode/skills/PAI/USER/` contains personal data—identity, contacts, health, finances, projects. See `~/.config/opencode/skills/PAI/USER/README.md` for full index.
 
 **Project Routing:**
 
-| Trigger | Path | Purpose |
-|---------|------|---------|
+| Trigger                                              | Path                                                   | Purpose                                                       |
+| ---------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
 | "projects", "my projects", "project paths", "deploy" | `~/.config/opencode/skills/PAI/USER/TELOS/PROJECTS.md` | Technical project registry—paths, deployment, routing aliases |
-| "Telos", "life goals", "goals", "challenges" | `~/.config/opencode/skills/PAI/USER/TELOS/TELOS.md` | Life goals, challenges, predictions (Telos Life System) |
+| "Telos", "life goals", "goals", "challenges"         | `~/.config/opencode/skills/PAI/USER/TELOS/TELOS.md`    | Life goals, challenges, predictions (Telos Life System)       |
 
 ---
 

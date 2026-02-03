@@ -30,16 +30,20 @@ import {
 } from "./handlers/agent-capture";
 import { createHistoryCapture } from "./handlers/history-capture";
 import { runImplicitSentimentSelftest } from "./handlers/sentiment-capture";
-import { parseIscResponse } from "./handlers/isc-parser";
-import { classifyFormatHint } from "./handlers/format-reminder";
+import {
+  buildFallbackFullWrapper,
+  buildFallbackMinimalWrapper,
+  detectEnforcementMode,
+  looksLikeJsonOnly,
+  validateOutput,
+  type EnforcementMode,
+} from "./handlers/enforcement-gate";
 import { fileLog, fileLogError, clearLog } from "./lib/file-logger";
 import { getVoiceId } from "./lib/identity";
 import { getSessionStatusType } from "./lib/event-normalize";
 import {
   ensureDir,
-  getLearningDir,
   getStateDir,
-  getMemoryDir,
   getCurrentWorkPathForSession,
 } from "./lib/paths";
 import {
@@ -100,30 +104,104 @@ export const PaiUnified: Plugin = async (ctx) => {
   // Debug mode: enables extra evidence files and optional toasts.
   const PAI_DEBUG = process.env.PAI_DEBUG === "1";
 
-  // Optional: run a carrier self-test on startup.
-  // This avoids needing interactive sessions to validate carrier wiring.
-  const ENABLE_FORMAT_GATE_SELFTEST = PAI_DEBUG && process.env.PAI_FORMAT_GATE_SELFTEST === "1";
-  const ENABLE_IMPLICIT_SENTIMENT_SELFTEST =
-    PAI_DEBUG && process.env.PAI_IMPLICIT_SENTIMENT_SELFTEST === "1";
+  // Selftests and toasts are disabled. Enforcement must be silent.
+  const ENABLE_FORMAT_GATE_SELFTEST = false;
+  const ENABLE_IMPLICIT_SENTIMENT_SELFTEST = false;
+  const ENABLE_PROMPT_HINT_TOASTS = false;
+  const ENABLE_FORMAT_HINT_TOASTS = false;
 
-  // Default-off: Pass-1 hint toasts are for debugging only.
-  // The underlying artifacts (PROMPT_HINTS.jsonl / FORMAT_HINTS.jsonl) still persist.
-  const ENABLE_PROMPT_HINT_TOASTS = PAI_DEBUG && process.env.PAI_ENABLE_PROMPT_HINT_TOASTS === "1";
-  const ENABLE_FORMAT_HINT_TOASTS = PAI_DEBUG && process.env.PAI_ENABLE_FORMAT_HINT_TOASTS === "1";
-
-  // Format enforcement gate (v2.5 intent): rewrite invalid assistant output before display.
-  // Default-on: disable only with PAI_ENABLE_FORMAT_GATE=0.
-  const ENABLE_FORMAT_GATE = process.env.PAI_ENABLE_FORMAT_GATE !== "0";
-  // Default-on per Petteri: force a rewrite even if already valid.
-  // Disable (debug only) with: PAI_FORMAT_GATE_FORCE=0
-  const FORMAT_GATE_FORCE = process.env.PAI_FORMAT_GATE_FORCE !== "0";
+  // Enforcement gate is always enabled for primary sessions.
+  const ENABLE_FORMAT_GATE = true;
   // Debug-only: write per-session FORMAT_GATE.jsonl evidence.
-  const FORMAT_GATE_WRITE_EVIDENCE = PAI_DEBUG && process.env.PAI_FORMAT_GATE_WRITE_EVIDENCE !== "0";
+  const FORMAT_GATE_WRITE_EVIDENCE = PAI_DEBUG;
+  // Guardrails: rate limit Task subagent spawns per session.
+  const TASK_RATE_LIMIT_WINDOW_MS = Number(process.env.PAI_TASK_RATE_LIMIT_WINDOW_MS || "120000");
+  const TASK_RATE_LIMIT_MAX = Number(process.env.PAI_TASK_RATE_LIMIT_MAX || "30");
+  const TASK_RATE_LIMIT_ALGO_MAX = Number(process.env.PAI_TASK_RATE_LIMIT_ALGO_MAX || "8");
+  const TASK_RATE_LIMIT_DISABLE = process.env.PAI_TASK_RATE_LIMIT_DISABLE === "1";
 
   const internalCarrierSessions = new Set<string>();
   const lastUserTextBySession = new Map<string, string>();
   const sawToolCallThisTurn = new Map<string, boolean>();
-  const forcedRewriteDoneBySession = new Set<string>();
+  const rewriteAttemptedByPart = new Set<string>();
+  const sessionParentById = new Map<string, string | null>();
+  const taskRateBySession = new Map<
+    string,
+    {
+      windowStart: number;
+      total: number;
+      algorithm: number;
+    }
+  >();
+
+  type SessionKind = "primary" | "subagent" | "internal" | "unknown";
+
+  function classifySessionKind(sessionId: string | null | undefined): SessionKind {
+    if (!sessionId) return "unknown";
+    if (internalCarrierSessions.has(sessionId)) return "internal";
+    const parent = sessionParentById.get(sessionId);
+    if (parent === undefined) return "unknown";
+    return parent ? "subagent" : "primary";
+  }
+
+  function storageSessionIdFor(sessionId: string | null | undefined): string | null {
+    if (!sessionId) return null;
+    const parent = sessionParentById.get(sessionId);
+    if (parent) return parent;
+    return sessionId;
+  }
+
+  async function ensureSessionParentCached(sessionId: string): Promise<void> {
+    if (sessionParentById.has(sessionId)) return;
+    try {
+      const sessionApi = (carrierClient as unknown as { session?: UnknownRecord }).session as UnknownRecord | undefined;
+      const getFn = sessionApi ? (sessionApi.get as unknown) : undefined;
+      if (typeof getFn !== "function") return;
+
+      const call = async (args: UnknownRecord) =>
+        await (getFn as (this: unknown, args: UnknownRecord) => Promise<unknown>).call(sessionApi, args);
+
+      // Try SDK v1 style: { path: { id } }
+      let res: unknown;
+      try {
+        res = await call({
+          path: { id: sessionId },
+          ...(directory ? { query: { directory } } : {}),
+        });
+      } catch {
+        // Try SDK v2 style: { path: { sessionID } }
+        res = await call({
+          path: { sessionID: sessionId },
+          ...(directory ? { query: { directory } } : {}),
+        });
+      }
+
+      const data = getRecordProp(res, "data");
+      const parentID = getStringProp(data, "parentID");
+      sessionParentById.set(sessionId, parentID ? parentID : null);
+    } catch {
+      // Best-effort only.
+    }
+  }
+
+  function isPrimarySession(sessionId: string | null | undefined): boolean {
+    return classifySessionKind(sessionId) === "primary";
+  }
+
+  function isSubagentLikeSession(sessionId: string | null | undefined): boolean {
+    const kind = classifySessionKind(sessionId);
+    return kind === "subagent" || kind === "unknown";
+  }
+
+  function cacheSessionInfoFromEvent(eventObj: UnknownRecord | undefined) {
+    if (!eventObj) return;
+    const props = getRecordProp(eventObj, "properties");
+    const info = props ? getRecordProp(props, "info") : undefined;
+    const id = getStringProp(info, "id");
+    if (!id) return;
+    const parentID = getStringProp(info, "parentID");
+    sessionParentById.set(id, parentID ? parentID : null);
+  }
 
   // Clear log at plugin load (new session)
   clearLog();
@@ -272,18 +350,6 @@ export const PaiUnified: Plugin = async (ctx) => {
       .trim();
   }
 
-  function looksLikeJsonOnly(text: string): boolean {
-    const t = text.trim();
-    if (!t) return false;
-    if (!(t.startsWith("{") || t.startsWith("["))) return false;
-    try {
-      JSON.parse(t);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   async function appendFormatGateEvidence(sessionId: string, record: Record<string, unknown>) {
     if (!FORMAT_GATE_WRITE_EVIDENCE) return;
     try {
@@ -297,128 +363,8 @@ export const PaiUnified: Plugin = async (ctx) => {
     }
   }
 
-  function validateMinimalFormat(text: string): boolean {
-    const hasVoiceLine = /^🗣️\s*[^:\n]{1,40}:/m.test(text);
-    const hasSummaryLine = /^📋 SUMMARY:/m.test(text);
-    return hasVoiceLine && hasSummaryLine;
-  }
 
-  function validateFullFormatDetailed(text: string): {
-    ok: boolean;
-    criteriaCount: number;
-    reasons: string[];
-  } {
-    const hint = classifyFormatHint(text, "");
-    const reasons: string[] = [];
-
-    if (!hint.features.hasPaiAlgorithmHeader) reasons.push("missing_pai_algorithm_header");
-    if (!hint.features.hasVoiceLine) reasons.push("missing_voice_line");
-    if (!hint.features.hasSummaryLine) reasons.push("missing_summary_line");
-    if (!hint.features.hasIscTracker) reasons.push("missing_isc_tracker");
-    if (hint.features.phaseCount < 5) reasons.push("missing_phases");
-
-    const parsed = parseIscResponse(text);
-    const criteriaCount = parsed.criteria.length;
-    if (parsed.attempted && criteriaCount === 0) reasons.push("empty_isc_criteria");
-
-    return { ok: reasons.length === 0, criteriaCount, reasons };
-  }
-
-  function validateFullFormat(text: string): boolean {
-    return validateFullFormatDetailed(text).ok;
-  }
-
-  function buildFallbackFullWrapper(opts: {
-    task: string;
-    userText: string;
-    assistantText: string;
-  }): string {
-    const original = opts.assistantText.trim();
-    const clipped = original.length > 4000 ? `${original.slice(0, 4000)}\n\n[truncated]` : original;
-
-    return [
-      "🤖 PAI ALGORITHM ══════════════════════════════════════════════════════════════",
-      `   Task: ${opts.task}`,
-      "   [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 0% → IDEAL STATE",
-      "",
-      "━━━ 👁️  O B S E R V E ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1/7",
-      "",
-      "**Observations:**",
-      "- What exists now: assistant output failed format validation",
-      "- What you explicitly asked: see user message below",
-      "- Relevant context: original assistant output preserved in OUTPUT",
-      "",
-      "**🔧 Capabilities:** direct",
-      "",
-      "━━━ 🧠  T H I N K ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2/7",
-      "",
-      "**Analysis:**",
-      "- Goal: enforce required response format deterministically",
-      "- Approach: wrap original output in required structure",
-      "",
-      "**🔧 Capabilities:** direct",
-      "",
-      "━━━ 📋  P L A N ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3/7",
-      "",
-      "**IDEAL:** Output conforms to required PAI response structure.",
-      "",
-      "🎯 ISC TRACKER ════════════════════════════════════════════════════════════════",
-      "│ # │ Criterion (exactly 8 words)                 │ Status          │ Δ      │",
-      "├───┼─────────────────────────────────────────────┼─────────────────┼────────┤",
-      "│ 1 │ Required response format fields are present │ ✅ VERIFIED     │ ★ ADDED │",
-      "├───┴─────────────────────────────────────────────┴─────────────────┴────────┤",
-      "│ ⚠️ ANTI-CRITERIA                                                          │",
-      "├───┬─────────────────────────────────────────────┬──────────────────────────┤",
-      "│ ! │ No tool results invented in wrapper output  │ ✅ AVOIDED               │",
-      "└───┴─────────────────────────────────────────────┴──────────────────────────┘",
-      "",
-      "**🔧 Capabilities:** direct",
-      "",
-      "━━━ 🔨  B U I L D ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4/7",
-      "",
-      "**Building:**",
-      "- Formatting wrapper around original assistant output",
-      "",
-      "**🔧 Capabilities:** direct",
-      "",
-      "━━━ ⚡  E X E C U T E ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5/7",
-      "",
-      "**Actions:**",
-      "- Wrapped original assistant output into required format",
-      "",
-      "**🔧 Capabilities:** direct",
-      "",
-      "━━━ ✅  V E R I F Y ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6/7",
-      "",
-      "🎯 FINAL ISC STATE ════════════════════════════════════════════════════════════",
-      "│ # │ Criterion                          │ Status      │ Evidence │",
-      "├───┼────────────────────────────────────┼─────────────┼──────────┤",
-      "│ 1 │ Required response format fields are present │ ✅ VERIFIED │ wrapper applied │",
-      "└───┴────────────────────────────────────┴─────────────┴──────────┘",
-      "",
-      "**🔧 Capabilities:** direct",
-      "",
-      "━━━ 📤  O U T P U T ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.5/7",
-      "",
-      "📊 RESULTS FROM: Original assistant output",
-      "────────────────────────────────────────────────────────────────────────────────",
-      "USER_MESSAGE:",
-      opts.userText || "(unknown)",
-      "",
-      "ASSISTANT_OUTPUT (original):",
-      clipped || "(empty)",
-      "────────────────────────────────────────────────────────────────────────────────",
-      "",
-      "━━━ 📚  L E A R N ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7/7",
-      "",
-      "📋 SUMMARY: I wrapped the assistant output to satisfy format requirements.",
-      "➡️ NEXT: Investigate why rewrite failed; see FORMAT_GATE.jsonl.",
-      "",
-      "⭐ RATE (1-10):",
-      "",
-      "🗣️ Marvin: I enforced the required format by wrapping the assistant output. Original content preserved.",
-    ].join("\n");
-  }
+  // Validation and fallback wrappers live in handlers/enforcement-gate.ts
 
   async function rewriteToFormat(opts: {
     mode: "MINIMAL" | "FULL";
@@ -579,7 +525,7 @@ export const PaiUnified: Plugin = async (ctx) => {
 
     const minimal = await rewriteToFormat(minimalInput);
     const full = await rewriteToFormat(fullInput);
-    const missingCriteriaCheck = validateFullFormatDetailed(fullMissingCriteria);
+    const missingCriteriaCheck = validateOutput(fullMissingCriteria, "FULL");
 
     await writeFormatGateSelftest({
       ts: startedAt,
@@ -588,13 +534,13 @@ export const PaiUnified: Plugin = async (ctx) => {
         full: full.ok,
       },
       validated: {
-        minimal: minimal.ok ? validateMinimalFormat(minimal.text) : false,
-        full: full.ok ? validateFullFormat(full.text) : false,
+        minimal: minimal.ok ? validateOutput(minimal.text, "MINIMAL").ok : false,
+        full: full.ok ? validateOutput(full.text, "FULL").ok : false,
       },
       iscGate: {
         missingCriteriaOk: missingCriteriaCheck.ok,
         missingCriteriaReasons: missingCriteriaCheck.reasons,
-        missingCriteriaCount: missingCriteriaCheck.criteriaCount,
+        missingCriteriaCount: missingCriteriaCheck.criteriaCount ?? 0,
       },
       error: {
         minimal: minimal.ok ? null : minimal.error,
@@ -961,6 +907,7 @@ export const PaiUnified: Plugin = async (ctx) => {
       try {
         const sessionId = input.sessionID;
         if (!sessionId) return;
+        if (isSubagentLikeSession(sessionId)) return;
         // Only track user messages.
         if (output?.message?.role !== "user") return;
         const text = extractTextFromParts(output.parts);
@@ -974,6 +921,73 @@ export const PaiUnified: Plugin = async (ctx) => {
     },
 
     /**
+     * PASS 1 (pre-LLM): Silent contract injection
+     *
+     * Enforce the response contract by injecting a short, binding system reminder
+     * into the *current* user message (ephemeral transform).
+     *
+     * No toasts; no hint-file reading; no loops.
+     */
+    "experimental.chat.messages.transform": async (_input, output) => {
+      try {
+        const messages = getProp(output, "messages");
+        if (!Array.isArray(messages) || messages.length === 0) return;
+
+        let lastUser: UnknownRecord | undefined;
+        for (let i = (messages as UnknownRecord[]).length - 1; i >= 0; i--) {
+          const m = (messages as UnknownRecord[])[i];
+          if (getStringProp(getProp(m, "info"), "role") === "user") {
+            lastUser = m;
+            break;
+          }
+        }
+        if (!lastUser) return;
+
+        const info = getProp(lastUser, "info");
+        const sessionId = getStringProp(info, "sessionID");
+        if (!sessionId) return;
+        if (internalCarrierSessions.has(sessionId)) return;
+
+        // Best-effort: cache parent relationships so we can avoid touching subagent sessions.
+        await ensureSessionParentCached(sessionId);
+
+        if (!isPrimarySession(sessionId)) return;
+
+        const parts = getProp(lastUser, "parts");
+        const userText = extractTextFromParts(parts);
+
+        const mode = detectEnforcementMode({ userText, toolUsed: false, assistantText: "" });
+        const marker = "PAI_ENFORCEMENT_CONTRACT_V25";
+        const reminder = [
+          "<system-reminder>",
+          marker,
+          `RequiredDepth: ${mode}`,
+          "Rules:",
+          "- Your response MUST follow the PAI response contract.",
+          "- Your FIRST output token must be 🤖.",
+          "- Do NOT request ratings, sentiment, or feedback.",
+          "- Do NOT mention toasts, hints, or internal enforcement.",
+          "- Do NOT run self-correction loops; output once.",
+          "</system-reminder>",
+        ].join("\n");
+
+        if (!Array.isArray(parts)) return;
+        for (const p of parts as UnknownRecord[]) {
+          if (p.type !== "text") continue;
+          if (p.ignored) continue;
+          if (p.synthetic) continue;
+          const t = typeof p.text === "string" ? p.text : "";
+          if (!t.trim()) continue;
+          if (t.includes(marker)) return;
+          p.text = `${reminder}\n\n${t}`;
+          return;
+        }
+      } catch (error) {
+        fileLogError("messages.transform enforcement injection failed", error);
+      }
+    },
+
+    /**
      * CONTEXT INJECTION (SessionStart equivalent)
      *
      * Injects PAI skill context into the chat system (CORE fallback).
@@ -982,75 +996,35 @@ export const PaiUnified: Plugin = async (ctx) => {
     "experimental.chat.system.transform": async (_input, output) => {
       try {
         const sessionId = getStringProp(_input, "sessionID");
+
+        // Ensure subagent detection works even if session.created wasn't observed yet.
+        if (sessionId) {
+          await ensureSessionParentCached(sessionId);
+        }
+
+        const kind = classifySessionKind(sessionId);
+        const storageSessionId = storageSessionIdFor(sessionId);
         let scratchpadDir: string | null = null;
 
-        if (sessionId) {
-          scratchpadDir = await getCurrentWorkPathForSession(sessionId);
+        // Primary sessions may use per-session work scratchpads.
+        // Subagents must be minimal and side-effect free.
+        if (storageSessionId) {
+          scratchpadDir = await getCurrentWorkPathForSession(storageSessionId);
           if (!scratchpadDir) {
-            // Create a work session early so ScratchpadDir is stable.
-            await createWorkSession(sessionId, "work-session");
-            scratchpadDir = await getCurrentWorkPathForSession(sessionId);
+            // Ensure the PRIMARY session work directory exists.
+            // For subagents, we always bind them to parent session work.
+            await createWorkSession(storageSessionId, "work-session");
+            scratchpadDir = await getCurrentWorkPathForSession(storageSessionId);
           }
-          if (scratchpadDir) {
-            scratchpadDir = path.join(scratchpadDir, "scratch");
-          }
+          if (scratchpadDir) scratchpadDir = path.join(scratchpadDir, "scratch");
         }
 
         if (!scratchpadDir) {
-          // Fallback for contexts without a sessionID (e.g. agent generation).
           const scratchpad = await ensureScratchpadSession();
           scratchpadDir = scratchpad.dir;
         }
-        fileLog("Injecting context...");
 
-        // Best-effort: initialize expected MEMORY state files so docs stay accurate.
-        try {
-          await ensureDir(getStateDir());
-          await ensureDir(path.join(getLearningDir(), "SIGNALS"));
-          await ensureDir(path.join(getMemoryDir(), "PAISYSTEMUPDATES"));
-
-          const currentWorkFile = path.join(getStateDir(), "current-work.json");
-          if (!fs.existsSync(currentWorkFile)) {
-            await fs.promises.writeFile(
-              currentWorkFile,
-              JSON.stringify({ v: "0.2", updated_at: new Date().toISOString(), sessions: {} }, null, 2)
-            );
-          }
-
-          const ratingsFile = path.join(getLearningDir(), "SIGNALS", "ratings.jsonl");
-          if (!fs.existsSync(ratingsFile)) {
-            await fs.promises.writeFile(ratingsFile, "");
-          }
-
-          const updatesIndex = path.join(getMemoryDir(), "PAISYSTEMUPDATES", "index.json");
-          if (!fs.existsSync(updatesIndex)) {
-            await fs.promises.writeFile(updatesIndex, JSON.stringify({ updates: [] }, null, 2));
-          }
-
-          const updatesChangelog = path.join(getMemoryDir(), "PAISYSTEMUPDATES", "CHANGELOG.md");
-          if (!fs.existsSync(updatesChangelog)) {
-            await fs.promises.writeFile(
-              updatesChangelog,
-              "# PAI System Updates Changelog\n\nThis file is generated/updated by System tooling.\n"
-            );
-          }
-        } catch (error) {
-          fileLogError("Memory initialization failed", error);
-        }
-
-        const result = await loadContext();
-
-        if (result.success && result.context) {
-          output.system.push(result.context);
-          fileLog("Context injected successfully");
-        } else {
-          fileLog(
-            `Context injection skipped: ${result.error || "unknown"}`,
-            "warn"
-          );
-        }
-
-        // Inject a short, binding scratchpad directive with the per-session path.
+        // Minimal always-on scratchpad directive.
         output.system.push(
           [
             "PAI SCRATCHPAD (Binding)",
@@ -1061,6 +1035,18 @@ export const PaiUnified: Plugin = async (ctx) => {
             "- Only write outside ScratchpadDir when explicitly instructed with an exact destination path.",
           ].join("\n")
         );
+
+        // Minimal subagent-only directive. Do not inject heavy PAI context.
+        if (sessionId && kind !== "primary") {
+          output.system.push(
+            [
+              "PAI SUBAGENT MODE (Binding)",
+              "- Return findings only; be concise and specific.",
+              "- Do NOT ask for ratings, sentiment, or feedback.",
+              "- Do NOT run format gating or self-correction loops.",
+            ].join("\n")
+          );
+        }
       } catch (error) {
         fileLogError("Context injection failed", error);
         // Don't throw - continue without context
@@ -1078,6 +1064,7 @@ export const PaiUnified: Plugin = async (ctx) => {
     "experimental.session.compacting": async (_input, output) => {
       try {
         const sessionId = getStringProp(_input, "sessionID");
+        const kind = classifySessionKind(sessionId);
         let scratchpadDir: string | null = null;
 
         if (sessionId) {
@@ -1095,9 +1082,13 @@ export const PaiUnified: Plugin = async (ctx) => {
           const scratchpad = await ensureScratchpadSession();
           scratchpadDir = scratchpad.dir;
         }
-        fileLog("Compaction: injecting context...");
+        fileLog("Compaction: injecting context...", "debug");
 
-        const result = await loadContext();
+        // Only inject heavy PAI context during compaction for PRIMARY sessions.
+        const result =
+          sessionId && kind === "primary"
+            ? await loadContext()
+            : ({ success: false, error: "subagent_or_unknown", context: "" } as const);
 
         // output.context is used to seed the compaction summary.
         // Be defensive: ensure it exists and is an array.
@@ -1157,11 +1148,46 @@ export const PaiUnified: Plugin = async (ctx) => {
         output.args = normalizeArgsTilde(output.args) as Record<string, unknown>;
       }
 
-      // Mark that this assistant turn used tools.
-      if (input.sessionID) {
+      // Mark that this assistant turn used tools (primary sessions only).
+      if (input.sessionID && isPrimarySession(input.sessionID)) {
         sawToolCallThisTurn.set(input.sessionID, true);
       }
 
+      // Task spawn rate limiter (guard against runaway subagent loops).
+      if (!TASK_RATE_LIMIT_DISABLE && input.tool === "Task" && input.sessionID) {
+        const sessionId = input.sessionID;
+        const now = Date.now();
+        const bucket = taskRateBySession.get(sessionId) ?? {
+          windowStart: now,
+          total: 0,
+          algorithm: 0,
+        };
+        if (now - bucket.windowStart > TASK_RATE_LIMIT_WINDOW_MS) {
+          bucket.windowStart = now;
+          bucket.total = 0;
+          bucket.algorithm = 0;
+        }
+        bucket.total += 1;
+        const argsRec = output.args as Record<string, unknown> | undefined;
+        const subagentType = String(argsRec?.subagent_type ?? "");
+        if (subagentType === "Algorithm") bucket.algorithm += 1;
+        taskRateBySession.set(sessionId, bucket);
+        if (bucket.total > TASK_RATE_LIMIT_MAX || bucket.algorithm > TASK_RATE_LIMIT_ALGO_MAX) {
+          const reason =
+            bucket.algorithm > TASK_RATE_LIMIT_ALGO_MAX
+              ? "algorithm subagent rate limit"
+              : "task rate limit";
+          fileLog(
+            `BLOCKED: ${reason} exceeded (total=${bucket.total}, algorithm=${bucket.algorithm})`,
+            "warn"
+          );
+          throw new Error(
+            `[PAI Guard] ${reason} exceeded. Set PAI_TASK_RATE_LIMIT_DISABLE=1 to override.`
+          );
+        }
+      }
+
+      // History capture: responsible for mapping subagent sessions to parent storage.
       await historyCapture.handleToolBefore(
         {
           tool: input.tool,
@@ -1203,6 +1229,8 @@ export const PaiUnified: Plugin = async (ctx) => {
         const sessionId = input.sessionID;
         if (!sessionId) return;
         if (internalCarrierSessions.has(sessionId)) return;
+        // Format rewriting is primary-session only.
+        if (!isPrimarySession(sessionId)) return;
 
         const text = typeof output.text === "string" ? output.text : "";
         if (!text.trim()) return;
@@ -1211,29 +1239,47 @@ export const PaiUnified: Plugin = async (ctx) => {
         const userText = lastUserTextBySession.get(sessionId) || "";
         const toolUsed = sawToolCallThisTurn.get(sessionId) === true;
 
-        const mode: "MINIMAL" | "FULL" = toolUsed || text.length >= 600 ? "FULL" : "MINIMAL";
-
-        const fullDetails = mode === "FULL" ? validateFullFormatDetailed(text) : null;
-        const ok = mode === "FULL" ? fullDetails?.ok === true : validateMinimalFormat(text);
-        const shouldForce = FORMAT_GATE_FORCE && !forcedRewriteDoneBySession.has(sessionId);
+        const mode: EnforcementMode = detectEnforcementMode({ userText, toolUsed, assistantText: text });
+        const details = validateOutput(text, mode);
         await appendFormatGateEvidence(sessionId, {
           event: "checked",
           mode,
-          ok,
-          forced: shouldForce,
+          ok: details.ok,
+          reasons: details.reasons,
+          criteriaCount: details.criteriaCount ?? 0,
           toolUsed,
           inLen: text.length,
           messageID: input.messageID,
           partID: input.partID,
-          ...(mode === "FULL"
-            ? {
-                criteriaCount: fullDetails?.criteriaCount ?? 0,
-                reasons: fullDetails?.reasons ?? [],
-              }
-            : {}),
         });
 
-        if (ok && !shouldForce) return;
+        if (details.ok) return;
+
+        const key = `${sessionId}:${input.messageID}:${input.partID}:${mode}`;
+        if (rewriteAttemptedByPart.has(key)) {
+          const fallback =
+            mode === "FULL"
+              ? buildFallbackFullWrapper({
+                  task: "Enforce required response contract",
+                  userText,
+                  assistantText: text,
+                })
+              : buildFallbackMinimalWrapper({
+                  task: "Enforce required response contract",
+                  assistantText: text,
+                });
+          output.text = fallback;
+          await appendFormatGateEvidence(sessionId, {
+            event: "wrapped",
+            mode,
+            inLen: text.length,
+            outLen: fallback.length,
+            messageID: input.messageID,
+            partID: input.partID,
+            error: "repeat enforcement attempt; wrapper applied",
+          });
+          return;
+        }
 
         const rewritten = await rewriteToFormat({
           mode,
@@ -1241,85 +1287,88 @@ export const PaiUnified: Plugin = async (ctx) => {
           assistantText: text,
         });
 
-        // Ensure force-mode is one-shot, even if rewrite fails.
-        if (shouldForce) forcedRewriteDoneBySession.add(sessionId);
+        rewriteAttemptedByPart.add(key);
 
         if (!rewritten.ok) {
           await appendFormatGateEvidence(sessionId, {
             event: "rewrite_failed",
             mode,
-            forced: shouldForce,
             inLen: text.length,
             messageID: input.messageID,
             partID: input.partID,
             error: rewritten.error.slice(0, 500),
           });
-          const fallback = buildFallbackFullWrapper({
-            task: "Enforce required response format",
-            userText,
-            assistantText: text,
+          const fallback =
+            mode === "FULL"
+              ? buildFallbackFullWrapper({
+                  task: "Enforce required response contract",
+                  userText,
+                  assistantText: text,
+                })
+              : buildFallbackMinimalWrapper({
+                  task: "Enforce required response contract",
+                  assistantText: text,
+                });
+          output.text = fallback;
+          await appendFormatGateEvidence(sessionId, {
+            event: "wrapped",
+            mode,
+            inLen: text.length,
+            outLen: fallback.length,
+            messageID: input.messageID,
+            partID: input.partID,
           });
-          if (validateFullFormat(fallback)) {
-            output.text = fallback;
-            await appendFormatGateEvidence(sessionId, {
-              event: "rewrote_fallback",
-              mode: "FULL",
-              forced: shouldForce,
-              inLen: text.length,
-              outLen: fallback.length,
-              messageID: input.messageID,
-              partID: input.partID,
-            });
-          }
           return;
         }
 
-        const ok2 = mode === "FULL" ? validateFullFormat(rewritten.text) : validateMinimalFormat(rewritten.text);
-        if (!ok2) {
+        const details2 = validateOutput(rewritten.text, mode);
+        if (!details2.ok) {
           await appendFormatGateEvidence(sessionId, {
             event: "rewrite_failed",
             mode,
-            forced: shouldForce,
             inLen: text.length,
             outLen: rewritten.text.length,
             messageID: input.messageID,
             partID: input.partID,
             error: "rewritten output did not validate",
+            reasons: details2.reasons,
           });
-          const fallback = buildFallbackFullWrapper({
-            task: "Enforce required response format",
-            userText,
-            assistantText: text,
+          const fallback =
+            mode === "FULL"
+              ? buildFallbackFullWrapper({
+                  task: "Enforce required response contract",
+                  userText,
+                  assistantText: text,
+                })
+              : buildFallbackMinimalWrapper({
+                  task: "Enforce required response contract",
+                  assistantText: text,
+                });
+          output.text = fallback;
+          await appendFormatGateEvidence(sessionId, {
+            event: "wrapped",
+            mode,
+            inLen: text.length,
+            outLen: fallback.length,
+            messageID: input.messageID,
+            partID: input.partID,
           });
-          if (validateFullFormat(fallback)) {
-            output.text = fallback;
-            await appendFormatGateEvidence(sessionId, {
-              event: "rewrote_fallback",
-              mode: "FULL",
-              forced: shouldForce,
-              inLen: text.length,
-              outLen: fallback.length,
-              messageID: input.messageID,
-              partID: input.partID,
-            });
-          }
           return;
         }
 
         output.text = rewritten.text;
 
-        if (PAI_DEBUG) fileLog(`FormatGate rewrote output (mode=${mode} forced=${shouldForce})`, "info");
+        if (PAI_DEBUG) fileLog(`EnforcementGate rewrote output (mode=${mode})`, "info");
         await appendFormatGateEvidence(sessionId, {
           event: "rewrote",
           mode,
-          forced: shouldForce,
           inLen: text.length,
           outLen: rewritten.text.length,
           messageID: input.messageID,
           partID: input.partID,
         });
       } catch (error) {
-        fileLogError("Format gate failed", error);
+        fileLogError("Enforcement gate failed", error);
       }
     },
 
@@ -1428,11 +1477,17 @@ export const PaiUnified: Plugin = async (ctx) => {
 
         const sessionIdForEvent = extractSessionIdFromEvent(eventObj);
 
+        // Cache session parent relationship as early as possible.
+        if (eventType === "session.created" || eventType === "session.updated") {
+          cacheSessionInfoFromEvent(eventObj);
+        }
+
         // (capability audit logging removed)
 
         // === TUI RATING KIOSK ===
         // Intercept single keypresses during the short rating window.
         if (eventType === "tui.prompt.append") {
+          if (sessionIdForEvent && !isPrimarySession(sessionIdForEvent)) return;
           // Always treat prompt activity as "user is typing" signal
           // (even if kiosk is not armed).
           lastPromptAppendAt = Date.now();
@@ -1481,8 +1536,10 @@ export const PaiUnified: Plugin = async (ctx) => {
           try {
             const statusType = getSessionStatusType(eventObj);
             if (statusType === "idle") {
-              armRatingKiosk();
-              fileLog("Rating kiosk armed (session.status)", "debug");
+              if (!sessionIdForEvent || isPrimarySession(sessionIdForEvent)) {
+                armRatingKiosk();
+                fileLog("Rating kiosk armed (session.status)", "debug");
+              }
               idleLike = true;
             }
           } catch (error) {
@@ -1492,12 +1549,22 @@ export const PaiUnified: Plugin = async (ctx) => {
 
         // === SESSION START ===
         if (eventType.includes("session.created")) {
-          fileLog("=== Session Started ===", "info");
+          cacheSessionInfoFromEvent(eventObj);
+          // Subagent session: keep lifecycle hooks minimal (but still let history capture run).
+          if (sessionIdForEvent && !isPrimarySession(sessionIdForEvent)) {
+            fileLog("=== Subagent Session Started ===", "debug");
+          } else {
+            fileLog("=== Session Started ===", "info");
+          }
 
           // SKILL RESTORE WORKAROUND
           // OpenCode modifies SKILL.md files when loading them.
           // Restore them to git state on session start.
           try {
+            if (sessionIdForEvent && !isPrimarySession(sessionIdForEvent)) {
+              // Keep subagent sessions minimal.
+              return;
+            }
             const restoreResult = await restoreSkillFiles();
             if (restoreResult.restored.length > 0) {
               fileLog(
@@ -1514,15 +1581,22 @@ export const PaiUnified: Plugin = async (ctx) => {
         // === RESPONSE COMPLETE (IDLE) ===
         // Treat session.idle as "assistant finished", not "session ended".
         if (eventType === "session.idle" || eventType.includes("session.idle")) {
-          armRatingKiosk();
-          fileLog("Session idle (armed rating kiosk)", "debug");
+          if (!sessionIdForEvent || isPrimarySession(sessionIdForEvent)) {
+            armRatingKiosk();
+            fileLog("Session idle (armed rating kiosk)", "debug");
+          }
           idleLike = true;
         }
 
         // === SESSION DELETE (hard finalize) ===
         if (eventType === "session.deleted" || eventType.includes("session.deleted")) {
-          disarmRatingKiosk("session deleted");
-          fileLog("=== Session Deleted ===", "info");
+          if (!sessionIdForEvent || isPrimarySession(sessionIdForEvent)) {
+            disarmRatingKiosk("session deleted");
+            fileLog("=== Session Deleted ===", "info");
+          }
+          if (sessionIdForEvent) {
+            sessionParentById.delete(sessionIdForEvent);
+          }
         }
 
         // Log all events for debugging
