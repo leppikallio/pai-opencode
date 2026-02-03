@@ -8,9 +8,11 @@ const TELOS_DIR = path.join(PAI_DIR, 'skills', 'CORE', 'USER', 'TELOS')
 
 export async function POST(request: Request) {
   try {
-    const { filename, content } = await request.json()
+    const body = (await request.json()) as { filename?: unknown; content?: unknown }
+    const filename = body?.filename
+    const content = body?.content
 
-    if (!filename || content === undefined) {
+    if (typeof filename !== 'string' || content === undefined) {
       return NextResponse.json(
         { error: "Filename and content are required" },
         { status: 400 }
@@ -18,14 +20,16 @@ export async function POST(request: Request) {
     }
 
     // Determine file path
-    const isCSV = filename.endsWith('.csv')
+    const normalizedFilename = filename.replace(/^\//, '')
+    const isCSV = normalizedFilename.endsWith('.csv')
     let filePath: string
 
     if (isCSV) {
       const csvDir = path.join(TELOS_DIR, 'data')
-      filePath = path.join(csvDir, filename)
+      // Accept both "foo.csv" and "data/foo.csv".
+      filePath = path.join(csvDir, path.basename(normalizedFilename))
     } else {
-      filePath = path.join(TELOS_DIR, filename)
+      filePath = path.join(TELOS_DIR, path.basename(normalizedFilename))
     }
 
     // Verify file exists before overwriting
@@ -37,11 +41,11 @@ export async function POST(request: Request) {
     }
 
     // Save file
-    fs.writeFileSync(filePath, content, 'utf-8')
+    fs.writeFileSync(filePath, String(content), 'utf-8')
 
     // Log the edit
     const timestamp = new Date().toISOString()
-    const logMessage = `\n## ${timestamp}\n\n- **Action:** File edited via dashboard\n- **File:** ${filename}\n`
+    const logMessage = `\n## ${timestamp}\n\n- **Action:** File edited via dashboard\n- **File:** ${normalizedFilename}\n`
 
     const updatesPath = path.join(TELOS_DIR, 'UPDATES.md')
     if (fs.existsSync(updatesPath)) {

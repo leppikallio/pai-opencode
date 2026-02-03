@@ -3,37 +3,52 @@ import { getTelosContext } from "@/lib/telos-data"
 
 export async function POST(request: Request) {
   try {
-    const { message } = await request.json()
+    const body = (await request.json()) as { message?: unknown }
+    const message = body?.message
 
-    if (!message) {
+    if (typeof message !== "string" || !message.trim()) {
       return NextResponse.json(
         { error: "Message is required" },
         { status: 400 }
       )
     }
 
-    const apiKey = process.env.ANTHROPIC_API_KEY
-    if (!apiKey) {
+    // Load all TELOS context
+    const telosContext = getTelosContext()
+
+    // Preferred: use OpenCode server as the LLM carrier so this template
+    // reuses credentials from `opencode auth login` (no OPENAI_API_KEY).
+    const opencodeServerUrl = (process.env.OPENCODE_SERVER_URL || "http://localhost:4096").replace(/\/$/, "")
+
+    const createRes = await fetch(`${opencodeServerUrl}/session`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "[PAI INTERNAL] TelosDashboardChat",
+        permission: [{ permission: "*", pattern: "*", action: "deny" }],
+      }),
+    })
+
+    if (!createRes.ok) {
+      const errorText = await createRes.text().catch(() => "")
+      console.error("OpenCode server error:", errorText)
       return NextResponse.json(
-        { error: "API key not configured" },
+        { error: "OpenCode server not available (start opencode or opencode serve)" },
         { status: 500 }
       )
     }
 
-    // Load all TELOS context
-    const telosContext = getTelosContext()
+    const created = (await createRes.json()) as { id?: unknown }
+    const sessionId = typeof created?.id === "string" ? created.id : undefined
+    if (typeof sessionId !== "string" || !sessionId) {
+      return NextResponse.json(
+        { error: "OpenCode server returned invalid session" },
+        { status: 500 }
+      )
+    }
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 4096,
-        system: `You are a helpful AI assistant with access to the user's complete Personal TELOS (Life Operating System).
+    try {
+      const system = `You are a helpful AI assistant with access to the user's complete Personal TELOS (Life Operating System).
 
 ${telosContext}
 
@@ -42,30 +57,49 @@ When answering questions:
 - Be conversational and helpful
 - If asked about goals, projects, beliefs, wisdom, etc., use the exact information from the relevant sections
 - If information isn't in the TELOS data, say so clearly
-- Keep responses concise but informative`,
-        messages: [
-          {
-            role: "user",
-            content: message,
-          },
-        ],
-      }),
-    })
+- Keep responses concise but informative`
 
-    if (!response.ok) {
-      const errorText = await response.text()
-      console.error("API Error:", errorText)
-      throw new Error(`API request failed: ${response.statusText}`)
+      const promptRes = await fetch(`${opencodeServerUrl}/session/${sessionId}/message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: { providerID: "openai", modelID: "gpt-5.2" },
+          system,
+          parts: [{ type: "text", text: message }],
+          tools: {},
+        }),
+      })
+
+      if (!promptRes.ok) {
+        const errorText = await promptRes.text().catch(() => "")
+        console.error("OpenCode prompt error:", errorText)
+        return NextResponse.json(
+          { error: "Failed to get response from OpenCode" },
+          { status: 500 }
+        )
+      }
+
+      const data = (await promptRes.json()) as {
+        parts?: Array<{ type?: unknown; text?: unknown }>
+      }
+      const parts = Array.isArray(data?.parts) ? data.parts : []
+      const assistantMessage = parts
+        .filter(
+          (p): p is { type?: string; text?: string } =>
+            p?.type === "text" && typeof p?.text === "string"
+        )
+        .map((p) => p.text as string)
+        .join("")
+
+      if (typeof assistantMessage !== "string" || !assistantMessage.trim()) {
+        throw new Error("No response from OpenCode")
+      }
+
+      return NextResponse.json({ response: assistantMessage })
+    } finally {
+      void fetch(`${opencodeServerUrl}/session/${sessionId}`, { method: "DELETE" }).catch(() => {})
     }
 
-    const data = await response.json()
-    const assistantMessage = data.content[0]?.text
-
-    if (!assistantMessage) {
-      throw new Error("No response from API")
-    }
-
-    return NextResponse.json({ response: assistantMessage })
   } catch (error) {
     console.error("Error in chat API:", error)
     return NextResponse.json(

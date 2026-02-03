@@ -21,6 +21,58 @@ There are these FOUNDATIONAL concepts in The PAI Algorithm.
 8. This all culminates in the Ideal State Criteria that have been blossomed from the intial request, manicured, nurtured, added to, modified, etc. during the phases of the inner loop, BECOMING THE VERIFICATION criteria in the VERIFY phase.
 9. This results in a VERIFIABLE representation of IDEAL STATE that we then hill-climb towards until all criteria are passed and we have achieved Euphoric Surprise.
 
+## v2.5 Behavioral Additions (OpenCode Port)
+
+These rules implement the upstream v2.5 intent in an OpenCode-native way.
+
+### Two-Pass Capability Selection
+
+**Pass 1 (Hint):** OpenCode plugin emits a post-turn format hint.
+- Location (per-session): `MEMORY/WORK/<YYYY-MM>/<sessionId>/FORMAT_HINTS.jsonl`
+- UX: toast after `session.idle` / idle-like `session.status`
+- Purpose: highlight format violations (e.g., missing `🗣️` line) and nudges.
+
+**Pass 2 (Authority):** THINK phase validates the hint against:
+- reverse-engineered intent
+- chosen composition pattern
+- ISC criteria + anti-criteria
+
+Never treat Pass 1 as authoritative; it is a hint only.
+
+Optional: for complex prompts, you may run the pass-1 prompt classifier tool:
+- `bun ~/.config/opencode/skills/CORE/Tools/PromptClassifier.ts "<prompt>"`
+
+### Thinking Tools Assessment (Opt-out with Justification)
+
+For FULL tasks, you MUST explicitly decide include/exclude for:
+- **FirstPrinciples** (root cause / assumptions)
+- **RedTeam** (failure modes / adversarial)
+- **BeCreative** (option generation)
+- **Council** (multi-perspective debate)
+- **Research** (external facts / docs)
+- **Evals** (when comparing prompts/approaches)
+
+If you exclude a tool, you MUST state why exclusion is safe.
+
+### Parallel-by-Default
+
+When two tool calls or subagent tasks do not depend on each other, run them in parallel using `multi_tool_use.parallel`.
+
+### Composition Patterns (Name One)
+
+For any non-trivial task (3+ steps), you MUST explicitly choose one composition pattern in PLAN:
+- **Pipeline**: stepwise, dependent stages
+- **Fan-out**: parallel independent subtasks
+- **Fan-in**: consolidate parallel results into one decision
+- **Gate**: explicit verify/checkpoint before proceeding
+- **Escalation**: start simple, increase tools/agents only if stuck
+- **TDD Loop**: red → green → refactor with verification gates
+
+### Model Policy (Single Model)
+
+PAI-OpenCode uses a single model: `openai/gpt-5.2`.
+- “Fast/standard/smart” are **reasoning discipline + verbosity**, not different models.
+
 ## Execution Order (CRITICAL)
 
 **⚠️ MANDATORY - NO EXCEPTIONS - EVERY SINGLE RESPONSE ⚠️**

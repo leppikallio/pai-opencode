@@ -67,6 +67,10 @@ This is the actual "firehose" - every message, tool call, and response. PAI leve
 - `plugins/handlers/history-capture.ts` on `message.updated` + `message.part.updated`
 - `plugins/handlers/history-capture.ts` on `session.status` (idle) + `session.deleted`
 
+**Additional artifacts (v2.5 port):**
+- `FORMAT_HINTS.jsonl` - Post-turn format hint records (toast + reasons)
+- `PROMPT_HINTS.jsonl` - Pass-1 prompt classification hints (toast + fields)
+
 **Content:** Work directories with metadata, items, verification artifacts
 **Format:** `WORK/{work_id}/` with META.yaml, items/, verification/, etc.
 **Purpose:** Track all discrete work units with lineage, verification, and feedback
@@ -122,6 +126,9 @@ Legacy note:
 - OpenCode PAI uses `MEMORY/RAW/` as the firehose and does not require harvesting.
 
 **Not implemented yet (OpenCode port):** implicit sentiment capture.
+
+Update (v2.5 port): implicit sentiment capture is implemented as heuristic-gated carrier inference.
+- Writes: `MEMORY/LEARNING/SIGNALS/ratings.jsonl` with `source: "implicit"`
 
 **Structure:**
 - `LEARNING/SYSTEM/YYYY-MM/` - PAI/tooling learnings (infrastructure issues)

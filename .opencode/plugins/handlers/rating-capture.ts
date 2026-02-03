@@ -22,7 +22,17 @@ import {
  * Rating entry structure
  */
 export interface RatingEntry {
-  score: number;
+  // Upstream parity field
+  rating: number;
+
+  // Back-compat alias
+  score?: number;
+
+  // Upstream parity fields
+  session_id?: string;
+  sentiment_summary?: string;
+  confidence?: number;
+
   comment: string;
   timestamp: string;
   source: "explicit";
@@ -84,9 +94,13 @@ export function detectRating(message: string): RatingEntry | null {
 
       // Valid score range: 1-10
       if (score >= 1 && score <= 10) {
+        const comment = match[2]?.trim() || "";
         return {
+          rating: score,
           score,
-          comment: match[2]?.trim() || "",
+          sentiment_summary: comment,
+          confidence: 1,
+          comment,
           timestamp: new Date().toISOString(),
           source: "explicit",
         };
@@ -127,11 +141,11 @@ export async function captureRating(
     const line = `${JSON.stringify(rating)}\n`;
     await fs.promises.appendFile(ratingsFile, line);
 
-    fileLog(`Rating captured: ${rating.score}/10`, "info");
+    fileLog(`Rating captured: ${rating.rating}/10`, "info");
 
     // For low ratings (< 7), create a learning file
     let learned = false;
-    if (rating.score < 7 && rating.comment) {
+    if (rating.rating < 7 && rating.comment) {
       learned = await createLearningFromRating(rating);
     }
 
@@ -161,10 +175,10 @@ async function createLearningFromRating(rating: RatingEntry): Promise<boolean> {
     const filename = `${timestamp}_rating_${slug}.md`;
     const filepath = path.join(failuresDir, filename);
 
-    const content = `# Learning from Rating: ${rating.score}/10
+    const content = `# Learning from Rating: ${rating.rating}/10
 
 **Timestamp:** ${rating.timestamp}
-**Score:** ${rating.score}/10
+**Score:** ${rating.rating}/10
 **Feedback:** ${rating.comment}
 **Source:** explicit rating
 
@@ -226,6 +240,6 @@ export async function getAverageRating(): Promise<number | null> {
   const ratings = await getRecentRatings(100);
   if (ratings.length === 0) return null;
 
-  const sum = ratings.reduce((acc, r) => acc + r.score, 0);
+  const sum = ratings.reduce((acc, r) => acc + r.rating, 0);
   return sum / ratings.length;
 }

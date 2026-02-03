@@ -289,11 +289,15 @@ export async function completeWorkSession(sessionIdRaw: string): Promise<Complet
       metaContent = "";
     }
 
+    if (metaContent.includes("status: COMPLETED") && metaContent.includes("completed_at:")) {
+      return { success: true };
+    }
+
     // Update status
-    metaContent = metaContent
-      .replace(/status: (ACTIVE|PAUSED)/, "status: COMPLETED")
-      .trim();
-    metaContent += `\ncompleted_at: ${completed_at}\n`;
+    metaContent = metaContent.replace(/status: (ACTIVE|PAUSED|COMPLETED)/, "status: COMPLETED").trim();
+    if (!metaContent.includes("completed_at:")) {
+      metaContent += `\ncompleted_at: ${completed_at}\n`;
+    }
 
     await fs.promises.writeFile(metaPath, metaContent);
 
@@ -370,7 +374,7 @@ export async function resumeWorkSessionForSession(sessionIdRaw: string): Promise
 /**
  * Append to THREAD.md
  */
-export async function appendToThread(content: string): Promise<void> {
+export async function appendToThread(_content: string): Promise<void> {
   throw new Error("appendToThread() now requires a sessionID");
 }
 
@@ -392,7 +396,7 @@ export async function appendToThreadForSession(sessionIdRaw: string, content: st
 /**
  * Update ISC.json
  */
-export async function updateISC(state: IscState): Promise<void> {
+export async function updateISC(_state: IscState): Promise<void> {
   throw new Error("updateISC() now requires a sessionID");
 }
 
@@ -415,8 +419,8 @@ export async function updateISCForSession(sessionIdRaw: string, state: IscState)
  * Apply ISC update with snapshots
  */
 export async function applyIscUpdate(
-  state: IscState,
-  sourceEventId: string
+  _state: IscState,
+  _sourceEventId: string
 ): Promise<void> {
   throw new Error("applyIscUpdate() now requires a sessionID");
 }

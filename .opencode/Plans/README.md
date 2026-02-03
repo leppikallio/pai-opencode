@@ -1,17 +1,7 @@
-# Plans Directory
+# Plans
 
-Working files for plan mode.
+This directory contains long-lived implementation plans and port maps.
 
-## Purpose
-
-When you enter plan mode, your plans are stored here. This keeps planning artifacts separate from execution artifacts.
-
-## Usage
-
-- Plans are created automatically in plan mode
-- Review and approve plans before execution
-- Completed plans can be archived or deleted
-
----
-
-*"A goal without a plan is just a wish."*
+- `.opencode/Plans/PLAN_v2.5.md`
+- `.opencode/Plans/PortMap_v2.5.md`
+- `.opencode/Plans/Verification_v2.5.md`

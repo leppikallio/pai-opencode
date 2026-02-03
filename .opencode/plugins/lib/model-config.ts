@@ -84,14 +84,14 @@ const PROVIDER_PRESETS: Record<"zen" | "anthropic" | "openai", PaiModelConfig["m
     },
   },
   openai: {
-    default: "openai/gpt-4o",
-    validation: "openai/gpt-4o",
+    default: "openai/gpt-5.2",
+    validation: "openai/gpt-5.2",
     agents: {
-      intern: "openai/gpt-4o-mini",
-      architect: "openai/gpt-4o",
-      engineer: "openai/gpt-4o",
-      explorer: "openai/gpt-4o",
-      reviewer: "openai/gpt-4o",
+      intern: "openai/gpt-5.2",
+      architect: "openai/gpt-5.2",
+      engineer: "openai/gpt-5.2",
+      explorer: "openai/gpt-5.2",
+      reviewer: "openai/gpt-5.2",
     },
   },
 };

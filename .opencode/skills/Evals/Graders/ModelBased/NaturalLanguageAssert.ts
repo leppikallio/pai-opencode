@@ -13,7 +13,7 @@ export class NaturalLanguageAssertGrader extends BaseGrader {
 
   async grade(context: GraderContext): Promise<GraderResult> {
     const start = performance.now();
-    const params = this.config.params as NaturalLanguageAssertParams;
+    const params = this.config.params as unknown as NaturalLanguageAssertParams;
 
     if (!params?.assertions?.length) {
       return this.createResult(0, false, performance.now() - start, {
@@ -21,13 +21,9 @@ export class NaturalLanguageAssertGrader extends BaseGrader {
       });
     }
 
-    // Map model preference to inference level (default to standard/Sonnet)
-    const levelMap: Record<string, InferenceLevel> = {
-      'claude-haiku-4-5-20251001': 'fast',
-      'claude-sonnet-4-20250514': 'standard',
-      'claude-opus-4-20250514': 'smart',
-    };
-    const level: InferenceLevel = levelMap[params.judge_model ?? ''] ?? 'standard';
+    // OpenCode-only policy: Inference levels control reasoning/verbosity profiles,
+    // not provider model selection.
+    const level: InferenceLevel = 'standard';
     const requireAll = params.require_all ?? true;
 
     const systemPrompt = `You are an assertion checker. For each assertion, determine if it is TRUE or FALSE based on the given output.
