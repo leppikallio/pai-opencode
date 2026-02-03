@@ -17,7 +17,7 @@ Toast behavior (optional; default off):
 
 ## Pass-2 Contract
 
-Verify `.opencode/skills/CORE/SKILL.md` includes:
+Verify `.opencode/skills/PAI/SKILL.md` includes:
 - Two-pass selection
 - Thinking tools justify-exclusion
 - Parallel-by-default rule

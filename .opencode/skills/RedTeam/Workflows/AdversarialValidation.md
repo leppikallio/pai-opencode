@@ -239,6 +239,6 @@ Start with A's JWT approach (pragmatic), add B's short-lived tokens (15 min) and
 
 **Related Workflows:**
 - `parallelAnalysis.md` - For stress-testing existing arguments
-- `Tree-of-thought.md` (CORE) - For exploring branches before committing
+- `TreeOfThought.md` (PAI) - For exploring branches before committing
 
 **Last Updated:** 2025-11-27

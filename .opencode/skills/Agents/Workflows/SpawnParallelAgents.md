@@ -360,4 +360,4 @@ Use **SpawnParallelAgents workflow** when:
 
 - Agent personalities: `~/.config/opencode/skills/Agents/AgentPersonalities.md`
 - Intern agent definition: Line 277-287 in AgentPersonalities.md
-- Delegation patterns: `~/.config/opencode/skills/CORE/Workflows/Delegation.md`
+- Delegation patterns: `~/.config/opencode/skills/PAI/Workflows/Delegation.md`

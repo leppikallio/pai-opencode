@@ -139,12 +139,12 @@ ls -la $PAI_DIR/observability/ 2>/dev/null
 
 ```bash
 # Check for identity/personality configuration
-ls -la $PAI_DIR/skills/CORE/ 2>/dev/null
-cat $PAI_DIR/skills/CORE/SKILL.md 2>/dev/null | head -50
+ls -la $PAI_DIR/skills/PAI/ 2>/dev/null
+cat $PAI_DIR/skills/PAI/SKILL.md 2>/dev/null | head -50
 ```
 
 **Health indicators:**
-- ✅ CORE skill exists with identity configuration
+- ✅ PAI skill exists with identity configuration
 - ✅ Response format defined
 - ✅ Personality calibration present
 - ⚪ Not configured = Using default AI personality

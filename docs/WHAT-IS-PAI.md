@@ -30,7 +30,7 @@ PAI is that infrastructure. It transforms any AI assistant into **your** AI assi
 **Skills** are packaged capabilities that the AI can invoke. Think of them as specialized modes or expert personas.
 
 Examples:
-- **CORE**: Defines your identity, preferences, response style (auto-loaded every session)
+- **PAI**: Defines your identity, preferences, response style (auto-loaded every session)
 - **SpecFirst**: 7-phase spec-driven development workflow
 - **Security**: Penetration testing and vulnerability scanning
 - **Research**: Multi-source information gathering with Fabric patterns

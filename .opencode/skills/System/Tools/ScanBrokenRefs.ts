@@ -88,6 +88,7 @@ function isLikelyPathToken(s: string): boolean {
 
   // Do not validate optional customizations.
   if (s.includes("SKILLCUSTOMIZATIONS/")) return false;
+  if (s.includes("skills/PAI/WORK/")) return false;
   if (s.includes("skills/CORE/WORK/")) return false;
 
   return true;
@@ -179,6 +180,8 @@ function iterMarkdownFiles(dir: string): string[] {
         if (ent.name === "dist" || ent.name === "build") continue;
 
         // Do not scan private tiers.
+        if (full.includes(path.join("skills", "PAI", "USER"))) continue;
+        if (full.includes(path.join("skills", "PAI", "WORK"))) continue;
         if (full.includes(path.join("skills", "CORE", "USER"))) continue;
         if (full.includes(path.join("skills", "CORE", "WORK"))) continue;
 

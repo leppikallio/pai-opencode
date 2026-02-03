@@ -288,7 +288,7 @@ async function checkSkillsDirectoryExists(): Promise<CheckResult> {
 }
 
 async function checkCoreSkillExists(): Promise<CheckResult> {
-  return checkFileExists(`${TARGET_DIR}/skills/CORE/SKILL.md`);
+  return checkFileExists(`${TARGET_DIR}/skills/PAI/SKILL.md`);
 }
 
 async function checkNoLegacyMcpServers(): Promise<CheckResult> {
@@ -354,7 +354,7 @@ const DETERMINISTIC_CHECKS: DeterministicCheck[] = [
   {
     id: "STRUCT-007",
     name: "core_skill_exists",
-    description: "CORE Skill existiert",
+    description: "PAI Skill existiert",
     check: checkCoreSkillExists,
     critical: true,
   },
@@ -403,7 +403,7 @@ const LLM_CHECKS: LLMCheck[] = [
   {
     id: "LLM-001",
     name: "core_skill_integrity",
-    agentPrompt: `Read .opencode/skills/CORE/SKILL.md and verify:
+    agentPrompt: `Read .opencode/skills/PAI/SKILL.md and verify:
 1. YAML frontmatter is valid
 2. All sections are present (Identity, Response Format, Stack Preferences, etc.)
 3. No placeholder content (e.g., "TODO", "FILL_ME")
@@ -509,7 +509,7 @@ Return ONLY "PASS" or "FAIL: <reason>"`,
     id: "LLM-010",
     name: "event_coverage_review",
     agentPrompt: `Review .opencode/plugins/pai-unified.ts and verify all critical events are handled:
-1. experimental.chat.system.transform (initialize session, load CORE)
+1. experimental.chat.system.transform (initialize session, load PAI)
 2. tool.execute.before (security validation)
 3. event (cleanup, session end)
 4. All events are logged
@@ -534,7 +534,7 @@ Return ONLY "PASS" or "FAIL: <reason>"`,
     name: "no_legacy_patterns",
     agentPrompt: `Scan .opencode/ for legacy PAI patterns and verify:
 1. No "DA" variable usage (should use config)
-2. No hardcoded paths to /Users/steffen/.claude/
+2. No hardcoded paths to ~/.claude/
 3. No references to old hook names
 4. All TypeScript is migrated (no leftover .ts in wrong locations)
 
@@ -553,14 +553,14 @@ const SELF_TESTS: SelfTestCheck[] = [
     name: "can_load_core_skill",
     test: async () => {
       try {
-        const skillPath = `${TARGET_DIR}/skills/CORE/SKILL.md`;
+        const skillPath = `${TARGET_DIR}/skills/PAI/SKILL.md`;
         const content = await readFile(skillPath, "utf-8");
 
         // Check YAML frontmatter
         if (!content.startsWith("---")) {
           return {
             passed: false,
-            message: "CORE skill missing YAML frontmatter",
+            message: "PAI skill missing YAML frontmatter",
             severity: "error",
           };
         }
@@ -572,7 +572,7 @@ const SELF_TESTS: SelfTestCheck[] = [
         if (missing.length > 0) {
           return {
             passed: false,
-            message: `CORE skill missing sections: ${missing.join(", ")}`,
+            message: `PAI skill missing sections: ${missing.join(", ")}`,
             severity: "error",
           };
         }
@@ -581,7 +581,7 @@ const SELF_TESTS: SelfTestCheck[] = [
       } catch (error) {
         return {
           passed: false,
-          message: `Cannot load CORE skill: ${error}`,
+          message: `Cannot load PAI skill: ${error}`,
           severity: "error",
         };
       }

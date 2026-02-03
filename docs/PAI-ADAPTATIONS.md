@@ -29,7 +29,7 @@ This document explains **what we changed** and **why**.
 
 **Impact:**
 - Security validation logic preserved, just different wrapper
-- Context injection preserved, same CORE skill loading
+- Context injection preserved, same PAI skill loading
 - Hook exit codes → throw Error for blocking
 
 **Files affected:**
@@ -105,7 +105,7 @@ export function fileLog(message: string, level = "info") {
 ### 5. Security System Documentation
 
 **What changed:**
-- Added `skills/CORE/SYSTEM/PAISECURITYSYSTEM/PLUGINS.md`
+- Added `skills/PAI/SYSTEM/PAISECURITYSYSTEM/PLUGINS.md`
 - `PAISECURITYSYSTEM/` is now a symlink to the canonical location
 - Documents plugin-specific security implementation
 

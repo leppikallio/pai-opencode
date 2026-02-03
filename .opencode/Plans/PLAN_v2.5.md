@@ -24,8 +24,8 @@ Upstream v2.5.0 (Claude Code) adds:
 - 17 hooks, 28 skills, 356 workflows (plus optional observability + voice server)
 
 Our OpenCode port status (high-level):
-- Implemented: two-pass semantics in CORE docs, format hints + prompt hints (toast + JSONL artifacts), explicit rating capture, agent output capture, work tracking, security validator
-- Missing/partial: implicit sentiment capture, session summary/stop orchestrator parity audit, ISC hard-gating decision, installer/settings parity audit, CORE->PAI rename decision
+- Implemented: two-pass semantics in PAI docs, format hints + prompt hints (toast + JSONL artifacts), explicit rating capture, agent output capture, work tracking, security validator
+- Missing/partial: implicit sentiment capture, session summary/stop orchestrator parity audit, ISC hard-gating decision, installer/settings parity audit, CORE->PAI rename implementation
 
 Repo evidence files:
 - `.opencode/Plans/PortMap_v2.5.md` (hook parity matrix)
@@ -39,9 +39,9 @@ Status legend:
 - PENDING / IN_PROGRESS / VERIFIED / DEFERRED / DISCARDED
 
 WU01 (REQUIRED): Core Algorithm parity
-- Goal: ensure v2.5 Algorithm requirements exist in CORE docs (two-pass, thinking tools justify-exclusion, parallel-by-default, composition patterns, AskUserQuestion).
-- Repo targets: `.opencode/skills/CORE/SKILL.md`
-- Verify: read `.opencode/skills/CORE/SKILL.md` and confirm all sections exist.
+- Goal: ensure v2.5 Algorithm requirements exist in PAI docs (two-pass, thinking tools justify-exclusion, parallel-by-default, composition patterns, AskUserQuestion).
+- Repo targets: `.opencode/skills/PAI/SKILL.md`
+- Verify: read `.opencode/skills/PAI/SKILL.md` and confirm all sections exist.
 - Evidence: commit diff + the file itself.
 - Status: VERIFIED
 
@@ -95,11 +95,11 @@ WU07 (REQUIRED audit): Installer/settings parity audit
 - Status: PENDING
 
 WU08 (REQUIRED decision): CORE -> PAI rename parity
-- Goal: decide whether to keep CORE canonical (OpenCode) or add PAI alias and update loader.
- - Repo targets: `.opencode/plugins/handlers/context-loader.ts`, `.opencode/Plans/PortMap_v2.5.md`
-- Verify: decision recorded + loader behavior documented.
-- Evidence: plan update + (optional) code.
-- Status: PENDING
+- Goal: rename CORE to PAI canonical, keep CORE alias for back-compat.
+ - Repo targets: `.opencode/plugins/handlers/context-loader.ts`, `Tools/Install.ts`, `.opencode/Plans/PortMap_v2.5.md`
+- Verify: PAI is canonical, CORE alias works, install migrates USER/WORK.
+- Evidence: plan update + code changes + install log.
+- Status: IN_PROGRESS
 
 WU09 (OPTIONAL): Observability dashboard parity
 - Goal: decide scope; likely deferred.
@@ -155,7 +155,7 @@ D3: RelationshipMemory + SoulEvolution
 Completed (Core/Algorithm slice):
 - Pass-1 format hints implemented (toast + `FORMAT_HINTS.jsonl`)
 - Pass-1 prompt hints implemented (toast + `PROMPT_HINTS.jsonl`)
-- CORE doc updated for two-pass + thinking tools + parallel-by-default + composition patterns
+- PAI doc updated for two-pass + thinking tools + parallel-by-default + composition patterns
 - Prompt hint carrier uses OpenCode server auth (no separate API key)
 
 Completed (Partial hook parity):
@@ -168,7 +168,7 @@ Not yet completed (Big remaining parity work):
 - Full mapping of all 17 upstream hooks into ADOPT/ADAPT/DISCARD with status (DONE in PortMap)
 - Implicit sentiment capture (upstream includes this as first-class)
 - Session summary + stop orchestration parity (we approximate; needs explicit verification)
-- “CORE -> PAI rename” parity decision (we currently keep CORE; must document divergence)
+- “CORE -> PAI rename” parity implementation (in progress)
 - Installer parity audit vs upstream INSTALL.md/INSTALL.ts
 
 ## Work Packages (Expanded)

@@ -317,10 +317,10 @@ function generateSettingsJson(config: InstallConfig, paiDir: string): object {
       "BASH_DEFAULT_TIMEOUT_MS": "600000"
     },
     "contextFiles": [
-      "skills/CORE/SKILL.md",
-      "skills/CORE/SYSTEM/AISTEERINGRULES.md",
-      "skills/CORE/USER/AISTEERINGRULES.md",
-      "skills/CORE/USER/DAIDENTITY.md"
+      "skills/PAI/SKILL.md",
+      "skills/PAI/SYSTEM/AISTEERINGRULES.md",
+      "skills/PAI/USER/AISTEERINGRULES.md",
+      "skills/PAI/USER/DAIDENTITY.md"
     ],
     "daidentity": {
       "name": config.AI_NAME,
@@ -493,11 +493,11 @@ function validate(paiDir: string): { passed: boolean; results: string[] } {
     }
   }
 
-  // Check CORE skill
-  if (existsSync(join(paiDir, "skills", "CORE", "SKILL.md"))) {
-    results.push(`${c.green}✓${c.reset} CORE skill found`);
+  // Check PAI skill
+  if (existsSync(join(paiDir, "skills", "PAI", "SKILL.md"))) {
+    results.push(`${c.green}✓${c.reset} PAI skill found`);
   } else {
-    results.push(`${c.red}✗${c.reset} CORE skill missing`);
+    results.push(`${c.red}✗${c.reset} PAI skill missing`);
     passed = false;
   }
 
@@ -602,15 +602,15 @@ async function main(): Promise<void> {
   printSuccess(`Created settings.json (${paiDir})`);
 
   // Ensure identity directories exist
-  mkdirSync(join(paiDir, "skills", "CORE", "USER"), { recursive: true });
+  mkdirSync(join(paiDir, "skills", "PAI", "USER"), { recursive: true });
 
   // DAIDENTITY.md
-  const daIdentityPath = join(paiDir, "skills", "CORE", "USER", "DAIDENTITY.md");
+  const daIdentityPath = join(paiDir, "skills", "PAI", "USER", "DAIDENTITY.md");
   writeFileSync(daIdentityPath, generateDAIdentity(config));
   printSuccess('Created DAIDENTITY.md');
 
   // BASICINFO.md
-  const basicInfoPath = join(paiDir, "skills", "CORE", "USER", "BASICINFO.md");
+  const basicInfoPath = join(paiDir, "skills", "PAI", "USER", "BASICINFO.md");
   writeFileSync(basicInfoPath, generateBasicInfo(config));
   printSuccess('Created BASICINFO.md');
 

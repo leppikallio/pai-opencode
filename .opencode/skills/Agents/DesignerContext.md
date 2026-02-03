@@ -9,11 +9,11 @@
 ## Required Knowledge (Pre-load from Skills)
 
 ### Core Foundations
-- **skills/CORE/CoreStack.md** - Stack preferences and tooling
-- **skills/CORE/CONSTITUTION.md** - Constitutional principles
+- **skills/PAI/CoreStack.md** - Stack preferences and tooling
+- **skills/PAI/CONSTITUTION.md** - Constitutional principles
 
 ### Design Standards
-- **skills/CORE/SYSTEM/BROWSERAUTOMATION.md** - Visual verification requirements
+- **skills/PAI/SYSTEM/BROWSERAUTOMATION.md** - Visual verification requirements
 
 ---
 
@@ -21,15 +21,15 @@
 
 Load these dynamically based on task keywords:
 
-- **Accessibility** → skills/CORE/SYSTEM/BROWSERAUTOMATION.md
-- **Responsive** → skills/CORE/SYSTEM/BROWSERAUTOMATION.md
-- **Review** → skills/CORE/SYSTEM/BROWSERAUTOMATION.md
+- **Accessibility** → skills/PAI/SYSTEM/BROWSERAUTOMATION.md
+- **Responsive** → skills/PAI/SYSTEM/BROWSERAUTOMATION.md
+- **Review** → skills/PAI/SYSTEM/BROWSERAUTOMATION.md
 
 ---
 
-## Key Design Principles (from CORE)
+## Key Design Principles (from PAI)
 
-These are already loaded via CORE or FrontendDesign skill - reference, don't duplicate:
+These are already loaded via PAI or FrontendDesign skill - reference, don't duplicate:
 
 - User-centered design (empathy for user experience)
 - Accessibility first (WCAG 2.1 AA minimum, inclusive design mandatory)

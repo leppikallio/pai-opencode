@@ -188,7 +188,7 @@ User: "analyze the latest Claude Code release"
 - **Research** - Deep research on complex features
 - **Upgrade** - Apply AnalyzeForUpgrades workflow to findings
 
-**With CORE Workflows:**
+**With PAI Workflows:**
 - **BACKGROUNDDELEGATION** - Launch parallel research agents
 - **GIT** - Commit any upgrades implemented
 

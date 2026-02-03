@@ -31,7 +31,15 @@
  * @author PAI-OpenCode Project
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, copyFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+  copyFileSync,
+  renameSync,
+} from "node:fs";
 import { join, basename, dirname, relative } from "node:path";
 import { parseArgs } from "node:util";
 
@@ -145,7 +153,7 @@ MIGRATION MODES:
               (for upgrading to a fresh 2.3 OpenCode installation)
 
 SELECTIVE MODE IMPORTS:
-  ✅ skills/CORE/USER/       Personal data (TELOS, Contacts, etc.)
+  ✅ skills/CORE/USER/       Personal data (TELOS, Contacts, etc.) → maps to skills/PAI/USER/ (compatibility path)
   ✅ skills/_CustomSkill/    User-created skills (underscore prefix)
   ✅ skills/[NotStandard]/   Skills not in vanilla PAI
   ✅ MEMORY/                 All history, work, learning, projects
@@ -153,7 +161,7 @@ SELECTIVE MODE IMPORTS:
   ✅ profiles/               Tool profiles
 
 SELECTIVE MODE SKIPS:
-  ⏭️ skills/CORE/SYSTEM/     Uses fresh 2.3 version
+  ⏭️ skills/CORE/SYSTEM/     Uses fresh 2.3 version → maps to skills/PAI/SYSTEM/ (compatibility path)
   ⏭️ hooks/                  Uses fresh plugins/
   ⏭️ Tools/                  Uses fresh 2.3 version (unless custom)
   ⏭️ Standard skills         Uses fresh 2.3 version (if unmodified)
@@ -342,6 +350,7 @@ function ensureDir(dir: string, dryRun: boolean): void {
  */
 const STANDARD_SKILLS = [
   "CORE",
+  "PAI",
   "Agents",
   "Browser",
   "Art",
@@ -368,7 +377,8 @@ const STANDARD_SKILLS = [
  * USER content paths - ALWAYS imported in selective mode
  */
 const USER_PATHS = [
-  "skills/CORE/USER/",
+  "skills/CORE/USER/", // compatibility path
+  "skills/PAI/USER/",
   "MEMORY/",
   ".env",
   "profiles/",
@@ -378,8 +388,10 @@ const USER_PATHS = [
  * SYSTEM content paths - SKIPPED in selective mode
  */
 const SYSTEM_PATHS = [
-  "skills/CORE/SYSTEM/",
-  "skills/CORE/Tools/",
+  "skills/CORE/SYSTEM/", // compatibility path
+  "skills/PAI/SYSTEM/",
+  "skills/CORE/Tools/", // compatibility path
+  "skills/PAI/Tools/",
   "hooks/",
   "Packs/",
 ];
@@ -598,7 +610,7 @@ function translateSettings(source: string, target: string, dryRun: boolean, verb
   if (settings.daidentity) {
     warnings.push(
       `PAI daidentity (AI name, color, voice) is not supported in OpenCode config. ` +
-      `This can be implemented via CORE skill customization.`
+      `This can be implemented via PAI skill customization.`
     );
   }
 
@@ -702,6 +714,8 @@ function translateSkills(
         // Replace common path references
         content = content.replace(/\.claude\//g, ".opencode/");
         content = content.replace(/~\/\.claude/g, "~/.config/opencode");
+        content = content.replace(/skills\/CORE\//g, "skills/PAI/");
+        content = content.replace(/skills\/CORE\b/g, "skills/PAI");
         // OpenCode now uses plural 'skills' (v0.9.3+)
         // No replacement needed - already plural
 
@@ -732,6 +746,19 @@ function translateSkills(
           writeFileSync(file, content);
           log(`  Updated paths in: ${relative(process.cwd(), file)}`, verbose);
         }
+      }
+    }
+  }
+
+  const coreTarget = join(target, "skills", "CORE");
+  const paiTarget = join(target, "skills", "PAI");
+  if (existsSync(coreTarget) && !existsSync(paiTarget)) {
+    log("  ↪ Renaming skills/CORE -> skills/PAI (compatibility)", verbose, true);
+    if (!dryRun) {
+      try {
+        renameSync(coreTarget, paiTarget);
+      } catch (error) {
+        warnings.push(`Failed to rename skills/CORE to skills/PAI: ${String(error)}`);
       }
     }
   }

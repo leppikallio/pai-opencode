@@ -4,7 +4,7 @@
 
 ---
 
-## 🎯 CORE PATTERNS
+## 🎯 PAI PATTERNS
 
 ### 1. Configuration Loading
 

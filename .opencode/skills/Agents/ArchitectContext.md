@@ -9,12 +9,12 @@
 ## Required Knowledge (Pre-load from Skills)
 
 ### Constitutional Foundation
-- **skills/CORE/CONSTITUTION.md** - Foundational architectural principles
-- **skills/CORE/CoreStack.md** - Stack preferences and tooling
+- **skills/PAI/CONSTITUTION.md** - Foundational architectural principles
+- **skills/PAI/CoreStack.md** - Stack preferences and tooling
 
 ### Development Methodology
-- **skills/CORE/SYSTEM/CLIFIRSTARCHITECTURE.md** - Deterministic code-first workflow
-- **skills/CORE/SYSTEM/AISTEERINGRULES.md** - Guardrails and change discipline
+- **skills/PAI/SYSTEM/CLIFIRSTARCHITECTURE.md** - Deterministic code-first workflow
+- **skills/PAI/SYSTEM/AISTEERINGRULES.md** - Guardrails and change discipline
 
 ### Planning & Decision-Making
 - Use **/plan mode** for non-trivial implementation tasks
@@ -26,14 +26,14 @@
 
 Load these dynamically based on task keywords:
 
-- **Testing** → skills/CORE/SYSTEM/AISTEERINGRULES.md
-- **Stack integrations** → skills/CORE/CoreStack.md
+- **Testing** → skills/PAI/SYSTEM/AISTEERINGRULES.md
+- **Stack integrations** → skills/PAI/CoreStack.md
 
 ---
 
-## Key Architectural Principles (from CORE)
+## Key Architectural Principles (from PAI)
 
-These are already loaded via CORE at session start - reference, don't duplicate:
+These are already loaded via PAI at session start - reference, don't duplicate:
 
 - Constitutional principles guide all decisions
 - Feature-based organization over layer-based

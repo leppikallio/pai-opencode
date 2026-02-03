@@ -207,7 +207,7 @@ ls -la .opencode/agents/
 # Should be: Intern.md (not intern.md)
 ```
 
-### CORE skill not loading
+### PAI skill not loading
 
 ```bash
 grep "Context" ~/.config/opencode/plugins/debug.log
@@ -314,7 +314,7 @@ bun Tools/pai-to-opencode-converter.ts \
 After migration, verify:
 
 - [ ] OpenCode starts without errors
-- [ ] CORE skill loads (check first response)
+- [ ] PAI skill loads (check first response)
 - [ ] Agents work (`@Intern hello`)
 - [ ] Security blocks dangerous commands
 - [ ] MEMORY preserved (check `.opencode/MEMORY/`)
@@ -354,7 +354,7 @@ After successful migration:
 
 1. **Customize** - Edit `.opencode/settings.json`
 2. **Explore** - Try all skills and agents
-3. **Secure** - Review `USER/PAISECURITYSYSTEM/patterns.yaml` (copy from `skills/CORE/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml`)
+3. **Secure** - Review `USER/PAISECURITYSYSTEM/patterns.yaml` (copy from `skills/PAI/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml`)
 4. **Learn** - Read skill documentation in `.opencode/skills/*/SKILL.md`
 
 ---

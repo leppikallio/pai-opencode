@@ -33,4 +33,4 @@ bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts --allow-standalone
 
 - Shell commands in backticks (contain whitespace)
 - Placeholders like `YYYY-MM-DD`, `<slug>`, `${var}`, globs
-- Optional customization paths under `skills/CORE/USER/SKILLCUSTOMIZATIONS/`
+- Optional customization paths under `skills/PAI/USER/SKILLCUSTOMIZATIONS/`

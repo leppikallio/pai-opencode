@@ -27,7 +27,7 @@ This document lists features that are planned but not yet implemented in v1.0.
 ## Optional Features (Not Required)
 
 ### Skill Customizations
-- System exists at `.opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/`
+- System exists at `.opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/`
 - Not populated by default
 - Skills work without customizations
 - **Setup:** Create customization files as needed
@@ -66,8 +66,8 @@ ls -la .opencode/plugins/pai-unified.ts
 ### Context not injected?
 ```bash
 # Check context files exist
-ls -la .opencode/skills/CORE/USER/TELOS/
-ls -la .opencode/skills/CORE/USER/DAIDENTITY.md
+ls -la .opencode/skills/PAI/USER/TELOS/
+ls -la .opencode/skills/PAI/USER/DAIDENTITY.md
 ```
 
 ### Security validation blocking commands?

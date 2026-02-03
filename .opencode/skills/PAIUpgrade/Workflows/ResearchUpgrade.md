@@ -214,6 +214,6 @@ User: "research the new context forking feature"
 - **CheckForUpgrades** - Discovers items to research
 - **FindSources** - Identifies new sources to monitor
 
-**With CORE:**
+**With PAI:**
 - **BACKGROUNDDELEGATION** - Launch parallel research agents
 - **GIT** - Commit any implemented upgrades

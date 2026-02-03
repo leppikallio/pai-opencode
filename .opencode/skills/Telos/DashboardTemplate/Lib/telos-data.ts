@@ -12,7 +12,7 @@ export type TelosFile = {
 };
 
 const PAI_DIR = process.env.PAI_DIR || path.join(os.homedir(), '.config', 'opencode');
-const TELOS_DIR = path.join(PAI_DIR, 'skills', 'CORE', 'USER', 'TELOS');
+const TELOS_DIR = path.join(PAI_DIR, 'skills', 'PAI', 'USER', 'TELOS');
 
 function safeReadFile(filePath: string): string {
   try {

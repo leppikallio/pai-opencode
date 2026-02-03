@@ -9,12 +9,12 @@
 ## Required Knowledge (Pre-load from Skills)
 
 ### Core Foundations
-- **skills/CORE/CoreStack.md** - Stack preferences and tooling
-- **skills/CORE/CONSTITUTION.md** - Constitutional principles
+- **skills/PAI/CoreStack.md** - Stack preferences and tooling
+- **skills/PAI/CONSTITUTION.md** - Constitutional principles
 
 ### Development Standards
-- **skills/CORE/SYSTEM/AISTEERINGRULES.md** - One-change-at-a-time, verify before claiming
-- **skills/CORE/SYSTEM/CLIFIRSTARCHITECTURE.md** - CLI-first, code-first integration
+- **skills/PAI/SYSTEM/AISTEERINGRULES.md** - One-change-at-a-time, verify before claiming
+- **skills/PAI/SYSTEM/CLIFIRSTARCHITECTURE.md** - CLI-first, code-first integration
 
 ---
 
@@ -22,15 +22,15 @@
 
 Load these dynamically based on task keywords:
 
-- **Test/TDD** → skills/CORE/SYSTEM/AISTEERINGRULES.md
-- **CLI testing** → skills/CORE/SYSTEM/CLIFIRSTARCHITECTURE.md
-- **Stack integrations** → skills/CORE/CoreStack.md
+- **Test/TDD** → skills/PAI/SYSTEM/AISTEERINGRULES.md
+- **CLI testing** → skills/PAI/SYSTEM/CLIFIRSTARCHITECTURE.md
+- **Stack integrations** → skills/PAI/CoreStack.md
 
 ---
 
-## Key Engineering Principles (from CORE)
+## Key Engineering Principles (from PAI)
 
-These are already loaded via CORE - reference, don't duplicate:
+These are already loaded via PAI - reference, don't duplicate:
 
 - Test-driven development (TDD) is MANDATORY
 - Write tests first, then implementation

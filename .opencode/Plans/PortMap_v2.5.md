@@ -14,7 +14,7 @@ Legend:
 | Feature | Tag | OpenCode mapping | Status |
 |---|---|---|---|
 | Two-Pass Capability Selection | ADAPT | Pass-1 hints (toast+artifacts), Pass-2 THINK enforcement | DONE (core), needs parity audit |
-| Thinking tools justify-exclusion | ADOPT | CORE doc enforcement | DONE |
+| Thinking tools justify-exclusion | ADOPT | PAI doc enforcement | DONE |
 | Parallel-by-default execution | ADOPT | Use `multi_tool_use.parallel` for independent work | DONE |
 | Composition patterns | ADOPT | Require naming pattern in PLAN | DONE |
 | Mandatory AskUserQuestion | ADOPT | Always use `question` tool for questions | DONE |
@@ -64,7 +64,7 @@ Note: upstream lists 17 hooks; some additional handlers exist. We track them her
 
 | Upstream change | Tag | OpenCode mapping | Status |
 |---|---|---|---|
-| CORE -> PAI rename | ADAPT | We keep CORE as canonical; document divergence | TODO (decision + doc) |
+| CORE -> PAI rename | ADAPT | PAI canonical; CORE alias via symlink + loader fallback | DONE (WU08) |
 | INSTALL.md / INSTALL.ts | ADAPT | `Tools/Install.ts` + `PAIOpenCodeWizard.ts` | PARTIAL (audit) |
 | Settings template updates | ADAPT | `.opencode/config` + wizard outputs | PARTIAL (audit) |
 | Observability dashboard | OPTIONAL | Potential separate OpenCode web UI | PENDING (Petteri decision) |
