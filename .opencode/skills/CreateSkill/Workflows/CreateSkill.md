@@ -6,7 +6,7 @@ Create a new skill following the canonical structure with proper TitleCase namin
 
 **REQUIRED FIRST:**
 
-1. Read the skill system documentation: `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md`
+1. Read the skill system documentation: `~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md`
 2. Read an existing skill for reference: `~/.config/opencode/skills/System/SKILL.md`
 
 ## Step 2: Understand the Request
@@ -141,7 +141,7 @@ bun ToolName.ts \
 - Workflows should expose this flexibility, not hardcode single patterns
 - Users speak naturally; workflows translate to precise CLI
 
-**Reference:** `~/.config/opencode/skills/CORE/SYSTEM/CLIFIRSTARCHITECTURE.md` (Workflow-to-Tool Integration section)
+**Reference:** `~/.config/opencode/skills/PAI/SYSTEM/CLIFIRSTARCHITECTURE.md` (Workflow-to-Tool Integration section)
 
 **Examples (TitleCase):**
 ```bash

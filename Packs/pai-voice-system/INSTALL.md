@@ -35,7 +35,7 @@ PAI_CHECK="${PAI_DIR:-$HOME/.config/opencode}"
 echo "PAI_DIR: $PAI_CHECK"
 
 # Check if pai-core-install is installed (REQUIRED)
-if [ -f "$PAI_CHECK/skills/CORE/SKILL.md" ]; then
+if [ -f "$PAI_CHECK/skills/PAI/SKILL.md" ]; then
   echo "OK pai-core-install is installed"
 else
   echo "ERROR pai-core-install NOT installed - REQUIRED!"

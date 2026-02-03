@@ -40,10 +40,10 @@
     "PAI_DIR": "/path/to/.opencode",
     "BASH_DEFAULT_TIMEOUT_MS": "600000"
   },
-  "contextFiles": [
-    "skills/CORE/SKILL.md",
-    "skills/CORE/SYSTEM/AISTEERINGRULES.md"
-  ],
+    "contextFiles": [
+      "skills/PAI/SKILL.md",
+      "skills/PAI/SYSTEM/AISTEERINGRULES.md"
+    ],
   "daidentity": {
     "name": "Jeremy",
     "voiceId": "..."

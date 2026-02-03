@@ -82,12 +82,12 @@ PAI-OpenCode:   ~/.config/opencode/agents/*.md
     └── ...
 ```
 
-### 4. CORE Skill (Special Handling)
+### 4. PAI Skill (Special Handling)
 
-**Rule:** CORE skill has sub-structures that must be preserved.
+**Rule:** PAI skill has sub-structures that must be preserved.
 
 ```
-~/.config/opencode/skills/CORE/
+~/.config/opencode/skills/PAI/
 ├── SKILL.md                                 # The Algorithm + Core Instructions
 ├── SYSTEM/                                  # System documentation (updatable)
 ├── USER/                                    # User customization (never overwrite)
@@ -95,9 +95,9 @@ PAI-OpenCode:   ~/.config/opencode/agents/*.md
 └── Workflows/                               # Workflow guides
 
 Canonical doc paths:
-- ~/.config/opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md
-- ~/.config/opencode/skills/CORE/SYSTEM/THEPLUGINSYSTEM.md
-- ~/.config/opencode/skills/CORE/USER/DAIDENTITY.md
+- ~/.config/opencode/skills/PAI/SYSTEM/PAISYSTEMARCHITECTURE.md
+- ~/.config/opencode/skills/PAI/SYSTEM/THEPLUGINSYSTEM.md
+- ~/.config/opencode/skills/PAI/USER/DAIDENTITY.md
 ```
 
 **Path References:** Replace all `~/.claude/` references with `~/.config/opencode/` for runtime docs.
@@ -125,7 +125,7 @@ Canonical doc paths:
 PAI 2.4:        .claude/skills/Fabric/Patterns/
 PAI-OpenCode:   ~/.config/opencode/skills/Fabric/Patterns/
 
-⚠️ DO NOT copy to CORE/Tools/fabric/ - that creates duplicates!
+⚠️ DO NOT copy to PAI/Tools/fabric/ - that creates duplicates!
 ```
 
 ---
@@ -178,7 +178,7 @@ These exist in PAI-OpenCode but not in PAI 2.4:
 |-----------|---------|
 | `plugins/` | OpenCode plugin system |
 | `profiles/` | API provider profiles (anthropic, openai, local) |
-| `~/.config/opencode/skills/CORE/SYSTEM/PAISECURITYSYSTEM/` | Security docs (canonical); `~/.config/opencode/PAISECURITYSYSTEM/` is a symlink |
+| `~/.config/opencode/skills/PAI/SYSTEM/PAISECURITYSYSTEM/` | Security docs (canonical); `~/.config/opencode/PAISECURITYSYSTEM/` is a symlink |
 | `package.json` | Bun dependencies |
 | `tsconfig.json` | TypeScript configuration |
 
@@ -198,8 +198,8 @@ When importing a new PAI version:
 - [ ] Copy skills maintaining flat structure (no nesting)
 - [ ] Copy agents, convert color names to hex
 - [ ] Review hook changes, update plugin handlers
-- [ ] Update CORE/SYSTEM docs with new content
-- [ ] Preserve CORE/USER (never overwrite)
+- [ ] Update PAI/SYSTEM docs with new content
+- [ ] Preserve PAI/USER (never overwrite)
 
 ### Post-Import
 - [ ] Verify SKILL.md count matches
@@ -230,7 +230,7 @@ When importing a new PAI version:
 ### 4. Duplicate Fabric Patterns
 **Symptom:** Repo size unexpectedly large
 **Cause:** Patterns copied to multiple locations
-**Fix:** Keep only `skills/Fabric/Patterns/`, remove from `CORE/Tools/`
+**Fix:** Keep only `skills/Fabric/Patterns/`, remove from `PAI/Tools/`
 
 ---
 

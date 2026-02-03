@@ -397,6 +397,8 @@ function loadSecurityConfig(): SecurityConfig {
   const baseDir = path.join(paiDir, "PAISECURITYSYSTEM");
   const overridePaths = [
     // Preferred: preserved user tier (not overwritten by installer).
+    path.join(paiDir, "skills", "PAI", "USER", "PAISECURITYSYSTEM", "patterns.yaml"),
+    // Back-compat: legacy CORE user tier.
     path.join(paiDir, "skills", "CORE", "USER", "PAISECURITYSYSTEM", "patterns.yaml"),
     // Back-compat: legacy top-level USER dir (may not exist in runtime).
     path.join(paiDir, "USER", "PAISECURITYSYSTEM", "patterns.yaml"),

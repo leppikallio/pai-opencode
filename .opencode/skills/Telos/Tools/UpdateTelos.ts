@@ -42,8 +42,8 @@ import { getPaiDir } from '../../../pai-tools/PaiRuntime';
 
 const PAI_DIR = getPaiDir();
 
-// Canonical TELOS lives under CORE/USER.
-const TELOS_DIR = join(PAI_DIR, 'skills', 'CORE', 'USER', 'TELOS');
+// Canonical TELOS lives under PAI/USER.
+const TELOS_DIR = join(PAI_DIR, 'skills', 'PAI', 'USER', 'TELOS');
 
 // Backups are stored under MEMORY to avoid cluttering TELOS.
 const BACKUPS_DIR = join(PAI_DIR, 'MEMORY', 'Backups', 'TELOS');

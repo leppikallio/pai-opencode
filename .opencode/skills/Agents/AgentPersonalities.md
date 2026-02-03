@@ -801,7 +801,7 @@ Voice server automatically loads this configuration at startup. To update person
 
 - **v1.3.2** (2025-11-16): DRAMATIC voice differentiation - 97% rate increase, 54% similarity increase, 42% stability increase using personality psychology mapping
 - **v1.3.1** (2025-11-16): Deep character development - backstories, life events, refined voice characteristics
-- **v1.3.0** (2025-11-16): Centralized in CORE, increased expressiveness for all agents
+- **v1.3.0** (2025-11-16): Centralized in PAI, increased expressiveness for all agents
 - **v1.2.1** (2025-11-16): Enhanced main agent expressiveness
 - **v1.2.0** (2025-11-16): Added character personalities for 5 key agents
 - **v1.1.0** (2025-11-16): Initial agent personality system

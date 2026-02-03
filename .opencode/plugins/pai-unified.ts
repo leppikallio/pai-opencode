@@ -976,7 +976,7 @@ export const PaiUnified: Plugin = async (ctx) => {
     /**
      * CONTEXT INJECTION (SessionStart equivalent)
      *
-     * Injects CORE skill context into the chat system.
+     * Injects PAI skill context into the chat system (CORE fallback).
      * Equivalent to PAI v2.4 load-core-context.ts hook.
      */
     "experimental.chat.system.transform": async (_input, output) => {
@@ -1070,7 +1070,7 @@ export const PaiUnified: Plugin = async (ctx) => {
     /**
      * COMPACTION CONTEXT INJECTION (pre-compaction)
      *
-     * Injects CORE skill context into the compaction prompt so it survives
+     * Injects PAI skill context into the compaction prompt so it survives
      * session.compacted / continuation summaries.
      *
      * See: https://opencode.ai/docs/plugins/ (experimental.session.compacting)

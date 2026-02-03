@@ -211,7 +211,7 @@ TIMESTAMP=$(date +%Y%m%d-%H%M%S)
 ### Remove Background
 
 ```bash
-bun ~/.config/opencode/skills/CORE/Tools/RemoveBg.ts ~/Downloads/yt-headshot-${TIMESTAMP}.png
+bun ~/.config/opencode/skills/PAI/Tools/RemoveBg.ts ~/Downloads/yt-headshot-${TIMESTAMP}.png
 ```
 
 ---

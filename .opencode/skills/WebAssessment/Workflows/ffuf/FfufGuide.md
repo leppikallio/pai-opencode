@@ -9,7 +9,7 @@ description: Expert guidance for ffuf web fuzzing during penetration testing, in
 
 **Before starting any task with this skill, load complete PAI context:**
 
-`read ~/.config/opencode/skills/CORE/SKILL.md`
+`read ~/.config/opencode/skills/PAI/SKILL.md`
 
 This provides access to:
 - Complete contact list (Angela, Bunny, Saša, Greg, team members)
@@ -214,7 +214,7 @@ ffuf --request req.txt -w /path/to/wordlist.txt -ac
 POST /api/v1/users/FUZZ HTTP/1.1
 Host: target.com
 User-Agent: Mozilla/5.0
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Authorization: Bearer <JWT_TOKEN>
 Cookie: session=abc123xyz; csrftoken=def456
 Content-Type: application/json
 Content-Length: 27
@@ -261,7 +261,7 @@ ffuf -w /path/to/wordlist.txt -u https://target.com/FUZZ -replay-proxy http://12
 ffuf -w /path/to/wordlist.txt -u https://target.com/FUZZ -b "sessionid=abc123; token=xyz789"
 
 # Client certificate authentication
-ffuf -w /path/to/wordlist.txt -u https://target.com/FUZZ -cc client.crt -ck client.key
+ffuf -w /path/to/wordlist.txt -u https://target.com/FUZZ -cc client.crt -ck client.key.example
 ```
 
 ### Encoding
@@ -372,7 +372,7 @@ ffuf --request req.txt -w ~/wordlists/api-endpoints.txt -ac -o results.json -of 
 
 ### API Endpoint Discovery
 ```bash
-ffuf -w ~/wordlists/api-endpoints.txt -u https://api.target.com/v1/FUZZ -H "Authorization: Bearer TOKEN" -mc 200,201 -ac -c
+ffuf -w ~/wordlists/api-endpoints.txt -u https://api.target.com/v1/FUZZ -H "Authorization: Bearer <TOKEN>" -mc 200,201 -ac -c
 ```
 
 ### Subdomain Discovery with Auto-Calibration
@@ -476,7 +476,7 @@ python3 ffuf_helper.py analyze results.json
 
 # Create authenticated request template
 python3 ffuf_helper.py create-req -o req.txt -m POST -u "https://api.target.com/users" \
-    -H "Authorization: Bearer TOKEN" -d '{"action":"FUZZ"}'
+    -H "Authorization: Bearer <TOKEN>" -d '{"action":"FUZZ"}'
 
 # Generate IDOR testing wordlist
 python3 ffuf_helper.py wordlist -o ids.txt -t numbers -s 1 -e 10000

@@ -453,11 +453,15 @@ export function detectPAIVersion(sourcePath: string): VersionDetectionResult {
   }
 
   // Check for USER/SYSTEM separation (PAI 2.1+)
-  const hasUserDir = existsSync(join(sourcePath, "skills/CORE/USER"));
-  const hasSystemDir = existsSync(join(sourcePath, "skills/CORE/SYSTEM"));
+  const hasUserDir =
+    existsSync(join(sourcePath, "skills/PAI/USER")) ||
+    existsSync(join(sourcePath, "skills/CORE/USER"));
+  const hasSystemDir =
+    existsSync(join(sourcePath, "skills/PAI/SYSTEM")) ||
+    existsSync(join(sourcePath, "skills/CORE/SYSTEM"));
 
   if (!hasUserDir && !hasSystemDir) {
-    evidence.push("No USER/SYSTEM separation in skills/CORE/");
+    evidence.push("No USER/SYSTEM separation in skills/PAI/ or skills/CORE/ (compatibility path)");
     return {
       version: "2.0",
       confidence: "medium",
@@ -471,11 +475,17 @@ export function detectPAIVersion(sourcePath: string): VersionDetectionResult {
     };
   }
 
-  if (hasUserDir) {
-    evidence.push("skills/CORE/USER/ exists → PAI 2.1+");
+  if (existsSync(join(sourcePath, "skills/PAI/USER"))) {
+    evidence.push("skills/PAI/USER/ exists → PAI 2.1+");
   }
-  if (hasSystemDir) {
-    evidence.push("skills/CORE/SYSTEM/ exists → PAI 2.1+");
+  if (existsSync(join(sourcePath, "skills/CORE/USER"))) {
+    evidence.push("skills/CORE/USER/ exists → PAI 2.1+ (compatibility path)");
+  }
+  if (existsSync(join(sourcePath, "skills/PAI/SYSTEM"))) {
+    evidence.push("skills/PAI/SYSTEM/ exists → PAI 2.1+");
+  }
+  if (existsSync(join(sourcePath, "skills/CORE/SYSTEM"))) {
+    evidence.push("skills/CORE/SYSTEM/ exists → PAI 2.1+ (compatibility path)");
   }
 
   // Check for PAI 2.4 (PAIInstallWizard.ts, no separate THEALGORITHM skill)
@@ -484,7 +494,7 @@ export function detectPAIVersion(sourcePath: string): VersionDetectionResult {
 
   if (hasInstallWizard && !hasThealgorithmSkill) {
     evidence.push("PAIInstallWizard.ts exists → PAI 2.4+");
-    evidence.push("THEALGORITHM skill missing (embedded in CORE) → PAI 2.4");
+    evidence.push("THEALGORITHM skill missing (embedded in CORE/PAI) → PAI 2.4");
     return {
       version: "2.4",
       confidence: "high",
@@ -492,7 +502,7 @@ export function detectPAIVersion(sourcePath: string): VersionDetectionResult {
       migrationSupport: "full",
       migrationNotes: [
         "PAI 2.4 detected - full migration support",
-        "The Algorithm is now embedded in CORE/SKILL.md",
+        "The Algorithm is now embedded in CORE/PAI SKILL.md",
         "MEMORY structure uses subdirectories (LEARNING, SECURITY, STATE, VOICE, WORK)",
         "Selective import will preserve USER content and MEMORY"
       ]
@@ -533,7 +543,7 @@ export function detectPAIVersion(sourcePath: string): VersionDetectionResult {
             migrationSupport: "full",
             migrationNotes: [
               "Explicit PAI 2.4 version detected",
-              "The Algorithm is embedded in CORE/SKILL.md",
+              "The Algorithm is embedded in PAI/SKILL.md (CORE legacy)",
               "MEMORY structure uses subdirectories (LEARNING, SECURITY, STATE, VOICE, WORK)"
             ]
           };

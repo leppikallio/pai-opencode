@@ -14,7 +14,7 @@ the most important and surprising insights without missing subtle but profound i
 
 **Before starting any task with this skill, load complete PAI context:**
 
-`read ~/.config/opencode/skills/CORE/SKILL.md`
+`read ~/.config/opencode/skills/PAI/SKILL.md`
 
 ## Core Philosophy
 

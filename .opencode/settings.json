@@ -5,10 +5,10 @@
     "BASH_DEFAULT_TIMEOUT_MS": "600000"
   },
   "contextFiles": [
-    "skills/CORE/SKILL.md",
-    "skills/CORE/SYSTEM/AISTEERINGRULES.md",
-    "skills/CORE/USER/AISTEERINGRULES.md",
-    "skills/CORE/USER/DAIDENTITY.md"
+    "skills/PAI/SKILL.md",
+    "skills/PAI/SYSTEM/AISTEERINGRULES.md",
+    "skills/PAI/USER/AISTEERINGRULES.md",
+    "skills/PAI/USER/DAIDENTITY.md"
   ],
   "daidentity": {
     "name": "PAI",

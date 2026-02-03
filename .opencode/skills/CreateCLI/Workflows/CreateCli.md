@@ -265,7 +265,7 @@ const format = formatIdx !== -1 ? args[formatIdx + 1] : 'json';
 4. **Value flags**: `--flag <value>` for choices
 5. **Composable**: Flags should combine logically
 
-**Reference:** `~/.config/opencode/skills/CORE/SYSTEM/CLIFIRSTARCHITECTURE.md` (Configuration Flags section)
+**Reference:** `~/.config/opencode/skills/PAI/SYSTEM/CLIFIRSTARCHITECTURE.md` (Configuration Flags section)
 
 ---
 

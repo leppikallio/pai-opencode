@@ -42,7 +42,7 @@ Use one of these presets:
 - Agent 11: Security
 
 **Hotspots (4-6 agents, ~1-3 min)**
-- Agent 1: CORE SKILL.md
+- Agent 1: PAI SKILL.md
 - Agent 3: Plugin Hooks & Events
 - Agent 6: Workflows
 - Agent 11: Security
@@ -63,11 +63,11 @@ Use the Task tool to launch agents in a SINGLE message (parallel execution). Eac
 
 | # | Focus Area | Scope | Check For |
 |---|------------|-------|-----------|
-| 1 | CORE SKILL.md | `~/.config/opencode/skills/CORE/SKILL.md` | Broken file references, outdated paths |
+| 1 | PAI SKILL.md | `~/.config/opencode/skills/PAI/SKILL.md` | Broken file references, outdated paths |
 | 2 | Identity System | `~/.config/opencode/plugins/lib/identity.ts`, `~/.config/opencode/settings.json` | Config consistency |
 | 3 | Plugin Hooks & Events | `~/.config/opencode/plugins/*.ts`, `~/.config/opencode/plugins/handlers/*.ts`, `~/.config/opencode/plugins/adapters/types.ts` | Hook coverage vs OpenCode docs, message.* and session.* usage |
-| 4 | System Docs | `~/.config/opencode/skills/CORE/SYSTEM/*.md` | Cross-references, broken links |
-| 5 | User Docs | `~/.config/opencode/skills/CORE/USER/*.md` | Personal config references |
+| 4 | System Docs | `~/.config/opencode/skills/PAI/SYSTEM/*.md` | Cross-references, broken links |
+| 5 | User Docs | `~/.config/opencode/skills/PAI/USER/*.md` | Personal config references |
 | 6 | Workflows | `~/.config/opencode/skills/*/Workflows/*.md` | File paths, tool references |
 | 7 | Skill Structure | `~/.config/opencode/skills/*/` | Missing SKILL.md, forbidden nesting, stale layout |
 | 8 | Settings | `~/.config/opencode/settings.json` | Schema validity, env vars |
@@ -99,11 +99,11 @@ You are auditing the PAI system for integrity issues.
 **Important (Cross-References scope):**
 - Only validate references that should exist inside `~/.config/opencode/` (e.g. `skills/`, `plugins/`, `docs/`, `config/`, `pai-tools/`, `PAISECURITYSYSTEM/`, and documented `MEMORY/` files).
 - Ignore references outside `~/.config/opencode/` (e.g. `/opt/SecLists`, `~/.config/amass`, `~/security`) unless explicitly required by PAI runtime.
-- Do not flag missing optional customization directories under `skills/CORE/USER/SKILLCUSTOMIZATIONS/`.
+- Do not flag missing optional customization directories under `skills/PAI/USER/SKILLCUSTOMIZATIONS/`.
 - Treat shell commands in backticks as commands, not filesystem paths.
 
 **Known optional/expected items (do NOT flag as Critical):**
-- `<skills/CORE/USER/pronunciations.json>` (VoiceServer handles missing)
+- `<skills/PAI/USER/pronunciations.json>` (VoiceServer handles missing)
 - `skills/**/node_modules/` (some skills install dependencies locally)
 - Any example path wrapped in `<...>` (explicit placeholder)
 
@@ -219,7 +219,7 @@ After agents complete:
 
 ## Detailed Component Reports
 
-### Agent 1: CORE SKILL.md Audit
+### Agent 1: PAI SKILL.md Audit
 - Files Checked: X
 - Critical Issues: Y
 - Warnings: Z
@@ -273,7 +273,7 @@ Launch ALL 12 agents in a SINGLE Task tool call block for true parallel executio
 // In a single message, call Task 12 times:
 // NOTE: OpenCode uses "Intern" instead of Claude Code's native "Explore"
 // NOTE: Model names must include provider prefix for OpenCode
-Task({ subagent_type: "Intern", prompt: "Agent 1: CORE SKILL.md..." })
+Task({ subagent_type: "Intern", prompt: "Agent 1: PAI SKILL.md..." })
 Task({ subagent_type: "Intern", prompt: "Agent 2: Identity System..." })
 Task({ subagent_type: "Intern", prompt: "Agent 3: Plugin Scripts..." })
 // ... all 12 agents

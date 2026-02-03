@@ -4,7 +4,7 @@ import path from 'node:path'
 import os from 'node:os'
 
 const PAI_DIR = process.env.PAI_DIR || path.join(os.homedir(), '.config', 'opencode')
-const TELOS_DIR = path.join(PAI_DIR, 'skills', 'CORE', 'USER', 'TELOS')
+const TELOS_DIR = path.join(PAI_DIR, 'skills', 'PAI', 'USER', 'TELOS')
 
 export async function POST(request: Request) {
   try {

@@ -54,8 +54,8 @@ Verify expected privacy boundaries exist:
 
 ```bash
 # Check directory structure
-test -d "~/.config/opencode/skills/CORE/USER" || echo "WARNING: USER tier directory missing"
-test -d "~/.config/opencode/skills/CORE/SYSTEM" || echo "WARNING: SYSTEM tier directory missing"
+test -d "~/.config/opencode/skills/PAI/USER" || echo "WARNING: USER tier directory missing"
+test -d "~/.config/opencode/skills/PAI/SYSTEM" || echo "WARNING: SYSTEM tier directory missing"
 test -d "~/.config/opencode/MEMORY" || echo "WARNING: MEMORY directory missing"
 
 # List top-level structure
@@ -125,16 +125,16 @@ const results = {
 cd "~/.config/opencode"
 
 # Check core system docs for USER tier path references
-grep -r "~/.config/opencode/skills/CORE/USER/" "skills/CORE/SYSTEM/" --include="*.md" --include="*.ts" 2>/dev/null
+grep -r "~/.config/opencode/skills/PAI/USER/" "skills/PAI/SYSTEM/" --include="*.md" --include="*.ts" 2>/dev/null
 
 # Allowed patterns (generic references):
 # - Documentation: "store in the USER tier"
 # Not allowed:
-# - Direct paths: "see ~/.config/opencode/skills/CORE/USER/..."
+# - Direct paths: "see ~/.config/opencode/skills/PAI/USER/..."
 # - Specific content: personal identifiers in SYSTEM tier docs
 
-# Check skills (outside CORE) for USER tier path references
-grep -r "~/.config/opencode/skills/CORE/USER/" "skills/" --include="SKILL.md" | grep -v "skills/CORE/SKILL.md"
+# Check skills (outside PAI) for USER tier path references
+grep -r "~/.config/opencode/skills/PAI/USER/" "skills/" --include="SKILL.md" | grep -v "skills/PAI/SKILL.md"
 ```
 
 **Validation rules:**
@@ -146,8 +146,8 @@ function validateUserReference(file: string, match: string): Issue | null {
     return null;
   }
 
-  // Allow CORE skill (it's private context loader)
-  if (file.includes("skills/CORE/")) {
+  // Allow PAI skill (it's private context loader)
+  if (file.includes("skills/PAI/")) {
     return null;
   }
 
@@ -173,7 +173,7 @@ function validateUserReference(file: string, match: string): Issue | null {
 
 ```typescript
 // SYSTEM tier should use placeholders, not real values
-const systemFiles = glob("~/.config/opencode/skills/CORE/SYSTEM/**/*.md");
+const systemFiles = glob("~/.config/opencode/skills/PAI/SYSTEM/**/*.md");
 
 for (const file of systemFiles) {
   const content = readFile(file);
@@ -413,19 +413,19 @@ Generated: {timestamp}
 
 **Issues Found:**
 
-1. **~/.config/opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md:XXX**
+1. **~/.config/opencode/skills/PAI/SYSTEM/PAISYSTEMARCHITECTURE.md:XXX**
    - Contains: real personal identifier (example)
    - Should be: placeholder like "${ENGINEER_NAME}"
    - Severity: LOW
    - Auto-fix: Available
 
-2. **~/.config/opencode/skills/CORE/SYSTEM/THEPLUGINSYSTEM.md:XXX**
+2. **~/.config/opencode/skills/PAI/SYSTEM/THEPLUGINSYSTEM.md:XXX**
    - Contains: legacy path example (example)
    - Should be: "~/.config/opencode"
    - Severity: MEDIUM
    - Auto-fix: Available
 
-3. **~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md:XXX**
+3. **~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md:XXX**
    - Contains: example email (example)
    - Should be: "user@example.com"
    - Severity: MEDIUM
@@ -514,12 +514,12 @@ None found ✅
 None found ✅
 
 ### Medium (3)
-1. ~/.config/opencode/skills/CORE/SYSTEM/THEPLUGINSYSTEM.md - hardcoded path example
-2. ~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md - real email in example
+1. ~/.config/opencode/skills/PAI/SYSTEM/THEPLUGINSYSTEM.md - hardcoded path example
+2. ~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md - real email in example
 3. <~/.config/opencode/MEMORY/RESEARCH/2026-01/api-comparison.md> - API key in example
 
 ### Low (2)
-1. ~/.config/opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md - personal name
+1. ~/.config/opencode/skills/PAI/SYSTEM/PAISYSTEMARCHITECTURE.md - personal name
 2. <~/.config/opencode/MEMORY/LEARNING/Generic/typescript-patterns.md> - wrong category
 
 ## Recommendations
@@ -609,21 +609,21 @@ Apply auto-fixes? [y/N]:
 ```typescript
 const autoFixes = [
   {
-    file: "~/.config/opencode/skills/CORE/SYSTEM/PAISYSTEMARCHITECTURE.md",
+    file: "~/.config/opencode/skills/PAI/SYSTEM/PAISYSTEMARCHITECTURE.md",
     line: 45,
     original: "Steffen prefers",
     replacement: "${ENGINEER_NAME} prefers",
     description: "Replace personal name with placeholder"
   },
   {
-    file: "~/.config/opencode/skills/CORE/SYSTEM/THEPLUGINSYSTEM.md",
+    file: "~/.config/opencode/skills/PAI/SYSTEM/THEPLUGINSYSTEM.md",
     line: 12,
     original: "/Users/username/.opencode" (legacy),
     replacement: "~/.config/opencode",
     description: "Replace hardcoded path with variable"
   },
   {
-    file: "~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md",
+    file: "~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md",
     line: 78,
     original: "user@example.com",
     replacement: "user@example.com",
@@ -650,7 +650,7 @@ for (const fix of autoFixes) {
 
 - **IntegrityCheck**: Can include privacy check as component
 - **GitPush**: Run before committing to validate no privacy leaks
-- **CORE Skill**: Privacy-aware context loading
+- **PAI Skill**: Privacy-aware context loading
 
 ## Example Usage
 

@@ -628,7 +628,7 @@ function clusterByTime(results: RecallResult[]): Cluster[] {
 
 - **UpdateSearch Tool**: Primary index search mechanism
 - **DocumentRecent**: Creates artifacts that this workflow searches
-- **CORE Skill**: Can use recall to load relevant context
+- **PAI Skill**: Can use recall to load relevant context
 - **Algorithm**: Can recall previous solutions to similar problems
 
 ## Example Usage

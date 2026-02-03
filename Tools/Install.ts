@@ -86,9 +86,9 @@ function verifyCrossReferences(args: { targetDir: string; dryRun: boolean; enabl
 }
 
 function maybeGenerateSkillIndex(args: { targetDir: string; dryRun: boolean }) {
-  const toolPath = path.join(args.targetDir, "skills", "CORE", "Tools", "GenerateSkillIndex.ts");
+  const toolPath = path.join(args.targetDir, "skills", "PAI", "Tools", "GenerateSkillIndex.ts");
   if (!isFile(toolPath)) {
-    console.log("[write] skill index: skipped (missing skills/CORE/Tools/GenerateSkillIndex.ts)");
+    console.log("[write] skill index: skipped (missing skills/PAI/Tools/GenerateSkillIndex.ts)");
     return;
   }
 
@@ -338,13 +338,20 @@ function removeLegacyOpenCodeTools(args: { targetDir: string; dryRun: boolean })
 
 function removeLegacyStatusLineDocs(args: { targetDir: string; dryRun: boolean }) {
   // Status line is not supported in OpenCode. Remove legacy docs/config artifacts.
-  const legacyUserDir = path.join(args.targetDir, "skills", "CORE", "USER", "STATUSLINE");
+  const legacyUserDirs = [
+    path.join(args.targetDir, "skills", "PAI", "USER", "STATUSLINE"),
+    path.join(args.targetDir, "skills", "CORE", "USER", "STATUSLINE"),
+  ];
   const legacyScript = path.join(args.targetDir, "statusline-command.sh");
-  const userReadme = path.join(args.targetDir, "skills", "CORE", "USER", "README.md");
+  const userReadmes = [
+    path.join(args.targetDir, "skills", "PAI", "USER", "README.md"),
+    path.join(args.targetDir, "skills", "CORE", "USER", "README.md"),
+  ];
 
-  if (isDir(legacyUserDir)) {
+  for (const legacyUserDir of legacyUserDirs) {
+    if (!isDir(legacyUserDir)) continue;
     const prefix = args.dryRun ? "[dry]" : "[write]";
-    console.log(`${prefix} remove legacy dir skills/CORE/USER/STATUSLINE`);
+    console.log(`${prefix} remove legacy dir ${legacyUserDir}`);
     removePath(legacyUserDir, args.dryRun);
   }
 
@@ -355,8 +362,9 @@ function removeLegacyStatusLineDocs(args: { targetDir: string; dryRun: boolean }
   }
 
   // Remove legacy mentions from preserved USER README (best-effort, narrow match).
-  const readmeRaw = readFileSafe(userReadme);
-  if (readmeRaw.includes("STATUSLINE/")) {
+  for (const userReadme of userReadmes) {
+    const readmeRaw = readFileSafe(userReadme);
+    if (!readmeRaw.includes("STATUSLINE/")) continue;
     const lines = readmeRaw.split(/\r?\n/);
     const out: string[] = [];
 
@@ -376,8 +384,62 @@ function removeLegacyStatusLineDocs(args: { targetDir: string; dryRun: boolean }
     const updated = out.join("\n");
     if (updated !== readmeRaw) {
       const prefix = args.dryRun ? "[dry]" : "[write]";
-      console.log(`${prefix} remove legacy STATUSLINE mention from skills/CORE/USER/README.md`);
+      console.log(`${prefix} remove legacy STATUSLINE mention from ${userReadme}`);
       writeFileSafe(userReadme, updated, args.dryRun);
+    }
+  }
+}
+
+function migrateLegacyCoreSkills(args: { targetDir: string; dryRun: boolean }) {
+  const coreDir = path.join(args.targetDir, "skills", "CORE");
+  const paiDir = path.join(args.targetDir, "skills", "PAI");
+  if (!isDir(coreDir)) return;
+
+  let coreIsSymlink = false;
+  try {
+    coreIsSymlink = fs.lstatSync(coreDir).isSymbolicLink();
+  } catch {
+    coreIsSymlink = false;
+  }
+  if (coreIsSymlink) return;
+
+  const prefix = args.dryRun ? "[dry]" : "[write]";
+
+  if (!isDir(paiDir)) {
+    console.log(`${prefix} migrate compatibility skills/CORE -> skills/PAI`);
+    if (args.dryRun) return;
+    try {
+      fs.renameSync(coreDir, paiDir);
+      return;
+    } catch {
+      copyDirRecursive(coreDir, paiDir, {
+        dryRun: false,
+        overwrite: false,
+        preserveIfExistsPrefixes: [""],
+        relBase: "skills/PAI/",
+      });
+      removePath(coreDir, false);
+      return;
+    }
+  }
+
+  const subdirs = ["USER", "WORK"];
+  for (const name of subdirs) {
+    const from = path.join(coreDir, name);
+    const to = path.join(paiDir, name);
+    if (!isDir(from) || isDir(to)) continue;
+    console.log(`${prefix} migrate compatibility skills/CORE/${name} -> skills/PAI/${name}`);
+    if (args.dryRun) continue;
+    try {
+      fs.renameSync(from, to);
+    } catch {
+      copyDirRecursive(from, to, {
+        dryRun: false,
+        overwrite: false,
+        preserveIfExistsPrefixes: [""],
+        relBase: `skills/PAI/${name}/`,
+      });
+      removePath(from, false);
     }
   }
 }
@@ -504,7 +566,7 @@ function renderGlobalAgentsManagedBlock(args: {
     "",
     `- \`${targetDir}/settings.json\``,
     `- \`${targetDir}/opencode.json\``,
-    `- \`${targetDir}/skills/CORE/USER/\``,
+    `- \`${targetDir}/skills/PAI/USER/\``,
     `- \`${targetDir}/MEMORY/\``,
     "",
     AGENTS_BLOCK_END,
@@ -739,6 +801,9 @@ function sync(mode: Mode, opts: Options) {
 
   ensureDir(targetDir, dryRun);
 
+  // Migrate legacy CORE layout before syncing in PAI layout.
+  migrateLegacyCoreSkills({ targetDir, dryRun });
+
   // Core runtime directories (OpenCode uses plural names)
   const copyAlways = [
     "ACTIONS",
@@ -786,8 +851,8 @@ function sync(mode: Mode, opts: Options) {
     const preserve: string[] = [
       "MEMORY/",
       "config/",
-      "skills/CORE/USER/",
-      "skills/CORE/WORK/",
+      "skills/PAI/USER/",
+      "skills/PAI/WORK/",
     ];
 
     // Optional: delete target files/dirs that are not present in source.
@@ -880,16 +945,16 @@ function sync(mode: Mode, opts: Options) {
 
   // Seed USER/TELOS etc from source if requested.
   if (migrateFromRepo) {
-    const srcUser = path.join(sourceDir, "skills", "CORE", "USER");
-    const destUser = path.join(targetDir, "skills", "CORE", "USER");
+    const srcUser = path.join(sourceDir, "skills", "PAI", "USER");
+    const destUser = path.join(targetDir, "skills", "PAI", "USER");
     if (isDir(srcUser)) {
-      console.log(`${dryRun ? "[dry]" : "[seed]"} skills/CORE/USER (no-overwrite)`);
+      console.log(`${dryRun ? "[dry]" : "[seed]"} skills/PAI/USER (no-overwrite)`);
       ensureDir(destUser, dryRun);
       copyDirRecursive(srcUser, destUser, {
         dryRun,
         overwrite: false,
         preserveIfExistsPrefixes: [""],
-        relBase: "skills/CORE/USER/",
+        relBase: "skills/PAI/USER/",
       });
     }
   }

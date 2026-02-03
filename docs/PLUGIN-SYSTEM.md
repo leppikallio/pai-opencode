@@ -37,7 +37,7 @@ OpenCode plugins subscribe to **events** (lifecycle hooks). The PAI unified plug
 
 ### 1. Context Injection
 **Event:** `experimental.chat.system.transform`
-**Purpose:** Inject CORE skill context at session start
+**Purpose:** Inject PAI skill context at session start
 **Equivalent to:** `load-core-context.ts` hook
 
 ```typescript
@@ -50,7 +50,7 @@ OpenCode plugins subscribe to **events** (lifecycle hooks). The PAI unified plug
 ```
 
 **What it does:**
-- Reads `skills/CORE/SKILL.md`
+- Reads `skills/PAI/SKILL.md`
 - Loads system documentation (`SYSTEM/*.md`)
 - Loads user context (`USER/TELOS/*.md`)
 - Injects combined context into chat system

@@ -5,7 +5,7 @@
 
 import { BaseGrader, registerGrader, type GraderContext } from '../Base.ts';
 import type { GraderResult, LLMRubricParams } from '../../Types/index.ts';
-import { inference, type InferenceLevel } from '../../../CORE/Tools/Inference';
+import { inference, type InferenceLevel } from '../../../PAI/Tools/Inference';
 import { readFileSync, existsSync } from 'node:fs';
 
 export class LLMRubricGrader extends BaseGrader {

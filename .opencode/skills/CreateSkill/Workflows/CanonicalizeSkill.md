@@ -9,7 +9,7 @@
 **REQUIRED FIRST:** Read the canonical structure:
 
 ```
-~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md
+~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md
 ```
 
 This defines exactly what "canonicalize" means.

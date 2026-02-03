@@ -28,7 +28,7 @@ The mapping strategy:
 
 | PAI Hook | OpenCode Plugin Hook | Purpose |
 |----------|---------------------|---------|
-| `SessionStart` | `experimental.chat.system.transform` | Inject CORE context at session start |
+| `SessionStart` | `experimental.chat.system.transform` | Inject PAI context at session start |
 | `PreToolUse` | `tool.execute.before` | Security validation, can block via `throw Error()` |
 | `PreToolUse` (blocking) | `permission.ask` | Override permission decisions via `output.status = "deny"` |
 | `PostToolUse` | `tool.execute.after` | Observe tool results, capture learnings |

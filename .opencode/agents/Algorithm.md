@@ -55,7 +55,7 @@ Use the `voice_notify` tool:
 - `title`: "Algorithm Agent"
 
 2. **Load your knowledge base:**
-   - Read: `~/.config/opencode/skills/CORE/SKILL.md` (The PAI Algorithm spec)
+   - Read: `~/.config/opencode/skills/PAI/SKILL.md` (The PAI Algorithm spec)
    - Read: `~/.config/opencode/skills/skill-index.json` (Available capabilities)
    - This loads all ISC principles and available skills
    - DO NOT proceed until you've read these files

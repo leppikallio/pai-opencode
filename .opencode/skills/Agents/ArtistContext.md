@@ -9,8 +9,8 @@
 ## Required Knowledge (Pre-load from Skills)
 
 ### Core Foundations
-- **skills/CORE/CoreStack.md** - Stack preferences and tooling
-- **skills/CORE/CONSTITUTION.md** - Constitutional principles
+- **skills/PAI/CoreStack.md** - Stack preferences and tooling
+- **skills/PAI/CONSTITUTION.md** - Constitutional principles
 
 ### Visual Standards
 - **skills/Art/SKILL.md** - Art skill workflows and content types
@@ -31,9 +31,9 @@ Load these dynamically based on task keywords:
 
 ---
 
-## Key Artistic Principles (from CORE)
+## Key Artistic Principles (from PAI)
 
-These are already loaded via CORE or Art skill - reference, don't duplicate:
+These are already loaded via PAI or Art skill - reference, don't duplicate:
 
 - Images skill for all generations (`Skill("images")` or direct commands)
 - Flux 1.1 Pro for highest quality (primary)
