@@ -14,7 +14,7 @@ export class LLMRubricGrader extends BaseGrader {
 
   async grade(context: GraderContext): Promise<GraderResult> {
     const start = performance.now();
-    const params = this.config.params as LLMRubricParams;
+    const params = this.config.params as unknown as LLMRubricParams;
 
     // Load rubric
     let rubric = params.rubric;
@@ -23,13 +23,9 @@ export class LLMRubricGrader extends BaseGrader {
     }
 
     const scale = params.scale ?? '1-5';
-    // Map model preference to inference level (default to standard/Sonnet)
-    const levelMap: Record<string, InferenceLevel> = {
-      'claude-haiku-4-5-20251001': 'fast',
-      'claude-sonnet-4-20250514': 'standard',
-      'claude-opus-4-20250514': 'smart',
-    };
-    const level: InferenceLevel = levelMap[params.judge_model ?? ''] ?? 'standard';
+    // OpenCode-only policy: Inference levels control reasoning/verbosity profiles,
+    // not provider model selection.
+    const level: InferenceLevel = 'standard';
 
     // Build prompt
     const systemPrompt = this.buildSystemPrompt(scale, params.reasoning_first ?? true);

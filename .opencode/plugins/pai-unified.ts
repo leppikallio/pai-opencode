@@ -29,6 +29,9 @@ import {
   isTaskTool,
 } from "./handlers/agent-capture";
 import { createHistoryCapture } from "./handlers/history-capture";
+import { runImplicitSentimentSelftest } from "./handlers/sentiment-capture";
+import { parseIscResponse } from "./handlers/isc-parser";
+import { classifyFormatHint } from "./handlers/format-reminder";
 import { fileLog, fileLogError, clearLog } from "./lib/file-logger";
 import { getVoiceId } from "./lib/identity";
 import { getSessionStatusType } from "./lib/event-normalize";
@@ -90,6 +93,37 @@ interface RatingKioskState {
  */
 export const PaiUnified: Plugin = async (ctx) => {
   const client = getProp(ctx, "client");
+  const directory = typeof (ctx as unknown as { directory?: unknown }).directory === "string"
+    ? ((ctx as unknown as { directory?: string }).directory as string)
+    : "";
+
+  // Debug mode: enables extra evidence files and optional toasts.
+  const PAI_DEBUG = process.env.PAI_DEBUG === "1";
+
+  // Optional: run a carrier self-test on startup.
+  // This avoids needing interactive sessions to validate carrier wiring.
+  const ENABLE_FORMAT_GATE_SELFTEST = PAI_DEBUG && process.env.PAI_FORMAT_GATE_SELFTEST === "1";
+  const ENABLE_IMPLICIT_SENTIMENT_SELFTEST =
+    PAI_DEBUG && process.env.PAI_IMPLICIT_SENTIMENT_SELFTEST === "1";
+
+  // Default-off: Pass-1 hint toasts are for debugging only.
+  // The underlying artifacts (PROMPT_HINTS.jsonl / FORMAT_HINTS.jsonl) still persist.
+  const ENABLE_PROMPT_HINT_TOASTS = PAI_DEBUG && process.env.PAI_ENABLE_PROMPT_HINT_TOASTS === "1";
+  const ENABLE_FORMAT_HINT_TOASTS = PAI_DEBUG && process.env.PAI_ENABLE_FORMAT_HINT_TOASTS === "1";
+
+  // Format enforcement gate (v2.5 intent): rewrite invalid assistant output before display.
+  // Default-on: disable only with PAI_ENABLE_FORMAT_GATE=0.
+  const ENABLE_FORMAT_GATE = process.env.PAI_ENABLE_FORMAT_GATE !== "0";
+  // Default-on per Petteri: force a rewrite even if already valid.
+  // Disable (debug only) with: PAI_FORMAT_GATE_FORCE=0
+  const FORMAT_GATE_FORCE = process.env.PAI_FORMAT_GATE_FORCE !== "0";
+  // Debug-only: write per-session FORMAT_GATE.jsonl evidence.
+  const FORMAT_GATE_WRITE_EVIDENCE = PAI_DEBUG && process.env.PAI_FORMAT_GATE_WRITE_EVIDENCE !== "0";
+
+  const internalCarrierSessions = new Set<string>();
+  const lastUserTextBySession = new Map<string, string>();
+  const sawToolCallThisTurn = new Map<string, boolean>();
+  const forcedRewriteDoneBySession = new Set<string>();
 
   // Clear log at plugin load (new session)
   clearLog();
@@ -130,7 +164,52 @@ export const PaiUnified: Plugin = async (ctx) => {
 
   // (capability audit logging removed)
 
-  const historyCapture = createHistoryCapture();
+  const serverUrlValue = getProp(ctx, "serverUrl");
+  const serverUrl =
+    serverUrlValue instanceof URL
+      ? serverUrlValue.toString()
+      : typeof serverUrlValue === "string"
+        ? serverUrlValue
+        : "http://localhost:4096";
+  const carrierClient = client as unknown as {
+    session?: {
+      create?: (options?: unknown) => Promise<unknown>;
+      prompt?: (options: unknown) => Promise<unknown>;
+      delete?: (options: unknown) => Promise<unknown>;
+    };
+  };
+
+  const historyCapture = createHistoryCapture({
+    serverUrl,
+    client: carrierClient,
+    directory,
+  });
+
+  async function writeFormatGateSelftest(record: Record<string, unknown>) {
+    try {
+      const stateDir = getStateDir();
+      await ensureDir(stateDir);
+      const filePath = path.join(stateDir, "format-gate-selftest.json");
+      await fs.promises.writeFile(filePath, `${JSON.stringify(record, null, 2)}\n`, "utf-8");
+    } catch (error) {
+      fileLogError("Format gate selftest write failed", error);
+    }
+  }
+
+  async function writeImplicitSentimentSelftest(record: Record<string, unknown>) {
+    try {
+      const stateDir = getStateDir();
+      await ensureDir(stateDir);
+      const filePath = path.join(stateDir, "implicit-sentiment-selftest.json");
+      await fs.promises.writeFile(filePath, `${JSON.stringify(record, null, 2)}\n`, "utf-8");
+    } catch (error) {
+      fileLogError("Implicit sentiment selftest write failed", error);
+    }
+  }
+
+  // One-shot format hint toast per idle transition.
+  const formatHintTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const promptHintTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   function expandTilde(p: string): string {
     if (p === "~") return os.homedir();
@@ -182,6 +261,434 @@ export const PaiUnified: Plugin = async (ctx) => {
     } catch (error) {
       fileLogError("Toast failed", error);
     }
+  }
+
+  function extractTextFromParts(parts: unknown): string {
+    const arr = Array.isArray(parts) ? parts : [];
+    return arr
+      .filter((p) => p && typeof p === "object" && (p as UnknownRecord).type === "text")
+      .map((p) => ((p as UnknownRecord).text as string) || "")
+      .join("")
+      .trim();
+  }
+
+  function looksLikeJsonOnly(text: string): boolean {
+    const t = text.trim();
+    if (!t) return false;
+    if (!(t.startsWith("{") || t.startsWith("["))) return false;
+    try {
+      JSON.parse(t);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function appendFormatGateEvidence(sessionId: string, record: Record<string, unknown>) {
+    if (!FORMAT_GATE_WRITE_EVIDENCE) return;
+    try {
+      const workPath = await getCurrentWorkPathForSession(sessionId);
+      if (!workPath) return;
+      const filePath = path.join(workPath, "FORMAT_GATE.jsonl");
+      const line = `${JSON.stringify({ ts: new Date().toISOString(), sessionId, ...record })}\n`;
+      await fs.promises.appendFile(filePath, line, "utf-8");
+    } catch (error) {
+      fileLogError("Format gate evidence write failed", error);
+    }
+  }
+
+  function validateMinimalFormat(text: string): boolean {
+    const hasVoiceLine = /^🗣️\s*[^:\n]{1,40}:/m.test(text);
+    const hasSummaryLine = /^📋 SUMMARY:/m.test(text);
+    return hasVoiceLine && hasSummaryLine;
+  }
+
+  function validateFullFormatDetailed(text: string): {
+    ok: boolean;
+    criteriaCount: number;
+    reasons: string[];
+  } {
+    const hint = classifyFormatHint(text, "");
+    const reasons: string[] = [];
+
+    if (!hint.features.hasPaiAlgorithmHeader) reasons.push("missing_pai_algorithm_header");
+    if (!hint.features.hasVoiceLine) reasons.push("missing_voice_line");
+    if (!hint.features.hasSummaryLine) reasons.push("missing_summary_line");
+    if (!hint.features.hasIscTracker) reasons.push("missing_isc_tracker");
+    if (hint.features.phaseCount < 5) reasons.push("missing_phases");
+
+    const parsed = parseIscResponse(text);
+    const criteriaCount = parsed.criteria.length;
+    if (parsed.attempted && criteriaCount === 0) reasons.push("empty_isc_criteria");
+
+    return { ok: reasons.length === 0, criteriaCount, reasons };
+  }
+
+  function validateFullFormat(text: string): boolean {
+    return validateFullFormatDetailed(text).ok;
+  }
+
+  function buildFallbackFullWrapper(opts: {
+    task: string;
+    userText: string;
+    assistantText: string;
+  }): string {
+    const original = opts.assistantText.trim();
+    const clipped = original.length > 4000 ? `${original.slice(0, 4000)}\n\n[truncated]` : original;
+
+    return [
+      "🤖 PAI ALGORITHM ══════════════════════════════════════════════════════════════",
+      `   Task: ${opts.task}`,
+      "   [░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░] 0% → IDEAL STATE",
+      "",
+      "━━━ 👁️  O B S E R V E ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1/7",
+      "",
+      "**Observations:**",
+      "- What exists now: assistant output failed format validation",
+      "- What you explicitly asked: see user message below",
+      "- Relevant context: original assistant output preserved in OUTPUT",
+      "",
+      "**🔧 Capabilities:** direct",
+      "",
+      "━━━ 🧠  T H I N K ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2/7",
+      "",
+      "**Analysis:**",
+      "- Goal: enforce required response format deterministically",
+      "- Approach: wrap original output in required structure",
+      "",
+      "**🔧 Capabilities:** direct",
+      "",
+      "━━━ 📋  P L A N ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3/7",
+      "",
+      "**IDEAL:** Output conforms to required PAI response structure.",
+      "",
+      "🎯 ISC TRACKER ════════════════════════════════════════════════════════════════",
+      "│ # │ Criterion (exactly 8 words)                 │ Status          │ Δ      │",
+      "├───┼─────────────────────────────────────────────┼─────────────────┼────────┤",
+      "│ 1 │ Required response format fields are present │ ✅ VERIFIED     │ ★ ADDED │",
+      "├───┴─────────────────────────────────────────────┴─────────────────┴────────┤",
+      "│ ⚠️ ANTI-CRITERIA                                                          │",
+      "├───┬─────────────────────────────────────────────┬──────────────────────────┤",
+      "│ ! │ No tool results invented in wrapper output  │ ✅ AVOIDED               │",
+      "└───┴─────────────────────────────────────────────┴──────────────────────────┘",
+      "",
+      "**🔧 Capabilities:** direct",
+      "",
+      "━━━ 🔨  B U I L D ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4/7",
+      "",
+      "**Building:**",
+      "- Formatting wrapper around original assistant output",
+      "",
+      "**🔧 Capabilities:** direct",
+      "",
+      "━━━ ⚡  E X E C U T E ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5/7",
+      "",
+      "**Actions:**",
+      "- Wrapped original assistant output into required format",
+      "",
+      "**🔧 Capabilities:** direct",
+      "",
+      "━━━ ✅  V E R I F Y ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6/7",
+      "",
+      "🎯 FINAL ISC STATE ════════════════════════════════════════════════════════════",
+      "│ # │ Criterion                          │ Status      │ Evidence │",
+      "├───┼────────────────────────────────────┼─────────────┼──────────┤",
+      "│ 1 │ Required response format fields are present │ ✅ VERIFIED │ wrapper applied │",
+      "└───┴────────────────────────────────────┴─────────────┴──────────┘",
+      "",
+      "**🔧 Capabilities:** direct",
+      "",
+      "━━━ 📤  O U T P U T ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 6.5/7",
+      "",
+      "📊 RESULTS FROM: Original assistant output",
+      "────────────────────────────────────────────────────────────────────────────────",
+      "USER_MESSAGE:",
+      opts.userText || "(unknown)",
+      "",
+      "ASSISTANT_OUTPUT (original):",
+      clipped || "(empty)",
+      "────────────────────────────────────────────────────────────────────────────────",
+      "",
+      "━━━ 📚  L E A R N ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7/7",
+      "",
+      "📋 SUMMARY: I wrapped the assistant output to satisfy format requirements.",
+      "➡️ NEXT: Investigate why rewrite failed; see FORMAT_GATE.jsonl.",
+      "",
+      "⭐ RATE (1-10):",
+      "",
+      "🗣️ Marvin: I enforced the required format by wrapping the assistant output. Original content preserved.",
+    ].join("\n");
+  }
+
+  async function rewriteToFormat(opts: {
+    mode: "MINIMAL" | "FULL";
+    userText: string;
+    assistantText: string;
+  }): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
+    const sessionApi = carrierClient.session;
+    if (typeof sessionApi?.create !== "function" || typeof sessionApi?.prompt !== "function" || typeof sessionApi?.delete !== "function") {
+      // As a fallback, avoid attempting a network call here.
+      return { ok: false, error: "carrier client session api unavailable" };
+    }
+
+    function extractError(result: unknown): string | null {
+      const error = getRecordProp(result, "error");
+      if (error) {
+        const msg = getStringProp(error, "message") || getStringProp(error, "error");
+        if (msg) return msg;
+        try {
+          return `sdk error: ${JSON.stringify(error).slice(0, 400)}`;
+        } catch {
+          return "sdk error";
+        }
+      }
+      const response = getRecordProp(result, "response");
+      const status = response ? (response.status as unknown) : undefined;
+      if (typeof status === "number" && status >= 400) {
+        return `http ${status}`;
+      }
+      return null;
+    }
+
+    const createRes = await sessionApi.create({
+      query: directory ? { directory } : undefined,
+      body: {
+        title: "[PAI INTERNAL] FormatGate",
+        permission: [{ permission: "*", pattern: "*", action: "deny" }],
+      },
+    });
+
+    const createErr = extractError(createRes);
+    if (createErr) {
+      return { ok: false, error: `carrier session create failed: ${createErr}` };
+    }
+
+    const sid = getStringProp(getRecordProp(createRes, "data"), "id");
+    if (!sid) return { ok: false, error: "carrier session create returned no id" };
+    internalCarrierSessions.add(sid);
+    try {
+      // Ensure internal sessions never get captured into workdirs.
+      try {
+        (historyCapture as unknown as { ignoreSession?: (sid: string) => void }).ignoreSession?.(sid);
+      } catch {
+        // ignore
+      }
+
+      const systemPrompt =
+        opts.mode === "MINIMAL"
+          ? [
+              "You rewrite assistant output into the required minimal response format.",
+              "Output MUST be exactly two lines:",
+              "1) 📋 SUMMARY: <one sentence>",
+              "2) 🗣️ Marvin: <max 16 words, factual>",
+              "Do not add any other lines.",
+              "Do not mention rewriting.",
+            ].join("\n")
+          : [
+              "You rewrite assistant output into the required PAI phased algorithm format.",
+              "Requirements:",
+              "- Must include: 🤖 PAI ALGORITHM header, all 7 phases, and an ISC table.",
+              "- Must include: 📋 SUMMARY line and 🗣️ Marvin voice line (max 16 words).",
+              "- Preserve the original meaning; do not invent tool results.",
+              "- No toasts, no meta commentary, no apologies.",
+            ].join("\n");
+
+      const userPrompt = [
+        "USER_MESSAGE:",
+        opts.userText || "(unknown)",
+        "",
+        "ASSISTANT_OUTPUT_TO_REWRITE:",
+        opts.assistantText,
+      ].join("\n");
+
+      const promptRes = await sessionApi.prompt({
+        path: { id: sid },
+        query: directory ? { directory } : undefined,
+        body: {
+          model: { providerID: "openai", modelID: "gpt-5.2" },
+          noReply: false,
+          variant: "minimal",
+          system: systemPrompt,
+          parts: [{ type: "text", text: userPrompt }],
+          tools: {},
+        },
+      });
+
+      const promptErr = extractError(promptRes);
+      if (promptErr) {
+        return { ok: false, error: `carrier prompt failed: ${promptErr}` };
+      }
+
+      const data = getRecordProp(promptRes, "data");
+      const out = extractTextFromParts(data ? (data as UnknownRecord).parts : undefined);
+      if (!out) return { ok: false, error: "carrier returned empty output" };
+      return { ok: true, text: out };
+    } catch {
+      return { ok: false, error: "carrier threw unexpected error" };
+    } finally {
+      internalCarrierSessions.delete(sid);
+      void sessionApi
+        .delete({
+          path: { id: sid },
+          query: directory ? { directory } : undefined,
+        })
+        .catch(() => {});
+      try {
+        (historyCapture as unknown as { unignoreSession?: (sid: string) => void }).unignoreSession?.(sid);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  async function runFormatGateSelftest() {
+    const startedAt = new Date().toISOString();
+    const minimalInput = {
+      mode: "MINIMAL" as const,
+      userText: "(selftest)",
+      assistantText: "hello world",
+    };
+    const fullInput = {
+      mode: "FULL" as const,
+      userText: "(selftest)",
+      assistantText: "just some unformatted output",
+    };
+
+    const fullMissingCriteria = [
+      "🤖 PAI ALGORITHM ══════════════════════════════════════════════════════════════",
+      "   Task: Selftest missing ISC criteria",
+      "",
+      "━━━ 👁️  O B S E R V E ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1/7",
+      "",
+      "**Observations:**",
+      "- What exists now: test",
+      "",
+      "━━━ 📋  P L A N ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3/7",
+      "",
+      "🎯 ISC TRACKER ════════════════════════════════════════════════════════════════",
+      "│ # │ Criterion (exactly 8 word)              │ Status          │ Δ      │",
+      "├───┼─────────────────────────────────────────┼─────────────────┼────────┤",
+      "└───┴─────────────────────────────────────────┴─────────────────┴────────┘",
+      "",
+      "━━━ 📚  L E A R N ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7/7",
+      "",
+      "📋 SUMMARY: selftest",
+      "",
+      "🗣️ Marvin: selftest",
+    ].join("\n");
+
+    const minimal = await rewriteToFormat(minimalInput);
+    const full = await rewriteToFormat(fullInput);
+    const missingCriteriaCheck = validateFullFormatDetailed(fullMissingCriteria);
+
+    await writeFormatGateSelftest({
+      ts: startedAt,
+      ok: {
+        minimal: minimal.ok,
+        full: full.ok,
+      },
+      validated: {
+        minimal: minimal.ok ? validateMinimalFormat(minimal.text) : false,
+        full: full.ok ? validateFullFormat(full.text) : false,
+      },
+      iscGate: {
+        missingCriteriaOk: missingCriteriaCheck.ok,
+        missingCriteriaReasons: missingCriteriaCheck.reasons,
+        missingCriteriaCount: missingCriteriaCheck.criteriaCount,
+      },
+      error: {
+        minimal: minimal.ok ? null : minimal.error,
+        full: full.ok ? null : full.error,
+      },
+    });
+  }
+
+  function scheduleFormatHintToast(sessionId: string) {
+    const existing = formatHintTimers.get(sessionId);
+    if (existing) clearTimeout(existing);
+
+    // Wait for history-capture's COMMIT_DEBOUNCE_MS to run.
+    const t = setTimeout(() => {
+      formatHintTimers.delete(sessionId);
+      try {
+        // consumeFormatHint is best-effort; no hint means no toast.
+        const hint = (historyCapture as unknown as { consumeFormatHint?: (sid: string) => unknown }).consumeFormatHint?.(sessionId);
+        const rec = hint as UnknownRecord | undefined;
+        const toastRec = rec ? (rec.toast as UnknownRecord | undefined) : undefined;
+        const message = toastRec ? (toastRec.message as unknown) : undefined;
+        const variant = toastRec ? (toastRec.variant as unknown) : undefined;
+        const durationMs = toastRec ? (toastRec.durationMs as unknown) : undefined;
+
+        if (typeof message === 'string' && message.trim()) {
+          void showToast(
+            message,
+            (variant === 'warning' || variant === 'error' || variant === 'success' || variant === 'info'
+              ? (variant as ToastVariant)
+              : 'info'),
+            typeof durationMs === 'number' ? durationMs : undefined
+          );
+        }
+      } catch (error) {
+        fileLogError('Format hint toast failed', error);
+      }
+    }, 450);
+
+    formatHintTimers.set(sessionId, t);
+  }
+
+  function schedulePromptHintToast(sessionId: string) {
+    const existing = promptHintTimers.get(sessionId);
+    if (existing) clearTimeout(existing);
+
+    const t = setTimeout(() => {
+      promptHintTimers.delete(sessionId);
+      try {
+        const hint = (historyCapture as unknown as { consumePromptHint?: (sid: string) => unknown }).consumePromptHint?.(sessionId);
+        const rec = hint as UnknownRecord | undefined;
+        const toastRec = rec ? (rec.toast as UnknownRecord | undefined) : undefined;
+        const message = toastRec ? (toastRec.message as unknown) : undefined;
+        const variant = toastRec ? (toastRec.variant as unknown) : undefined;
+        const durationMs = toastRec ? (toastRec.durationMs as unknown) : undefined;
+
+        if (typeof message === 'string' && message.trim()) {
+          void showToast(
+            message,
+            (variant === 'warning' || variant === 'error' || variant === 'success' || variant === 'info'
+              ? (variant as ToastVariant)
+              : 'info'),
+            typeof durationMs === 'number' ? durationMs : undefined
+          );
+        }
+      } catch (error) {
+        fileLogError('Prompt hint toast failed', error);
+      }
+    }, 350);
+
+    promptHintTimers.set(sessionId, t);
+  }
+
+  function extractSessionIdFromEvent(eventObj: UnknownRecord | undefined): string | null {
+    if (!eventObj) return null;
+    const props = getRecordProp(eventObj, 'properties');
+    if (!props) return null;
+
+    // Common locations:
+    // - session.* events: properties.sessionID OR properties.info.id
+    // - message.* events: properties.info.sessionID OR properties.part.sessionID
+    const fromProps = getStringProp(props, 'sessionID');
+    if (fromProps) return fromProps;
+
+    const info = getRecordProp(props, 'info');
+    const fromInfoSession = getStringProp(info, 'sessionID');
+    if (fromInfoSession) return fromInfoSession;
+    const fromInfoId = getStringProp(info, 'id');
+    if (fromInfoId) return fromInfoId;
+
+    const part = getRecordProp(props, 'part');
+    const fromPart = getStringProp(part, 'sessionID');
+    if (fromPart) return fromPart;
+
+    return null;
   }
 
   async function clearPrompt() {
@@ -445,6 +952,27 @@ export const PaiUnified: Plugin = async (ctx) => {
         },
       }),
     },
+
+    /**
+     * CHAT MESSAGE (pre-LLM)
+     * Capture the last user message text per session for later formatting.
+     */
+    "chat.message": async (input, output) => {
+      try {
+        const sessionId = input.sessionID;
+        if (!sessionId) return;
+        // Only track user messages.
+        if (output?.message?.role !== "user") return;
+        const text = extractTextFromParts(output.parts);
+        if (text) {
+          lastUserTextBySession.set(sessionId, text);
+          sawToolCallThisTurn.set(sessionId, false);
+        }
+      } catch (error) {
+        fileLogError("chat.message handler failed", error);
+      }
+    },
+
     /**
      * CONTEXT INJECTION (SessionStart equivalent)
      *
@@ -629,6 +1157,11 @@ export const PaiUnified: Plugin = async (ctx) => {
         output.args = normalizeArgsTilde(output.args) as Record<string, unknown>;
       }
 
+      // Mark that this assistant turn used tools.
+      if (input.sessionID) {
+        sawToolCallThisTurn.set(input.sessionID, true);
+      }
+
       await historyCapture.handleToolBefore(
         {
           tool: input.tool,
@@ -658,6 +1191,136 @@ export const PaiUnified: Plugin = async (ctx) => {
       }
 
       fileLog(`Security check passed for ${input.tool}`, "debug");
+    },
+
+    /**
+     * FORMAT GATE (pre-display)
+     * Rewrite invalid assistant output before it reaches the UI.
+     */
+    "experimental.text.complete": async (input, output) => {
+      try {
+        if (!ENABLE_FORMAT_GATE) return;
+        const sessionId = input.sessionID;
+        if (!sessionId) return;
+        if (internalCarrierSessions.has(sessionId)) return;
+
+        const text = typeof output.text === "string" ? output.text : "";
+        if (!text.trim()) return;
+        if (looksLikeJsonOnly(text)) return;
+
+        const userText = lastUserTextBySession.get(sessionId) || "";
+        const toolUsed = sawToolCallThisTurn.get(sessionId) === true;
+
+        const mode: "MINIMAL" | "FULL" = toolUsed || text.length >= 600 ? "FULL" : "MINIMAL";
+
+        const fullDetails = mode === "FULL" ? validateFullFormatDetailed(text) : null;
+        const ok = mode === "FULL" ? fullDetails?.ok === true : validateMinimalFormat(text);
+        const shouldForce = FORMAT_GATE_FORCE && !forcedRewriteDoneBySession.has(sessionId);
+        await appendFormatGateEvidence(sessionId, {
+          event: "checked",
+          mode,
+          ok,
+          forced: shouldForce,
+          toolUsed,
+          inLen: text.length,
+          messageID: input.messageID,
+          partID: input.partID,
+          ...(mode === "FULL"
+            ? {
+                criteriaCount: fullDetails?.criteriaCount ?? 0,
+                reasons: fullDetails?.reasons ?? [],
+              }
+            : {}),
+        });
+
+        if (ok && !shouldForce) return;
+
+        const rewritten = await rewriteToFormat({
+          mode,
+          userText,
+          assistantText: text,
+        });
+
+        // Ensure force-mode is one-shot, even if rewrite fails.
+        if (shouldForce) forcedRewriteDoneBySession.add(sessionId);
+
+        if (!rewritten.ok) {
+          await appendFormatGateEvidence(sessionId, {
+            event: "rewrite_failed",
+            mode,
+            forced: shouldForce,
+            inLen: text.length,
+            messageID: input.messageID,
+            partID: input.partID,
+            error: rewritten.error.slice(0, 500),
+          });
+          const fallback = buildFallbackFullWrapper({
+            task: "Enforce required response format",
+            userText,
+            assistantText: text,
+          });
+          if (validateFullFormat(fallback)) {
+            output.text = fallback;
+            await appendFormatGateEvidence(sessionId, {
+              event: "rewrote_fallback",
+              mode: "FULL",
+              forced: shouldForce,
+              inLen: text.length,
+              outLen: fallback.length,
+              messageID: input.messageID,
+              partID: input.partID,
+            });
+          }
+          return;
+        }
+
+        const ok2 = mode === "FULL" ? validateFullFormat(rewritten.text) : validateMinimalFormat(rewritten.text);
+        if (!ok2) {
+          await appendFormatGateEvidence(sessionId, {
+            event: "rewrite_failed",
+            mode,
+            forced: shouldForce,
+            inLen: text.length,
+            outLen: rewritten.text.length,
+            messageID: input.messageID,
+            partID: input.partID,
+            error: "rewritten output did not validate",
+          });
+          const fallback = buildFallbackFullWrapper({
+            task: "Enforce required response format",
+            userText,
+            assistantText: text,
+          });
+          if (validateFullFormat(fallback)) {
+            output.text = fallback;
+            await appendFormatGateEvidence(sessionId, {
+              event: "rewrote_fallback",
+              mode: "FULL",
+              forced: shouldForce,
+              inLen: text.length,
+              outLen: fallback.length,
+              messageID: input.messageID,
+              partID: input.partID,
+            });
+          }
+          return;
+        }
+
+        output.text = rewritten.text;
+
+        if (PAI_DEBUG) fileLog(`FormatGate rewrote output (mode=${mode} forced=${shouldForce})`, "info");
+        await appendFormatGateEvidence(sessionId, {
+          event: "rewrote",
+          mode,
+          forced: shouldForce,
+          inLen: text.length,
+          outLen: rewritten.text.length,
+          messageID: input.messageID,
+          partID: input.partID,
+        });
+      } catch (error) {
+        fileLogError("Format gate failed", error);
+      }
     },
 
     /**
@@ -763,6 +1426,8 @@ export const PaiUnified: Plugin = async (ctx) => {
         const eventObj = getRecordProp(input, "event");
         const eventType = getStringProp(eventObj, "type") ?? "";
 
+        const sessionIdForEvent = extractSessionIdFromEvent(eventObj);
+
         // (capability audit logging removed)
 
         // === TUI RATING KIOSK ===
@@ -811,12 +1476,14 @@ export const PaiUnified: Plugin = async (ctx) => {
 
         // Some OpenCode builds report response completion via session.status updates
         // rather than session.idle. If we see an "idle"-like status, arm kiosk.
+        let idleLike = false;
         if (eventType === "session.status") {
           try {
             const statusType = getSessionStatusType(eventObj);
             if (statusType === "idle") {
               armRatingKiosk();
               fileLog("Rating kiosk armed (session.status)", "debug");
+              idleLike = true;
             }
           } catch (error) {
             fileLogError("session.status handling failed", error);
@@ -849,6 +1516,7 @@ export const PaiUnified: Plugin = async (ctx) => {
         if (eventType === "session.idle" || eventType.includes("session.idle")) {
           armRatingKiosk();
           fileLog("Session idle (armed rating kiosk)", "debug");
+          idleLike = true;
         }
 
         // === SESSION DELETE (hard finalize) ===
@@ -862,11 +1530,42 @@ export const PaiUnified: Plugin = async (ctx) => {
 
         // History + ISC capture (event-driven)
         await historyCapture.handleEvent(eventObj ?? {});
+
+        // Best-effort: show prompt hint after the user message is sent.
+        // NOTE: Avoid message.part.updated because that fires while typing.
+        if (ENABLE_PROMPT_HINT_TOASTS && eventType === 'message.updated' && sessionIdForEvent) {
+          schedulePromptHintToast(sessionIdForEvent);
+        }
+
+        // Best-effort: show format reminder after assistant commit.
+        if (ENABLE_FORMAT_HINT_TOASTS && idleLike && sessionIdForEvent) {
+          scheduleFormatHintToast(sessionIdForEvent);
+        }
       } catch (error) {
         fileLogError("Event handler failed", error);
       }
     },
   };
+
+  if (ENABLE_FORMAT_GATE_SELFTEST) {
+    // Run async after startup to avoid blocking plugin init.
+    setTimeout(() => {
+      void runFormatGateSelftest();
+    }, 250);
+  }
+
+  if (ENABLE_IMPLICIT_SENTIMENT_SELFTEST) {
+    setTimeout(() => {
+      void runImplicitSentimentSelftest()
+        .then((entry) => writeImplicitSentimentSelftest({ ok: true, entry }))
+        .catch((error) =>
+          writeImplicitSentimentSelftest({
+            ok: false,
+            error: error instanceof Error ? error.message : String(error),
+          })
+        );
+    }, 300);
+  }
 
   return hooks;
 };

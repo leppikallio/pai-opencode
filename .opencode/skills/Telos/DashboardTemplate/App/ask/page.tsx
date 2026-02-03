@@ -75,7 +75,7 @@ export default function AskPage() {
           Ask AI
         </h1>
         <p className="text-lg text-gray-600">
-          Chat with Claude Haiku 4.5 to get instant answers
+          Chat with GPT-5.2 to get instant answers
         </p>
       </div>
 
@@ -84,7 +84,7 @@ export default function AskPage() {
           <CardTitle className="flex items-center justify-between">
             <span>Chat Interface</span>
             <Badge variant="primary" className="bg-[#2e7de9]">
-              Claude Haiku 4.5
+              GPT-5.2
             </Badge>
           </CardTitle>
         </CardHeader>

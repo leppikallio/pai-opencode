@@ -44,6 +44,40 @@ interface Rating {
   comment?: string;
 }
 
+function normalizeRating(obj: unknown): Rating | null {
+  if (!obj || typeof obj !== 'object') return null;
+  const record = obj as Record<string, unknown>;
+  const timestamp = typeof record.timestamp === 'string' ? record.timestamp : null;
+  const session_id = typeof record.session_id === 'string' ? record.session_id : 'unknown';
+  const source = record.source === 'implicit' ? 'implicit' : 'explicit';
+
+  const ratingVal =
+    typeof record.rating === 'number'
+      ? record.rating
+      : typeof record.score === 'number'
+        ? record.score
+        : null;
+  if (!timestamp || ratingVal === null) return null;
+
+  const sentiment_summary =
+    typeof record.sentiment_summary === 'string'
+      ? record.sentiment_summary
+      : typeof record.comment === 'string'
+        ? record.comment
+        : '';
+  const confidence = typeof record.confidence === 'number' ? record.confidence : 1;
+
+  return {
+    timestamp,
+    rating: ratingVal,
+    session_id,
+    source,
+    sentiment_summary,
+    confidence,
+    comment: typeof record.comment === 'string' ? record.comment : undefined,
+  };
+}
+
 interface PatternGroup {
   pattern: string;
   count: number;
@@ -333,7 +367,7 @@ const allRatings: Rating[] = content
   .filter(line => line.trim())
   .map(line => {
     try {
-      return JSON.parse(line);
+      return normalizeRating(JSON.parse(line));
     } catch {
       return null;
     }

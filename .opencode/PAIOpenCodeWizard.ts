@@ -91,17 +91,17 @@ const PROVIDERS: ProviderConfig[] = [
                Set ANTHROPIC_API_KEY in your environment.`,
   },
   {
-    name: 'OpenAI (GPT-4)',
+    name: 'OpenAI (GPT-5.2)',
     id: 'openai',
-    defaultModel: 'openai/gpt-4o',
-    description: 'GPT-4 and GPT-4o models',
+    defaultModel: 'openai/gpt-5.2',
+    description: 'GPT-5.2 model (recommended for OpenAI-only)',
     authType: 'oauth',
     envVar: 'OPENAI_API_KEY',
     authNote: `You have two options:
      ${c.cyan}Option A:${c.reset} ChatGPT Plus/Pro subscription
-               Run ${c.green}/connect${c.reset} in OpenCode to authenticate.
+                Run ${c.green}/connect${c.reset} in OpenCode to authenticate.
      ${c.cyan}Option B:${c.reset} API Key
-               Set OPENAI_API_KEY in your environment.`,
+                Set OPENAI_API_KEY in your environment.`,
   },
   // === FAST INFERENCE: API Key Required ===
   {

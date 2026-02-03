@@ -1,13 +1,13 @@
 # TELOS Dashboard Template
 
-A reusable Next.js dashboard template with Tokyo Night Day theme, shadcn/ui components, and built-in AI chat functionality powered by Claude Haiku 4.5.
+A reusable Next.js dashboard template with Tokyo Night Day theme, shadcn/ui components, and built-in AI chat functionality powered by GPT-5.2.
 
 ## Features
 
 - **Modern Stack**: Next.js 15, React 19, TypeScript, Tailwind CSS 4
 - **Beautiful Design**: Tokyo Night Day theme with professional gradients
 - **Pre-built Components**: shadcn/ui Card, Badge, Button, Progress, Table components
-- **AI Chat**: Built-in Ask page with Claude Haiku 4.5 integration
+- **AI Chat**: Built-in Ask page with GPT-5.2 integration
 - **Dynamic File System**: Automatic file discovery, navigation, and editing
 - **File Upload**: Drag-and-drop interface for uploading .md and .csv files
 - **File Editing**: In-browser editing with save functionality
@@ -17,7 +17,7 @@ A reusable Next.js dashboard template with Tokyo Night Day theme, shadcn/ui comp
 ## Pages Included
 
 1. **Overview** (`/`) - Dashboard overview with hero section, metrics grid, and summary
-2. **Ask** (`/ask`) - AI chatbot powered by Claude Haiku 4.5 with full TELOS context
+2. **Ask** (`/ask`) - AI chatbot powered by GPT-5.2 with full TELOS context
 3. **Add File** (`/add-file`) - Drag-and-drop file upload interface for .md and .csv files
 4. **File Viewer** (`/file/[slug]`) - Dynamic file viewer with edit capabilities for all TELOS files
 5. **Projects** (`/projects`) - Project tracking with budget, progress, and status (template example)
@@ -48,7 +48,7 @@ bun add @radix-ui/react-slot
 
 ### 3. Configure Environment
 
-Copy `.env.example` to `.env` and add your Anthropic API key:
+Copy `.env.example` to `.env` and configure your OpenCode server URL:
 
 ```bash
 cp .env.example .env
@@ -56,7 +56,7 @@ cp .env.example .env
 
 Edit `.env`:
 ```
-ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
+OPENCODE_SERVER_URL=http://localhost:4096
 ```
 
 **Note**: No API keys are included. Set your own key via environment variables.
@@ -98,13 +98,13 @@ Each page includes TODO comments marking where to add your data:
 
 #### Customize Data Structure
 
-**File**: `lib/data.ts`
+**File**: `Lib/data.ts`
 - Replace example data with your actual data
 - Add TypeScript interfaces for type safety
 
 **Example**:
 ```typescript
-// lib/data.ts
+// Lib/data.ts
 export interface Project {
   id: string
   name: string
@@ -149,7 +149,7 @@ Colors are defined in:
 
 ## AI Chat Integration
 
-The Ask page uses Claude Haiku 4.5 via Anthropic API:
+The Ask page uses GPT-5.2 via OpenAI API:
 
 **Frontend**: `app/ask/page.tsx`
 - React state management for messages
@@ -158,12 +158,12 @@ The Ask page uses Claude Haiku 4.5 via Anthropic API:
 
 **Backend**: `app/api/chat/route.ts`
 - Next.js API route
-- Calls Anthropic Messages API
+- Calls OpenAI Responses API
 - Handles errors gracefully
 
 **Environment Variable Required**:
 ```
-ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
+OPENCODE_SERVER_URL=http://localhost:4096
 ```
 
 ## Dynamic File System
@@ -401,7 +401,7 @@ This template works with any Next.js hosting platform:
 
 **Remember to set environment variables** in your hosting platform:
 ```
-ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
+OPENCODE_SERVER_URL=http://localhost:4096
 ```
 
 ## Tech Stack
@@ -412,7 +412,7 @@ ANTHROPIC_API_KEY=$ANTHROPIC_API_KEY
 - **Styling**: Tailwind CSS 4.1
 - **UI Components**: shadcn/ui (custom implementation)
 - **Icons**: Lucide React
-- **AI**: Claude Haiku 4.5 (Anthropic API)
+- **AI**: GPT-5.2 (OpenAI API)
 - **Package Manager**: Bun (also works with npm/yarn/pnpm)
 
 ## License
@@ -423,4 +423,4 @@ This template is part of the TELOS skill system and is free to use for any purpo
 
 This is a template - customize it to fit your needs! All pages include TODO comments marking where to add your data and content.
 
-For questions about the Anthropic API, see: https://docs.anthropic.com/
+For questions about the OpenAI API, see: https://platform.openai.com/docs
