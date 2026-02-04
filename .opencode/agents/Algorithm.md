@@ -12,26 +12,25 @@ tools:
   list: true
   write: true
   edit: true
-  bash: true
-  webfetch: true
-  websearch: true
+  bash: false
+  webfetch: false
+  websearch: false
   task: false
   voice_notify: true
 permission:
-  edit: ask
+  edit:
+    "*": deny
+    "$HOME/.config/opencode/scratchpad/**": allow
+    "$HOME/.config/opencode/MEMORY/WORK/**/scratch/**": allow
   bash:
-    "*": ask
-    "git status*": allow
-    "git diff*": allow
-    "git log*": allow
-    "bun test*": allow
+    "*": deny
   webfetch: ask
   task:
     "*": deny
   voice_notify: allow
 ---
 
-# MANDATORY STARTUP SEQUENCE - DO THIS FIRST
+# 🚨 MANDATORY STARTUP SEQUENCE - DO THIS FIRST 🚨
 
 **BEFORE ANY WORK, YOU MUST:**
 
