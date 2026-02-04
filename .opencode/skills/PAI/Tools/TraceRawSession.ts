@@ -39,6 +39,8 @@ function usage(): string {
     '',
     'Options:',
     '  --tail <n>   Show last n events (default: 40)',
+    '  --mismatches Show unmatched tool callIds (with timestamps)',
+    '  --max <n>    Max mismatch callIds to print (default: 25)',
     '  --json       Output a JSON summary',
   ].join('\n');
 }
@@ -119,6 +121,19 @@ function fmtTs(ts: string | undefined): string {
   return ts.replace('T', ' ').replace('Z', '');
 }
 
+function getCallId(e: RawEvent): string {
+  const p = e.payload;
+  return p && typeof p.callId === 'string' ? p.callId : '';
+}
+
+function shortEvent(e: RawEvent | undefined): string {
+  if (!e) return '(missing)';
+  const kind = e.kind || '';
+  const name = e.name || '';
+  const id = e.id || '';
+  return `${fmtTs(e.ts)} | ${kind} | ${name} | ${id}`;
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.includes('--help') || args.includes('-h')) {
@@ -128,6 +143,11 @@ async function main(): Promise<void> {
 
   const jsonOut = args.includes('--json');
   const latest = args.includes('--latest');
+  const showMismatches = args.includes('--mismatches');
+
+  const maxIdx = args.indexOf('--max');
+  const maxRaw = maxIdx >= 0 ? Number(args[maxIdx + 1] || '25') : 25;
+  const maxN = Number.isFinite(maxRaw) && maxRaw > 0 ? Math.floor(maxRaw) : 25;
 
   const tailIdx = args.indexOf('--tail');
   const tail = tailIdx >= 0 ? Number(args[tailIdx + 1] || '40') : 40;
@@ -189,11 +209,11 @@ async function main(): Promise<void> {
     byKind.set(kind, (byKind.get(kind) || 0) + 1);
 
     if (kind === 'tool.before') {
-      const callId = (e.payload && typeof e.payload.callId === 'string' ? e.payload.callId : '') as string;
+      const callId = getCallId(e);
       if (callId) toolBefore.set(callId, e);
     }
     if (kind === 'tool.after') {
-      const callId = (e.payload && typeof e.payload.callId === 'string' ? e.payload.callId : '') as string;
+      const callId = getCallId(e);
       if (callId) toolAfter.set(callId, e);
     }
   }
@@ -218,6 +238,20 @@ async function main(): Promise<void> {
           tools: {
             unmatchedBefore,
             unmatchedAfter,
+            ...(showMismatches
+              ? {
+                  mismatchDetails: {
+                    beforeMissingAfter: unmatchedBefore.slice(0, maxN).map((id) => ({
+                      callId: id,
+                      before: toolBefore.get(id) || null,
+                    })),
+                    afterMissingBefore: unmatchedAfter.slice(0, maxN).map((id) => ({
+                      callId: id,
+                      after: toolAfter.get(id) || null,
+                    })),
+                  },
+                }
+              : {}),
           },
           tail: tailEvents,
         },
@@ -250,6 +284,27 @@ async function main(): Promise<void> {
     if (unmatchedBefore.length) console.log(`  - tool.before without after: ${unmatchedBefore.length}`);
     if (unmatchedAfter.length) console.log(`  - tool.after without before: ${unmatchedAfter.length}`);
     console.log('');
+
+    if (showMismatches) {
+      const beforeList = unmatchedBefore.slice(0, maxN);
+      const afterList = unmatchedAfter.slice(0, maxN);
+      if (beforeList.length) {
+        console.log(`Unmatched tool.before callIds (showing ${beforeList.length}/${unmatchedBefore.length}):`);
+        for (const id of beforeList) {
+          console.log(`  - ${id}`);
+          console.log(`    before: ${shortEvent(toolBefore.get(id))}`);
+        }
+        console.log('');
+      }
+      if (afterList.length) {
+        console.log(`Unmatched tool.after callIds (showing ${afterList.length}/${unmatchedAfter.length}):`);
+        for (const id of afterList) {
+          console.log(`  - ${id}`);
+          console.log(`    after:  ${shortEvent(toolAfter.get(id))}`);
+        }
+        console.log('');
+      }
+    }
   }
 
   console.log(`Tail (${tailEvents.length}):`);
