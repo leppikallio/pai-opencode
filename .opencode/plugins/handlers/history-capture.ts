@@ -35,6 +35,29 @@ import { captureSoulEvolution } from "./soul-evolution";
 
 type UnknownRecord = Record<string, unknown>;
 
+/**
+ * Feature flag (default OFF): serialize event + tool capture per session.
+ *
+ * Usage:
+ *   PAI_SERIALIZE_EVENTS=1 opencode ...
+ */
+const ENABLE_SERIAL_EVENT_QUEUE =
+  (process.env.PAI_SERIALIZE_EVENTS ?? "").toLowerCase() === "1" ||
+  (process.env.PAI_SERIALIZE_EVENTS ?? "").toLowerCase() === "true";
+
+const serialQueueByKey = new Map<string, Promise<void>>();
+
+async function enqueueSerial(key: string, fn: () => Promise<void>): Promise<void> {
+  const prev = serialQueueByKey.get(key) ?? Promise.resolve();
+  const next = prev.then(fn, fn);
+  serialQueueByKey.set(key, next);
+  try {
+    await next;
+  } finally {
+    if (serialQueueByKey.get(key) === next) serialQueueByKey.delete(key);
+  }
+}
+
 function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === "object" && value !== null;
 }
@@ -600,6 +623,8 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
         return;
       }
 
+      const run = async () => {
+
       // Track parent relationships to classify subagent sessions.
       if (eventType === "session.created" || eventType === "session.updated") {
         const info = getRecordProp(props, "info");
@@ -812,81 +837,115 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
         }
         return;
       }
+      };
+
+      if (ENABLE_SERIAL_EVENT_QUEUE) {
+        const key = inferredSessionId ? storageSessionIdFor(inferredSessionId).storage : "global";
+        await enqueueSerial(key, run);
+        return;
+      }
+
+      await run();
     },
 
     async handleToolBefore(input: { tool: string; sessionID?: string; callID?: string }, args: Record<string, unknown>) {
       const sessionId = input.sessionID ?? "";
       const callId = input.callID ?? "";
-      if (sessionId) {
-        await markActive(sessionId);
-        if (callId) {
-          getSessionState(sessionId).toolArgsByCallId.set(callId, args);
+
+      const run = async () => {
+        if (sessionId) {
+          await markActive(sessionId);
+          if (callId) {
+            getSessionState(sessionId).toolArgsByCallId.set(callId, args);
+          }
+          const mapped = storageSessionIdFor(sessionId);
+          await appendRawEvent(
+            mapped.storage,
+            `tool.before:${mapped.storage}:${input.tool}:${callId || "no-call"}`,
+            "tool.before",
+            input.tool,
+            { callId, argKeys: Object.keys(args).slice(0, 20) },
+            { sourceSessionId: sessionId }
+          );
         }
-        const mapped = storageSessionIdFor(sessionId);
-        await appendRawEvent(
-          mapped.storage,
-          `tool.before:${mapped.storage}:${input.tool}:${callId || "no-call"}`,
-          "tool.before",
-          input.tool,
-          { callId, argKeys: Object.keys(args).slice(0, 20) },
-          { sourceSessionId: sessionId }
-        );
+      };
+
+      if (ENABLE_SERIAL_EVENT_QUEUE) {
+        const key = sessionId ? storageSessionIdFor(sessionId).storage : "global";
+        await enqueueSerial(key, run);
+        return;
       }
+
+      await run();
     },
 
     async handleToolAfter(input: { tool: string; sessionID?: string; callID?: string }, output: { title?: string; output?: string; metadata?: unknown }) {
       const sessionId = input.sessionID ?? "";
       const callId = input.callID ?? "";
-      if (sessionId) {
-        const mapped = storageSessionIdFor(sessionId);
-        const eventId = `tool.after:${mapped.storage}:${input.tool}:${callId || "no-call"}`;
 
-        await appendRawEvent(
-          mapped.storage,
-          eventId,
-          "tool.after",
-          input.tool,
-          {
-            callId,
-            title: output.title ?? "",
-            output: capText(output.output ?? "", MAX_TOOL_OUTPUT),
-          },
-          { sourceSessionId: sessionId }
-        );
+      const run = async () => {
+        if (sessionId) {
+          const mapped = storageSessionIdFor(sessionId);
+          const eventId = `tool.after:${mapped.storage}:${input.tool}:${callId || "no-call"}`;
 
-        // ISC persistence fix: if the assistant used todowrite, persist criteria into ISC.json
-        // from tool args (preferred) or tool output (fallback), instead of relying on response text parsing.
-        if (!mapped.isSubagent && input.tool === "todowrite") {
-          try {
-            // Ensure work session exists (tool calls can happen before session.created event).
-            const existing = await getCurrentWorkPathForSession(mapped.storage);
-            if (!existing) {
-              await createWorkSession(mapped.storage, "todowrite");
+          await appendRawEvent(
+            mapped.storage,
+            eventId,
+            "tool.after",
+            input.tool,
+            {
+              callId,
+              title: output.title ?? "",
+              output: capText(output.output ?? "", MAX_TOOL_OUTPUT),
+            },
+            { sourceSessionId: sessionId }
+          );
+
+          // ISC persistence fix: if the assistant used todowrite, persist criteria into ISC.json
+          // from tool args (preferred) or tool output (fallback), instead of relying on response text parsing.
+          if (!mapped.isSubagent && input.tool === "todowrite") {
+            try {
+              // Ensure work session exists (tool calls can happen before session.created event).
+              const existing = await getCurrentWorkPathForSession(mapped.storage);
+              if (!existing) {
+                await createWorkSession(mapped.storage, "todowrite");
+              }
+
+              const state = getSessionState(sessionId);
+              const args = callId ? state.toolArgsByCallId.get(callId) : undefined;
+              const todosFromArgs = args && isRecord(args) ? (args as UnknownRecord).todos : undefined;
+              const todosFromOutput = typeof output.output === "string" ? parseJsonBestEffort(output.output) : undefined;
+
+              const iscFromTodos =
+                buildIscStateFromTodos(todosFromArgs, eventId) ??
+                buildIscStateFromTodos(todosFromOutput, eventId);
+
+              if (iscFromTodos) {
+                await applyIscUpdateForSession(mapped.storage, iscFromTodos, eventId);
+                await appendToThreadForSession(
+                  mapped.storage,
+                  `**ISC:** persisted from todowrite (${iscFromTodos.criteria.length} criteria)`
+                );
+              }
+            } catch (error) {
+              fileLogError("Failed to persist ISC from todowrite", error);
             }
+          }
 
-            const state = getSessionState(sessionId);
-            const args = callId ? state.toolArgsByCallId.get(callId) : undefined;
-            const todosFromArgs = args && isRecord(args) ? (args as UnknownRecord).todos : undefined;
-            const todosFromOutput = typeof output.output === "string" ? parseJsonBestEffort(output.output) : undefined;
-
-            const iscFromTodos =
-              buildIscStateFromTodos(todosFromArgs, eventId) ??
-              buildIscStateFromTodos(todosFromOutput, eventId);
-
-            if (iscFromTodos) {
-              await applyIscUpdateForSession(mapped.storage, iscFromTodos, eventId);
-              await appendToThreadForSession(mapped.storage, `**ISC:** persisted from todowrite (${iscFromTodos.criteria.length} criteria)`);
-            }
-          } catch (error) {
-            fileLogError("Failed to persist ISC from todowrite", error);
+          // Avoid unbounded in-memory growth.
+          if (callId) {
+            getSessionState(sessionId).toolArgsByCallId.delete(callId);
           }
         }
+      };
 
-        // Avoid unbounded in-memory growth.
-        if (callId) {
-          getSessionState(sessionId).toolArgsByCallId.delete(callId);
-        }
+      if (ENABLE_SERIAL_EVENT_QUEUE) {
+        const key = sessionId ? storageSessionIdFor(sessionId).storage : "global";
+        await enqueueSerial(key, run);
+        return;
       }
+
+      await run();
     },
 
     getToolArgs(sessionId: string | undefined, callId: string | undefined) {
