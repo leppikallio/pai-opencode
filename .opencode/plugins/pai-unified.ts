@@ -961,6 +961,20 @@ export const PaiUnified: Plugin = async (ctx) => {
     }
   }
 
+  /**
+   * Feature flag: enable per-turn response-contract injection and related enforcement.
+   *
+   * Usage:
+   *   ENABLE_PER_TURN_CONTRACT_INJECTION=1 opencode ...
+   *
+   * When disabled, BOTH of these are disabled:
+   *   - PASS 1: per-turn <system-reminder> injection
+   *   - PASS 2: post-generation format rewrite (experimental.text.complete)
+   */
+  const ENABLE_PER_TURN_CONTRACT_INJECTION =
+    (process.env.ENABLE_PER_TURN_CONTRACT_INJECTION ?? "").toLowerCase() === "1" ||
+    (process.env.ENABLE_PER_TURN_CONTRACT_INJECTION ?? "").toLowerCase() === "true";
+
   const hooks: Hooks = {
     tool: {
       voice_notify: tool({
@@ -1112,6 +1126,8 @@ export const PaiUnified: Plugin = async (ctx) => {
      */
     "experimental.chat.messages.transform": async (_input, output) => {
       try {
+        if (!ENABLE_PER_TURN_CONTRACT_INJECTION) return;
+
         const messages = getProp(output, "messages");
         if (!Array.isArray(messages) || messages.length === 0) return;
 
@@ -1493,6 +1509,10 @@ export const PaiUnified: Plugin = async (ctx) => {
      */
     "experimental.text.complete": async (input, output) => {
       try {
+        // Petteri: keep enforcement gate code, but disable it when per-turn contract injection is disabled.
+        // This prevents post-hoc UI rewrites during debugging.
+        if (!ENABLE_PER_TURN_CONTRACT_INJECTION) return;
+
         if (!ENABLE_FORMAT_GATE) return;
         const sessionId = input.sessionID;
         if (!sessionId) return;
