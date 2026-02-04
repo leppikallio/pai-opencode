@@ -36,14 +36,20 @@ import { captureSoulEvolution } from "./soul-evolution";
 type UnknownRecord = Record<string, unknown>;
 
 /**
- * Feature flag (default OFF): serialize event + tool capture per session.
+ * Capture serialization (default ON): serialize event + tool capture per session.
  *
- * Usage:
- *   PAI_SERIALIZE_EVENTS=1 opencode ...
+ * Rationale:
+ * - Improves determinism in RAW/WORK projections by avoiding concurrent capture races.
+ * - Prevents timestamp inversions caused by parallel handler scheduling.
+ *
+ * Opt-out (disable serialization):
+ *   PAI_SERIALIZE_EVENTS=0|false|off opencode ...
  */
-const ENABLE_SERIAL_EVENT_QUEUE =
-  (process.env.PAI_SERIALIZE_EVENTS ?? "").toLowerCase() === "1" ||
-  (process.env.PAI_SERIALIZE_EVENTS ?? "").toLowerCase() === "true";
+const ENABLE_SERIAL_EVENT_QUEUE = (() => {
+  const v = (process.env.PAI_SERIALIZE_EVENTS ?? "").trim().toLowerCase();
+  if (v === "0" || v === "false" || v === "off" || v === "no") return false;
+  return true;
+})();
 
 const serialQueueByKey = new Map<string, Promise<void>>();
 

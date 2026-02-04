@@ -92,6 +92,13 @@ OpenCode plugins subscribe to **events** (lifecycle hooks). The PAI unified plug
 }
 ```
 
+### Deterministic capture (recommended)
+
+PAI-OpenCode can serialize capture per-session to avoid event ordering races (improves determinism of `MEMORY/RAW` and derived projections).
+
+- **Default:** ON
+- **Opt-out:** `PAI_SERIALIZE_EVENTS=0` (or `false`/`off`)
+
 ---
 
 ## Creating a Custom Plugin
