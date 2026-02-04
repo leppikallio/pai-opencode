@@ -114,20 +114,6 @@ export const PaiUnified: Plugin = async (ctx) => {
 
   // Enforcement gate is always enabled for primary sessions.
   const ENABLE_FORMAT_GATE = true;
-
-  /**
-   * Feature flag (default OFF): serialize session event handling.
-   *
-   * Motivation: OpenCode may deliver certain events concurrently and/or with
-   * out-of-order scheduling, which can cause non-deterministic projections
-   * (e.g., RAW timestamp inversions, missing tool.after observations).
-   *
-   * Usage:
-   *   PAI_SERIALIZE_EVENTS=1 opencode ...
-   */
-  const ENABLE_SERIAL_EVENT_QUEUE =
-    (process.env.PAI_SERIALIZE_EVENTS ?? "").toLowerCase() === "1" ||
-    (process.env.PAI_SERIALIZE_EVENTS ?? "").toLowerCase() === "true";
   // Debug-only: write per-session FORMAT_GATE.jsonl evidence.
   const FORMAT_GATE_WRITE_EVIDENCE = PAI_DEBUG;
   // Guardrails: rate limit Task subagent spawns per session.
@@ -146,7 +132,6 @@ export const PaiUnified: Plugin = async (ctx) => {
   const rewriteAttemptedByPart = new Set<string>();
   const codexOverrideSessions = new Set<string>();
   const sessionParentById = new Map<string, string | null>();
-  const eventQueueBySession = new Map<string, Promise<void>>();
   const taskRateBySession = new Map<
     string,
     {
@@ -157,20 +142,6 @@ export const PaiUnified: Plugin = async (ctx) => {
   >();
 
   type SessionKind = "primary" | "subagent" | "internal" | "unknown";
-
-  async function enqueueSerial(sessionKey: string, fn: () => Promise<void>): Promise<void> {
-    const prev = eventQueueBySession.get(sessionKey) ?? Promise.resolve();
-    const next = prev.then(fn, fn);
-    eventQueueBySession.set(sessionKey, next);
-    try {
-      await next;
-    } finally {
-      // Clean up when this is the tail.
-      if (eventQueueBySession.get(sessionKey) === next) {
-        eventQueueBySession.delete(sessionKey);
-      }
-    }
-  }
 
   function classifySessionKind(sessionId: string | null | undefined): SessionKind {
     if (!sessionId) return "unknown";
