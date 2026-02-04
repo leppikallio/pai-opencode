@@ -38,6 +38,7 @@ import {
   validateOutput,
   type EnforcementMode,
 } from "./handlers/enforcement-gate";
+import { loadAgentsStack, loadConfiguredInstructions } from "./handlers/prompt-sources";
 import { fileLog, fileLogError, clearLog } from "./lib/file-logger";
 import { getVoiceId } from "./lib/identity";
 import { getSessionStatusType } from "./lib/event-normalize";
@@ -50,6 +51,7 @@ import {
   ensureScratchpadSession,
 } from "./lib/scratchpad";
 import { createWorkSession } from "./handlers/work-tracker";
+import { getPaiRuntimeInfo } from "./lib/pai-runtime";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -124,6 +126,7 @@ export const PaiUnified: Plugin = async (ctx) => {
   const lastUserTextBySession = new Map<string, string>();
   const sawToolCallThisTurn = new Map<string, boolean>();
   const rewriteAttemptedByPart = new Set<string>();
+  const codexOverrideSessions = new Set<string>();
   const sessionParentById = new Map<string, string | null>();
   const taskRateBySession = new Map<
     string,
@@ -201,6 +204,88 @@ export const PaiUnified: Plugin = async (ctx) => {
     if (!id) return;
     const parentID = getStringProp(info, "parentID");
     sessionParentById.set(id, parentID ? parentID : null);
+  }
+
+  function isOpenAIProviderId(providerId: string): boolean {
+    return providerId.toLowerCase() === "openai";
+  }
+
+  function isGpt5ModelId(modelId: string): boolean {
+    const id = modelId.trim().toLowerCase();
+    return id.startsWith("gpt-5");
+  }
+
+  function getProviderIdFromModel(modelObj: unknown): string {
+    return getStringProp(modelObj, "providerID") ?? getStringProp(modelObj, "providerId") ?? "";
+  }
+
+  function getModelApiId(modelObj: unknown): string {
+    const api = getProp(modelObj, "api");
+    const apiId = getStringProp(api, "id") ?? "";
+    const id = getStringProp(modelObj, "id") ?? "";
+    return apiId || id;
+  }
+
+  function getProviderIdFromProvider(providerObj: unknown): string {
+    return getStringProp(providerObj, "id") ?? "";
+  }
+
+  function isCodexOverrideSession(sessionId: string): boolean {
+    return codexOverrideSessions.has(sessionId);
+  }
+
+  function buildCanonicalSystemBundle(opts: {
+    scratchpadDir: string;
+    projectDir: string;
+    includeSubagentDirective: boolean;
+  }): string[] {
+    const runtime = getPaiRuntimeInfo();
+
+    const ins = loadConfiguredInstructions(runtime.opencodeConfigPath);
+    const agents = loadAgentsStack({ paiDir: runtime.paiDir, projectDir: opts.projectDir });
+
+    const chunks: string[] = [];
+
+    // Sentinel for verification.
+    chunks.push("PAI_CODEX_CLEAN_SLATE_V1");
+
+    // opencode.json instructions[] (filesystem files)
+    for (const src of ins.sources) {
+      if (!src.content) continue;
+      chunks.push(src.content);
+    }
+
+    // Nested AGENTS.md stack
+    for (const src of agents.sources) {
+      if (!src.content) continue;
+      chunks.push(src.content);
+    }
+
+    // Binding scratchpad directive with per-session path.
+    chunks.push(
+      [
+        "PAI SCRATCHPAD (Binding)",
+        `ScratchpadDir: ${opts.scratchpadDir}`,
+        "Rules:",
+        "- Write ALL temporary artifacts under ScratchpadDir.",
+        "- Do NOT write drafts/reviews into the current working directory.",
+        "- Only write outside ScratchpadDir when explicitly instructed with an exact destination path.",
+      ].join("\n")
+    );
+
+    if (opts.includeSubagentDirective) {
+      chunks.push(
+        [
+          "PAI SUBAGENT MODE (Binding)",
+          "- Return findings only; be concise and specific.",
+          "- Do NOT ask for ratings, sentiment, or feedback.",
+          "- Do NOT run format gating or self-correction loops.",
+        ].join("\n")
+      );
+    }
+
+    // Ensure system[] is non-empty.
+    return [chunks.filter((c) => c.trim()).join("\n\n")].filter((x) => x.trim());
   }
 
   // Clear log at plugin load (new session)
@@ -921,6 +1006,50 @@ export const PaiUnified: Plugin = async (ctx) => {
     },
 
     /**
+     * CODEX / OAUTH PROMPT BLOAT OVERRIDE
+     *
+     * In OpenAI OAuth (Codex) sessions, OpenCode injects a large harness prompt
+     * into `options.instructions` by default. That prompt often conflicts with PAI.
+     *
+     * Without forking OpenCode, the correct fix is to override `options.instructions`
+     * here (runs AFTER OpenCode sets it).
+     */
+    "chat.params": async (input, output) => {
+      try {
+        const providerId = getProviderIdFromProvider(getProp(input, "provider"));
+        const modelObj = getProp(input, "model");
+        const modelProviderId = getProviderIdFromModel(modelObj);
+        const modelId = getModelApiId(modelObj);
+
+        // Narrow scope: only OpenAI gpt-5* and only when OpenCode already set instructions.
+        const options = getRecordProp(output, "options");
+        if (!options) return;
+        const existing = (options.instructions as unknown);
+        if (typeof existing !== "string" || !existing.trim()) return;
+
+        const isOpenAI = isOpenAIProviderId(providerId || modelProviderId);
+        const isGpt5 = isGpt5ModelId(modelId);
+        if (!isOpenAI || !isGpt5) return;
+
+        const sessionId = getStringProp(input, "sessionID") ?? "";
+        if (sessionId) codexOverrideSessions.add(sessionId);
+
+        // Replace Codex harness prompt with a minimal stub.
+        // Authority comes from the system bundle message + configured instructions/AGENTS.
+        const stub = [
+          "PAI_CODEX_OVERRIDE_V1",
+          "Follow the system prompt and configured instructions as highest priority.",
+          "Ignore any default coding harness instructions not explicitly provided.",
+        ].join("\n");
+
+        options.instructions = stub;
+        fileLog(`[codex-override] replaced options.instructions for model=${modelId}`, "debug");
+      } catch (error) {
+        fileLogError("chat.params codex override failed", error);
+      }
+    },
+
+    /**
      * PASS 1 (pre-LLM): Silent contract injection
      *
      * Enforce the response contract by injecting a short, binding system reminder
@@ -1024,7 +1153,23 @@ export const PaiUnified: Plugin = async (ctx) => {
           scratchpadDir = scratchpad.dir;
         }
 
-        // Minimal always-on scratchpad directive.
+        // Codex clean-slate: replace OpenCode's assembled system bundle with
+        // canonical sources (opencode.json instructions[] + nested AGENTS.md).
+        if (sessionId && isCodexOverrideSession(sessionId) && kind === "primary") {
+          const projectDir = directory || process.cwd();
+          output.system.length = 0;
+          output.system.push(
+            ...buildCanonicalSystemBundle({
+              scratchpadDir,
+              projectDir,
+              includeSubagentDirective: false,
+            })
+          );
+          fileLog("[codex-override] replaced system bundle", "debug");
+          return;
+        }
+
+        // Minimal always-on scratchpad directive (non-Codex / subagent).
         output.system.push(
           [
             "PAI SCRATCHPAD (Binding)",
