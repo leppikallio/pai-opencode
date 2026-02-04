@@ -125,6 +125,7 @@ Persistent context across sessions:
 - Session transcripts (`.opencode/MEMORY/SESSIONS/`)
 - Project documentation (`.opencode/MEMORY/projects/`)
 - Learning loops (`.opencode/MEMORY/LEARNINGS/`)
+- Manual learning extraction (`ExtractSessionLearnings`)
 
 ### 🔧 Plugin System
 TypeScript lifecycle plugins:
@@ -173,6 +174,7 @@ PAI-OpenCode's design is documented through **Architecture Decision Records (ADR
 | [docs/PLUGIN-SYSTEM.md](docs/PLUGIN-SYSTEM.md) | Plugin architecture |
 | [docs/PAI-ADAPTATIONS.md](docs/PAI-ADAPTATIONS.md) | Changes from PAI 2.4 |
 | [docs/MIGRATION.md](docs/MIGRATION.md) | Migration from Claude Code PAI |
+| [docs/tooling/ExtractSessionLearnings.md](docs/tooling/ExtractSessionLearnings.md) | Manual WORK → LEARNING extraction |
 | [ROADMAP.md](ROADMAP.md) | Version roadmap |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |
 
