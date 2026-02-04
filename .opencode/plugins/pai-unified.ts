@@ -123,6 +123,10 @@ export const PaiUnified: Plugin = async (ctx) => {
   const TASK_RATE_LIMIT_DISABLE = process.env.PAI_TASK_RATE_LIMIT_DISABLE === "1";
 
   const internalCarrierSessions = new Set<string>();
+  const rewriteInflightByKey = new Map<
+    string,
+    Promise<{ ok: true; text: string } | { ok: false; error: string }>
+  >();
   const lastUserTextBySession = new Map<string, string>();
   const sawToolCallThisTurn = new Map<string, boolean>();
   const rewriteAttemptedByPart = new Set<string>();
@@ -203,6 +207,14 @@ export const PaiUnified: Plugin = async (ctx) => {
     const id = getStringProp(info, "id");
     if (!id) return;
     const parentID = getStringProp(info, "parentID");
+
+    // Treat all internal helper sessions as internal.
+    // These are created by carrier-based classifiers (PromptHint/ImplicitSentiment/FormatGate).
+    const title = getStringProp(info, "title") ?? "";
+    if (title.startsWith("[PAI INTERNAL]")) {
+      internalCarrierSessions.add(id);
+    }
+
     sessionParentById.set(id, parentID ? parentID : null);
   }
 
@@ -509,19 +521,31 @@ export const PaiUnified: Plugin = async (ctx) => {
         opts.mode === "MINIMAL"
           ? [
               "You rewrite assistant output into the required minimal response format.",
-              "Output MUST be exactly two lines:",
-              "1) 📋 SUMMARY: <one sentence>",
-              "2) 🗣️ Marvin: <max 16 words, factual>",
+              "Output MUST be exactly three lines:",
+              "1) 🤖 PAI ALGORITHM ═════════════",
+              "2) 📋 SUMMARY: <one sentence>",
+              "3) 🗣️ Marvin: <max 16 words, factual>",
               "Do not add any other lines.",
               "Do not mention rewriting.",
             ].join("\n")
           : [
-              "You rewrite assistant output into the required PAI phased algorithm format.",
+              "You rewrite assistant output into the required PAI FULL algorithm format (upstream v2.5 style).",
               "Requirements:",
-              "- Must include: 🤖 PAI ALGORITHM header, all 7 phases, and an ISC table.",
-              "- Must include: 📋 SUMMARY line and 🗣️ Marvin voice line (max 16 words).",
-              "- Preserve the original meaning; do not invent tool results.",
-              "- No toasts, no meta commentary, no apologies.",
+              "- FIRST output token must be 🤖.",
+              "- Include a header line: 🤖 Entering the PAI ALGORITHM...",
+              "- Include all 7 phases with upstream headings:",
+              "  ━━━ 👁️ OBSERVE ━━━ 1/7",
+              "  ━━━ 🧠 THINK ━━━ 2/7",
+              "  ━━━ 📋 PLAN ━━━ 3/7",
+              "  ━━━ 🔨 BUILD ━━━ 4/7",
+              "  ━━━ ⚡ EXECUTE ━━━ 5/7",
+              "  ━━━ ✅ VERIFY ━━━ 6/7",
+              "  ━━━ 📚 LEARN ━━━ 7/7",
+              "- Include an 'ISC Tasks:' section (no manual ISC tables required).",
+              "- Must include a 🗣️ Marvin: voice line (max 16 words).",
+              "- Must NOT include ⭐ RATE prompts.",
+              "- Preserve original meaning; do not invent tool results.",
+              "- No meta commentary, no apologies.",
             ].join("\n");
 
       const userPrompt = [
@@ -557,13 +581,16 @@ export const PaiUnified: Plugin = async (ctx) => {
     } catch {
       return { ok: false, error: "carrier threw unexpected error" };
     } finally {
-      internalCarrierSessions.delete(sid);
-      void sessionApi
-        .delete({
+      try {
+        await sessionApi.delete({
           path: { id: sid },
           query: directory ? { directory } : undefined,
-        })
-        .catch(() => {});
+        });
+      } catch {
+        // ignore
+      } finally {
+        internalCarrierSessions.delete(sid);
+      }
       try {
         (historyCapture as unknown as { unignoreSession?: (sid: string) => void }).unignoreSession?.(sid);
       } catch {
@@ -948,38 +975,62 @@ export const PaiUnified: Plugin = async (ctx) => {
             .string()
             .optional()
             .describe("Optional notification title"),
+          timeout_ms: tool.schema
+            .number()
+            .optional()
+            .describe("Abort the request after timeout_ms (default: 3000)"),
+          fire_and_forget: tool.schema
+            .boolean()
+            .optional()
+            .describe(
+              "If true, queue voice notification and return immediately (best-effort)"
+            ),
         },
         async execute(args, _context) {
           const controller = new AbortController();
-          const timeout = setTimeout(() => controller.abort(), 15000);
-          try {
-            const body: Record<string, unknown> = {
-              message: args.message,
-            };
+          const timeoutMs =
+            typeof args.timeout_ms === "number" && Number.isFinite(args.timeout_ms)
+              ? args.timeout_ms
+              : 3000;
+          const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-            const defaultVoiceId = getVoiceId();
-            if (args.voice_id) body.voice_id = args.voice_id;
-            else if (defaultVoiceId) body.voice_id = defaultVoiceId;
+          const body: Record<string, unknown> = {
+            message: args.message,
+          };
 
-            if (args.title) body.title = args.title;
+          const defaultVoiceId = getVoiceId();
+          if (args.voice_id) body.voice_id = args.voice_id;
+          else if (defaultVoiceId) body.voice_id = defaultVoiceId;
 
-            const res = await fetch("http://localhost:8888/notify", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(body),
-              signal: controller.signal,
-            });
+          if (args.title) body.title = args.title;
 
-            return res.ok
-              ? `ok (${res.status})`
-              : `error (${res.status})`;
-          } catch (error: unknown) {
-            // Fail open: voice server is optional. Return error but don't throw.
-            const msg = error instanceof Error ? error.message : String(error);
-            return `error (${msg})`;
-          } finally {
-            clearTimeout(timeout);
+          const run = async () => {
+            try {
+              const res = await fetch("http://localhost:8888/notify", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(body),
+                signal: controller.signal,
+              });
+
+              return res.ok
+                ? `ok (${res.status})`
+                : `error (${res.status})`;
+            } catch (error: unknown) {
+              // Fail open: voice server is optional. Return error but don't throw.
+              const msg = error instanceof Error ? error.message : String(error);
+              return `error (${msg})`;
+            } finally {
+              clearTimeout(timeout);
+            }
+          };
+
+          if (args.fire_and_forget) {
+            void run();
+            return "queued";
           }
+
+          return await run();
         },
       }),
     },
@@ -995,7 +1046,9 @@ export const PaiUnified: Plugin = async (ctx) => {
         if (isSubagentLikeSession(sessionId)) return;
         // Only track user messages.
         if (output?.message?.role !== "user") return;
-        const text = extractTextFromParts(output.parts);
+        const raw = extractTextFromParts(output.parts);
+        // Strip leading display directives so later mode detection is correct.
+        const text = raw ? raw.replace(/^\s*\/(compact|full)\b\s*/i, "") : raw;
         if (text) {
           lastUserTextBySession.set(sessionId, text);
           sawToolCallThisTurn.set(sessionId, false);
@@ -1083,7 +1136,15 @@ export const PaiUnified: Plugin = async (ctx) => {
         if (!isPrimarySession(sessionId)) return;
 
         const parts = getProp(lastUser, "parts");
-        const userText = extractTextFromParts(parts);
+        const rawUserText = extractTextFromParts(parts);
+
+        // Optional display verbosity override via leading directive.
+        // Examples:
+        // - "/compact ..." (default)
+        // - "/full ..."
+        const displayMatch = rawUserText.match(/^\s*\/(compact|full)\b\s*/i);
+        const displayVerbosity = (displayMatch?.[1] || "compact").toLowerCase();
+        const userText = displayMatch ? rawUserText.slice(displayMatch[0].length) : rawUserText;
 
         const mode = detectEnforcementMode({ userText, toolUsed: false, assistantText: "" });
         const marker = "PAI_ENFORCEMENT_CONTRACT_V25";
@@ -1091,12 +1152,15 @@ export const PaiUnified: Plugin = async (ctx) => {
           "<system-reminder>",
           marker,
           `RequiredDepth: ${mode}`,
+          `DisplayVerbosity: ${displayVerbosity.toUpperCase()}`,
           "Rules:",
           "- Your response MUST follow the PAI response contract.",
           "- Your FIRST output token must be 🤖.",
           "- Do NOT request ratings, sentiment, or feedback.",
           "- Do NOT mention toasts, hints, or internal enforcement.",
           "- Do NOT run self-correction loops; output once.",
+          "- If DisplayVerbosity is COMPACT: keep output concise.",
+          "- If DisplayVerbosity is FULL: include complete scaffolding.",
           "</system-reminder>",
         ].join("\n");
 
@@ -1108,7 +1172,10 @@ export const PaiUnified: Plugin = async (ctx) => {
           const t = typeof p.text === "string" ? p.text : "";
           if (!t.trim()) continue;
           if (t.includes(marker)) return;
-          p.text = `${reminder}\n\n${t}`;
+
+          // Strip the leading display directive from what the model sees.
+          const cleaned = displayMatch ? t.replace(/^\s*\/(compact|full)\b\s*/i, "") : t;
+          p.text = `${reminder}\n\n${cleaned}`;
           return;
         }
       } catch (error) {
@@ -1125,6 +1192,24 @@ export const PaiUnified: Plugin = async (ctx) => {
     "experimental.chat.system.transform": async (_input, output) => {
       try {
         const sessionId = getStringProp(_input, "sessionID");
+
+        // Internal carrier sessions MUST be side-effect free.
+        // Do not create per-session workdirs for them.
+        if (sessionId && internalCarrierSessions.has(sessionId)) {
+          const scratchpad = await ensureScratchpadSession();
+          const scratchpadDir = scratchpad.dir;
+          output.system.push(
+            [
+              "PAI SCRATCHPAD (Binding)",
+              `ScratchpadDir: ${scratchpadDir}`,
+              "Rules:",
+              "- Write ALL temporary artifacts under ScratchpadDir.",
+              "- Do NOT write drafts/reviews into the current working directory.",
+              "- Only write outside ScratchpadDir when explicitly instructed with an exact destination path.",
+            ].join("\n")
+          );
+          return;
+        }
 
         // Ensure subagent detection works even if session.created wasn't observed yet.
         if (sessionId) {
@@ -1212,6 +1297,37 @@ export const PaiUnified: Plugin = async (ctx) => {
         const kind = classifySessionKind(sessionId);
         let scratchpadDir: string | null = null;
 
+        // Internal helper sessions must be side-effect free.
+        // Do not create per-session workdirs for them.
+        if (sessionId && internalCarrierSessions.has(sessionId)) {
+          const scratchpad = await ensureScratchpadSession();
+          scratchpadDir = scratchpad.dir;
+
+          const outRec = output as unknown as UnknownRecord;
+          const existingContext = outRec.context;
+          const contextArray: string[] = Array.isArray(existingContext)
+            ? (existingContext.filter((v) => typeof v === "string") as string[])
+            : [];
+
+          const scratchpadMarker = "PAI SCRATCHPAD (Binding)";
+          const alreadyHasScratchpad = contextArray.some((c) => c.includes(scratchpadMarker));
+          if (!alreadyHasScratchpad) {
+            contextArray.push(
+              [
+                "PAI SCRATCHPAD (Binding)",
+                `ScratchpadDir: ${scratchpadDir}`,
+                "Rules:",
+                "- Write ALL temporary artifacts under ScratchpadDir.",
+                "- Do NOT write drafts/reviews into the current working directory.",
+                "- Only write outside ScratchpadDir when explicitly instructed with an exact destination path.",
+              ].join("\n")
+            );
+          }
+
+          outRec.context = contextArray;
+          return;
+        }
+
         if (sessionId) {
           scratchpadDir = await getCurrentWorkPathForSession(sessionId);
           if (!scratchpadDir) {
@@ -1243,7 +1359,10 @@ export const PaiUnified: Plugin = async (ctx) => {
           ? (existingContext.filter((v) => typeof v === "string") as string[])
           : [];
 
-        if (result.success && result.context) {
+        const CONTEXT_MARKER = "PAI CORE CONTEXT (Auto-loaded by PAI-OpenCode Plugin)";
+        const alreadyHasPaiContext = contextArray.some((c) => c.includes(CONTEXT_MARKER));
+
+        if (result.success && result.context && !alreadyHasPaiContext) {
           contextArray.push(result.context);
           fileLog("Compaction: context injected successfully");
         } else {
@@ -1254,16 +1373,20 @@ export const PaiUnified: Plugin = async (ctx) => {
         }
 
         // Inject the same binding scratchpad directive so it survives compaction.
-        contextArray.push(
-          [
-            "PAI SCRATCHPAD (Binding)",
-            `ScratchpadDir: ${scratchpadDir}`,
-            "Rules:",
-            "- Write ALL temporary artifacts under ScratchpadDir.",
-            "- Do NOT write drafts/reviews into the current working directory.",
-            "- Only write outside ScratchpadDir when explicitly instructed with an exact destination path.",
-          ].join("\n")
-        );
+        const scratchpadMarker = "PAI SCRATCHPAD (Binding)";
+        const alreadyHasScratchpad = contextArray.some((c) => c.includes(scratchpadMarker));
+        if (!alreadyHasScratchpad) {
+          contextArray.push(
+            [
+              "PAI SCRATCHPAD (Binding)",
+              `ScratchpadDir: ${scratchpadDir}`,
+              "Rules:",
+              "- Write ALL temporary artifacts under ScratchpadDir.",
+              "- Do NOT write drafts/reviews into the current working directory.",
+              "- Only write outside ScratchpadDir when explicitly instructed with an exact destination path.",
+            ].join("\n")
+          );
+        }
 
         outRec.context = contextArray;
       } catch (error) {
@@ -1426,13 +1549,31 @@ export const PaiUnified: Plugin = async (ctx) => {
           return;
         }
 
-        const rewritten = await rewriteToFormat({
-          mode,
-          userText,
-          assistantText: text,
-        });
-
+        // Mark attempted immediately to avoid concurrent duplicate rewrites.
         rewriteAttemptedByPart.add(key);
+
+        const inflight = rewriteInflightByKey.get(key);
+        const promise =
+          inflight ??
+          (async () => {
+            const res = await rewriteToFormat({
+              mode,
+              userText,
+              assistantText: text,
+            });
+            return res;
+          })();
+
+        if (!inflight) {
+          rewriteInflightByKey.set(
+            key,
+            promise.finally(() => {
+              rewriteInflightByKey.delete(key);
+            })
+          );
+        }
+
+        const rewritten = await promise;
 
         if (!rewritten.ok) {
           await appendFormatGateEvidence(sessionId, {
@@ -1741,6 +1882,25 @@ export const PaiUnified: Plugin = async (ctx) => {
           }
           if (sessionIdForEvent) {
             sessionParentById.delete(sessionIdForEvent);
+            codexOverrideSessions.delete(sessionIdForEvent);
+            internalCarrierSessions.delete(sessionIdForEvent);
+
+            // Cleanup per-session state to avoid unbounded growth.
+            lastUserTextBySession.delete(sessionIdForEvent);
+            sawToolCallThisTurn.delete(sessionIdForEvent);
+            taskRateBySession.delete(sessionIdForEvent);
+
+            // Remove any rewrite keys for this session.
+            for (const k of rewriteAttemptedByPart) {
+              if (k.startsWith(`${sessionIdForEvent}:`)) {
+                rewriteAttemptedByPart.delete(k);
+              }
+            }
+            for (const k of rewriteInflightByKey.keys()) {
+              if (k.startsWith(`${sessionIdForEvent}:`)) {
+                rewriteInflightByKey.delete(k);
+              }
+            }
           }
         }
 

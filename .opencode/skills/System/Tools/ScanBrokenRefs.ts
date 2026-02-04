@@ -171,13 +171,16 @@ function iterMarkdownFiles(dir: string): string[] {
       continue;
     }
 
-    for (const ent of ents) {
-      const full = path.join(d, ent.name);
-      if (ent.isDirectory()) {
-        // Ignore vendored dependencies and build artifacts.
-        if (ent.name === "node_modules") continue;
-        if (ent.name === ".git") continue;
-        if (ent.name === "dist" || ent.name === "build") continue;
+      for (const ent of ents) {
+        const full = path.join(d, ent.name);
+        if (ent.isDirectory()) {
+          // Ignore vendored dependencies and build artifacts.
+          if (ent.name === "node_modules") continue;
+          if (ent.name === ".git") continue;
+          if (ent.name === "dist" || ent.name === "build") continue;
+
+          // Ignore skill build sources (generated into SKILL.md).
+          if (ent.name === "Components") continue;
 
         // Do not scan private tiers.
         if (full.includes(path.join("skills", "PAI", "USER"))) continue;
@@ -186,10 +189,10 @@ function iterMarkdownFiles(dir: string): string[] {
         if (full.includes(path.join("skills", "CORE", "WORK"))) continue;
 
         stack.push(full);
-      } else if (ent.isFile() && ent.name.endsWith(".md")) {
-        out.push(full);
+        } else if (ent.isFile() && ent.name.endsWith(".md")) {
+          out.push(full);
+        }
       }
-    }
   }
 
   return out;
