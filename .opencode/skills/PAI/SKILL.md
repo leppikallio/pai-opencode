@@ -2,7 +2,7 @@
   🔨 GENERATED FILE - Do not edit directly
   Edit:   ~/Projects/pai-opencode/.opencode/skills/PAI/Components/
   Build:  bun ~/Projects/pai-opencode/.opencode/skills/PAI/Tools/CreateDynamicCore.ts
-  Built:  4 February 2026 17:13:42
+  Built:  4 February 2026 17:16:18
 -->
 ---
 name: CORE
@@ -117,6 +117,8 @@ To avoid blocking the chat UI, phase announcements should be best-effort and non
 🎯 **ISC Tasks:**
 - If `todoread` is available in your runtime, invoke it to display the current ISC list.
 - If `todoread` is NOT available, restate the ISC list in plain text (avoid manual PASS/FAIL tables).
+
+Note: Keep the literal marker `ISC Tasks:` to satisfy format verification.
 
 ━━━ 🧠 THINK ━━━ 2/7
 🔊 `voice_notify({"message":"Entering the Think phase","fire_and_forget":true,"timeout_ms":1200})`
