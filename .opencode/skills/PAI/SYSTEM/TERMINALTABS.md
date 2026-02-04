@@ -13,7 +13,7 @@ The PAI system uses Kitty terminal tab colors and title suffixes to provide inst
 | **Inference** | 🧠 | Normal | `…` | Purple `#1E0A3C` | AI thinking (Haiku/Sonnet inference) |
 | **Working** | ⚙️ | *Italic* | `…` | Orange `#804000` | Processing your request |
 | **Completed** | ✓ | Normal | (none) | Green `#022800` | Task finished successfully |
-| **Awaiting Input** | ❓ | **BOLD CAPS** | (none) | Teal `#085050` | AskUserQuestion tool used |
+| **Awaiting Input** | ❓ | **BOLD CAPS** | (none) | Teal `#085050` | question tool used |
 | **Error** | ⚠ | Normal | `!` | Orange `#804000` | Error detected in response |
 
 **Text Colors:**
@@ -44,14 +44,14 @@ The PAI system uses Kitty terminal tab colors and title suffixes to provide inst
 
 ```typescript
 function detectResponseState(lastMessage, transcriptPath): ResponseState {
-  // Check for AskUserQuestion tool → 'awaitingInput'
+  // Check for question tool → 'awaitingInput'
   // Check for error patterns in STATUS section → 'error'
   // Default → 'completed'
 }
 ```
 
 **Awaiting Input Detection:**
-- Scans last 20 transcript entries for `AskUserQuestion` tool use
+- Scans last 20 transcript entries for `question` tool use
 
 **Error Detection:**
 - Checks `📊 STATUS:` section for: error, failed, broken, problem, issue
@@ -103,7 +103,7 @@ kitten @ set-tab-color --self \
 | File | Event | Purpose |
 |------|-------|---------|
 | `UpdateTabTitle` (legacy) | UserPromptSubmit | Set working state (italic text) |
-| `SetQuestionTab` (legacy) | PreToolUse (AskUserQuestion) | Set question state (bold caps) |
+| `SetQuestionTab` (legacy) | PreToolUse (question) | Set question state (bold caps) |
 | `VoiceAndHistoryCapture` (legacy) | Stop | Set final state |
 
 ### Color Constants

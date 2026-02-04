@@ -126,7 +126,16 @@ async function findSkillFiles(dir: string): Promise<string[]> {
 }
 
 function parseFrontmatter(content: string): { name: string; description: string } | null {
-  const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+  // Allow leading HTML comments (e.g., generated-file headers) before frontmatter.
+  let normalized = content;
+  for (let i = 0; i < 5; i++) {
+    const next = normalized.replace(/^\s*<!--[\s\S]*?-->\s*/m, "");
+    if (next === normalized) break;
+    normalized = next;
+  }
+  normalized = normalized.replace(/^\s+/, "");
+
+  const frontmatterMatch = normalized.match(/^---\n([\s\S]*?)\n---/);
   if (!frontmatterMatch) return null;
 
   const frontmatter = frontmatterMatch[1];

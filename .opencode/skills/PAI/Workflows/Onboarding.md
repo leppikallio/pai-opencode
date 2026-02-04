@@ -47,7 +47,7 @@ Ready to begin? (y/n)
 
 ### Phase 2: Identity Questions
 
-Ask using AskUserQuestion tool with multiSelect where appropriate:
+Ask using the OpenCode `question` tool (multi-select where appropriate):
 
 **Question 1: Your Name**
 ```

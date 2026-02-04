@@ -51,6 +51,53 @@ function getRecordProp(obj: unknown, key: string): UnknownRecord | undefined {
   return isRecord(v) ? v : undefined;
 }
 
+function parseJsonBestEffort(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return undefined;
+  }
+}
+
+function mapTodoStatusToIscStatus(statusRaw: string): string {
+  const s = statusRaw.trim().toLowerCase();
+  if (s === "completed" || s === "done") return "VERIFIED";
+  if (s === "in_progress" || s === "in-progress" || s === "in progress") return "IN_PROGRESS";
+  if (s === "cancelled" || s === "canceled") return "REMOVED";
+  if (s === "failed") return "FAILED";
+  return "PENDING";
+}
+
+function buildIscStateFromTodos(todos: unknown, sourceEventId: string): IscState | null {
+  if (!Array.isArray(todos)) return null;
+
+  const criteria: IscCriterion[] = [];
+  for (const item of todos) {
+    if (!isRecord(item)) continue;
+    const text = typeof item.content === "string" ? item.content.trim() : "";
+    if (!text) continue;
+    const id = typeof item.id === "string" && item.id.trim() ? item.id.trim() : hashShort(text);
+    const status = typeof item.status === "string" ? mapTodoStatusToIscStatus(item.status) : "PENDING";
+    criteria.push({
+      id,
+      text,
+      status,
+      sourceEventIds: [sourceEventId],
+    });
+  }
+
+  // If there are no usable criteria, don't clobber ISC.json.
+  if (criteria.length === 0) return null;
+
+  return {
+    v: "0.1",
+    ideal: "",
+    criteria,
+    antiCriteria: [],
+    updatedAt: new Date().toISOString(),
+  };
+}
+
 function capText(text: string, max: number): string {
   if (text.length <= max) return text;
   return text.slice(0, max);
@@ -792,9 +839,11 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
       const callId = input.callID ?? "";
       if (sessionId) {
         const mapped = storageSessionIdFor(sessionId);
+        const eventId = `tool.after:${mapped.storage}:${input.tool}:${callId || "no-call"}`;
+
         await appendRawEvent(
           mapped.storage,
-          `tool.after:${mapped.storage}:${input.tool}:${callId || "no-call"}`,
+          eventId,
           "tool.after",
           input.tool,
           {
@@ -804,6 +853,39 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
           },
           { sourceSessionId: sessionId }
         );
+
+        // ISC persistence fix: if the assistant used todowrite, persist criteria into ISC.json
+        // from tool args (preferred) or tool output (fallback), instead of relying on response text parsing.
+        if (!mapped.isSubagent && input.tool === "todowrite") {
+          try {
+            // Ensure work session exists (tool calls can happen before session.created event).
+            const existing = await getCurrentWorkPathForSession(mapped.storage);
+            if (!existing) {
+              await createWorkSession(mapped.storage, "todowrite");
+            }
+
+            const state = getSessionState(sessionId);
+            const args = callId ? state.toolArgsByCallId.get(callId) : undefined;
+            const todosFromArgs = args && isRecord(args) ? (args as UnknownRecord).todos : undefined;
+            const todosFromOutput = typeof output.output === "string" ? parseJsonBestEffort(output.output) : undefined;
+
+            const iscFromTodos =
+              buildIscStateFromTodos(todosFromArgs, eventId) ??
+              buildIscStateFromTodos(todosFromOutput, eventId);
+
+            if (iscFromTodos) {
+              await applyIscUpdateForSession(mapped.storage, iscFromTodos, eventId);
+              await appendToThreadForSession(mapped.storage, `**ISC:** persisted from todowrite (${iscFromTodos.criteria.length} criteria)`);
+            }
+          } catch (error) {
+            fileLogError("Failed to persist ISC from todowrite", error);
+          }
+        }
+
+        // Avoid unbounded in-memory growth.
+        if (callId) {
+          getSessionState(sessionId).toolArgsByCallId.delete(callId);
+        }
       }
     },
 

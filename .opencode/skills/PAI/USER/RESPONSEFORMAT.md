@@ -6,6 +6,31 @@ This file overrides the SYSTEM default response format. If you delete this file,
 
 ---
 
+## Display Toggle (Mode C)
+
+You can override **printed verbosity** by prefixing your message with:
+
+- `/compact` — compact scaffold (default)
+- `/full` — fully expanded scaffold
+
+**Rules:**
+- First token wins.
+- Strip the directive from the task description.
+- This does not reduce verification rigor.
+
+### /compact (recommended)
+
+- Keep the 7 phases, but keep each phase to 1-3 bullets.
+- In PLAN, list ISC criteria as a short checklist (no large tables).
+- In VERIFY, show each criterion with one evidence phrase.
+
+### /full
+
+- Use the FULL mode scaffolding from the Algorithm section.
+- Include full capability selection blocks and detailed verification evidence.
+
+---
+
 ## Format Structure
 
 PAI uses a structured response format for consistency and voice integration. Customize the sections you want to use:
@@ -25,7 +50,6 @@ PAI uses a structured response format for consistency and voice integration. Cus
 2. [Point 2]
 ...
 8. [Point 8]
-⭐ RATE (1-10): [Left blank for user to rate]
 🗣️ {AI_NAME}: [16 words max - spoken aloud via TTS]
 ```
 
@@ -51,7 +75,6 @@ Check the sections you want in responses:
 - [ ] CAPTURE (optional)
 - [x] NEXT
 - [ ] STORY EXPLANATION (optional - for complex responses)
-- [ ] RATE (optional - for feedback collection)
 - [x] Voice Line (required for TTS)
 
 ### Voice Line Rules

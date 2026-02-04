@@ -38,7 +38,6 @@ Every response MUST include a voice output line (`🗣️ {daidentity.name}:`). 
 6. [Sixth key point]
 7. [Seventh key point]
 8. [Eighth key point - conclusion]
-⭐ RATE (1-10): [LEAVE BLANK - prompts user to rate]
 🗣️ {daidentity.name}: [16 words max - factual summary, not conversational - THIS IS SPOKEN ALOUD]
 ```
 
@@ -63,7 +62,6 @@ Every response MUST include a voice output line (`🗣️ {daidentity.name}:`). 
 | 📁 CAPTURE | Context to preserve | Tasks |
 | ➡️ NEXT | Recommended next steps | Tasks |
 | 📖 STORY EXPLANATION | Numbered list (1-8) | Tasks |
-| ⭐ RATE | Rating prompt for user (AI leaves blank) | Tasks |
 | 🗣️ {daidentity.name} | Spoken output (16 words max, factual not conversational) | **Always** |
 
 ---
@@ -100,21 +98,6 @@ The `🗣️ {daidentity.name}:` line is the only line that gets spoken aloud by
 - Acknowledgments
 - Simple Q&A
 - Confirmations
-
----
-
-## Rating System
-
-**CRITICAL: AI NEVER self-rates. The `⭐ RATE (1-10):` line is a PROMPT for the user to rate the response. Leave it blank after the colon.**
-
-Users rate responses by typing a number 1-10:
-- Just "7" works
-- "8 - good work" adds a comment
-- "6: needs improvement" also works
-
-**Storage:**
-- Ratings stored in `MEMORY/LEARNING/SIGNALS/ratings.jsonl`
-- Low ratings (<6) capture to `MEMORY/LEARNING/`
 
 ---
 
@@ -158,7 +141,6 @@ Users rate responses by typing a number 1-10:
 6. Ran full test suite
 7. All tests now passing
 8. Ready for deployment
-⭐ RATE (1-10):
 🗣️ {daidentity.name}: Auth bug fixed by adding null check on token validation. All 47 tests passing.
 ```
 
@@ -178,7 +160,6 @@ Users rate responses by typing a number 1-10:
 3. **Paragraph in STORY EXPLANATION** - Must be numbered list
 4. **Too many words in voice line** - Keep to 16 max
 5. **Conversational voice lines** - Use factual summaries, not "Done!" or "Happy to help!"
-6. **Self-rating** - AI must NEVER fill in the RATE line. Leave blank for user to rate.
 7. **Third-person self-reference** - Never say "PAI will..." or "[AI name] has..." — use first person ("I will...", "I fixed...")
 
 ---

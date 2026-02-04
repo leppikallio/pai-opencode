@@ -60,8 +60,8 @@ touch ~/.config/opencode/skills/<SkillName>/Workflows/<WorkflowName>.md
 
 | Workflow | Trigger | File |
 |----------|---------|------|
-| **ExistingWorkflow** | "existing trigger" | `Workflows/ExistingWorkflow.md` |
-| **NewWorkflow** | "new trigger" | `Workflows/NewWorkflow.md` |
+| **ExistingWorkflow** | "existing trigger" | `~/.config/opencode/skills/<SkillName>/Workflows/ExistingWorkflow.md` |
+| **NewWorkflow** | "new trigger" | `~/.config/opencode/skills/<SkillName>/Workflows/NewWorkflow.md` |
 ```
 
 4. **Write the workflow content**

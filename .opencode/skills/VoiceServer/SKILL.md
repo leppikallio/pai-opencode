@@ -18,6 +18,8 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 1. **Send voice notification**:
    Use the `voice_notify` tool:
    - `message`: "Running WORKFLOWNAME workflow from VoiceServer skill"
+   - optional: `fire_and_forget: true` for non-blocking delivery
+   - optional: `timeout_ms` (e.g., 1200) to avoid UI stalls
 
 2. **Output text notification**:
    "Running the **WorkflowName** workflow from the **VoiceServer** skill to ACTION..."

@@ -57,9 +57,11 @@ export function looksLikeJsonOnly(text: string): boolean {
 }
 
 export function validateMinimalFormat(text: string): boolean {
+  const startsWithRobot = text.trimStart().startsWith("🤖");
   const hasVoiceLine = /^🗣️\s*[^:\n]{1,40}:/m.test(text);
-  const hasSummaryLine = /^📋 SUMMARY:/m.test(text);
-  return hasVoiceLine && hasSummaryLine;
+  const hasRateLine = /⭐\s*RATE\s*\(1-10\):/m.test(text);
+  // Summary is recommended but not mandatory.
+  return startsWithRobot && hasVoiceLine && !hasRateLine;
 }
 
 export function validateFullFormatDetailed(text: string): {
@@ -70,15 +72,17 @@ export function validateFullFormatDetailed(text: string): {
   const hint = classifyFormatHint(text, "");
   const reasons: string[] = [];
 
+  if (hint.features.hasRateLine) reasons.push("forbidden_rate_prompt");
+  // classifyFormatHint already enforces: 🤖 first token, 🗣️ voice line,
+  // and forbids ⭐ RATE prompts.
   if (!hint.features.hasPaiAlgorithmHeader) reasons.push("missing_pai_algorithm_header");
   if (!hint.features.hasVoiceLine) reasons.push("missing_voice_line");
-  if (!hint.features.hasSummaryLine) reasons.push("missing_summary_line");
   if (!hint.features.hasIscTracker) reasons.push("missing_isc_tracker");
   if (hint.features.phaseCount < 5) reasons.push("missing_phases");
 
+  // Best-effort ISC parsing (table-based). Upstream v2.5 may not include tables.
   const parsed = parseIscResponse(text);
   const criteriaCount = parsed.criteria.length;
-  if (parsed.attempted && criteriaCount === 0) reasons.push("empty_isc_criteria");
 
   return { ok: reasons.length === 0, criteriaCount, reasons };
 }

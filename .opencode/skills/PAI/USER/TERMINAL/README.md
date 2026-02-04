@@ -102,9 +102,9 @@ When a tab is inactive (not focused), the background color indicates the current
 - "Creating component"
 - "Fixing type errors"
 
-### 2. SetQuestionTab (legacy) (PreToolUse: AskUserQuestion)
+### 2. SetQuestionTab (legacy) (PreToolUse: question)
 
-**Trigger:** When Claude invokes the AskUserQuestion tool
+**Trigger:** When the assistant invokes the `question` tool
 
 **Action:** Sets tab to teal with "❓𝗤𝗨𝗘𝗦𝗧𝗜𝗢𝗡" title, indicating the system is waiting for user input.
 

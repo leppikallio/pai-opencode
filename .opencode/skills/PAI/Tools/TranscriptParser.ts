@@ -235,7 +235,7 @@ export function extractStructuredSections(text: string): StructuredResponse {
  */
 export function detectResponseState(lastMessage: string, transcriptContent: string): ResponseState {
   try {
-    // Check if the LAST assistant message used AskUserQuestion
+    // Check if the LAST assistant message used the question tool
     const lines = transcriptContent.trim().split('\n');
     let lastAssistantEntry: { type?: string; message?: { content?: unknown } } | null = null;
 
@@ -252,6 +252,7 @@ export function detectResponseState(lastMessage: string, transcriptContent: stri
       const content = Array.isArray(lastAssistantEntry.message.content)
         ? lastAssistantEntry.message.content
         : [];
+      const questionToolNames = new Set(['AskUserQuestion', 'question']);
       for (const block of content) {
         if (
           block &&
@@ -259,7 +260,7 @@ export function detectResponseState(lastMessage: string, transcriptContent: stri
           'type' in block &&
           'name' in block &&
           block.type === 'tool_use' &&
-          block.name === 'AskUserQuestion'
+          questionToolNames.has(String((block as { name?: unknown }).name ?? ''))
         ) {
           return 'awaitingInput';
         }
