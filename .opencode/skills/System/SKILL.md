@@ -164,6 +164,8 @@ Quick Push:         GitPush (if docs already created)
 | Tool | Purpose | Location |
 |------|---------|----------|
 | **SecretScan.ts** | TruffleHog wrapper for credential detection | `Tools/SecretScan.ts` |
+| **ValidateSkillSystemDocs.ts** | Validate SkillSystem router + section invariants (static) | `Tools/ValidateSkillSystemDocs.ts` |
+| **SmokeTestSkillSystem.ts** | Static + parallel behavioral smoke tests for SkillSystem/CreateSkill | `Tools/SmokeTestSkillSystem.ts` |
 | **CreateUpdate.ts** | Create new system update entries | `Tools/CreateUpdate.ts` |
 | **UpdateIndex.ts** | Regenerate index.json and CHANGELOG.md | `Tools/UpdateIndex.ts` |
 | **UpdateSearch.ts** | Search and query system updates | `Tools/UpdateSearch.ts` |

@@ -193,6 +193,26 @@ After installation, verify everything works:
    - Check: `tail -f ~/.config/opencode/plugins/debug.log`
    - Should show: "PAI-OpenCode Plugin Loaded"
 
+4. **Run smoke tests (parallel session-safe)**
+
+   These checks validate that SkillSystem routing + canary rules work as intended.
+
+   **Static checks (no LLM calls):**
+   ```bash
+   bun "~/.config/opencode/skills/System/Tools/SmokeTestSkillSystem.ts" --mode static
+   ```
+
+   **Behavior checks (LLM calls via `opencode run`):**
+   ```bash
+   bun "~/.config/opencode/skills/System/Tools/SmokeTestSkillSystem.ts" \
+     --mode behavior \
+     --model openai/gpt-5.3-codex
+   ```
+
+   Notes:
+   - Behavior mode spends tokens and may fail if your provider returns API errors.
+   - Behavior mode runs in fresh sessions (does not affect your current interactive session).
+
 ## Troubleshooting
 
 ### "Command not found: opencode"

@@ -61,6 +61,26 @@ Self-test (no interactive session needed):
 - Verify `MEMORY/WORK/<YYYY-MM>/` does not rapidly fill with `[PAI INTERNAL]` workdirs.
 - Verify `plugins/debug.log` does not show repeating errors for Relationship/Soul.
 
+## SkillSystem routing + canary smoke tests (parallel session-safe)
+
+Static (no LLM calls):
+
+```bash
+bun "~/.config/opencode/skills/System/Tools/SmokeTestSkillSystem.ts" --mode static
+```
+
+Behavior (LLM calls via `opencode run` in fresh sessions):
+
+```bash
+bun "~/.config/opencode/skills/System/Tools/SmokeTestSkillSystem.ts" \
+  --mode behavior \
+  --model openai/gpt-5.3-codex
+```
+
+Expected:
+- Static mode passes (warnings are allowed for known-large skills like `PAI/SKILL.md` until migrated)
+- Behavior mode passes and includes canary/heading citations from attached SkillSystem section docs
+
 ## Missing parity checks (currently TODO)
 
 - Implicit sentiment capture: ensure `MEMORY/LEARNING/SIGNALS/ratings.jsonl` has `source: implicit` entries.
