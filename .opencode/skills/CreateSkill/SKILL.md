@@ -12,6 +12,12 @@ If this directory exists, load and apply any PREFERENCES.md or configs found the
 
 # CreateSkill
 
+## Quick Reference (M3)
+
+- Import policy: `/Users/zuul/.config/opencode/skills/CreateSkill/MinimalCanonicalizationPolicy.md`
+- Review rubric: `/Users/zuul/.config/opencode/skills/CreateSkill/SkillQualityRubric.md`
+- Migration queue: `/Users/zuul/.config/opencode/skills/CreateSkill/SkillMigrationQueue.md`
+
 ## Authoritative SkillSystem docs (runtime, read-gated)
 
 Index/router (start here):
