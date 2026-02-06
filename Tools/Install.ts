@@ -85,6 +85,34 @@ function verifyCrossReferences(args: { targetDir: string; dryRun: boolean; enabl
   }
 }
 
+function verifySkillSystemDocs(args: { targetDir: string; dryRun: boolean; enabled: boolean }) {
+  if (!args.enabled) {
+    console.log("[write] verify: skipped (--no-verify)");
+    return;
+  }
+
+  const toolPath = path.join(args.targetDir, "skills", "System", "Tools", "ValidateSkillSystemDocs.ts");
+  if (!isFile(toolPath)) {
+    console.log(`[write] verify: skipped (missing ${toolPath})`);
+    return;
+  }
+
+  if (args.dryRun) {
+    console.log("[dry] verify: would run ValidateSkillSystemDocs");
+    return;
+  }
+
+  try {
+    execSync(`bun "${toolPath}"`, {
+      stdio: "inherit",
+      env: { ...process.env, PAI_DIR: args.targetDir },
+    });
+    console.log("[write] verify: ValidateSkillSystemDocs (ok)");
+  } catch (err) {
+    throw new Error(`Post-install verification failed (ValidateSkillSystemDocs).\n${String(err)}`);
+  }
+}
+
 function maybeGenerateSkillIndex(args: { targetDir: string; dryRun: boolean }) {
   const toolPath = path.join(args.targetDir, "skills", "PAI", "Tools", "GenerateSkillIndex.ts");
   if (!isFile(toolPath)) {
@@ -1013,6 +1041,10 @@ function sync(mode: Mode, opts: Options) {
 
   // Post-install verification (default): ensure skill cross-references resolve.
   verifyCrossReferences({ targetDir, dryRun, enabled: verify });
+
+  // Post-install verification: ensure SkillSystem router + section docs are internally consistent.
+  // This is a static check (no LLM calls).
+  verifySkillSystemDocs({ targetDir, dryRun, enabled: verify });
 
   // Ensure runtime dependencies exist for code-first tools (e.g., Playwright).
   // This is best-effort but runs by default so skills work immediately.
