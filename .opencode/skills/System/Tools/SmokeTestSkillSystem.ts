@@ -15,7 +15,6 @@
  */
 
 import * as fs from "node:fs/promises";
-import * as path from "node:path";
 
 type Format = "text" | "json";
 
@@ -237,7 +236,7 @@ async function staticChecks(findings: Finding[], opts: { dryRun: boolean }) {
     }
 
     // Parse JSON payload if possible.
-    let payload: any = null;
+    let payload: unknown = null;
     try {
       payload = res.stdout ? JSON.parse(res.stdout) : null;
     } catch {
@@ -251,13 +250,18 @@ async function staticChecks(findings: Finding[], opts: { dryRun: boolean }) {
       continue;
     }
 
-    if (typeof max === "number" && typeof payload?.budgetLines === "number") {
-      if (payload.budgetLines > max) {
+    const payloadRecord: Record<string, unknown> | null =
+      payload && typeof payload === "object" ? (payload as Record<string, unknown>) : null;
+    const budgetLines =
+      payloadRecord && typeof payloadRecord.budgetLines === "number" ? payloadRecord.budgetLines : null;
+
+    if (typeof max === "number" && typeof budgetLines === "number") {
+      if (budgetLines > max) {
         push(findings, {
           severity: "warning",
           code: "BUDGET_OVER_MAX",
-          message: `${label}: budgetLines ${payload.budgetLines} exceeds max ${max} (${file})`,
-          details: payload,
+          message: `${label}: budgetLines ${budgetLines} exceeds max ${max} (${file})`,
+          details: payloadRecord ?? { raw: res.stdout },
         });
       }
     }
