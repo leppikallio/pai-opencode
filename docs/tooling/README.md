@@ -32,6 +32,28 @@ Tip: `PAI_DIR=...` lets you target a different tree (e.g., a local dev checkout)
 
 - [SkillSearch](./SkillSearch.md) — search `skill-index.json` to find the right skill
 
+### System verification (parallel session-safe)
+
+These tools live under the **System** skill and are intended to validate runtime behavior.
+
+- **ValidateSkillSystemDocs** — static validation of SkillSystem split docs (router + section invariants)
+  - Run:
+    ```bash
+    bun "$HOME/.config/opencode/skills/System/Tools/ValidateSkillSystemDocs.ts"
+    ```
+
+- **SmokeTestSkillSystem** — pragmatic smoke tests for SkillSystem/CreateSkill behavior
+  - Static (no LLM calls):
+    ```bash
+    bun "$HOME/.config/opencode/skills/System/Tools/SmokeTestSkillSystem.ts" --mode static
+    ```
+  - Behavior (LLM calls via `opencode run` in fresh sessions):
+    ```bash
+    bun "$HOME/.config/opencode/skills/System/Tools/SmokeTestSkillSystem.ts" \
+      --mode behavior \
+      --model openai/gpt-5.3-codex
+    ```
+
 ### Inference backend
 
 - [Inference](./Inference.md) — unified inference tool (fast/standard/smart) used by other scripts
