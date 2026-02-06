@@ -15,7 +15,7 @@ tools:
   bash: true
   webfetch: true
   websearch: true
-  task: true
+  task: false
   voice_notify: true
 permission:
   edit: ask

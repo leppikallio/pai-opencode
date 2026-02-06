@@ -184,6 +184,11 @@ Verify ALL files use TitleCase:
 - [ ] All workflow files have routing entries
 - [ ] `## Examples` section with 2-3 concrete usage patterns
 
+### Binding Prompt Constraints (MANDATORY)
+- [ ] Skill includes explicit **MUST NOT** / negative constraints (5+ bullets)
+- [ ] Skill includes an explicit output-shape/verbosity clamp when drift-prone
+- [ ] If skill uses `voice_notify`, it includes a **Temporal Voice Contract** (no advance, immediate adjacency, one per turn)
+
 ### Structure
 - [ ] `tools/` directory exists (even if empty)
 - [ ] No `backups/` directory inside skill

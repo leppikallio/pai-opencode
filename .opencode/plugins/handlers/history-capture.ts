@@ -53,14 +53,95 @@ const ENABLE_SERIAL_EVENT_QUEUE = (() => {
 
 const serialQueueByKey = new Map<string, Promise<void>>();
 
+// Prevent deadlocks: if serialization gets stuck, fail-open after timeouts.
+// This keeps the assistant responsive even if history capture (file IO/network) hangs.
+const SERIAL_WAIT_TIMEOUT_MS = (() => {
+  const raw = (process.env.PAI_SERIAL_WAIT_TIMEOUT_MS ?? "").trim();
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : 2000;
+})();
+
+const SERIAL_FN_TIMEOUT_MS = (() => {
+  const raw = (process.env.PAI_SERIAL_FN_TIMEOUT_MS ?? "").trim();
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : 8000;
+})();
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  label: string
+): Promise<{ ok: true; value: T } | { ok: false; timeout: true; label: string; timeoutMs: number }> {
+  if (!(Number.isFinite(timeoutMs) && timeoutMs > 0)) {
+    return { ok: true, value: await promise };
+  }
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  try {
+    const raced = await Promise.race([
+      promise,
+      new Promise<never>((_resolve, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error(`timeout:${label}:${timeoutMs}`));
+        }, timeoutMs);
+      }),
+    ]);
+    return { ok: true, value: raced };
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    if (msg.startsWith(`timeout:${label}:`)) {
+      return { ok: false, timeout: true, label, timeoutMs };
+    }
+    // Treat unknown failures as non-timeout; rethrow.
+    throw error;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
+}
+
 async function enqueueSerial(key: string, fn: () => Promise<void>): Promise<void> {
   const prev = serialQueueByKey.get(key) ?? Promise.resolve();
-  const next = prev.then(fn, fn);
-  serialQueueByKey.set(key, next);
+
+  // IMPORTANT:
+  // - We still attempt to serialize, but we must never block forever.
+  // - If prev is stuck, we detach from it after SERIAL_WAIT_TIMEOUT_MS.
+  // - If fn itself is stuck, we detach after SERIAL_FN_TIMEOUT_MS.
+  const next = (async () => {
+    try {
+      const waited = await withTimeout(prev, SERIAL_WAIT_TIMEOUT_MS, `serial.prev:${key}`);
+      if (!waited.ok) {
+        fileLogError(
+          `HistoryCapture serial queue wait timed out (${waited.timeoutMs}ms) key=${key}`,
+          new Error("serial queue wait timeout")
+        );
+      }
+    } catch (error) {
+      fileLogError(`HistoryCapture serial queue wait failed key=${key}`, error);
+    }
+
+    try {
+      const ran = await withTimeout(fn(), SERIAL_FN_TIMEOUT_MS, `serial.fn:${key}`);
+      if (!ran.ok) {
+        fileLogError(
+          `HistoryCapture serial fn timed out (${ran.timeoutMs}ms) key=${key}`,
+          new Error("serial fn timeout")
+        );
+      }
+    } catch (error) {
+      fileLogError(`HistoryCapture serial fn failed key=${key}`, error);
+    }
+  })();
+
+  // Ensure the stored promise cannot reject and poison later chaining.
+  const stored = next.then(
+    () => undefined,
+    () => undefined
+  );
+  serialQueueByKey.set(key, stored);
+
   try {
-    await next;
+    await stored;
   } finally {
-    if (serialQueueByKey.get(key) === next) serialQueueByKey.delete(key);
+    if (serialQueueByKey.get(key) === stored) serialQueueByKey.delete(key);
   }
 }
 

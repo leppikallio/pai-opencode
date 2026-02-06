@@ -99,6 +99,32 @@ PAI-OpenCode can serialize capture per-session to avoid event ordering races (im
 - **Default:** ON
 - **Opt-out:** `PAI_SERIALIZE_EVENTS=0` (or `false`/`off`)
 
+#### Fail-open guarantees (do not block the agent)
+
+Serialization improves determinism, but it must never be able to deadlock tool execution.
+
+PAI-OpenCode therefore treats history/work capture as **best-effort**:
+
+- Tool execution must never stall because capture is slow or stuck.
+- When capture stalls, the plugin **fails open** (continues execution) and records evidence in `~/.config/opencode/plugins/debug.log` (when `PAI_DEBUG=1`).
+- Optionally, it can show a **TUI toast** to make capture degradation visible in real time.
+
+Environment knobs:
+
+- `PAI_SERIALIZE_EVENTS=0` disables per-session serialization entirely.
+- `PAI_SERIAL_WAIT_TIMEOUT_MS` maximum wait for a stuck previous serialized job (default: `2000`).
+- `PAI_SERIAL_FN_TIMEOUT_MS` maximum runtime allowed for a serialized job before detaching (default: `8000`).
+- `PAI_HISTORY_CAPTURE_TOOL_TIMEOUT_MS` timeout for capture invoked from `tool.execute.before/after` (default: `350`).
+- `PAI_HISTORY_CAPTURE_EVENT_TIMEOUT_MS` timeout for capture invoked from the plugin `event` hook (default: `1200`).
+- `PAI_HISTORY_CAPTURE_TOASTS=1` enables a warning toast when fail-open triggers.
+
+Notes:
+
+- Toast support is best-effort and depends on the active OpenCode client exposing `tui.showToast`.
+- When fail-open triggers, history capture artifacts may be incomplete for that moment, but the assistant remains responsive.
+
+See also: [Troubleshooting](TROUBLESHOOTING.md)
+
 ---
 
 ## Creating a Custom Plugin

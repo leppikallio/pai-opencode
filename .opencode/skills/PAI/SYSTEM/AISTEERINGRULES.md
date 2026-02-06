@@ -12,6 +12,14 @@ Universal behavioral rules for PAI. Mandatory. Personal customizations in `~/.co
 **Bad:** Fix code, say "Done!" without testing.
 **Correct:** Fix code, run tests, use Browser skill to verify, respond with evidence.
 
+## No Guessing After Retrieval Failures
+**Statement:** If a fetch/read/search fails (404/403/429/timeouts), do NOT guess missing content. Pivot to a retrieval method that can produce evidence, or explicitly say it’s unknown.
+**Bad:** `WebFetch https://raw.githubusercontent.com/org/repo/main/src/tool.ts` returns 404 → infer file contents and continue.
+**Correct:**
+- If **404**: assume the *path/branch/file name is wrong*. First discover reality (e.g., GitHub Contents API `https://api.github.com/repos/<org>/<repo>/contents/<dir>?ref=<branch>` or fetch the repo file tree), then fetch the correct `raw.githubusercontent.com/...` URL.
+- If **403/429/CAPTCHA/blocked**: pivot to unblockers (e.g., `brightdata_scrape_as_markdown`, `brightdata_search_engine`, or Apify RAG browser) and retry.
+- If **auth required/private**: ask me to authenticate or provide the file/URL; do not attempt brightdata for private content.
+
 ## Ask Before Destructive Actions
 **Statement:** Always ask permission before deleting files, deploying, or irreversible changes.
 **Bad:** "Clean up cruft" → delete 15 files including backups without asking.

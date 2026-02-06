@@ -4,6 +4,16 @@ Manual, loop-safe extraction of “wisdom” from a work session into `MEMORY/LE
 
 This exists because OpenCode lifecycle hooks can be risky (event ordering, missed stop events, infinite-loop class failures). Instead of relying on automatic “session end” extraction, this tool lets you **run learning capture on-demand**.
 
+## Automatic capture (current behavior)
+
+PAI-OpenCode also performs **best-effort automatic extraction** of the assistant’s explicit
+`━━━ 📚 LEARN ━━━ 7/7` section into `MEMORY/LEARNING/` during session finalization.
+
+Use this tool when you want to:
+- backfill learnings for older sessions
+- re-run extraction after changing extraction logic
+- force persistence when the automatic path didn’t run
+
 ## What it does
 
 - Reads a session’s work directory under `MEMORY/WORK/<YYYY-MM>/<sessionId>/`

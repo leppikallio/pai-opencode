@@ -22,3 +22,10 @@ session-ses_*.md
 # Local config/state artifacts (never commit)
 .opencode/config/
 .opencode/skills/PAIUpgrade/State/
+
+# macOS metadata
+.DS_Store
+
+# Local backup artifacts (never commit)
+.opencode/BACKUPS/
+Components_backup/

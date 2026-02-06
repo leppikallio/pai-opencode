@@ -4,7 +4,7 @@
 
 The PAI system uses Kitty terminal tab colors and title suffixes to provide instant visual feedback on session state. At a glance, you can see which tabs are working, completed, waiting for input, or have errors.
 
-**OpenCode port note:** This terminal tab state system is not currently implemented in the OpenCode plugin runtime. The sections below describe the legacy Claude Code hook-based design and Kitty-specific remote control.
+**OpenCode port note:** This is available in **PAI-OpenCode** as an *opt-in* feature implemented by the OpenCode plugin (Kitty remote control). Enable with `PAI_KITTY_TABS=1`.
 
 ## State System
 
@@ -83,6 +83,14 @@ Requires **Kitty terminal** with remote control enabled:
 allow_remote_control yes
 listen_on unix:/tmp/kitty
 ```
+
+### Enable in OpenCode
+
+```bash
+export PAI_KITTY_TABS=1
+```
+
+If you don't set this, OpenCode behaves unchanged and no Kitty commands run.
 
 ## Implementation Details
 

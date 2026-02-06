@@ -5,7 +5,7 @@
   "dependencies": {
     "@google/genai": "^1.38.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
-    "@opencode-ai/plugin": "1.1.49",
+    "@opencode-ai/plugin": "1.1.53",
     "discord.js": "^14.19.0",
     "google-auth-library": "^10.3.0",
     "handlebars": "^4.7.8",
