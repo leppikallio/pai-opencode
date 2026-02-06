@@ -2,6 +2,13 @@
 
 Import an existing skill directory (including Workflows/ and Tools/ and any referenced tooling) into the PAI skill system with **surgical, mandatory-only** edits.
 
+## Read first (policy + rubric)
+
+- Minimal canonicalization policy (what you may/must not change):
+  - `/Users/zuul/.config/opencode/skills/CreateSkill/MinimalCanonicalizationPolicy.md`
+- 30-second quality gate (post-import quick check):
+  - `/Users/zuul/.config/opencode/skills/CreateSkill/SkillQualityRubric.md`
+
 ## Import Contract (Default)
 
 When Petteri asks to import skill(s), assume:
@@ -69,3 +76,6 @@ cd "/Users/zuul/Projects/pai-opencode" && bun "Tools/Install.ts" --target "/User
 - Destination exists: `/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/SKILL.md`
 - Runtime exists: `~/.config/opencode/skills/<SkillName>/SKILL.md`
 - Skill index includes the new skill: `~/.config/opencode/skills/skill-index.json`
+
+Optional post-import gate:
+- Apply the 30-second rubric: `/Users/zuul/.config/opencode/skills/CreateSkill/SkillQualityRubric.md`
