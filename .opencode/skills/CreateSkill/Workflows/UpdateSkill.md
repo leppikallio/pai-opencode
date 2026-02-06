@@ -88,12 +88,14 @@ If workflows invoke tools, ensure they map intent → flags (do not hardcode a s
 
 ---
 
-## Step 5: Re-check `SKILL.md` size budget (when applicable)
+## Step 5: Re-check `SKILL.md` budget (when applicable)
 
-If this update expands `SKILL.md`, re-check the default budget gate:
+If this update expands `SKILL.md`, re-check the default budget gate (budget lines exclude the `## Examples` section):
 
 ```bash
-wc -l "/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/SKILL.md"
+bun "/Users/zuul/Projects/pai-opencode/.opencode/skills/CreateSkill/Tools/CountSkillBudgetLines.ts" \
+  --file "/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/SKILL.md" \
+  --max 80
 ```
 
 If over budget, move detail into root docs and keep `SKILL.md` as a router.

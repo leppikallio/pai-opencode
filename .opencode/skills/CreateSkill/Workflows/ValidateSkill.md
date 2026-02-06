@@ -55,10 +55,12 @@ Base repo target:
 
 ### 3.2 `SKILL.md` budget
 
-Default gate for newly generated skills: `SKILL.md` **≤ 80 lines**.
+Default gate for newly generated procedural skills: `SKILL.md` **≤ 80 budget lines** (examples excluded).
 
 ```bash
-wc -l "/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/SKILL.md"
+bun "/Users/zuul/Projects/pai-opencode/.opencode/skills/CreateSkill/Tools/CountSkillBudgetLines.ts" \
+  --file "/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/SKILL.md" \
+  --max 80
 ```
 
 If over budget: move detail into root docs and keep `SKILL.md` as a router.

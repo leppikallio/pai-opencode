@@ -11,7 +11,7 @@ Examples teach the model the **input → routing → behavior → output** patte
 This section defines:
 
 1) The minimal examples format expected in `SKILL.md`.
-2) How to keep `SKILL.md` within the **≤ 80-line budget** by moving extended examples into `Examples.md` (a root context doc).
+2) How to keep `SKILL.md` within the budget while keeping examples usable.
 
 ## Minimal examples in `SKILL.md` (format contract)
 
@@ -65,8 +65,20 @@ If you need to retrieve the file and you don’t know the exact path:
 
 ## Line-budget guidance (≤ 80 lines)
 
-Because newly generated `SKILL.md` files must be **≤ 80 lines (counting all lines, including blanks)**:
+Because newly generated procedural `SKILL.md` files must be **≤ 80 budget lines**:
+
+- Count ALL lines (frontmatter + blanks) **except** do not count the `## Examples` section (heading + body).
+- Keep examples minimal anyway (1–2) to reduce scanning and keep routing crisp.
 
 - Prefer **1** example unless the skill is extremely small.
 - Keep each example to **~4 lines inside the code block**.
 - Move everything else into root context docs (`Examples.md`, `ApiReference.md`, `StyleGuide.md`, etc.).
+
+### Separate examples file pattern (optional)
+
+If you move extended examples to a separate file (`Examples.md`), that is a supported pattern.
+
+However, the file is not auto-loaded. If examples are required for correctness, explicitly instruct:
+
+1) `Read` `/Users/zuul/.config/opencode/skills/{SkillName}/Examples.md`
+2) Then answer.

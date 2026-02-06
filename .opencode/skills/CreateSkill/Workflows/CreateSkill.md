@@ -75,22 +75,29 @@ mkdir -p "/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/Tools"
 
 ---
 
-## Step 5: Author `SKILL.md` (base repo) — keep it ≤ 80 lines
+## Step 5: Author `SKILL.md` (base repo) — keep it within the budget
 
 Create:
 
 `/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/SKILL.md`
 
-### Default budget gate (new skills)
+### Default budget gate (new procedural skills)
 
-Newly generated `SKILL.md` MUST be **≤ 80 lines** (count all lines, including blank lines and frontmatter).
+Newly generated procedural `SKILL.md` MUST be **≤ 80 budget lines**.
 
-If you exceed budget: move detail into root docs (e.g., `Examples.md`, `ApiReference.md`) and keep `SKILL.md` as a router.
+Budget counting rule:
 
-Line-count check:
+- Count all lines (frontmatter + blanks)
+- EXCEPT: the `## Examples` section (heading + body) does not count toward the budget
+
+If you exceed budget: move detail into root docs (e.g., `ApiReference.md`, `StyleGuide.md`, `Templates.md`) and keep `SKILL.md` as a router.
+
+Budget-line check:
 
 ```bash
-wc -l "/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/SKILL.md"
+bun "/Users/zuul/Projects/pai-opencode/.opencode/skills/CreateSkill/Tools/CountSkillBudgetLines.ts" \
+  --file "/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/SKILL.md" \
+  --max 80
 ```
 
 ### Minimal template (router-first)
@@ -188,7 +195,7 @@ cd "/Users/zuul/Projects/pai-opencode" && bun Tools/Install.ts --target "/Users/
 ## Step 9: Verify (quick checklist)
 
 - TitleCase naming everywhere (except `SKILL.md`)
-- `SKILL.md` line count ≤ 80 (default gate)
+- `SKILL.md` budget lines ≤ 80 (examples excluded)
 - `name:` matches `<SkillName>` exactly
 - `description:` is one line and contains `USE WHEN`
 - Workflow routing table matches real files
