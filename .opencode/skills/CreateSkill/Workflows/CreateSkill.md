@@ -1,203 +1,201 @@
 # CreateSkill Workflow
 
-Create a new skill following the canonical structure with proper TitleCase naming.
+Create a new skill following canonical structure and **TitleCase (PascalCase)** naming.
 
-## Step 1: Read the Authoritative Sources
+## Critical rule: author in base repo, then install to runtime
 
-**REQUIRED FIRST:**
+- **Authoring (base repo):** `/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/...`
+- **Runtime (after install):** `/Users/zuul/.config/opencode/skills/<SkillName>/...`
+- **Install step:** run `bun Tools/Install.ts --target /Users/zuul/.config/opencode` from `/Users/zuul/Projects/pai-opencode`
 
-1. Read the skill system documentation: `~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md`
-2. Read an existing skill for reference: `~/.config/opencode/skills/System/SKILL.md`
+Do **not** create/edit files under `/Users/zuul/.config/opencode/skills/...` directly.
 
-## Step 2: Understand the Request
-
-Ask the user:
-1. What does this skill do?
-2. What should trigger it?
-3. What workflows does it need?
-
-## Step 3: Determine TitleCase Names
-
-**All names must use TitleCase (PascalCase).**
-
-| Component | Format | Example |
-|-----------|--------|---------|
-| Skill directory | TitleCase | `Blogging`, `Daemon`, `CreateSkill` |
-| Workflow files | TitleCase.md | `Create.md`, `UpdateDaemonInfo.md` |
-| Reference docs | TitleCase.md | `ProsodyGuide.md`, `ApiReference.md` |
-| Tool files | TitleCase.ts | `ManageServer.ts` |
-| Help files | TitleCase.help.md | `ManageServer.help.md` |
-
-**Wrong naming (NEVER use):**
-- `create-skill`, `create_skill`, `CREATESKILL` → Use `CreateSkill`
-- `create.md`, `CREATE.md`, `create-info.md` → Use `Create.md`, `CreateInfo.md`
-
-## Step 4: Create the Skill Directory
-
-```bash
-mkdir -p ~/.config/opencode/skills/[SkillName]/Workflows
-mkdir -p ~/.config/opencode/skills/[SkillName]/Tools
-```
-
-**Example:**
-```bash
-mkdir -p ~/.config/opencode/skills/Daemon/Workflows
-mkdir -p ~/.config/opencode/skills/Daemon/Tools
-```
-
-## Step 5: Create SKILL.md
-
-Follow this exact structure:
-
-```yaml
----
-name: SkillName
-description: [What it does]. USE WHEN [intent triggers using OR]. [Additional capabilities].
 ---
 
-# SkillName
+## Step 1: Read the authoritative SkillSystem docs (Read-gated)
 
-[Brief description]
+SkillSystem is split into an index/router plus section docs.
+
+1) Read the SkillSystem index/router:
+
+`/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md`
+
+2) Then, in the **same turn**, `Read` the section docs you need:
+
+- Structure + naming: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Structure.md`
+- YAML frontmatter rules: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Frontmatter.md`
+- Workflow routing contract: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Workflows.md`
+- Validation + budgets: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Validation.md`
+
+Notes:
+
+- Prefer explicit `Read`. If you don’t know an exact path, `glob` then `Read`.
+- When citing a section doc, include its canary (e.g., `<!-- SKILLSYSTEM:STRUCTURE:v1 -->`) or the exact heading used.
+
+---
+
+## Step 2: Understand the request
+
+Capture:
+
+1) What does the skill do (1–2 sentences)?
+2) What intent should trigger it (`USE WHEN` triggers)?
+3) What workflows are needed (verbs; executable runbooks)?
+4) Does it need CLI tools (and what flags/outputs)?
+5) What are the top “MUST NOT” constraints (drift prevention)?
+6) Which archetype applies?
+   - Procedural (default)
+   - Creative (bounded creativity; no hard SKILL.md limit)
+   - Hybrid
+
+---
+
+## Step 3: Determine TitleCase names (placeholders only)
+
+All names use TitleCase (PascalCase):
+
+| Component | Required format | Placeholder example |
+|---|---|---|
+| Skill directory | TitleCase | `<SkillName>` |
+| Workflow files | TitleCase.md | `<WorkflowName>.md` |
+| Root reference docs | TitleCase.md | `<ApiReference>.md`, `<Examples>.md` |
+| Tool files | TitleCase.ts | `<ToolName>.ts` |
+| Help files | TitleCase.help.md | `<ToolName>.help.md` |
+
+Never use kebab/snake/all-caps for names (except `SKILL.md`).
+
+---
+
+## Step 4: Create the skill directory skeleton (base repo)
+
+```bash
+mkdir -p "/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/Workflows"
+mkdir -p "/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/Tools"
+```
+
+---
+
+## Step 5: Author `SKILL.md` (base repo) — keep it ≤ 80 lines
+
+Create:
+
+`/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/SKILL.md`
+
+### Default budget gate (new skills)
+
+Newly generated `SKILL.md` MUST be **≤ 80 lines** (count all lines, including blank lines and frontmatter).
+
+If you exceed budget: move detail into root docs (e.g., `Examples.md`, `ApiReference.md`) and keep `SKILL.md` as a router.
+
+Line-count check:
+
+```bash
+wc -l "/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/SKILL.md"
+```
+
+### Minimal template (router-first)
+
+```md
+---
+name: <SkillName>
+description: <What it does>. USE WHEN <intent cue 1> OR <intent cue 2> OR <intent cue 3>. <Any critical constraints>.
+---
+
+# <SkillName>
+
+<1–2 sentence description>
 
 ## Workflow Routing
 
-**When executing a workflow, output this notification:**
-
-```
-Running the **WorkflowName** workflow from the **SkillName** skill...
-```
-
 | Workflow | Trigger | File |
-|----------|---------|------|
-| **WorkflowOne** | "trigger phrase" | `Workflows/<WorkflowOne>.md` |
-| **WorkflowTwo** | "another trigger" | `Workflows/<WorkflowTwo>.md` |
+|---|---|---|
+| **<WorkflowName>** | <intent cues> | `<Workflows/<WorkflowName>.md>` |
 
 ## Examples
 
-**Example 1: [Common use case]**
+**Example 1: <Use case>**
 ```
-User: "[Typical user request]"
-→ Invokes WorkflowOne workflow
-→ [What skill does]
-→ [What user gets back]
-```
-
-**Example 2: [Another use case]**
-```
-User: "[Different request]"
-→ [Process]
-→ [Output]
+User: "<request>"
+→ Invokes <WorkflowName>
+→ <result>
 ```
 
-## [Additional Documentation]
+<negative_constraints>
+- MUST NOT <drift rule 1>
+- MUST NOT <drift rule 2>
+- MUST NOT <drift rule 3>
+- MUST NOT <drift rule 4>
+- MUST NOT <drift rule 5>
+</negative_constraints>
 
-[Any other relevant info]
+<creative_latitude>
+- (Creative/Hybrid only) Degrees of freedom: <tone/style/variants>
+- (Creative/Hybrid only) Constraints: <what must remain true / what to avoid>
+- (Creative/Hybrid only) Selection rubric: <how to pick the best option>
+</creative_latitude>
+
+<output_shape>
+- Default: concise bullets.
+- For multi-step work: short labeled sections.
+</output_shape>
 ```
 
-## Step 6: Create Workflow Files
+---
 
-For each workflow in the routing section:
+## Step 6: Create workflow files (base repo)
+
+For each routing entry, create the workflow runbook under:
+
+`/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/Workflows/<WorkflowName>.md`
+
+Recommended workflow structure:
+
+```md
+# <WorkflowName>
+
+## Purpose
+
+## Inputs
+
+## Steps
+
+## Verify
+
+## Output
+```
+
+If the workflow calls a CLI tool, include an intent-to-flag mapping.
+
+---
+
+## Step 7: Create tool files (only if needed)
+
+If the skill needs tools, place them under:
+
+- `/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/Tools/<ToolName>.ts`
+- `/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/Tools/<ToolName>.help.md`
+
+---
+
+## Step 8: Install to runtime (for testing)
 
 ```bash
-touch ~/.config/opencode/skills/[SkillName]/Workflows/[WorkflowName].md
+cd "/Users/zuul/Projects/pai-opencode" && bun Tools/Install.ts --target "/Users/zuul/.config/opencode"
 ```
 
-### Workflow-to-Tool Integration (REQUIRED for workflows with CLI tools)
+---
 
-**If a workflow calls a CLI tool, it MUST include intent-to-flag mapping tables.**
+## Step 9: Verify (quick checklist)
 
-This pattern translates natural language user requests into appropriate CLI flags:
+- TitleCase naming everywhere (except `SKILL.md`)
+- `SKILL.md` line count ≤ 80 (default gate)
+- `name:` matches `<SkillName>` exactly
+- `description:` is one line and contains `USE WHEN`
+- Workflow routing table matches real files
+- Workflows are runbooks (Purpose/Inputs/Steps/Verify/Output)
 
-```markdown
-## Intent-to-Flag Mapping
-
-### Model/Mode Selection
-
-| User Says | Flag | When to Use |
-|-----------|------|-------------|
-| "fast", "quick", "draft" | `--model haiku` | Speed priority |
-| (default), "best", "high quality" | `--model opus` | Quality priority |
-
-### Output Options
-
-| User Says | Flag | Effect |
-|-----------|------|--------|
-| "JSON output" | `--format json` | Machine-readable |
-| "detailed" | `--verbose` | Extra information |
-
-## Execute Tool
-
-Based on user request, construct the CLI command:
-
-\`\`\`bash
-bun ToolName.ts \
-  [FLAGS_FROM_INTENT_MAPPING] \
-  --required-param "value"
-\`\`\`
-```
-
-**Why this matters:**
-- Tools have rich configuration via flags
-- Workflows should expose this flexibility, not hardcode single patterns
-- Users speak naturally; workflows translate to precise CLI
-
-**Reference:** `~/.config/opencode/skills/PAI/SYSTEM/CLIFIRSTARCHITECTURE.md` (Workflow-to-Tool Integration section)
-
-**Examples (TitleCase):**
-```bash
-touch ~/.config/opencode/skills/<SkillName>/Workflows/<WorkflowName>.md
-```
-
-## Step 7: Verify TitleCase
-
-Run this check:
-```bash
-ls ~/.config/opencode/skills/[SkillName]/
-ls ~/.config/opencode/skills/[SkillName]/Workflows/
-ls ~/.config/opencode/skills/[SkillName]/Tools/
-```
-
-Verify ALL files use TitleCase:
-- `SKILL.md` ✓ (exception - always uppercase)
-- `WorkflowName.md` ✓
-- `ToolName.ts` ✓
-- `ToolName.help.md` ✓
-
-## Step 8: Final Checklist
-
-### Naming (TitleCase)
-- [ ] Skill directory uses TitleCase (e.g., `Blogging`, `Daemon`)
-- [ ] All workflow files use TitleCase (e.g., `Create.md`, `UpdateInfo.md`)
-- [ ] All reference docs use TitleCase (e.g., `ProsodyGuide.md`)
-- [ ] All tool files use TitleCase (e.g., `ManageServer.ts`)
-- [ ] Routing table workflow names match file names exactly
-
-### YAML Frontmatter
-- [ ] `name:` uses TitleCase
-- [ ] `description:` is single-line with embedded `USE WHEN` clause
-- [ ] No separate `triggers:` or `workflows:` arrays
-- [ ] Description uses intent-based language
-- [ ] Description is under 1024 characters
-
-### Markdown Body
-- [ ] `## Workflow Routing` section with table format
-- [ ] All workflow files have routing entries
-- [ ] `## Examples` section with 2-3 concrete usage patterns
-
-### Binding Prompt Constraints (MANDATORY)
-- [ ] Skill includes explicit **MUST NOT** / negative constraints (5+ bullets)
-- [ ] Skill includes an explicit output-shape/verbosity clamp when drift-prone
-- [ ] If skill uses `voice_notify`, it includes a **Temporal Voice Contract** (no advance, immediate adjacency, one per turn)
-
-### Structure
-- [ ] `tools/` directory exists (even if empty)
-- [ ] No `backups/` directory inside skill
-
-### CLI-First Integration (for skills with CLI tools)
-- [ ] CLI tools expose configuration via flags (see CLIFIRSTARCHITECTURE.md)
-- [ ] Workflows that call CLI tools have intent-to-flag mapping tables
-- [ ] Flag mappings cover: mode selection, output options, post-processing (where applicable)
+---
 
 ## Done
 
-Skill created following canonical structure with proper TitleCase naming throughout.
+Skill authored in the base repo, then installed to runtime for use.

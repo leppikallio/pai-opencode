@@ -1,302 +1,100 @@
 ---
 name: CreateSkill
-description: "Create, validate, and import skills. USE WHEN create skill, new skill, import skill, skill structure, canonicalize."
+description: Create, validate, canonicalize, and import skills. USE WHEN you want a new skill OR need to update/canonicalize/import an existing skill.
 ---
 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/<CreateSkill>/` (optional)
+`/Users/zuul/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/CreateSkill/` (optional)
 
-If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
+If this directory exists, load and apply any PREFERENCES.md or configs found there. These override defaults.
 
 # CreateSkill
 
-MANDATORY skill creation framework for ALL skill creation requests.
+## Authoritative SkillSystem docs (runtime, read-gated)
 
-## Authoritative Source
+Index/router (start here):
+- `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md`
 
-**Before creating ANY skill, READ:** `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md`
+Section docs (read in the same turn you need a rule):
+- Structure + naming + depth: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Structure.md`
+- YAML frontmatter + `USE WHEN`: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Frontmatter.md`
+- Workflow routing contract: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Workflows.md`
+- Tools/CLI expectations: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Tools.md`
+- Validation + budgets: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Validation.md`
+- Examples contract: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Examples.md`
+- Skill customizations: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Customizations.md`
 
-**Canonical example to follow:** `~/.config/opencode/skills/System/SKILL.md`
+Rule: MUST NOT claim you consulted a section doc unless you actually `Read` it.
 
-## TitleCase Naming Convention
+## Non-negotiables (CreateSkill output targets)
 
-**All naming must use TitleCase (PascalCase).**
+1) **TitleCase naming** for skill dir, workflows, tools, and root docs (except `SKILL.md`).
+2) **Folder depth policy:**
+   - Default (non-PAI): keep skills flat; only `Tools/` and `Workflows/` directories.
+   - PAI exception: deeper nesting allowed under `/Users/zuul/.config/opencode/skills/PAI/**` when it improves organization.
+3) **No “SkillSearch required” instructions** in skills or templates.
+   - Prefer explicit `Read` of absolute runtime paths.
+   - If you don’t know a path: `glob` then `Read`.
+4) **`SKILL.md` budget:** newly generated skills default to **≤ 80 lines** (count ALL lines, including blanks).
+   - Creative archetype: no hard limit (still prefer “router + root docs”, not essays).
+5) Keep deep detail out of `SKILL.md`: move it into **root** context docs (`Examples.md`, `ApiReference.md`, `StyleGuide.md`, etc.).
+6) **Binding constraint blocks:** newly generated skills MUST include:
+   - `<negative_constraints>` with ~5+ explicit MUST NOT bullets
+   - `<output_shape>` with a concise format/verbosity clamp
 
-| Component | Format | Example |
-|-----------|--------|---------|
-| Skill directory | TitleCase | `Blogging`, `Daemon`, `CreateSkill` |
-| Workflow files | TitleCase.md | `Create.md`, `UpdateDaemonInfo.md` |
-| Reference docs | TitleCase.md | `ProsodyGuide.md`, `ApiReference.md` |
-| Tool files | TitleCase.ts | `ManageServer.ts` |
-| Help files | TitleCase.help.md | `ManageServer.help.md` |
+## Skill Archetypes (for output shape + creativity)
 
-**Wrong (NEVER use):**
-- `createskill`, `create-skill`, `CREATE_SKILL`
-- `create.md`, `update-info.md`, `SYNC_REPO.md`
+Choose an archetype before drafting a new skill. The archetype changes what blocks you include, but the skill should remain a runbook (contracts-first, verifiable).
 
+- **Procedural (default):** deterministic runbooks; minimal prose; strict ≤80-line SKILL.md budget.
+- **Creative:** still a runbook, but explicitly bounds creativity via a Creative Latitude block; no hard SKILL.md limit.
+- **Hybrid:** procedural scaffolding plus bounded creative sub-steps.
+
+Creative archetype guidance:
+- Prefer rubrics + short templates over long prose.
+- Move extended guidance into root docs (`StyleGuide.md`, `Examples.md`) and keep `SKILL.md` as a router.
+
+## Dynamic loading template (router-first; placeholder-safe)
+
+Use this pattern when a skill would exceed the default ≤80-line `SKILL.md` budget.
+
+```md
+---
+name: {SkillName}
+description: One line summary. USE WHEN user intent indicates activation.
 ---
 
-## Flat Folder Structure (MANDATORY)
-
-**CRITICAL: Keep folder structure FLAT - maximum 2 levels deep.**
-
-### The Rule
-
-**Maximum depth:** `skills/<SkillName>/<Category>/`
-
-### ✅ ALLOWED (2 levels max)
-
-```
-skills/<SkillName>/SKILL.md                    # Skill root
-skills/<SkillName>/Workflows/Create.md         # Workflow - one level deep - GOOD
-skills/<SkillName>/Tools/Manage.ts             # Tool - one level deep - GOOD
-skills/<SkillName>/QuickStartGuide.md          # Context file - in root - GOOD
-skills/<SkillName>/Examples.md                 # Context file - in root - GOOD
-```
-
-### ❌ FORBIDDEN (Too deep OR wrong location)
-
-```
-skills/<SkillName>/Resources/Guide.md              # Context files go in root, NOT Resources/
-skills/<SkillName>/Docs/Examples.md                # Context files go in root, NOT Docs/
-skills/<SkillName>/Workflows/Category/File.md      # THREE levels - NO
-skills/<SkillName>/Templates/Primitives/File.md    # THREE levels - NO
-skills/<SkillName>/Tools/Utils/Helper.ts           # THREE levels - NO
-```
-
-### Allowed Subdirectories
-
-**ONLY these subdirectories are allowed:**
-- **Workflows/** - Execution workflows ONLY
-- **Tools/** - Executable scripts/tools ONLY
-
-**Context files (documentation, guides, references) go in the skill ROOT, NOT in subdirectories.**
-
-### Why
-
-1. **Discoverability** - Easy to find files
-2. **Simplicity** - Less navigation overhead
-3. **Speed** - Faster file operations
-4. **Consistency** - Every skill follows same pattern
-
-**If you need to organize many workflows, use clear filenames instead of subdirectories:**
- - Good: `Workflows/<CompanyDueDiligence>.md`
- - Bad: `Workflows/<Company>/<DueDiligence>.md`
-
-**See:** `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md` (Flat Folder Structure section)
-
----
-
-## Dynamic Loading Pattern (Large Skills)
-
-**For skills with SKILL.md > 100 lines:** Use dynamic loading to reduce context on skill invocation.
-
-### How Loading Works
-
-**Session startup:** Only frontmatter loads for routing
-**Skill invocation:** Full SKILL.md loads
-**Context files:** Load only when workflows reference them
-
-### The Pattern
-
-**SKILL.md** = Minimal (30-50 lines) - loads on skill invocation
-- YAML frontmatter with triggers
-- Brief description
-- Workflow routing table
-- Quick reference
-- Pointers to context files
-
-**Additional .md files** = Context files - SOPs for specific aspects (loaded on-demand)
-- These are Standard Operating Procedures, not just documentation
-- They provide specific handling instructions
-- Can reference Workflows/, Tools/, etc.
-
-### 🚨 CRITICAL: NO Context/ Subdirectory 🚨
-
-**NEVER create Context/ or Docs/ subdirectories.**
-
-Additional .md files ARE the context files. They live **directly in skill root**.
-
-**WRONG:**
-```
-skills/Art/
-├── SKILL.md
-└── Context/              ❌ NEVER CREATE THIS
-    └── Aesthetic.md
-```
-
-**CORRECT:**
-```
-skills/Art/
-├── SKILL.md
-├── Aesthetic.md          ✅ Context file in skill root
-├── Examples.md           ✅ Context file in skill root
-└── Tools.md              ✅ Context file in skill root
-```
-
-**The skill directory IS the context.**
-
-### Example Structure
-
-```
-skills/Art/
-├── SKILL.md              # 40 lines - minimal routing
-├── Aesthetic.md          # Context file - SOP for aesthetic
-├── Examples.md           # Context file - SOP for examples
-├── Tools.md              # Context file - SOP for tools
-├── Workflows/            # Workflows
-│   └── Essay.md
-└── Tools/                # CLI tools
-    └── Generate.ts
-```
-
-### Minimal SKILL.md Template
-
-```markdown
----
-name: SkillName
-description: Brief. USE WHEN triggers.
----
-
-# SkillName
-
-Brief description.
+# {SkillName}
 
 ## Workflow Routing
 
-| Trigger | Workflow |
-|---------|----------|
-| "trigger" | `Workflows/<WorkflowName>.md` |
+| Workflow | Trigger | File |
+|---|---|---|
+| **Create** | create/new/draft | `<Workflows/Create.md>` |
 
 ## Quick Reference
 
-**Key points** (3-5 bullet points)
+- 3–5 bullets max (router, not a spec)
 
-**Full Documentation:**
-- Detail 1: `SkillSearch('skillname detail1')` → loads Detail1.md
-- Detail 2: `SkillSearch('skillname detail2')` → loads Detail2.md
-```
+Full docs (root context):
+- `/Users/zuul/.config/opencode/skills/{SkillName}/Examples.md`
+- `/Users/zuul/.config/opencode/skills/{SkillName}/ApiReference.md`
 
-### When To Use
-
-✅ **Use dynamic loading for:**
-- SKILL.md > 100 lines
-- Multiple documentation sections
-- Extensive API reference
-- Detailed examples
-
-❌ **Don't use for:**
-- Simple skills (< 50 lines)
-- Pure utility wrappers (use CORE/Tools.md instead)
-
-### Benefits
-
-- **Token Savings:** 70%+ reduction on skill invocation (when full docs not needed)
-- **Organization:** SKILL.md = routing, context files = SOPs for specific aspects
-- **Efficiency:** Workflows load only what they actually need
-- **Maintainability:** Easier to update individual sections
-
-**See:** `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md` (Dynamic Loading Pattern section)
-
----
-
-## Binding Prompt Constraints (MANDATORY)
-
-When I create or update a skill, I MUST encode *both* positive requirements and explicit **negative constraints**.
-
-### Why (Binding)
-
-Models reliably follow what is explicitly forbidden and structurally constrained. Missing **MUST NOT** clauses is a common root cause of skill drift, overreach, and timing bugs.
-
-### Required constraint blocks to include in new/updated skills
-
-#### 1) Negative constraints (MUST include at least 5 bullets)
-
-Add a section (or inline block) in the target skill that lists explicit **MUST NOT** behaviors for that domain.
-
-Example (template):
-
-```markdown
 <negative_constraints>
-- Implement EXACTLY and ONLY what the user requests.
-- MUST NOT add extra features, refactors, or UX embellishments.
-- MUST NOT claim verification without evidence/tool output.
-- MUST NOT ask questions as plain text when `question` tool is required.
-- MUST NOT proceed past a “plan” request into execution.
+- MUST NOT ...
 </negative_constraints>
-```
 
-#### 2) Output-shape / verbosity constraints (recommended)
-
-Include an explicit output shape block when the skill is prone to verbosity drift.
-
-```markdown
 <output_shape>
-- Default: concise, structured bullets.
-- For multi-step work: phases/sections with clear labels.
-- No long narrative paragraphs unless requested.
+- Default: concise bullets.
+- For multi-step work: short labeled sections.
 </output_shape>
 ```
 
-#### 3) Temporal Voice Contract (ONLY if the skill uses voice phase updates)
-
-If a skill/workflow uses `voice_notify` as phase/user-state updates, it MUST include this contract (or reference a canonical one):
-
-```markdown
-<temporal_voice_contract>
-1) No advance notifications — only for the phase I'm entering now.
-2) Immediate adjacency — emit the voice notification immediately before that phase's content.
-3) One per assistant turn — never more than one `voice_notify` per assistant message.
-   - If transitioning phases, STOP and use the `question` tool to offer “Continue”.
-4) Tool call, not a code sample — `voice_notify(...)` must be an actual tool call.
-</temporal_voice_contract>
-```
-
-### Authoritative reference
-
-The upstream guidance that motivates these constraint blocks is stored in this skill directory:
-- `Gpt-5-2_Prompting_Guide.ipynb`
-- Source: https://raw.githubusercontent.com/openai/openai-cookbook/main/examples/gpt-5/gpt-5-2_prompting_guide.ipynb
-
----
-
-## Voice Notification
-
-**When executing a workflow, do BOTH:**
-
-1. **Send voice notification**:
-   Use the `voice_notify` tool:
-
-- `message`: "Running the WORKFLOWNAME workflow from the CreateSkill skill"
-User: "Create a skill for managing my recipes"
-→ Invokes CreateSkill workflow
-→ Reads SkillSystem.md for structure requirements
-→ Creates skill directory with TitleCase naming
-→ Creates SKILL.md, Workflows/, tools/
-→ Generates USE WHEN triggers based on intent
-```
-
-**Example 2: Fix an existing skill that's not routing properly**
-```
-User: "The research skill isn't triggering - validate it"
-→ Invokes ValidateSkill workflow
-→ Checks SKILL.md against canonical format
-→ Verifies TitleCase naming throughout
-→ Verifies USE WHEN triggers are intent-based
-→ Reports compliance issues with fixes
-```
-
-**Example 3: Canonicalize a skill with old naming**
-```
-User: "Canonicalize the daemon skill"
-→ Invokes CanonicalizeSkill workflow
-→ Renames workflow files to TitleCase
-→ Updates routing table to match
-→ Ensures Examples section exists
-→ Verifies all checklist items
-```
+Notes:
+- Use `{SkillName}` or `<SkillName>` placeholders in templates to avoid broken-link scanning.
+- Prefer adding root docs over growing `SKILL.md`.
 
 ## Workflow Routing
 
@@ -304,31 +102,24 @@ User: "Canonicalize the daemon skill"
 |----------|---------|------|
 | **CreateSkill** | Create a new skill | `Workflows/CreateSkill.md` |
 | **UpdateSkill** | Update an existing skill | `Workflows/UpdateSkill.md` |
-| **ValidateSkill** | Validate a skill against canonical rules | `Workflows/ValidateSkill.md` |
+| **ValidateSkill** | Validate a skill against SkillSystem | `Workflows/ValidateSkill.md` |
 | **CanonicalizeSkill** | Canonicalize naming/structure | `Workflows/CanonicalizeSkill.md` |
 | **ImportSkill** | Import a skill directory from a path | `Workflows/ImportSkill.md` |
 
 ## Examples
 
-**Example 1: Import an existing skill directory**
+**Example 1: Create a new skill**
 ```
-User: "Import the full skill from /path/to/SomeSkill"
--> Invokes ImportSkill workflow
--> Copies Workflows/ and Tools/ and root docs
--> Applies only mandatory, surgical canonicalization
--> Installs into runtime via installer
-```
-
-**Example 2: Create a new skill**
-```
-User: "Create a skill for managing my recipes"
--> Invokes CreateSkill workflow
--> Produces SkillName/SKILL.md + Workflows/ + Tools/
+You: "Create a skill for managing my recipes"
+→ Invokes CreateSkill workflow
+→ Produces `{SkillName}/SKILL.md` + `Workflows/` + `Tools/` (budgeted)
+→ Returns a patch or file contents for review
 ```
 
-**Example 3: Canonicalize an existing skill**
+**Example 2: Validate/canonicalize an existing skill**
 ```
-User: "Canonicalize the Daemon skill"
--> Invokes CanonicalizeSkill workflow
--> Fixes naming + frontmatter shape to match SkillSystem.md
+You: "Canonicalize the Daemon skill"
+→ Invokes CanonicalizeSkill workflow
+→ Aligns naming/structure + routing table with SkillSystem rules
+→ Returns the minimal, reviewable changes
 ```
