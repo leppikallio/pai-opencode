@@ -29,10 +29,19 @@ Rationale: prevents “I remember” drift and makes retrieval verifiable.
 
 ## SKILL.md size budget (default gate)
 
-Default rule: newly generated `SKILL.md` MUST be **≤ 80 lines**.
+Default rule: newly generated procedural `SKILL.md` MUST be **≤ 80 budget lines**.
 
-- Counting rule: count ALL lines (frontmatter + blank lines included).
-- If over budget: move detail into root context docs (e.g., `Examples.md`, `ApiReference.md`, `StyleGuide.md`).
+### Counting rule (budget lines)
+
+- Count ALL lines (frontmatter + blank lines included)
+- EXCEPT: do **not** count the `## Examples` section (the heading + its body) toward the budget.
+
+Definition of the `## Examples` section for counting:
+
+- Starts at a line that matches `## Examples`
+- Ends immediately before the next `## <Heading>` line (or end-of-file)
+
+If over budget: move detail into root context docs (e.g., `ApiReference.md`, `StyleGuide.md`, `Templates.md`) and keep `SKILL.md` router-first.
 
 ### Creative archetype exception
 
@@ -84,6 +93,11 @@ CreateSkill-generated skills (default) SHOULD also include:
 - [ ] `Workflows/` contains only execution runbooks
 - [ ] `Tools/` exists (even if empty)
 - [ ] Workflows map intent → tool flags (don’t hardcode one rigid invocation)
+
+Workflow structure notes:
+
+- For state-changing or correctness-critical workflows, include `## Verify`.
+- For pure writing/creative workflows, `## Verify` is optional (no external verification required), but a short self-check rubric is recommended.
 
 ### 6) Capability-truth (no pretending)
 

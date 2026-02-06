@@ -25,7 +25,7 @@ Reference (runtime):
 
 | Item | PASS if… | FAIL if… | Quick evidence check |
 |---|---|---|---|
-| `SKILL.md` size budget | `SKILL.md` is ≤ 80 lines (counts blanks + YAML) | > 80 lines | `wc -l <SKILL.md>` |
+| `SKILL.md` size budget | `SKILL.md` is ≤ 80 budget lines (examples excluded; counts YAML + blanks) | > 80 budget lines | Use CountSkillBudgetLines tool |
 | Router-first shape | `SKILL.md` reads like a runbook/router, not a spec | Long prose/deep details embedded | Skim: mostly tables + bullets |
 | Constraint blocks | Contains `<negative_constraints>` (~5+ MUST NOTs) and `<output_shape>` (format/verbosity clamp) | Missing either block | Search for those tags |
 

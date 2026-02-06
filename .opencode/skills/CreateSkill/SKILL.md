@@ -17,6 +17,7 @@ If this directory exists, load and apply any PREFERENCES.md or configs found the
 - Import policy: `/Users/zuul/.config/opencode/skills/CreateSkill/MinimalCanonicalizationPolicy.md`
 - Review rubric: `/Users/zuul/.config/opencode/skills/CreateSkill/SkillQualityRubric.md`
 - Migration queue: `/Users/zuul/.config/opencode/skills/CreateSkill/SkillMigrationQueue.md`
+- Budget-line counter (examples excluded): `/Users/zuul/.config/opencode/skills/CreateSkill/Tools/CountSkillBudgetLines.ts`
 
 ## Authoritative SkillSystem docs (runtime, read-gated)
 
@@ -43,7 +44,8 @@ Rule: MUST NOT claim you consulted a section doc unless you actually `Read` it.
 3) **No “SkillSearch required” instructions** in skills or templates.
    - Prefer explicit `Read` of absolute runtime paths.
    - If you don’t know a path: `glob` then `Read`.
-4) **`SKILL.md` budget:** newly generated skills default to **≤ 80 lines** (count ALL lines, including blanks).
+4) **`SKILL.md` budget (procedural default):** newly generated procedural skills default to **≤ 80 budget lines**.
+   - Counting rule: count all lines (frontmatter + blanks) **except** the `## Examples` section (heading + body) does not count toward the budget.
    - Creative archetype: no hard limit (still prefer “router + root docs”, not essays).
 5) Keep deep detail out of `SKILL.md`: move it into **root** context docs (`Examples.md`, `ApiReference.md`, `StyleGuide.md`, etc.).
 6) **Binding constraint blocks:** newly generated skills MUST include:
@@ -64,7 +66,7 @@ Creative archetype guidance:
 
 ## Dynamic loading template (router-first; placeholder-safe)
 
-Use this pattern when a skill would exceed the default ≤80-line `SKILL.md` budget.
+Use this pattern when a skill would exceed the default ≤80 budget-line `SKILL.md` budget.
 
 ```md
 ---

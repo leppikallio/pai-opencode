@@ -31,7 +31,7 @@ Runtime install destination: `/Users/zuul/.config/opencode/skills/`
 ## Execution loop per skill (repeatable)
 
 1) Audit:
-   - `wc -l <SKILL.md>`
+   - budget lines: use CountSkillBudgetLines tool (examples excluded)
    - search for `SkillSearch(` in `SKILL.md` and remove “SkillSearch required” language
 2) Refactor:
    - Make `SKILL.md` a router (procedural: default ≤80 lines)

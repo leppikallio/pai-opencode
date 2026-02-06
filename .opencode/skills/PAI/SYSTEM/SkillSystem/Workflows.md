@@ -74,7 +74,7 @@ Every skill that uses workflows MUST include a `## Workflow Routing` table in `S
 
 Every workflow file SHOULD follow this structure so it is executable and verifiable.
 
-### Required sections
+### Recommended sections
 
 ```md
 # WorkflowName
@@ -100,9 +100,14 @@ Every workflow file SHOULD follow this structure so it is executable and verifia
 
 #### Verify
 
-- Concrete checks that can fail/pass quickly.
+- For correctness-critical or state-changing work: concrete checks that can fail/pass quickly.
 - Prefer evidence-producing verification (tool output, exit codes, screenshots where applicable).
 - If a workflow claims a tool ran, it MUST include the command/tool call that produces the evidence.
+
+For pure writing/creative workflows:
+
+- `## Verify` is optional (no external verification required).
+- If included, it should be a short self-check rubric (constraints met, tone, length, etc.).
 
 ## Intent-to-flag mapping (workflow-to-tool integration)
 
