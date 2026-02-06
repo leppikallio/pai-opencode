@@ -1,226 +1,127 @@
 # ValidateSkill Workflow
 
-**Purpose:** Check if an existing skill follows the canonical structure with proper TitleCase naming.
+**Purpose:** Validate that a skill (or SkillSystem section doc) follows canonical structure, naming, and split-doc rules.
+
+## Critical rule: validate base repo artifacts
+
+- **Authoring (base repo):** `/Users/zuul/Projects/pai-opencode/.opencode/skills/...`
+- **Runtime (after install):** `/Users/zuul/.config/opencode/skills/...`
+
+Prefer validating the base repo source first; install to runtime only to confirm runtime layout.
 
 ---
 
-## Step 1: Read the Authoritative Source
+## Step 1: Read the authoritative SkillSystem docs (Read-gated)
 
-**REQUIRED FIRST:** Read the canonical structure:
+1) Read the index/router:
 
-```
-~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md
-```
+`/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md`
+
+2) Then `Read` the relevant section docs in the same turn:
+
+- Structure + naming: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Structure.md`
+- Frontmatter rules: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Frontmatter.md`
+- Workflows contract: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Workflows.md`
+- Validation + budgets: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Validation.md`
+
+When reporting conclusions derived from section docs, include the relevant canary comment (or exact heading).
 
 ---
 
-## Step 2: Read the Target Skill
+## Step 2: Decide what you are validating
+
+### A) A skill
+
+Base repo target:
+
+- `/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/...`
+
+### B) A SkillSystem section doc (split-doc rules)
+
+Base repo target:
+
+- `/Users/zuul/Projects/pai-opencode/.opencode/skills/PAI/SYSTEM/SkillSystem/<Section>.md`
+
+---
+
+## Step 3: Validate a skill (checklist)
+
+### 3.1 Naming + structure
+
+- Skill directory is TitleCase (system) or `_ALLCAPS` (personal)
+- `SKILL.md` exists and is uppercase
+- `Workflows/` and `Tools/` directories exist (may be empty)
+- Workflow/tool/root-doc filenames are TitleCase
+
+### 3.2 `SKILL.md` budget
+
+Default gate for newly generated skills: `SKILL.md` **≤ 80 lines**.
 
 ```bash
-~/.config/opencode/skills/[SkillName]/SKILL.md
+wc -l "/Users/zuul/Projects/pai-opencode/.opencode/skills/<SkillName>/SKILL.md"
 ```
+
+If over budget: move detail into root docs and keep `SKILL.md` as a router.
+
+### 3.3 YAML frontmatter
+
+- `name:` matches `<SkillName>` exactly
+- `description:` is a single line and contains `USE WHEN`
+- No `triggers:` or `workflows:` arrays
+
+### 3.4 Markdown body
+
+- `# <SkillName>` title present
+- `## Workflow Routing` table present when workflows exist
+- Routing table uses relative paths like `<Workflows/<WorkflowName>.md>` (absolute only when cross-skill)
+- `## Examples` section present (minimal is fine)
+- Constraints present (5+ MUST NOT bullets recommended)
+
+### 3.5 Workflow files
+
+For each workflow file under `Workflows/`:
+
+- Filename is TitleCase
+- It’s an execution runbook (Purpose/Inputs/Steps/Verify/Output)
+- If it invokes tools, it maps intent → flags (not a single hardcoded invocation)
 
 ---
 
-## Step 3: Check TitleCase Naming
+## Step 4: Validate SkillSystem split-doc rules (section docs)
 
-### Skill Directory
-```bash
-ls ~/.config/opencode/skills/ | grep -i [skillname]
-```
+If the target is a SkillSystem section doc under:
 
-Verify TitleCase:
-- ✓ `Blogging`, `Daemon`, `CreateSkill`
-- ✗ `createskill`, `create-skill`, `CREATE_SKILL`
+`/Users/zuul/Projects/pai-opencode/.opencode/skills/PAI/SYSTEM/SkillSystem/*.md`
 
-### Workflow Files
-```bash
-ls ~/.config/opencode/skills/[SkillName]/Workflows/
-```
+Validate:
 
-Verify TitleCase:
-- ✓ `Create.md`, `UpdateDaemonInfo.md`, `SyncRepo.md`
-- ✗ `create.md`, `update-daemon-info.md`, `SYNC_REPO.md`
+1) Backlink header present:
+   - `> Up (runtime): ...`
+   - `> Source (repo): ...`
+   - `> Scope: ...`
 
-### Tool Files
-```bash
-ls ~/.config/opencode/skills/[SkillName]/Tools/
-```
+2) Canary comment present and matches the section (e.g., `<!-- SKILLSYSTEM:...:v1 -->`).
 
-Verify TitleCase:
-- ✓ `ManageServer.ts`, `ManageServer.help.md`
-- ✗ `manage-server.ts`, `MANAGE_SERVER.ts`
+3) No instructions requiring SkillSearch; preferred is explicit `Read` (or `glob` then `Read`).
+
+4) Internal references are runtime-first (absolute paths under `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/...`).
 
 ---
 
-## Step 4: Check YAML Frontmatter
-
-Verify the YAML has:
-
-### Single-Line Description with USE WHEN
-```yaml
----
-name: SkillName
-description: [What it does]. USE WHEN [intent triggers using OR]. [Additional capabilities].
----
-```
-
-**Check for violations:**
-- Multi-line description using `|` (WRONG)
-- Missing `USE WHEN` keyword (WRONG)
-- Separate `triggers:` array in YAML (OLD FORMAT - WRONG)
-- Separate `workflows:` array in YAML (OLD FORMAT - WRONG)
-- `name:` not in TitleCase (WRONG)
-
----
-
-## Step 5: Check Markdown Body
-
-Verify the body has:
-
-### Workflow Routing Section
-```markdown
-## Workflow Routing
-
-**When executing a workflow, output this notification:**
-
-```
-Running the **WorkflowName** workflow from the **SkillName** skill...
-```
-
-| Workflow | Trigger | File |
-|----------|---------|------|
-| **WorkflowOne** | "trigger phrase" | `Workflows/<WorkflowOne>.md` |
-```
-
-**Check for violations:**
-- Missing `## Workflow Routing` section
-- Workflow names not in TitleCase
-- File paths not matching actual file names
-
-### Binding Prompt Constraints Section (REQUIRED)
-
-Verify the skill includes explicit negative constraints (MUST NOT).
-
-**COMPLIANT when:**
-- Skill contains a clearly labeled constraints section/block with **5+** explicit MUST NOT bullets.
-
-**If the skill uses `voice_notify` for phase/user-state updates:**
-- Skill contains a **Temporal Voice Contract** that forbids advance notifications and limits voice to one per assistant turn.
-
-### Examples Section
-```markdown
-## Examples
-
-**Example 1: [Use case]**
-```
-User: "[Request]"
-→ [Action]
-→ [Result]
-```
-```
-
-**Check:** Examples section required (WRONG if missing)
-
----
-
-## Step 6: Check Workflow Files
+## Step 5: (Optional) Install to runtime and spot-check paths
 
 ```bash
-ls ~/.config/opencode/skills/[SkillName]/Workflows/
+cd "/Users/zuul/Projects/pai-opencode" && bun Tools/Install.ts --target "/Users/zuul/.config/opencode"
 ```
 
-Verify:
-- Every file uses TitleCase naming
-- Every file has a corresponding entry in `## Workflow Routing` section
-- Every routing entry points to an existing file
-- Routing table names match file names exactly
+Then confirm the runtime tree exists at:
+
+- `/Users/zuul/.config/opencode/skills/<SkillName>/...`
 
 ---
 
-## Step 7: Check Structure
+## Step 6: Report results
 
-```bash
-ls -la ~/.config/opencode/skills/[SkillName]/
-```
+COMPLIANT if all applicable checks pass.
 
-Verify:
-- `tools/` directory exists (even if empty)
-- No `backups/` directory inside skill
-- Reference docs at skill root (not in Workflows/)
-
----
-
-## Step 7a: Check CLI-First Integration (for skills with CLI tools)
-
-**If the skill has CLI tools in `tools/`:**
-
-### CLI Tool Configuration Flags
-
-Check each tool for flag-based configuration:
-```bash
-bun ~/.config/opencode/skills/[SkillName]/Tools/[ToolName].ts --help
-```
-
-Verify the tool exposes behavioral configuration via flags:
-- Mode flags (--fast, --thorough, --dry-run) where applicable
-- Output flags (--format, --quiet, --verbose)
-- Resource flags (--model, etc.) if applicable
-- Post-processing flags if applicable
-
-### Workflow Intent-to-Flag Mapping
-
-For workflows that call CLI tools, check for intent-to-flag mapping tables:
-
-```bash
-grep -l "Intent-to-Flag" ~/.config/opencode/skills/[SkillName]/Workflows/*.md
-```
-
-**Required pattern in workflows with CLI tools:**
-```markdown
-## Intent-to-Flag Mapping
-
-| User Says | Flag | When to Use |
-|-----------|------|-------------|
-| "fast" | `--model haiku` | Speed priority |
-| (default) | `--model sonnet` | Balanced |
-```
-
-**Reference:** `~/.config/opencode/skills/PAI/SYSTEM/CLIFIRSTARCHITECTURE.md`
-
----
-
-## Step 8: Report Results
-
-**COMPLIANT** if all checks pass:
-
-### Naming (TitleCase)
-- [ ] Skill directory uses TitleCase
-- [ ] All workflow files use TitleCase
-- [ ] All reference docs use TitleCase
-- [ ] All tool files use TitleCase
-- [ ] Routing table names match file names
-
-### YAML Frontmatter
-- [ ] `name:` uses TitleCase
-- [ ] `description:` is single-line with `USE WHEN`
-- [ ] No separate `triggers:` or `workflows:` arrays
-- [ ] Description under 1024 characters
-
-### Markdown Body
-- [ ] `## Workflow Routing` section present
-- [ ] `## Examples` section with 2-3 patterns
-- [ ] All workflows have routing entries
-- [ ] Negative constraints (MUST NOT) section present (5+ bullets)
-- [ ] Temporal Voice Contract present if `voice_notify` is used
-
-### Structure
-- [ ] `tools/` directory exists
-- [ ] No `backups/` inside skill
-
-### CLI-First Integration (for skills with CLI tools)
-- [ ] CLI tools expose configuration via flags (not hardcoded)
-- [ ] Workflows that call CLI tools have intent-to-flag mapping tables
-- [ ] Flag mappings cover mode, output, and resource selection where applicable
-
-**NON-COMPLIANT** if any check fails. Recommend using CanonicalizeSkill workflow.
+NON-COMPLIANT if any check fails; list failures and point to the smallest corrective action.
