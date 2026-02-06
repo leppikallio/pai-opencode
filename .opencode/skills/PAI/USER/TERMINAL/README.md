@@ -79,7 +79,13 @@ When a tab is inactive (not focused), the background color indicates the current
 
 ## Legacy Hook Integration
 
-**OpenCode port note:** This tab-state system is described for legacy Claude Code hooks and is not currently implemented in the OpenCode plugin runtime.
+**OpenCode port note:** Tab-state updates are available in PAI-OpenCode as an *opt-in* feature.
+
+Enable with:
+
+```bash
+export PAI_KITTY_TABS=1
+```
 
 ### 1. UpdateTabTitle (legacy) (UserPromptSubmit)
 

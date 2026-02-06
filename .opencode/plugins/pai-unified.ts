@@ -52,6 +52,11 @@ import {
 } from "./lib/scratchpad";
 import { createWorkSession } from "./handlers/work-tracker";
 import { getPaiRuntimeInfo } from "./lib/pai-runtime";
+import {
+  isKittyTabsEnabled,
+  setKittyTabState,
+  type KittyTabState,
+} from "./handlers/kitty-tabs";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -129,6 +134,10 @@ export const PaiUnified: Plugin = async (ctx) => {
   >();
   const lastUserTextBySession = new Map<string, string>();
   const sawToolCallThisTurn = new Map<string, boolean>();
+
+  // Optional Kitty tab state (opt-in)
+  const kittyTabStateBySession = new Map<string, KittyTabState>();
+  const kittyTabSeedBySession = new Map<string, string>();
   const rewriteAttemptedByPart = new Set<string>();
   const codexOverrideSessions = new Set<string>();
   const sessionParentById = new Map<string, string | null>();
@@ -435,6 +444,90 @@ export const PaiUnified: Plugin = async (ctx) => {
       );
     } catch (error) {
       fileLogError("Toast failed", error);
+    }
+  }
+
+  // === FAIL-OPEN NOTICES (History capture) ===
+  // If capture stalls, we want:
+  // - detailed evidence in debug.log (when PAI_DEBUG=1)
+  // - optional real-time toast so you immediately notice capture degradation
+  const ENABLE_HISTORY_CAPTURE_TOASTS =
+    PAI_DEBUG || (process.env.PAI_HISTORY_CAPTURE_TOASTS ?? "").trim() === "1";
+  const HISTORY_CAPTURE_TOOL_TIMEOUT_MS = (() => {
+    const raw = (process.env.PAI_HISTORY_CAPTURE_TOOL_TIMEOUT_MS ?? "").trim();
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : 350;
+  })();
+  const HISTORY_CAPTURE_EVENT_TIMEOUT_MS = (() => {
+    const raw = (process.env.PAI_HISTORY_CAPTURE_EVENT_TIMEOUT_MS ?? "").trim();
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? n : 1200;
+  })();
+
+  const lastHistoryCaptureToastAtBySession = new Map<string, number>();
+  function maybeToastHistoryCaptureIssue(sessionId: string | undefined, message: string) {
+    if (!ENABLE_HISTORY_CAPTURE_TOASTS) return;
+    if (!sessionId) return;
+    const now = Date.now();
+    const last = lastHistoryCaptureToastAtBySession.get(sessionId) ?? 0;
+    // Rate limit to avoid toast spam during event storms.
+    if (now - last < 8000) return;
+    lastHistoryCaptureToastAtBySession.set(sessionId, now);
+    void showToast(message, "warning", 4500);
+  }
+
+  async function withWallClockTimeout<T>(
+    promise: Promise<T>,
+    timeoutMs: number,
+    label: string
+  ): Promise<{ ok: true; value: T } | { ok: false; timeout: true; label: string; timeoutMs: number }> {
+    if (!(Number.isFinite(timeoutMs) && timeoutMs > 0)) {
+      return { ok: true, value: await promise };
+    }
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    try {
+      const raced = await Promise.race([
+        promise,
+        new Promise<never>((_resolve, reject) => {
+          timeoutId = setTimeout(() => reject(new Error(`timeout:${label}:${timeoutMs}`)), timeoutMs);
+        }),
+      ]);
+      return { ok: true, value: raced };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      if (msg.startsWith(`timeout:${label}:`)) {
+        return { ok: false, timeout: true, label, timeoutMs };
+      }
+      throw error;
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  }
+
+  async function bestEffortHistoryCapture<T>(opts: {
+    sessionId?: string;
+    label: string;
+    timeoutMs: number;
+    run: () => Promise<T>;
+  }): Promise<{ ok: true; value: T } | { ok: false; reason: string }> {
+    const startedAt = Date.now();
+    try {
+      const res = await withWallClockTimeout(opts.run(), opts.timeoutMs, opts.label);
+      if (!res.ok) {
+        const ms = Date.now() - startedAt;
+        fileLog(
+          `HistoryCapture fail-open: timeout label=${opts.label} waited=${ms}ms timeout=${res.timeoutMs}ms`,
+          "warn"
+        );
+        maybeToastHistoryCaptureIssue(opts.sessionId, `History capture timeout (${opts.label})`);
+        return { ok: false, reason: `timeout (${res.timeoutMs}ms)` };
+      }
+      return { ok: true, value: res.value };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      fileLogError(`HistoryCapture fail-open: error label=${opts.label}`, error);
+      maybeToastHistoryCaptureIssue(opts.sessionId, `History capture error (${opts.label})`);
+      return { ok: false, reason: `error (${msg})` };
     }
   }
 
@@ -1066,6 +1159,14 @@ export const PaiUnified: Plugin = async (ctx) => {
         if (text) {
           lastUserTextBySession.set(sessionId, text);
           sawToolCallThisTurn.set(sessionId, false);
+
+          // Kitty: mark as working as soon as a prompt arrives.
+          if (isKittyTabsEnabled()) {
+            const seed = text.slice(0, 200);
+            kittyTabSeedBySession.set(sessionId, seed);
+            kittyTabStateBySession.set(sessionId, "working");
+            setKittyTabState("working", seed);
+          }
         }
       } catch (error) {
         fileLogError("chat.message handler failed", error);
@@ -1437,6 +1538,28 @@ export const PaiUnified: Plugin = async (ctx) => {
         sawToolCallThisTurn.set(input.sessionID, true);
       }
 
+      // Kitty: if the assistant is about to ask a question, mark awaiting input.
+      try {
+        const sessionId = (input as UnknownRecord).sessionID as string | undefined;
+        if (sessionId && isPrimarySession(sessionId) && isKittyTabsEnabled()) {
+          const toolName = String(input.tool || "").toLowerCase();
+          const isQuestionTool =
+            toolName === "question" ||
+            toolName === "askuserquestion" ||
+            toolName.includes("question");
+          if (isQuestionTool) {
+            const seed =
+              kittyTabSeedBySession.get(sessionId) ||
+              lastUserTextBySession.get(sessionId) ||
+              "PAI";
+            kittyTabStateBySession.set(sessionId, "awaitingInput");
+            setKittyTabState("awaitingInput", seed);
+          }
+        }
+      } catch {
+        // Best-effort only.
+      }
+
       // Task spawn rate limiter (guard against runaway subagent loops).
       if (!TASK_RATE_LIMIT_DISABLE && input.tool === "Task" && input.sessionID) {
         const sessionId = input.sessionID;
@@ -1472,14 +1595,24 @@ export const PaiUnified: Plugin = async (ctx) => {
       }
 
       // History capture: responsible for mapping subagent sessions to parent storage.
-      await historyCapture.handleToolBefore(
-        {
-          tool: input.tool,
-          sessionID: (input as UnknownRecord).sessionID as string | undefined,
-          callID: (input as UnknownRecord).callID as string | undefined,
-        },
-        (output.args ?? {}) as Record<string, unknown>
-      );
+      {
+        const sid = (input as UnknownRecord).sessionID as string | undefined;
+        const cid = (input as UnknownRecord).callID as string | undefined;
+        await bestEffortHistoryCapture({
+          sessionId: sid,
+          label: `tool.before:${String(input.tool || "").toLowerCase()}`,
+          timeoutMs: HISTORY_CAPTURE_TOOL_TIMEOUT_MS,
+          run: () =>
+            historyCapture.handleToolBefore(
+              {
+                tool: input.tool,
+                sessionID: sid,
+                callID: cid,
+              },
+              (output.args ?? {}) as Record<string, unknown>
+            ),
+        });
+      }
 
       // Security validation - throws error to block dangerous commands
       const result = await validateSecurity({
@@ -1491,6 +1624,22 @@ export const PaiUnified: Plugin = async (ctx) => {
 
       if (result.action === "block") {
         fileLog(`BLOCKED: ${result.reason}`, "error");
+
+        // Kitty: show error state before blocking.
+        try {
+          const sessionId = (input as UnknownRecord).sessionID as string | undefined;
+          if (sessionId && isPrimarySession(sessionId) && isKittyTabsEnabled()) {
+            const seed =
+              kittyTabSeedBySession.get(sessionId) ||
+              lastUserTextBySession.get(sessionId) ||
+              "PAI";
+            kittyTabStateBySession.set(sessionId, "error");
+            setKittyTabState("error", seed);
+          }
+        } catch {
+          // Best-effort only.
+        }
+
         // Throwing an error blocks the tool execution
         throw new Error(`[PAI Security] ${result.message || result.reason}`);
       }
@@ -1733,18 +1882,28 @@ export const PaiUnified: Plugin = async (ctx) => {
       try {
         fileLog(`Tool after: ${input.tool}`, "debug");
 
-        await historyCapture.handleToolAfter(
-          {
-            tool: input.tool,
-            sessionID: (input as UnknownRecord).sessionID as string | undefined,
-            callID: (input as UnknownRecord).callID as string | undefined,
-          },
-          {
-            title: getStringProp(output, "title") ?? undefined,
-            output: getStringProp(output, "output") ?? undefined,
-            metadata: getProp(output, "metadata"),
-          }
-        );
+        {
+          const sid = (input as UnknownRecord).sessionID as string | undefined;
+          const cid = (input as UnknownRecord).callID as string | undefined;
+          await bestEffortHistoryCapture({
+            sessionId: sid,
+            label: `tool.after:${String(input.tool || "").toLowerCase()}`,
+            timeoutMs: HISTORY_CAPTURE_TOOL_TIMEOUT_MS,
+            run: () =>
+              historyCapture.handleToolAfter(
+                {
+                  tool: input.tool,
+                  sessionID: sid,
+                  callID: cid,
+                },
+                {
+                  title: getStringProp(output, "title") ?? undefined,
+                  output: getStringProp(output, "output") ?? undefined,
+                  metadata: getProp(output, "metadata"),
+                }
+              ),
+          });
+        }
 
         // === AGENT OUTPUT CAPTURE ===
         // Check for Task tool (subagent) completion
@@ -1882,6 +2041,24 @@ export const PaiUnified: Plugin = async (ctx) => {
             fileLogError("Skill restore failed", error);
             // Don't throw - session should continue
           }
+
+          // Kitty: mark inference state on new session (primary only).
+          try {
+            if (
+              sessionIdForEvent &&
+              isPrimarySession(sessionIdForEvent) &&
+              isKittyTabsEnabled()
+            ) {
+              const seed =
+                kittyTabSeedBySession.get(sessionIdForEvent) ||
+                lastUserTextBySession.get(sessionIdForEvent) ||
+                "PAI";
+              kittyTabStateBySession.set(sessionIdForEvent, "inference");
+              setKittyTabState("inference", seed);
+            }
+          } catch {
+            // Best-effort only.
+          }
         }
 
         // === RESPONSE COMPLETE (IDLE) ===
@@ -1890,6 +2067,23 @@ export const PaiUnified: Plugin = async (ctx) => {
           if (!sessionIdForEvent || isPrimarySession(sessionIdForEvent)) {
             armRatingKiosk();
             fileLog("Session idle (armed rating kiosk)", "debug");
+
+            // Kitty: mark completed unless we're awaiting input.
+            try {
+              if (sessionIdForEvent && isKittyTabsEnabled()) {
+                const current = kittyTabStateBySession.get(sessionIdForEvent);
+                if (current !== "awaitingInput") {
+                  const seed =
+                    kittyTabSeedBySession.get(sessionIdForEvent) ||
+                    lastUserTextBySession.get(sessionIdForEvent) ||
+                    "PAI";
+                  kittyTabStateBySession.set(sessionIdForEvent, "completed");
+                  setKittyTabState("completed", seed);
+                }
+              }
+            } catch {
+              // Best-effort only.
+            }
           }
           idleLike = true;
         }
@@ -1910,6 +2104,9 @@ export const PaiUnified: Plugin = async (ctx) => {
             sawToolCallThisTurn.delete(sessionIdForEvent);
             taskRateBySession.delete(sessionIdForEvent);
 
+            kittyTabStateBySession.delete(sessionIdForEvent);
+            kittyTabSeedBySession.delete(sessionIdForEvent);
+
             // Remove any rewrite keys for this session.
             for (const k of rewriteAttemptedByPart) {
               if (k.startsWith(`${sessionIdForEvent}:`)) {
@@ -1928,7 +2125,14 @@ export const PaiUnified: Plugin = async (ctx) => {
         fileLog(`Event: ${eventType}`, "debug");
 
         // History + ISC capture (event-driven)
-        await historyCapture.handleEvent(eventObj ?? {});
+        void (async () => {
+          await bestEffortHistoryCapture({
+            sessionId: sessionIdForEvent ?? undefined,
+            label: `event:${eventType}`,
+            timeoutMs: HISTORY_CAPTURE_EVENT_TIMEOUT_MS,
+            run: () => historyCapture.handleEvent(eventObj ?? {}),
+          });
+        })();
 
         // Best-effort: show prompt hint after the user message is sent.
         // NOTE: Avoid message.part.updated because that fires while typing.

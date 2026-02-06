@@ -88,6 +88,14 @@ mkdir -p ~/.config/opencode/skills/[SkillName]/Tools
 
 ---
 
+## Step 4a: Add Binding Prompt Constraints (when missing)
+
+When updating a skill, ensure it contains explicit constraints that prevent common drift:
+
+- **Negative constraints:** add/maintain a section with 5+ explicit **MUST NOT** bullets.
+- **Output shape:** add/maintain a short output/verbosity clamp if the skill tends to get verbose.
+- **Temporal Voice Contract:** if the skill uses `voice_notify` for phase/user updates, include a contract that forbids advance/batched notifications and limits to one per assistant turn.
+
 ## Step 5: Verify TitleCase
 
 After making changes, verify naming:

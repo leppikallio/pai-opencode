@@ -1,6 +1,6 @@
 ---
 name: CreateSkill
-description: "Create and validate skills. USE WHEN create skill, new skill, skill structure, canonicalize."
+description: "Create, validate, and import skills. USE WHEN create skill, new skill, import skill, skill structure, canonicalize."
 ---
 
 ## Customization
@@ -202,6 +202,66 @@ Brief description.
 
 ---
 
+## Binding Prompt Constraints (MANDATORY)
+
+When I create or update a skill, I MUST encode *both* positive requirements and explicit **negative constraints**.
+
+### Why (Binding)
+
+Models reliably follow what is explicitly forbidden and structurally constrained. Missing **MUST NOT** clauses is a common root cause of skill drift, overreach, and timing bugs.
+
+### Required constraint blocks to include in new/updated skills
+
+#### 1) Negative constraints (MUST include at least 5 bullets)
+
+Add a section (or inline block) in the target skill that lists explicit **MUST NOT** behaviors for that domain.
+
+Example (template):
+
+```markdown
+<negative_constraints>
+- Implement EXACTLY and ONLY what the user requests.
+- MUST NOT add extra features, refactors, or UX embellishments.
+- MUST NOT claim verification without evidence/tool output.
+- MUST NOT ask questions as plain text when `question` tool is required.
+- MUST NOT proceed past a “plan” request into execution.
+</negative_constraints>
+```
+
+#### 2) Output-shape / verbosity constraints (recommended)
+
+Include an explicit output shape block when the skill is prone to verbosity drift.
+
+```markdown
+<output_shape>
+- Default: concise, structured bullets.
+- For multi-step work: phases/sections with clear labels.
+- No long narrative paragraphs unless requested.
+</output_shape>
+```
+
+#### 3) Temporal Voice Contract (ONLY if the skill uses voice phase updates)
+
+If a skill/workflow uses `voice_notify` as phase/user-state updates, it MUST include this contract (or reference a canonical one):
+
+```markdown
+<temporal_voice_contract>
+1) No advance notifications — only for the phase I'm entering now.
+2) Immediate adjacency — emit the voice notification immediately before that phase's content.
+3) One per assistant turn — never more than one `voice_notify` per assistant message.
+   - If transitioning phases, STOP and use the `question` tool to offer “Continue”.
+4) Tool call, not a code sample — `voice_notify(...)` must be an actual tool call.
+</temporal_voice_contract>
+```
+
+### Authoritative reference
+
+The upstream guidance that motivates these constraint blocks is stored in this skill directory:
+- `Gpt-5-2_Prompting_Guide.ipynb`
+- Source: https://raw.githubusercontent.com/openai/openai-cookbook/main/examples/gpt-5/gpt-5-2_prompting_guide.ipynb
+
+---
+
 ## Voice Notification
 
 **When executing a workflow, do BOTH:**
@@ -236,4 +296,39 @@ User: "Canonicalize the daemon skill"
 → Updates routing table to match
 → Ensures Examples section exists
 → Verifies all checklist items
+```
+
+## Workflow Routing
+
+| Workflow | Trigger | File |
+|----------|---------|------|
+| **CreateSkill** | Create a new skill | `Workflows/CreateSkill.md` |
+| **UpdateSkill** | Update an existing skill | `Workflows/UpdateSkill.md` |
+| **ValidateSkill** | Validate a skill against canonical rules | `Workflows/ValidateSkill.md` |
+| **CanonicalizeSkill** | Canonicalize naming/structure | `Workflows/CanonicalizeSkill.md` |
+| **ImportSkill** | Import a skill directory from a path | `Workflows/ImportSkill.md` |
+
+## Examples
+
+**Example 1: Import an existing skill directory**
+```
+User: "Import the full skill from /path/to/SomeSkill"
+-> Invokes ImportSkill workflow
+-> Copies Workflows/ and Tools/ and root docs
+-> Applies only mandatory, surgical canonicalization
+-> Installs into runtime via installer
+```
+
+**Example 2: Create a new skill**
+```
+User: "Create a skill for managing my recipes"
+-> Invokes CreateSkill workflow
+-> Produces SkillName/SKILL.md + Workflows/ + Tools/
+```
+
+**Example 3: Canonicalize an existing skill**
+```
+User: "Canonicalize the Daemon skill"
+-> Invokes CanonicalizeSkill workflow
+-> Fixes naming + frontmatter shape to match SkillSystem.md
 ```

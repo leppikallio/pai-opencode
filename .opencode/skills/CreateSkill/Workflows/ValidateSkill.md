@@ -98,6 +98,16 @@ Running the **WorkflowName** workflow from the **SkillName** skill...
 - Workflow names not in TitleCase
 - File paths not matching actual file names
 
+### Binding Prompt Constraints Section (REQUIRED)
+
+Verify the skill includes explicit negative constraints (MUST NOT).
+
+**COMPLIANT when:**
+- Skill contains a clearly labeled constraints section/block with **5+** explicit MUST NOT bullets.
+
+**If the skill uses `voice_notify` for phase/user-state updates:**
+- Skill contains a **Temporal Voice Contract** that forbids advance notifications and limits voice to one per assistant turn.
+
 ### Examples Section
 ```markdown
 ## Examples
@@ -201,6 +211,8 @@ grep -l "Intent-to-Flag" ~/.config/opencode/skills/[SkillName]/Workflows/*.md
 - [ ] `## Workflow Routing` section present
 - [ ] `## Examples` section with 2-3 patterns
 - [ ] All workflows have routing entries
+- [ ] Negative constraints (MUST NOT) section present (5+ bullets)
+- [ ] Temporal Voice Contract present if `voice_notify` is used
 
 ### Structure
 - [ ] `tools/` directory exists

@@ -427,16 +427,18 @@ function createMicroBanner(stats: SystemStats): string {
 
   const lines: string[] = [];
 
-  // Rain header
-  const rainLine = Array.from({ length: width }, () => {
+  // Rain header/footer
+  // NOTE: Do NOT reverse the fully-rendered ANSI string; that corrupts escape sequences.
+  // Reverse the *cells* instead.
+  const rainCells = Array.from({ length: width }, () => {
     const r = Math.random();
     if (r > 0.9) return `${g}${randomKatakana()}${RESET}`;
     if (r > 0.7) return `${p}${randomMatrixChar()}${RESET}`;
     if (r > 0.4) return `${d}${randomMatrixChar()}${RESET}`;
     return `${dk}${randomMatrixChar()}${RESET}`;
-  }).join("");
+  });
 
-  lines.push(rainLine);
+  lines.push(rainCells.join(""));
 
   // PAI line
   const paiStr = `${w}${BOLD}> ${RESET}${g}${BOLD}P${p}A${g}I${RESET} ${d}:: ${stats.name}${RESET}`;
@@ -447,7 +449,7 @@ function createMicroBanner(stats: SystemStats): string {
   lines.push(statsStr);
 
   // Rain footer
-  lines.push(rainLine.split("").reverse().join(""));
+  lines.push(rainCells.slice().reverse().join(""));
 
   return lines.join("\n");
 }

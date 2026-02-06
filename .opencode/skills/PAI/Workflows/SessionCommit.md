@@ -15,9 +15,7 @@ Session: <session-identifier>
 Progress: <X/Y features | percentage>
 Status: <in_progress|blocked|milestone>
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
+🤖 Generated with [Opencode](https://opencode.ai/)
 ```
 
 ### Type Values
@@ -52,9 +50,9 @@ Session: 2025-11-26-auth-feature
 Progress: 2/5 features passing
 Status: in_progress
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Opencode](https://opencode.ai/)
 
-Co-Authored-By: Claude <noreply@anthropic.com>
+
 ```
 
 ## Regular Commit Format
@@ -66,9 +64,9 @@ For commits within a session (standard format):
 
 <body>
 
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+🤖 Generated with [Opencode](https://opencode.ai/)
 
-Co-Authored-By: Claude <noreply@anthropic.com>
+
 ```
 
 ## End-of-Session Checklist
@@ -112,9 +110,7 @@ Before creating a session commit:
    Progress: <X/Y>
    Status: <status>
 
-   🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-   Co-Authored-By: Claude <noreply@anthropic.com>
+   🤖 Generated with [Opencode](https://opencode.ai/)
    EOF
    )"
    ```
