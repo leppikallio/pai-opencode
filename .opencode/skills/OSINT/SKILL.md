@@ -1,12 +1,12 @@
 ---
-name: OSINT
+name: osint
 description: "Open source intelligence gathering. USE WHEN OSINT, due diligence, background check, research person, company intel, investigate. SkillSearch('osint') for docs."
 ---
 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/OSINT/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/osint/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -46,3 +46,4 @@ See `EthicalFramework.md` for complete requirements.
 
 **Version:** 2.0 (Canonical Structure)
 **Last Updated:** December 2024
+

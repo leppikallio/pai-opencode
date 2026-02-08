@@ -2,7 +2,7 @@
 
 Reference for council member roles, perspectives, and voice assignments.
 
-## Default Council Members
+## Default council Members
 
 | Agent | Perspective | Voice |
 |-------|-------------|-------|
@@ -38,3 +38,4 @@ Add these as needed based on the topic:
 - "Council with security" - Add pentester agent
 - "Council with intern" - Add intern for fresh perspective
 - "Just architect and engineer" - Only specified members
+

@@ -7,7 +7,7 @@ Progressive disclosure interface for web scraping and automation via the Apify p
 ## Quick Start
 
 ```typescript
-import { Apify } from '~/.config/opencode/skills/Apify/index.ts'
+import { Apify } from '~/.config/opencode/skills/apify/index.ts'
 
 const apify = new Apify(process.env.APIFY_TOKEN)
 
@@ -290,7 +290,7 @@ Get your token from: https://console.apify.com/account/integrations
 All types are exported from the main module:
 
 ```typescript
-import { Actor, ActorRun, DatasetOptions } from '~/.config/opencode/skills/Apify/index.ts'
+import { Actor, ActorRun, DatasetOptions } from '~/.config/opencode/skills/apify/index.ts'
 ```
 
 ## Error Handling
@@ -317,7 +317,7 @@ try {
 
 ```bash
 # Run the Instagram scraper example
-cd ~/.config/opencode/skills/Apify
+cd ~/.config/opencode/skills/apify
 bun run examples/instagram-scraper.ts
 
 # Or use bun directly
@@ -366,3 +366,4 @@ console.log('Code tokens:', estimateTokens(filtered)) // ~500
 - Actor Store: https://apify.com/store
 - API Docs: https://docs.apify.com/api/v2
 - Legacy scripts (optional, if installed): `~/.config/opencode/filesystem-mcps/`
+

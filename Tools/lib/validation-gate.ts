@@ -39,7 +39,7 @@ export interface ValidationGateResult {
 // ============================================================================
 
 export const SYSTEM_FILES: SystemFile[] = [
-  { path: "skills/System/", category: "skill", importance: "critical" },
+  { path: "skills/system/", category: "skill", importance: "critical" },
   { path: "skills/PAI/", category: "skill", importance: "critical" },
   { path: "skills/CORE/", category: "skill", importance: "critical" }, // compatibility alias
   { path: "plugins/pai-unified.ts", category: "plugin", importance: "critical" },

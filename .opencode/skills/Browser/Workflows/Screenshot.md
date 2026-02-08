@@ -6,7 +6,7 @@ Take a screenshot of a URL.
 
 1. **Launch browser**
    ```typescript
-   import { PlaywrightBrowser } from '~/.config/opencode/skills/Browser/index.ts'
+   import { PlaywrightBrowser } from '~/.config/opencode/skills/browser/index.ts'
    const browser = new PlaywrightBrowser()
    await browser.launch({ headless: true })
    ```

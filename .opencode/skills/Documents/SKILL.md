@@ -1,12 +1,12 @@
 ---
-name: Documents
+name: documents
 description: Document processing router for PDF/DOCX/PPTX/XLSX. USE WHEN user asks to create, edit, convert, or analyze documents or mentions Word, PDF, PowerPoint, Excel, or .docx/.pdf/.pptx/.xlsx. SkillSearch('documents') for docs.
 ---
 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Documents/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/documents/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -18,7 +18,7 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 1. **Send voice notification**:
    Use the `voice_notify` tool:
 
-- `message`: "Running the WORKFLOWNAME workflow in the Documents skill to ACTION"
+- `message`: "Running the WORKFLOWNAME workflow in the documents skill to ACTION"
 User: "Create a consulting proposal doc with redlining"
 → Routes to DOCX workflows
 → Creates document with docx-js
@@ -79,21 +79,21 @@ User: "Create a revenue projection spreadsheet"
 ## 📚 Full Reference Documentation
 
 **Word Documents (DOCX):**
-- Main Guide: `~/.config/opencode/skills/Documents/Docx/SKILL.md`
+- Main Guide: `~/.config/opencode/skills/documents/docx/SKILL.md`
 
 **PDF Processing:**
-- Main Guide: `~/.config/opencode/skills/Documents/pdf/SKILL.md`
-- Forms Guide: `~/.config/opencode/skills/Documents/pdf/forms.md`
-- Advanced Reference: `~/.config/opencode/skills/Documents/pdf/reference.md`
+- Main Guide: `~/.config/opencode/skills/documents/pdf/SKILL.md`
+- Forms Guide: `~/.config/opencode/skills/documents/pdf/forms.md`
+- Advanced Reference: `~/.config/opencode/skills/documents/pdf/reference.md`
 
 **PowerPoint Presentations (PPTX):**
-- Main Guide: `~/.config/opencode/skills/Documents/pptx/SKILL.md`
-- Creation Reference: `~/.config/opencode/skills/Documents/pptx/html2pptx.md`
-- Editing Reference: `~/.config/opencode/skills/Documents/pptx/ooxml.md`
+- Main Guide: `~/.config/opencode/skills/documents/pptx/SKILL.md`
+- Creation Reference: `~/.config/opencode/skills/documents/pptx/html2pptx.md`
+- Editing Reference: `~/.config/opencode/skills/documents/pptx/ooxml.md`
 
 **Excel Spreadsheets (XLSX):**
-- Main Guide: `~/.config/opencode/skills/Documents/xlsx/SKILL.md`
-- Recalc Script: `~/.config/opencode/skills/Documents/xlsx/recalc.py`
+- Main Guide: `~/.config/opencode/skills/documents/xlsx/SKILL.md`
+- Recalc Script: `~/.config/opencode/skills/documents/xlsx/recalc.py`
 
 ---
 
@@ -111,3 +111,4 @@ User: "Create a revenue projection spreadsheet"
 **Routing is automatic** - Analyzes user intent and activates appropriate document type workflow
 
 **Professional quality** - Standards and best practices for production-ready documents
+

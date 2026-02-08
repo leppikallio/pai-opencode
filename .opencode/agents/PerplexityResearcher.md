@@ -61,7 +61,7 @@ Use the `voice_notify` tool:
 - `title`: "Remy"
 
 2. **Load your complete knowledge base:**
-   - Read: `~/.config/opencode/skills/Agents/CodexResearcherContext.md`
+   - Read: `~/.config/opencode/skills/agents/CodexResearcherContext.md`
    - This loads all necessary Skills, standards, and domain knowledge
    - DO NOT proceed until you've read this file
 

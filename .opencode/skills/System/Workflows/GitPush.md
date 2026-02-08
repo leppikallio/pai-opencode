@@ -129,7 +129,7 @@ Branch: main
 Files Changed: 5
  - M ~/.config/opencode/plugins/handlers/context-loader.ts
 - M ~/.config/opencode/MEMORY/STATE/algorithm-state.json
- - A ~/.config/opencode/skills/System/Workflows/GitPush.md
+ - A ~/.config/opencode/skills/system/Workflows/GitPush.md
 + 2 more...
 
 Security Scan: ✅ Passed (private repo - skipped)

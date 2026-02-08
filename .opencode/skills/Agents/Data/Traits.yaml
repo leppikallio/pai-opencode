@@ -5,8 +5,8 @@
 # Agents are composed by combining: expertise + personality + approach
 #
 # Usage:
-#   bun run ~/.config/opencode/Skills/Agents/Tools/AgentFactory.ts --task "Review security architecture"
-#   bun run ~/.config/opencode/Skills/Agents/Tools/AgentFactory.ts --traits "security,skeptical,thorough"
+#   bun run ~/.config/opencode/Skills/agents/Tools/AgentFactory.ts --task "Review security architecture"
+#   bun run ~/.config/opencode/Skills/agents/Tools/AgentFactory.ts --traits "security,skeptical,thorough"
 
 # ==============================================================================
 # EXPERTISE AREAS - Domain knowledge and specialization
@@ -926,3 +926,4 @@ examples:
   quick_assessment:
     description: "Rapid evaluation needed"
     traits: ["analytical", "pragmatic", "rapid"]
+

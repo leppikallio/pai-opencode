@@ -7,7 +7,7 @@ Capture and document the current session's work to MEMORY for historical trackin
 - User says "document session"
 - User says "document today"
 - User says "document this session"
-- System skill invoked with `document-session` operation
+- system skill invoked with `document-session` operation
 
 ## What It Does
 
@@ -103,7 +103,7 @@ const learnings = extractLearnings(sessionContent);
 
 ```bash
 # Use CreateUpdate.ts tool
-bun run ~/.config/opencode/skills/System/Tools/CreateUpdate.ts \
+bun run ~/.config/opencode/skills/system/Tools/CreateUpdate.ts \
   --type session \
   --title "Brief session summary" \
   --content "Generated markdown content" \
@@ -114,13 +114,13 @@ bun run ~/.config/opencode/skills/System/Tools/CreateUpdate.ts \
 
 ```bash
 # Use UpdateIndex.ts tool
-bun run ~/.config/opencode/skills/System/Tools/UpdateIndex.ts \
+bun run ~/.config/opencode/skills/system/Tools/UpdateIndex.ts \
   --rebuild
 ```
 
-## Integration with System Skill
+## Integration with system Skill
 
-The System skill invokes this workflow when handling:
+The system skill invokes this workflow when handling:
 - `document session` operation
 - `document today` operation (documents current session)
 
@@ -148,3 +148,4 @@ tags: [session, skills, documentation, maintenance]
 - index.json provides searchable metadata across all updates
 - Use git status/diff to accurately capture files changed
 - Preserve user privacy: no sensitive data in session docs
+

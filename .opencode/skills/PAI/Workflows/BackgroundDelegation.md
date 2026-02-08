@@ -101,6 +101,7 @@ User: "Background agents explore the codebase for
 ## Integration
 
 - Works with all agent types: Intern, Researchers, Explore, etc.
-- Combine with Research skill for background research workflows
-- Use with OSINT skill for parallel investigations
+- Combine with research skill for background research workflows
+- Use with osint skill for parallel investigations
 - Pairs well with newsletter/content workflows
+

@@ -89,7 +89,7 @@ const STANDARD_SKILLS = [
   "Security",
   "THEALGORITHM",
   "SpecFirst",
-  "System",
+  "system",
   "FirstPrinciples",
   "Council",
   "RedTeam",
@@ -657,3 +657,4 @@ export function formatVersionInfo(result: VersionDetectionResult): string {
 
   return lines.join("\n");
 }
+

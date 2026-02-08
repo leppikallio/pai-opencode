@@ -6,9 +6,9 @@ Run evaluations for a specific use case.
 
 Use the `voice_notify` tool:
 
-- `message`: "Running the RunEval workflow in the Evals skill to execute evaluation"
+- `message`: "Running the RunEval workflow in the evals skill to execute evaluation"
 
-Running the **RunEval** workflow in the **Evals** skill to execute evaluation...
+Running the **RunEval** workflow in the **evals** skill to execute evaluation...
 
 ---
 
@@ -24,7 +24,7 @@ Running the **RunEval** workflow in the **Evals** skill to execute evaluation...
 
 ```bash
 # Check use case exists
-ls ~/.config/opencode/skills/Evals/UseCases/<use-case>/config.yaml
+ls ~/.config/opencode/skills/evals/UseCases/<use-case>/config.yaml
 ```
 
 If missing, redirect to `CreateUseCase.md` workflow.
@@ -37,13 +37,13 @@ For now, run a suite-based eval through the Evals toolchain:
 
 ```bash
 # Run an eval suite (regression/capability)
-bun run ~/.config/opencode/skills/Evals/Tools/AlgorithmBridge.ts -s <suite>
+bun run ~/.config/opencode/skills/evals/Tools/AlgorithmBridge.ts -s <suite>
 ```
 
 ### Step 4: Collect Results
 
 Results are stored in:
-- `~/.config/opencode/skills/Evals/Results/<suite>/<run-id>/run.json`
+- `~/.config/opencode/skills/evals/Results/<suite>/<run-id>/run.json`
 
 ### Step 5: Report Summary
 
@@ -83,3 +83,4 @@ Use structured response format:
 ## Done
 
 Evaluation complete. Results available in UI and files.
+

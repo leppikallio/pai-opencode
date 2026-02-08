@@ -6,9 +6,9 @@ Check Apify API and actor ecosystem for updates.
 
 Use the `voice_notify` tool:
 
-- `message`: "Running the Update workflow in the Apify skill to check updates"
+- `message`: "Running the Update workflow in the apify skill to check updates"
 
-Running **Update** in **Apify**...
+Running **Update** in **apify**...
 
 ---
 
@@ -53,8 +53,8 @@ Review commonly used actors for updates:
 ### 3. Test Current Implementation
 
 ```bash
-# Verify the Apify skill still typechecks
-cd ~/.config/opencode/skills/Apify && bun run tsc -p tsconfig.json --noEmit
+# Verify the apify skill still typechecks
+cd ~/.config/opencode/skills/apify && bun run tsc -p tsconfig.json --noEmit
 ```
 
 ### 4. Update Implementation
@@ -83,3 +83,4 @@ Maintain list of tested actors:
 # Tested actors: 10+
 # Known issues: None
 ```
+

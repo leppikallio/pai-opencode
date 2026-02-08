@@ -1,12 +1,12 @@
 ---
-name: Prompting
+name: prompting
 description: Meta-prompting for prompt generation. USE WHEN meta-prompting, template generation, prompt optimization.
 ---
 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Prompting/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/prompting/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -16,7 +16,7 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 ## Overview
 
-The Prompting skill owns ALL prompt engineering concerns:
+The prompting skill owns ALL prompt engineering concerns:
 - **Standards** - Anthropic best practices, Claude 4.x patterns, empirical research
 - **Templates** - Handlebars-based system for programmatic prompt generation
 - **Tools** - Template rendering, validation, and composition utilities
@@ -43,7 +43,7 @@ Complete prompt engineering documentation based on:
 1. **Send voice notification**:
    Use the `voice_notify` tool:
 
-- `message`: "Running the WORKFLOWNAME workflow from the Prompting skill"
+- `message`: "Running the WORKFLOWNAME workflow from the prompting skill"
 Templates/
 ├── Primitives/       # Five core template patterns
 │   ├── Roster.hbs    # Agent/skill definitions from data
@@ -52,14 +52,14 @@ Templates/
 │   ├── Briefing.hbs  # Agent context handoff
 │   └── Gate.hbs      # Validation checklists
 ├── Examples/         # Sample data and usage
-└── (Evals/)          # Eval-specific templates (from Evals skill)
+└── (evals/)          # Eval-specific templates (from evals skill)
 ```
 
 **The Five Primitives:**
 
 | Primitive | Purpose | Use Case |
 |-----------|---------|----------|
-| **ROSTER** | Data-driven definitions | 32 RedTeam agents, 83 skills, voice configs |
+| **ROSTER** | Data-driven definitions | 32 red-team agents, 83 skills, voice configs |
 | **VOICE** | Personality calibration | Voice parameters, rate, archetype mapping |
 | **STRUCTURE** | Workflow patterns | Phased analysis, round-based debate, pipelines |
 | **BRIEFING** | Agent context handoff | Research queries, delegation, task assignment |
@@ -69,7 +69,7 @@ Templates/
 
 **RenderTemplate.ts** - Core rendering engine
 ```bash
-bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
   --template Primitives/Briefing.hbs \
   --data path/to/data.yaml \
   --output path/to/output.md
@@ -77,7 +77,7 @@ bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
 
 **ValidateTemplate.ts** - Template syntax checker
 ```bash
-bun run ~/.config/opencode/skills/Prompting/Tools/ValidateTemplate.ts \
+bun run ~/.config/opencode/skills/prompting/Tools/ValidateTemplate.ts \
   --template Primitives/Briefing.hbs \
   --data path/to/sample-data.yaml
 ```
@@ -99,8 +99,8 @@ The system uses Handlebars notation (Anthropic's official syntax):
 ### Example 1: Using Briefing Template (Agent Skill)
 
 ```typescript
-// skills/Agents/Tools/AgentFactory.ts
-import { renderTemplate } from '~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts';
+// skills/agents/Tools/AgentFactory.ts
+import { renderTemplate } from '~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts';
 
 const prompt = renderTemplate('Primitives/Briefing.hbs', {
   briefing: { type: 'research' },
@@ -143,15 +143,15 @@ const agent = composeAgent(['security', 'skeptical', 'thorough'], task, traits);
 
 ## Integration with Other Skills
 
-### Agents Skill
+### agents Skill
 - Uses `Templates/Primitives/Briefing.hbs` for agent context handoff
 - Uses `RenderTemplate.ts` to compose dynamic agents
-- Maintains agent-specific template: `Agents/Templates/DynamicAgent.hbs`
+- Maintains agent-specific template: `agents/Templates/DynamicAgent.hbs`
 
-### Evals Skill
+### evals Skill
 - Uses eval-specific templates: Judge, Rubric, TestCase, Comparison, Report
 - Leverages `RenderTemplate.ts` for eval prompt generation
-- Eval templates may be stored in `Evals/Templates/` but use Prompting's engine
+- Eval templates may be stored in `evals/Templates/` but use Prompting's engine
 
 ### Development Skill
 - References `Standards.md` for prompt best practices
@@ -208,10 +208,12 @@ The templating system eliminated **~35,000 tokens (65% reduction)** across PAI:
 - "The Prompt Canvas" - arXiv:2412.05127
 
 **Related Skills:**
-- Agents - Dynamic agent composition
-- Evals - LLM-as-Judge prompting
+- agents - Dynamic agent composition
+- evals - LLM-as-Judge prompting
 - Development - Spec-driven development patterns
 
 ---
 
 **Philosophy:** Prompts that write prompts. Structure is code, content is data. Meta-prompting enables dynamic composition where the same template with different data generates specialized agents, workflows, and evaluation frameworks. This is core PAI DNA - programmatic prompt generation at scale.
+
+

@@ -700,14 +700,14 @@ PAI maintains a local copy of all Fabric patterns for native execution. Instead 
 ### When to Use Native Patterns (Default)
 
 For any pattern-based processing, the system will:
-1. Read `~/.config/opencode/skills/Fabric/Patterns/{pattern_name}/system.md`
+1. Read `~/.config/opencode/skills/fabric/Patterns/{pattern_name}/system.md`
 2. Apply the pattern instructions directly to the content
 3. Execute without external CLI calls
 
 **Examples:**
-- `extract_wisdom` → Read and apply `~/.config/opencode/skills/Fabric/Patterns/extract_wisdom/system.md`
-- `summarize` → Read and apply `~/.config/opencode/skills/Fabric/Patterns/summarize/system.md`
-- `analyze_claims` → Read and apply `~/.config/opencode/skills/Fabric/Patterns/analyze_claims/system.md`
+- `extract_wisdom` → Read and apply `~/.config/opencode/skills/fabric/Patterns/extract_wisdom/system.md`
+- `summarize` → Read and apply `~/.config/opencode/skills/fabric/Patterns/summarize/system.md`
+- `analyze_claims` → Read and apply `~/.config/opencode/skills/fabric/Patterns/analyze_claims/system.md`
 
 ### When to Still Use the Fabric CLI
 
@@ -1021,7 +1021,7 @@ PAI uses Handlebars notation for template variables:
 Data-driven generation of structured definitions from YAML.
 
 **Use Cases:**
-- Agent personality definitions (32 RedTeam analysts, 10 core agents)
+- Agent personality definitions (32 red-team analysts, 10 core agents)
 - Skill frontmatter generation (83 skills)
 - Voice configuration presets
 
@@ -1080,7 +1080,7 @@ presets:
 Standardized multi-step execution patterns.
 
 **Use Cases:**
-- Phased analysis (RedTeam 5-phase, OSINT 5-phase)
+- Phased analysis (red-team 5-phase, OSINT 5-phase)
 - Round-based debate (Council 3-round)
 - Sequential pipeline (Development 7-gate)
 
@@ -1157,10 +1157,10 @@ Reusable quality and completion checks.
 
 ## Template Location
 
-All templates live in `~/.config/opencode/skills/Prompting/Templates/`:
+All templates live in `~/.config/opencode/skills/prompting/Templates/`:
 
 ```
-skills/Prompting/
+skills/prompting/
 ├── Templates/
 │   ├── Primitives/       # Core template files (.hbs)
 │   │   ├── Roster.hbs
@@ -1184,7 +1184,7 @@ skills/Prompting/
 
 **CLI Usage:**
 ```bash
-bun ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
+bun ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
   --template Primitives/Roster.hbs \
   --data Data/Agents.yaml \
   --output Compiled/AgentRoster.md
@@ -1192,7 +1192,7 @@ bun ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
 
 **Programmatic Usage:**
 ```typescript
-import { renderTemplate } from '~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts';
+import { renderTemplate } from '~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts';
 
 const output = renderTemplate('Primitives/Briefing.hbs', {
   agent: { id: 'EN-1', name: 'Skeptical Thinker', personality: '...' },
@@ -1269,3 +1269,4 @@ The templating system reduces duplication by ~65% across the skill system:
 - [LangChain PromptTemplate](https://python.langchain.com/docs/concepts/prompt_templates/)
 - [Handlebars.js](https://handlebarsjs.com/)
 - [DSPy Signatures](https://dspy.ai/)
+

@@ -1,5 +1,5 @@
 ---
-name: Xlsx
+name: xlsx
 description: Spreadsheet creation, editing, and analysis. USE WHEN user mentions Excel/XLSX/CSV/TSV, formulas, financial models, recalculation, or spreadsheet data analysis. SkillSearch('xlsx') for docs.
 ---
 

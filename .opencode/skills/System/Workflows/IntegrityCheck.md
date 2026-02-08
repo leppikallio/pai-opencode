@@ -12,7 +12,7 @@ Use the `voice_notify` tool:
 
 - `message`: "Running integrity check with 12 parallel agents"
 
-Running the **IntegrityCheck** workflow from the **System** skill...
+Running the **IntegrityCheck** workflow from the **system** skill...
 
 ---
 
@@ -114,7 +114,7 @@ You are auditing the PAI system for integrity issues.
 Run the low-noise scanner and include its summary:
 
 ```bash
-PAI_INTEGRITYCHECK=1 bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts --scope ~/.config/opencode/skills
+PAI_INTEGRITYCHECK=1 bun ~/.config/opencode/skills/system/Tools/ScanBrokenRefs.ts --scope ~/.config/opencode/skills
 ```
 
 3. Return a structured report:
@@ -300,7 +300,7 @@ IntegrityCheck (this) -> DocumentSession -> GitPush
 Prefer the dedicated scanner tool over ad-hoc greps:
 
 ```bash
-PAI_INTEGRITYCHECK=1 bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts --scope ~/.config/opencode/skills
+PAI_INTEGRITYCHECK=1 bun ~/.config/opencode/skills/system/Tools/ScanBrokenRefs.ts --scope ~/.config/opencode/skills
 ```
 
 Note: references like `~/.config/opencode/MEMORY/STATE/integrity/<YYYY-MM-DD>.md` are placeholders.
@@ -311,3 +311,4 @@ Note: references like `~/.config/opencode/MEMORY/STATE/integrity/<YYYY-MM-DD>.md
 
 - `DocumentSession.md` - Document what was done
 - `SecretScanning.md` - Scan for credentials
+

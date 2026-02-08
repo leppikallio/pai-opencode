@@ -20,7 +20,7 @@ Perform full reconnaissance on a domain to discover:
 - Mapping organization's internet-facing infrastructure
 - Bug bounty reconnaissance
 - Attack surface assessment
-- Called by OSINT for entity infrastructure mapping
+- Called by osint for entity infrastructure mapping
 - Threat intelligence on malicious domains
 - Domain acquisition due diligence
 
@@ -900,7 +900,7 @@ _dmarc.example.com: v=DMARC1; p=quarantine; rua=mailto:dmarc@example.com
 
 ## Integration Examples
 
-### Called by OSINT
+### Called by osint
 
 ```typescript
 // OSINT discovers company domains
@@ -972,3 +972,4 @@ if (authorized) {
 ---
 
 **Key Principle:** Domain recon provides the foundation for all subsequent security testing. Be thorough in enumeration and careful about what you expose.
+

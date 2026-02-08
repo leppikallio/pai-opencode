@@ -30,9 +30,9 @@ Task({ subagent_type: "Engineer", prompt: "..." })
 
 Task tool subagent_types (Architect, Designer, Engineer, etc.) are pre-built workflow agents. They do NOT have unique voices or AgentFactory composition. They are for internal workflow use only.
 
-**For custom agents, invoke the Agents skill** → `Skill("Agents")` or follow CreateCustomAgent workflow.
+**For custom agents, invoke the agents skill** → `Skill("agents")` or follow CreateCustomAgent workflow.
 
-See: `~/.config/opencode/skills/PAI/SYSTEM/PAIAGENTSYSTEM.md` for routing rules | `~/.config/opencode/skills/Agents/SKILL.md` for agent composition.
+See: `~/.config/opencode/skills/PAI/SYSTEM/PAIAGENTSYSTEM.md` for routing rules | `~/.config/opencode/skills/agents/SKILL.md` for agent composition.
 
 ---
 
@@ -123,10 +123,10 @@ These are the tools I use behind the scenes:
 
 ```bash
 # Compose dynamic agent
-bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --task "..." --output prompt
+bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts --task "..." --output prompt
 
 # List available traits
-bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --list
+bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts --list
 ```
 
 ### Available Traits
@@ -320,9 +320,11 @@ Task({
 
 ## Related
 
-- **Agents skill**: `~/.config/opencode/skills/Agents/` - Complete agent composition system
-  - Agent personalities: `~/.config/opencode/skills/Agents/AgentPersonalities.md`
-  - Traits: `~/.config/opencode/skills/Agents/Data/Traits.yaml`
-  - Agent factory: `~/.config/opencode/skills/Agents/Tools/AgentFactory.ts`
-  - Workflows: `~/.config/opencode/skills/Agents/Workflows/CreateCustomAgent.md`, `~/.config/opencode/skills/Agents/Workflows/SpawnParallelAgents.md`
+- **agents skill**: `~/.config/opencode/skills/agents/` - Complete agent composition system
+  - Agent personalities: `~/.config/opencode/skills/agents/AgentPersonalities.md`
+  - Traits: `~/.config/opencode/skills/agents/Data/Traits.yaml`
+  - Agent factory: `~/.config/opencode/skills/agents/Tools/AgentFactory.ts`
+  - Workflows: `~/.config/opencode/skills/agents/Workflows/CreateCustomAgent.md`, `~/.config/opencode/skills/agents/Workflows/SpawnParallelAgents.md`
 - Background delegation: `~/.config/opencode/skills/PAI/Workflows/BackgroundDelegation.md`
+
+

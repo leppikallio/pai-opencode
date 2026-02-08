@@ -9,7 +9,7 @@
  * Usage:
  *   generate --model nano-banana-pro --prompt "..." --size 16:9 --output /tmp/image.png
  *
- * @see ~/.config/opencode/skills/Art/README.md
+ * @see ~/.config/opencode/skills/art/README.md
  */
 
 import Replicate from "replicate";
@@ -216,8 +216,8 @@ ERROR CODES:
   1  General error (invalid arguments, API error, file write error)
 
 MORE INFO:
-  Documentation: ${PAI_DIR}/skills/Art/README.md
-  Source: ${PAI_DIR}/skills/Art/Tools/Generate.ts
+  Documentation: ${PAI_DIR}/skills/art/README.md
+  Source: ${PAI_DIR}/skills/art/Tools/Generate.ts
 `);
   process.exit(0);
 }

@@ -1,20 +1,20 @@
 ---
-name: Council
+name: council
 description: "Multi-agent debate system. USE WHEN council, debate, perspectives, agents discuss. SkillSearch('council') for docs."
 ---
 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Council/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/council/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
-# Council Skill
+# council Skill
 
 Multi-agent debate system where specialized agents discuss topics in rounds, respond to each other's points, and surface insights through intellectual friction.
 
-**Key Differentiator from RedTeam:** Council is collaborative-adversarial (debate to find best path), while RedTeam is purely adversarial (attack the idea). Council produces visible conversation transcripts; RedTeam produces steelman + counter-argument.
+**Key Differentiator from red-team:** council is collaborative-adversarial (debate to find best path), while red-team is purely adversarial (attack the idea). council produces visible conversation transcripts; RedTeam produces steelman + counter-argument.
 
 
 ## Voice Notification
@@ -24,15 +24,15 @@ Multi-agent debate system where specialized agents discuss topics in rounds, res
 1. **Send voice notification**:
    Use the `voice_notify` tool:
 
-- `message`: "Running the WORKFLOWNAME workflow from the Council skill"
-Running the **WorkflowName** workflow from the **Council** skill...
+- `message`: "Running the WORKFLOWNAME workflow from the council skill"
+Running the **WorkflowName** workflow from the **council** skill...
 ```
 
 | Trigger | Workflow |
 |---------|----------|
 | Full structured debate (3 rounds, visible transcript) | `Workflows/Debate.md` |
 | Quick consensus check (1 round, fast) | `Workflows/Quick.md` |
-| Pure adversarial analysis | RedTeam skill |
+| Pure adversarial analysis | red-team skill |
 
 ## Quick Reference
 
@@ -64,14 +64,14 @@ Running the **WorkflowName** workflow from the **Council** skill...
 "Quick council check: Is this API design reasonable?"
 -> Invokes QUICK workflow -> Fast perspectives
 
-"Council with security: Evaluate this auth approach"
+"council with security: Evaluate this auth approach"
 -> DEBATE with Security agent added
 ```
 
 ## Integration
 
 **Works well with:**
-- **RedTeam** - Pure adversarial attack after collaborative discussion
+- **red-team** - Pure adversarial attack after collaborative discussion
 - **Development** - Before major architectural decisions
 - **Research** - Gather context before convening the council
 
@@ -85,3 +85,5 @@ Running the **WorkflowName** workflow from the **Council** skill...
 ---
 
 **Last Updated:** 2025-12-20
+
+

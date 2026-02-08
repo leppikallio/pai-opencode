@@ -7,17 +7,17 @@ updated: 2026-01-18
 
 # Fabric Pattern System Reference
 
-**Primary Skill:** `~/.config/opencode/skills/Fabric/SKILL.md`
+**Primary Skill:** `~/.config/opencode/skills/fabric/SKILL.md`
 
-This document provides a quick reference. For full functionality, invoke the Fabric skill.
+This document provides a quick reference. For full functionality, invoke the fabric skill.
 
 ---
 
 ## Quick Reference
 
-**Patterns Location:** `~/.config/opencode/skills/Fabric/Patterns/` (237 patterns)
+**Patterns Location:** `~/.config/opencode/skills/fabric/Patterns/` (237 patterns)
 
-### Invoke Fabric Skill
+### Invoke fabric Skill
 
 | User Says | Action |
 |-----------|--------|
@@ -37,7 +37,7 @@ PAI executes patterns natively (no CLI spawning):
 **Example:**
 ```
 User: "Use fabric to extract wisdom from this article"
--> Fabric skill invoked
+-> fabric skill invoked
 -> ExecutePattern workflow selected
 -> Reads Patterns/extract_wisdom/system.md
 -> Applies pattern to content
@@ -71,20 +71,21 @@ Only use `fabric` command for:
 **Via Skill (Recommended):**
 ```
 User: "Update fabric patterns"
--> Fabric skill > UpdatePatterns workflow
+-> fabric skill > UpdatePatterns workflow
 -> Runs fabric -U
--> Syncs to ~/.config/opencode/skills/Fabric/Patterns/
+-> Syncs to ~/.config/opencode/skills/fabric/Patterns/
 ```
 
 **Manual:**
 ```bash
-fabric -U && rsync -av ~/.config/fabric/patterns/ ~/.config/opencode/skills/Fabric/Patterns/
+fabric -U && rsync -av ~/.config/fabric/patterns/ ~/.config/opencode/skills/fabric/Patterns/
 ```
 
 ---
 
 ## See Also
 
-- **Full Skill:** `~/.config/opencode/skills/Fabric/SKILL.md`
-- **Pattern Execution:** `~/.config/opencode/skills/Fabric/Workflows/ExecutePattern.md`
-- **All Patterns:** `~/.config/opencode/skills/Fabric/Patterns/`
+- **Full Skill:** `~/.config/opencode/skills/fabric/SKILL.md`
+- **Pattern Execution:** `~/.config/opencode/skills/fabric/Workflows/ExecutePattern.md`
+- **All Patterns:** `~/.config/opencode/skills/fabric/Patterns/`
+

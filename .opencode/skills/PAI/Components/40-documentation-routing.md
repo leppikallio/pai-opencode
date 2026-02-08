@@ -27,9 +27,9 @@ Critical PAI documentation organized by domain. Load on-demand based on context.
 |--------|------|---------|
 | **System Architecture** | `SYSTEM/PAISYSTEMARCHITECTURE.md` | Core PAI design and principles |
 | **Memory System** | `SYSTEM/MEMORYSYSTEM.md` | WORK, STATE, LEARNING directories |
-| **Skill System** | `SYSTEM/SKILLSYSTEM.md` | How skills work, structure, triggers |
+| **Skill system** | `SYSTEM/SKILLSYSTEM.md` | How skills work, structure, triggers |
 | **Hook System** | `SYSTEM/THEHOOKSYSTEM.md` | Event hooks, patterns, implementation |
-| **Agent System** | `SYSTEM/PAIAGENTSYSTEM.md` | Agent types, spawning, delegation |
+| **Agent system** | `SYSTEM/PAIAGENTSYSTEM.md` | Agent types, spawning, delegation |
 | **Delegation** | `SYSTEM/THEDELEGATIONSYSTEM.md` | Background work, parallelization |
 | **Browser Automation** | `SYSTEM/BROWSERAUTOMATION.md` | Playwright, screenshots, testing |
 | **CLI Architecture** | `SYSTEM/CLIFIRSTARCHITECTURE.md` | Command-line first principles |
@@ -46,3 +46,4 @@ Critical PAI documentation organized by domain. Load on-demand based on context.
 | "Telos", "life goals", "goals", "challenges" | `USER/TELOS/PROJECTS.md` | Life goals, challenges, predictions (Telos Life System) |
 
 ---
+

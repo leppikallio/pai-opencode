@@ -1,12 +1,12 @@
 ---
-name: System
+name: system
 description: System maintenance - integrity check, document session, secret scan. USE WHEN integrity, audit, document session, secrets, security scan.
 ---
 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/System/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/system/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -27,7 +27,7 @@ This skill runs in the foreground so you can see all output, progress, and hear 
 1. **Send voice notification**:
    Use the `voice_notify` tool:
 
-- `message`: "Running WORKFLOWNAME workflow from System skill"
+- `message`: "Running WORKFLOWNAME workflow from system skill"
 User: "Run an integrity check"
 → Invokes IntegrityCheck workflow
 → Spawns parallel agents to audit ~/.config/opencode
@@ -165,7 +165,7 @@ Quick Push:         GitPush (if docs already created)
 |------|---------|----------|
 | **SecretScan.ts** | TruffleHog wrapper for credential detection | `Tools/SecretScan.ts` |
 | **ValidateSkillSystemDocs.ts** | Validate SkillSystem router + section invariants (static) | `Tools/ValidateSkillSystemDocs.ts` |
-| **SmokeTestSkillSystem.ts** | Static + parallel behavioral smoke tests for SkillSystem/CreateSkill | `Tools/SmokeTestSkillSystem.ts` |
+| **SmokeTestSkillSystem.ts** | Static + parallel behavioral smoke tests for SkillSystem/create-skill | `Tools/SmokeTestSkillSystem.ts` |
 | **CreateUpdate.ts** | Create new system update entries | `Tools/CreateUpdate.ts` |
 | **UpdateIndex.ts** | Regenerate index.json and CHANGELOG.md | `Tools/UpdateIndex.ts` |
 | **UpdateSearch.ts** | Search and query system updates | `Tools/UpdateSearch.ts` |
@@ -194,3 +194,4 @@ Quick Push:         GitPush (if docs already created)
 - **PAI** - Public PAI repository management (includes PAIIntegrityCheck)
 - **CORE** - System architecture and memory documentation
 - **Evals** - Regression testing and capability verification
+

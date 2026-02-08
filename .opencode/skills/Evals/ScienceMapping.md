@@ -2,7 +2,7 @@
 
 **Evals IS the scientific method applied to prompt engineering.**
 
-This isn't metaphor - Evals embodies the Science Protocol directly:
+This isn't metaphor - evals embodies the Science Protocol directly:
 
 | Science Phase | Evals Implementation |
 |---------------|---------------------|
@@ -52,3 +52,4 @@ Most eval work runs implicitly as Science. Invoke explicit Science workflows whe
 - Results are confusing or contradictory (need structured analysis)
 - Stakes are high enough to warrant formal documentation
 - The question is "should we be testing something else entirely?"
+

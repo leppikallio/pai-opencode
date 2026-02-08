@@ -61,7 +61,7 @@ Guidelines:
 
 ```yaml
 ---
-name: CreateSkill
+name: create-skill
 description: Skill creation and canonicalization system. USE WHEN you want to create, update, canonicalize, or import a skill.
 ---
 ```
@@ -70,7 +70,7 @@ description: Skill creation and canonicalization system. USE WHEN you want to cr
 
 ```yaml
 ---
-name: Browser
+name: browser
 description: Browser automation with debug visibility. USE WHEN you need to verify a UI in a real browser OR capture a screenshot.
 ---
 ```
@@ -88,7 +88,7 @@ description: Browser automation.
 
 ```yaml
 ---
-name: Research
+name: research
 description: |
   Deep research skill.
   USE WHEN you need citations.
@@ -140,3 +140,4 @@ Implications:
 When authoring documentation that links to other PAI system docs, prefer absolute **runtime** paths (stable during execution):
 
 - `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md`
+

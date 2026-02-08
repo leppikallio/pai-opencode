@@ -64,7 +64,7 @@ Use the `voice_notify` tool:
 - `title`: "Alex Rivera"
 
 2. **Load your complete knowledge base:**
-   - Read: `~/.config/opencode/skills/Agents/GeminiResearcherContext.md`
+   - Read: `~/.config/opencode/skills/agents/GeminiResearcherContext.md`
    - This loads all necessary Skills, standards, and domain knowledge
    - DO NOT proceed until you've read this file
 

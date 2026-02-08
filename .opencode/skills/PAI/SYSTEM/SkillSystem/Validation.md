@@ -76,7 +76,7 @@ Guidance to avoid essays:
 - [ ] `## Workflow Routing` table (when workflows exist)
 - [ ] `## Examples` (minimal; 1–2 examples preferred)
 
-CreateSkill-generated skills (default) SHOULD also include:
+create-skill-generated skills (default) SHOULD also include:
 
 - [ ] `<negative_constraints>` (MUST NOT list; ~5+ items)
 - [ ] `<output_shape>` (format + verbosity clamp)
@@ -110,3 +110,4 @@ Workflow structure notes:
 - [ ] Canary comment present and matches the section
 - [ ] No instructions requiring SkillSearch (use explicit `Read`; `glob` then `Read` if unknown)
 - [ ] All internal references are absolute runtime paths under `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/...`
+

@@ -1,5 +1,5 @@
 ---
-name: Browser
+name: browser
 description: Browser automation with debug visibility. USE WHEN browser, screenshot, debug web, verify UI.
 version: 2.0.0
 ---
@@ -7,7 +7,7 @@ version: 2.0.0
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Browser/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/browser/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -41,10 +41,10 @@ open -a "$BROWSER" "<url>"  # BROWSER from tech stack prefs
 
 ```bash
 # Navigate with full diagnostics (PRIMARY COMMAND)
-bun run ~/.config/opencode/skills/Browser/Tools/Browse.ts https://example.com
+bun run ~/.config/opencode/skills/browser/Tools/Browse.ts https://example.com
 
 # Output:
-# 📸 Screenshot: /tmp/browse-1704614400.png
+# 📸 Screenshot: /tmp/browse-TIMESTAMP.png
 # 🔴 Console Errors (2): ...
 # 🌐 Failed Requests (1): ...
 # 📊 Network: 34 requests | 1.2MB | avg 120ms
@@ -189,7 +189,7 @@ Session auto-closes after 30 minutes of inactivity:
 
 ### CLI Tool
 
-**Location:** `~/.config/opencode/skills/Browser/Tools/Browse.ts`
+**Location:** `~/.config/opencode/skills/browser/Tools/Browse.ts`
 
 | Command | Description |
 |---------|-------------|
@@ -212,7 +212,7 @@ Session auto-closes after 30 minutes of inactivity:
 
 ### Server Endpoints
 
-**Location:** `~/.config/opencode/skills/Browser/Tools/BrowserSession.ts`
+**Location:** `~/.config/opencode/skills/browser/Tools/BrowserSession.ts`
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -235,7 +235,7 @@ Session auto-closes after 30 minutes of inactivity:
 For complex automation, use the TypeScript API directly:
 
 ```typescript
-import { PlaywrightBrowser } from '~/.config/opencode/skills/Browser/index.ts'
+import { PlaywrightBrowser } from '~/.config/opencode/skills/browser/index.ts'
 
 const browser = new PlaywrightBrowser()
 await browser.launch({ headless: true })

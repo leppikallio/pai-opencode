@@ -6,9 +6,9 @@
 
 Use the `voice_notify` tool:
 
-- `message`: "Running the FindAphorism workflow in the Aphorisms skill to find quotes"
+- `message`: "Running the FindAphorism workflow in the aphorisms skill to find quotes"
 
-Running **FindAphorism** in **Aphorisms**...
+Running **FindAphorism** in **aphorisms**...
 
 ---
 
@@ -19,7 +19,7 @@ Running **FindAphorism** in **Aphorisms**...
 - Working on newsletter and needs opening/closing wisdom quote
 
 **Prerequisites:**
-- Aphorism database exists at `~/.config/opencode/skills/Aphorisms/Database/aphorisms.md`
+- Aphorism database exists at `~/.config/opencode/skills/aphorisms/Database/aphorisms.md`
 - Newsletter content or URL provided by user
 - Clear understanding of newsletter theme (if not provided, extract from content)
 
@@ -95,7 +95,7 @@ Use deep thinking for deep thematic analysis. Identify:
 
 **Load database:**
 ```bash
-Read ~/.config/opencode/skills/Aphorisms/Database/aphorisms.md
+Read ~/.config/opencode/skills/aphorisms/Database/aphorisms.md
 ```
 
 **Review relevant sections:**
@@ -485,3 +485,4 @@ Section divider - Connects learning about security to actually implementing hygi
 ---
 
 **Last Updated:** 2025-11-20
+

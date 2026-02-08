@@ -23,9 +23,9 @@ export class AgentContextLoader {
   private agentsDir: string;
 
   constructor() {
-    // This tool lives at: <paiDir>/skills/Agents/Tools/LoadAgentContext.ts
-    // The agent context files live in the Agents skill root:
-    //   <paiDir>/skills/Agents/*Context.md
+    // This tool lives at: <paiDir>/skills/agents/Tools/LoadAgentContext.ts
+    // The agent context files live in the agents skill root:
+    //   <paiDir>/skills/agents/*Context.md
     this.agentsDir = resolve(join(import.meta.dir, ".."));
   }
 
@@ -132,3 +132,4 @@ if (import.meta.main) {
 }
 
 export default AgentContextLoader;
+

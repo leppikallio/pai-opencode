@@ -101,7 +101,7 @@ bun ~/.config/opencode/skills/PAI/Tools/AddBg.ts chart.png "#FFFFFF" chart-white
 
 ## Integration with Other Workflows
 
-**Art skill** calls these tools for:
+**art skill** calls these tools for:
 - Background removal after image generation
 - Thumbnail generation for blog headers
 
@@ -140,3 +140,4 @@ brew install imagemagick
 - Check API key is valid
 - Verify API credits remaining
 - Ensure file is a supported image format (PNG, JPG, WebP)
+

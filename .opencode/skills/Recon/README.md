@@ -1,6 +1,6 @@
 # recon - Infrastructure & Network Reconnaissance
 
-Comprehensive reconnaissance skill for domains, IP addresses, netblocks, and ASNs. Integrates with OSINT for complete target intelligence.
+Comprehensive reconnaissance skill for domains, IP addresses, netblocks, and ASNs. Integrates with osint for complete target intelligence.
 
 ## Quick Start
 
@@ -194,7 +194,7 @@ console.log(ipInfo.organization, ipInfo.cidr);
 1. **Pentest Engagement** - Written SOW/contract
 2. **Bug Bounty Program** - In-scope targets only
 3. **Owned Assets** - Your own infrastructure
-4. **Research/CTF** - Lab environments
+4. **research/CTF** - Lab environments
 
 **CRITICAL:** Never perform active scanning without explicit authorization.
 
@@ -310,7 +310,7 @@ IPINFO_API_KEY=xxx ./Tools/ipinfo-client.ts 1.2.3.4
 
 ## Related Skills
 
-- **OSINT** - People and entity reconnaissance
+- **osint** - People and entity reconnaissance
 - **webassessment** - Web application testing
 - **research** - General research and intelligence gathering
 
@@ -326,7 +326,7 @@ echo "Investigate IP 1.2.3.4 - I own this server" | claude
 # Netblock scan (with authorization)
 echo "Scan netblock 192.168.1.0/24 - pentest engagement SOW-123" | claude
 
-# Integration with OSINT
+# Integration with osint
 echo "OSINT Acme Corp and map infrastructure" | claude
 ```
 
@@ -335,3 +335,4 @@ echo "OSINT Acme Corp and map infrastructure" | claude
 **Created:** 2025-11-11
 **Author:** {daidentity.name} (with deep thinking deep reasoning)
 **Status:** Production Ready
+

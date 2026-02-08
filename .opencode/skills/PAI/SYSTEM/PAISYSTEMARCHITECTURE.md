@@ -420,11 +420,11 @@ PRIVATE: ~/.config/opencode/                    PUBLIC: ${PROJECTS_DIR}/PAI/
 
 ---
 
-## System Self-Management
+## system Self-Management
 
-**PAI manages its own integrity, security, and documentation through the System skill.**
+**PAI manages its own integrity, security, and documentation through the system skill.**
 
-The System skill is the centralized mechanism for PAI self-management. It ensures the infrastructure remains healthy, secure, and well-documented.
+The system skill is the centralized mechanism for PAI self-management. It ensures the infrastructure remains healthy, secure, and well-documented.
 
 ### Capabilities
 
@@ -435,7 +435,7 @@ The System skill is the centralized mechanism for PAI self-management. It ensure
 | **Privacy Validation** | Ensures USER/WORK content isolation from regular skills | `PrivacyCheck.md` |
 | **Documentation Updates** | Records system changes to MEMORY/PAISYSTEMUPDATES/ | `DocumentSession.md` |
 
-**Note:** Additional private workflows (repo sync, cross-validation) can be added via `~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/System/`.
+**Note:** Additional private workflows (repo sync, cross-validation) can be added via `~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/system/`.
 
 ### Protected Directories
 
@@ -448,7 +448,7 @@ The System skill is the centralized mechanism for PAI self-management. It ensure
 
 ### Foreground Execution
 
-The System skill runs in the foreground so you can see all output, progress, and hear voice notifications as work happens. Documentation updates, integrity checks, and system operations are visible for transparency.
+The system skill runs in the foreground so you can see all output, progress, and hear voice notifications as work happens. Documentation updates, integrity checks, and system operations are visible for transparency.
 
 ### When to Use
 
@@ -457,7 +457,7 @@ The System skill runs in the foreground so you can see all output, progress, and
 - **Privacy Validation:** After working with USER/WORK content, before public commits
 - **Documentation:** End of significant work sessions, after creating new skills
 
-**Full documentation:** `skills/System/SKILL.md`
+**Full documentation:** `skills/system/SKILL.md`
 
 ---
 
@@ -480,3 +480,4 @@ User-specific updates are tracked in `~/.config/opencode/skills/PAI/USER/UPDATES
 ---
 
 **This is a TEMPLATE.** User-specific implementation details belong in `~/.config/opencode/skills/PAI/USER/ARCHITECTURE.md`.
+

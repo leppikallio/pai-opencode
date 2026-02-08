@@ -1,5 +1,5 @@
 ---
-name: Agents
+name: agents
 description: Dynamic agent composition. USE WHEN custom agents, agent personalities, traits, voices.
 ---
 
@@ -10,7 +10,7 @@ description: Dynamic agent composition. USE WHEN custom agents, agent personalit
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/Agents/`
+`~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/agents/`
 
 If this directory exists, load and apply:
 - `PREFERENCES.md` - Named agent roster summary
@@ -21,7 +21,7 @@ These define user-specific named agents with persistent identities. If the direc
 
 ## Overview
 
-The Agents skill is a complete agent composition and management system. It consolidates all agent-related infrastructure:
+The agents skill is a complete agent composition and management system. It consolidates all agent-related infrastructure:
 - Dynamic agent composition from traits (expertise + personality + approach)
 - Personality definitions and voice mappings
 - Custom agent creation with unique voices
@@ -35,7 +35,7 @@ The Agents skill is a complete agent composition and management system. It conso
 1. **Send voice notification**:
    Use the `voice_notify` tool:
 
-- `message`: "Running the WORKFLOWNAME workflow from the Agents skill"
+- `message`: "Running the WORKFLOWNAME workflow from the agents skill"
 User: "Spin up 5 custom science agents to analyze this data"
 → Invokes CREATECUSTOMAGENT workflow
 → Runs AgentFactory 5 times with DIFFERENT trait combinations
@@ -128,9 +128,9 @@ The system uses two types of agents:
 
 ```bash
 # Usage examples
-bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --task "Review security architecture"
-bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --traits "legal,skeptical,meticulous"
-bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --list
+bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts --task "Review security architecture"
+bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts --traits "legal,skeptical,meticulous"
+bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts --list
 ```
 
 ### Personalities
@@ -162,7 +162,7 @@ bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --list
 - Delivers personality-driven voice notifications
 
 **PAI Skill** (`~/.config/opencode/skills/PAI/`)
-- References Agents skill for custom agent creation
+- References agents skill for custom agent creation
 - Documents the custom vs generic distinction
 - Includes agent creation in delegation patterns
 
@@ -228,3 +228,4 @@ Always specify the appropriate model:
 ## Version History
 
 - **v1.0.0** (2025-12-16): Initial creation - consolidated all agent infrastructure into discrete skill
+

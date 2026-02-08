@@ -12,4 +12,4 @@
 ^\.DS_Store$
 
 # Large corpora / request templates
-^\.opencode/skills/WebAssessment/FfufResources/REQUEST_TEMPLATES\.md$
+^\.opencode/skills/web-assessment/FfufResources/REQUEST_TEMPLATES\.md$

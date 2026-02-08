@@ -14,7 +14,7 @@
 
 ```bash
 # Install dependencies
-cd ~/.config/opencode/skills/Browser
+cd ~/.config/opencode/skills/browser
 bun install
 
 # Take a screenshot
@@ -29,7 +29,7 @@ bun examples/verify-page.ts https://example.com
 ### Basic
 
 ```typescript
-import { PlaywrightBrowser } from '~/.config/opencode/skills/Browser/index.ts'
+import { PlaywrightBrowser } from '~/.config/opencode/skills/browser/index.ts'
 
 const browser = new PlaywrightBrowser()
 await browser.launch()
@@ -212,7 +212,7 @@ The key insight: Playwright MCP loads ~13,700 tokens of tool definitions at star
 
 ```typescript
 // Just import and use - no MCP server needed
-import { PlaywrightBrowser } from '~/.config/opencode/skills/Browser/index.ts'
+import { PlaywrightBrowser } from '~/.config/opencode/skills/browser/index.ts'
 
 const browser = new PlaywrightBrowser()
 // ... use it
@@ -226,5 +226,7 @@ const browser = new PlaywrightBrowser()
 ## Related
 
 - [File-Based MCP Architecture](~/.config/opencode/skills/PAI/SYSTEM/FileBasedMCPs.md)
-- [Apify Code-First](../Apify/README.md)
+- [apify Code-First](../apify/README.md)
 - [Playwright Docs](https://playwright.dev)
+
+

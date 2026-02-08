@@ -6,9 +6,9 @@ Create a custom LLM-as-Judge using templates.
 
 Use the `voice_notify` tool:
 
-- `message`: "Running the CreateJudge workflow in the Evals skill to create LLM judge"
+- `message`: "Running the CreateJudge workflow in the evals skill to create LLM judge"
 
-Running the **CreateJudge** workflow in the **Evals** skill to create LLM judge...
+Running the **CreateJudge** workflow in the **evals** skill to create LLM judge...
 
 ---
 
@@ -30,7 +30,7 @@ Ask the user:
 
 ### Step 2: Create Judge Config
 
-Create `~/.config/opencode/skills/Evals/UseCases/<name>/judge-config.yaml`:
+Create `~/.config/opencode/skills/evals/UseCases/<name>/judge-config.yaml`:
 
 ```yaml
 judge:
@@ -62,10 +62,10 @@ output:
 ### Step 3: Render Judge Prompt
 
 ```bash
-bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
   -t Evals/Judge.hbs \
-  -d ~/.config/opencode/skills/Evals/UseCases/<name>/judge-config.yaml \
-  -o ~/.config/opencode/skills/Evals/UseCases/<name>/judge-prompt.md \
+  -d ~/.config/opencode/skills/evals/UseCases/<name>/judge-config.yaml \
+  -o ~/.config/opencode/skills/evals/UseCases/<name>/judge-prompt.md \
   --preview
 ```
 
@@ -190,3 +190,4 @@ judge:
 ## Done
 
 Custom judge created and integrated. Run eval to test.
+

@@ -182,8 +182,8 @@ function heuristic(prompt: string, userMessageId: string): PromptHint {
 
   const thinking_tools: string[] = [];
   if (depth === "FULL") {
-    thinking_tools.push("FirstPrinciples", "RedTeam");
-    if (/\b(options|ideas|brainstorm)\b/i.test(lower)) thinking_tools.push("BeCreative");
+    thinking_tools.push("FirstPrinciples", "red-team");
+    if (/\b(options|ideas|brainstorm)\b/i.test(lower)) thinking_tools.push("be-creative");
   }
 
   const toastBits: string[] = [];
@@ -253,7 +253,7 @@ async function openCodeClassify(
     '  "reasoning_profile": "light"|"standard"|"deep",',
     '  "verbosity": "minimal"|"standard"|"detailed",',
     '  "capabilities": ["Engineer"|"Designer"|"QATester"|"Pentester"|"researcher"|"Explore"],',
-    '  "thinking_tools": ["FirstPrinciples"|"RedTeam"|"BeCreative"|"Council"|"Research"|"Evals"],',
+    '  "thinking_tools": ["FirstPrinciples"|"RedTeam"|"be-creative"|"Council"|"research"|"evals"],',
     '  "confidence": 0.0',
     "}",
     "Do not use tools.",
@@ -504,3 +504,4 @@ export async function classifyPromptHint(
     return base;
   }
 }
+

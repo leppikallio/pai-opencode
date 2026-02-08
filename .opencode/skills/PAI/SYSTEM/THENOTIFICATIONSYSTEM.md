@@ -78,9 +78,9 @@ Note: There is no `~/.config/opencode/current-effort.json` state file in the cur
 | Agent | Voice ID | Notes |
 |-------|----------|-------|
 | **{DAIDENTITY.NAME}** (default) | `{DAIDENTITY.VOICEID}` | Use for most workflows |
-| **Priya** (Artist) | `ZF6FPAbjXT4488VcRRnw` | Art skill workflows |
+| **Priya** (Artist) | `ZF6FPAbjXT4488VcRRnw` | art skill workflows |
 
-**Full voice registry:** `~/.config/opencode/skills/Agents/AgentPersonalities.md`
+**Full voice registry:** `~/.config/opencode/skills/agents/AgentPersonalities.md`
 
 ---
 
@@ -230,7 +230,7 @@ Topic name acts as password - use random string for security.
 
 ### Implementation
 
-In the OpenCode port, notifications are primarily handled via the local **VoiceServer** plus the `voice_notify` tool.
+In the OpenCode port, notifications are primarily handled via the local **voice-server** plus the `voice_notify` tool.
 
 - **VoiceServer**: `~/.config/opencode/VoiceServer/server.ts`
 - **Notify endpoint**: `http://localhost:8888/notify`
@@ -248,3 +248,4 @@ To send a notification, use the `voice_notify` tool:
 2. **Fail gracefully** - Missing services don't cause errors
 3. **Conservative defaults** - Avoid notification fatigue
 4. **Duration-aware** - Only push for long-running tasks (>5 min)
+

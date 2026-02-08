@@ -36,7 +36,7 @@ Phase 5: Synthesis & Recommendation
 
 1. **Certificate Transparency:** crt.sh, certspotter
 2. **DNS Enumeration:** subfinder, amass, assetfinder
-3. **Search Engine Discovery:** Delegate to Research Skill
+3. **Search Engine Discovery:** Delegate to research Skill
 4. **Social Media Links:** Extract from all profiles
 5. **Business Registrations:** Website fields in filings
 6. **WHOIS Reverse Lookup:** Registrant email/name correlation
@@ -192,3 +192,4 @@ For each discovered domain:
 ---
 
 **Reference:** See `CompanyTools.md` for detailed tool specifications.
+

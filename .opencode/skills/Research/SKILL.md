@@ -1,13 +1,13 @@
 ---
-name: Research
-description: Comprehensive research and content analysis. USE WHEN topic research, summarize sources, extract insights, analyze content; NOT people/company due diligence (use OSINT).
+name: research
+description: Comprehensive research and content analysis. USE WHEN topic research, summarize sources, extract insights, analyze content; NOT people/company due diligence (use osint).
 context: fork
 ---
 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Research/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/research/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -29,18 +29,18 @@ Research agents hallucinate URLs. A single broken link is a catastrophic failure
 
 1. **Send voice notification**:
    Use the `voice_notify` tool:
-   - `message`: "Running WORKFLOWNAME workflow from Research skill"
+   - `message`: "Running WORKFLOWNAME workflow from research skill"
 
 2. **Output text notification**:
    ```
-   Running the **WorkflowName** workflow from the **Research** skill...
+   Running the **WorkflowName** workflow from the **research** skill...
    ```
 
 ## Workflow Routing
 
 Route to the appropriate workflow based on the request.
 
-**CRITICAL:** For due diligence, company/person background checks, or vetting -> **INVOKE OSINT SKILL INSTEAD**
+**CRITICAL:** For due diligence, company/person background checks, or vetting -> **INVOKE osint SKILL INSTEAD**
 
 ### Research Modes (Primary Workflows)
 - Quick/minor research (1 Perplexity, 1 query) -> `Workflows/QuickResearch.md`
@@ -105,3 +105,4 @@ Route to the appropriate workflow based on the request.
 - This ties research artifacts to the work item for learning and context
 
 **History (permanent):** `~/.config/opencode/History/research/YYYY-MM/YYYY-MM-DD_[topic]/`
+

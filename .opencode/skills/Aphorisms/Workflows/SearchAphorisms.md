@@ -6,9 +6,9 @@
 
 Use the `voice_notify` tool:
 
-- `message`: "Running the SearchAphorisms workflow in the Aphorisms skill to search quotes"
+- `message`: "Running the SearchAphorisms workflow in the aphorisms skill to search quotes"
 
-Running **SearchAphorisms** in **Aphorisms**...
+Running **SearchAphorisms** in **aphorisms**...
 
 ---
 
@@ -20,7 +20,7 @@ Running **SearchAphorisms** in **Aphorisms**...
 - Discovering what's available in database
 
 **Prerequisites:**
-- Aphorism database exists at `~/.config/opencode/skills/Aphorisms/Database/aphorisms.md`
+- Aphorism database exists at `~/.config/opencode/skills/aphorisms/Database/aphorisms.md`
 - Search query or theme provided
 - Database Read for comprehensive search
 
@@ -77,7 +77,7 @@ User: "Short quotes about action"
 ### Step 2: Read Database
 
 ```bash
-Read ~/.config/opencode/skills/Aphorisms/Database/aphorisms.md
+Read ~/.config/opencode/skills/aphorisms/Database/aphorisms.md
 ```
 
 **Load full context:**
@@ -715,3 +715,4 @@ User reviews results and selects Aaron Swartz quote for newsletter
 ---
 
 **Last Updated:** 2025-11-20
+

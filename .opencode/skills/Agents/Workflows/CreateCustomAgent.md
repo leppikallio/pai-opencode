@@ -29,19 +29,19 @@ Extract from {principal.name}'s request:
 # Example for 3 custom research agents:
 
 # Agent 1 - Enthusiastic Explorer
-bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts \
+bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts \
   --traits "research,enthusiastic,exploratory" \
   --task "Research quantum computing applications" \
   --output json
 
 # Agent 2 - Skeptical Analyst
-bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts \
+bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts \
   --traits "research,skeptical,systematic" \
   --task "Research quantum computing applications" \
   --output json
 
 # Agent 3 - Thorough Synthesizer
-bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts \
+bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts \
   --traits "research,analytical,synthesizing" \
   --task "Research quantum computing applications" \
   --output json
@@ -240,7 +240,7 @@ AgentFactory automatically maps trait combinations to voices:
 
 ## References
 
-- Trait definitions: `~/.config/opencode/skills/Agents/Data/Traits.yaml`
-- Agent template: `~/.config/opencode/skills/Agents/Templates/DynamicAgent.hbs`
-- AgentFactory tool: `~/.config/opencode/skills/Agents/Tools/AgentFactory.ts`
-- Voice mappings: `~/.config/opencode/skills/Agents/AgentPersonalities.md`
+- Trait definitions: `~/.config/opencode/skills/agents/Data/Traits.yaml`
+- Agent template: `~/.config/opencode/skills/agents/Templates/DynamicAgent.hbs`
+- AgentFactory tool: `~/.config/opencode/skills/agents/Tools/AgentFactory.ts`
+- Voice mappings: `~/.config/opencode/skills/agents/AgentPersonalities.md`

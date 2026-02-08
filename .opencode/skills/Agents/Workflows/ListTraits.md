@@ -15,7 +15,7 @@ User says:
 ### Step 1: Run AgentFactory with --list Flag
 
 ```bash
-bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --list
+bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts --list
 ```
 
 ### Step 2: Present Results to User
@@ -195,6 +195,6 @@ Popular Combos:
 
 ## References
 
-- Full trait definitions: `~/.config/opencode/skills/Agents/Data/Traits.yaml`
+- Full trait definitions: `~/.config/opencode/skills/agents/Data/Traits.yaml`
 - Voice mappings: Lines 349-794 in Traits.yaml
-- AgentFactory tool: `~/.config/opencode/skills/Agents/Tools/AgentFactory.ts`
+- AgentFactory tool: `~/.config/opencode/skills/agents/Tools/AgentFactory.ts`

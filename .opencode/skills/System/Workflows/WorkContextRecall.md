@@ -86,13 +86,13 @@ Use the UpdateSearch.ts tool to query PAISYSTEMUPDATES index:
 
 ```bash
 # Search system updates index
-bun run "~/.config/opencode/skills/System/Tools/UpdateSearch.ts" "security hook"
+bun run "~/.config/opencode/skills/system/Tools/UpdateSearch.ts" "security hook"
 
 # With time filter
-bun run "~/.config/opencode/skills/System/Tools/UpdateSearch.ts" "<keyword>" --since "YYYY-MM-DD"
+bun run "~/.config/opencode/skills/system/Tools/UpdateSearch.ts" "<keyword>" --since "YYYY-MM-DD"
 
 # Multiple keywords
-bun run "~/.config/opencode/skills/System/Tools/UpdateSearch.ts" "typescript error fix"
+bun run "~/.config/opencode/skills/system/Tools/UpdateSearch.ts" "typescript error fix"
 ```
 
 Parse UpdateSearch results:

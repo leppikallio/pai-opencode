@@ -9,7 +9,7 @@
  *
  * Examples:
  *   bun run ValidateTemplate.ts --template Primitives/Roster.hbs
- *   bun run ValidateTemplate.ts -t Evals/Judge.hbs -d Data/JudgeConfig.yaml --strict
+ *   bun run ValidateTemplate.ts -t evals/Judge.hbs -d Data/JudgeConfig.yaml --strict
  */
 
 import Handlebars from 'handlebars';
@@ -321,3 +321,4 @@ Examples:
 if (import.meta.main) {
   main();
 }
+

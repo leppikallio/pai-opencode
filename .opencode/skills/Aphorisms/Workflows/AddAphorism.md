@@ -6,9 +6,9 @@
 
 Use the `voice_notify` tool:
 
-- `message`: "Running the AddAphorism workflow in the Aphorisms skill to add quotes"
+- `message`: "Running the AddAphorism workflow in the aphorisms skill to add quotes"
 
-Running **AddAphorism** in **Aphorisms**...
+Running **AddAphorism** in **aphorisms**...
 
 ---
 
@@ -19,7 +19,7 @@ Running **AddAphorism** in **Aphorisms**...
 - After research-thinker.md discovers quotes worth adding
 
 **Prerequisites:**
-- Aphorism database exists at `~/.config/opencode/skills/Aphorisms/Database/aphorisms.md`
+- Aphorism database exists at `~/.config/opencode/skills/aphorisms/Database/aphorisms.md`
 - Quote text and author provided (or discoverable through research)
 - Database is Read first to check for duplicates
 
@@ -88,7 +88,7 @@ WebSearch("misattributed quotes [author name]")
 
 **Read database:**
 ```bash
-Read ~/.config/opencode/skills/Aphorisms/Database/aphorisms.md
+Read ~/.config/opencode/skills/aphorisms/Database/aphorisms.md
 ```
 
 **Check for:**
@@ -248,11 +248,11 @@ Add quote reference to appropriate theme(s) in Theme Index section:
 
 ```bash
 # Find appropriate section
-Read ~/.config/opencode/skills/Aphorisms/Database/aphorisms.md
+Read ~/.config/opencode/skills/aphorisms/Database/aphorisms.md
 
 # Add to correct location
 Edit(
-  file_path=~/.config/opencode/skills/Aphorisms/Database/aphorisms.md,
+  file_path=~/.config/opencode/skills/aphorisms/Database/aphorisms.md,
   old_string="[section where it should be inserted]",
   new_string="[section with new quote added]"
 )
@@ -534,3 +534,4 @@ Use Edit tool to insert in appropriate section
 ---
 
 **Last Updated:** 2025-11-20
+

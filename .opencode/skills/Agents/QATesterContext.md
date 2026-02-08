@@ -13,7 +13,7 @@
 - **skills/PAI/CONSTITUTION.md** - Constitutional principles (Article IX)
 
 ### Testing Standards
-- **skills/Browser/SKILL.md** - Browser automation and screenshots
+- **skills/browser/SKILL.md** - Browser automation and screenshots
 
 ---
 
@@ -21,7 +21,7 @@
 
 Load these dynamically based on task keywords:
 
-- **Browser automation** → skills/Browser/SKILL.md
+- **Browser automation** → skills/browser/SKILL.md
 
 ---
 

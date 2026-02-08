@@ -52,7 +52,7 @@ See `~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md` for complete documenta
 - Testing standards → Development Skill
 
 **Agent System:**
-- **Agents Skill** (`~/.config/opencode/skills/Agents/`) - Complete agent composition system | See Agents skill for custom agent creation, traits, and voice mappings
+- **agents Skill** (`~/.config/opencode/skills/agents/`) - Complete agent composition system | See agents skill for custom agent creation, traits, and voice mappings
 - Delegation patterns are documented inline in the "Delegation & Parallelization" section below
 
 **Response & Communication:**
@@ -79,3 +79,5 @@ See `~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md` for complete documenta
 
 **See Also:**
 - SKILL.md > Documentation Index - Condensed table version
+
+

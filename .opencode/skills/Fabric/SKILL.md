@@ -1,12 +1,12 @@
 ---
-name: Fabric
+name: fabric
 description: 240+ prompt patterns for content analysis and transformation. USE WHEN fabric, extract wisdom, summarize, threat model.
 ---
 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Fabric/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/fabric/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -17,7 +17,7 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 1. **Send voice notification**:
    Use the `voice_notify` tool:
 
-- `message`: "Running the WORKFLOWNAME workflow in the Fabric skill to ACTION"
+- `message`: "Running the WORKFLOWNAME workflow in the fabric skill to ACTION"
 User: "Use fabric to extract wisdom from this article"
 -> Invokes ExecutePattern workflow
 -> Selects extract_wisdom pattern
@@ -139,10 +139,10 @@ Each pattern's `system.md` contains the full prompt that defines:
 
 | Path | Purpose |
 |------|---------|
-| `~/.config/opencode/skills/Fabric/Patterns/` | Local pattern storage (240+) |
-| `~/.config/opencode/skills/Fabric/PatternCatalog.md` | Full pattern documentation |
-| `~/.config/opencode/skills/Fabric/Workflows/` | Execution workflows |
-| `~/.config/opencode/skills/Fabric/Tools/` | CLI utilities |
+| `~/.config/opencode/skills/fabric/Patterns/` | Local pattern storage (240+) |
+| `~/.config/opencode/skills/fabric/PatternCatalog.md` | Full pattern documentation |
+| `~/.config/opencode/skills/fabric/Workflows/` | Execution workflows |
+| `~/.config/opencode/skills/fabric/Tools/` | CLI utilities |
 
 ---
 
@@ -154,3 +154,4 @@ Each pattern's `system.md` contains the full prompt that defines:
 - Two workflows: ExecutePattern, UpdatePatterns
 - 240+ patterns organized by category
 - PAI Pack ready structure
+

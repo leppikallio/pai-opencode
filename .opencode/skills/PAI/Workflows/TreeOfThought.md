@@ -129,7 +129,7 @@ The Becreative skill already has "deep thinking with Tree of Thoughts" as Mode 4
 ### With Complex Decisions & Planning
 When `/plan` mode is active and facing complex decisions, ToT provides structured exploration before committing to an approach.
 
-### With RedTeam Skill
+### With red-team Skill
 ToT can precede red-teaming - explore multiple approaches first, then red-team the chosen approach to stress-test it.
 
 ### With Merge Conflict Resolution
@@ -190,3 +190,4 @@ When merge conflicts have multiple valid resolution strategies, use ToT to evalu
 - `SessionContinuity.md` - For tracking ToT decisions across sessions
 
 **Last Updated:** 2025-11-27
+

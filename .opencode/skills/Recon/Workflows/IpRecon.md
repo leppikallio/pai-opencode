@@ -128,7 +128,7 @@ curl "https://ipinfo.io/1.2.3.4/json?token=$IPINFO_API_KEY" | jq
     "email": "abuse@examplehosting.com",
     "name": "Example Hosting Abuse",
     "network": "1.2.3.0/24",
-    "phone": "+1-415-555-0100"
+    "phone": "+1-XXX-XXX-XXXX"
   }
 }
 ```
@@ -404,7 +404,7 @@ echo "1.2.3.4" | httpx -tech-detect -cdn -method
 
 ### Contact Information
 - **Abuse Email:** abuse@examplehosting.com
-- **Abuse Phone:** +1-415-555-0100
+- **Abuse Phone:** +1-XXX-XXX-XXXX
 - **Technical Contact:** noc@examplehosting.com
 - **Organization URL:** examplehosting.com
 
@@ -690,7 +690,7 @@ for (const ip of ips) {
 }
 ```
 
-### Called by OSINT
+### Called by osint
 
 ```typescript
 // OSINT finds company infrastructure
