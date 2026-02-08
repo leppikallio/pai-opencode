@@ -45,13 +45,13 @@ Options:
 
 Examples:
   # Basic migration
-  bun skill-migrate.ts --source ~/.claude/skills/CreateSkill --target .opencode/skills/CreateSkill
+  bun skill-migrate.ts --source ~/.claude/skills/create-skill --target .opencode/skills/create-skill
 
   # Dry run preview
-  bun skill-migrate.ts --source ~/.claude/skills/CreateSkill --target .opencode/skills/CreateSkill --dry-run
+  bun skill-migrate.ts --source ~/.claude/skills/create-skill --target .opencode/skills/CreateSkill --dry-run
 
   # Force overwrite
-  bun skill-migrate.ts --source ~/.claude/skills/CreateSkill --target .opencode/skills/CreateSkill --force
+  bun skill-migrate.ts --source ~/.claude/skills/create-skill --target .opencode/skills/create-skill --force
 `);
   process.exit(0);
 }
@@ -275,3 +275,5 @@ function main(): void {
 }
 
 main();
+
+

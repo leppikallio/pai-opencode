@@ -91,7 +91,7 @@ function verifySkillSystemDocs(args: { targetDir: string; dryRun: boolean; enabl
     return;
   }
 
-  const toolPath = path.join(args.targetDir, "skills", "System", "Tools", "ValidateSkillSystemDocs.ts");
+  const toolPath = path.join(args.targetDir, "skills", "system", "Tools", "ValidateSkillSystemDocs.ts");
   if (!isFile(toolPath)) {
     console.log(`[write] verify: skipped (missing ${toolPath})`);
     return;
@@ -258,7 +258,7 @@ function hasChromiumHeadlessShell(cacheDir: string): boolean {
 }
 
 function ensurePlaywrightBrowsers(args: { targetDir: string; browserPkgDir: string; dryRun: boolean }) {
-  // The Browser skill uses Playwright's chromium headless shell. Ensure it's installed.
+  // The browser skill uses Playwright's chromium headless shell. Ensure it's installed.
   const cacheDir = msPlaywrightCacheDir();
   if (hasChromiumHeadlessShell(cacheDir)) {
     console.log("[write] deps: Playwright browsers (ok)");
@@ -286,9 +286,9 @@ function maybeInstallDependencies(args: { targetDir: string; dryRun: boolean; en
 
   const packages: Array<{ rel: string; label: string; requireModule?: string }> = [
     { rel: ".", label: "root" },
-    { rel: "skills/Browser", label: "Browser", requireModule: "playwright" },
-    { rel: "skills/Apify", label: "Apify", requireModule: "apify-client" },
-    { rel: "skills/Agents/Tools", label: "Agents tools", requireModule: "yaml" },
+    { rel: "skills/browser", label: "browser", requireModule: "playwright" },
+    { rel: "skills/apify", label: "apify", requireModule: "apify-client" },
+    { rel: "skills/agents/Tools", label: "Agents tools", requireModule: "yaml" },
   ];
 
   for (const pkg of packages) {
@@ -318,7 +318,7 @@ function maybeInstallDependencies(args: { targetDir: string; dryRun: boolean; en
       env: { ...process.env, PAI_DIR: args.targetDir },
     });
 
-    if (pkg.rel === "skills/Browser") {
+    if (pkg.rel === "skills/browser") {
       ensurePlaywrightBrowsers({ targetDir: args.targetDir, browserPkgDir: pkgDir, dryRun: args.dryRun });
     }
   }
@@ -918,7 +918,7 @@ function sync(mode: Mode, opts: Options) {
       dryRun,
       overwrite: true,
       // Allow local tweaks to the voice registry.
-      preserveIfExistsPrefixes: ["VoiceServer/voices.json"],
+      preserveIfExistsPrefixes: ["voice-server/voices.json"],
       relBase: "VoiceServer/",
     });
   }
@@ -1075,3 +1075,5 @@ function main() {
 }
 
 main();
+
+

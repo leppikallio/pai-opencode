@@ -144,10 +144,10 @@ Note: Keep the literal marker `ISC Tasks:` to satisfy format verification.
 
 🔍 **THINKING TOOLS ASSESSMENT** (justify exclusion):
 │ Council:          [INCLUDE/EXCLUDE] — [reason tied to ISC]
-│ RedTeam:          [INCLUDE/EXCLUDE] — [reason]
+│ red-team:          [INCLUDE/EXCLUDE] — [reason]
 │ FirstPrinciples:  [INCLUDE/EXCLUDE] — [reason]
 │ Science:          [INCLUDE/EXCLUDE] — [reason]
-│ BeCreative:       [INCLUDE/EXCLUDE] — [reason]
+│ be-creative:       [INCLUDE/EXCLUDE] — [reason]
 
 🔍 **SKILL CHECK** (validate hook hints against ISC):
 │ Hook suggested:   [skills from hook, or "none"]
@@ -219,7 +219,7 @@ Capability selection uses two passes with different inputs and authority levels:
 
 The FormatReminder hook runs AI inference on the **raw prompt** and suggests:
 - **Capabilities** — agent types (Engineer, Architect, etc.)
-- **Skills** — specific skills and workflows (CreateSkill:UpdateSkill, etc.)
+- **Skills** — specific skills and workflows (create-skill:UpdateSkill, etc.)
 - **Thinking tools** — meta-cognitive tools (Council, RedTeam, etc.)
 
 These are **draft suggestions**. The hook fires before any reverse-engineering or ISC creation, so it works from the raw prompt only. It cannot see what OBSERVE will uncover.
@@ -258,7 +258,7 @@ This appears in THINK phase, before Capability Selection:
 🔍 THINKING TOOLS ASSESSMENT (justify exclusion):
 │ Council:          EXCLUDE — single clear approach, no alternatives to debate
 │ RedTeam:          EXCLUDE — no claims or assumptions to stress-test
-│ FirstPrinciples:  INCLUDE — requirement rests on unexamined assumption
+│ first-principles:  INCLUDE — requirement rests on unexamined assumption
 │ Science:          EXCLUDE — not iterative/experimental
 │ BeCreative:       EXCLUDE — clear requirements, no divergence needed
 ```
@@ -267,7 +267,7 @@ This appears in THINK phase, before Capability Selection:
 
 | Tool | What It Does | Include When |
 |------|-------------|--------------|
-| **Council** | Multi-agent debate (3-7 agents) | Multiple valid approaches exist. Need to weigh tradeoffs. Design decisions with no clear winner. |
+| **council** | Multi-agent debate (3-7 agents) | Multiple valid approaches exist. Need to weigh tradeoffs. Design decisions with no clear winner. |
 | **RedTeam** | Adversarial analysis (32 agents) | Claims need stress-testing. Security implications. Proposals that could fail in non-obvious ways. |
 | **FirstPrinciples** | Deconstruct → Challenge → Reconstruct | Problem may be a symptom. Assumptions need examining. "Why" matters more than "how." |
 | **Science** | Hypothesis → Test → Analyze cycles | Iterative problem. Experimentation needed. Multiple hypotheses to test. |
@@ -345,8 +345,8 @@ This is not optional. When independent tasks exist and you execute them one at a
 
 ```
 🎯 CAPABILITY SELECTION:
-│ Skills:     [skill:workflow pairs, e.g., CreateSkill:UpdateSkill]
-│ Thinking:   [included tools from assessment, e.g., Council, FirstPrinciples]
+│ Skills:     [skill:workflow pairs, e.g., create-skill:UpdateSkill]
+│ Thinking:   [included tools from assessment, e.g., council, first-principles]
 │ Primary:    [capability agent]  — [why, tied to which ISC]
 │ Support:    [capability agent]  — [why]
 │ Verify:     [capability agent]  — [why]
@@ -391,7 +391,7 @@ The hook (Pass 1) suggests from the raw prompt. THINK (Pass 2) validates against
 - Hook suggests Engineer -> ISC reveals need for Architect first -> **add** Architect, use Pipeline
 - Hook suggests nothing -> ISC criterion requires browser verification -> **add** QA capability
 - Hook suggests Research -> you already have the information -> **remove** Research
-- Hook suggests no skills -> reverse-engineering reveals "update a skill" -> **add** CreateSkill:UpdateSkill
+- Hook suggests no skills -> reverse-engineering reveals "update a skill" -> **add** create-skill:UpdateSkill
 - Hook suggests no thinking tools -> ISC has multiple valid approaches -> **add** Council
 - Hook suggests Engineer only -> ISC criterion challenges an assumption -> **add** FirstPrinciples
 
@@ -492,7 +492,7 @@ The Algorithm exists because:
 
 ### v0.2.23 (2026-01-28)
 - **Two-Pass Capability Selection** — Hook provides draft hints from raw prompt (Pass 1). THINK validates against reverse-engineered request + ISC criteria (Pass 2). Pass 2 is authoritative.
-- **Thinking Tools Assessment** — New mandatory substep in THINK. Six thinking tools (Council, RedTeam, FirstPrinciples, Science, BeCreative, Prompting) evaluated for every FULL request. Justify-exclusion principle: opt-OUT, not opt-IN.
+- **Thinking Tools Assessment** — New mandatory substep in THINK. Six thinking tools (Council, red-team, FirstPrinciples, Science, BeCreative, Prompting) evaluated for every FULL request. Justify-exclusion principle: opt-OUT, not opt-IN.
 - **Skill Check in THINK** — Hook skill hints validated against ISC. Skills can be added, removed, or confirmed based on OBSERVE findings.
 - **FormatReminder Hook Enrichment** — Hook now detects skills and thinking tools alongside capabilities and depth. Returns `skills` and `thinking` fields.
 - **Updated Capability Selection Block** — Now includes Skills and Thinking fields alongside agent capabilities, pattern, and sequence.
@@ -562,7 +562,7 @@ Critical PAI documentation organized by domain. Load on-demand based on context.
 
 | Domain | Path | Purpose |
 |--------|------|---------|
-| **System Architecture** | `SYSTEM/PAISYSTEMARCHITECTURE.md` | Core PAI design and principles |
+| **system Architecture** | `SYSTEM/PAISYSTEMARCHITECTURE.md` | Core PAI design and principles |
 | **Memory System** | `SYSTEM/MEMORYSYSTEM.md` | WORK, STATE, LEARNING directories |
 | **Skill System** | `SYSTEM/SKILLSYSTEM.md` | How skills work, structure, triggers |
 | **Hook System** | `SYSTEM/THEHOOKSYSTEM.md` | Event hooks, patterns, implementation |
@@ -583,3 +583,4 @@ Critical PAI documentation organized by domain. Load on-demand based on context.
 | "Telos", "life goals", "goals", "challenges" | `USER/TELOS/PROJECTS.md` | Life goals, challenges, predictions (Telos Life System) |
 
 ---
+

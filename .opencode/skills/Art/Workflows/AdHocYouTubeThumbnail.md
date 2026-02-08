@@ -115,7 +115,7 @@ Topic context: [EXTRACTED TOPIC]
 ### Generate Command
 
 ```bash
-bun run ~/.config/opencode/skills/Art/Tools/Generate.ts \
+bun run ~/.config/opencode/skills/art/Tools/Generate.ts \
   --model nano-banana-pro \
   --prompt "[BACKGROUND PROMPT]" \
   --size 2K \
@@ -161,7 +161,7 @@ bun run ~/.config/opencode/skills/Art/Tools/Generate.ts \
 - **NO shoulders, NO neck, NO body** - face fills entire frame
 - Pure black background (for easy removal)
 - Face fills 95% of image area
-- Load facial features from user customizations at `SKILLCUSTOMIZATIONS/Art/CharacterSpecs.md`
+- Load facial features from user customizations at `SKILLCUSTOMIZATIONS/art/CharacterSpecs.md`
 
 ### Example FACE-ONLY Prompts
 
@@ -223,7 +223,7 @@ bun ~/.config/opencode/skills/PAI/Tools/RemoveBg.ts ~/Downloads/yt-headshot-${TI
 ### Compose Command
 
 ```bash
-bun ~/.config/opencode/skills/Art/Tools/ComposeThumbnail.ts \
+bun ~/.config/opencode/skills/art/Tools/ComposeThumbnail.ts \
   --background ~/Downloads/yt-bg-${TIMESTAMP}.png \
   --headshot ~/Downloads/yt-headshot-${TIMESTAMP}.png \
   --title "[TITLE]" \
@@ -341,3 +341,4 @@ Dark base:        #1a1b26
 
 ### Output Location
 All outputs: `~/Downloads/yt-thumbnail-{timestamp}.png`
+

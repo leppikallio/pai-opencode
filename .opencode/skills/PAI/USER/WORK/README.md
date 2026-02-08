@@ -56,7 +56,7 @@ WORK/
 
 ## Privacy Enforcement
 
-The System skill's `PrivacyCheck` workflow validates that:
+The system skill's `PrivacyCheck` workflow validates that:
 
 1. No WORK content exists outside WORK/ or USER/ directories
 2. No customer data appears in regular skills
@@ -66,3 +66,4 @@ The System skill's `PrivacyCheck` workflow validates that:
 ---
 
 *Keep work-sensitive content isolated here. Your AI will reference this for client context while maintaining strict boundaries.*
+

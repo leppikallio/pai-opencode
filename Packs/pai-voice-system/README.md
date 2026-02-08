@@ -48,12 +48,12 @@ Please follow the installation instructions in INSTALL.md to integrate this pack
 | Component | File | Purpose |
 |-----------|------|---------|
 | Voice Server | `src/VoiceServer/server.ts` | HTTP server handling TTS requests |
-| Install Script | `src/VoiceServer/install.sh` | One-command installation |
+| Install Script | `src/voice-server/install.sh` | One-command installation |
 | Start Script | `src/VoiceServer/start.sh` | Start the voice server |
 | Stop Script | `src/VoiceServer/stop.sh` | Stop the voice server |
 | Restart Script | `src/VoiceServer/restart.sh` | Restart the voice server |
 | Status Script | `src/VoiceServer/status.sh` | Check server status |
-| Uninstall Script | `src/VoiceServer/uninstall.sh` | Clean uninstallation |
+| Uninstall Script | `src/voice-server/uninstall.sh` | Clean uninstallation |
 | Voice Config | `src/VoiceServer/voices.json` | Agent voice personalities |
 | Menu Bar | `src/VoiceServer/menubar/` | SwiftBar/BitBar integration |
 
@@ -290,3 +290,4 @@ Find more voices at [ElevenLabs Voice Library](https://elevenlabs.io/voice-libra
 - Initial release with ElevenLabs integration
 - Multi-voice support for agent personalities
 - macOS LaunchAgent for auto-start
+

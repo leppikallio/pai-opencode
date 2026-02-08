@@ -15,11 +15,11 @@ This keeps skill files shareable (no personal data) while allowing full customiz
 ```
 SKILLCUSTOMIZATIONS/
 ├── README.md                    # This file
-├── Art/                         # Art skill customizations
+├── art/                         # art skill customizations
 │   ├── EXTEND.yaml              # Manifest (required)
 │   ├── PREFERENCES.md           # Aesthetic preferences
 │   └── CharacterSpecs.md        # Character design specs
-├── Agents/                      # Agents skill customizations
+├── agents/                      # agents skill customizations
 │   ├── EXTEND.yaml              # Manifest
 │   ├── PREFERENCES.md           # Named agent definitions
 │   └── VoiceConfig.json         # ElevenLabs voice mappings
@@ -79,8 +79,8 @@ Details about preferences...
 ### Step 4: Add Additional Files (Optional)
 
 Some skills support additional configuration files:
-- Character specifications (Art skill)
-- Voice configurations (Agents skill)
+- Character specifications (art skill)
+- Voice configurations (agents skill)
 - Scene templates
 - etc.
 
@@ -92,15 +92,15 @@ Some skills support additional configuration files:
 | `override` | Replace default behavior entirely (default) |
 | `deep_merge` | Recursive merge of nested objects |
 
-## Example: Art Skill Customization
+## Example: art Skill Customization
 
 ```bash
-mkdir -p ~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/Art
+mkdir -p ~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/art
 ```
 
 **Art/EXTEND.yaml:**
 ```yaml
-skill: Art
+skill: art
 extends:
   - PREFERENCES.md
 merge_strategy: override
@@ -108,7 +108,7 @@ enabled: true
 description: "Custom aesthetic preferences"
 ```
 
-**Art/PREFERENCES.md:**
+**art/PREFERENCES.md:**
 ```markdown
 # Art Preferences
 
@@ -132,3 +132,5 @@ enabled: false  # Skill uses defaults, customizations ignored
 ## Full Documentation
 
 See: `~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md` (Skill Customization System section)
+
+

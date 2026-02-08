@@ -119,11 +119,11 @@ Canonical doc paths:
 
 ### 6. Fabric Patterns (1:1 Mapping)
 
-**Rule:** Copy to `skills/Fabric/Patterns/` ONLY. Never duplicate elsewhere.
+**Rule:** Copy to `skills/fabric/Patterns/` ONLY. Never duplicate elsewhere.
 
 ```
-PAI 2.4:        .claude/skills/Fabric/Patterns/
-PAI-OpenCode:   ~/.config/opencode/skills/Fabric/Patterns/
+PAI 2.4:        .claude/skills/fabric/Patterns/
+PAI-OpenCode:   ~/.config/opencode/skills/fabric/Patterns/
 
 ⚠️ DO NOT copy to PAI/Tools/fabric/ - that creates duplicates!
 ```
@@ -230,7 +230,7 @@ When importing a new PAI version:
 ### 4. Duplicate Fabric Patterns
 **Symptom:** Repo size unexpectedly large
 **Cause:** Patterns copied to multiple locations
-**Fix:** Keep only `skills/Fabric/Patterns/`, remove from `PAI/Tools/`
+**Fix:** Keep only `skills/fabric/Patterns/`, remove from `PAI/Tools/`
 
 ---
 

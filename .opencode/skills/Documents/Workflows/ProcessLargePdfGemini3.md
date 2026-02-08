@@ -17,9 +17,9 @@ use_cases:
 
 Use the `voice_notify` tool:
 
-- `message`: "Running the ProcessLargePdfGemini3 workflow in the Documents skill to process PDF"
+- `message`: "Running the ProcessLargePdfGemini3 workflow in the documents skill to process PDF"
 
-Running the **ProcessLargePdfGemini3** workflow in the **Documents** skill to process PDF...
+Running the **ProcessLargePdfGemini3** workflow in the **documents** skill to process PDF...
 
 ---
 
@@ -654,7 +654,7 @@ cat raw.json | sed 's/```json//g' | sed 's/```//g' | jq '.' > clean.json
 
 ## Next Steps
 
-- If you need a separate PDF workflow, add it under `~/.config/opencode/skills/Documents/Workflows/`.
+- If you need a separate PDF workflow, add it under `~/.config/opencode/skills/documents/Workflows/`.
 - If you need database import, wire the JSON output into your own code.
 
 ## Summary
@@ -667,3 +667,4 @@ cat raw.json | sed 's/```json//g' | sed 's/```//g' | jq '.' > clean.json
 - ✅ Structured output you can import into your own systems
 
 **Key advantage:** Gemini 3 Pro processes PDFs as humans do - understanding visual layout, diagrams, and relationships between content elements, not just extracting text.
+

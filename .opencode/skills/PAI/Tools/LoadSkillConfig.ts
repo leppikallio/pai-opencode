@@ -261,9 +261,9 @@ Usage:
   bun LoadSkillConfig.ts --check <skill-name>      Check if skill has customizations
 
 Examples:
-  bun LoadSkillConfig.ts ~/.config/opencode/skills/PAIUpgrade sources.json
+  bun LoadSkillConfig.ts ~/.config/opencode/skills/pai-upgrade sources.json
   bun LoadSkillConfig.ts --list
-  bun LoadSkillConfig.ts --check PAIUpgrade
+  bun LoadSkillConfig.ts --check pai-upgrade
 `);
     process.exit(0);
   }
@@ -308,3 +308,4 @@ Examples:
     process.exit(1);
   }
 }
+

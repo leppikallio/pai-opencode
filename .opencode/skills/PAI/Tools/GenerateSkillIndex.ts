@@ -39,7 +39,7 @@ interface SkillIndex {
 // - After adding/removing skills or changing frontmatter, re-run this generator.
 // - This tiering is ONLY used inside skill-index.json for discovery tooling.
 //   OpenCode does NOT auto-load these skill bodies into context.
-const ALWAYS_LOADED_SKILLS = ['PAI', 'System', 'Research', 'Agents'];
+const ALWAYS_LOADED_SKILLS = ['PAI', 'system', 'research', 'agents'];
 
 type Options = {
   skillsDir: string;
@@ -303,3 +303,5 @@ async function main() {
 }
 
 main().catch(console.error);
+
+

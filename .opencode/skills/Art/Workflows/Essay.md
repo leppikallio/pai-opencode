@@ -130,7 +130,7 @@ Or use the slash command:
 **Read the aesthetic file and select the appropriate emotional vocabulary.**
 
 ```bash
-Read ~/.config/opencode/skills/Art/SKILL.md
+Read ~/.config/opencode/skills/art/SKILL.md
 ```
 
 **Match the contVent to one of these emotional registers:**
@@ -419,7 +419,7 @@ Before generating, verify:
 
 ```bash
 # ALWAYS output to Downloads first for user to review in Preview
-bun run ~/.config/opencode/skills/Art/Tools/Generate.ts \
+bun run ~/.config/opencode/skills/art/Tools/Generate.ts \
   --model nano-banana-pro \
   --prompt "[YOUR PROMPT]" \
   --size 2K \
@@ -437,7 +437,7 @@ cp ~/Downloads/[name]-thumb.png ~/Projects/Website/cms/public/images/
 Based on user's request and the mapping tables above, construct the CLI command:
 
 ```bash
-bun run ~/.config/opencode/skills/Art/Tools/Generate.ts \
+bun run ~/.config/opencode/skills/art/Tools/Generate.ts \
   --model [SELECTED_MODEL from table] \
   --prompt "[PROMPT from Step 5]" \
   --size [SELECTED_SIZE] \
@@ -458,7 +458,7 @@ The `--thumbnail` flag generates TWO versions:
 
 ```bash
 # Example: Generates both header.png AND header-thumb.png
-bun run ~/.config/opencode/skills/Art/Tools/Generate.ts \
+bun run ~/.config/opencode/skills/art/Tools/Generate.ts \
   --model nano-banana-pro \
   --prompt "[YOUR PROMPT]" \
   --size 2K \

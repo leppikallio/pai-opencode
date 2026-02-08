@@ -28,7 +28,7 @@ This provides access to:
 
 1. **Simple pages?** → Use WebFetch first
 2. **CAPTCHA/blocking?** → Use BrightData MCP (`mcp__brightdata__*`)
-3. **Social media?** → Use Apify MCP
+3. **Social media?** → Use apify MCP
 
 ## Common Tasks
 
@@ -71,3 +71,4 @@ This provides access to:
 ## Supplementary Resources
 For advanced scraping: `~/.config/opencode/docs/web-scraping-advanced.md`
 For MCP tools: `~/.config/opencode/docs/mcp-servers-reference.md`
+

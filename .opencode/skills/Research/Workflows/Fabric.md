@@ -21,7 +21,7 @@ This provides access to:
 **IMPORTANT: Before using this skill, verify patterns exist:**
 
 ```bash
-test -d ~/.config/opencode/skills/Fabric/Patterns || echo "Missing patterns: ~/.config/opencode/skills/Fabric/Patterns"
+test -d ~/.config/opencode/skills/fabric/Patterns || echo "Missing patterns: ~/.config/opencode/skills/fabric/Patterns"
 ```
 
 ## When to Activate This Skill
@@ -271,7 +271,7 @@ fabric "your text here" -p [pattern]
 
 ## 🔄 Updating Patterns
 
-Fabric patterns shipped with this runtime live at `~/.config/opencode/skills/Fabric/Patterns/`.
+fabric patterns shipped with this runtime live at `~/.config/opencode/skills/fabric/Patterns/`.
 
 **To update patterns:**
 
@@ -286,7 +286,7 @@ bun Tools/Install.ts
 **To see all available patterns:**
 
 ```bash
-ls ~/.config/opencode/skills/Fabric/Patterns/
+ls ~/.config/opencode/skills/fabric/Patterns/
 # OR from your local Fabric install:
 ls ~/.config/fabric/Patterns/
 ```
@@ -363,10 +363,10 @@ cat wisdom.txt | fabric -p create_5_sentence_summary
 
 ## 📖 Supplementary Resources
 
-**Full Pattern List:** `ls ~/.config/opencode/skills/Fabric/Patterns/`
-**Pattern Directory:** `~/.config/opencode/skills/Fabric/Patterns/`
+**Full Pattern List:** `ls ~/.config/opencode/skills/fabric/Patterns/`
+**Pattern Directory:** `~/.config/opencode/skills/fabric/Patterns/`
 **Fabric Documentation:** https://github.com/fabric-project/fabric
-**Pattern Templates:** See `~/.config/opencode/skills/Fabric/Patterns/`.
+**Pattern Templates:** See `~/.config/opencode/skills/fabric/Patterns/`.
 
 ## 🔑 Key Insight
 
@@ -380,3 +380,4 @@ When user says "Create a threat model using Fabric", your job is to:
 
 **Not:** "Here are the patterns, pick one"
 **Instead:** "I'll use `create_threat_model` for this" → execute immediately
+

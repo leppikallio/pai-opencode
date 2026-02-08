@@ -26,8 +26,8 @@ Task({ subagent_type: "Architect", prompt: "..." })
 Task({ subagent_type: "Designer", prompt: "..." })
 Task({ subagent_type: "Engineer", prompt: "..." })
 
-// ✅ RIGHT - Invoke the Agents skill for custom agents
-Skill("Agents")  // → CreateCustomAgent workflow
+// ✅ RIGHT - Invoke the agents skill for custom agents
+Skill("agents")  // → CreateCustomAgent workflow
 // OR follow the workflow directly:
 // 1. Run AgentFactory with different trait combinations
 // 2. Launch agents with the generated prompts
@@ -42,7 +42,7 @@ Skill("Agents")  // → CreateCustomAgent workflow
 
 | User Says | Action | Implementation |
 |-----------|--------|----------------|
-| "**custom agents**", "spin up **custom** agents" | Invoke Agents skill | `Skill("Agents")` → CreateCustomAgent workflow |
+| "**custom agents**", "spin up **custom** agents" | Invoke agents skill | `Skill("agents")` → CreateCustomAgent workflow |
 | "agents", "launch agents", "parallel agents" | Generic Interns | `Task({ subagent_type: "Intern" })` |
 | "use Remy", "get Ava to" | Named agent | Use appropriate researcher subagent_type |
 | (Internal workflow calls) | Task subagent_types | `Task({ subagent_type: "Engineer" })` etc. |
@@ -51,7 +51,7 @@ Skill("Agents")  // → CreateCustomAgent workflow
 
 When user requests custom agents:
 
-1. **Invoke Agents skill** via `Skill("Agents")` or follow CreateCustomAgent workflow
+1. **Invoke agents skill** via `Skill("agents")` or follow CreateCustomAgent workflow
 2. **Run AgentFactory** for EACH agent with DIFFERENT trait combinations
 3. **Extract prompt and voice_id** from ComposeAgent output
 4. **Launch agents** with Task tool using the composed prompts
@@ -59,9 +59,9 @@ When user requests custom agents:
 
 ```bash
 # Example: 3 custom research agents
-bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --traits "research,enthusiastic,exploratory"
-bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --traits "research,skeptical,systematic"
-bun run ~/.config/opencode/skills/Agents/Tools/AgentFactory.ts --traits "research,analytical,synthesizing"
+bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts --traits "research,enthusiastic,exploratory"
+bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts --traits "research,skeptical,systematic"
+bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts --traits "research,analytical,synthesizing"
 ```
 
 ---
@@ -73,15 +73,15 @@ These are pre-built agents available via OpenCode's Task tool. They are for **in
 | Subagent Type | Purpose | When Used |
 |---------------|---------|-----------|
 | `Algorithm` | Ideal-state criteria thinking | ISC creation, verification planning |
-| `Architect` | System design | Development skill workflows |
+| `Architect` | system design | Development skill workflows |
 | `Designer` | UX/UI design | Development skill workflows |
 | `Engineer` | Code implementation | Development skill workflows |
 | `Intern` | General-purpose parallel work | Parallel grunt work, research |
 | `Explore` | Codebase exploration | Finding files, understanding structure |
 | `QATester` | Quality assurance | Browser testing workflows |
-| `Pentester` | Security testing | WebAssessment workflows |
-| `ClaudeResearcher` | Claude-based research | Research skill workflows |
-| `GeminiResearcher` | Gemini-based research | Research skill workflows |
+| `Pentester` | Security testing | web-assessment workflows |
+| `ClaudeResearcher` | Claude-based research | research skill workflows |
+| `GeminiResearcher` | Gemini-based research | research skill workflows |
 | `GrokResearcher` | Grok-based research | Research skill workflows |
 | `PerplexityResearcher` | Perplexity Sonar research | Research skill workflows |
 | `CodexResearcher` | Code-focused research | TypeScript archaeology and patterns |
@@ -103,7 +103,7 @@ Named agents have rich backstories, personality traits, and mapped ElevenLabs vo
 | Ava Sterling | Claude Researcher | Premium US Female | Strategic research |
 | Alex Rivera | Gemini Researcher | Multi-perspective | Comprehensive analysis |
 
-**Full backstories and voice settings:** `skills/Agents/AgentPersonalities.md`
+**Full backstories and voice settings:** `skills/agents/AgentPersonalities.md`
 
 ---
 
@@ -131,7 +131,7 @@ Custom agents are composed on-the-fly from traits using AgentFactory. Each uniqu
 | security + adversarial | Callum (edgy) | Hacker character |
 | analytical + meticulous | Charlotte (sophisticated) | Precision analysis |
 
-**Full trait definitions and voice mappings:** `skills/Agents/Data/Traits.yaml`
+**Full trait definitions and voice mappings:** `skills/agents/Data/Traits.yaml`
 
 ---
 
@@ -168,11 +168,13 @@ Task({
 
 ## References
 
-- **Agents Skill:** `skills/Agents/SKILL.md` — Custom agent creation, workflows
-- **AgentFactory:** `skills/Agents/Tools/AgentFactory.ts` — Dynamic composition tool
-- **Traits:** `skills/Agents/Data/Traits.yaml` — Trait definitions and voice mappings
-- **Agent Personalities:** `skills/Agents/AgentPersonalities.md` — Named agent backstories
+- **agents Skill:** `skills/agents/SKILL.md` — Custom agent creation, workflows
+- **AgentFactory:** `skills/agents/Tools/AgentFactory.ts` — Dynamic composition tool
+- **Traits:** `skills/agents/Data/Traits.yaml` — Trait definitions and voice mappings
+- **Agent Personalities:** `skills/agents/AgentPersonalities.md` — Named agent backstories
 
 ---
 
 *Last updated: 2026-01-14*
+
+

@@ -1,5 +1,5 @@
 ---
-name: Art
+name: art
 description: Visual content system. USE WHEN art, illustrations, diagrams, visualizations, mermaid, flowchart.
 ---
 
@@ -10,7 +10,7 @@ Complete visual content system for creating illustrations, diagrams, and visual 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Art/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/art/`
 
 If this directory exists, load and apply:
 - `PREFERENCES.md` - Aesthetic preferences, default model, output location
@@ -38,9 +38,9 @@ These override default behavior. If the directory does not exist, proceed with s
 1. **Send voice notification**:
    Use the `voice_notify` tool:
 
-- `message`: "Running the WORKFLOWNAME workflow from the Art skill"bash
+- `message`: "Running the WORKFLOWNAME workflow from the art skill"bash
 # CORRECT - Output to Downloads for preview
-bun run ~/.config/opencode/skills/Art/Tools/Generate.ts \
+bun run ~/.config/opencode/skills/art/Tools/Generate.ts \
   --model nano-banana-pro \
   --prompt "[PROMPT]" \
   --size 2K \
@@ -59,7 +59,7 @@ For improved character or style consistency, use multiple `--reference-image` fl
 
 ```bash
 # Multiple reference images for better likeness
-bun run ~/.config/opencode/skills/Art/Tools/Generate.ts \
+bun run ~/.config/opencode/skills/art/Tools/Generate.ts \
   --model nano-banana-pro \
   --prompt "Person from references at a party..." \
   --reference-image face1.jpg \
@@ -115,3 +115,4 @@ User: "create icon for the skill system pack"
 → Outputs to ~/Downloads/ for preview
 → After approval, copies to ~/Projects/PAI/Packs/icons/
 ```
+

@@ -82,13 +82,13 @@ Tool help files pair with the tool name:
 
 ---
 
-## Skill classes: System vs Personal
+## Skill classes: system vs Personal
 
 Skills are classified by directory naming:
 
 ### System skills (shareable)
 
-- Directory name is **TitleCase**, e.g. `Browser`, `Research`, `CreateSkill`.
+- Directory name is **TitleCase**, e.g. `Browser`, `research`, `CreateSkill`.
 - MUST NOT contain personal secrets or personal data.
 
 ### Personal skills (never shared)
@@ -189,3 +189,4 @@ Forbidden (unless an existing subtree already uses it and you are not restructur
 - `Templates/` (prefer root docs; keep `Workflows/` and `Tools/` as the only dirs)
 
 Why: these directories usually become dumping grounds that hide critical context and make deterministic retrieval harder.
+

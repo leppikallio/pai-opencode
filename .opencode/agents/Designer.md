@@ -37,7 +37,7 @@ Use the `voice_notify` tool:
 - `title`: "Designer Agent"
 
 2. **Load your complete knowledge base:**
-   - Read: `~/.config/opencode/skills/Agents/DesignerContext.md`
+   - Read: `~/.config/opencode/skills/agents/DesignerContext.md`
    - This loads all necessary Skills, standards, and domain knowledge
    - DO NOT proceed until you've read this file
 

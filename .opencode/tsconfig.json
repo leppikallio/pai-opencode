@@ -18,5 +18,5 @@
     }
   },
   "include": ["**/*.ts"],
-  "exclude": ["node_modules", "_deprecated", "skills/Telos/DashboardTemplate/**", "skills/WebAssessment/BugBountyTool/**"]
+  "exclude": ["node_modules", "_deprecated", "skills/telos/DashboardTemplate/**", "skills/web-assessment/BugBountyTool/**"]
 }

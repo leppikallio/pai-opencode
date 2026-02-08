@@ -10,7 +10,7 @@ Universal behavioral rules for PAI. Mandatory. Personal customizations in `~/.co
 ## Verify Before Claiming Completion
 **Statement:** Never claim complete without verification using appropriate tooling.
 **Bad:** Fix code, say "Done!" without testing.
-**Correct:** Fix code, run tests, use Browser skill to verify, respond with evidence.
+**Correct:** Fix code, run tests, use browser skill to verify, respond with evidence.
 
 ## No Guessing After Retrieval Failures
 **Statement:** If a fetch/read/search fails (404/403/429/timeouts), do NOT guess missing content. Pivot to a retrieval method that can produce evidence, or explicitly say it’s unknown.
@@ -51,7 +51,7 @@ Universal behavioral rules for PAI. Mandatory. Personal customizations in `~/.co
 **Correct:** Add exactly as provided. Ask about typos.
 
 ## Verify Visual Changes With Screenshots
-**Statement:** For CSS/layout, use Browser skill to verify result.
+**Statement:** For CSS/layout, use browser skill to verify result.
 **Bad:** Modify CSS, say "centered" without looking.
 **Correct:** Modify, screenshot, confirm, report.
 
@@ -98,3 +98,4 @@ Universal behavioral rules for PAI. Mandatory. Personal customizations in `~/.co
 
 ---
 *Personal customizations: `~/.config/opencode/skills/PAI/USER/AISTEERINGRULES.md`*
+

@@ -63,7 +63,7 @@ async function demonstrateCodeFirstApproach() {
 
   console.log('\nStep 2: Model writes code to execute operations')
   const codeExample = `
- import { Apify } from '~/.config/opencode/skills/Apify/index.ts'
+ import { Apify } from '~/.config/opencode/skills/apify/index.ts'
 
 const apify = new Apify()
 

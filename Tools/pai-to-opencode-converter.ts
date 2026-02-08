@@ -353,7 +353,7 @@ const STANDARD_SKILLS = [
   "PAI",
   "Agents",
   "Browser",
-  "Art",
+  "art",
   "Research",
   "Security",
   "THEALGORITHM",
@@ -366,7 +366,7 @@ const STANDARD_SKILLS = [
   "Fabric",
   "pdf",
   "Prompting",
-  "CreateSkill",
+  "create-skill",
   "Intelligence",
   "KnowledgeExtraction",
   "Thinking",
@@ -1651,3 +1651,4 @@ main().catch(err => {
   console.error("❌ Converter failed:", err);
   process.exit(1);
 });
+

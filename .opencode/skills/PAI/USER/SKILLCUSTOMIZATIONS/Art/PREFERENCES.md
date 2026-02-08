@@ -2,7 +2,7 @@
 
 **Your visual aesthetic preferences for AI-generated images.**
 
-This file customizes the Art skill's default behavior to match your personal visual style.
+This file customizes the art skill's default behavior to match your personal visual style.
 
 ---
 
@@ -129,4 +129,5 @@ theme: [tokyo-night|monokai|dracula|custom]
 
 ---
 
-*Update this file to customize the Art skill's output to match your visual style.*
+*Update this file to customize the art skill's output to match your visual style.*
+

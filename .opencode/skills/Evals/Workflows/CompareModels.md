@@ -6,9 +6,9 @@ Compare multiple models on the same prompt to determine the best performer.
 
 Use the `voice_notify` tool:
 
-- `message`: "Running the CompareModels workflow in the Evals skill to compare model performance"
+- `message`: "Running the CompareModels workflow in the evals skill to compare model performance"
 
-Running the **CompareModels** workflow in the **Evals** skill to compare model performance...
+Running the **CompareModels** workflow in the **evals** skill to compare model performance...
 
 ---
 
@@ -43,7 +43,7 @@ models:
 
 ### Step 3: Create Model Comparison Config
 
-Create `~/.config/opencode/skills/Evals/UseCases/<name>/model-comparisons/<comparison-name>.yaml`:
+Create `~/.config/opencode/skills/evals/UseCases/<name>/model-comparisons/<comparison-name>.yaml`:
 
 ```yaml
 model_comparison:
@@ -108,7 +108,7 @@ Results stored in:
 Use Report template:
 
 ```bash
-bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
   -t Evals/Report.hbs \
   -d Results/<use-case>/models/<run-id>/summary.yaml \
   -o Results/<use-case>/models/<run-id>/report.md
@@ -283,3 +283,4 @@ Use this framework:
 ## Done
 
 Model comparison completed. Best model identified. Decision documented.
+

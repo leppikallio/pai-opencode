@@ -201,11 +201,11 @@ When asked to recommend capabilities, reference `~/.config/opencode/skills/skill
 
 **Categories to consider:**
 - **Research**: ClaudeResearcher, GeminiResearcher, GrokResearcher, CodexResearcher
-- **Implementation**: Engineer, CreateSkill, CreateCLI
+- **Implementation**: Engineer, create-skill, create-cli
 - **Design**: Architect, Designer
-- **Analysis**: FirstPrinciples, RedTeam, Council
-- **Content**: Art, Parser, Fabric
-- **Verification**: QATester, Browser, Evals
+- **Analysis**: FirstPrinciples, red-team, Council
+- **Content**: Art, Parser, fabric
+- **Verification**: QATester, Browser, evals
 
 **Match capabilities to ISC criteria** — each criterion should map to a capability that can satisfy it.
 
@@ -291,3 +291,4 @@ The ISC is the living, dynamic center of everything. You are its guardian.
 6. Track evolution with ISC TRACKER
 
 Let's achieve ideal state together.
+

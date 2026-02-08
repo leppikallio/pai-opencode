@@ -2,7 +2,7 @@
 
 **Your preferences for how scenes and environments are composed.**
 
-This file customizes the Art skill's approach to scene composition.
+This file customizes the art skill's approach to scene composition.
 
 ---
 
@@ -127,3 +127,4 @@ annotations: [minimal/detailed]
 ---
 
 *Update this file to customize how the Art skill constructs scenes and environments.*
+

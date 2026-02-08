@@ -50,7 +50,7 @@ The Retrieve skill uses a **3-layer fallback strategy** to ensure content can al
 ```
 Layer 1: Built-in Tools (Fast, Simple)
   ↓ (If blocked, rate-limited, or fails)
-Layer 2: BrightData MCP (CAPTCHA handling, advanced scraping)
+Layer 2: bright-data MCP (CAPTCHA handling, advanced scraping)
   ↓ (If specialized scraping needed)
 Layer 3: Apify MCP (RAG browser, Actor ecosystem)
 ```
@@ -116,9 +116,9 @@ WebSearch({
 **When it fails:**
 - Need more comprehensive search results
 - Need specific search engine (Google, Bing, Yandex)
-→ **Escalate to Layer 2 (BrightData search_engine)**
+→ **Escalate to Layer 2 (bright-data search_engine)**
 
-## Layer 2: BrightData MCP
+## Layer 2: bright-data MCP
 
 ### scrape_as_markdown Tool
 
@@ -517,3 +517,4 @@ mcp__Apify__apify-slash-rag-web-browser({
 - Work artifacts go in current work item's scratch/
 - Final valuable content goes to history
 - Scratch artifacts stay tied to work item for learning
+

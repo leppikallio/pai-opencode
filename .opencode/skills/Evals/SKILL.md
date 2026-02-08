@@ -1,12 +1,12 @@
 ---
-name: Evals
+name: evals
 description: Agent evaluation framework. USE WHEN eval, evaluate, test agent, benchmark, verify behavior.
 ---
 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Evals/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/evals/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -18,21 +18,21 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 1. **Send voice notification**:
    Use the `voice_notify` tool:
 
-- `message`: "Running the WORKFLOWNAME workflow in the Evals skill to ACTION"bash
+- `message`: "Running the WORKFLOWNAME workflow in the evals skill to ACTION"bash
 # Run an eval suite
-bun run ~/.config/opencode/skills/Evals/Tools/AlgorithmBridge.ts -s <suite>
+bun run ~/.config/opencode/skills/evals/Tools/AlgorithmBridge.ts -s <suite>
 
 # Log a failure for later conversion
-bun run ~/.config/opencode/skills/Evals/Tools/FailureToTask.ts log "description" -c category -s severity
+bun run ~/.config/opencode/skills/evals/Tools/FailureToTask.ts log "description" -c category -s severity
 
 # Convert failures to test tasks
-bun run ~/.config/opencode/skills/Evals/Tools/FailureToTask.ts convert-all
+bun run ~/.config/opencode/skills/evals/Tools/FailureToTask.ts convert-all
 
 # Manage suites
-bun run ~/.config/opencode/skills/Evals/Tools/SuiteManager.ts create <name> -t capability -d "description"
-bun run ~/.config/opencode/skills/Evals/Tools/SuiteManager.ts list
-bun run ~/.config/opencode/skills/Evals/Tools/SuiteManager.ts check-saturation <name>
-bun run ~/.config/opencode/skills/Evals/Tools/SuiteManager.ts graduate <name>
+bun run ~/.config/opencode/skills/evals/Tools/SuiteManager.ts create <name> -t capability -d "description"
+bun run ~/.config/opencode/skills/evals/Tools/SuiteManager.ts list
+bun run ~/.config/opencode/skills/evals/Tools/SuiteManager.ts check-saturation <name>
+bun run ~/.config/opencode/skills/evals/Tools/SuiteManager.ts graduate <name>
 ```
 
 ### ALGORITHM Integration
@@ -41,7 +41,7 @@ Evals is a verification method for THE ALGORITHM ISC rows:
 
 ```bash
 # Run eval and update ISC row
-bun run ~/.config/opencode/skills/Evals/Tools/AlgorithmBridge.ts -s regression-core -r 3 -u
+bun run ~/.config/opencode/skills/evals/Tools/AlgorithmBridge.ts -s regression-core -r 3 -u
 ```
 
 ISC rows can specify eval verification:
@@ -154,5 +154,6 @@ task:
 ## Related
 
 - **ALGORITHM**: Evals is a verification method
-- **Science**: Evals implements scientific method
+- **Science**: evals implements scientific method
 - **Browser**: For visual verification graders
+

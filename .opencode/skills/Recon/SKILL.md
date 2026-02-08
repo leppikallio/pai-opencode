@@ -1,12 +1,12 @@
 ---
-name: Recon
+name: recon
 description: "Security reconnaissance. USE WHEN recon, reconnaissance, bug bounty, attack surface. SkillSearch('recon') for docs."
 ---
 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Recon/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/recon/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -25,8 +25,8 @@ Technical reconnaissance of network infrastructure including domains, IP address
 1. **Send voice notification**:
    Use the `voice_notify` tool:
 
-- `message`: "Running the WORKFLOWNAME workflow from the Recon skill"typescript
-// OSINT skill discovers company infrastructure
+- `message`: "Running the WORKFLOWNAME workflow from the recon skill"typescript
+// osint skill discovers company infrastructure
 const domains = await osintFindCompanyDomains("Acme Corp");
 
 // Calls recon skill to map technical details
@@ -378,7 +378,7 @@ Assistant: Activating recon skill with ip-recon workflow.
              Technologies: nginx 1.20.1, OpenSSH 8.2
 ```
 
-### Example 3: Integration with OSINT
+### Example 3: Integration with osint
 ```
 User: "Do OSINT on Acme Corp and map their infrastructure"
 
@@ -387,7 +387,7 @@ Assistant: Activating OSINT skill...
 
      Now calling recon for infrastructure mapping...
 
-     [Recon skill maps each domain]
+     [recon skill maps each domain]
      [Discovers subdomains, IPs, netblocks]
      [Creates comprehensive infrastructure map]
 
@@ -432,7 +432,7 @@ Assistant: Activating OSINT skill...
 ## Related Documentation
 
 **Security Skills:**
-- `~/.config/opencode/skills/OSINT/` - Entity and people reconnaissance
+- `~/.config/opencode/skills/osint/` - Entity and people reconnaissance
 - `~/.config/opencode/skills/Webassessment/` - Web application testing
 
 **Tool Documentation:**
@@ -447,3 +447,4 @@ Assistant: Activating OSINT skill...
 ---
 
 **Remember:** Start passive, confirm authorization before going active, document everything, and be respectful of target systems.
+

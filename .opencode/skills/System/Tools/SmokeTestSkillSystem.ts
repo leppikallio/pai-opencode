@@ -2,7 +2,7 @@
 /**
  * SmokeTestSkillSystem
  *
- * Pragmatic verification for "does the system behave as intended" after SkillSystem/CreateSkill refactors.
+ * Pragmatic verification for "does the system behave as intended" after SkillSystem/create-skill refactors.
  *
  * Two layers:
  *  1) Static checks (no LLM calls):
@@ -52,7 +52,7 @@ function usageText(): string {
   return `SmokeTestSkillSystem
 
 Usage:
-  bun "${RUNTIME_ROOT}/skills/System/Tools/SmokeTestSkillSystem.ts" [options]
+  bun "${RUNTIME_ROOT}/skills/system/Tools/SmokeTestSkillSystem.ts" [options]
 
 Options:
   --mode <static|behavior|both>   Which checks to run (default: static)
@@ -165,8 +165,8 @@ async function runCmd(cmd: string[], opts: { dryRun: boolean }) {
 }
 
 async function staticChecks(findings: Finding[], opts: { dryRun: boolean }) {
-  const validateSkillSystemDocs = `${RUNTIME_ROOT}/skills/System/Tools/ValidateSkillSystemDocs.ts`;
-  const countBudgetLines = `${RUNTIME_ROOT}/skills/CreateSkill/Tools/CountSkillBudgetLines.ts`;
+  const validateSkillSystemDocs = `${RUNTIME_ROOT}/skills/system/Tools/ValidateSkillSystemDocs.ts`;
+  const countBudgetLines = `${RUNTIME_ROOT}/skills/create-skill/Tools/CountSkillBudgetLines.ts`;
 
   if (!(await fileExists(validateSkillSystemDocs))) {
     push(findings, {
@@ -202,8 +202,8 @@ async function staticChecks(findings: Finding[], opts: { dryRun: boolean }) {
 
   const skillFiles: Array<{ file: string; max?: number; label: string }> = [
     {
-      label: "CreateSkill (info only)",
-      file: `${RUNTIME_ROOT}/skills/CreateSkill/SKILL.md`,
+      label: "create-skill (info only)",
+      file: `${RUNTIME_ROOT}/skills/create-skill/SKILL.md`,
     },
     {
       label: "PAI (expected to be large until migrated)",
@@ -476,3 +476,4 @@ main().catch((err) => {
   process.stderr.write(`SmokeTestSkillSystem tool error: ${msg}\n`);
   process.exitCode = 2;
 });
+

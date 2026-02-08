@@ -71,7 +71,7 @@ Compatibility:
 ### Skills
 
 ```
-skills/System/SKILL.md                # SYSTEM tier (public skill)
+skills/system/SKILL.md                # SYSTEM tier (public skill)
 skills/<PRIVATE_SKILL>/SKILL.md        # USER tier (private, _PREFIX naming)
 ```
 
@@ -226,7 +226,7 @@ function getPatternsPath(): string | null {
 TitleCase       →  SYSTEM tier (public, shareable)
 _ALLCAPS        →  USER tier (private, personal)
 
-skills/Browser/         # Public skill
+skills/browser/         # Public skill
 skills/_BLOGGING/       # Private skill (underscore prefix)
 ```
 

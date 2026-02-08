@@ -1,5 +1,5 @@
 ---
-name: Apify
+name: apify
 description: Social media scraping, business data, e-commerce via Apify actors. USE WHEN Twitter, Instagram, LinkedIn, TikTok, YouTube, Facebook, Google Maps, Amazon scraping.
 context: fork
 ---
@@ -7,7 +7,7 @@ context: fork
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Apify/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/apify/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -18,15 +18,15 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 1. **Send voice notification**:
    Use the `voice_notify` tool:
-   - `message`: "Running WORKFLOWNAME workflow from Apify skill"
+   - `message`: "Running WORKFLOWNAME workflow from apify skill"
 
 2. **Output text notification**:
-   "Running the **WorkflowName** workflow from the **Apify** skill to ACTION..."
+   "Running the **WorkflowName** workflow from the **apify** skill to ACTION..."
 
 ## Quick Example
 
 ```typescript
-// Run from: ~/.config/opencode/skills/Apify/
+// Run from: ~/.config/opencode/skills/apify/
 import { scrapeInstagramProfile, searchGoogleMaps } from "./actors";
 
 const profile = await scrapeInstagramProfile({ username: "target_username", maxPosts: 50 });
@@ -426,3 +426,4 @@ APIFY_TOKEN=apify_api_xxxxx...
 ---
 
 **Remember: Filter data in code BEFORE returning to model context. This is where the 99% token savings happen!**
+

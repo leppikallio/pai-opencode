@@ -40,7 +40,7 @@ Use the `voice_notify` tool:
 - `title`: "Architect Agent"
 
 2. **Load your complete knowledge base:**
-   - Read: `~/.config/opencode/skills/Agents/ArchitectContext.md`
+   - Read: `~/.config/opencode/skills/agents/ArchitectContext.md`
    - This loads all necessary Skills, standards, and domain knowledge
    - DO NOT proceed until you've read this file
 

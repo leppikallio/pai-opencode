@@ -21,7 +21,7 @@ type Finding = {
 };
 
 function usage(exitCode = 0): never {
-  const msg = `Usage: bun ~/.config/opencode/skills/System/Tools/ScanBrokenRefs.ts [options]
+  const msg = `Usage: bun ~/.config/opencode/skills/system/Tools/ScanBrokenRefs.ts [options]
 
 Options:
   --root <dir>          Root PAI dir (default: PAI_DIR or ~/.config/opencode)
@@ -350,7 +350,7 @@ function main() {
 
     const includeFences =
       f.includes(`${path.sep}Workflows${path.sep}`) ||
-      f.includes(`${path.sep}Agents${path.sep}`) ||
+      f.includes(`${path.sep}agents${path.sep}`) ||
       f.endsWith(`${path.sep}SKILL.md`);
 
     // Reduce noise in general docs, but keep fences for workflows (commands are executable instructions).
@@ -409,3 +409,4 @@ function main() {
 }
 
 main();
+

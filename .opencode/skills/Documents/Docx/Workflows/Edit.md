@@ -4,7 +4,7 @@ Append content to an existing Word document using the docx CLI.
 
 ## Prerequisites
 
-- docx CLI available at `~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts`
+- docx CLI available at `~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts`
 - Existing .docx file to modify
 - Bun runtime available
 
@@ -27,13 +27,13 @@ Create or gather markdown content to append. It can be:
 
 **Append and overwrite original:**
 ```bash
-bun "~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts" edit <existing.docx> \
+bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" edit <existing.docx> \
   --append <additions.md>
 ```
 
 **Append and save to new file:**
 ```bash
-bun "~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts" edit <existing.docx> \
+bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" edit <existing.docx> \
   --append <additions.md> \
   -o <updated.docx>
 ```
@@ -64,7 +64,7 @@ Report:
 
 ```bash
 # Add appendix to existing report
-bun "~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts" edit report.docx \
+bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" edit report.docx \
   --append appendix.md \
   -o report-with-appendix.docx
 ```
@@ -75,3 +75,4 @@ bun "~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts" edit report.docx
 - Appended content inherits template styles
 - Use `-o` to save to new file instead of overwriting
 - TOC may need manual refresh after appending (Ctrl+A, F9 in Word)
+

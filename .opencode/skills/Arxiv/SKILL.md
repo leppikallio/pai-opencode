@@ -1,16 +1,16 @@
 ---
-name: Arxiv
+name: arxiv
 description: Academic research paper discovery, download, and deep analysis using arXiv MCP server. USE WHEN user asks to search arXiv OR find papers OR download a paper OR analyze a paper OR literature review.
 ---
 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Arxiv/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/arxiv/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
-# Arxiv
+# arxiv
 
 Academic research paper discovery, download, and deep analysis system using the arXiv MCP server.
 
@@ -21,7 +21,7 @@ Academic research paper discovery, download, and deep analysis system using the 
 1. **Send voice notification**:
    Use the `voice_notify` tool:
 
-- `message`: "Running the WORKFLOWNAME workflow from the Arxiv skill"
+- `message`: "Running the WORKFLOWNAME workflow from the arxiv skill"
 
 ## Workflow Routing
 
@@ -185,3 +185,4 @@ Find classic BDI architecture papers before 2010
 - Always check `list_papers` first to see what's already downloaded
 - When analyzing papers, search for related work to provide context
 - Cross-reference findings across multiple papers when possible
+

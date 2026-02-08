@@ -1,5 +1,5 @@
 ---
-name: Pptx
+name: pptx
 description: Presentation creation, editing, and analysis. USE WHEN user mentions PowerPoint/PPTX, slide decks, pitch decks, templates, speaker notes, or provides .pptx files. SkillSearch('pptx') for docs.
 ---
 
@@ -101,7 +101,7 @@ You need raw XML access for: comments, speaker notes, slide layouts, animations,
 #### Unpacking a file
 `python Ooxml/Scripts/unpack.py <office_file> <output_dir>`
 
-**Note**: The unpack.py script is located at `~/.config/opencode/skills/Documents/Pptx/Ooxml/Scripts/unpack.py`.
+**Note**: The unpack.py script is located at `~/.config/opencode/skills/documents/pptx/Ooxml/Scripts/unpack.py`.
 
 #### Key file structures
 * `ppt/presentation.xml` - Main presentation metadata and slide references
@@ -583,3 +583,4 @@ Required dependencies (should already be installed):
 - **LibreOffice**: `sudo apt-get install libreoffice` (for PDF conversion)
 - **Poppler**: `sudo apt-get install poppler-utils` (for pdftoppm to convert PDF to images)
 - **defusedxml**: `pip install defusedxml` (for secure XML parsing)
+

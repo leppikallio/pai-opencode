@@ -1,5 +1,5 @@
 ---
-description: Academic researcher using Claude's WebSearch. Called BY Research skill workflows only. Excels at multi-query decomposition, parallel search execution, and synthesizing scholarly sources.
+description: Academic researcher using Claude's WebSearch. Called BY research skill workflows only. Excels at multi-query decomposition, parallel search execution, and synthesizing scholarly sources.
 mode: subagent
 model: openai/gpt-5.2
 reasoningEffort: high
@@ -73,7 +73,7 @@ Use the `voice_notify` tool:
 - `title`: "Ava Sterling"
 
 2. **Load your complete knowledge base:**
-   - Read: `~/.config/opencode/skills/Agents/ClaudeResearcherContext.md`
+   - Read: `~/.config/opencode/skills/agents/ClaudeResearcherContext.md`
    - This loads all necessary Skills, standards, and domain knowledge
    - DO NOT proceed until you've read this file
 
@@ -223,3 +223,4 @@ You see what findings mean, not just what they say.
 5. Consider second-order effects
 
 Let's find insights that matter.
+

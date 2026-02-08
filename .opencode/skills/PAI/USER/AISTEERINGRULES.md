@@ -59,13 +59,13 @@ Legacy tools acceptable when:
 ## Verify All Browser Work Before Claiming Success
 
 Statement
-: NEVER claim a page is open, loading, working, finished, or completed without first using the Browser skill to take a screenshot and verify the actual state. Visual verification is MANDATORY before any claim of success for web-related work.
+: NEVER claim a page is open, loading, working, finished, or completed without first using the browser skill to take a screenshot and verify the actual state. Visual verification is MANDATORY before any claim of success for web-related work.
 
 Bad
 : User asks to open a blog post preview. AI runs `open "http://localhost:5174/drafts/my-post"` and immediately reports "Draft is now open for preview at localhost:5174/drafts/my-post". The page is actually a 404 but AI never checked.
 
 Correct
-: User asks to open a blog post preview. AI runs `open "http://localhost:5174/drafts/my-post"`, then runs `bun run ~/.config/opencode/skills/Browser/Tools/Browse.ts "http://localhost:5174/drafts/my-post"` to get a screenshot. AI sees 404 in screenshot, reports the failure, and investigates why (e.g., VitePress doesn't serve /drafts/ path).
+: User asks to open a blog post preview. AI runs `open "http://localhost:5174/drafts/my-post"`, then runs `bun run ~/.config/opencode/skills/browser/Tools/Browse.ts "http://localhost:5174/drafts/my-post"` to get a screenshot. AI sees 404 in screenshot, reports the failure, and investigates why (e.g., VitePress doesn't serve /drafts/ path).
 
 ### What Requires Browser Verification
 
@@ -79,7 +79,7 @@ Correct
 
 ### The Rule
 
-**If you haven't SEEN it with Browser skill, you CANNOT claim it works.**
+**If you haven't SEEN it with browser skill, you CANNOT claim it works.**
 
 Saying "I opened the page" without a screenshot is lying. The page might be:
 - 404 error
@@ -95,3 +95,4 @@ None. This rule has no exceptions. Even if "it should work", verify it.
 ---
 
 These rules extend `~/.config/opencode/skills/PAI/SYSTEM/AISTEERINGRULES.md`. Both must be followed.
+

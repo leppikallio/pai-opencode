@@ -46,29 +46,29 @@ Preferred discovery pattern:
 ## Where it lives
 
 Repo:
-- `/Users/zuul/Projects/pai-opencode/.opencode/skills/System/Tools/ValidateSkillSystemDocs.ts`
+- `/Users/zuul/Projects/pai-opencode/.opencode/skills/system/Tools/ValidateSkillSystemDocs.ts`
 
 Runtime (after install):
-- `/Users/zuul/.config/opencode/skills/System/Tools/ValidateSkillSystemDocs.ts`
+- `/Users/zuul/.config/opencode/skills/system/Tools/ValidateSkillSystemDocs.ts`
 
 ## How to run
 
 Validate runtime docs (default paths):
 
 ```bash
-bun "/Users/zuul/.config/opencode/skills/System/Tools/ValidateSkillSystemDocs.ts"
+bun "/Users/zuul/.config/opencode/skills/system/Tools/ValidateSkillSystemDocs.ts"
 ```
 
 JSON output:
 
 ```bash
-bun "/Users/zuul/.config/opencode/skills/System/Tools/ValidateSkillSystemDocs.ts" --format json
+bun "/Users/zuul/.config/opencode/skills/system/Tools/ValidateSkillSystemDocs.ts" --format json
 ```
 
 Override paths (useful for custom setups):
 
 ```bash
-bun "/Users/zuul/.config/opencode/skills/System/Tools/ValidateSkillSystemDocs.ts" \
+bun "/Users/zuul/.config/opencode/skills/system/Tools/ValidateSkillSystemDocs.ts" \
   --index "/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md" \
   --sections-dir "/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem" \
   --format text

@@ -80,8 +80,8 @@ uv run extract-transcript.py audio.m4a --format srt
 ### Example 1: Meeting Recording
 
 ```bash
-uv run extract-transcript.py ~/Documents/team-meeting.m4a
-# Output: ~/Documents/team-meeting.txt
+uv run extract-transcript.py ~/documents/team-meeting.m4a
+# Output: ~/documents/team-meeting.txt
 ```
 
 ### Example 2: Video with Subtitles
@@ -158,3 +158,4 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 **File too large for API (>25MB):**
 Use local transcription instead, or use `SplitAndTranscribe.ts`
+

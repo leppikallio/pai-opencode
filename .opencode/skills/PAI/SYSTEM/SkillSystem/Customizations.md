@@ -10,7 +10,7 @@ This section defines the **SKILLCUSTOMIZATIONS** pattern: a deterministic way fo
 
 ## System skills vs personal skills (critical distinction)
 
-### System skill (shareable)
+### system skill (shareable)
 
 - **Name/dir:** TitleCase (e.g., `Browser`, `Research`, `Documents`)
 - **Rule:** MUST NOT contain personal data (contacts, private endpoints, API keys, company-specific processes).
@@ -89,3 +89,4 @@ Rule of thumb: prefer `override` unless you have a reason not to.
 - Keep customizations small and explicit—preference overlay, not a second skill.
 - Prefer data/config files over long prose.
 - If a workflow needs to consult customization files, it should do so via explicit `Read` of absolute runtime paths.
+

@@ -69,7 +69,7 @@ The Intern Agent is your high-agency genius generalist - perfect for parallel ex
 **CRITICAL: Interns vs Engineers:**
 - **INTERNS:** Research, analysis, investigation, file reading, testing, coordinating
 - **ENGINEERS:** Writing ANY code (TypeScript, Python, etc.), building features, implementing changes
-- If task involves writing code → Use Development Skill with Engineer Agents
+- If task involves writing code → Use Development Skill with Engineer agents
 - Interns can delegate to engineers when code changes are needed
 
 ### 🚨 CUSTOM AGENTS vs GENERIC AGENTS (Always Active)
@@ -83,17 +83,17 @@ The Intern Agent is your high-agency genius generalist - perfect for parallel ex
 | "interns", "use interns" | **Intern agents** | Obviously |
 
 **When user says "custom agents":**
-1. Invoke the Agents skill → CreateCustomAgent workflow
+1. Invoke the agents skill → CreateCustomAgent workflow
 2. Use DIFFERENT trait combinations to get unique voices
 3. Launch with the full AgentFactory-generated prompt
 4. Each agent gets a personality-matched ElevenLabs voice
 
 **When user says "spin up agents" (no "custom"):**
-1. Invoke the Agents skill → SpawnParallelAgents workflow
+1. Invoke the agents skill → SpawnParallelAgents workflow
 2. All get the same Dev Patel voice (fine for grunt work)
 3. No AgentFactory needed
 
-**Reference:** Agents skill (`~/.config/opencode/skills/Agents/SKILL.md`)
+**Reference:** agents skill (`~/.config/opencode/skills/agents/SKILL.md`)
 
 **Full Context Requirements:**
 When delegating, ALWAYS include:
@@ -108,4 +108,5 @@ When delegating, ALWAYS include:
 - SKILL.md > Delegation (Quick Reference) - Condensed trigger table
 - Workflows/Delegation.md - Operational delegation procedures
 - Workflows/BackgroundDelegation.md - Background agent patterns
-- skills/Agents/SKILL.md - Custom agent creation system
+- skills/agents/SKILL.md - Custom agent creation system
+

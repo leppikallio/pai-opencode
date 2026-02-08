@@ -101,7 +101,7 @@ export function applyProfileToAgents(opts: ApplyProfileOptions): { updated: numb
     throw new Error(`Profiles directory not found: ${profilesDir}`);
   }
   if (!existsSync(agentsDir)) {
-    throw new Error(`Agents directory not found: ${agentsDir}`);
+    throw new Error(`agents directory not found: ${agentsDir}`);
   }
 
   const profilePath = join(profilesDir, `${opts.profileName}.yaml`);
@@ -240,3 +240,4 @@ function main() {
 }
 
 main();
+

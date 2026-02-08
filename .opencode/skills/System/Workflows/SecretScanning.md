@@ -59,15 +59,15 @@ trufflehog filesystem . --json \
 ```bash
 # Scan git history
 trufflehog git file://. --only-verified --json \
-  --exclude-globs "**/node_modules/**,**/skills/WebAssessment/FfufResources/REQUEST_TEMPLATES.md"
+  --exclude-globs "**/node_modules/**,**/skills/web-assessment/FfufResources/REQUEST_TEMPLATES.md"
 
 # Scan specific branch
 trufflehog git file://. --branch=main --only-verified --json \
-  --exclude-globs "**/node_modules/**,**/skills/WebAssessment/FfufResources/REQUEST_TEMPLATES.md"
+  --exclude-globs "**/node_modules/**,**/skills/web-assessment/FfufResources/REQUEST_TEMPLATES.md"
 
 # Scan commits since specific date
 trufflehog git file://. --since-commit=HEAD~10 --only-verified --json \
-  --exclude-globs "**/node_modules/**,**/skills/WebAssessment/FfufResources/REQUEST_TEMPLATES.md"
+  --exclude-globs "**/node_modules/**,**/skills/web-assessment/FfufResources/REQUEST_TEMPLATES.md"
 ```
 
 ### 4. Parse and Categorize Results

@@ -1,5 +1,5 @@
 ---
-name: Telos
+name: telos
 description: "Life OS and project analysis. USE WHEN TELOS, life goals, projects, dependencies, books, movies. SkillSearch('telos') for docs."
 ---
 
@@ -18,8 +18,8 @@ description: "Life OS and project analysis. USE WHEN TELOS, life goals, projects
 1. **Send voice notification**:
    Use the `voice_notify` tool:
 
-- `message`: "Running the WORKFLOWNAME workflow from the Telos skill"
-Running the **WorkflowName** workflow from the **Telos** skill...
+- `message`: "Running the WORKFLOWNAME workflow from the telos skill"
+Running the **WorkflowName** workflow from the **telos** skill...
 ```
 
 | Workflow | Trigger | File |
@@ -102,7 +102,7 @@ User: "write a TELOS report for Acme Corp"
 ~/.config/opencode/skills/CORE/USER/TELOS/
 ```
 
-Personal TELOS lives in the CORE USER directory, NOT directly under the Telos skill directory.
+Personal TELOS lives in the CORE USER directory, NOT directly under the telos skill directory.
 
 ## Personal TELOS Framework
 
@@ -373,3 +373,4 @@ Engineer 10: Integration and testing
 **TELOS is {principal.name}'s life operating system AND project analysis framework. One skill, two powerful contexts.**
 
 **Remember:** Personal TELOS files live at `~/.config/opencode/skills/CORE/USER/TELOS/` (in the CORE USER directory)
+

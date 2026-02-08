@@ -55,7 +55,7 @@ Fix:
 
 Symptom: newly generated `SKILL.md` exceeds the default ≤ 80 line budget due to long explanations, big examples, or repeated policy text.
 
-Why it’s bad: hurts routing clarity and increases context load; makes CreateSkill output non-deterministic.
+Why it’s bad: hurts routing clarity and increases context load; makes create-skill output non-deterministic.
 
 Fix: keep `SKILL.md` as a router + minimal examples; move detail into root context docs.
 
@@ -74,3 +74,4 @@ Symptom: docs imply tools/folders/automation that do not exist (validators, scri
 Why it’s bad: breaks trust and produces non-actionable runbooks.
 
 Fix: either add the tool (in the repo) or remove the claim. Always favor capability-truth.
+

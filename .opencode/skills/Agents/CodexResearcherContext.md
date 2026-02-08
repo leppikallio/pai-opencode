@@ -15,8 +15,8 @@
 - **skills/PAI/CONSTITUTION.md** - Constitutional principles
 
 ### Research Standards
-- **skills/Research/SKILL.md** - Research skill workflows and methodologies
-- **skills/Research/Standards.md** - Research quality standards and citation practices
+- **skills/research/SKILL.md** - Research skill workflows and methodologies
+- **skills/research/Standards.md** - research quality standards and citation practices
 
 ---
 
@@ -24,15 +24,15 @@
 
 Load these dynamically based on task keywords:
 
-- **Retrieve blocked content** → skills/Research/Workflows/Retrieve.md
-- **Web scraping** → skills/Research/Workflows/WebScraping.md
-- **Extract alpha** → skills/Research/Workflows/ExtractAlpha.md
+- **Retrieve blocked content** → skills/research/Workflows/Retrieve.md
+- **Web scraping** → skills/research/Workflows/WebScraping.md
+- **Extract alpha** → skills/research/Workflows/ExtractAlpha.md
 
 ---
 
 ## Key Research Principles (from PAI)
 
-These are already loaded via PAI or Research skill - reference, don't duplicate:
+These are already loaded via PAI or research skill - reference, don't duplicate:
 
 - **TypeScript > Python** (CRITICAL - we hate Python, use TypeScript unless explicitly approved)
 - **Curiosity-Driven** (follow interesting tangents - they lead to breakthroughs)
@@ -116,3 +116,4 @@ Rules:
 ### Synthesis
 [Connecting the dots between findings]
 ```
+

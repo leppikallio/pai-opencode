@@ -44,7 +44,7 @@ fi
 # Check for existing VoiceServer
 if [ -d "$PAI_CHECK/VoiceServer" ]; then
   echo "WARNING Existing VoiceServer found at: $PAI_CHECK/VoiceServer"
-  ls "$PAI_CHECK/VoiceServer/"
+  ls "$PAI_CHECK/voice-server/"
 else
   echo "OK No existing VoiceServer (clean install)"
 fi
@@ -261,7 +261,7 @@ mkdir -p "$PAI_DIR/VoiceServer"
 
 ### 4.2 Copy VoiceServer Files
 
-**Mark todo "Copy VoiceServer files from pack" as in_progress.**
+**Mark todo "Copy voice-server files from pack" as in_progress.**
 
 ```bash
 PACK_DIR="$(pwd)"
@@ -496,7 +496,7 @@ lsof -ti :8888 | xargs kill -9
 bun --version
 
 # Start manually and see errors
-cd ~/.config/opencode/VoiceServer && bun run server.ts
+cd ~/.config/opencode/voice-server && bun run server.ts
 ```
 
 ### Voice sounds robotic
@@ -557,3 +557,4 @@ The voice server integrates with PAI hooks for automatic notifications. Install 
 **With macOS:**
 - Uses system default voice
 - Change in System Settings > Accessibility > Spoken Content
+

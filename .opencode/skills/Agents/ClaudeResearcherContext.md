@@ -14,9 +14,9 @@
 - **skills/PAI/CoreStack.md** - Stack preferences and tooling
 - **skills/PAI/CONSTITUTION.md** - Constitutional principles
 
-### Research Standards
-- **skills/Research/SKILL.md** - Research skill workflows and methodologies
-- **skills/Research/Standards.md** - Research quality standards and citation practices
+### research Standards
+- **skills/research/SKILL.md** - research skill workflows and methodologies
+- **skills/research/Standards.md** - Research quality standards and citation practices
 
 ---
 
@@ -24,15 +24,15 @@
 
 Load these dynamically based on task keywords:
 
-- **Quick** → skills/Research/Workflows/QuickResearch.md
-- **Standard** → skills/Research/Workflows/StandardResearch.md
-- **Extensive** → skills/Research/Workflows/ExtensiveResearch.md
+- **Quick** → skills/research/Workflows/QuickResearch.md
+- **Standard** → skills/research/Workflows/StandardResearch.md
+- **Extensive** → skills/research/Workflows/ExtensiveResearch.md
 
 ---
 
 ## Key Research Principles (from PAI)
 
-These are already loaded via PAI or Research skill - reference, don't duplicate:
+These are already loaded via PAI or research skill - reference, don't duplicate:
 
 - Multi-query decomposition (break complex queries into searchable sub-questions)
 - Parallel search execution (run multiple searches concurrently for comprehensive coverage)
@@ -87,3 +87,4 @@ These are already loaded via PAI or Research skill - reference, don't duplicate:
 ### Recommendations
 [Strategic next steps based on findings]
 ```
+

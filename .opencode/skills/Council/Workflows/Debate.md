@@ -147,7 +147,7 @@ Be honest about remaining disagreements—forced consensus is worse than acknowl
 [Final synthesis]
 ```
 
-### Step 5: Council Synthesis
+### Step 5: council Synthesis
 
 After all rounds complete, synthesize the debate:
 
@@ -172,7 +172,7 @@ If user specifies custom members, adjust accordingly:
 
 - "Council with security" → Add pentester agent
 - "Council with intern" → Add intern agent (fresh perspective)
-- "Council with writer" → Add writer agent (communication focus)
+- "council with writer" → Add writer agent (communication focus)
 - Omit agents: "Just architect and engineer" → Only those two
 
 ## Agent Type Mapping
@@ -199,3 +199,4 @@ If user specifies custom members, adjust accordingly:
 ## Done
 
 Debate complete. The transcript shows the full intellectual journey from initial positions through challenges to synthesis.
+

@@ -4,7 +4,7 @@ Create a professionally formatted Word document from Markdown content using the 
 
 ## Prerequisites
 
-- docx CLI available at `~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts`
+- docx CLI available at `~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts`
 - Template file at `~/doc_template.dotx` (or specify custom path)
 - Bun runtime available
 
@@ -31,7 +31,7 @@ Collect document metadata for the cover page:
 
 **From file:**
 ```bash
-bun "~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts" create <input.md> -o <output.docx> \
+bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" create <input.md> -o <output.docx> \
   --title "Document Title" \
   --author "Author Name" \
   --date "2025-01-15" \
@@ -41,14 +41,14 @@ bun "~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts" create <input.md
 
 **From stdin (for generated content):**
 ```bash
-echo "${markdown_content}" | bun "~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts" create - -o <output.docx> \
+echo "${markdown_content}" | bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" create - -o <output.docx> \
   --title "Document Title" \
   --author "Author Name"
 ```
 
 **With custom template:**
 ```bash
-bun "~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts" create input.md -o output.docx \
+bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" create input.md -o output.docx \
   -t /path/to/custom-template.dotx
 ```
 
@@ -78,7 +78,7 @@ Report:
 
 ```bash
 # Generate a quarterly report
-bun "~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts" create quarterly-report.md \
+bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" create quarterly-report.md \
   -o "Q4-2024-Report.docx" \
   --title "Q4 2024 Analysis Report" \
   --subtitle "Financial Performance Review" \
@@ -94,3 +94,4 @@ bun "~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts" create quarterly
 - Images in markdown are embedded and auto-sized to fit page width
 - Hyperlinks are preserved as clickable links in the Word document
 - Page breaks can be inserted with `---` in markdown
+

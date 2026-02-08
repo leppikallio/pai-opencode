@@ -66,13 +66,13 @@ Self-test (no interactive session needed):
 Static (no LLM calls):
 
 ```bash
-bun "~/.config/opencode/skills/System/Tools/SmokeTestSkillSystem.ts" --mode static
+bun "~/.config/opencode/skills/system/Tools/SmokeTestSkillSystem.ts" --mode static
 ```
 
 Behavior (LLM calls via `opencode run` in fresh sessions):
 
 ```bash
-bun "~/.config/opencode/skills/System/Tools/SmokeTestSkillSystem.ts" \
+bun "~/.config/opencode/skills/system/Tools/SmokeTestSkillSystem.ts" \
   --mode behavior \
   --model openai/gpt-5.3-codex
 ```

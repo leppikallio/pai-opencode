@@ -1,12 +1,12 @@
 ---
-name: Docx
+name: docx
 description: Branded Word document creation, editing, and reading via templates. USE WHEN user wants Word/docx documents, convert markdown to docx, generate reports, edit existing .docx files, or extract content.
 ---
 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/Docx/`
+`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/docx/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -21,7 +21,7 @@ Convert Markdown content to professionally formatted Word documents using compan
 1. **Send voice notification**:
    Use the `voice_notify` tool:
 
-- `message`: "Running the WORKFLOWNAME workflow in the Docx skill"
+- `message`: "Running the WORKFLOWNAME workflow in the docx skill"
 
 ## Workflow Routing
 
@@ -35,7 +35,7 @@ Convert Markdown content to professionally formatted Word documents using compan
 
 The docx CLI is stored at:
 
-`~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts`
+`~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts`
 
 Run with bun (examples below).
 
@@ -111,21 +111,22 @@ User: "Extract this report.docx into markdown"
 
 ```bash
 # Basic conversion
-bun "~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts" create report.md -o report.docx
+bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" create report.md -o report.docx
 
 # With metadata
-bun "~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts" create report.md -o report.docx \
+bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" create report.md -o report.docx \
   --title "Report Title" \
   --author "Author Name" \
   --date "2025-01-15" \
   --doc-version "1.0"
 
 # From stdin
-echo "# Title\n\nContent..." | bun "~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts" create - -o output.docx
+echo "# Title\n\nContent..." | bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" create - -o output.docx
 
 # Edit existing document
-bun "~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts" edit existing.docx --append additions.md
+bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" edit existing.docx --append additions.md
 
 # Read document into markdown
-bun "~/.config/opencode/skills/Documents/Docx/Tools/DocxCli.ts" read report.docx -o report.md
+bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" read report.docx -o report.md
 ```
+

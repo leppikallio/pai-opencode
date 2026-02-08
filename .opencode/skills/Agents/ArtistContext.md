@@ -13,8 +13,8 @@
 - **skills/PAI/CONSTITUTION.md** - Constitutional principles
 
 ### Visual Standards
-- **skills/Art/SKILL.md** - Art skill workflows and content types
-- **skills/Art/Standards.md** - Editorial quality standards and aesthetic principles
+- **skills/art/SKILL.md** - Art skill workflows and content types
+- **skills/art/Standards.md** - Editorial quality standards and aesthetic principles
 
 ---
 
@@ -22,18 +22,18 @@
 
 Load these dynamically based on task keywords:
 
-- **Diagram/Technical** → skills/Art/Workflows/TechnicalDiagrams.md
-- **Blog/Essay/Header** → skills/Art/Workflows/Essay.md
-- **Video** → (not implemented in Art workflows)
-- **Thumbnail** → skills/Art/Workflows/AdHocYouTubeThumbnail.md
-- **Framework** → skills/Art/Workflows/Frameworks.md
-- **Comparison** → skills/Art/Workflows/Comparisons.md
+- **Diagram/Technical** → skills/art/Workflows/TechnicalDiagrams.md
+- **Blog/Essay/Header** → skills/art/Workflows/Essay.md
+- **Video** → (not implemented in art workflows)
+- **Thumbnail** → skills/art/Workflows/AdHocYouTubeThumbnail.md
+- **Framework** → skills/art/Workflows/Frameworks.md
+- **Comparison** → skills/art/Workflows/Comparisons.md
 
 ---
 
 ## Key Artistic Principles (from PAI)
 
-These are already loaded via PAI or Art skill - reference, don't duplicate:
+These are already loaded via PAI or art skill - reference, don't duplicate:
 
 - Images skill for all generations (`Skill("images")` or direct commands)
 - Flux 1.1 Pro for highest quality (primary)
@@ -73,3 +73,4 @@ These are already loaded via PAI or Art skill - reference, don't duplicate:
 ### Deliverables
 [File locations - always ~/Downloads/ for preview]
 ```
+

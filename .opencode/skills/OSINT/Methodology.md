@@ -271,8 +271,8 @@ Prevents intelligence gaps like missing investor-facing portals on alternative T
 ### Skill Invocations
 
 **OSINT automatically invokes:**
-- **Research Skill** - For extensive multi-agent research
-- **Recon Skill** - For technical reconnaissance (if available)
+- **research Skill** - For extensive multi-agent research
+- **recon Skill** - For technical reconnaissance (if available)
 
 ### Agent Fleet Sizes
 
@@ -290,3 +290,4 @@ Prevents intelligence gaps like missing investor-facing portals on alternative T
 
 **Version:** 1.0
 **Last Updated:** December 2024
+

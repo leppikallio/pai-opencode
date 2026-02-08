@@ -6,9 +6,9 @@
 
 Use the `voice_notify` tool:
 
-- `message`: "Running the ResearchThinker workflow in the Aphorisms skill to research quotes"
+- `message`: "Running the ResearchThinker workflow in the aphorisms skill to research quotes"
 
-Running **ResearchThinker** in **Aphorisms**...
+Running **ResearchThinker** in **aphorisms**...
 
 ---
 
@@ -19,7 +19,7 @@ Running **ResearchThinker** in **Aphorisms**...
 - Building out thinker sections in database
 
 **Prerequisites:**
-- Aphorism database exists at `~/.config/opencode/skills/Aphorisms/Database/aphorisms.md`
+- Aphorism database exists at `~/.config/opencode/skills/aphorisms/Database/aphorisms.md`
 - Clear understanding of which thinker to research
 - Optional: specific theme/topic to focus research on
 
@@ -70,7 +70,7 @@ Running **ResearchThinker** in **Aphorisms**...
 
 **Launch Parallel Research:**
 
-Use Research Skill with multiple researchers for comprehensive coverage:
+Use research Skill with multiple researchers for comprehensive coverage:
 
 ```bash
 # Launch 3-5 parallel research agents
@@ -257,7 +257,7 @@ research_skill.parallel_research(
 
 **Read current database:**
 ```bash
-Read ~/.config/opencode/skills/Aphorisms/Database/aphorisms.md
+Read ~/.config/opencode/skills/aphorisms/Database/aphorisms.md
 ```
 
 **Locate thinker's section:**
@@ -267,7 +267,7 @@ Read ~/.config/opencode/skills/Aphorisms/Database/aphorisms.md
 **Use Edit to replace placeholder:**
 ```bash
 Edit(
-  file_path=~/.config/opencode/skills/Aphorisms/Database/aphorisms.md,
+  file_path=~/.config/opencode/skills/aphorisms/Database/aphorisms.md,
   old_string="### [Thinker Name]\n*Quotes to be added from research*",
   new_string="### [Thinker Name]\n\n[Organized quotes with themes and context]"
 )
@@ -619,3 +619,4 @@ Perfect alignment with truth-seeking, rationality, and continuous learning. His 
 ---
 
 **Last Updated:** 2025-11-20
+

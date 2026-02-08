@@ -4,7 +4,7 @@ This file documents single-purpose CLI utilities that have been consolidated fro
 
 **Philosophy:** Simple utilities don't need separate skills. Document them here, execute them directly.
 
-**Model:** Similar to Fabric patterns: many prompts live under `~/.config/opencode/skills/Fabric/Patterns/`.
+**Model:** Similar to Fabric patterns: many prompts live under `~/.config/opencode/skills/fabric/Patterns/`.
 
 ---
 
@@ -183,7 +183,7 @@ Use the `voice_notify` tool:
 - "perform this"
 
 **Technical Details:**
-- Voice server must be running (`~/.config/opencode/skills/VoiceServer/`)
+- Voice server must be running (`~/.config/opencode/skills/voice-server/`)
 - Segments longer than 450 chars should be split
 - Natural 2-second pauses between segments for storytelling flow
 - Uses ElevenLabs API under the hood
@@ -341,7 +341,7 @@ brew install trufflehog
 
 ## Integration with Other Skills
 
-### Art Skill
+### art Skill
 - Background removal: `RemoveBg.ts`
 - Add backgrounds: `AddBg.ts`
 
@@ -349,7 +349,7 @@ brew install trufflehog
 - Image optimization: `RemoveBg.ts`, `AddBg.ts`
 - Social preview thumbnails
 
-### Research Skill
+### research Skill
 - YouTube transcripts: `GetTranscript.ts`
 - Audio/video transcription: `extract-transcript.py`
 - Voice narration: Voice server API
@@ -400,3 +400,4 @@ Archived skill files may exist outside this repo.
 ---
 
 **Last Updated:** 2026-01-12
+

@@ -71,7 +71,7 @@ Parameterized voice and tone settings.
 Standardized multi-step execution patterns.
 
 **Use Cases:**
-- Phased analysis (RedTeam 5-phase)
+- Phased analysis (red-team 5-phase)
 - Round-based debate (Council 3-round)
 - Sequential pipeline (Development gates)
 
@@ -120,7 +120,7 @@ Statistical reporting with confidence intervals.
 ### Basic Rendering
 
 ```bash
-bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
   --template Primitives/Roster.hbs \
   --data Data/Agents.yaml \
   --output Compiled/AgentRoster.md
@@ -168,7 +168,7 @@ cd ~/.config/opencode
 git checkout v2.5.0
 # Or to just undo templating:
 rm -rf Templates/
-git checkout v2.5.0 -- skills/Prompting/Templates/README.md
+git checkout v2.5.0 -- skills/prompting/Templates/README.md
 ```
 
 ## Token Savings
@@ -229,7 +229,7 @@ The RenderTemplate.ts engine provides these custom Handlebars helpers:
 ### Render a Template
 
 ```bash
-bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
   --template Primitives/Roster.hbs \
   --data Data/Agents.yaml \
   --output Compiled/AgentRoster.md
@@ -238,7 +238,7 @@ bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
 ### Preview Without Writing
 
 ```bash
-bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
   --template Evals/Judge.hbs \
   --data path/to/judge-config.yaml \
   --preview
@@ -247,7 +247,7 @@ bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
 ### Validate Template Syntax
 
 ```bash
-bun run ~/.config/opencode/skills/Prompting/Tools/ValidateTemplate.ts \
+bun run ~/.config/opencode/skills/prompting/Tools/ValidateTemplate.ts \
   --template Primitives/Briefing.hbs \
   --data Data/sample-briefing.yaml
 ```
@@ -304,10 +304,11 @@ This system is based on research from:
 
 ## Related Documentation
 
-- `~/.config/opencode/skills/Prompting/Standards.md`
-- `~/.config/opencode/skills/Prompting/SKILL.md`
-- `~/.config/opencode/skills/Evals/SKILL.md`
+- `~/.config/opencode/skills/prompting/Standards.md`
+- `~/.config/opencode/skills/prompting/SKILL.md`
+- `~/.config/opencode/skills/evals/SKILL.md`
 
 Optional (not shipped in all runtimes):
 - `<~/.config/opencode/History/research/...>`
 - `<~/.config/opencode/History/learnings/...>`
+

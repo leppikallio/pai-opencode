@@ -10,10 +10,10 @@ The authoritative list of installed patterns is the directory tree under:
 
 ```bash
 # List pattern directories
-ls -1 ~/.config/opencode/skills/Fabric/Patterns
+ls -1 ~/.config/opencode/skills/fabric/Patterns
 
 # Inspect a specific pattern
-ls -la ~/.config/opencode/skills/Fabric/Patterns/<pattern>/
+ls -la ~/.config/opencode/skills/fabric/Patterns/<pattern>/
 ```
 
 ## Pattern Files

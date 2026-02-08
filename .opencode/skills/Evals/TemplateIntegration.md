@@ -18,10 +18,10 @@
 Use the JUDGE template for custom evaluation:
 
 ```bash
-bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
-  -t Evals/Judge.hbs \
-  -d ~/.config/opencode/skills/Evals/UseCases/<name>/judge-config.yaml \
-  -o ~/.config/opencode/skills/Evals/UseCases/<name>/judge-prompt.md
+bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
+  -t evals/Judge.hbs \
+  -d ~/.config/opencode/skills/evals/UseCases/<name>/judge-config.yaml \
+  -o ~/.config/opencode/skills/evals/UseCases/<name>/judge-prompt.md
 ```
 
 ### Judge Config Example
@@ -55,10 +55,10 @@ output:
 Use the RUBRIC template for scoring criteria:
 
 ```bash
-bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
   -t Evals/Rubric.hbs \
-  -d ~/.config/opencode/skills/Evals/UseCases/<name>/rubric.yaml \
-  -o ~/.config/opencode/skills/Evals/UseCases/<name>/rubric.md
+  -d ~/.config/opencode/skills/evals/UseCases/<name>/rubric.yaml \
+  -o ~/.config/opencode/skills/evals/UseCases/<name>/rubric.md
 ```
 
 ---
@@ -70,3 +70,4 @@ bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
 3. **Different judge model**: Don't self-judge
 4. **Position swapping**: Average A-first and B-first results
 5. **Multi-judge panels**: 5-10 models, 7x cheaper than large single judge
+

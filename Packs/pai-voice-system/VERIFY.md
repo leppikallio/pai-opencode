@@ -10,7 +10,7 @@ Run through this checklist to verify your installation is complete and working.
 
 ```bash
 ls -la ~/.config/opencode/VoiceServer/server.ts
-ls -la ~/.config/opencode/VoiceServer/voices.json
+ls -la ~/.config/opencode/voice-server/voices.json
 ls -la ~/.config/opencode/VoiceServer/*.sh
 ```
 
@@ -148,7 +148,7 @@ echo ""
 echo "1. Checking files..."
 [ -f ~/.config/opencode/VoiceServer/server.ts ] && echo "   [PASS] server.ts" || echo "   [FAIL] server.ts missing"
 [ -f ~/.config/opencode/VoiceServer/voices.json ] && echo "   [PASS] voices.json" || echo "   [FAIL] voices.json missing"
-[ -x ~/.config/opencode/VoiceServer/start.sh ] && echo "   [PASS] start.sh executable" || echo "   [FAIL] start.sh not executable"
+[ -x ~/.config/opencode/voice-server/start.sh ] && echo "   [PASS] start.sh executable" || echo "   [FAIL] start.sh not executable"
 
 # Check 2: Service
 echo ""
@@ -215,3 +215,4 @@ curl -X POST http://localhost:8888/notify \
 ```
 
 ...and **hear the message spoken aloud**.
+

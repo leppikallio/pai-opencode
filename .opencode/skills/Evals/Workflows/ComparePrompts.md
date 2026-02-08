@@ -8,9 +8,9 @@ A/B test two prompt versions to determine which performs better.
 
 Use the `voice_notify` tool:
 
-- `message`: "Running the ComparePrompts workflow in the Evals skill to A/B test prompts"
+- `message`: "Running the ComparePrompts workflow in the evals skill to A/B test prompts"
 
-Running the **ComparePrompts** workflow in the **Evals** skill to A/B test prompts...
+Running the **ComparePrompts** workflow in the **evals** skill to A/B test prompts...
 
 ---
 
@@ -64,7 +64,7 @@ Ask the user:
 
 ```bash
 # Check prompts exist
-ls ~/.config/opencode/skills/Evals/UseCases/<name>/prompts/
+ls ~/.config/opencode/skills/evals/UseCases/<name>/prompts/
 
 # Should see both versions:
 # v1.0.0.md
@@ -73,7 +73,7 @@ ls ~/.config/opencode/skills/Evals/UseCases/<name>/prompts/
 
 ### Step 3: Create Comparison Config
 
-Create `~/.config/opencode/skills/Evals/UseCases/<name>/comparisons/<comparison-name>.yaml`:
+Create `~/.config/opencode/skills/evals/UseCases/<name>/comparisons/<comparison-name>.yaml`:
 
 ```yaml
 comparison:
@@ -287,10 +287,10 @@ focus: "depth"
 For detailed comparison setup, use the Comparison template:
 
 ```bash
-bun run ~/.config/opencode/skills/Prompting/Tools/RenderTemplate.ts \
-  -t Evals/Comparison.hbs \
-  -d ~/.config/opencode/skills/Evals/UseCases/<name>/comparisons/<name>.yaml \
-  -o ~/.config/opencode/skills/Evals/UseCases/<name>/comparisons/<name>-setup.md \
+bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
+  -t evals/Comparison.hbs \
+  -d ~/.config/opencode/skills/evals/UseCases/<name>/comparisons/<name>.yaml \
+  -o ~/.config/opencode/skills/evals/UseCases/<name>/comparisons/<name>-setup.md \
   --preview
 ```
 
@@ -312,7 +312,7 @@ If you've run 3+ comparisons without meaningful improvement, STOP and ask:
 - The test cases might be too easy or too homogeneous
 - The entire approach might need rethinking (different architecture)
 
-When stuck, invoke explicit workflow: `<Evals/Workflows/StructuredInvestigation.md>`
+When stuck, invoke explicit workflow: `<evals/Workflows/StructuredInvestigation.md>`
 
 This forces stepping back from the eval loop to question the frame itself.
 
@@ -321,3 +321,4 @@ This forces stepping back from the eval loop to question the frame itself.
 ## Done
 
 Comparison completed. Results documented. Decision made.
+

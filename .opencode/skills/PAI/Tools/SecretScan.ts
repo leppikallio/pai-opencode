@@ -11,7 +11,7 @@
  *   bun ~/.config/opencode/skills/PAI/Tools/SecretScan.ts . --verbose
  *   bun ~/.config/opencode/skills/PAI/Tools/SecretScan.ts . --verify
  *
- * @see ~/.config/opencode/skills/System/Workflows/SecretScanning.md
+ * @see ~/.config/opencode/skills/system/Workflows/SecretScanning.md
  */
 
 /*
