@@ -16,7 +16,7 @@ bun "/Users/zuul/Projects/pai-opencode/.opencode/skills/create-skill/Tools/Impor
 - `--name <skill-name>`: override destination directory name (input is canonicalized to kebab-case)
 - `--canonicalize <mode>`: `none` | `minimal` | `strict`
   - `none`: copy only
-  - `minimal` (default): normalize `SKILL.md` description to single-line + ensure `USE WHEN`; normalize `workflows/` and `tools/` dir casing
+  - `minimal` (default): normalize `SKILL.md` description to single-line + ensure `USE WHEN`; normalize `workflows/` and `tools/` dir casing; rewrite `${PAI_DIR}`/`$PAI_DIR` to `~/.config/opencode`; rename `CLAUDE.md` to `REFERENCE.md` and update links
   - `strict`: also ensure `Workflows/` and `Tools/` exist and add minimal required sections if missing
 - `--force`: overwrite destination if it exists
 - `--dry-run`: show what would happen without writing

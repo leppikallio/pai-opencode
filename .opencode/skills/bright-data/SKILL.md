@@ -16,10 +16,14 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 **When executing a workflow, do BOTH:**
 
 1. **Send voice notification**:
-   Use the `voice_notify` tool:
+   Use the `voice_notify` tool with explicit parameters:
 
-- `message`: "Running the WORKFLOWNAME workflow from the bright-data skill"
-Running the **WorkflowName** workflow from the **Brightdata** skill...
+```ts
+voice_notify({
+  "message": "Running the FourTierScrape workflow from the bright-data skill",
+  "fire_and_forget": true,
+  "timeout_ms": 1200
+})
 ```
 
 **CRITICAL: This workflow implements progressive escalation for URL content retrieval.**
@@ -84,7 +88,7 @@ Examples: "scrape this URL", "fetch this page", "get content from [URL]", "pull 
 
 ## Workflow Overview
 
-**four-tier-scrape.md** - Complete URL content scraping with four-tier fallback strategy
+**Workflows/FourTierScrape.md** - Complete URL content scraping with four-tier fallback strategy
 - **When to use:** Any URL content retrieval request
 - **Process:** Start with WebFetch → If fails, use curl with Chrome headers → If fails, use Browser Automation → If fails, use Bright Data MCP
 - **Output:** URL content in markdown format
@@ -97,7 +101,7 @@ Examples: "scrape this URL", "fetch this page", "get content from [URL]", "pull 
 - **webfetch tool** - Built-in tool for basic URL fetching
 - **Bash Tool** - For executing curl commands with custom headers
 - **Browser Automation** - Playwright-based browser automation for JavaScript rendering
-- **Bright Data MCP** - `mcp__Brightdata__scrape_as_markdown` for advanced scraping
+- **Bright Data MCP** - `brightdata_scrape_as_markdown` for advanced scraping
 
 **When Each Tier Is Used:**
 - **Tier 1 (WebFetch):** Simple sites, public content, no bot detection
@@ -117,7 +121,7 @@ No additional configuration required for `webfetch` + `bash` + Browser. Bright D
 User: "Scrape https://example.com"
 
 Skill Response:
-1. Routes to three-tier-scrape.md
+1. Routes to Workflows/FourTierScrape.md
 2. Attempts Tier 1 (WebFetch)
 3. Success → Returns content in markdown
 4. Total time: <5 seconds
@@ -127,7 +131,7 @@ Skill Response:
 User: "Can't access this site https://dynamic-site.com"
 
 Skill Response:
-1. Routes to four-tier-scrape.md
+1. Routes to Workflows/FourTierScrape.md
 2. Attempts Tier 1 (WebFetch) → Fails (blocked)
 3. Attempts Tier 2 (Curl with Chrome headers) → Fails (JavaScript required)
 4. Attempts Tier 3 (Browser Automation) → Success
@@ -139,7 +143,7 @@ Skill Response:
 User: "Scrape https://protected-site.com"
 
 Skill Response:
-1. Routes to four-tier-scrape.md
+1. Routes to Workflows/FourTierScrape.md
 2. Attempts Tier 1 (WebFetch) → Fails (blocked)
 3. Attempts Tier 2 (Curl) → Fails (advanced detection)
 4. Attempts Tier 3 (Browser Automation) → Fails (CAPTCHA)
@@ -152,7 +156,7 @@ Skill Response:
 User: "Use Bright Data to fetch https://difficult-site.com"
 
 Skill Response:
-1. Routes to four-tier-scrape.md
+1. Routes to Workflows/FourTierScrape.md
 2. User explicitly requested Bright Data
 3. Goes directly to Tier 4 (Bright Data MCP) → Success
 4. Returns content in markdown
@@ -165,4 +169,3 @@ Skill Response:
 - `~/.config/opencode/skills/CORE/CONSTITUTION.md` - Overall PAI philosophy
 
 **Last Updated:** 2025-11-23
-

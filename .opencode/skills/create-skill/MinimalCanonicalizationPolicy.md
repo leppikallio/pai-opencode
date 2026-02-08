@@ -115,7 +115,15 @@ Allowed edits are the entire definition of canonicalization scope.
    - Do this only if the canonical-cased directory does not already exist.
    - Rationale: preserve content; avoid merges/conflicts when both exist.
 
-4) Record and report changes
+4) Expand `PAI_DIR` placeholders to explicit runtime path
+   - Rewrite `${PAI_DIR}` and `$PAI_DIR` references to `~/.config/opencode` in imported text files.
+   - Rationale: avoid unresolved environment placeholders in skill docs/tool instructions.
+
+5) Normalize legacy reference doc naming
+   - Rename `CLAUDE.md` to `REFERENCE.md` (when target name does not already exist).
+   - Update in-skill links from `CLAUDE.md` to `REFERENCE.md`.
+
+6) Record and report changes
    - The importer should list exactly what it changed (paths + short reason).
 
 ### Allowed in strict canonicalization (superset; only by explicit request)
