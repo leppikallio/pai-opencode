@@ -10,6 +10,22 @@ import * as fs from "node:fs/promises";
 
 type CanonicalizeMode = "none" | "minimal" | "strict";
 
+const TEXT_EXTENSIONS = new Set([
+  ".md",
+  ".txt",
+  ".json",
+  ".yaml",
+  ".yml",
+  ".ts",
+  ".tsx",
+  ".js",
+  ".jsx",
+  ".mjs",
+  ".cjs",
+  ".py",
+  ".sh",
+]);
+
 type Args = {
   source?: string;
   dest?: string;
@@ -33,6 +49,10 @@ Options:
   --force                       Overwrite destination if it exists
   --dry-run                     Print actions without changing files
   --help                        Show help
+
+Minimal canonicalization includes:
+  - rewrite \${PAI_DIR}/$PAI_DIR -> ~/.config/opencode
+  - rename CLAUDE.md -> REFERENCE.md and update links
 `);
 }
 
@@ -177,6 +197,115 @@ async function copyDirRecursive(source: string, dest: string, dryRun: boolean): 
       process.stdout.write(`[dry-run] cp ${srcPath} ${dstPath}\n`);
     } else {
       await fs.copyFile(srcPath, dstPath);
+    }
+  }
+}
+
+async function listFilesRecursive(root: string): Promise<string[]> {
+  const out: string[] = [];
+
+  async function walk(dir: string): Promise<void> {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const abs = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(abs);
+        continue;
+      }
+      if (entry.isFile()) out.push(abs);
+    }
+  }
+
+  await walk(root);
+  return out;
+}
+
+function shouldProcessTextFile(filePath: string): boolean {
+  return TEXT_EXTENSIONS.has(path.extname(filePath).toLowerCase());
+}
+
+function rewriteImportedContent(
+  input: string,
+  opts: {
+    legacySkillNames: string[];
+    canonicalSkillName: string;
+  },
+): { output: string; changed: boolean } {
+  let output = input;
+
+  // Expand import-time environment placeholders to explicit runtime path.
+  output = output.replace(/\$\{PAI_DIR\}/g, "~/.config/opencode");
+  output = output.replace(/\$PAI_DIR\b/g, "~/.config/opencode");
+
+  // Normalize legacy Claude reference docs to OpenCode reference naming.
+  output = output.replace(/\bCLAUDE\.md\b/g, "REFERENCE.md");
+
+  // Normalize obvious self-references from legacy skill dir name to canonical destination name.
+  for (const legacy of opts.legacySkillNames) {
+    if (!legacy || legacy === opts.canonicalSkillName) continue;
+    const esc = legacy.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const reRuntime = new RegExp(`(~\\/\\.config\\/opencode\\/skills\\/)${esc}(\\/)`, "g");
+    const reAbsRuntime = new RegExp(`(\\/Users\\/[^/]+\\/\\.config\\/opencode\\/skills\\/)${esc}(\\/)`, "g");
+    const reRepo = new RegExp(`(\\.opencode\\/skills\\/)${esc}(\\/)`, "g");
+    const reGeneric = new RegExp(`(skills\\/)${esc}(\\/)`, "g");
+
+    output = output.replace(reRuntime, `$1${opts.canonicalSkillName}$2`);
+    output = output.replace(reAbsRuntime, `$1${opts.canonicalSkillName}$2`);
+    output = output.replace(reRepo, `$1${opts.canonicalSkillName}$2`);
+    output = output.replace(reGeneric, `$1${opts.canonicalSkillName}$2`);
+  }
+
+  return { output, changed: output !== input };
+}
+
+async function canonicalizeImportedReferences(
+  skillDir: string,
+  mode: CanonicalizeMode,
+  dryRun: boolean,
+  names: {
+    sourceDirName: string;
+    rawSkillName: string;
+    canonicalSkillName: string;
+  },
+): Promise<void> {
+  if (mode === "none") return;
+
+  const files = await listFilesRecursive(skillDir);
+
+  // 1) Rename CLAUDE.md -> REFERENCE.md first so links can resolve.
+  for (const filePath of files) {
+    if (path.basename(filePath) !== "CLAUDE.md") continue;
+    const nextPath = path.join(path.dirname(filePath), "REFERENCE.md");
+
+    if (await pathExists(nextPath)) {
+      process.stdout.write(`[warn] Cannot rename ${filePath} -> ${nextPath} (target exists); keeping existing file\n`);
+      continue;
+    }
+
+    if (dryRun) {
+      process.stdout.write(`[dry-run] mv ${filePath} ${nextPath}\n`);
+    } else {
+      await fs.rename(filePath, nextPath);
+    }
+  }
+
+  // 2) Rewrite path placeholders and reference links in text files.
+  // Re-scan in case renames changed the file set.
+  const afterRenameFiles = await listFilesRecursive(skillDir);
+  for (const filePath of afterRenameFiles) {
+    if (!shouldProcessTextFile(filePath)) continue;
+
+    const original = await fs.readFile(filePath, "utf8");
+    const rewritten = rewriteImportedContent(original, {
+      legacySkillNames: [...new Set([names.sourceDirName, names.rawSkillName])],
+      canonicalSkillName: names.canonicalSkillName,
+    });
+    if (!rewritten.changed) continue;
+
+    if (dryRun) {
+      process.stdout.write(`[dry-run] update ${filePath} (PAI_DIR/CLAUDE canonicalization)\n`);
+    } else {
+      await fs.writeFile(filePath, rewritten.output, "utf8");
     }
   }
 }
@@ -397,6 +526,12 @@ async function main(): Promise<void> {
     await ensureDir(path.join(destSkillDir, "Workflows"), args.dryRun);
     await ensureDir(path.join(destSkillDir, "Tools"), args.dryRun);
   }
+
+  await canonicalizeImportedReferences(destSkillDir, args.canonicalize, args.dryRun, {
+    sourceDirName: inferredName,
+    rawSkillName,
+    canonicalSkillName: skillName,
+  });
 
   await canonicalizeSkillMd(destSkillDir, skillName, args.canonicalize, args.dryRun);
 

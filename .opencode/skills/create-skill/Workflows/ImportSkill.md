@@ -25,6 +25,8 @@ Allowed by default ("minimal"):
 - Ensure `SKILL.md` frontmatter has a **single-line** `description:`
 - Ensure the frontmatter `description:` contains `USE WHEN` (append a minimal clause if missing)
 - If the source uses lowercase `workflows/` or `tools/`, rename to `Workflows/` and `Tools/` (only if the canonical-cased directory does not already exist)
+- Expand `${PAI_DIR}` / `$PAI_DIR` references to explicit runtime path `~/.config/opencode`
+- Rename `CLAUDE.md` to `REFERENCE.md` and update in-skill links accordingly
 
 Only if explicitly requested ("strict"):
 

@@ -21,17 +21,18 @@
 
 ### Step 1: Tier 1 - WebFetch (Fast & Simple)
 
-**Description:** Attempt to fetch URL using Claude Code's built-in WebFetch tool
+**Description:** Attempt to fetch URL using the built-in `webfetch` tool
 
 **Actions:**
 ```
-Use WebFetch tool with:
-- URL: [user-provided URL]
-- Prompt: "Extract all content from this page and convert to markdown"
+Use webfetch tool with:
+- url: [user-provided URL]
+- format: "markdown"
+- timeout: [optional, seconds]
 ```
 
 **Expected Outcomes:**
-- **Success:** Content retrieved in markdown format → Skip to Step 4 (Output)
+- **Success:** Content retrieved in markdown format → Skip to Step 5 (Output)
 - **Failure:** WebFetch blocked, timeout, or error → Proceed to Step 2 (Tier 2)
 
 **Typical Success Cases:**
@@ -137,8 +138,8 @@ curl -L -A "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (
 
 **Actions:**
 ```
-Use mcp__Brightdata__scrape_as_markdown tool with:
-- URL: [user-provided URL]
+Use brightdata_scrape_as_markdown tool with:
+- url: [user-provided URL]
 ```
 
 **What Bright Data Provides:**
