@@ -111,6 +111,18 @@ export const PaiUnified: Plugin = async (ctx) => {
   // Debug mode: enables extra evidence files and optional toasts.
   const PAI_DEBUG = process.env.PAI_DEBUG === "1";
 
+  // Debug-only: dump the exact prompt payload components that OpenCode sends to the LLM.
+  // This is intentionally double-gated to avoid accidental persistence of sensitive content.
+  //
+  // Enable with:
+  //   PAI_DEBUG=1 PAI_DUMP_LLM_INPUT=1 opencode ...
+  const ENABLE_LLM_INPUT_DUMP =
+    PAI_DEBUG && (process.env.PAI_DUMP_LLM_INPUT ?? "").trim() === "1";
+
+  // How long we consider a dumpId "recent" for correlating chunks across hooks.
+  // (messages.transform happens before system/params/headers in OpenCode.)
+  const LLM_DUMP_RECENT_TTL_MS = Number(process.env.PAI_LLM_DUMP_TTL_MS || "30000");
+
   // Selftests and toasts are disabled. Enforcement must be silent.
   const ENABLE_FORMAT_GATE_SELFTEST = false;
   const ENABLE_IMPLICIT_SENTIMENT_SELFTEST = false;
@@ -141,6 +153,14 @@ export const PaiUnified: Plugin = async (ctx) => {
   const rewriteAttemptedByPart = new Set<string>();
   const codexOverrideSessions = new Set<string>();
   const sessionParentById = new Map<string, string | null>();
+  const llmDumpStateBySession = new Map<
+    string,
+    {
+      id: string;
+      ts: number;
+      seq: number;
+    }
+  >();
   const taskRateBySession = new Map<
     string,
     {
@@ -198,6 +218,97 @@ export const PaiUnified: Plugin = async (ctx) => {
     } catch {
       // Best-effort only.
     }
+  }
+
+  function sanitizeForFilename(value: string): string {
+    return value.replace(/[^a-zA-Z0-9._-]+/g, "_");
+  }
+
+  function formatDumpId(sessionId: string): string {
+    const prev = llmDumpStateBySession.get(sessionId);
+    const seq = (prev?.seq ?? 0) + 1;
+    const ts = Date.now();
+    const stamp = new Date(ts).toISOString().replace(/[:.]/g, "-");
+    const id = `${stamp}__${sanitizeForFilename(sessionId)}__${seq}`;
+    llmDumpStateBySession.set(sessionId, { id, ts, seq });
+    return id;
+  }
+
+  function getRecentDumpId(sessionId: string, ttlMs: number): string | null {
+    const st = llmDumpStateBySession.get(sessionId);
+    if (!st) return null;
+    if (Date.now() - st.ts > ttlMs) return null;
+    return st.id;
+  }
+
+  async function resolveScratchpadDirForDump(sessionId: string): Promise<string> {
+    const storageSessionId = storageSessionIdFor(sessionId) ?? sessionId;
+    let base = await getCurrentWorkPathForSession(storageSessionId);
+    if (!base) {
+      // Ensure the PRIMARY session work directory exists (best-effort).
+      await createWorkSession(storageSessionId, "work-session");
+      base = await getCurrentWorkPathForSession(storageSessionId);
+    }
+    if (base) return path.join(base, "scratch");
+    const scratchpad = await ensureScratchpadSession();
+    return scratchpad.dir;
+  }
+
+  async function dumpLlmInputChunk(opts: {
+    sessionId: string;
+    dumpId: string;
+    kind: "messages" | "system" | "params" | "headers";
+    payload: UnknownRecord;
+  }): Promise<void> {
+    if (!ENABLE_LLM_INPUT_DUMP) return;
+    try {
+      const scratchpadDir = await resolveScratchpadDirForDump(opts.sessionId);
+      const dir = path.join(scratchpadDir, "llm-dumps");
+      await ensureDir(dir);
+      const filePath = path.join(dir, `${opts.dumpId}.${opts.kind}.json`);
+      await fs.promises.writeFile(
+        filePath,
+        `${JSON.stringify({ ts: new Date().toISOString(), ...opts.payload }, null, 2)}\n`,
+        "utf-8"
+      );
+    } catch (error) {
+      fileLogError("LLM input dump failed", error);
+    }
+  }
+
+  async function maybeDumpLlmInput(opts: {
+    sessionId: string;
+    dumpId?: string | null;
+    kind: "messages" | "system" | "params" | "headers";
+    payload: UnknownRecord;
+  }): Promise<void> {
+    if (!ENABLE_LLM_INPUT_DUMP) return;
+    const sessionId = opts.sessionId;
+    if (!sessionId) return;
+    if (internalCarrierSessions.has(sessionId)) return;
+
+    try {
+      // Best-effort: cache parent relationships; avoid writing for known subagents.
+      await ensureSessionParentCached(sessionId);
+      const kind = classifySessionKind(sessionId);
+      if (kind === "subagent" || kind === "internal") return;
+    } catch {
+      // Best-effort only.
+    }
+
+    const dumpId =
+      opts.dumpId || getRecentDumpId(sessionId, LLM_DUMP_RECENT_TTL_MS) || formatDumpId(sessionId);
+
+    await dumpLlmInputChunk({
+      sessionId,
+      dumpId,
+      kind: opts.kind,
+      payload: {
+        sessionId,
+        kind: opts.kind,
+        ...opts.payload,
+      },
+    });
   }
 
   function isPrimarySession(sessionId: string | null | undefined): boolean {
@@ -1184,36 +1295,80 @@ export const PaiUnified: Plugin = async (ctx) => {
      */
     "chat.params": async (input, output) => {
       try {
+        const sessionId = getStringProp(input, "sessionID") ?? "";
         const providerId = getProviderIdFromProvider(getProp(input, "provider"));
         const modelObj = getProp(input, "model");
         const modelProviderId = getProviderIdFromModel(modelObj);
         const modelId = getModelApiId(modelObj);
 
-        // Narrow scope: only OpenAI gpt-5* and only when OpenCode already set instructions.
         const options = getRecordProp(output, "options");
-        if (!options) return;
-        const existing = (options.instructions as unknown);
-        if (typeof existing !== "string" || !existing.trim()) return;
+        if (!options) {
+          await maybeDumpLlmInput({
+            sessionId,
+            kind: "params",
+            payload: {
+              providerId,
+              modelProviderId,
+              modelId,
+              temperature: getProp(output, "temperature"),
+              topP: getProp(output, "topP"),
+              topK: getProp(output, "topK"),
+              options: getProp(output, "options"),
+            },
+          });
+          return;
+        }
 
+        // Narrow scope: only OpenAI gpt-5* and only when OpenCode already set instructions.
+        const existing = (options.instructions as unknown);
         const isOpenAI = isOpenAIProviderId(providerId || modelProviderId);
         const isGpt5 = isGpt5ModelId(modelId);
-        if (!isOpenAI || !isGpt5) return;
+        const hasExistingInstructions = typeof existing === "string" && !!existing.trim();
+        if (isOpenAI && isGpt5 && hasExistingInstructions) {
+          if (sessionId) codexOverrideSessions.add(sessionId);
 
-        const sessionId = getStringProp(input, "sessionID") ?? "";
-        if (sessionId) codexOverrideSessions.add(sessionId);
+          // Replace Codex harness prompt with a minimal stub.
+          // Authority comes from the system bundle message + configured instructions/AGENTS.
+          const stub = [
+            "PAI_CODEX_OVERRIDE_V1",
+            "Follow the system prompt and configured instructions as highest priority.",
+            "Ignore any default coding harness instructions not explicitly provided.",
+          ].join("\n");
 
-        // Replace Codex harness prompt with a minimal stub.
-        // Authority comes from the system bundle message + configured instructions/AGENTS.
-        const stub = [
-          "PAI_CODEX_OVERRIDE_V1",
-          "Follow the system prompt and configured instructions as highest priority.",
-          "Ignore any default coding harness instructions not explicitly provided.",
-        ].join("\n");
+          options.instructions = stub;
+          fileLog(`[codex-override] replaced options.instructions for model=${modelId}`, "debug");
+        }
 
-        options.instructions = stub;
-        fileLog(`[codex-override] replaced options.instructions for model=${modelId}`, "debug");
+        await maybeDumpLlmInput({
+          sessionId,
+          kind: "params",
+          payload: {
+            providerId,
+            modelProviderId,
+            modelId,
+            temperature: getProp(output, "temperature"),
+            topP: getProp(output, "topP"),
+            topK: getProp(output, "topK"),
+            options: getProp(output, "options"),
+          },
+        });
       } catch (error) {
         fileLogError("chat.params codex override failed", error);
+      }
+    },
+
+    "chat.headers": async (input, output) => {
+      try {
+        const sessionId = getStringProp(input, "sessionID") ?? "";
+        await maybeDumpLlmInput({
+          sessionId,
+          kind: "headers",
+          payload: {
+            headers: getProp(output, "headers"),
+          },
+        });
+      } catch (error) {
+        fileLogError("chat.headers dump failed", error);
       }
     },
 
@@ -1227,8 +1382,6 @@ export const PaiUnified: Plugin = async (ctx) => {
      */
     "experimental.chat.messages.transform": async (_input, output) => {
       try {
-        if (!ENABLE_PER_TURN_CONTRACT_INJECTION) return;
-
         const messages = getProp(output, "messages");
         if (!Array.isArray(messages) || messages.length === 0) return;
 
@@ -1247,54 +1400,75 @@ export const PaiUnified: Plugin = async (ctx) => {
         if (!sessionId) return;
         if (internalCarrierSessions.has(sessionId)) return;
 
-        // Best-effort: cache parent relationships so we can avoid touching subagent sessions.
-        await ensureSessionParentCached(sessionId);
+        const dumpId = ENABLE_LLM_INPUT_DUMP ? formatDumpId(sessionId) : null;
 
-        if (!isPrimarySession(sessionId)) return;
+        let injected = false;
 
-        const parts = getProp(lastUser, "parts");
-        const rawUserText = extractTextFromParts(parts);
+        if (ENABLE_PER_TURN_CONTRACT_INJECTION) {
+          // Best-effort: cache parent relationships so we can avoid touching subagent sessions.
+          await ensureSessionParentCached(sessionId);
 
-        // Optional display verbosity override via leading directive.
-        // Examples:
-        // - "/compact ..." (default)
-        // - "/full ..."
-        const displayMatch = rawUserText.match(/^\s*\/(compact|full)\b\s*/i);
-        const displayVerbosity = (displayMatch?.[1] || "compact").toLowerCase();
-        const userText = displayMatch ? rawUserText.slice(displayMatch[0].length) : rawUserText;
+          if (!isPrimarySession(sessionId)) {
+            // No contract injection for subagents.
+          } else {
+            const parts = getProp(lastUser, "parts");
+            const rawUserText = extractTextFromParts(parts);
 
-        const mode = detectEnforcementMode({ userText, toolUsed: false, assistantText: "" });
-        const marker = "PAI_ENFORCEMENT_CONTRACT_V25";
-        const reminder = [
-          "<system-reminder>",
-          marker,
-          `RequiredDepth: ${mode}`,
-          `DisplayVerbosity: ${displayVerbosity.toUpperCase()}`,
-          "Rules:",
-          "- Your response MUST follow the PAI response contract.",
-          "- Your FIRST output token must be 🤖.",
-          "- Do NOT request ratings, sentiment, or feedback.",
-          "- Do NOT mention toasts, hints, or internal enforcement.",
-          "- Do NOT run self-correction loops; output once.",
-          "- If DisplayVerbosity is COMPACT: keep output concise.",
-          "- If DisplayVerbosity is FULL: include complete scaffolding.",
-          "</system-reminder>",
-        ].join("\n");
+            // Optional display verbosity override via leading directive.
+            // Examples:
+            // - "/compact ..." (default)
+            // - "/full ..."
+            const displayMatch = rawUserText.match(/^\s*\/(compact|full)\b\s*/i);
+            const displayVerbosity = (displayMatch?.[1] || "compact").toLowerCase();
+            const userText = displayMatch ? rawUserText.slice(displayMatch[0].length) : rawUserText;
 
-        if (!Array.isArray(parts)) return;
-        for (const p of parts as UnknownRecord[]) {
-          if (p.type !== "text") continue;
-          if (p.ignored) continue;
-          if (p.synthetic) continue;
-          const t = typeof p.text === "string" ? p.text : "";
-          if (!t.trim()) continue;
-          if (t.includes(marker)) return;
+            const mode = detectEnforcementMode({ userText, toolUsed: false, assistantText: "" });
+            const marker = "PAI_ENFORCEMENT_CONTRACT_V25";
+            const reminder = [
+              "<system-reminder>",
+              marker,
+              `RequiredDepth: ${mode}`,
+              `DisplayVerbosity: ${displayVerbosity.toUpperCase()}`,
+              "Rules:",
+              "- Your response MUST follow the PAI response contract.",
+              "- Your FIRST output token must be 🤖.",
+              "- Do NOT request ratings, sentiment, or feedback.",
+              "- Do NOT mention toasts, hints, or internal enforcement.",
+              "- Do NOT run self-correction loops; output once.",
+              "- If DisplayVerbosity is COMPACT: keep output concise.",
+              "- If DisplayVerbosity is FULL: include complete scaffolding.",
+              "</system-reminder>",
+            ].join("\n");
 
-          // Strip the leading display directive from what the model sees.
-          const cleaned = displayMatch ? t.replace(/^\s*\/(compact|full)\b\s*/i, "") : t;
-          p.text = `${reminder}\n\n${cleaned}`;
-          return;
+            if (Array.isArray(parts)) {
+              for (const p of parts as UnknownRecord[]) {
+                if (p.type !== "text") continue;
+                if (p.ignored) continue;
+                if (p.synthetic) continue;
+                const t = typeof p.text === "string" ? p.text : "";
+                if (!t.trim()) continue;
+                if (t.includes(marker)) break;
+
+                // Strip the leading display directive from what the model sees.
+                const cleaned = displayMatch ? t.replace(/^\s*\/(compact|full)\b\s*/i, "") : t;
+                p.text = `${reminder}\n\n${cleaned}`;
+                injected = true;
+                break;
+              }
+            }
+          }
         }
+
+        // Dump AFTER any contract injection mutations (this matches what reaches the LLM).
+        await maybeDumpLlmInput({
+          sessionId,
+          dumpId,
+          kind: "messages",
+          payload: {
+            injected,
+            messages: messages as unknown,
+          },
+        });
       } catch (error) {
         fileLogError("messages.transform enforcement injection failed", error);
       }
@@ -1367,6 +1541,22 @@ export const PaiUnified: Plugin = async (ctx) => {
               includeSubagentDirective: false,
             })
           );
+
+          await maybeDumpLlmInput({
+            sessionId,
+            kind: "system",
+            payload: {
+              sessionKind: kind,
+              codexOverride: true,
+              model: {
+                providerID: getStringProp(getProp(_input, "model"), "providerID") ?? "",
+                id: getStringProp(getProp(_input, "model"), "id") ?? "",
+                apiId: getStringProp(getProp(getProp(_input, "model"), "api"), "id") ?? "",
+              },
+              system: output.system,
+            },
+          });
+
           fileLog("[codex-override] replaced system bundle", "debug");
           return;
         }
@@ -1382,6 +1572,23 @@ export const PaiUnified: Plugin = async (ctx) => {
             "- Only write outside ScratchpadDir when explicitly instructed with an exact destination path.",
           ].join("\n")
         );
+
+        if (sessionId) {
+          await maybeDumpLlmInput({
+            sessionId,
+            kind: "system",
+            payload: {
+              sessionKind: kind,
+              codexOverride: false,
+              model: {
+                providerID: getStringProp(getProp(_input, "model"), "providerID") ?? "",
+                id: getStringProp(getProp(_input, "model"), "id") ?? "",
+                apiId: getStringProp(getProp(getProp(_input, "model"), "api"), "id") ?? "",
+              },
+              system: output.system,
+            },
+          });
+        }
 
         // Minimal subagent-only directive. Do not inject heavy PAI context.
         if (sessionId && kind !== "primary") {
