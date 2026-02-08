@@ -61,6 +61,25 @@ Only use `fabric` command for:
 - **`-y URL`** - YouTube transcript extraction
 - **`-u URL`** - URL content fetching (when native fetch fails)
 
+### Routing Priority (Fabric-First)
+
+When intent matches a fabric pattern, fabric takes precedence over generic research tools.
+
+**Always route to fabric first when any of these are true:**
+- The request explicitly says "fabric"
+- The requested output matches a known pattern (e.g., `extract_wisdom`, `summarize`, `create_threat_model`)
+- The request is "extract wisdom" from a URL, article, transcript, or video
+
+**YouTube-specific priority:**
+1. Use fabric's YouTube transcript path first (`fabric -y URL`)
+2. Apply the selected pattern (usually `extract_wisdom`) natively from `Patterns/{pattern}/system.md`
+3. Return the structured output sections required by the pattern
+
+**Fallback rule (only after fabric path fails):**
+- Use MCP/web researcher tools (Gemini/Perplexity/Grok/websearch) only as fallback
+- Explicitly state that fallback was used and why fabric-first could not complete
+- Keep the same requested output shape if fallback is used
+
 ### Most Common Patterns
 
 | Intent | Pattern | Description |
@@ -148,10 +167,14 @@ Each pattern's `system.md` contains the full prompt that defines:
 
 ## Changelog
 
+### 2026-02-08
+- Added explicit fabric-first routing priority for pattern-matching requests
+- Added YouTube-specific priority: `fabric -y URL` before generic MCP research tools
+- Added fallback policy requiring explicit reason when non-fabric tools are used
+
 ### 2026-01-18
 - Initial skill creation (extracted from CORE/Tools/fabric)
 - Native pattern execution (no CLI dependency for most patterns)
 - Two workflows: ExecutePattern, UpdatePatterns
 - 240+ patterns organized by category
 - PAI Pack ready structure
-
