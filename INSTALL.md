@@ -14,6 +14,7 @@ cd pai-opencode
 # 2. Install/upgrade into OpenCode global config
 bun Tools/Install.ts --target ~/.config/opencode
 # (This also auto-applies the detected provider profile to agent models)
+# (Default pre-install security gate profile: advisory; use --skills-gate-profile block-critical/block-high for enforcement)
 
 # 3. Run the setup wizard (writes into ~/.config/opencode)
 bun ~/.config/opencode/PAIOpenCodeWizard.ts
@@ -30,6 +31,30 @@ The wizard will:
 5. ✅ Create all necessary configuration files
 
 **Takes ~2 minutes.**
+
+### Security gate profiles (skills)
+
+Install runs a pre-install skill security gate by default in `advisory` mode.
+
+Default scope is **changed skills only** (source vs runtime diff).
+
+You can choose stricter enforcement:
+
+```bash
+# Block only unsuppressed CRITICAL findings
+bun Tools/Install.ts --target ~/.config/opencode --skills-gate-profile block-critical
+
+# Block unsuppressed HIGH + CRITICAL findings
+bun Tools/Install.ts --target ~/.config/opencode --skills-gate-profile block-high
+
+# Force full-scope scan (ignore changed-skill optimization)
+bun Tools/Install.ts --target ~/.config/opencode --skills-gate-scan-all
+```
+
+Reference docs:
+
+- `docs/tooling/SkillSecurityVetting.md`
+- `docs/tooling/SkillSecurityVettingRoadmap.md`
 
 ---
 

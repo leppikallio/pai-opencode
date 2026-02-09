@@ -32,6 +32,12 @@ Tip: `PAI_DIR=...` lets you target a different tree (e.g., a local dev checkout)
 
 - [SkillSearch](./SkillSearch.md) — search `skill-index.json` to find the right skill
 
+### Security vetting
+
+- [SkillSecurityVetting](./SkillSecurityVetting.md) — run PAI advisory profile scans for one skill or all skills
+- [SkillSecurityVettingRoadmap](./SkillSecurityVettingRoadmap.md) — implementation roadmap, phase status, and rollout criteria
+- [SkillSecurityVettingPhase3Eval](./SkillSecurityVettingPhase3Eval.md) — initial Phase 3 effectiveness comparison snapshot
+
 ### System verification (parallel session-safe)
 
 These tools live under the **System** skill and are intended to validate runtime behavior.

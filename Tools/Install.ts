@@ -17,10 +17,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
 type Mode = "sync";
+
+type SkillsGateProfile = "off" | "advisory" | "block-critical" | "block-high";
 
 type Options = {
   targetDir: string;
@@ -31,6 +34,9 @@ type Options = {
   prune: boolean;
   installDeps: boolean;
   verify: boolean;
+  skillsGateProfile: SkillsGateProfile;
+  skillsGateScannerRoot: string;
+  skillsGateScanAll: boolean;
 };
 
 function verifyCrossReferences(args: { targetDir: string; dryRun: boolean; enabled: boolean }) {
@@ -113,6 +119,241 @@ function verifySkillSystemDocs(args: { targetDir: string; dryRun: boolean; enabl
   }
 }
 
+function listSkillDirectories(skillsRoot: string): string[] {
+  if (!isDir(skillsRoot)) return [];
+
+  const out: string[] = [];
+
+  const walk = (dir: string) => {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const hasSkillMd = entries.some((e) => e.isFile() && e.name === "SKILL.md");
+    if (hasSkillMd) {
+      out.push(path.relative(skillsRoot, dir).replace(/\\/g, "/"));
+    }
+    for (const e of entries) {
+      if (!e.isDirectory()) continue;
+      if (e.name === "__pycache__" || e.name === ".git") continue;
+      walk(path.join(dir, e.name));
+    }
+  };
+
+  walk(skillsRoot);
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
+function shouldIgnoreSkillFile(args: { skillRel: string; relInSkillPosix: string }): boolean {
+  // Runtime install preserves personal content and runtime state under skills/PAI/{USER,WORK}.
+  // Those diffs should not trigger changed-skill detection for the security gate.
+  const skillRoot = args.skillRel.split("/")[0];
+  if (skillRoot === "PAI") {
+    return args.relInSkillPosix.startsWith("USER/") || args.relInSkillPosix.startsWith("WORK/");
+  }
+  return false;
+}
+
+function fileSha256(p: string): string {
+  const h = crypto.createHash("sha256");
+  h.update(fs.readFileSync(p));
+  return h.digest("hex");
+}
+
+function isSkillDirChanged(args: { sourceDir: string; targetDir: string; skillRel: string }): boolean {
+  if (!isDir(args.targetDir)) return true;
+
+  // Compare only files present in source; ignore dest-only unmanaged files.
+  const stack: string[] = [args.sourceDir];
+  while (stack.length) {
+    const base = stack.pop()!;
+    const entries = fs.readdirSync(base, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+
+    for (const e of entries) {
+      if (e.name === "__pycache__" || e.name === ".git" || e.name === ".DS_Store" || e.name === "node_modules") {
+        continue;
+      }
+
+      const full = path.join(base, e.name);
+      const relInSkillPosix = path.relative(args.sourceDir, full).replace(/\\/g, "/");
+      if (shouldIgnoreSkillFile({ skillRel: args.skillRel, relInSkillPosix })) continue;
+
+      if (e.isDirectory()) {
+        stack.push(full);
+        continue;
+      }
+
+      if (e.isSymbolicLink()) {
+        const dest = path.join(args.targetDir, relInSkillPosix);
+        if (!fs.existsSync(dest)) return true;
+        try {
+          const srcLink = fs.readlinkSync(full);
+          const destLink = fs.readlinkSync(dest);
+          if (srcLink !== destLink) return true;
+        } catch {
+          return true;
+        }
+        continue;
+      }
+
+      if (!e.isFile()) continue;
+
+      const dest = path.join(args.targetDir, relInSkillPosix);
+      if (!isFile(dest)) return true;
+
+      // Fast path: size mismatch.
+      try {
+        if (fs.statSync(full).size !== fs.statSync(dest).size) return true;
+      } catch {
+        return true;
+      }
+      if (fileSha256(full) !== fileSha256(dest)) return true;
+    }
+  }
+
+  return false;
+}
+
+function detectChangedSkills(sourceSkillsDir: string, targetSkillsDir: string): string[] {
+  const sourceSkillDirs = listSkillDirectories(sourceSkillsDir);
+  const changed: string[] = [];
+
+  for (const rel of sourceSkillDirs) {
+    const sourceDir = path.join(sourceSkillsDir, rel);
+    const targetDir = path.join(targetSkillsDir, rel);
+
+    if (!isDir(targetDir)) {
+      changed.push(rel);
+      continue;
+    }
+
+    if (isSkillDirChanged({ sourceDir, targetDir, skillRel: rel })) {
+      changed.push(rel);
+    }
+  }
+
+  return changed;
+}
+
+function maybeRunSkillsSecurityGate(args: {
+  sourceDir: string;
+  targetDir: string;
+  dryRun: boolean;
+  profile: SkillsGateProfile;
+  scannerRoot: string;
+  scanAll: boolean;
+}) {
+  if (args.profile === "off") {
+    console.log("[write] skills gate: skipped (--skills-gate-profile off)");
+    return;
+  }
+
+  const toolPath = path.join(
+    args.sourceDir,
+    "skills",
+    "skill-security-vetting",
+    "Tools",
+    "RunSecurityScan.py"
+  );
+  const sourceSkillsDir = path.join(args.sourceDir, "skills");
+  const targetSkillsDir = path.join(args.targetDir, "skills");
+
+  if (!isFile(toolPath)) {
+    const msg = `skills gate tool missing: ${toolPath}`;
+    if (args.profile === "advisory") {
+      console.log(`[warn] ${msg} (continuing in advisory mode)`);
+      return;
+    }
+    throw new Error(msg);
+  }
+
+  if (!isDir(sourceSkillsDir)) {
+    const msg = `skills directory missing: ${sourceSkillsDir}`;
+    if (args.profile === "advisory") {
+      console.log(`[warn] ${msg} (continuing in advisory mode)`);
+      return;
+    }
+    throw new Error(msg);
+  }
+
+  if (!isDir(args.scannerRoot)) {
+    const msg = `skill-scanner root missing: ${args.scannerRoot}`;
+    if (args.profile === "advisory") {
+      console.log(`[warn] ${msg} (continuing in advisory mode)`);
+      return;
+    }
+    throw new Error(msg);
+  }
+
+  let scanMode: "all" | "list" = "all";
+  let listFilePath: string | null = null;
+  let changedSkills: string[] = [];
+
+  const firstInstall = !isDir(targetSkillsDir);
+  if (args.scanAll || firstInstall) {
+    scanMode = "all";
+  } else {
+    changedSkills = detectChangedSkills(sourceSkillsDir, targetSkillsDir);
+
+    if (changedSkills.length === 0) {
+      console.log("[write] skills gate: skipped (no changed skills)");
+      return;
+    }
+
+    scanMode = "list";
+  }
+
+  if (args.dryRun) {
+    const targetDesc =
+      scanMode === "all"
+        ? sourceSkillsDir
+        : `${changedSkills.length} changed skills via list file`;
+    console.log(
+      `[dry] skills gate: would run uv scan with profile=${args.profile} mode=${scanMode} on ${targetDesc} (scanner root: ${args.scannerRoot})`
+    );
+    if (changedSkills.length > 0) {
+      console.log(`[dry] skills gate: changed skills => ${changedSkills.join(", ")}`);
+    }
+    return;
+  }
+
+  if (scanMode === "list") {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pai-skills-gate-"));
+    listFilePath = path.join(tmpDir, "changed-skills.txt");
+    const rows = changedSkills.map((rel) => path.join(sourceSkillsDir, rel));
+    fs.writeFileSync(listFilePath, rows.join("\n") + "\n", "utf8");
+  }
+
+  const cmd =
+    scanMode === "all"
+      ? `uv run python "${toolPath}" --mode all --skills-dir "${sourceSkillsDir}" --gate-profile ${args.profile}`
+      : `uv run python "${toolPath}" --mode list --skill-list-file "${listFilePath}" --gate-profile ${args.profile}`;
+
+  console.log(
+    `[write] skills gate: running profile=${args.profile} mode=${scanMode}` +
+      (scanMode === "list" ? ` changed=${changedSkills.length}` : "")
+  );
+  try {
+    execSync(cmd, {
+      cwd: args.scannerRoot,
+      stdio: "inherit",
+      env: { ...process.env, PAI_DIR: args.targetDir },
+    });
+    console.log(`[write] skills gate: ${args.profile} (ok)`);
+  } catch (err) {
+    if (args.profile === "advisory") {
+      console.log(`[warn] skills gate advisory run failed (continuing): ${String(err)}`);
+      return;
+    }
+    throw new Error(`skills gate failed with profile=${args.profile}.\n${String(err)}`);
+  } finally {
+    if (listFilePath) {
+      try {
+        fs.rmSync(path.dirname(listFilePath), { recursive: true, force: true });
+      } catch {
+        // best-effort cleanup
+      }
+    }
+  }
+}
+
 function maybeGenerateSkillIndex(args: { targetDir: string; dryRun: boolean }) {
   const toolPath = path.join(args.targetDir, "skills", "PAI", "Tools", "GenerateSkillIndex.ts");
   if (!isFile(toolPath)) {
@@ -172,6 +413,12 @@ function usage(opts: Partial<Options> = {}) {
   console.log("  --apply-profile        Rewrite agent model frontmatter (disabled by default)");
   console.log("  --prune                Delete unmanaged files from target (safe)");
   console.log("  --no-verify             Skip post-install verification");
+  console.log("  --skills-gate-profile <off|advisory|block-critical|block-high>");
+  console.log("                         Run pre-install skill security gate (default: advisory)");
+  console.log("  --skills-gate-scanner-root <dir>");
+  console.log("                         skill-scanner repo root (default: /Users/zuul/Projects/skill-scanner)");
+  console.log("  --skills-gate-scan-all  Force gate scan over all skills (default: changed skills only)");
+  console.log("  --scan-all-skills       Alias for --skills-gate-scan-all");
   console.log("  --no-install-deps      Skip bun install dependency step");
   console.log("  --dry-run              Print actions without writing");
   console.log("  -h, --help             Show help");
@@ -186,6 +433,9 @@ function parseArgs(argv: string[]): Options | null {
   let prune = false;
   let installDeps = true;
   let verify = true;
+  let skillsGateProfile: SkillsGateProfile = "advisory";
+  let skillsGateScannerRoot = "/Users/zuul/Projects/skill-scanner";
+  let skillsGateScanAll = false;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -214,6 +464,31 @@ function parseArgs(argv: string[]): Options | null {
       verify = false;
       continue;
     }
+    if (arg === "--skills-gate-profile") {
+      const v = argv[i + 1] as SkillsGateProfile | undefined;
+      if (!v) throw new Error("Missing value for --skills-gate-profile");
+      if (v !== "off" && v !== "advisory" && v !== "block-critical" && v !== "block-high") {
+        throw new Error(`Invalid --skills-gate-profile value: ${v}`);
+      }
+      skillsGateProfile = v;
+      i++;
+      continue;
+    }
+    if (arg === "--skills-gate-scanner-root") {
+      const v = argv[i + 1];
+      if (!v) throw new Error("Missing value for --skills-gate-scanner-root");
+      skillsGateScannerRoot = path.resolve(v);
+      i++;
+      continue;
+    }
+    if (arg === "--skills-gate-scan-all") {
+      skillsGateScanAll = true;
+      continue;
+    }
+    if (arg === "--scan-all-skills") {
+      skillsGateScanAll = true;
+      continue;
+    }
     if (arg === "--target") {
       const v = argv[i + 1];
       if (!v) throw new Error("Missing value for --target");
@@ -231,7 +506,19 @@ function parseArgs(argv: string[]): Options | null {
     throw new Error(`Unknown option: ${arg}`);
   }
 
-  return { targetDir, sourceDir, dryRun, migrateFromRepo, applyProfile, prune, installDeps, verify };
+  return {
+    targetDir,
+    sourceDir,
+    dryRun,
+    migrateFromRepo,
+    applyProfile,
+    prune,
+    installDeps,
+    verify,
+    skillsGateProfile,
+    skillsGateScannerRoot,
+    skillsGateScanAll,
+  };
 }
 
 function hasNodeModule(pkgDir: string, name: string): boolean {
@@ -813,7 +1100,19 @@ function pruneDirRecursive(
 function sync(mode: Mode, opts: Options) {
   if (mode !== "sync") throw new Error(`Unsupported mode: ${mode}`);
 
-  const { sourceDir, targetDir, dryRun, migrateFromRepo, applyProfile, prune, installDeps, verify } = opts;
+  const {
+    sourceDir,
+    targetDir,
+    dryRun,
+    migrateFromRepo,
+    applyProfile,
+    prune,
+    installDeps,
+    verify,
+    skillsGateProfile,
+    skillsGateScannerRoot,
+    skillsGateScanAll,
+  } = opts;
   if (!isDir(sourceDir)) {
     throw new Error(`Source directory not found: ${sourceDir}`);
   }
@@ -825,7 +1124,19 @@ function sync(mode: Mode, opts: Options) {
   console.log(`  target: ${targetDir}`);
   console.log(`  mode:   ${dryRun ? "dry-run" : "write"}`);
   console.log(`  prune:  ${prune ? "enabled" : "disabled"}`);
+  console.log(`  skills-gate: ${skillsGateProfile}`);
+  console.log(`  skills-gate-scope: ${skillsGateScanAll ? "all" : "changed"}`);
   console.log("");
+
+  // Pre-install skills security gate (runs against source skill tree before runtime copy).
+  maybeRunSkillsSecurityGate({
+    sourceDir,
+    targetDir,
+    dryRun,
+    profile: skillsGateProfile,
+    scannerRoot: skillsGateScannerRoot,
+    scanAll: skillsGateScanAll,
+  });
 
   ensureDir(targetDir, dryRun);
 
@@ -1075,5 +1386,3 @@ function main() {
 }
 
 main();
-
-

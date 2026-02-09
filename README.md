@@ -61,6 +61,8 @@ cd pai-opencode
 # 2. Install/upgrade into OpenCode global config
 bun Tools/Install.ts --target ~/.config/opencode
 # (This also auto-applies the detected provider profile to agent models)
+# (Default pre-install security gate profile: advisory; override with --skills-gate-profile)
+# (Default security gate scope scans changed skills; use --skills-gate-scan-all to force full scan)
 
 # 3. Run the setup wizard (writes into ~/.config/opencode)
 bun ~/.config/opencode/PAIOpenCodeWizard.ts
@@ -175,6 +177,8 @@ PAI-OpenCode's design is documented through **Architecture Decision Records (ADR
 | [docs/PAI-ADAPTATIONS.md](docs/PAI-ADAPTATIONS.md) | Changes from PAI 2.4 |
 | [docs/MIGRATION.md](docs/MIGRATION.md) | Migration from Claude Code PAI |
 | [docs/tooling/README.md](docs/tooling/README.md) | Tooling scripts (index) |
+| [docs/tooling/SkillSecurityVetting.md](docs/tooling/SkillSecurityVetting.md) | Skill security scanning operations and gate profiles |
+| [docs/tooling/SkillSecurityVettingRoadmap.md](docs/tooling/SkillSecurityVettingRoadmap.md) | Security vetting roadmap and phase progress |
 | [docs/tooling/ExtractSessionLearnings.md](docs/tooling/ExtractSessionLearnings.md) | Manual WORK → LEARNING extraction |
 | [ROADMAP.md](ROADMAP.md) | Version roadmap |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contribution guidelines |

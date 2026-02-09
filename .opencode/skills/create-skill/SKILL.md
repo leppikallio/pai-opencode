@@ -18,6 +18,7 @@ If this directory exists, load and apply any PREFERENCES.md or configs found the
 - Review rubric: `/Users/zuul/.config/opencode/skills/create-skill/SkillQualityRubric.md`
 - Migration queue: `/Users/zuul/.config/opencode/skills/create-skill/SkillMigrationQueue.md`
 - Budget-line counter (examples excluded): `/Users/zuul/.config/opencode/skills/create-skill/Tools/CountSkillBudgetLines.ts`
+- Scanner allowlist manager: `/Users/zuul/.config/opencode/skills/create-skill/Tools/ManageSkillScannerAllowlist.py`
 
 ## Authoritative SkillSystem docs (runtime, read-gated)
 
@@ -116,6 +117,7 @@ Notes:
 | **ValidateSkill** | Validate a skill against SkillSystem | `Workflows/ValidateSkill.md` |
 | **CanonicalizeSkill** | Canonicalize naming/structure | `Workflows/CanonicalizeSkill.md` |
 | **ImportSkill** | Import a skill directory from a path | `Workflows/ImportSkill.md` |
+| **ManageScannerAllowlist** | Manage scanner suppressions with expiry | `Workflows/ManageScannerAllowlist.md` |
 
 ## Examples
 

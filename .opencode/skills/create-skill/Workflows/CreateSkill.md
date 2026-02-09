@@ -204,6 +204,39 @@ cd "/Users/zuul/Projects/pai-opencode" && bun Tools/Install.ts --target "/Users/
 
 ---
 
+## Step 10: Run security vetting and manage contextual suppressions
+
+Scan the new skill:
+
+```bash
+cd "/Users/zuul/Projects/skill-scanner"
+uv run python "/Users/zuul/Projects/pai-opencode/.opencode/skills/skill-security-vetting/Tools/RunSecurityScan.py" \
+  --mode single \
+  --skill-dir "/Users/zuul/Projects/pai-opencode/.opencode/skills/<skill-name>"
+```
+
+Decision order:
+
+1. Fix real issues first.
+2. Only if non-exploitable in context, add an expiring allowlist entry:
+
+```bash
+uv run python "/Users/zuul/Projects/pai-opencode/.opencode/skills/create-skill/Tools/ManageSkillScannerAllowlist.py" upsert \
+  --id "<stable-id>" \
+  --skill "<skill-name>" \
+  --rule-id "<RULE_ID>" \
+  --reason "<why non-exploitable in this skill>" \
+  --owner "<owner>" \
+  --expires-at "YYYY-MM-DD"
+```
+
+Re-run scan and verify suppression artifacts:
+
+- `suppressed-findings.json`
+- `allowlist-summary.json`
+
+---
+
 ## Done
 
 Skill authored in the base repo, then installed to runtime for use.

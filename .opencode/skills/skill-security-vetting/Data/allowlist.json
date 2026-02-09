@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "description": "PAI scanner allowlist. Fix-before-mute applies: only context-justified suppressions with expiry.",
+  "rules": [
+    {
+      "id": "web-assessment-requests-import",
+      "enabled": true,
+      "skill": "web-assessment",
+      "rule_id": "DATA_EXFIL_NETWORK_REQUESTS",
+      "analyzer": "static",
+      "file_path": "OsintTools/osint-api-tools.py",
+      "reason": "OSINT API clients require HTTP libraries; import alone is expected in this skill.",
+      "owner": "Petteri",
+      "created_at": "2026-02-09",
+      "expires_at": "2026-05-31"
+    },
+    {
+      "id": "web-assessment-undeclared-network",
+      "enabled": true,
+      "skill": "web-assessment",
+      "rule_id": "TOOL_ABUSE_UNDECLARED_NETWORK",
+      "analyzer": "static",
+      "reason": "Current SKILL.md schema does not use scanner compatibility field; network behavior is intentional for assessment workflows.",
+      "owner": "Petteri",
+      "created_at": "2026-02-09",
+      "expires_at": "2026-05-31"
+    },
+    {
+      "id": "web-assessment-env-with-network",
+      "enabled": true,
+      "skill": "web-assessment",
+      "rule_id": "BEHAVIOR_ENV_VAR_EXFILTRATION",
+      "analyzer": "behavioral",
+      "file_path": "OsintTools/osint-api-tools.py",
+      "reason": "Reads specific API keys from environment to authenticate outbound OSINT API requests; no bulk secret exfiltration path.",
+      "owner": "Petteri",
+      "created_at": "2026-02-09",
+      "expires_at": "2026-05-31"
+    },
+    {
+      "id": "web-assessment-env-harvesting",
+      "enabled": true,
+      "skill": "web-assessment",
+      "rule_id": "BEHAVIOR_ENV_VAR_HARVESTING",
+      "analyzer": "behavioral",
+      "file_path": "OsintTools/osint-api-tools.py",
+      "reason": "Targeted getenv usage for named keys is expected in API clients and not generic environment harvesting.",
+      "owner": "Petteri",
+      "created_at": "2026-02-09",
+      "expires_at": "2026-05-31"
+    },
+    {
+      "id": "web-assessment-crossfile-exfil-chain",
+      "enabled": true,
+      "skill": "web-assessment",
+      "rule_id": "BEHAVIOR_CROSSFILE_EXFILTRATION_CHAIN",
+      "analyzer": "behavioral",
+      "title_contains": "Cross-file exfiltration chain: 2 files",
+      "reason": "Cross-file correlation currently over-approximates localhost test orchestration + OSINT client usage as exfiltration chain.",
+      "owner": "Petteri",
+      "created_at": "2026-02-09",
+      "expires_at": "2026-05-31"
+    },
+    {
+      "id": "web-assessment-crossfile-env-exfil",
+      "enabled": true,
+      "skill": "web-assessment",
+      "rule_id": "BEHAVIOR_CROSSFILE_ENV_VAR_EXFILTRATION",
+      "analyzer": "behavioral",
+      "title_contains": "Cross-file env var exfiltration: 2 files",
+      "reason": "Cross-file env-var correlation currently treats legitimate API-key usage and localhost tooling as exfiltration.",
+      "owner": "Petteri",
+      "created_at": "2026-02-09",
+      "expires_at": "2026-05-31"
+    }
+  ]
+}
