@@ -1,7 +1,6 @@
 ---
 name: research
 description: Comprehensive research and content analysis. USE WHEN topic research, summarize sources, extract insights, analyze content; NOT people/company due diligence (use osint).
-context: fork
 ---
 
 ## Customization
@@ -105,4 +104,3 @@ Route to the appropriate workflow based on the request.
 - This ties research artifacts to the work item for learning and context
 
 **History (permanent):** `~/.config/opencode/History/research/YYYY-MM/YYYY-MM-DD_[topic]/`
-

@@ -1,6 +1,6 @@
 ---
 name: be-creative
-description: Extended creativity and deep reasoning workflows. USE WHEN user asks for creative ideas, brainstorming, novel approaches, or extended reasoning. SkillSearch('becreative') for docs.
+description: Extended creativity and deep reasoning workflows. USE WHEN user asks for creative ideas, brainstorming, novel approaches, or extended reasoning. Use `skill_find` with query `be-creative` for docs.
 ---
 
 ## Customization
@@ -99,4 +99,3 @@ User: "deep thinking this architecture problem"
 ---
 
 **Research-backed creative enhancement: 1.6-2.1x diversity, 25.7% quality improvement.**
-

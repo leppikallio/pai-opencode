@@ -1,6 +1,6 @@
 ---
 name: documents
-description: Document processing router for PDF/DOCX/PPTX/XLSX. USE WHEN user asks to create, edit, convert, or analyze documents or mentions Word, PDF, PowerPoint, Excel, or .docx/.pdf/.pptx/.xlsx. SkillSearch('documents') for docs.
+description: Document processing router for PDF/DOCX/PPTX/XLSX. USE WHEN user asks to create, edit, convert, or analyze documents or mentions Word, PDF, PowerPoint, Excel, or .docx/.pdf/.pptx/.xlsx. Use `skill_find` with query `documents` for docs.
 ---
 
 ## Customization
@@ -111,4 +111,3 @@ User: "Create a revenue projection spreadsheet"
 **Routing is automatic** - Analyzes user intent and activates appropriate document type workflow
 
 **Professional quality** - Standards and best practices for production-ready documents
-

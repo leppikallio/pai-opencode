@@ -9,6 +9,7 @@
  *  2) Each section doc contains backlink header fields + canary comment
  *  3) Section docs must not instruct SkillSearch as a required step
  *     (we treat `SkillSearch(` as a violation; mentions in AntiPatterns are allowed).
+ *  4) Any SKILL.md under skills root must not contain `SkillSearch(`.
  *
  * This tool is intentionally separate from ScanBrokenRefs.
  */
@@ -33,7 +34,9 @@ type Report = {
   meta: {
     indexPath: string;
     sectionsDir: string;
+    skillsRoot: string;
     sectionDocs: string[];
+    skillDocsChecked: number;
     routingTableDocs: string[];
     routingTableCanaries: Record<string, string>;
   };
@@ -48,11 +51,12 @@ function usageText(): string {
   return `ValidateSkillSystemDocs
 
 Usage:
-  bun ValidateSkillSystemDocs.ts [--index <path>] [--sections-dir <dir>] [--format text|json]
+  bun ValidateSkillSystemDocs.ts [--index <path>] [--sections-dir <dir>] [--skills-root <dir>] [--format text|json]
 
 Defaults:
   --index        ${DEFAULT_INDEX_PATH}
   --sections-dir ${DEFAULT_SECTIONS_DIR}
+  --skills-root  inferred from --index (../..)
 
 Exit codes:
   0  All checks passed
@@ -65,6 +69,7 @@ function parseArgs(argv: string[]) {
   const out: {
     indexPath: string;
     sectionsDir: string;
+    skillsRoot?: string;
     format: Format;
     help: boolean;
   } = {
@@ -95,6 +100,13 @@ function parseArgs(argv: string[]) {
       const v = args.shift();
       if (!v) throw new Error("--sections-dir requires a value");
       out.sectionsDir = v;
+      continue;
+    }
+
+    if (a === "--skills-root" || a === "--skillsRoot") {
+      const v = args.shift();
+      if (!v) throw new Error("--skills-root requires a value");
+      out.skillsRoot = v;
       continue;
     }
 
@@ -129,6 +141,30 @@ async function listSectionDocs(sectionsDir: string): Promise<string[]> {
     .filter((e) => e.isFile() && e.name.endsWith(".md"))
     .map((e) => path.join(sectionsDir, e.name))
     .sort((a, b) => a.localeCompare(b));
+}
+
+async function listSkillDocs(skillsRoot: string): Promise<string[]> {
+  const out: string[] = [];
+
+  async function walk(dir: string): Promise<void> {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const e of entries) {
+      const full = path.join(dir, e.name);
+      if (e.isDirectory()) {
+        await walk(full);
+      } else if (e.isFile() && e.name === "SKILL.md") {
+        out.push(full);
+      }
+    }
+  }
+
+  await walk(skillsRoot);
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
+function inferSkillsRootFromIndex(indexPath: string): string {
+  // /.../skills/PAI/SYSTEM/SkillSystem.md -> /.../skills
+  return path.resolve(path.dirname(indexPath), "..", "..");
 }
 
 /**
@@ -223,9 +259,11 @@ function renderTextReport(report: Report): string {
   lines.push(`ValidateSkillSystemDocs: ${report.ok ? "OK" : "FAIL"}`);
   lines.push(`Index: ${report.meta.indexPath}`);
   lines.push(`Sections dir: ${report.meta.sectionsDir}`);
+  lines.push(`Skills root: ${report.meta.skillsRoot}`);
   lines.push(
     `Section docs: ${report.meta.sectionDocs.length} | Routing entries: ${report.meta.routingTableDocs.length}`
   );
+  lines.push(`SKILL.md files checked: ${report.meta.skillDocsChecked}`);
 
   if (report.errors.length) {
     lines.push("");
@@ -249,8 +287,10 @@ function renderTextReport(report: Report): string {
 async function validate(opts: {
   indexPath: string;
   sectionsDir: string;
+  skillsRoot?: string;
 }): Promise<Report> {
   const findings: Finding[] = [];
+  const skillsRoot = opts.skillsRoot ?? inferSkillsRootFromIndex(opts.indexPath);
 
   if (!(await fileExists(opts.indexPath))) {
     throw new Error(`Index file not found: ${opts.indexPath}`);
@@ -258,10 +298,14 @@ async function validate(opts: {
   if (!(await fileExists(opts.sectionsDir))) {
     throw new Error(`Sections dir not found: ${opts.sectionsDir}`);
   }
+  if (!(await fileExists(skillsRoot))) {
+    throw new Error(`Skills root not found: ${skillsRoot}`);
+  }
 
-  const [indexMd, sectionDocs] = await Promise.all([
+  const [indexMd, sectionDocs, skillDocs] = await Promise.all([
     fs.readFile(opts.indexPath, "utf8"),
     listSectionDocs(opts.sectionsDir),
+    listSkillDocs(skillsRoot),
   ]);
 
   const { docToCanary, docs: routingDocs } = parseRoutingTable(indexMd);
@@ -275,6 +319,20 @@ async function validate(opts: {
         file: opts.indexPath,
         message: `Routing table missing entry for section doc: ${doc}`,
         details: { sectionDoc: doc },
+      });
+    }
+  }
+
+  // (4) Global prohibition in SKILL.md docs.
+  for (const doc of skillDocs) {
+    const md = await fs.readFile(doc, "utf8");
+    if (/\bSkillSearch\(/.test(md)) {
+      findings.push({
+        severity: "error",
+        code: "SKILL_DOC_INSTRUCTS_SKILLSEARCH",
+        file: doc,
+        message:
+          "SKILL.md contains 'SkillSearch(' (disallowed; use skill_find/skill_use tool patterns)",
       });
     }
   }
@@ -416,7 +474,9 @@ async function validate(opts: {
     meta: {
       indexPath: opts.indexPath,
       sectionsDir: opts.sectionsDir,
+      skillsRoot,
       sectionDocs,
+      skillDocsChecked: skillDocs.length,
       routingTableDocs: routingDocs,
       routingTableCanaries: docToCanary,
     },
@@ -433,6 +493,7 @@ async function main() {
   const report = await validate({
     indexPath: opts.indexPath,
     sectionsDir: opts.sectionsDir,
+    skillsRoot: opts.skillsRoot,
   });
 
   if (opts.format === "json") {

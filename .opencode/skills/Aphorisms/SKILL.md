@@ -1,6 +1,6 @@
 ---
 name: aphorisms
-description: Aphorism management. USE WHEN aphorism, quote, saying. SkillSearch('aphorisms') for docs.
+description: Aphorism management. USE WHEN aphorism, quote, saying. Use `skill_find` with query `aphorisms` for docs.
 ---
 
 ## Customization
@@ -100,6 +100,7 @@ Curated collection organized by:
 - **Theme** - Categories like resilience, learning, stoicism, risk, progress
 - **Context** - Background on quote origin and meaning
 - **Usage History** - Track which quotes used in which newsletters
+- **Recommendation Cache** - Automatically log suggested quote sets for reuse and continuity
 
 ### 3. Thinker Research
 Deep research on key philosophers:
@@ -128,7 +129,8 @@ Aphorisms categorized by themes matching user content:
 1. **Initial Collection (Rahil Arora)** - 15 curated quotes covering core themes
 2. **Thinkers Aligned with TELOS** - Sections for Hitchens, Deutsch, Harris, Spinoza, Feynman (to be populated)
 3. **Theme Index** - Quick reference by category
-4. **Newsletter Usage History** - Tracking to avoid repetition
+4. **Recommendation Cache** - Auto-cached recommendation batches (query, tone, candidates, selection status)
+5. **Newsletter Usage History** - Tracking to avoid repetition
 
 **Metadata Per Aphorism:**
 - Full quote text
@@ -149,6 +151,7 @@ Aphorisms categorized by themes matching user content:
 - Consider usage history
 - Provide top 3-5 recommendations with rationale
 - Include quote, author, and why it fits
+- Auto-cache recommendation set and selected quote metadata
 
 ### Database Management
 
@@ -365,4 +368,3 @@ Hitchens, Deutsch, Harris, Spinoza, Feynman
 ---
 
 Last Updated: 2025-11-20
-

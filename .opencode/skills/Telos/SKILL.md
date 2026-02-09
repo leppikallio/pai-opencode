@@ -1,6 +1,6 @@
 ---
 name: telos
-description: "Life OS and project analysis. USE WHEN TELOS, life goals, projects, dependencies, books, movies. SkillSearch('telos') for docs."
+description: "Life OS and project analysis. USE WHEN TELOS, life goals, projects, dependencies, books, movies. Use `skill_find` with query `telos` for docs."
 ---
 
 # Telos
@@ -373,4 +373,3 @@ Engineer 10: Integration and testing
 **TELOS is {principal.name}'s life operating system AND project analysis framework. One skill, two powerful contexts.**
 
 **Remember:** Personal TELOS files live at `~/.config/opencode/skills/CORE/USER/TELOS/` (in the CORE USER directory)
-

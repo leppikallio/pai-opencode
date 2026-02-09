@@ -1,6 +1,6 @@
 ---
 name: private-investigator
-description: "Ethical people-finding. USE WHEN find person, locate, reconnect, people search, skip trace. SkillSearch('privateinvestigator') for docs."
+description: "Ethical people-finding. USE WHEN find person, locate, reconnect, people search, skip trace. Use `skill_find` with query `private-investigator` for docs."
 ---
 
 ## Customization

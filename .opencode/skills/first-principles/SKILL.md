@@ -1,6 +1,6 @@
 ---
 name: first-principles
-description: "First principles analysis. USE WHEN first principles, fundamental, root cause, decompose. SkillSearch('firstprinciples') for docs."
+description: "First principles analysis. USE WHEN first principles, fundamental, root cause, decompose. Use `skill_find` with query `first-principles` for docs."
 ---
 
 ## Customization
@@ -192,4 +192,3 @@ When using first-principles, output should include:
 ---
 
 **Attribution**: Framework derived from Elon Musk's first principles methodology as documented by James Clear, Mayo Oshin, and public interviews.
-

@@ -1,6 +1,6 @@
 ---
 name: pptx
-description: Presentation creation, editing, and analysis. USE WHEN user mentions PowerPoint/PPTX, slide decks, pitch decks, templates, speaker notes, or provides .pptx files. SkillSearch('pptx') for docs.
+description: Presentation creation, editing, and analysis. USE WHEN user mentions PowerPoint/PPTX, slide decks, pitch decks, templates, speaker notes, or provides .pptx files. Use `skill_find` with query `pptx` for docs.
 ---
 
 # PPTX creation, editing, and analysis
@@ -583,4 +583,3 @@ Required dependencies (should already be installed):
 - **LibreOffice**: `sudo apt-get install libreoffice` (for PDF conversion)
 - **Poppler**: `sudo apt-get install poppler-utils` (for pdftoppm to convert PDF to images)
 - **defusedxml**: `pip install defusedxml` (for secure XML parsing)
-

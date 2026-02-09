@@ -1,7 +1,6 @@
 ---
 name: sec-updates
 description: Security news aggregation. USE WHEN security news, security updates, breaches.
-context: fork
 ---
 
 ## Customization
@@ -278,4 +277,3 @@ For each item found:
 | 50+ items | Max 32, quality curated |
 | Mixing categories | Clear News/Research/Ideas separation |
 | Old news mixed with new | Only items since last check |
-

@@ -1,6 +1,6 @@
 ---
 name: red-team
-description: "Adversarial analysis with 32 agents. USE WHEN red team, attack idea, counterarguments, critique, stress test. SkillSearch('redteam') for docs."
+description: "Adversarial analysis with 32 agents. USE WHEN red team, attack idea, counterarguments, critique, stress test. Use `skill_find` with query `red-team` for docs."
 ---
 
 ## Customization
@@ -82,4 +82,3 @@ User: "battle of bots - which approach is better for this feature?"
 ---
 
 **Last Updated:** 2025-12-20
-

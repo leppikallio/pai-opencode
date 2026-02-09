@@ -204,9 +204,41 @@ Complete collection of curated aphorisms organized by theme and author.
 
 ---
 
+## Recommendation Cache
+
+*Automatically append recommendation batches from `find-aphorism.md`.*
+
+### Entry Format
+
+```markdown
+### [YYYY-MM-DD] [slug]
+- Query: [short user request summary]
+- Themes: [Theme 1], [Theme 2], [Theme 3]
+- Tone: [tone tags]
+- Candidates:
+  1. "[Quote]" — [Author] ([Score]/50)
+  2. "[Quote]" — [Author] ([Score]/50)
+  3. "[Quote]" — [Author] ([Score]/50)
+- Selected: [Pending | Quote + Author]
+- Placement: [Opening/Closing/Section divider/Unknown]
+```
+
+---
+
 ## Newsletter Usage History
 
-*Track which aphorisms have been used in which newsletters to avoid repetition*
+*Auto-populated whenever a quote is selected for a newsletter/blog post.*
+
+### Entry Format
+
+```markdown
+### [YYYY-MM-DD] [newsletter title or topic]
+- Quote: "[Selected quote]"
+- Author: [Author]
+- Placement: [Opening/Closing/Section divider]
+- Themes: [Theme 1], [Theme 2]
+- Notes: [brief rationale]
+```
 
 ---
 

@@ -1,7 +1,6 @@
 ---
 name: bright-data
-description: "Progressive URL scraping with escalation. USE WHEN user needs page content, is blocked, or asks for Bright Data. SkillSearch('brightdata') for docs."
-context: fork
+description: "Progressive URL scraping with escalation. USE WHEN user needs page content, is blocked, or asks for Bright Data. Use `skill_find` with query `bright-data` for docs."
 ---
 
 ## Customization

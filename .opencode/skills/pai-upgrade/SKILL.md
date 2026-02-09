@@ -1,7 +1,6 @@
 ---
 name: pai-upgrade
 description: System upgrade analysis and ecosystem monitoring. USE WHEN upgrade ideas, analyze content for improvements, check Anthropic/Claude updates, release notes, source monitoring.
-context: fork
 ---
 
 ## Customization
@@ -345,4 +344,3 @@ User: "find new upgrade sources"
 ---
 
 **This skill embodies the system's commitment to continuous improvement and learning from the broader ecosystem while maintaining our architectural principles and preferences.**
-
