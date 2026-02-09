@@ -7,6 +7,7 @@ This is intentionally separate from the installer’s `ScanBrokenRefs` pass. It 
 - Router table integrity
 - Section doc invariants (backlinks + canaries)
 - Detecting SkillSearch *usage* patterns that would encourage “pretend loading”
+- Enforcing a global `SKILL.md` prohibition on `SkillSearch(`
 
 ## What it validates
 
@@ -37,6 +38,14 @@ This validator flags function-like usage:
 - `SkillSearch(`
 
 Mentions in prose (e.g., describing an anti-pattern) are allowed.
+
+### 4) Global SKILL.md prohibition
+
+Every `SKILL.md` under the skills root must be free of function-like SkillSearch usage:
+
+- `SkillSearch(`
+
+If this appears in any skill file, validation fails.
 
 Preferred discovery pattern:
 
@@ -71,8 +80,11 @@ Override paths (useful for custom setups):
 bun "/Users/zuul/.config/opencode/skills/system/Tools/ValidateSkillSystemDocs.ts" \
   --index "/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md" \
   --sections-dir "/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem" \
+  --skills-root "/Users/zuul/.config/opencode/skills" \
   --format text
 ```
+
+`--skills-root` is optional. If omitted, it is inferred from `--index` using `../..`.
 
 ## Exit codes
 

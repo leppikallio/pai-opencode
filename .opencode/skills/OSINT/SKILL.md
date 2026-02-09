@@ -1,6 +1,6 @@
 ---
 name: osint
-description: "Open source intelligence gathering. USE WHEN OSINT, due diligence, background check, research person, company intel, investigate. SkillSearch('osint') for docs."
+description: "Open source intelligence gathering. USE WHEN OSINT, due diligence, background check, research person, company intel, investigate. Use `skill_find` with query `osint` for docs."
 ---
 
 ## Customization
@@ -46,4 +46,3 @@ See `EthicalFramework.md` for complete requirements.
 
 **Version:** 2.0 (Canonical Structure)
 **Last Updated:** December 2024
-

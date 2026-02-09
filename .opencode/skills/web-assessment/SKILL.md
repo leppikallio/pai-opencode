@@ -1,6 +1,6 @@
 ---
 name: web-assessment
-description: Web application security assessment. USE WHEN user requests web app pentest, vulnerability scanning, threat modeling, or web security testing. SkillSearch('webassessment') for docs.
+description: Web application security assessment. USE WHEN user requests web app pentest, vulnerability scanning, threat modeling, or web security testing. Use `skill_find` with query `web-assessment` for docs.
 ---
 
 ## Customization
@@ -159,4 +159,3 @@ User: "Assessment on target.com including all subdomains"
 → UnderstandApplication → Build app narrative
 → CreateThreatModel → Generate attack plan
 ```
-

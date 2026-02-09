@@ -24,6 +24,7 @@ Allowed by default ("minimal"):
 
 - Ensure `SKILL.md` frontmatter has a **single-line** `description:`
 - Ensure the frontmatter `description:` contains `USE WHEN` (append a minimal clause if missing)
+- Migrate legacy `SkillSearch(...)` phrasing in `SKILL.md` `description:` to `skill_find` guidance
 - If the source uses lowercase `workflows/` or `tools/`, rename to `Workflows/` and `Tools/` (only if the canonical-cased directory does not already exist)
 - Expand `${PAI_DIR}` / `$PAI_DIR` references to explicit runtime path `~/.config/opencode`
 - Rename `CLAUDE.md` to `REFERENCE.md` and update in-skill links accordingly
@@ -53,6 +54,14 @@ bun "/Users/zuul/Projects/pai-opencode/.opencode/skills/create-skill/Tools/Impor
   --canonicalize minimal
 ```
 
+Automatic post-import checks run by default (no extra flag needed). Disable only when explicitly requested:
+
+```bash
+  --no-validate
+```
+
+Note: in `--dry-run`, content canonicalization + post-import checks are skipped because files are not materialized.
+
 If destination exists and overwrite is desired, add:
 
 ```bash
@@ -78,6 +87,7 @@ cd "/Users/zuul/Projects/pai-opencode" && bun "Tools/Install.ts" --target "/User
 - Destination exists: `/Users/zuul/Projects/pai-opencode/.opencode/skills/<skill-name>/SKILL.md`
 - Runtime exists: `~/.config/opencode/skills/<skill-name>/SKILL.md`
 - Skill index includes the new skill: `~/.config/opencode/skills/skill-index.json`
+- Import tool post-checks passed (frontmatter + no `SkillSearch(` in `SKILL.md`)
 
 Optional post-import gate:
 - Apply the 30-second rubric: `/Users/zuul/.config/opencode/skills/create-skill/SkillQualityRubric.md`

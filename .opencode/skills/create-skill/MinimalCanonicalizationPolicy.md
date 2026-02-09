@@ -108,6 +108,7 @@ Allowed edits are the entire definition of canonicalization scope.
 2) Normalize `SKILL.md` YAML frontmatter `description` (mandatory-only)
    - Ensure `description:` is a single line (no YAML multiline `|`).
    - Ensure the line contains the literal phrase `USE WHEN`.
+   - Replace legacy `SkillSearch(...)` phrasing in `description:` with `skill_find` guidance.
    - Reference: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Frontmatter.md`
 
 3) Normalize casing of workflows/tools directory names (only when safe)
@@ -125,6 +126,12 @@ Allowed edits are the entire definition of canonicalization scope.
 
 6) Record and report changes
    - The importer should list exactly what it changed (paths + short reason).
+
+7) Run automatic post-import checks (default)
+   - Validate `SKILL.md` frontmatter is parseable.
+   - Validate `name:` matches destination skill name.
+   - Validate `description:` includes `USE WHEN`.
+   - Validate `SKILL.md` does not contain `SkillSearch(`.
 
 ### Allowed in strict canonicalization (superset; only by explicit request)
 

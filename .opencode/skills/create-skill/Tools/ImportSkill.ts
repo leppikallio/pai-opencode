@@ -32,6 +32,7 @@ type Args = {
   name?: string;
   force: boolean;
   dryRun: boolean;
+  validate: boolean;
   canonicalize: CanonicalizeMode;
 };
 
@@ -46,6 +47,7 @@ Usage:
 Options:
   --name <skill-name>           Override destination skill name (canonicalized to kebab-case)
   --canonicalize <mode>         none | minimal | strict (default: minimal)
+  --no-validate                 Skip automatic post-import checks
   --force                       Overwrite destination if it exists
   --dry-run                     Print actions without changing files
   --help                        Show help
@@ -53,6 +55,11 @@ Options:
 Minimal canonicalization includes:
   - rewrite \${PAI_DIR}/$PAI_DIR -> ~/.config/opencode
   - rename CLAUDE.md -> REFERENCE.md and update links
+  - convert SkillSearch(...) phrasing in SKILL.md description to skill_find guidance
+
+Post-import checks (enabled by default):
+  - SKILL.md frontmatter parseability + name/description constraints
+  - no SkillSearch( usage in SKILL.md
 `);
 }
 
@@ -91,6 +98,7 @@ function parseArgs(argv: string[]): Args {
   const args: Args = {
     force: false,
     dryRun: false,
+    validate: true,
     canonicalize: "minimal",
   };
 
@@ -109,6 +117,11 @@ function parseArgs(argv: string[]): Args {
 
     if (a === "--dry-run") {
       args.dryRun = true;
+      continue;
+    }
+
+    if (a === "--no-validate") {
+      args.validate = false;
       continue;
     }
 
@@ -399,6 +412,20 @@ function normalizeDescriptionYaml(yaml: string, skillName: string): { yaml: stri
       }
     }
 
+    // Migrate legacy discovery guidance.
+    if (/\bSkillSearch\(/.test(desc)) {
+      const replacement = `Use \`skill_find\` with query \`${skillName}\` for docs.`;
+      const migrated = toSingleLine(
+        desc
+          .replace(/\s*SkillSearch\([^)]*\)\s*for docs\.?/gi, ` ${replacement}`)
+          .replace(/\s*SkillSearch\([^)]*\)\.?/gi, ` ${replacement}`),
+      );
+      if (migrated !== desc) {
+        desc = migrated;
+        changed = true;
+      }
+    }
+
     if (!/\bUSE WHEN\b/.test(desc)) {
       desc = `${desc}${desc.endsWith(".") ? "" : "."} USE WHEN you need to use this skill.`;
       changed = true;
@@ -461,6 +488,107 @@ async function canonicalizeSkillMd(skillDir: string, skillName: string, mode: Ca
   }
 }
 
+type ValidationFinding = {
+  severity: "error" | "warning";
+  message: string;
+};
+
+function parseFrontmatterField(yaml: string, key: "name" | "description"): string | undefined {
+  const lines = yaml.split(/\r?\n/);
+  for (const line of lines) {
+    const m = line.match(new RegExp(`^${key}:\\s*(.*)$`));
+    if (!m) continue;
+    return m[1]?.trim();
+  }
+  return undefined;
+}
+
+async function runPostImportChecks(
+  skillDir: string,
+  skillName: string,
+  mode: CanonicalizeMode,
+): Promise<void> {
+  const findings: ValidationFinding[] = [];
+  const skillMdPath = path.join(skillDir, "SKILL.md");
+
+  if (!(await pathExists(skillMdPath))) {
+    findings.push({ severity: "error", message: `Missing SKILL.md: ${skillMdPath}` });
+  } else {
+    const skillMd = await fs.readFile(skillMdPath, "utf8");
+    const fm = extractFrontmatter(skillMd);
+    if (!fm) {
+      findings.push({ severity: "error", message: "SKILL.md frontmatter is missing or not parseable" });
+    } else {
+      const name = parseFrontmatterField(fm.yaml, "name");
+      const description = parseFrontmatterField(fm.yaml, "description");
+
+      if (!name) {
+        findings.push({ severity: "error", message: "Frontmatter missing required `name:` field" });
+      } else if (name !== skillName) {
+        findings.push({
+          severity: "error",
+          message: `Frontmatter name mismatch (expected ${skillName}, found ${name})`,
+        });
+      }
+
+      if (!description) {
+        findings.push({ severity: "error", message: "Frontmatter missing required `description:` field" });
+      } else {
+        if (!/\bUSE WHEN\b/.test(description)) {
+          findings.push({ severity: "error", message: "Frontmatter `description:` must contain `USE WHEN`" });
+        }
+        if (/\bSkillSearch\(/.test(description)) {
+          findings.push({
+            severity: "error",
+            message: "Frontmatter `description:` contains `SkillSearch(` (use `skill_find` guidance instead)",
+          });
+        }
+      }
+    }
+
+    if (/\bSkillSearch\(/.test(skillMd)) {
+      findings.push({
+        severity: "error",
+        message: "SKILL.md contains `SkillSearch(`; this is disallowed in imported skills",
+      });
+    }
+  }
+
+  const workflowsDir = path.join(skillDir, "Workflows");
+  const toolsDir = path.join(skillDir, "Tools");
+  const hasWorkflows = await pathExists(workflowsDir);
+  const hasTools = await pathExists(toolsDir);
+
+  if (!hasWorkflows) {
+    findings.push({
+      severity: mode === "strict" ? "error" : "warning",
+      message: "Missing Workflows/ directory",
+    });
+  }
+  if (!hasTools) {
+    findings.push({
+      severity: mode === "strict" ? "error" : "warning",
+      message: "Missing Tools/ directory",
+    });
+  }
+
+  const errors = findings.filter((f) => f.severity === "error");
+  const warnings = findings.filter((f) => f.severity === "warning");
+
+  for (const warning of warnings) {
+    process.stdout.write(`[warn] ${warning.message}\n`);
+  }
+
+  if (errors.length) {
+    for (const error of errors) {
+      process.stderr.write(`[error] ${error.message}\n`);
+    }
+    die(`Post-import validation failed (${errors.length} error${errors.length === 1 ? "" : "s"}).`);
+  }
+
+  process.stdout.write("[ok] Post-import validation passed.\n");
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   if (!args.source || !args.dest) {
@@ -508,6 +636,7 @@ async function main(): Promise<void> {
   process.stdout.write(`  source: ${source}\n`);
   process.stdout.write(`  dest:   ${destSkillDir}\n`);
   process.stdout.write(`  mode:   ${args.canonicalize}\n`);
+  process.stdout.write(`  validate: ${args.validate ? "on" : "off"}\n`);
 
   if (destExists && args.force) {
     await removeDir(destSkillDir, args.dryRun);
@@ -527,13 +656,23 @@ async function main(): Promise<void> {
     await ensureDir(path.join(destSkillDir, "Tools"), args.dryRun);
   }
 
-  await canonicalizeImportedReferences(destSkillDir, args.canonicalize, args.dryRun, {
-    sourceDirName: inferredName,
-    rawSkillName,
-    canonicalSkillName: skillName,
-  });
+  if (args.dryRun) {
+    process.stdout.write(
+      "[note] Skipping content canonicalization and post-import validation in --dry-run mode (files are not materialized).\n",
+    );
+  } else {
+    await canonicalizeImportedReferences(destSkillDir, args.canonicalize, args.dryRun, {
+      sourceDirName: inferredName,
+      rawSkillName,
+      canonicalSkillName: skillName,
+    });
 
-  await canonicalizeSkillMd(destSkillDir, skillName, args.canonicalize, args.dryRun);
+    await canonicalizeSkillMd(destSkillDir, skillName, args.canonicalize, args.dryRun);
+
+    if (args.validate) {
+      await runPostImportChecks(destSkillDir, skillName, args.canonicalize);
+    }
+  }
 
   process.stdout.write("Done.\n");
   process.stdout.write("Next (install into runtime):\n");

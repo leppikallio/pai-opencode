@@ -1,6 +1,6 @@
 ---
 name: create-cli
-description: "Generate TypeScript CLIs. USE WHEN create CLI, build CLI, command-line tool. SkillSearch('createcli') for docs."
+description: "Generate TypeScript CLIs. USE WHEN create CLI, build CLI, command-line tool. Use `skill_find` with query `create-cli` for docs."
 ---
 
 ## Customization
@@ -341,4 +341,3 @@ The `llcli` CLI (Limitless.ai API) proves this pattern works:
 ---
 
 **This skill turns "I need a CLI for X" into production-ready tools in minutes, following proven patterns from llcli and CLI-First Architecture.**
-

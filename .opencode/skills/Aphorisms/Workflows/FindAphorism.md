@@ -2,6 +2,11 @@
 
 **Purpose:** Analyze newsletter or article content to recommend the perfect thematically-aligned aphorism from the database.
 
+**Auto-caching policy (default, mandatory):**
+- Always write each recommendation batch to `## Recommendation Cache` in the local database.
+- When a quote is selected, immediately append a record to `## Newsletter Usage History`.
+- Do not ask whether to cache; cache by default.
+
 ## Voice Notification
 
 Use the `voice_notify` tool:
@@ -213,8 +218,53 @@ For each potential aphorism, score on:
 - **For philosophical depth**: Recommendation #5
 
 ### Usage Tracking
-Remember to update usage history in database after selection.
+Usage tracking is automatic: recommendation batch is cached, and selected quote usage is written to history.
 ```
+
+---
+
+### Step 7: Auto-Cache Recommendations and Selection
+
+After presenting recommendations, update:
+
+`~/.config/opencode/skills/aphorisms/Database/aphorisms.md`
+
+#### 7.1 Always append recommendation cache entry
+
+Under `## Recommendation Cache`, append:
+
+```markdown
+### [YYYY-MM-DD] [slug]
+- Query: [short user request summary]
+- Themes: [Theme 1], [Theme 2], [Theme 3]
+- Tone: [tone tags]
+- Candidates:
+  1. "[Quote]" — [Author] ([Score]/50)
+  2. "[Quote]" — [Author] ([Score]/50)
+  3. "[Quote]" — [Author] ([Score]/50)
+- Selected: [Pending | Quote + Author]
+- Placement: [Opening/Closing/Section divider/Unknown]
+```
+
+#### 7.2 If user selects a quote, append usage history immediately
+
+Under `## Newsletter Usage History`, append:
+
+```markdown
+### [YYYY-MM-DD] [newsletter title or topic]
+- Quote: "[Selected quote]"
+- Author: [Author]
+- Placement: [Opening/Closing/Section divider]
+- Themes: [Theme 1], [Theme 2]
+- Notes: [brief rationale]
+```
+
+Then update the matching recommendation cache entry from `Selected: Pending` to selected quote metadata.
+
+#### 7.3 If no selection yet
+
+- Keep `Selected: Pending`.
+- Update it later when user picks a quote.
 
 ---
 
@@ -287,6 +337,8 @@ Before finalizing recommendations:
 - [ ] Tonal alignment makes sense (no jarring mismatches)
 - [ ] TELOS philosophy alignment is genuine
 - [ ] Usage history checked (not recently used)
+- [ ] Recommendation cache entry written for this run
+- [ ] If selected, usage history entry appended
 - [ ] Context provided if quote needs background
 - [ ] Placement suggestion is appropriate
 - [ ] Author diversity maintained
@@ -342,10 +394,10 @@ Newsletter about "AI safety through careful engineering"
 
 ### After Recommendation is Selected
 
-**Update database:**
-1. Use add-aphorism.md to update usage history
-2. Note: Newsletter date, newsletter theme, placement
-3. Maintain tracking for future variety
+**Update database automatically:**
+1. Append usage record under `## Newsletter Usage History`
+2. Update matching recommendation cache entry with selected quote
+3. Keep metadata (date, theme, tone, placement) for future variety
 
 ### If Quote Not in Database
 
@@ -485,4 +537,3 @@ Section divider - Connects learning about security to actually implementing hygi
 ---
 
 **Last Updated:** 2025-11-20
-

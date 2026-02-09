@@ -1,6 +1,6 @@
 ---
 name: recon
-description: "Security reconnaissance. USE WHEN recon, reconnaissance, bug bounty, attack surface. SkillSearch('recon') for docs."
+description: "Security reconnaissance. USE WHEN recon, reconnaissance, bug bounty, attack surface. Use `skill_find` with query `recon` for docs."
 ---
 
 ## Customization
@@ -447,4 +447,3 @@ Assistant: Activating OSINT skill...
 ---
 
 **Remember:** Start passive, confirm authorization before going active, document everything, and be respectful of target systems.
-

@@ -1,6 +1,6 @@
 ---
 name: council
-description: "Multi-agent debate system. USE WHEN council, debate, perspectives, agents discuss. SkillSearch('council') for docs."
+description: "Multi-agent debate system. USE WHEN council, debate, perspectives, agents discuss. Use `skill_find` with query `council` for docs."
 ---
 
 ## Customization
@@ -85,5 +85,4 @@ Running the **WorkflowName** workflow from the **council** skill...
 ---
 
 **Last Updated:** 2025-12-20
-
 

@@ -1,6 +1,6 @@
 ---
 name: pdf
-description: PDF creation, extraction, and manipulation. USE WHEN user mentions PDF, OCR, merge/split, extract text/tables/images, fill forms, watermark, encrypt, or rotate pages. SkillSearch('pdf') for docs.
+description: PDF creation, extraction, and manipulation. USE WHEN user mentions PDF, OCR, merge/split, extract text/tables/images, fill forms, watermark, encrypt, or rotate pages. Use `skill_find` with query `pdf` for docs.
 ---
 
 # PDF Processing Guide

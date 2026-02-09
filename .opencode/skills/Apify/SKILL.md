@@ -1,7 +1,6 @@
 ---
 name: apify
 description: Social media scraping, business data, e-commerce via Apify actors. USE WHEN Twitter, Instagram, LinkedIn, TikTok, YouTube, Facebook, Google Maps, Amazon scraping.
-context: fork
 ---
 
 ## Customization
@@ -426,4 +425,3 @@ APIFY_TOKEN=apify_api_xxxxx...
 ---
 
 **Remember: Filter data in code BEFORE returning to model context. This is where the 99% token savings happen!**
-

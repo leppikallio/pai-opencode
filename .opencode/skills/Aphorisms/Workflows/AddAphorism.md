@@ -426,13 +426,16 @@ If adding many quotes from research:
 
 ### Usage Tracking
 
-When quote is used in newsletter:
+When quote is used in newsletter (automatically done by `find-aphorism.md`, can also be done manually here):
 ```markdown
 ## Newsletter Usage History
 
-**"[Quote text]" - [Author]**
-- Used in: 2025-11-20 Newsletter "Overcoming Setbacks"
+### 2025-11-20 Overcoming Setbacks
+- Quote: "[Quote text]"
+- Author: [Author]
 - Placement: Opening quote
+- Themes: [Theme 1], [Theme 2]
+- Notes: [Why it was selected]
 ```
 
 ---
@@ -534,4 +537,3 @@ Use Edit tool to insert in appropriate section
 ---
 
 **Last Updated:** 2025-11-20
-
