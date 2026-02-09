@@ -91,3 +91,20 @@ cd "/Users/zuul/Projects/pai-opencode" && bun "Tools/Install.ts" --target "/User
 
 Optional post-import gate:
 - Apply the 30-second rubric: `/Users/zuul/.config/opencode/skills/create-skill/SkillQualityRubric.md`
+
+## Step 5: Security vetting + allowlist (if needed)
+
+Run security scan on the imported skill:
+
+```bash
+cd "/Users/zuul/Projects/skill-scanner"
+uv run python "/Users/zuul/Projects/pai-opencode/.opencode/skills/skill-security-vetting/Tools/RunSecurityScan.py" \
+  --mode single \
+  --skill-dir "/Users/zuul/Projects/pai-opencode/.opencode/skills/<skill-name>"
+```
+
+If findings are contextual and non-exploitable, add scoped, expiring suppressions using:
+
+`/Users/zuul/Projects/pai-opencode/.opencode/skills/create-skill/Tools/ManageSkillScannerAllowlist.py`
+
+Always keep `reason`, `owner`, and `expires_at`.

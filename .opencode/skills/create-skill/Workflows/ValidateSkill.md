@@ -87,6 +87,23 @@ For each workflow file under `Workflows/`:
 - It’s an execution runbook (Purpose/Inputs/Steps/Verify/Output)
 - If it invokes tools, it maps intent → flags (not a single hardcoded invocation)
 
+### 3.6 Security vetting + allowlist hygiene
+
+Run single-skill scan:
+
+```bash
+cd "/Users/zuul/Projects/skill-scanner"
+uv run python "/Users/zuul/Projects/pai-opencode/.opencode/skills/skill-security-vetting/Tools/RunSecurityScan.py" \
+  --mode single \
+  --skill-dir "/Users/zuul/Projects/pai-opencode/.opencode/skills/<skill-name>"
+```
+
+If scanner suppressions are used for this skill:
+
+- ensure suppressions are narrow (skill + rule + optional analyzer/file)
+- ensure `owner`, `reason`, and `expires_at` are present
+- ensure no expired suppressions remain (or fail on expired in strict checks)
+
 ---
 
 ## Step 4: Validate SkillSystem split-doc rules (section docs)

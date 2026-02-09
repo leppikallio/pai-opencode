@@ -121,6 +121,25 @@ cd "/Users/zuul/Projects/pai-opencode" && bun Tools/Install.ts --target "/Users/
 
 ---
 
+## Step 8: Security vetting + allowlist maintenance
+
+Run scan for the updated skill:
+
+```bash
+cd "/Users/zuul/Projects/skill-scanner"
+uv run python "/Users/zuul/Projects/pai-opencode/.opencode/skills/skill-security-vetting/Tools/RunSecurityScan.py" \
+  --mode single \
+  --skill-dir "/Users/zuul/Projects/pai-opencode/.opencode/skills/<skill-name>"
+```
+
+For non-exploitable contextual findings, update allowlist entries with expiry via:
+
+`/Users/zuul/Projects/pai-opencode/.opencode/skills/create-skill/Tools/ManageSkillScannerAllowlist.py`
+
+Re-run scan to confirm expected suppressions and audit artifacts.
+
+---
+
 ## Done
 
 Skill updated in the base repo, then installed to runtime.
