@@ -122,3 +122,26 @@ bun ~/.config/opencode/skills/PAI/Tools/CheckTerminologyDrift.ts
 It flags:
 - non-canonical thinking-token aliases in canonical routing docs
 - stale `Development Skill` phrasing outside explicit alias mapping context
+
+Run full coherence checks (recommended):
+
+```bash
+bun ~/.config/opencode/skills/PAI/Tools/RunCoherenceChecks.ts
+```
+
+For source-repo audits (without runtime deployment):
+
+```bash
+bun ~/.config/opencode/skills/PAI/Tools/RunCoherenceChecks.ts --mode source --root /Users/zuul/Projects/pai-opencode/.opencode
+```
+
+### Triage order when checks fail
+
+1. **Terminology drift first** (`CheckTerminologyDrift`)  
+   Fix canonical routing names and stale aliases before anything else.
+2. **Broken refs second** (`ScanBrokenRefs`)  
+   Resolve missing paths/optional links to prevent false dependency chains.
+3. **SkillSystem router consistency third** (`ValidateSkillSystemDocs`, runtime mode)  
+   Fix routing-table/backlink/canary mismatches only after naming + refs are stable.
+4. **Installer verification last** (`bun Tools/Install.ts --non-interactive ...` with representative selection set)  
+   Confirms practical runtime behavior after documentation-level corrections.

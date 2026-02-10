@@ -1,6 +1,6 @@
 # UpdateDocumentation Workflow
 
-> **Trigger:** "update architecture", "refresh PAI state", OR automatically after any pack/bundle installation
+> **Trigger:** "update architecture", "refresh PAI state", OR explicit request to sync architecture docs
 
 ## Purpose
 
@@ -16,21 +16,26 @@ Keeps PAI Architecture tracking current by:
 - User says "refresh PAI state"
 - User says "what's installed?"
 
-### Automatic Invocation (CRITICAL)
-**This workflow MUST run automatically after:**
-- Installing any PAI Pack
-- Installing any PAI Bundle
-- Making significant configuration changes
-- Upgrading pack versions
+### Automatic Invocation
+
+This workflow is currently **manual/preferred**, not mandatory automation.
+
+Run it when:
+- Significant architecture/configuration changes happened
+- A user asks for architecture/state refresh
+- You need a documented snapshot for handoff
 
 ## Workflow Steps
 
-> **NOTE:** The OpenCode port does not ship an architecture tool yet. This workflow is a placeholder and does not execute any tool.
+> **NOTE:** The OpenCode port does not ship a dedicated architecture regeneration tool yet. Treat this as a checklist workflow.
 
 ### Step 1: Regenerate Architecture
 
 ```bash
-# (no-op)
+# Manual update: edit the relevant architecture docs directly.
+# Example targets:
+# - ~/.config/opencode/skills/PAI/SYSTEM/PAISYSTEMARCHITECTURE.md
+# - ~/.config/opencode/skills/PAI/SYSTEM/DOCUMENTATIONINDEX.md
 ```
 
 ### Step 2: Log the Change (If Applicable)
@@ -38,13 +43,15 @@ Keeps PAI Architecture tracking current by:
 If this was triggered by an installation or upgrade:
 
 ```bash
-# (no-op)
+# Optional: record summary in WORK/LEARNING docs as needed.
 ```
 
 ### Step 3: Verify Health
 
 ```bash
-# (no-op)
+# Recommended verification checks:
+# bun ~/.config/opencode/skills/system/Tools/ScanBrokenRefs.ts
+# bun ~/.config/opencode/skills/system/Tools/ValidateSkillSystemDocs.ts
 ```
 
 ### Step 4: Report Status
@@ -53,31 +60,31 @@ Output the current architecture state to confirm the update was successful.
 
 ## Integration with Pack Installation
 
-**All pack installation workflows should include this at the end:**
+Pack installation workflows may include this at the end when documentation actually changed:
 
 ```markdown
 ## Post-Installation: Update Documentation
 
 After all installation steps complete:
 
-1. Run UpdateDocumentation workflow (when available)
-2. Log the pack installation (when available)
-3. Verify the pack appears in Architecture.md (when available)
+1. Run UpdateDocumentation workflow (manual checklist)
+2. Log installation/upgrade notes (if relevant)
+3. Verify documentation coherence checks pass
 
 \`\`\`bash
-# (no-op)
+# see Step 3 checks above
 \`\`\`
 ```
 
 ## Example Output
 
 ```
-📋 SUMMARY: Updated PAI Architecture documentation
+📋 SUMMARY: Updated PAI architecture documentation
 ⚡ ACTIONS:
-  - Regenerated Architecture.md
+  - Updated architecture docs
   - Logged upgrade: "Installed kai-voice-system v1.0.0"
   - Verified system health
-✅ RESULTS: Architecture.md now shows 4 packs, 1 bundle
+✅ RESULTS: Documentation reflects current architecture state
 📊 STATUS: All systems healthy
-🎯 COMPLETED: Architecture updated - 4 packs installed, all healthy.
+🎯 COMPLETED: Architecture docs updated and coherence checks passed.
 ```

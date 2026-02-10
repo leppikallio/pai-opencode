@@ -4,6 +4,10 @@ This document is preserved for historical compatibility with PAI v2.4 (Claude Co
 
 In the OpenCode port, hooks are implemented as **plugins**.
 
+**Authority:** Legacy compatibility note only. Do not treat this file as primary implementation guidance.
+
+For operational behavior, always use `THEPLUGINSYSTEM.md`.
+
 ## OpenCode Source Of Truth
 
 - Plugin system overview: `~/.config/opencode/skills/PAI/SYSTEM/THEPLUGINSYSTEM.md`

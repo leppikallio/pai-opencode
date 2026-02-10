@@ -23,7 +23,7 @@ The context loader explicitly loads the following SYSTEM docs (plus PAI `SKILL.m
 - `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/PAIAGENTSYSTEM.md`
 - `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/THEPLUGINSYSTEM.md`
 - `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/PAISYSTEMARCHITECTURE.md`
-- `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/RESPONSEFORMAT.md`
+- `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/RESPONSEFORMAT.md` (compatibility guidance; `SKILL.md` remains authoritative)
 
 ## Read-gated routing table (category → section doc)
 
