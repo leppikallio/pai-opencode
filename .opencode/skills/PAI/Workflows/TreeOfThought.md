@@ -123,8 +123,8 @@ Output your reasoning, then provide a clear recommendation.
 
 ## Integration Points
 
-### With Becreative Skill (Mode 4)
-The Becreative skill already has "deep thinking with Tree of Thoughts" as Mode 4. This workflow provides the detailed methodology that mode references.
+### With be-creative skill (Mode 4)
+The be-creative skill already has "deep thinking with Tree of Thoughts" as Mode 4. This workflow provides the detailed methodology that mode references.
 
 ### With Complex Decisions & Planning
 When `/plan` mode is active and facing complex decisions, ToT provides structured exploration before committing to an approach.
@@ -190,4 +190,3 @@ When merge conflicts have multiple valid resolution strategies, use ToT to evalu
 - `SessionContinuity.md` - For tracking ToT decisions across sessions
 
 **Last Updated:** 2025-11-27
-

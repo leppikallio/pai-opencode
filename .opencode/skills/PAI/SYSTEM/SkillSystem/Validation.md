@@ -57,7 +57,7 @@ Guidance to avoid essays:
 
 ### 1) Naming
 
-- [ ] Skill directory is TitleCase (system skills) OR `_ALLCAPS` (personal skills)
+- [ ] Skill directory matches canonical skill ID (usually lowercase-hyphen) OR `_ALLCAPS` (personal skills)
 - [ ] `SKILL.md` is uppercase
 - [ ] Workflow files are TitleCase (e.g., `<Workflows/UpdateInfo.md>`)
 - [ ] Root reference docs are TitleCase (e.g., `ApiReference.md`)
@@ -84,7 +84,7 @@ create-skill-generated skills (default) SHOULD also include:
 ### 4) Workflow routing table contract
 
 - [ ] Table columns: `Workflow | Trigger | File`
-- [ ] `Workflow` is TitleCase
+- [ ] `Workflow` label is human-readable and maps to an existing workflow file
 - [ ] `File` uses relative skill paths (e.g., `<Workflows/Create.md>`) or absolute runtime paths if cross-skill
 - [ ] Every referenced workflow file exists
 
@@ -111,3 +111,14 @@ Workflow structure notes:
 - [ ] No instructions requiring SkillSearch (use explicit `Read`; `glob` then `Read` if unknown)
 - [ ] All internal references are absolute runtime paths under `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/...`
 
+## Terminology drift guard (recommended)
+
+Run this check after editing PAI terminology/routing docs:
+
+```bash
+bun ~/.config/opencode/skills/PAI/Tools/CheckTerminologyDrift.ts
+```
+
+It flags:
+- non-canonical thinking-token aliases in canonical routing docs
+- stale `Development Skill` phrasing outside explicit alias mapping context

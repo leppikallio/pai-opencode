@@ -49,7 +49,7 @@ See `~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md` for complete documenta
 
 **Development & Testing:**
 - `~/.config/opencode/skills/PAI/USER/TECHSTACKPREFERENCES.md` - Core technology stack | Triggers: "what stack do I use", "bun or npm"
-- Testing standards → Development Skill
+- Testing standards → Engineer capability workflows (plus Architect/Designer when relevant)
 
 **Agent System:**
 - **agents Skill** (`~/.config/opencode/skills/agents/`) - Complete agent composition system | See agents skill for custom agent creation, traits, and voice mappings
@@ -79,5 +79,4 @@ See `~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md` for complete documenta
 
 **See Also:**
 - SKILL.md > Documentation Index - Condensed table version
-
 

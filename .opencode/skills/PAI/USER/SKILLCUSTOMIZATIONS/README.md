@@ -1,12 +1,12 @@
 # SKILLCUSTOMIZATIONS
 
-User-specific preferences and extensions for **system skills** (TitleCase naming).
+User-specific preferences and extensions for **system skills** (canonical skill-id naming).
 
 **Personal skills (_ALLCAPS) do NOT use this system** - they already contain personal data and are never shared.
 
 ## The Pattern
 
-**System skills check `SKILLCUSTOMIZATIONS/{SkillName}/` for user customizations before executing.**
+**System skills check `SKILLCUSTOMIZATIONS/{skill-id}/` for user customizations before executing.**
 
 This keeps skill files shareable (no personal data) while allowing full customization.
 
@@ -23,10 +23,10 @@ SKILLCUSTOMIZATIONS/
 │   ├── EXTEND.yaml              # Manifest
 │   ├── PREFERENCES.md           # Named agent definitions
 │   └── VoiceConfig.json         # ElevenLabs voice mappings
-├── FrontendDesign/              # FrontendDesign skill customizations
+├── frontend-design/             # example skill customizations
 │   ├── EXTEND.yaml              # Manifest
 │   └── PREFERENCES.md           # Design tokens, palette
-└── [SkillName]/                 # Any skill
+└── [skill-id]/                  # Any skill
     ├── EXTEND.yaml              # Required manifest
     └── [config-files]           # Skill-specific configs
 ```
@@ -34,7 +34,7 @@ SKILLCUSTOMIZATIONS/
 ## How It Works
 
 1. Skill activates based on user intent
-2. Skill checks `SKILLCUSTOMIZATIONS/{SkillName}/`
+2. Skill checks `SKILLCUSTOMIZATIONS/{skill-id}/`
 3. If directory exists, loads and applies all configurations
 4. Skill executes with user preferences applied
 5. If no customizations, skill uses defaults
@@ -44,7 +44,7 @@ SKILLCUSTOMIZATIONS/
 ### Step 1: Create Directory
 
 ```bash
-mkdir -p ~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/SkillName
+mkdir -p ~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/skill-id
 ```
 
 ### Step 2: Create EXTEND.yaml (Required)
@@ -52,7 +52,7 @@ mkdir -p ~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/SkillName
 ```yaml
 # EXTEND.yaml - Extension manifest
 ---
-skill: SkillName                   # Must match skill name exactly
+skill: skill-id                    # Must match skill ID exactly
 extends:
   - PREFERENCES.md                 # Files to load
 merge_strategy: override           # append | override | deep_merge
@@ -63,9 +63,9 @@ description: "What this customization adds"
 ### Step 3: Create PREFERENCES.md
 
 ```markdown
-# SkillName Preferences
+# skill-id Preferences
 
-User-specific preferences for the SkillName skill.
+User-specific preferences for the skill-id skill.
 
 ## [Category]
 
@@ -132,5 +132,4 @@ enabled: false  # Skill uses defaults, customizations ignored
 ## Full Documentation
 
 See: `~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md` (Skill Customization System section)
-
 

@@ -69,7 +69,7 @@ The Intern Agent is your high-agency genius generalist - perfect for parallel ex
 **CRITICAL: Interns vs Engineers:**
 - **INTERNS:** Research, analysis, investigation, file reading, testing, coordinating
 - **ENGINEERS:** Writing ANY code (TypeScript, Python, etc.), building features, implementing changes
-- If task involves writing code → Use Development Skill with Engineer agents
+- If task involves writing code → route to Engineer capability (and Architect/Designer as needed)
 - Interns can delegate to engineers when code changes are needed
 
 ### 🚨 CUSTOM AGENTS vs GENERIC AGENTS (Always Active)
@@ -109,4 +109,3 @@ When delegating, ALWAYS include:
 - Workflows/Delegation.md - Operational delegation procedures
 - Workflows/BackgroundDelegation.md - Background agent patterns
 - skills/agents/SKILL.md - Custom agent creation system
-
