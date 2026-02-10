@@ -292,9 +292,9 @@ Brief description.
 
 - **Description max**: 1024 characters
 - **USE WHEN required**: Skill index parses this for routing
-- **Workflow files**: TitleCase naming
+- **Workflow files**: stable canonical naming (commonly TitleCase in current system)
 - **No nested workflows**: Flat structure under `Workflows/`
-- **Personal vs System**: `_ALLCAPS` = personal (never share), `TitleCase` = system (shareable)
+- **Personal vs System**: `_ALLCAPS` = personal (never share), canonical skill-id naming = system (shareable)
 
 **Full documentation:** `~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md`
 
@@ -465,7 +465,7 @@ The system skill runs in the foreground so you can see all output, progress, and
 
 | Type | Convention | Example |
 |------|------------|---------|
-| Skill directory | TitleCase | `Blogging/`, `Development/` |
+| Skill directory | Canonical skill ID (lowercase-hyphen default) | `blogging/`, `skill-security-vetting/` |
 | SKILL.md | Uppercase | `SKILL.md` |
 | Workflow files | TitleCase | `Create.md`, `SyncRepo.md` |
 | Sessions | `YYYY-MM-DD-HHMMSS_SESSION_` | `2025-11-26-184500_SESSION_...` |
@@ -480,4 +480,3 @@ User-specific updates are tracked in `~/.config/opencode/skills/PAI/USER/UPDATES
 ---
 
 **This is a TEMPLATE.** User-specific implementation details belong in `~/.config/opencode/skills/PAI/USER/ARCHITECTURE.md`.
-

@@ -13,7 +13,7 @@
 - **skills/PAI/CONSTITUTION.md** - Constitutional principles (Article IX)
 
 ### Testing Standards
-- **skills/browser/SKILL.md** - Browser automation and screenshots
+- **<skills/browser/SKILL.md>** - Browser automation and screenshots (optional link; install `browser` skill for full QA capability)
 
 ---
 
@@ -21,13 +21,13 @@
 
 Load these dynamically based on task keywords:
 
-- **Browser automation** → skills/browser/SKILL.md
+- **Browser automation** → <skills/browser/SKILL.md>
 
 ---
 
 ## Core Testing Principles (from PAI)
 
-These are already loaded via PAI or Development skill - reference, don't duplicate:
+These are already loaded via PAI or implementation capabilities - reference, don't duplicate:
 
 - **Article IX: Integration-First Testing** - Test in realistic environments (real browsers, not curl)
 - **Gate 4 Mandate** - Work NOT complete until QATester validates it actually works

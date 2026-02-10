@@ -135,9 +135,9 @@ bun run ~/.config/opencode/skills/PAI/Tools/FeatureRegistry.ts list my-feature
 bun run ~/.config/opencode/skills/PAI/Tools/FeatureRegistry.ts next my-feature
 ```
 
-## Integration with Development Skill
+## Integration with implementation capabilities
 
-When using the Development Skill for complex features:
+When using Engineer/Architect/Designer capabilities for complex features:
 
 1. **Phase 0 (Init)**: Create session progress file
 2. **Phase 1-3 (Spec/Plan/Tasks)**: Record decisions in progress file

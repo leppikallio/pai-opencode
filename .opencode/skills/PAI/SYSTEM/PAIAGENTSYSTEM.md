@@ -73,9 +73,9 @@ These are pre-built agents available via OpenCode's Task tool. They are for **in
 | Subagent Type | Purpose | When Used |
 |---------------|---------|-----------|
 | `Algorithm` | Ideal-state criteria thinking | ISC creation, verification planning |
-| `Architect` | system design | Development skill workflows |
-| `Designer` | UX/UI design | Development skill workflows |
-| `Engineer` | Code implementation | Development skill workflows |
+| `Architect` | system design | Implementation/design workflows (capability routing) |
+| `Designer` | UX/UI design | Implementation/design workflows (capability routing) |
+| `Engineer` | Code implementation | Implementation/design workflows (capability routing) |
 | `Intern` | General-purpose parallel work | Parallel grunt work, research |
 | `Explore` | Codebase exploration | Finding files, understanding structure |
 | `QATester` | Quality assurance | Browser testing workflows |
@@ -176,5 +176,4 @@ Task({
 ---
 
 *Last updated: 2026-01-14*
-
 

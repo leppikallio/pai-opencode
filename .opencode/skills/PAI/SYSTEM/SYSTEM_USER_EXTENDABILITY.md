@@ -223,7 +223,7 @@ function getPatternsPath(): string | null {
 ### Skill Naming Convention
 
 ```
-TitleCase       →  SYSTEM tier (public, shareable)
+skill-id        →  SYSTEM tier (public, shareable)
 _ALLCAPS        →  USER tier (private, personal)
 
 skills/browser/         # Public skill

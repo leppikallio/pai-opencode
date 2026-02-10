@@ -14,12 +14,12 @@ This section defines **how skills are laid out on disk** (directories, allowed n
 
 Every skill lives under:
 
-- `/Users/zuul/.config/opencode/skills/<SkillName>/`
+- `/Users/zuul/.config/opencode/skills/<skill-id>/`
 
 Minimal required structure:
 
 ```text
-/Users/zuul/.config/opencode/skills/<SkillName>/
+/Users/zuul/.config/opencode/skills/<skill-id>/
 ├── SKILL.md
 ├── Tools/
 └── Workflows/
@@ -33,20 +33,20 @@ Rules:
 
 ---
 
-## Naming: TitleCase (PascalCase) is the default
+## Naming: canonical skill IDs (lowercase-hyphen default)
 
-Default naming across the skill system is **TitleCase** (PascalCase):
+Default naming across skills is canonical **skill IDs** (usually lowercase-hyphen):
 
-- No hyphens: `My-Tool.md` ❌
-- No underscores: `My_Tool.md` ❌
-- No spaces: `My Tool.md` ❌
-- No all-lowercase / all-caps (except `SKILL.md`): `toolname.ts` ❌
+- Lowercase-hyphen is preferred: `create-skill`, `first-principles`, `web-assessment` ✅
+- No spaces: `my skill` ❌
+- No underscores: `my_skill` ❌
+- Uppercase aliases are only for explicit compatibility cases (for example, `CORE`) ✅
 
-### TitleCase rules
+### Skill ID rules
 
-- Single word: `Browser`, `Daemon`, `Research`
-- Multi-word: `CreateSkill`, `UpdateDaemonInfo`, `CompanyDueDiligence`
-- Acronyms: treat as words (prefer `ApiReference`, not `API_REFERENCE`)
+- Single word: `browser`, `research`
+- Multi-word: `create-skill`, `private-investigator`, `skill-security-vetting`
+- Acronyms should still be lowercase in IDs when possible (`osint`, `pdf`, `xlsx`)
 
 ### Mandatory exceptions
 
@@ -72,13 +72,13 @@ Examples:
 
 Why: PAI “Components” material is documentation-heavy system content where explicit ordering is valuable; allowing numeric prefixes elsewhere tends to create inconsistency and entropy.
 
-### Help-file naming
+### Help-file naming (tools)
 
 Tool help files pair with the tool name:
 
 - ✅ `<Tools/Generate.ts>`
 - ✅ `<Tools/Generate.help.md>`
-- ❌ `<Tools/generate.help.md>` (not TitleCase)
+- ❌ `<Tools/generate.help.md>` (tool files should follow the tool's canonical filename)
 
 ---
 
@@ -88,7 +88,7 @@ Skills are classified by directory naming:
 
 ### System skills (shareable)
 
-- Directory name is **TitleCase**, e.g. `Browser`, `research`, `CreateSkill`.
+- Directory name matches the canonical skill ID (usually lowercase-hyphen).
 - MUST NOT contain personal secrets or personal data.
 
 ### Personal skills (never shared)
@@ -113,7 +113,7 @@ For non-PAI skills (anything outside `/Users/zuul/.config/opencode/skills/PAI/`)
 ✅ Allowed (flat):
 
 ```text
-/Users/zuul/.config/opencode/skills/<SkillName>/
+/Users/zuul/.config/opencode/skills/<skill-id>/
 ├── SKILL.md
 ├── Examples.md
 ├── ApiReference.md
@@ -189,4 +189,3 @@ Forbidden (unless an existing subtree already uses it and you are not restructur
 - `Templates/` (prefer root docs; keep `Workflows/` and `Tools/` as the only dirs)
 
 Why: these directories usually become dumping grounds that hide critical context and make deterministic retrieval harder.
-

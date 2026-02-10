@@ -16,7 +16,7 @@ Every `SKILL.md` MUST begin with YAML frontmatter:
 
 ```yaml
 ---
-name: SkillName
+name: skill-name
 description: One line summary. USE WHEN user intent indicates activation.
 ---
 ```
@@ -24,8 +24,10 @@ description: One line summary. USE WHEN user intent indicates activation.
 ### Required fields
 
 - `name` (required)
-  - MUST be **TitleCase** (PascalCase).
-  - SHOULD match the skill directory name.
+  - MUST match the canonical skill ID exactly (case-sensitive).
+  - SHOULD match the skill directory name exactly.
+  - Preferred convention is lowercase-hyphen (for example, `create-skill`, `red-team`, `first-principles`).
+  - Compatibility aliases are allowed only when explicitly documented (for example, `CORE`).
 
 - `description` (required)
   - MUST be a **single line** (no `|` multiline blocks).
@@ -40,6 +42,8 @@ You may declare Science protocol compliance:
 implements: Science
 science_cycle_time: micro   # micro | meso | macro
 ```
+
+`Science` here is a protocol marker, not a standalone skill package to load.
 
 ---
 
@@ -79,7 +83,7 @@ description: Browser automation with debug visibility. USE WHEN you need to veri
 
 ```yaml
 ---
-name: Browser
+name: browser
 description: Browser automation.
 ---
 ```
@@ -99,7 +103,7 @@ description: |
 
 ```yaml
 ---
-name: create-skill
+name: CreateSkill
 description: Create skills. USE WHEN you want a new skill.
 ---
 ```
@@ -140,4 +144,3 @@ Implications:
 When authoring documentation that links to other PAI system docs, prefer absolute **runtime** paths (stable during execution):
 
 - `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md`
-

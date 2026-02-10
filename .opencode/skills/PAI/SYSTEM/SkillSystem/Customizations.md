@@ -12,7 +12,7 @@ This section defines the **SKILLCUSTOMIZATIONS** pattern: a deterministic way fo
 
 ### system skill (shareable)
 
-- **Name/dir:** TitleCase (e.g., `Browser`, `Research`, `Documents`)
+- **Name/dir:** Canonical skill ID (usually lowercase-hyphen, e.g., `browser`, `research`, `skill-security-vetting`)
 - **Rule:** MUST NOT contain personal data (contacts, private endpoints, API keys, company-specific processes).
 - **Personalization mechanism:** loads from `/Users/zuul/.config/opencode/skills/PAI/USER/` and (optionally) SKILLCUSTOMIZATIONS.
 
@@ -26,9 +26,9 @@ This section defines the **SKILLCUSTOMIZATIONS** pattern: a deterministic way fo
 
 All per-skill customizations live under:
 
-`/Users/zuul/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/{SkillName}/`
+`/Users/zuul/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/{skill-id}/`
 
-- `{SkillName}` MUST match the system skill name exactly (TitleCase).
+- `{skill-id}` MUST match the system skill ID exactly (case-sensitive).
 - The directory may not exist; absence means “use skill defaults”.
 
 ## The SKILLCUSTOMIZATIONS pattern (concise contract)
@@ -36,7 +36,7 @@ All per-skill customizations live under:
 When a **system skill** supports customizations, it MUST implement this logic:
 
 1. Compute customization directory:
-   - `customDir = /Users/zuul/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/{SkillName}/`
+   - `customDir = /Users/zuul/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/{skill-id}/`
 2. If `customDir` does not exist → proceed with defaults.
 3. If `customDir` exists:
    - Read `EXTEND.yaml`.
@@ -52,7 +52,7 @@ This manifest declares what to load and how to merge it.
 
 ```yaml
 ---
-skill: SkillName
+skill: skill-id
 extends:
   - PREFERENCES.md
   - OtherConfig.md
@@ -79,9 +79,9 @@ Rule of thumb: prefer `override` unless you have a reason not to.
 
 | Content | Location | Notes |
 |---|---|---|
-| Generic skill behavior | `skills/{SkillName}/SKILL.md` | Shareable, no personal data. |
-| User defaults/preferences | `.../SKILLCUSTOMIZATIONS/{SkillName}/PREFERENCES.md` | Personal, safe to change frequently. |
-| Named configs (skill-specific) | `.../SKILLCUSTOMIZATIONS/{SkillName}/*` | e.g., `VoiceConfig.json`, `BrandVoice.md`. |
+| Generic skill behavior | `skills/{skill-id}/SKILL.md` | Shareable, no personal data. |
+| User defaults/preferences | `.../SKILLCUSTOMIZATIONS/{skill-id}/PREFERENCES.md` | Personal, safe to change frequently. |
+| Named configs (skill-specific) | `.../SKILLCUSTOMIZATIONS/{skill-id}/*` | e.g., `VoiceConfig.json`, `BrandVoice.md`. |
 | Broad user info reused by many skills | `/Users/zuul/.config/opencode/skills/PAI/USER/*` | e.g., contacts, tech stack preferences. |
 
 ## Authoring guidance (keep deterministic)
@@ -89,4 +89,3 @@ Rule of thumb: prefer `override` unless you have a reason not to.
 - Keep customizations small and explicit—preference overlay, not a second skill.
 - Prefer data/config files over long prose.
 - If a workflow needs to consult customization files, it should do so via explicit `Read` of absolute runtime paths.
-
