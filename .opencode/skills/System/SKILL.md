@@ -6,7 +6,7 @@ description: System maintenance - integrity check, document session, secret scan
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/system/`
+`~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/system/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -194,4 +194,3 @@ Quick Push:         GitPush (if docs already created)
 - **PAI** - Public PAI repository management (includes PAIIntegrityCheck)
 - **CORE** - System architecture and memory documentation
 - **Evals** - Regression testing and capability verification
-

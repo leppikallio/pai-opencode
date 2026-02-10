@@ -6,7 +6,7 @@ description: Create, validate, canonicalize, and import skills. USE WHEN you wan
 ## Customization
 
 **Before executing, check for user customizations at:**
-`/Users/zuul/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/create-skill/` (optional)
+`/Users/zuul/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/create-skill/` (optional)
 
 If this directory exists, load and apply any PREFERENCES.md or configs found there. These override defaults.
 

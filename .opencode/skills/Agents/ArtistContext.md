@@ -22,12 +22,12 @@
 
 Load these dynamically based on task keywords:
 
-- **Diagram/Technical** → skills/art/Workflows/TechnicalDiagrams.md
-- **Blog/Essay/Header** → skills/art/Workflows/Essay.md
+- **Diagram/Technical** → <skills/art/Workflows/TechnicalDiagrams.md>
+- **Blog/Essay/Header** → <skills/art/Workflows/Essay.md>
 - **Video** → (not implemented in art workflows)
-- **Thumbnail** → skills/art/Workflows/AdHocYouTubeThumbnail.md
-- **Framework** → skills/art/Workflows/Frameworks.md
-- **Comparison** → skills/art/Workflows/Comparisons.md
+- **Thumbnail** → <skills/art/Workflows/AdHocYouTubeThumbnail.md>
+- **Framework** → <skills/art/Workflows/Frameworks.md>
+- **Comparison** → <skills/art/Workflows/Comparisons.md>
 
 ---
 
@@ -73,4 +73,3 @@ These are already loaded via PAI or art skill - reference, don't duplicate:
 ### Deliverables
 [File locations - always ~/Downloads/ for preview]
 ```
-

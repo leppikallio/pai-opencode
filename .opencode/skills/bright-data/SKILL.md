@@ -6,7 +6,7 @@ description: "Progressive URL scraping with escalation. USE WHEN user needs page
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/bright-data/`
+`~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/bright-data/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -164,7 +164,7 @@ Skill Response:
 ---
 
 **Related Documentation:**
-- `~/.config/opencode/skills/CORE/SYSTEM/SkillSystem.md` - Canonical structure guide
-- `~/.config/opencode/skills/CORE/CONSTITUTION.md` - Overall PAI philosophy
+- `~/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md` - Canonical structure guide
+- `~/.config/opencode/skills/PAI/CONSTITUTION.md` - Overall PAI philosophy
 
 **Last Updated:** 2025-11-23

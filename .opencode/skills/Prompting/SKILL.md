@@ -6,7 +6,7 @@ description: Meta-prompting for prompt generation. USE WHEN meta-prompting, temp
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/prompting/`
+`~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/prompting/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -215,5 +215,4 @@ The templating system eliminated **~35,000 tokens (65% reduction)** across PAI:
 ---
 
 **Philosophy:** Prompts that write prompts. Structure is code, content is data. Meta-prompting enables dynamic composition where the same template with different data generates specialized agents, workflows, and evaluation frameworks. This is core PAI DNA - programmatic prompt generation at scale.
-
 

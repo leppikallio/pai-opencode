@@ -6,7 +6,7 @@ description: Branded Word document creation, editing, and reading via templates.
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/docx/`
+`~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/docx/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -129,4 +129,3 @@ bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" edit existing.do
 # Read document into markdown
 bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" read report.docx -o report.md
 ```
-

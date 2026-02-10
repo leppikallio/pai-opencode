@@ -6,7 +6,7 @@ description: Security news aggregation. USE WHEN security news, security updates
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/sec-updates/`
+`~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/sec-updates/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -35,7 +35,7 @@ Use the `voice_notify` tool:
 | **Schneier on Security** | https://schneier.com | Bruce Schneier's security blog |
 | **Risky Business** | https://risky.biz | Security podcast/news |
 
-**Custom sources:** Add to `~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/sec-updates/sources.json`
+**Custom sources:** Add to `~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/sec-updates/sources.json`
 
 ---
 

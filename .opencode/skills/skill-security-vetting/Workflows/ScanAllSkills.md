@@ -94,7 +94,7 @@ uv run python "/Users/zuul/Projects/pai-opencode/.opencode/skills/skill-security
   --skill-list-file "<CHANGED_SKILLS_TXT>"
 ```
 
-This is the mode used by `Tools/Install.ts` preflight when changed-skill optimization is active.
+This is the mode used by the installer preflight when changed-skill optimization is active.
 
 ## Progress visibility
 
