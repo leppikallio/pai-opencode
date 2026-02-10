@@ -31,10 +31,18 @@ cd pai-opencode
 
 # Install/upgrade the runtime tree
 bun Tools/Install.ts
+# (Installer opens an interactive skill selector and stores your choices in ~/.config/opencode/config/skills-selection.json)
+# (Selector controls: ↑/↓ to move, Space to toggle, Enter to confirm)
 
 # CI / automation: skip post-install verification if needed
 # (Default behavior runs ScanBrokenRefs and fails on missing refs)
 bun Tools/Install.ts --target "$HOME/.config/opencode" --prune --no-verify
+
+# Non-interactive mode (uses saved/default skill selection)
+bun Tools/Install.ts --target "$HOME/.config/opencode" --non-interactive
+
+# Security gate skips unchanged/cached selected skills using
+# ~/.config/opencode/config/skills-security-scan-cache.json
 
 # Note: Agent models are defined explicitly in `~/.config/opencode/agents/*.md`.
 # The installer does not rewrite agent models unless you opt in.

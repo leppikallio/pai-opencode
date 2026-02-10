@@ -25,6 +25,52 @@ type Mode = "sync";
 
 type SkillsGateProfile = "off" | "advisory" | "block-critical" | "block-high";
 
+type SkillSelectionSource = "interactive" | "config" | "default-all" | "cli";
+
+type SkillSelectionConfig = {
+  version: number;
+  updatedAt: string;
+  mandatorySkills: string[];
+  selectedSkills: string[];
+  source: SkillSelectionSource;
+};
+
+type SkillSelectionPlan = {
+  availableSkills: string[];
+  mandatorySkills: string[];
+  selectedSkills: string[];
+  source: SkillSelectionSource;
+  configPath: string;
+};
+
+type SkillsSecurityScanCacheEntry = {
+  contentHash: string;
+  passedProfile: SkillsGateProfile;
+  scannerFingerprint: string;
+  allowlistFingerprint: string;
+  scannedAt: string;
+};
+
+type SkillsSecurityScanCache = {
+  version: number;
+  updatedAt: string;
+  entries: Record<string, SkillsSecurityScanCacheEntry>;
+};
+
+const SKILLS_SELECTION_CONFIG_REL_PATH = path.join("config", "skills-selection.json");
+const SKILLS_SECURITY_SCAN_CACHE_REL_PATH = path.join("config", "skills-security-scan-cache.json");
+
+// Force-selected/non-removable core skills.
+const MANDATORY_SKILLS: string[] = [
+  "PAI",
+  "system",
+  "agents",
+  "research",
+  "red-team",
+  "council",
+  "first-principles",
+];
+
 type Options = {
   targetDir: string;
   sourceDir: string;
@@ -37,6 +83,8 @@ type Options = {
   skillsGateProfile: SkillsGateProfile;
   skillsGateScannerRoot: string;
   skillsGateScanAll: boolean;
+  nonInteractive: boolean;
+  skillsArg: string | null;
 };
 
 function verifyCrossReferences(args: { targetDir: string; dryRun: boolean; enabled: boolean }) {
@@ -141,6 +189,222 @@ function listSkillDirectories(skillsRoot: string): string[] {
   return out.sort((a, b) => a.localeCompare(b));
 }
 
+function listTopLevelSkills(skillsRoot: string): string[] {
+  if (!isDir(skillsRoot)) return [];
+  const entries = fs.readdirSync(skillsRoot, { withFileTypes: true });
+  const out: string[] = [];
+
+  for (const e of entries) {
+    if (!e.isDirectory()) continue;
+    if (e.name.startsWith(".") || e.name === "node_modules" || e.name === "__pycache__") continue;
+    const skillMd = path.join(skillsRoot, e.name, "SKILL.md");
+    if (isFile(skillMd)) out.push(e.name);
+  }
+
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
+function normalizeSelectedSkills(args: { rawSkills: string[]; availableSkills: string[] }): string[] {
+  const byLower = new Map(args.availableSkills.map((s) => [s.toLowerCase(), s]));
+  const out: string[] = [];
+
+  for (const raw of args.rawSkills) {
+    const resolved = byLower.get(raw.toLowerCase());
+    if (!resolved) {
+      console.log(`[warn] skill selection: unknown skill ignored: ${raw}`);
+      continue;
+    }
+    if (!out.includes(resolved)) out.push(resolved);
+  }
+
+  return out;
+}
+
+function resolveMandatorySkills(availableSkills: string[]): string[] {
+  const byLower = new Map(availableSkills.map((s) => [s.toLowerCase(), s]));
+  const resolved: string[] = [];
+
+  for (const mandatory of MANDATORY_SKILLS) {
+    const skill = byLower.get(mandatory.toLowerCase());
+    if (skill) {
+      resolved.push(skill);
+      continue;
+    }
+    console.log(`[warn] mandatory skill missing in source and cannot be selected: ${mandatory}`);
+  }
+
+  return resolved;
+}
+
+function loadSkillSelectionConfig(configPath: string): SkillSelectionConfig | null {
+  const raw = readFileSafe(configPath);
+  if (!raw.trim()) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<SkillSelectionConfig>;
+    const selected = Array.isArray(parsed.selectedSkills)
+      ? parsed.selectedSkills.filter((v): v is string => typeof v === "string")
+      : [];
+    const mandatory = Array.isArray(parsed.mandatorySkills)
+      ? parsed.mandatorySkills.filter((v): v is string => typeof v === "string")
+      : [];
+    const source =
+      parsed.source === "interactive" ||
+      parsed.source === "config" ||
+      parsed.source === "default-all" ||
+      parsed.source === "cli"
+        ? parsed.source
+        : "config";
+
+    return {
+      version: typeof parsed.version === "number" ? parsed.version : 1,
+      updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : "",
+      mandatorySkills: mandatory,
+      selectedSkills: selected,
+      source,
+    };
+  } catch {
+    console.log(`[warn] skill selection: invalid JSON in ${configPath}; ignoring saved selection`);
+    return null;
+  }
+}
+
+async function promptSkillSelectionMenu(args: {
+  availableSkills: string[];
+  initialSelected: string[];
+  mandatorySkills: string[];
+}): Promise<string[]> {
+  const mandatory = new Set(args.mandatorySkills);
+  const initial = new Set(args.initialSelected);
+  for (const m of mandatory) initial.add(m);
+
+  const { default: prompts } = await import("prompts");
+  const response = await prompts(
+    {
+      type: "multiselect",
+      name: "selected",
+      message: "Select skills to install (↑/↓, space, enter)",
+      instructions: true,
+      choices: args.availableSkills.map((skill) => ({
+        title: mandatory.has(skill) ? `${skill} (locked)` : skill,
+        value: skill,
+        selected: initial.has(skill),
+        disabled: mandatory.has(skill),
+      })),
+      min: args.mandatorySkills.length,
+      hint: "- Space to toggle. Return to submit",
+    },
+    {
+      onCancel: () => {
+        throw new Error("Install cancelled: skill selection aborted by user");
+      },
+    }
+  );
+
+  const selectedFromPrompt = Array.isArray(response.selected)
+    ? response.selected.filter((v): v is string => typeof v === "string")
+    : [];
+  const out = args.availableSkills.filter((s) => selectedFromPrompt.includes(s) || mandatory.has(s));
+  for (const m of args.mandatorySkills) {
+    if (!out.includes(m)) out.push(m);
+  }
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
+async function resolveSkillSelectionPlan(args: {
+  sourceDir: string;
+  targetDir: string;
+  dryRun: boolean;
+  nonInteractive: boolean;
+  skillsArg: string | null;
+}): Promise<SkillSelectionPlan> {
+  const skillsRoot = path.join(args.sourceDir, "skills");
+  const availableSkills = listTopLevelSkills(skillsRoot);
+  if (availableSkills.length === 0) {
+    throw new Error(`No top-level skills found in source: ${skillsRoot}`);
+  }
+
+  const mandatorySkills = resolveMandatorySkills(availableSkills);
+  const configPath = path.join(args.targetDir, SKILLS_SELECTION_CONFIG_REL_PATH);
+  const saved = loadSkillSelectionConfig(configPath);
+
+  let source: SkillSelectionSource = "default-all";
+  let selectedSkills: string[];
+
+  if (args.skillsArg?.trim()) {
+    const trimmed = args.skillsArg.trim();
+    if (trimmed.toLowerCase() === "all") {
+      selectedSkills = [...availableSkills];
+    } else {
+      selectedSkills = normalizeSelectedSkills({
+        rawSkills: trimmed
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        availableSkills,
+      });
+      if (selectedSkills.length === 0) {
+        throw new Error("--skills was provided but none of the values matched available skills");
+      }
+    }
+    source = "cli";
+  } else if (saved && saved.selectedSkills.length > 0) {
+    selectedSkills = normalizeSelectedSkills({ rawSkills: saved.selectedSkills, availableSkills });
+    source = "config";
+  } else {
+    selectedSkills = [...availableSkills];
+    source = "default-all";
+  }
+
+  for (const mandatory of mandatorySkills) {
+    if (!selectedSkills.includes(mandatory)) selectedSkills.push(mandatory);
+  }
+
+  const canPrompt = !args.nonInteractive && process.stdin.isTTY && process.stdout.isTTY;
+  if (canPrompt) {
+    selectedSkills = await promptSkillSelectionMenu({
+      availableSkills,
+      initialSelected: selectedSkills,
+      mandatorySkills,
+    });
+    source = "interactive";
+  } else if (!args.nonInteractive) {
+    console.log("[warn] skill selection UI unavailable (non-TTY); using saved/default selection");
+  }
+
+  selectedSkills = normalizeSelectedSkills({ rawSkills: selectedSkills, availableSkills });
+  for (const mandatory of mandatorySkills) {
+    if (!selectedSkills.includes(mandatory)) selectedSkills.push(mandatory);
+  }
+  selectedSkills.sort((a, b) => a.localeCompare(b));
+
+  console.log(
+    `[write] skills selection: ${selectedSkills.length}/${availableSkills.length} selected (source: ${source})`
+  );
+
+  return {
+    availableSkills,
+    mandatorySkills,
+    selectedSkills,
+    source,
+    configPath,
+  };
+}
+
+function persistSkillSelection(args: { plan: SkillSelectionPlan; dryRun: boolean }) {
+  const payload: SkillSelectionConfig = {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    mandatorySkills: [...args.plan.mandatorySkills].sort((a, b) => a.localeCompare(b)),
+    selectedSkills: [...args.plan.selectedSkills].sort((a, b) => a.localeCompare(b)),
+    source: args.plan.source,
+  };
+
+  const prefix = args.dryRun ? "[dry]" : "[write]";
+  console.log(`${prefix} skills selection config: ${args.plan.configPath}`);
+  writeFileSafe(args.plan.configPath, `${JSON.stringify(payload, null, 2)}\n`, args.dryRun);
+}
+
 function shouldIgnoreSkillFile(args: { skillRel: string; relInSkillPosix: string }): boolean {
   // Runtime install preserves personal content and runtime state under skills/PAI/{USER,WORK}.
   // Those diffs should not trigger changed-skill detection for the security gate.
@@ -232,6 +496,171 @@ function detectChangedSkills(sourceSkillsDir: string, targetSkillsDir: string): 
   return changed;
 }
 
+function profileRank(profile: SkillsGateProfile): number {
+  switch (profile) {
+    case "off":
+      return 0;
+    case "advisory":
+      return 1;
+    case "block-critical":
+      return 2;
+    case "block-high":
+      return 3;
+    default:
+      return 0;
+  }
+}
+
+function computeSkillDirectoryHash(skillDir: string): string {
+  const hash = crypto.createHash("sha256");
+  const stack: string[] = [skillDir];
+
+  while (stack.length) {
+    const current = stack.pop()!;
+    const entries = fs.readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+    for (const e of entries) {
+      if (e.name === "__pycache__" || e.name === ".git" || e.name === ".DS_Store" || e.name === "node_modules") {
+        continue;
+      }
+
+      const full = path.join(current, e.name);
+      const rel = path.relative(skillDir, full).replace(/\\/g, "/");
+
+      if (e.isDirectory()) {
+        stack.push(full);
+        continue;
+      }
+
+      if (e.isSymbolicLink()) {
+        let target = "";
+        try {
+          target = fs.readlinkSync(full);
+        } catch {
+          target = "<broken-link>";
+        }
+        hash.update(`L:${rel}:${target}\n`);
+        continue;
+      }
+
+      if (!e.isFile()) continue;
+      hash.update(`F:${rel}:`);
+      hash.update(fs.readFileSync(full));
+      hash.update("\n");
+    }
+  }
+
+  return hash.digest("hex");
+}
+
+function scannerGitHead(scannerRoot: string): string {
+  try {
+    const out = execSync(`git -C "${scannerRoot}" rev-parse HEAD`, {
+      encoding: "utf-8",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return out.trim();
+  } catch {
+    return "unknown";
+  }
+}
+
+function computeScannerFingerprint(args: { toolPath: string; scannerRoot: string }): string {
+  const hash = crypto.createHash("sha256");
+  hash.update(`tool:${fileSha256(args.toolPath)}\n`);
+  hash.update(`scanner-git:${scannerGitHead(args.scannerRoot)}\n`);
+  return hash.digest("hex");
+}
+
+function computeAllowlistFingerprint(args: { sourceDir: string; targetDir: string }): string {
+  const files = [
+    path.join(args.sourceDir, "skills", "skill-security-vetting", "Data", "allowlist.json"),
+    path.join(
+      args.targetDir,
+      "skills",
+      "PAI",
+      "USER",
+      "SKILLCUSTOMIZATIONS",
+      "skill-security-vetting",
+      "allowlist.json"
+    ),
+  ];
+
+  const hash = crypto.createHash("sha256");
+  for (const file of files) {
+    hash.update(`${file}:`);
+    if (!isFile(file)) {
+      hash.update("<missing>\n");
+      continue;
+    }
+    hash.update(fileSha256(file));
+    hash.update("\n");
+  }
+  return hash.digest("hex");
+}
+
+function loadSkillsSecurityScanCache(cachePath: string): SkillsSecurityScanCache {
+  const raw = readFileSafe(cachePath);
+  if (!raw.trim()) {
+    return { version: 1, updatedAt: "", entries: {} };
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<SkillsSecurityScanCache>;
+    const entries = parsed.entries && typeof parsed.entries === "object" ? parsed.entries : {};
+    const normalized: Record<string, SkillsSecurityScanCacheEntry> = {};
+
+    for (const [key, value] of Object.entries(entries)) {
+      if (!value || typeof value !== "object") continue;
+      const item = value as Partial<SkillsSecurityScanCacheEntry>;
+      const profile =
+        item.passedProfile === "advisory" ||
+        item.passedProfile === "block-critical" ||
+        item.passedProfile === "block-high"
+          ? item.passedProfile
+          : "advisory";
+      if (typeof item.contentHash !== "string") continue;
+      normalized[key] = {
+        contentHash: item.contentHash,
+        passedProfile: profile,
+        scannerFingerprint: typeof item.scannerFingerprint === "string" ? item.scannerFingerprint : "",
+        allowlistFingerprint: typeof item.allowlistFingerprint === "string" ? item.allowlistFingerprint : "",
+        scannedAt: typeof item.scannedAt === "string" ? item.scannedAt : "",
+      };
+    }
+
+    return {
+      version: typeof parsed.version === "number" ? parsed.version : 1,
+      updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : "",
+      entries: normalized,
+    };
+  } catch {
+    console.log(`[warn] skills gate cache: invalid JSON in ${cachePath}; resetting cache`);
+    return { version: 1, updatedAt: "", entries: {} };
+  }
+}
+
+function persistSkillsSecurityScanCache(args: {
+  cachePath: string;
+  cache: SkillsSecurityScanCache;
+  dryRun: boolean;
+}) {
+  const payload: SkillsSecurityScanCache = {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    entries: args.cache.entries,
+  };
+  const prefix = args.dryRun ? "[dry]" : "[write]";
+  console.log(`${prefix} skills gate cache: ${args.cachePath}`);
+  writeFileSafe(args.cachePath, `${JSON.stringify(payload, null, 2)}\n`, args.dryRun);
+}
+
+function normalizeSelectedSkillDirs(args: { sourceSkillsDir: string; selectedTopLevelSkills: string[] }): string[] {
+  const selectedTopLevel = new Set(args.selectedTopLevelSkills.map((s) => s.toLowerCase()));
+  return listSkillDirectories(args.sourceSkillsDir)
+    .filter((rel) => selectedTopLevel.has(rel.split("/")[0].toLowerCase()))
+    .sort((a, b) => a.localeCompare(b));
+}
+
 function maybeRunSkillsSecurityGate(args: {
   sourceDir: string;
   targetDir: string;
@@ -239,6 +668,7 @@ function maybeRunSkillsSecurityGate(args: {
   profile: SkillsGateProfile;
   scannerRoot: string;
   scanAll: boolean;
+  selectedTopLevelSkills: string[];
 }) {
   if (args.profile === "off") {
     console.log("[write] skills gate: skipped (--skills-gate-profile off)");
@@ -254,6 +684,7 @@ function maybeRunSkillsSecurityGate(args: {
   );
   const sourceSkillsDir = path.join(args.sourceDir, "skills");
   const targetSkillsDir = path.join(args.targetDir, "skills");
+  const cachePath = path.join(args.targetDir, SKILLS_SECURITY_SCAN_CACHE_REL_PATH);
 
   if (!isFile(toolPath)) {
     const msg = `skills gate tool missing: ${toolPath}`;
@@ -282,53 +713,88 @@ function maybeRunSkillsSecurityGate(args: {
     throw new Error(msg);
   }
 
-  let scanMode: "all" | "list" = "all";
-  let listFilePath: string | null = null;
-  let changedSkills: string[] = [];
+  const selectedSkillDirs = normalizeSelectedSkillDirs({
+    sourceSkillsDir,
+    selectedTopLevelSkills: args.selectedTopLevelSkills,
+  });
+  if (selectedSkillDirs.length === 0) {
+    console.log("[write] skills gate: skipped (no selected skills)");
+    return;
+  }
 
   const firstInstall = !isDir(targetSkillsDir);
+  let candidateSkillDirs: string[];
   if (args.scanAll || firstInstall) {
-    scanMode = "all";
+    candidateSkillDirs = [...selectedSkillDirs];
   } else {
-    changedSkills = detectChangedSkills(sourceSkillsDir, targetSkillsDir);
+    const changed = new Set(detectChangedSkills(sourceSkillsDir, targetSkillsDir));
+    candidateSkillDirs = selectedSkillDirs.filter((rel) => changed.has(rel));
+  }
 
-    if (changedSkills.length === 0) {
-      console.log("[write] skills gate: skipped (no changed skills)");
-      return;
+  if (!args.scanAll && candidateSkillDirs.length === 0) {
+    console.log("[write] skills gate: skipped (no changed selected skills)");
+    return;
+  }
+
+  const scannerFingerprint = computeScannerFingerprint({ toolPath, scannerRoot: args.scannerRoot });
+  const allowlistFingerprint = computeAllowlistFingerprint({ sourceDir: args.sourceDir, targetDir: args.targetDir });
+  const cache = loadSkillsSecurityScanCache(cachePath);
+
+  const skillHashes = new Map<string, string>();
+  const cacheSkipped: string[] = [];
+  const toScan: string[] = [];
+  for (const rel of candidateSkillDirs) {
+    const sourceSkillDir = path.join(sourceSkillsDir, rel);
+    const contentHash = computeSkillDirectoryHash(sourceSkillDir);
+    skillHashes.set(rel, contentHash);
+
+    if (!args.scanAll) {
+      const cached = cache.entries[rel];
+      const cacheHit =
+        cached &&
+        cached.contentHash === contentHash &&
+        cached.scannerFingerprint === scannerFingerprint &&
+        cached.allowlistFingerprint === allowlistFingerprint &&
+        profileRank(cached.passedProfile) >= profileRank(args.profile);
+      if (cacheHit) {
+        cacheSkipped.push(rel);
+        continue;
+      }
     }
 
-    scanMode = "list";
+    toScan.push(rel);
   }
 
   if (args.dryRun) {
-    const targetDesc =
-      scanMode === "all"
-        ? sourceSkillsDir
-        : `${changedSkills.length} changed skills via list file`;
     console.log(
-      `[dry] skills gate: would run uv scan with profile=${args.profile} mode=${scanMode} on ${targetDesc} (scanner root: ${args.scannerRoot})`
+      `[dry] skills gate: would run uv scan profile=${args.profile} selected=${selectedSkillDirs.length} candidates=${candidateSkillDirs.length} scan=${toScan.length} cache-skip=${cacheSkipped.length} (scanner root: ${args.scannerRoot})`
     );
-    if (changedSkills.length > 0) {
-      console.log(`[dry] skills gate: changed skills => ${changedSkills.join(", ")}`);
+    if (toScan.length > 0) {
+      console.log(`[dry] skills gate: scan list => ${toScan.join(", ")}`);
+    }
+    if (cacheSkipped.length > 0) {
+      console.log(`[dry] skills gate: cache-skip => ${cacheSkipped.join(", ")}`);
     }
     return;
   }
 
-  if (scanMode === "list") {
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pai-skills-gate-"));
-    listFilePath = path.join(tmpDir, "changed-skills.txt");
-    const rows = changedSkills.map((rel) => path.join(sourceSkillsDir, rel));
-    fs.writeFileSync(listFilePath, rows.join("\n") + "\n", "utf8");
+  if (toScan.length === 0) {
+    console.log(
+      `[write] skills gate: skipped (all ${candidateSkillDirs.length} candidate skills passed cache checks)`
+    );
+    return;
   }
 
-  const cmd =
-    scanMode === "all"
-      ? `uv run python "${toolPath}" --mode all --skills-dir "${sourceSkillsDir}" --gate-profile ${args.profile}`
-      : `uv run python "${toolPath}" --mode list --skill-list-file "${listFilePath}" --gate-profile ${args.profile}`;
+  let listFilePath: string | null = null;
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pai-skills-gate-"));
+  listFilePath = path.join(tmpDir, "scan-skills.txt");
+  const rows = toScan.map((rel) => path.join(sourceSkillsDir, rel));
+  fs.writeFileSync(listFilePath, rows.join("\n") + "\n", "utf8");
+
+  const cmd = `uv run python "${toolPath}" --mode list --skill-list-file "${listFilePath}" --gate-profile ${args.profile}`;
 
   console.log(
-    `[write] skills gate: running profile=${args.profile} mode=${scanMode}` +
-      (scanMode === "list" ? ` changed=${changedSkills.length}` : "")
+    `[write] skills gate: running profile=${args.profile} mode=list scan=${toScan.length} cache-skip=${cacheSkipped.length}`
   );
   try {
     execSync(cmd, {
@@ -336,6 +802,19 @@ function maybeRunSkillsSecurityGate(args: {
       stdio: "inherit",
       env: { ...process.env, PAI_DIR: args.targetDir },
     });
+
+    for (const rel of toScan) {
+      const contentHash = skillHashes.get(rel) || computeSkillDirectoryHash(path.join(sourceSkillsDir, rel));
+      cache.entries[rel] = {
+        contentHash,
+        passedProfile: args.profile,
+        scannerFingerprint,
+        allowlistFingerprint,
+        scannedAt: new Date().toISOString(),
+      };
+    }
+    persistSkillsSecurityScanCache({ cachePath, cache, dryRun: false });
+
     console.log(`[write] skills gate: ${args.profile} (ok)`);
   } catch (err) {
     if (args.profile === "advisory") {
@@ -419,6 +898,8 @@ function usage(opts: Partial<Options> = {}) {
   console.log("                         skill-scanner repo root (default: /Users/zuul/Projects/skill-scanner)");
   console.log("  --skills-gate-scan-all  Force gate scan over all skills (default: changed skills only)");
   console.log("  --scan-all-skills       Alias for --skills-gate-scan-all");
+  console.log("  --skills <csv|all>      Preselect skills by top-level name (e.g., PAI,system)");
+  console.log("  --non-interactive       Skip interactive skill selector (use saved/default selection)");
   console.log("  --no-install-deps      Skip bun install dependency step");
   console.log("  --dry-run              Print actions without writing");
   console.log("  -h, --help             Show help");
@@ -436,6 +917,8 @@ function parseArgs(argv: string[]): Options | null {
   let skillsGateProfile: SkillsGateProfile = "advisory";
   let skillsGateScannerRoot = "/Users/zuul/Projects/skill-scanner";
   let skillsGateScanAll = false;
+  let nonInteractive = false;
+  let skillsArg: string | null = null;
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -489,6 +972,17 @@ function parseArgs(argv: string[]): Options | null {
       skillsGateScanAll = true;
       continue;
     }
+    if (arg === "--skills") {
+      const v = argv[i + 1];
+      if (!v) throw new Error("Missing value for --skills");
+      skillsArg = v;
+      i++;
+      continue;
+    }
+    if (arg === "--non-interactive") {
+      nonInteractive = true;
+      continue;
+    }
     if (arg === "--target") {
       const v = argv[i + 1];
       if (!v) throw new Error("Missing value for --target");
@@ -518,6 +1012,8 @@ function parseArgs(argv: string[]): Options | null {
     skillsGateProfile,
     skillsGateScannerRoot,
     skillsGateScanAll,
+    nonInteractive,
+    skillsArg,
   };
 }
 
@@ -1097,7 +1593,93 @@ function pruneDirRecursive(
   return { deleted };
 }
 
-function sync(mode: Mode, opts: Options) {
+function syncSelectedSkills(args: {
+  sourceSkillsDir: string;
+  targetSkillsDir: string;
+  selectedSkills: string[];
+  dryRun: boolean;
+  prune: boolean;
+}) {
+  const ensureCoreAlias = () => {
+    const paiPath = path.join(args.targetSkillsDir, "PAI");
+    const corePath = path.join(args.targetSkillsDir, "CORE");
+    if (!isDir(paiPath)) return;
+
+    const prefix = args.dryRun ? "[dry]" : "[write]";
+    let coreExists = fs.existsSync(corePath);
+    if (coreExists) {
+      try {
+        const stat = fs.lstatSync(corePath);
+        if (stat.isSymbolicLink()) {
+          const linkTarget = fs.readlinkSync(corePath);
+          if (linkTarget === "PAI" || linkTarget === "skills/PAI") {
+            console.log(`${prefix} skills alias CORE -> PAI (ok)`);
+            return;
+          }
+        }
+      } catch {
+        // Fallthrough to overwrite alias.
+      }
+
+      if (!args.dryRun) {
+        try {
+          fs.rmSync(corePath, { recursive: true, force: true });
+        } catch {
+          // best-effort
+        }
+      }
+      coreExists = false;
+    }
+
+    if (!coreExists) {
+      console.log(`${prefix} skills alias CORE -> PAI`);
+      if (!args.dryRun) {
+        fs.symlinkSync("PAI", corePath);
+      }
+    }
+  };
+
+  const selectedSet = new Set(args.selectedSkills);
+  ensureDir(args.targetSkillsDir, args.dryRun);
+
+  if (args.prune && isDir(args.targetSkillsDir)) {
+    let deleted = 0;
+    const entries = fs.readdirSync(args.targetSkillsDir, { withFileTypes: true });
+    for (const ent of entries) {
+      if (!(ent.isDirectory() || ent.isSymbolicLink())) continue;
+      const name = ent.name;
+      if (name.startsWith(".")) continue;
+      if (name === "CORE") continue;
+      if (selectedSet.has(name)) continue;
+      removePath(path.join(args.targetSkillsDir, name), args.dryRun);
+      deleted++;
+    }
+    if (deleted > 0) {
+      console.log(`${args.dryRun ? "[dry]" : "[write]"} pruned ${deleted} deselected skill(s)`);
+    }
+  }
+
+  const preserve = ["skills/PAI/USER/", "skills/PAI/WORK/"];
+
+  for (const skill of args.selectedSkills) {
+    const src = path.join(args.sourceSkillsDir, skill);
+    if (!isDir(src)) continue;
+    const dest = path.join(args.targetSkillsDir, skill);
+    const prefix = args.dryRun ? "[dry]" : "[sync]";
+    console.log(`${prefix} skill ${skill}`);
+    ensureDir(dest, args.dryRun);
+    copyDirRecursive(src, dest, {
+      dryRun: args.dryRun,
+      overwrite: true,
+      preserveIfExistsPrefixes: preserve,
+      relBase: `skills/${skill}/`,
+    });
+  }
+
+  ensureCoreAlias();
+}
+
+async function sync(mode: Mode, opts: Options) {
   if (mode !== "sync") throw new Error(`Unsupported mode: ${mode}`);
 
   const {
@@ -1112,6 +1694,8 @@ function sync(mode: Mode, opts: Options) {
     skillsGateProfile,
     skillsGateScannerRoot,
     skillsGateScanAll,
+    nonInteractive,
+    skillsArg,
   } = opts;
   if (!isDir(sourceDir)) {
     throw new Error(`Source directory not found: ${sourceDir}`);
@@ -1126,9 +1710,25 @@ function sync(mode: Mode, opts: Options) {
   console.log(`  prune:  ${prune ? "enabled" : "disabled"}`);
   console.log(`  skills-gate: ${skillsGateProfile}`);
   console.log(`  skills-gate-scope: ${skillsGateScanAll ? "all" : "changed"}`);
+  console.log(`  skills-ui: ${nonInteractive ? "disabled" : "enabled"}`);
   console.log("");
 
-  // Pre-install skills security gate (runs against source skill tree before runtime copy).
+  ensureDir(targetDir, dryRun);
+
+  // Migrate legacy CORE layout before syncing in PAI layout.
+  migrateLegacyCoreSkills({ targetDir, dryRun });
+
+  // Resolve selected skills (interactive by default on TTY) and persist the selection manifest.
+  const skillSelectionPlan = await resolveSkillSelectionPlan({
+    sourceDir,
+    targetDir,
+    dryRun,
+    nonInteractive,
+    skillsArg,
+  });
+  persistSkillSelection({ plan: skillSelectionPlan, dryRun });
+
+  // Pre-install skills security gate (runs against selected source skills before runtime copy).
   maybeRunSkillsSecurityGate({
     sourceDir,
     targetDir,
@@ -1136,12 +1736,8 @@ function sync(mode: Mode, opts: Options) {
     profile: skillsGateProfile,
     scannerRoot: skillsGateScannerRoot,
     scanAll: skillsGateScanAll,
+    selectedTopLevelSkills: skillSelectionPlan.selectedSkills,
   });
-
-  ensureDir(targetDir, dryRun);
-
-  // Migrate legacy CORE layout before syncing in PAI layout.
-  migrateLegacyCoreSkills({ targetDir, dryRun });
 
   // Core runtime directories (OpenCode uses plural names)
   const copyAlways = [
@@ -1185,6 +1781,17 @@ function sync(mode: Mode, opts: Options) {
     const dest = path.join(targetDir, name);
     console.log(`${dryRun ? "[dry]" : "[sync]"} dir ${name}`);
     ensureDir(dest, dryRun);
+
+    if (name === "skills") {
+      syncSelectedSkills({
+        sourceSkillsDir: src,
+        targetSkillsDir: dest,
+        selectedSkills: skillSelectionPlan.selectedSkills,
+        dryRun,
+        prune,
+      });
+      continue;
+    }
 
     // Preserve personal content and runtime state.
     const preserve: string[] = [
@@ -1367,7 +1974,7 @@ function sync(mode: Mode, opts: Options) {
   console.log("  2) Start OpenCode: opencode");
 }
 
-function main() {
+async function main() {
   let opts: Options | null = null;
   try {
     opts = parseArgs(process.argv.slice(2));
@@ -1376,7 +1983,7 @@ function main() {
       process.exit(0);
     }
 
-    sync("sync", opts);
+    await sync("sync", opts);
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`Error: ${message}`);
@@ -1385,4 +1992,4 @@ function main() {
   }
 }
 
-main();
+void main();

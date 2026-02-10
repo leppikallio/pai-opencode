@@ -6,7 +6,7 @@ description: Academic research paper discovery, download, and deep analysis usin
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/arxiv/`
+`~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/arxiv/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -185,4 +185,3 @@ Find classic BDI architecture papers before 2010
 - Always check `list_papers` first to see what's already downloaded
 - When analyzing papers, search for related work to provide context
 - Cross-reference findings across multiple papers when possible
-

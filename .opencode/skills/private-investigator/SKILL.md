@@ -6,7 +6,7 @@ description: "Ethical people-finding. USE WHEN find person, locate, reconnect, p
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/private-investigator/`
+`~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/private-investigator/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 

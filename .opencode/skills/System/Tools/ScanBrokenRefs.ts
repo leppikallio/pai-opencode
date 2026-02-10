@@ -89,7 +89,6 @@ function isLikelyPathToken(s: string): boolean {
   // Do not validate optional customizations.
   if (s.includes("SKILLCUSTOMIZATIONS/")) return false;
   if (s.includes("skills/PAI/WORK/")) return false;
-  if (s.includes("skills/CORE/WORK/")) return false;
 
   return true;
 }
@@ -409,4 +408,3 @@ function main() {
 }
 
 main();
-

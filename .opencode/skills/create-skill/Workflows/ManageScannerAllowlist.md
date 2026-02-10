@@ -59,5 +59,5 @@ uv run python "/Users/zuul/Projects/pai-opencode/.opencode/skills/skill-security
 
 ## Output
 
-- Updated allowlist policy (`Data/allowlist.json` by default)
+- Updated allowlist policy (`~/.config/opencode/skills/skill-security-vetting/Data/allowlist.json` by default)
 - Clear evidence of what was suppressed and why

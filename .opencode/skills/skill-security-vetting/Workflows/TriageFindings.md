@@ -62,7 +62,7 @@ Tool artifacts produced:
 
 After triage, generate a human-readable audit report with:
 
-- `Workflows/GenerateAuditReport.md`
+- `GenerateAuditReport.md`
 
 ## Phase 2 direction
 

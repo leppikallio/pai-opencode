@@ -15,6 +15,8 @@ cd pai-opencode
 bun Tools/Install.ts --target ~/.config/opencode
 # (This also auto-applies the detected provider profile to agent models)
 # (Default pre-install security gate profile: advisory; use --skills-gate-profile block-critical/block-high for enforcement)
+# (Installer opens an interactive skill selector and stores your choices in ~/.config/opencode/config/skills-selection.json)
+# (Selector controls: ↑/↓ to move, Space to toggle, Enter to confirm)
 
 # 3. Run the setup wizard (writes into ~/.config/opencode)
 bun ~/.config/opencode/PAIOpenCodeWizard.ts
@@ -49,7 +51,19 @@ bun Tools/Install.ts --target ~/.config/opencode --skills-gate-profile block-hig
 
 # Force full-scope scan (ignore changed-skill optimization)
 bun Tools/Install.ts --target ~/.config/opencode --skills-gate-scan-all
+
+# Non-interactive automation mode (uses saved/default skill selection)
+bun Tools/Install.ts --target ~/.config/opencode --non-interactive
+
+# Preseed selection explicitly (comma-separated top-level skills, or "all")
+bun Tools/Install.ts --target ~/.config/opencode --non-interactive --skills "PAI,system,agents,research"
 ```
+
+Security gate scan optimization:
+- gate scans only selected skills
+- unchanged skills are skipped by source-vs-runtime diff
+- previously scanned unchanged skills are skipped via cache at
+  `~/.config/opencode/config/skills-security-scan-cache.json`
 
 Reference docs:
 

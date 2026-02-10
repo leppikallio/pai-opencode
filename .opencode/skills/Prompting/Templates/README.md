@@ -306,9 +306,8 @@ This system is based on research from:
 
 - `~/.config/opencode/skills/prompting/Standards.md`
 - `~/.config/opencode/skills/prompting/SKILL.md`
-- `~/.config/opencode/skills/evals/SKILL.md`
+- `<~/.config/opencode/skills/evals/SKILL.md>`
 
 Optional (not shipped in all runtimes):
 - `<~/.config/opencode/History/research/...>`
 - `<~/.config/opencode/History/learnings/...>`
-

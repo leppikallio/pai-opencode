@@ -6,7 +6,7 @@ description: Extended creativity and deep reasoning workflows. USE WHEN user ask
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/be-creative/`
+`~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/be-creative/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 

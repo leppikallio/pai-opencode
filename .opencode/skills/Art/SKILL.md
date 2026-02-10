@@ -10,7 +10,7 @@ Complete visual content system for creating illustrations, diagrams, and visual 
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/art/`
+`~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/art/`
 
 If this directory exists, load and apply:
 - `PREFERENCES.md` - Aesthetic preferences, default model, output location
@@ -115,4 +115,3 @@ User: "create icon for the skill system pack"
 → Outputs to ~/Downloads/ for preview
 → After approval, copies to ~/Projects/PAI/Packs/icons/
 ```
-

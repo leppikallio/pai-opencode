@@ -6,7 +6,7 @@ description: Agent evaluation framework. USE WHEN eval, evaluate, test agent, be
 ## Customization
 
 **Before executing, check for user customizations at:**
-`~/.config/opencode/skills/CORE/USER/SKILLCUSTOMIZATIONS/evals/`
+`~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/evals/`
 
 If this directory exists, load and apply any PREFERENCES.md, configurations, or resources found there. These override default behavior. If the directory does not exist, proceed with skill defaults.
 
@@ -156,4 +156,3 @@ task:
 - **ALGORITHM**: Evals is a verification method
 - **Science**: evals implements scientific method
 - **Browser**: For visual verification graders
-

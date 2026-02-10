@@ -9,7 +9,7 @@ description: PDF creation, extraction, and manipulation. USE WHEN user mentions 
 
 **Before starting any task with this skill, load complete PAI context:**
 
-`read ~/.config/opencode/skills/CORE/SKILL.md`
+`read ~/.config/opencode/skills/PAI/SKILL.md`
 
 This provides access to:
 - Complete contact list (Angela, Bunny, Saša, Greg, team members)
