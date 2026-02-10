@@ -74,9 +74,10 @@ Suspicious but allowed:
 
 Patterns are loaded from YAML (USER override → SYSTEM fallback):
 
-- `DANGEROUS_PATTERNS` → block or confirm (based on config)
-- `WARNING_PATTERNS` → confirm or allow (based on config)
-- `ALLOWED_PATTERNS` → allow immediately
+- `bash.blocked` → deny execution
+- `bash.confirm` → require confirmation
+- `bash.alert` → alert/log while allowing
+- `paths.*` categories enforce path-level protections (zero access / read-only / confirm-write / no-delete)
 
 For file tools (Read/Write/Edit/ApplyPatch), file paths are validated as `path_access` events.
 

@@ -278,9 +278,15 @@ Security audit log: `~/.config/opencode/MEMORY/SECURITY/YYYY-MM/security.jsonl`
 
 ## Security Patterns
 
-Security validation uses pattern matching against dangerous commands:
+Security validation uses the YAML schema in `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml`.
 
-**Blocked Patterns (DANGEROUS_PATTERNS):**
+Current command pattern keys under `bash` are:
+
+- `blocked` (deny execution)
+- `confirm` (require confirmation)
+- `alert` (log/alert, allow execution)
+
+**Examples (`bash.blocked`):**
 - `rm -rf /` - Root-level deletion
 - `rm -rf ~/` - Home directory deletion
 - `mkfs.` - Filesystem formatting
@@ -288,13 +294,13 @@ Security validation uses pattern matching against dangerous commands:
 - `curl | bash` - Remote code execution
 - `cat .ssh/id_` - Credential theft
 
-**Warning Patterns (WARNING_PATTERNS):**
+**Examples (`bash.confirm`):**
 - `git push --force` - Force push
 - `git reset --hard` - Hard reset
 - `npm install -g` - Global installs
 - `docker rm` - Container removal
 
-See `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml` for full pattern definitions.
+See `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml` for full definitions, including `paths.*` protections.
 
 ---
 

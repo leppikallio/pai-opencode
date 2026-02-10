@@ -1,8 +1,14 @@
 # Response Format System
 
-**Universal PAI response format specification.**
+**Compatibility guidance for response rendering.**
 
-This defines the base response format for any PAI implementation. User-specific customizations belong in `~/.config/opencode/skills/PAI/USER/RESPONSEFORMAT.md`.
+This file is **not** the primary process contract.
+
+Primary authority is:
+
+- `~/.config/opencode/skills/PAI/SKILL.md` (Algorithm + adapter guardrails)
+
+Use this document only for compatibility notes on presentation and voice rendering.
 
 ## Variables
 
@@ -13,11 +19,13 @@ This defines the base response format for any PAI implementation. User-specific 
 
 ## Core Principle
 
-Every response MUST include a voice output line (`🗣️ {daidentity.name}:`). This is how the voice server speaks responses aloud. Without it, the response is silent.
+When voice output is used, include a voice output line (`🗣️ {daidentity.name}:`) consistent with the active Algorithm format.
+
+If this file conflicts with `SKILL.md`, **`SKILL.md` wins**.
 
 ---
 
-## Format Structure
+## Legacy Format Templates (Compatibility)
 
 ### Full Format (Task Responses)
 
@@ -52,6 +60,8 @@ Every response MUST include a voice output line (`🗣️ {daidentity.name}:`). 
 
 ## Field Descriptions
 
+These fields are legacy/compatibility labels. The Algorithm section in `SKILL.md` defines the normative phase structure.
+
 | Field | Purpose | Required |
 |-------|---------|----------|
 | 📋 SUMMARY | One-sentence summary | Always |
@@ -85,6 +95,8 @@ The `🗣️ {daidentity.name}:` line is the only line that gets spoken aloud by
 
 ## When to Use Each Format
 
+Prefer the depth modes defined in `SKILL.md` (FULL / ITERATION / MINIMAL).
+
 ### Full Format (Task-Based Work)
 - Fixing bugs
 - Creating features
@@ -116,7 +128,7 @@ The `🗣️ {daidentity.name}:` line is the only line that gets spoken aloud by
 2. **Session History** - CAPTURE ensures learning preservation
 3. **Consistency** - Every response follows same pattern
 4. **Accessibility** - Format makes responses scannable
-5. **Constitutional Compliance** - Core principle
+5. **Compatibility** - Keeps older renderers/readers understandable
 
 ---
 
@@ -153,7 +165,7 @@ The `🗣️ {daidentity.name}:` line is the only line that gets spoken aloud by
 
 ---
 
-## Common Failure Modes
+## Common Failure Modes (Compatibility Layer)
 
 1. **Plain text responses** - No format = silent response
 2. **Missing voice line** - User can't hear the response
@@ -164,4 +176,4 @@ The `🗣️ {daidentity.name}:` line is the only line that gets spoken aloud by
 
 ---
 
-**For user-specific customizations, see:** `~/.config/opencode/skills/PAI/USER/RESPONSEFORMAT.md`
+**For user-specific display preferences, see:** `~/.config/opencode/skills/PAI/USER/RESPONSEFORMAT.md`

@@ -2,7 +2,13 @@
 
 **Customize how your AI formats responses.**
 
-This file overrides the SYSTEM default response format. If you delete this file, SYSTEM defaults will be used.
+This file customizes display preferences only.
+
+Primary authority remains:
+
+- `~/.config/opencode/skills/PAI/SKILL.md` (Algorithm + adapter guardrails)
+
+If this file conflicts with `SKILL.md`, `SKILL.md` wins.
 
 ---
 
@@ -20,7 +26,7 @@ You can override **printed verbosity** by prefixing your message with:
 
 ### /compact (recommended)
 
-- Keep the 7 phases, but keep each phase to 1-3 bullets.
+- Keep the active Algorithm scaffold, but keep each phase to 1-3 bullets.
 - In PLAN, list ISC criteria as a short checklist (no large tables).
 - In VERIFY, show each criterion with one evidence phrase.
 
@@ -116,4 +122,4 @@ Add your own sections if needed:
 
 ---
 
-*This file overrides `~/.config/opencode/skills/PAI/SYSTEM/RESPONSEFORMAT.md` when present.*
+*This file augments `~/.config/opencode/skills/PAI/SYSTEM/RESPONSEFORMAT.md` for display preferences, without overriding `SKILL.md` authority.*

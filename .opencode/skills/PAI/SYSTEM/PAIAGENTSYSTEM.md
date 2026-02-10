@@ -135,20 +135,17 @@ Custom agents are composed on-the-fly from traits using AgentFactory. Each uniqu
 
 ---
 
-## Model Selection
+## Depth Selection (Runtime-safe)
 
-Always specify the appropriate model for agent work:
+In this OpenCode runtime, Task routing should not assume a `model` parameter.
 
-| Task Type | Model | Speed |
-|-----------|-------|-------|
-| Simple checks, grunt work | `haiku` | 10-20x faster |
-| Standard analysis, implementation | `sonnet` | Balanced |
-| Deep reasoning, architecture | `opus` | Maximum intelligence |
+Use these levers instead:
 
-```typescript
-// Parallel custom agents benefit from haiku/sonnet for speed
-Task({ prompt: agentPrompt, subagent_type: "Intern", model: "sonnet" })
-```
+1. Choose the right `subagent_type` for the work.
+2. Adjust prompt depth and verification expectations by task complexity.
+3. Use more parallelization for independent work to reduce latency.
+
+If explicit model override support is introduced in the runtime, verify tool schema first before documenting model arguments.
 
 ---
 
@@ -159,8 +156,7 @@ Task({ prompt: agentPrompt, subagent_type: "Intern", model: "sonnet" })
 ```typescript
 Task({
   prompt: "Verify consistency across all agent outputs: [results]",
-  subagent_type: "Intern",
-  model: "haiku"
+  subagent_type: "Intern"
 })
 ```
 
@@ -176,4 +172,3 @@ Task({
 ---
 
 *Last updated: 2026-01-14*
-

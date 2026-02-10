@@ -42,10 +42,10 @@ Patterns are compiled once at plugin load (no per‑call YAML reads).
 
 ## Pattern Sections (YAML)
 
-- `DANGEROUS_PATTERNS` → block or confirm
-- `WARNING_PATTERNS` → confirm or allow
-- `ALLOWED_PATTERNS` → allow immediately
-- `SECURITY_RULES` → flags like `block_dangerous`, `require_confirmation_for_warnings`, `max_command_length`
+- `bash.blocked` → deny execution
+- `bash.confirm` → require confirmation
+- `bash.alert` → alert/log while allowing
+- `paths.zeroAccess` / `paths.readOnly` / `paths.confirmWrite` / `paths.noDelete` → path-level policy controls
 
 ---
 

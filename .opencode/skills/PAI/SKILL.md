@@ -2,7 +2,7 @@
   🔨 GENERATED FILE - Do not edit directly
   Edit:   ~/Projects/pai-opencode/.opencode/skills/PAI/Components/
   Build:  bun ~/Projects/pai-opencode/.opencode/skills/PAI/Tools/CreateDynamicCore.ts
-  Built:  10 February 2026 13:02:29
+  Built:  10 February 2026 17:36:03
 -->
 ---
 name: CORE
@@ -597,7 +597,7 @@ Critical PAI documentation organized by domain. Load on-demand based on context.
 |--------|------|---------|
 | **System Architecture** | `SYSTEM/PAISYSTEMARCHITECTURE.md` | Core PAI design and principles |
 | **Memory System** | `SYSTEM/MEMORYSYSTEM.md` | WORK, STATE, LEARNING directories |
-| **Skill system** | `SYSTEM/SKILLSYSTEM.md` | How skills work, structure, triggers |
+| **Skill system** | `SYSTEM/SkillSystem.md` | How skills work, structure, triggers |
 | **Hook System** | `SYSTEM/THEHOOKSYSTEM.md` | Event hooks, patterns, implementation |
 | **Agent system** | `SYSTEM/PAIAGENTSYSTEM.md` | Agent types, spawning, delegation |
 | **Delegation** | `SYSTEM/THEDELEGATIONSYSTEM.md` | Background work, parallelization |
@@ -616,4 +616,3 @@ Critical PAI documentation organized by domain. Load on-demand based on context.
 | "Telos", "life goals", "goals", "challenges" | `USER/TELOS/PROJECTS.md` | Life goals, challenges, predictions (Telos Life System) |
 
 ---
-

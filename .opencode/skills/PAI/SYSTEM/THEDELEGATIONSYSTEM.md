@@ -15,42 +15,30 @@ extracted_from: SKILL.md lines 535-627
 
 **WHENEVER A TASK CAN BE PARALLELIZED, USE MULTIPLE AGENTS!**
 
-### Model Selection for Agents (CRITICAL FOR SPEED)
+### Depth Selection for Agents (Runtime-safe)
 
-**The Task tool has a `model` parameter - USE IT.**
+Do not assume Task supports an explicit `model` parameter in this runtime.
 
-Agents default to inheriting the parent model (often Opus). This is SLOW for simple tasks. Each inference with 30K+ context takes 5-15 seconds on Opus. A simple 10-tool-call task = 1-2+ minutes of pure thinking time.
+Speed/quality should be optimized through:
 
-**Model Selection Matrix:**
-
-| Task Type | Model | Why |
-|-----------|-------|-----|
-| Deep reasoning, complex architecture, strategic decisions | `opus` | Maximum intelligence needed |
-| Standard implementation, moderate complexity, most coding | `sonnet` | Good balance of speed + capability |
-| Simple lookups, file reads, quick checks, parallel grunt work | `haiku` | 10-20x faster, sufficient intelligence |
+1. Correct `subagent_type` selection
+2. Prompt scope and verification depth control
+3. Parallel fan-out for independent tasks
 
 **Examples:**
 
 ```typescript
-// WRONG - defaults to Opus, takes minutes
+// Simple verification task (short prompt)
 Task({ prompt: "Check if blue bar exists on website", subagent_type: "Intern" })
 
-// RIGHT - Haiku for simple visual check
-Task({ prompt: "Check if blue bar exists on website", subagent_type: "Intern", model: "haiku" })
+// Standard implementation task
+Task({ prompt: "Implement the login form validation", subagent_type: "Engineer" })
 
-// RIGHT - Sonnet for standard coding task
-Task({ prompt: "Implement the login form validation", subagent_type: "Engineer", model: "sonnet" })
-
-// RIGHT - Opus for complex architectural planning
-Task({ prompt: "Design the distributed caching strategy", subagent_type: "Architect", model: "opus" })
+// Deep architecture task (explicitly request deeper analysis)
+Task({ prompt: "Design distributed caching strategy with tradeoff analysis", subagent_type: "Architect" })
 ```
 
-**Rule of Thumb:**
-- If it's grunt work or verification → `haiku`
-- If it's implementation or research → `sonnet`
-- If it requires deep strategic thinking → `opus` (or let it default)
-
-**Parallel tasks especially benefit from haiku** - launching 5 haiku agents is faster AND cheaper than 1 Opus agent doing sequential work.
+If explicit model override support is later added, verify tool schema first and then document exact supported fields.
 
 ### Agent Types
 

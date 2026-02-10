@@ -16,7 +16,7 @@
 
 **This workflow is for the SOURCE repo only.**
 
-Before EVERY push: `git remote -v` must show your **private** remote, not any public template remote.
+Before EVERY push: `git remote -v` must show the intended source-repo remote (private or public as expected for that repository).
 
 ---
 
@@ -62,7 +62,7 @@ git diff --staged  # Review staged changes
 
 - Verify that code changes align with documentation
 - If this is a system-level change, update relevant documentation files
-- Update SYSTEM docs if structure changed (SKILLSYSTEM.md, MEMORYSYSTEM.md, etc.)
+- Update SYSTEM docs if structure changed (SkillSystem.md, MEMORYSYSTEM.md, etc.)
 
 This ensures documentation stays in sync with code changes.
 
@@ -133,7 +133,7 @@ git status  # Confirm clean working directory
 
 ## Security Checklist (ALWAYS)
 
-- ✅ Verified we're in ~/.config/opencode/ directory
+- ✅ Verified we're in ~/Projects/pai-opencode/ directory
 - ✅ Verified remote is the correct private repository
 - ✅ Reviewed changes for sensitive data
 - ✅ Commit message is descriptive and professional
@@ -166,19 +166,18 @@ git status
 
 ## CRITICAL
 
-**This workflow is for the PRIVATE `~/.config/opencode` repo ONLY.**
+**This workflow is for the SOURCE repo (`~/Projects/pai-opencode`) only.**
 
 | If User Says... | What to Do |
 |-----------------|------------|
-| "push to PAI repo" | ✅ Use this workflow (PRIVATE) |
-| "update the PAI repo" | ✅ Use this workflow (PRIVATE) |
-| "push to PAI repo" | ⚠️ STOP - use PAI skill instead |
-| "update PAI" | ⚠️ STOP - clarify which repo |
+| "push to PAI repo" | ✅ Use this workflow if they mean source repo |
+| "update the PAI repo" | ✅ Use this workflow if source repo confirmed |
+| "push runtime changes" | ⚠️ STOP - runtime is not authoritative source |
+| "update PAI" | ⚠️ STOP - clarify target repo first |
 
-For PUBLIC PAI repo (`~/Projects/PAI/`):
-- Use the **PAI skill** workflows
-- ALWAYS sanitize content first
-- See CRITICAL SECURITY section in PAI skill
+For runtime installation (`~/.config/opencode/`):
+- Do not treat runtime as a git source of truth.
+- Apply changes in source repo, then deploy via installer.
 
 ---
 
