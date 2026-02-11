@@ -169,10 +169,10 @@ function getStats(): SystemStats {
   const platform = process.platform === "darwin" ? "macOS" : process.platform;
   const arch = process.arch;
 
-  // Try to get Claude Code version
+  // Try to get OpenCode version
   let ccVersion = "2.0";
   try {
-    const result = spawnSync("claude", ["--version"], { encoding: "utf-8" });
+    const result = spawnSync("opencode", ["--version"], { encoding: "utf-8" });
     if (result.stdout) {
       const match = result.stdout.match(/(\d+\.\d+\.\d+)/);
       if (match) ccVersion = match[1];
@@ -187,7 +187,7 @@ function getStats(): SystemStats {
     learnings: learnings || 500,
     userFiles: userFiles || 47,
     sessions: sessions || 0,
-    model: "Opus 4.5",
+    model: "runtime-default",
     platform,
     arch,
     ccVersion,

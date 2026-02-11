@@ -157,5 +157,5 @@ bun run ~/.config/opencode/skills/PAI/Tools/FeatureRegistry.ts verify <project>
 
 ## Source
 
-Based on Anthropic's "Effective Harnesses for Long-Running Agents":
+Based on long-running agent harness best practices:
 > "Git commits with descriptive messages... ensure each session leaves the codebase in a mergeable state."

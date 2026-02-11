@@ -20,6 +20,10 @@ type Finding = {
   resolved: string;
 };
 
+type SkillsSelectionManifest = {
+  selectedSkills?: unknown;
+};
+
 function usage(exitCode = 0): never {
   const msg = `Usage: bun ~/.config/opencode/skills/system/Tools/ScanBrokenRefs.ts [options]
 
@@ -103,6 +107,40 @@ function isTrueEnv(v: string | undefined): boolean {
   if (!v) return false;
   const s = v.trim().toLowerCase();
   return s === "1" || s === "true" || s === "yes";
+}
+
+function loadSelectedTopLevelSkills(rootDir: string): Set<string> | null {
+  const configPath = path.join(rootDir, "config", "skills-selection.json");
+  if (!fs.existsSync(configPath)) return null;
+
+  try {
+    const raw = fs.readFileSync(configPath, "utf-8");
+    const parsed = JSON.parse(raw) as SkillsSelectionManifest;
+    if (!Array.isArray(parsed.selectedSkills)) return null;
+
+    const selected = parsed.selectedSkills
+      .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+      .map((v) => v.toLowerCase());
+
+    return new Set(selected);
+  } catch {
+    return null;
+  }
+}
+
+function topLevelSkillForResolvedPath(rootDir: string, resolved: string): string | null {
+  const skillsRoot = path.join(rootDir, "skills");
+  if (!resolved.startsWith(skillsRoot)) return null;
+
+  const rel = path.relative(skillsRoot, resolved);
+  if (!rel || rel.startsWith("..")) return null;
+
+  const firstSegment = rel.split(path.sep)[0];
+  if (!firstSegment) return null;
+
+  // skills/CORE is a compatibility alias to skills/PAI at runtime.
+  if (firstSegment.toLowerCase() === "core") return "pai";
+  return firstSegment.toLowerCase();
 }
 
 function resolveRef(rootDir: string, sourceFile: string, raw: string): string | null {
@@ -338,6 +376,8 @@ function main() {
 
   const files = iterMarkdownFiles(scopeDir);
   const findings: Finding[] = [];
+  const selectedTopLevelSkills = loadSelectedTopLevelSkills(rootDir);
+  let skippedUnselected = 0;
 
   for (const f of files) {
     let text = "";
@@ -374,6 +414,16 @@ function main() {
       seen.add(key);
 
       if (!fs.existsSync(resolved)) {
+        const topLevelSkill = topLevelSkillForResolvedPath(rootDir, resolved);
+        if (
+          topLevelSkill &&
+          selectedTopLevelSkills &&
+          !selectedTopLevelSkills.has(topLevelSkill)
+        ) {
+          skippedUnselected++;
+          continue;
+        }
+
         findings.push({ source: f, raw, resolved });
       }
     }
@@ -381,7 +431,19 @@ function main() {
 
   if (format === "json") {
     // eslint-disable-next-line no-console
-    console.log(JSON.stringify({ rootDir, scopeDir, count: findings.length, findings }, null, 2));
+    console.log(
+      JSON.stringify(
+        {
+          rootDir,
+          scopeDir,
+          count: findings.length,
+          skippedUnselected,
+          findings,
+        },
+        null,
+        2
+      )
+    );
     return;
   }
 
@@ -393,6 +455,12 @@ function main() {
     console.log(`root:  ${rootDir}`);
     // eslint-disable-next-line no-console
     console.log(`scope: ${scopeDir}`);
+    if (selectedTopLevelSkills) {
+      // eslint-disable-next-line no-console
+      console.log(`selected-skills: ${selectedTopLevelSkills.size}`);
+      // eslint-disable-next-line no-console
+      console.log(`skipped-unselected: ${skippedUnselected}`);
+    }
   }
 
   const toPrint = findings.slice(0, limit);

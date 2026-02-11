@@ -57,9 +57,9 @@ The banner reads configuration from `~/.config/opencode/settings.json`:
 ## What the Banner Shows
 
 - **DA Name** - Your AI's name from settings.json
-- **CC Version** - Claude Code version
+- **OpenCode Version** - OpenCode runtime version
 - **PAI Version** - Currently v2.0
-- **Model** - The active Claude model (e.g., Opus 4.5)
+- **Model** - The active runtime model/profile (e.g., openai/gpt-5.2)
 - **Skills** - Count of installed skills
 - **Workflows** - Count of workflow definitions
 - **Hooks** - Count of lifecycle hooks

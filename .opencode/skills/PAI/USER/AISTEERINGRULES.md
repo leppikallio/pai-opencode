@@ -42,7 +42,7 @@ Correct
 
 ### When CC Native Tools Apply
 
-Claude Code's native tools (Grep, Glob, Read) are already optimized and should be used first. This rule applies when:
+OpenCode's native tools (Grep, Glob, Read) are already optimized and should be used first. This rule applies when:
 - Bash is explicitly required for piping/scripting
 - Complex command chains need shell features
 - Interactive terminal operations
@@ -95,4 +95,3 @@ None. This rule has no exceptions. Even if "it should work", verify it.
 ---
 
 These rules extend `~/.config/opencode/skills/PAI/SYSTEM/AISTEERINGRULES.md`. Both must be followed.
-

@@ -1,0 +1,147 @@
+digraph PAI_Algorithm_Think {
+  rankdir=TB;
+  labelloc=t;
+  label="PAI Algorithm — Phase 2/7 THINK (detail)";
+  fontname="Helvetica";
+  fontsize=16;
+
+  node [fontname="Helvetica", fontsize=10, style="rounded,filled", fillcolor="#F8FAFC", color="#1F2937"];
+  edge [fontname="Helvetica", fontsize=9, color="#374151"];
+
+  start [shape=box, fillcolor="#DBEAFE", label="Enter THINK phase\n(input: validated ISC)"];
+
+  assess_tools [shape=box, fillcolor="#ECFDF5", label="Thinking tools assessment\n(opt-OUT with justification)"];
+  council [shape=box, fillcolor="#F0F9FF", label="council\n(debate alternatives)"];
+  redteam [shape=box, fillcolor="#F0F9FF", label="red-team\n(stress-test claims)"];
+  firstp [shape=box, fillcolor="#F0F9FF", label="first-principles\n(challenge assumptions)"];
+  science [shape=box, fillcolor="#F0F9FF", label="Science protocol\n(hypothesis/test loops)"];
+  creative [shape=box, fillcolor="#F0F9FF", label="be-creative\n(divergent options)"];
+  prompting [shape=box, fillcolor="#F0F9FF", label="prompting\n(meta-prompt generation)"];
+
+  include_decisions [shape=diamond, fillcolor="#F1F5F9", label="Inclusion/exclusion\njustified per tool?"];
+  fix_justification [shape=box, fillcolor="#FFF7ED", label="Add ISC-tied exclusion\nor include rationale"];
+
+  skill_check [shape=box, fillcolor="#ECFDF5", label="Skill check\n(hook hints vs ISC need)"];
+  hook_hints [shape=box, fillcolor="#F8FAFC", label="Hook suggested skills/tools"];
+  isc_requires [shape=box, fillcolor="#F8FAFC", label="ISC-derived requirements"];
+  final_skills [shape=box, fillcolor="#ECFDF5", label="Final skills set\n(add/remove/confirm)"];
+
+  capability_select [shape=box, fillcolor="#ECFDF5", label="Capability selection block"];
+  primary [shape=box, fillcolor="#FEFCE8", label="Primary capability\n(why tied to ISC)"];
+  support [shape=box, fillcolor="#FEFCE8", label="Support capability"];
+  verify [shape=box, fillcolor="#FEFCE8", label="Verify capability"];
+  pattern [shape=box, fillcolor="#FEFCE8", label="Composition pattern\n(Pipeline/Fan-out/Gate/...)"];
+  sequence [shape=box, fillcolor="#FEFCE8", label="Execution sequence\n(A->B->C / A<->B / fan-out)"];
+
+  parallel_gate [shape=diamond, fillcolor="#F1F5F9", label="3+ independent workstreams?\nFan-out default"];
+  fanout [shape=box, fillcolor="#ECFDF5", label="Mark parallel execution\nfor BUILD/EXECUTE"];
+  serial [shape=box, fillcolor="#ECFDF5", label="Keep dependency-ordered sequence"];
+
+  // Capability quick-check (localized)
+  qc_start [shape=box, fillcolor="#DBEAFE", label="Capability quick-check\n(trigger scan)"];
+  t_research [shape=diamond, fillcolor="#F1F5F9", label="Need information/research?"];
+  t_ambiguous [shape=diamond, fillcolor="#F1F5F9", label="Requirements ambiguous?"];
+  t_complex [shape=diamond, fillcolor="#F1F5F9", label="Complex/high-stakes task?"];
+  t_multiple [shape=diamond, fillcolor="#F1F5F9", label="Multiple valid approaches?"];
+  t_parallel [shape=diamond, fillcolor="#F1F5F9", label="Parallelizable work?"];
+  t_adversarial [shape=diamond, fillcolor="#F1F5F9", label="Need adversarial review?"];
+  t_domain [shape=diamond, fillcolor="#F1F5F9", label="Need domain expertise?"];
+  t_build [shape=diamond, fillcolor="#F1F5F9", label="Need implementation/build?"];
+  t_arch [shape=diamond, fillcolor="#F1F5F9", label="Need architecture decisions?"];
+  t_fundamental [shape=diamond, fillcolor="#F1F5F9", label="Need first-principles analysis?"];
+  t_compare [shape=diamond, fillcolor="#F1F5F9", label="Need to compare solutions?"];
+  t_simple [shape=diamond, fillcolor="#F1F5F9", label="Simple/direct task?"];
+
+  c_research [shape=box, fillcolor="#FEFCE8", label="Use researcher subagents\n(functions.task)"];
+  c_question [shape=box, fillcolor="#FEFCE8", label="Use functions.question"];
+  c_planmode [shape=box, fillcolor="#FEFCE8", label="Plan mode concept\nor subagent_type=Algorithm"];
+  c_council [shape=box, fillcolor="#FEFCE8", label="Use council / be-creative / evals skills"];
+  c_multiagents [shape=box, fillcolor="#FEFCE8", label="Spawn multiple task calls\n(parallel pattern)"];
+  c_redteam [shape=box, fillcolor="#FEFCE8", label="Use red-team skill"];
+  c_skills [shape=box, fillcolor="#FEFCE8", label="Use functions.skill / skill_use"];
+  c_engineer [shape=box, fillcolor="#FEFCE8", label="Use subagent_type=Engineer"];
+  c_architect [shape=box, fillcolor="#FEFCE8", label="Use subagent_type=Architect"];
+  c_firstp [shape=box, fillcolor="#FEFCE8", label="Use first-principles skill"];
+  c_evals [shape=box, fillcolor="#FEFCE8", label="Use evals skill"];
+  c_direct [shape=box, fillcolor="#FEFCE8", label="Direct execution\n(no extra agent needed)"];
+
+  output [shape=note, fillcolor="#E0E7FF", label="Output artifact:\ncapability plan + rationale\nready for PLAN phase"];
+
+  start -> assess_tools [color="#B91C1C", penwidth=2, label="MUST"];
+  assess_tools -> council [color="#B91C1C", penwidth=2, label="MUST evaluate"];
+  assess_tools -> redteam [color="#B91C1C", penwidth=2, label="MUST evaluate"];
+  assess_tools -> firstp [color="#B91C1C", penwidth=2, label="MUST evaluate"];
+  assess_tools -> science [color="#B91C1C", penwidth=2, label="MUST evaluate"];
+  assess_tools -> creative [color="#B91C1C", penwidth=2, label="MUST evaluate"];
+  assess_tools -> prompting [color="#B91C1C", penwidth=2, label="MUST evaluate"];
+
+  council -> include_decisions [color="#B91C1C", penwidth=2, label="MUST"];
+  redteam -> include_decisions [color="#B91C1C", penwidth=2, label="MUST"];
+  firstp -> include_decisions [color="#B91C1C", penwidth=2, label="MUST"];
+  science -> include_decisions [color="#B91C1C", penwidth=2, label="MUST"];
+  creative -> include_decisions [color="#B91C1C", penwidth=2, label="MUST"];
+  prompting -> include_decisions [color="#B91C1C", penwidth=2, label="MUST"];
+
+  include_decisions -> fix_justification [color="#B91C1C", penwidth=2, label="NO"];
+  fix_justification -> assess_tools [color="#B91C1C", penwidth=2, label="retry"];
+  include_decisions -> skill_check [color="#B91C1C", penwidth=2, label="YES"];
+
+  skill_check -> hook_hints [color="#B91C1C", penwidth=2, label="MUST"];
+  skill_check -> isc_requires [color="#B91C1C", penwidth=2, label="MUST"];
+  hook_hints -> final_skills [color="#B91C1C", penwidth=2, label="validate"];
+  isc_requires -> final_skills [color="#B91C1C", penwidth=2, label="validate"];
+
+  final_skills -> capability_select [color="#B91C1C", penwidth=2, label="MUST"];
+  capability_select -> primary [color="#B91C1C", penwidth=2, label="MUST"];
+  capability_select -> support [color="#B91C1C", penwidth=2, label="MUST"];
+  capability_select -> verify [color="#B91C1C", penwidth=2, label="MUST"];
+  capability_select -> pattern [color="#B91C1C", penwidth=2, label="MUST"];
+  capability_select -> sequence [color="#B91C1C", penwidth=2, label="MUST"];
+
+  sequence -> parallel_gate [color="#D97706", penwidth=1.6, label="SHOULD evaluate"];
+  parallel_gate -> fanout [color="#B91C1C", penwidth=2, label="YES"];
+  parallel_gate -> serial [color="#B91C1C", penwidth=2, label="NO"];
+
+  capability_select -> qc_start [color="#D97706", penwidth=1.6, label="SHOULD run quick-check"];
+  qc_start -> t_research [color="#B91C1C", penwidth=2, label="MUST scan"];
+  qc_start -> t_ambiguous [color="#B91C1C", penwidth=2, label="MUST scan"];
+  qc_start -> t_complex [color="#B91C1C", penwidth=2, label="MUST scan"];
+  qc_start -> t_multiple [color="#B91C1C", penwidth=2, label="MUST scan"];
+  qc_start -> t_parallel [color="#B91C1C", penwidth=2, label="MUST scan"];
+  qc_start -> t_adversarial [color="#B91C1C", penwidth=2, label="MUST scan"];
+  qc_start -> t_domain [color="#B91C1C", penwidth=2, label="MUST scan"];
+  qc_start -> t_build [color="#B91C1C", penwidth=2, label="MUST scan"];
+  qc_start -> t_arch [color="#B91C1C", penwidth=2, label="MUST scan"];
+  qc_start -> t_fundamental [color="#B91C1C", penwidth=2, label="MUST scan"];
+  qc_start -> t_compare [color="#B91C1C", penwidth=2, label="MUST scan"];
+  qc_start -> t_simple [color="#B91C1C", penwidth=2, label="MUST scan"];
+
+  t_research -> c_research [color="#D97706", penwidth=1.6, label="YES"];
+  t_ambiguous -> c_question [color="#D97706", penwidth=1.6, label="YES"];
+  t_complex -> c_planmode [color="#D97706", penwidth=1.6, label="YES"];
+  t_multiple -> c_council [color="#D97706", penwidth=1.6, label="YES"];
+  t_parallel -> c_multiagents [color="#D97706", penwidth=1.6, label="YES"];
+  t_adversarial -> c_redteam [color="#D97706", penwidth=1.6, label="YES"];
+  t_domain -> c_skills [color="#D97706", penwidth=1.6, label="YES"];
+  t_build -> c_engineer [color="#D97706", penwidth=1.6, label="YES"];
+  t_arch -> c_architect [color="#D97706", penwidth=1.6, label="YES"];
+  t_fundamental -> c_firstp [color="#D97706", penwidth=1.6, label="YES"];
+  t_compare -> c_evals [color="#D97706", penwidth=1.6, label="YES"];
+  t_simple -> c_direct [color="#D97706", penwidth=1.6, label="YES"];
+
+  c_research -> output [style=dashed, color="#6B7280", label="informs"];
+  c_question -> output [style=dashed, color="#6B7280", label="informs"];
+  c_planmode -> output [style=dashed, color="#6B7280", label="informs"];
+  c_council -> output [style=dashed, color="#6B7280", label="informs"];
+  c_multiagents -> output [style=dashed, color="#6B7280", label="informs"];
+  c_redteam -> output [style=dashed, color="#6B7280", label="informs"];
+  c_skills -> output [style=dashed, color="#6B7280", label="informs"];
+  c_engineer -> output [style=dashed, color="#6B7280", label="informs"];
+  c_architect -> output [style=dashed, color="#6B7280", label="informs"];
+  c_firstp -> output [style=dashed, color="#6B7280", label="informs"];
+  c_evals -> output [style=dashed, color="#6B7280", label="informs"];
+  c_direct -> output [style=dashed, color="#6B7280", label="informs"];
+
+  fanout -> output [color="#B91C1C", penwidth=2, label="MUST"];
+  serial -> output [color="#B91C1C", penwidth=2, label="MUST"];
+}

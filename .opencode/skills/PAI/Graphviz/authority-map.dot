@@ -1,0 +1,62 @@
+digraph PAI_Doc_Authority_Map {
+  rankdir=LR;
+  labelloc=t;
+  label="PAI Documentation Authority Map";
+  fontname="Helvetica";
+  fontsize=18;
+
+  node [fontname="Helvetica", fontsize=10, style="rounded,filled", color="#1F2937"];
+  edge [fontname="Helvetica", fontsize=9, color="#374151"];
+
+  // Domains
+  response_domain [shape=box, fillcolor="#DBEAFE", label="Domain\nResponse process contract"];
+  plugin_domain [shape=box, fillcolor="#DBEAFE", label="Domain\nPlugin/hook lifecycle"];
+  routing_domain [shape=box, fillcolor="#DBEAFE", label="Domain\nSkill routing + structure"];
+  delegation_domain [shape=box, fillcolor="#DBEAFE", label="Domain\nDelegation and agents"];
+  security_domain [shape=box, fillcolor="#DBEAFE", label="Domain\nSecurity validation schema"];
+
+  // Authoritative
+  skill_md [shape=box, fillcolor="#DCFCE7", label="skills/PAI/SKILL.md\n(authoritative)"];
+  plugin_md [shape=box, fillcolor="#DCFCE7", label="SYSTEM/THEPLUGINSYSTEM.md\n(authoritative)"];
+  skillsystem_index [shape=box, fillcolor="#DCFCE7", label="SYSTEM/SkillSystem.md\n(authoritative index)"];
+  skillsystem_sections [shape=box, fillcolor="#DCFCE7", label="SYSTEM/SkillSystem/*.md\n(authoritative sections)"];
+  agents_md [shape=box, fillcolor="#DCFCE7", label="SYSTEM/PAIAGENTSYSTEM.md\n(authoritative)"];
+  patterns_yaml [shape=box, fillcolor="#DCFCE7", label="SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml\n(authoritative schema)"];
+
+  // Secondary
+  doc_index [shape=box, fillcolor="#FEF3C7", label="SYSTEM/DOCUMENTATIONINDEX.md\n(secondary)"];
+  architecture_md [shape=box, fillcolor="#FEF3C7", label="SYSTEM/PAISYSTEMARCHITECTURE.md\n(secondary)"];
+  delegation_ref [shape=box, fillcolor="#FEF3C7", label="SYSTEM/THEDELEGATIONSYSTEM.md\n(secondary)"];
+  security_docs [shape=box, fillcolor="#FEF3C7", label="SYSTEM/PAISECURITYSYSTEM/*.md\n(secondary)"];
+
+  // Legacy/compatibility
+  response_compat [shape=box, style="rounded,filled,dashed", fillcolor="#F3F4F6", color="#6B7280", label="SYSTEM/RESPONSEFORMAT.md\n(compatibility)"];
+  user_response [shape=box, style="rounded,filled,dashed", fillcolor="#F3F4F6", color="#6B7280", label="USER/RESPONSEFORMAT.md\n(display preferences)"];
+  hook_legacy [shape=box, style="rounded,filled,dashed", fillcolor="#F3F4F6", color="#6B7280", label="SYSTEM/THEHOOKSYSTEM.md\n(legacy)"];
+
+  // Domain ownership edges
+  response_domain -> skill_md [color="#B91C1C", penwidth=2, label="authoritative MUST"];
+  response_domain -> response_compat [color="#D97706", penwidth=1.6, label="secondary/compat"];
+  response_domain -> user_response [color="#6B7280", style=dashed, label="local display prefs"];
+
+  plugin_domain -> plugin_md [color="#B91C1C", penwidth=2, label="authoritative MUST"];
+  plugin_domain -> architecture_md [color="#D97706", penwidth=1.6, label="secondary"];
+  plugin_domain -> hook_legacy [color="#6B7280", style=dashed, label="legacy only"];
+
+  routing_domain -> skillsystem_index [color="#B91C1C", penwidth=2, label="authoritative MUST"];
+  routing_domain -> skillsystem_sections [color="#B91C1C", penwidth=2, label="authoritative MUST"];
+  routing_domain -> doc_index [color="#D97706", penwidth=1.6, label="secondary"];
+
+  delegation_domain -> agents_md [color="#B91C1C", penwidth=2, label="authoritative MUST"];
+  delegation_domain -> delegation_ref [color="#D97706", penwidth=1.6, label="secondary"];
+
+  security_domain -> patterns_yaml [color="#B91C1C", penwidth=2, label="authoritative MUST"];
+  security_domain -> security_docs [color="#D97706", penwidth=1.6, label="secondary"];
+
+  // Conflict guard edges
+  response_compat -> skill_md [color="#7C3AED", style=dashed, label="conflict -> SKILL.md wins"];
+  user_response -> skill_md [color="#7C3AED", style=dashed, label="conflict -> SKILL.md wins"];
+  hook_legacy -> plugin_md [color="#7C3AED", style=dashed, label="deprecated_by"];
+  delegation_ref -> agents_md [color="#7C3AED", style=dashed, label="must not contradict"];
+  security_docs -> patterns_yaml [color="#7C3AED", style=dashed, label="schema source of truth"];
+}

@@ -1,6 +1,6 @@
 # Delegation Workflow
 
-Comprehensive guide to delegating tasks to agents in the hybrid agent system.
+Comprehensive guide to task-tool delegation and custom agent composition.
 
 ## 🚨 CRITICAL: Agent Type Selection
 
@@ -8,10 +8,10 @@ Comprehensive guide to delegating tasks to agents in the hybrid agent system.
 
 | User Says | Action | Tool |
 |-------------|--------|------|
-| "**custom agents**", "spin up **custom** agents" | Use **AgentFactory** to generate unique agents with distinct voices | `bun run AgentFactory.ts` |
-| "spin up agents", "launch agents", "bunch of agents" | Use **generic Intern** agents for parallel grunt work | `Task(subagent_type="Intern")` |
-| "interns", "use interns" | Use **Intern** agents | `Task(subagent_type="Intern")` |
-| "use Ava", "get Remy to", "[named agent]" | Use the **named agent** directly | `Task(subagent_type="PerplexityResearcher")` |
+| "**custom agents**", "spin up **custom** agents" | Use **AgentFactory** to generate unique agents with distinct voices | `agents` skill → CreateCustomAgent workflow |
+| "spin up agents", "launch agents", "bunch of agents" | Use **generic Intern** agents for parallel grunt work | `functions.task({ subagent_type: "Intern", ... })` |
+| "interns", "use interns" | Use **Intern** agents | `functions.task({ subagent_type: "Intern", ... })` |
+| "use Ava", "get Remy to", "[named agent]" | Use the **named agent** directly | `functions.task({ subagent_type: "<matching researcher type>", ... })` |
 
 **The word "custom" is the KEY differentiator:**
 - "custom agents" → AgentFactory (unique prompts + unique voices)
@@ -23,16 +23,18 @@ When user says "custom agents", **NEVER** use Task tool subagent_types directly:
 
 ```typescript
 // ❌ WRONG - These are NOT custom agents
-Task({ subagent_type: "Architect", prompt: "..." })
-Task({ subagent_type: "Designer", prompt: "..." })
-Task({ subagent_type: "Engineer", prompt: "..." })
+functions.task({ subagent_type: "Architect", prompt: "...", description: "..." })
+functions.task({ subagent_type: "Designer", prompt: "...", description: "..." })
+functions.task({ subagent_type: "Engineer", prompt: "...", description: "..." })
 ```
 
-Task tool subagent_types (Architect, Designer, Engineer, etc.) are pre-built workflow agents. They do NOT have unique voices or AgentFactory composition. They are for internal workflow use only.
+Task tool subagent_types (Architect, Designer, Engineer, etc.) are pre-built workflow agents. They do NOT have unique voices or AgentFactory composition. Use them for runtime delegation work, not custom-agent composition.
 
-**For custom agents, invoke the agents skill** → `Skill("agents")` or follow CreateCustomAgent workflow.
+**For custom agents, load the `agents` skill** (for example via `functions.skill_use`/`functions.skill`) and follow CreateCustomAgent workflow.
 
-See: `~/.config/opencode/skills/PAI/SYSTEM/PAIAGENTSYSTEM.md` for routing rules | `~/.config/opencode/skills/agents/SKILL.md` for agent composition.
+See: `../SYSTEM/PAIAGENTSYSTEM.md` for routing rules and `../../agents/SKILL.md` for composition workflows.
+
+Routing note: for codebase exploration tasks, use `subagent_type: "explore"` (do not route those to researcher agents).
 
 ---
 
@@ -58,12 +60,13 @@ See: `~/.config/opencode/skills/PAI/SYSTEM/PAIAGENTSYSTEM.md` for routing rules 
 
 ## The Hybrid Agent Model
 
-The system supports two types of agents:
+The system supports three routing paths:
 
 | Type | Definition | Best For |
 |------|------------|----------|
+| **Task Tool Subagent Types** | Runtime-provided subagent types (Engineer, Architect, Intern, explore, etc.) | General delegation, implementation, research, QA |
 | **Named Agents** | Persistent identities with backstories and voice mappings | Recurring work, voice output, relationship continuity |
-| **Dynamic Agents** | Task-specific specialists composed from traits | One-off tasks, novel combinations, parallel grunt work |
+| **Dynamic (Custom) Agents** | Task-specific specialists composed from traits | One-off tasks needing unique trait combinations/voice |
 
 **I decide which to use based on your request.** You don't need to specify.
 
@@ -72,7 +75,7 @@ The system supports two types of agents:
 | Agent | Personality | I Use When You Say... |
 |-------|-------------|----------------------|
 | Ava (Perplexity) | Investigative journalist | "research", "find out", "investigate" |
-| Ava Sterling (Claude) | Strategic thinker | "analyze strategically", "what are implications" |
+| Ava Sterling (Strategic) | Strategic thinker | "analyze strategically", "what are implications" |
 | Alex (Gemini) | Multi-perspective | "get different viewpoints", "comprehensive" |
 | Johannes (Grok) | Contrarian fact-checker | "challenge this", "what's wrong with" |
 | Remy (Codex) | Curious technical archaeologist | "dig into the code", "how does this work" |
@@ -89,7 +92,7 @@ When your request needs a specific expertise combination that no named agent pro
 
 I internally run:
 ```
-AgentFactory --traits "legal,security,skeptical,meticulous,systematic"
+bun run ../../agents/Tools/AgentFactory.ts --traits "legal,security,skeptical,meticulous,systematic"
 ```
 
 And get a custom agent with exactly those characteristics.
@@ -119,14 +122,14 @@ And get a custom agent with exactly those characteristics.
 
 ## Internal Tools (For System Use)
 
-These are the tools I use behind the scenes:
+These are the tools I use behind the scenes (paths vary by install location):
 
 ```bash
 # Compose dynamic agent
-bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts --task "..." --output prompt
+bun run ../../agents/Tools/AgentFactory.ts --task "..." --output prompt
 
 # List available traits
-bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts --list
+bun run ../../agents/Tools/AgentFactory.ts --list
 ```
 
 ### Available Traits
@@ -196,10 +199,10 @@ Standard blocking delegation - waits for agent to complete.
 ### Single Agent
 
 ```typescript
-Task({
+functions.task({
   description: "Research competitor",
   prompt: "Investigate Acme Corp's recent product launches...",
-  subagent_type: "PerplexityResearcher",
+  subagent_type: "researcher",
 })
 // Blocks until complete, returns result
 ```
@@ -210,17 +213,17 @@ Task({
 
 ```typescript
 // Send as SINGLE message with multiple tool calls
-Task({
+functions.task({
   description: "Research company A",
   prompt: "Investigate Company A...",
   subagent_type: "Intern",
 })
-Task({
+functions.task({
   description: "Research company B",
   prompt: "Investigate Company B...",
   subagent_type: "Intern",
 })
-Task({
+functions.task({
   description: "Research company C",
   prompt: "Investigate Company C...",
   subagent_type: "Intern",
@@ -230,11 +233,11 @@ Task({
 
 ### Spotcheck Pattern
 
-**ALWAYS launch a spotcheck intern after parallel work:**
+**Launch a spotcheck intern when outputs are high-stakes, heterogeneous, or conflict-prone:**
 
 ```typescript
 // After parallel agents complete
-Task({
+functions.task({
   description: "Spotcheck parallel results",
   prompt: "Review these results for consistency and completeness: [results]",
   subagent_type: "Intern",
@@ -245,13 +248,13 @@ Task({
 
 Non-blocking delegation - agents run while you continue working.
 
-See: `~/.config/opencode/skills/PAI/Workflows/BackgroundDelegation.md` for full details.
+See: `BackgroundDelegation.md` for full details.
 
 ```typescript
-Task({
+functions.task({
   description: "Parallel research",
   prompt: "Research X...",
-  subagent_type: "PerplexityResearcher"  // must exist as an agent name
+  subagent_type: "researcher"  // use an available runtime subagent type
 })
 
 Note:
@@ -268,8 +271,8 @@ Note:
 |-----------|--------|--------|
 | "Research AI news" | Named (Ava/Perplexity) | Standard research, voice needed |
 | "Review this contract for security risks" | Dynamic (legal+security+cautious) | Novel combination |
-| "Explore the codebase" | Named (Explore agent) | Built for this |
-| "Create 5 parallel researchers" | Dynamic (research+rapid) | Grunt work, no personality needed |
+| "Explore the codebase" | Task subagent type (`explore`) | Read-only exploration specialist |
+| "Create 5 parallel researchers" | Task subagent types (Intern/researcher) | Fast parallel throughput |
 | "Red team this idea" | Named (Johannes) OR Dynamic | Depends on whether voice needed |
 | "Strategic architecture review" | Named (Serena) | Deep expertise, relationship |
 
@@ -283,7 +286,7 @@ Note:
 | Single quick task | Foreground | Simpler |
 | Newsletter research | Background | Write while researching |
 
-## Full Context Requirements
+## Context Requirements
 
 When delegating, ALWAYS include:
 
@@ -293,7 +296,7 @@ When delegating, ALWAYS include:
 4. **SUCCESS CRITERIA** - What good output looks like
 
 ```typescript
-Task({
+functions.task({
   description: "Audit auth security",
   prompt: `
     ## Context
@@ -320,11 +323,9 @@ Task({
 
 ## Related
 
-- **agents skill**: `~/.config/opencode/skills/agents/` - Complete agent composition system
-  - Agent personalities: `~/.config/opencode/skills/agents/AgentPersonalities.md`
-  - Traits: `~/.config/opencode/skills/agents/Data/Traits.yaml`
-  - Agent factory: `~/.config/opencode/skills/agents/Tools/AgentFactory.ts`
-  - Workflows: `~/.config/opencode/skills/agents/Workflows/CreateCustomAgent.md`, `~/.config/opencode/skills/agents/Workflows/SpawnParallelAgents.md`
-- Background delegation: `~/.config/opencode/skills/PAI/Workflows/BackgroundDelegation.md`
-
-
+- **agents skill**: `../../agents/` - Complete custom composition system
+  - Agent personalities: `../../agents/AgentPersonalities.md`
+  - Traits: `../../agents/Data/Traits.yaml`
+  - Agent factory: `../../agents/Tools/AgentFactory.ts`
+  - Workflows: `../../agents/Workflows/CreateCustomAgent.md`, `../../agents/Workflows/SpawnParallelAgents.md`
+- Background delegation: `BackgroundDelegation.md`

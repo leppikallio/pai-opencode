@@ -111,12 +111,12 @@ This file guides your AI's technology choices to match your preferences and exis
 ## AI & ML
 
 ### LLM Providers
-- **Primary:** [Anthropic / OpenAI / etc.]
+- **Primary:** [OpenAI / local / multi-provider]
 - **Models:** [Preferred models for different tasks]
 
 ### AI Tools
 - [e.g., Cursor for coding]
-- [e.g., Claude Code for CLI]
+- [e.g., OpenCode for CLI]
 
 ---
 

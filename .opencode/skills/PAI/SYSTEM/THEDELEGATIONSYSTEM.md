@@ -13,7 +13,7 @@ extracted_from: SKILL.md lines 535-627
 
 ## 🤝 Delegation & Parallelization (Always Active)
 
-**WHENEVER A TASK CAN BE PARALLELIZED, USE MULTIPLE AGENTS!**
+**When independent workstreams are substantial, use multiple agents.**
 
 ### Depth Selection for Agents (Runtime-safe)
 
@@ -29,13 +29,13 @@ Speed/quality should be optimized through:
 
 ```typescript
 // Simple verification task (short prompt)
-Task({ prompt: "Check if blue bar exists on website", subagent_type: "Intern" })
+functions.task({ description: "Visual check", prompt: "Check if blue bar exists on website", subagent_type: "Intern" })
 
 // Standard implementation task
-Task({ prompt: "Implement the login form validation", subagent_type: "Engineer" })
+functions.task({ description: "Implement login validation", prompt: "Implement the login form validation", subagent_type: "Engineer" })
 
 // Deep architecture task (explicitly request deeper analysis)
-Task({ prompt: "Design distributed caching strategy with tradeoff analysis", subagent_type: "Architect" })
+functions.task({ description: "Design caching strategy", prompt: "Design distributed caching strategy with tradeoff analysis", subagent_type: "Architect" })
 ```
 
 If explicit model override support is later added, verify tool schema first and then document exact supported fields.
@@ -50,9 +50,9 @@ The Intern Agent is your high-agency genius generalist - perfect for parallel ex
 
 **How to launch:**
 - Use a SINGLE message with MULTIPLE Task tool calls
-- Each intern gets FULL CONTEXT and DETAILED INSTRUCTIONS
-- Launch as many as needed (no artificial limit)
-- **ALWAYS launch a spotcheck intern after parallel work completes**
+- Each intern gets the context required for its assigned criterion
+- Launch only as many as needed (default 3-5 unless justified)
+- Launch a spotcheck intern when outputs are high-stakes, heterogeneous, or conflict-prone
 
 **CRITICAL: Interns vs Engineers:**
 - **INTERNS:** Research, analysis, investigation, file reading, testing, coordinating
@@ -77,14 +77,14 @@ The Intern Agent is your high-agency genius generalist - perfect for parallel ex
 4. Each agent gets a personality-matched ElevenLabs voice
 
 **When user says "spin up agents" (no "custom"):**
-1. Invoke the agents skill → SpawnParallelAgents workflow
-2. All get the same Dev Patel voice (fine for grunt work)
-3. No AgentFactory needed
+1. Use runtime Task subagent types directly (usually Intern for generic parallel work)
+2. Route by capability when needed (Engineer/Architect/Designer/etc.)
+3. Do not invoke AgentFactory unless the user explicitly asked for custom agents
 
-**Reference:** agents skill (`~/.config/opencode/skills/agents/SKILL.md`)
+**Reference:** agents skill (`../../agents/SKILL.md`)
 
 **Full Context Requirements:**
-When delegating, ALWAYS include:
+When delegating non-trivial or high-risk work, include:
 1. WHY this task matters (business context)
 2. WHAT the current state is (existing implementation)
 3. EXACTLY what to do (precise actions, file paths, patterns)
@@ -96,4 +96,4 @@ When delegating, ALWAYS include:
 - SKILL.md > Delegation (Quick Reference) - Condensed trigger table
 - Workflows/Delegation.md - Operational delegation procedures
 - Workflows/BackgroundDelegation.md - Background agent patterns
-- skills/agents/SKILL.md - Custom agent creation system
+- ../../agents/SKILL.md - Custom agent creation system

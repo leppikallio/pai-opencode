@@ -41,3 +41,14 @@ Any new PAI documentation that introduces normative behavior MUST first specify:
 - domain owner (row in this table),
 - authority level,
 - whether it supersedes or extends existing docs.
+
+---
+
+## Graphviz Sidecar Authority Map Notes
+
+- Canonical authority contract source: `skills/PAI/SYSTEM/DOC_AUTHORITY_MAP.md` (this file).
+- Graph sidecar artifact: `skills/PAI/Graphviz/authority-map.dot`.
+- Graph sidecar notes + rewrite tracker references: `skills/PAI/Graphviz/authority-map-notes.md`.
+- Session-local rewrite tracker (runtime memory):
+  - `MEMORY/WORK/<session>/scratch/pai-coherence-mitigation-plan.md`
+  - Trackers: `P6.9-*`, `P7.*` (including restart/runtime gates).

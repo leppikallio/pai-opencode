@@ -1,32 +1,10 @@
 {{!--
-  STRUCTURE Template - Workflow Patterns
+  STRUCTURE Template — Workflow contract scaffold
 
-  Purpose: Generate standardized multi-step execution patterns.
-
-  Use Cases:
-  - Phased analysis workflows (RedTeam 5-phase)
-  - Round-based debate patterns (Council 3-round)
-  - Sequential pipelines (Development gates)
-  - Research methodologies
-
-  Input Data Structure:
-  ```yaml
-  workflow:
-    name: string
-    description: string
-    timing: string (optional)
-    phases:
-      - name: string
-        purpose: string
-        steps:
-          - action: string
-            instructions: string
-            tools: [string] (optional)
-            output: string (optional)
-  ```
-
-  Usage:
-  bun run RenderTemplate.ts -t Primitives/Structure.hbs -d Data/RedTeamWorkflow.yaml -o Compiled/RedTeamWorkflow.md
+  Goal:
+  - Define phases with explicit purpose and expected outputs
+  - Make execution order and completion gates unambiguous
+  - Keep scope and reporting expectations explicit for GPT-5-style agents
 --}}
 
 # {{workflow.name}}
@@ -41,15 +19,49 @@
 
 ---
 
+## Workflow Contract
+
+{{#if workflow.goal}}
+**Goal:** {{workflow.goal}}
+{{/if}}
+
+{{#if workflow.scope}}
+**Scope:** {{workflow.scope}}
+{{/if}}
+
+{{#if workflow.non_goals}}
+**Non-goals:**
+{{#each workflow.non_goals}}
+- {{this}}
+{{/each}}
+{{/if}}
+
+{{#if workflow.reporting}}
+**Reporting Rule:** {{workflow.reporting}}
+{{else}}
+**Reporting Rule:** Report milestones only; avoid narrating routine tool calls.
+{{/if}}
+
+---
+
+## Phases
+
 {{#each workflow.phases}}
-## Phase {{@index}}: {{name}}
+### Phase {{@index}} — {{name}}
 
 {{#if purpose}}
 **Purpose:** {{purpose}}
 {{/if}}
 
+{{#if entry_criteria}}
+**Entry Criteria:**
+{{#each entry_criteria}}
+- {{this}}
+{{/each}}
+{{/if}}
+
 {{#each steps}}
-### Step {{@index}}: {{action}}
+#### Step {{@index}} — {{action}}
 
 {{instructions}}
 
@@ -61,26 +73,49 @@
 {{/if}}
 
 {{#if output}}
-**Expected Output:**
-{{output}}
+**Expected Output:** {{output}}
+{{/if}}
+
+{{#if verification}}
+**Verification:** {{verification}}
 {{/if}}
 
 {{/each}}
 
----
+{{#if exit_criteria}}
+**Exit Criteria:**
+{{#each exit_criteria}}
+- [ ] {{this}}
+{{/each}}
+{{/if}}
 
+---
 {{/each}}
 
 {{#if workflow.completion_criteria}}
-## Completion Criteria
+## Completion Gate
 
+All conditions must pass:
 {{#each workflow.completion_criteria}}
 - [ ] {{this}}
 {{/each}}
 {{/if}}
 
-{{#if workflow.notes}}
-## Notes
+{{#if workflow.output_contract}}
+## Output Contract
 
+{{workflow.output_contract}}
+{{else}}
+## Output Contract
+
+- Return a concise phase-by-phase summary
+- Include evidence for each completed phase
+- List unresolved risks and next actions
+{{/if}}
+
+{{#if workflow.notes}}
+---
+
+## Notes
 {{workflow.notes}}
 {{/if}}

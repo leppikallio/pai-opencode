@@ -32,10 +32,11 @@ Run it when:
 ### Step 1: Regenerate Architecture
 
 ```bash
-# Manual update: edit the relevant architecture docs directly.
-# Example targets:
-# - ~/.config/opencode/skills/PAI/SYSTEM/PAISYSTEMARCHITECTURE.md
-# - ~/.config/opencode/skills/PAI/SYSTEM/DOCUMENTATIONINDEX.md
+# Manual update: edit relevant architecture docs in the SOURCE repo first.
+# Example source targets:
+# - /Users/zuul/Projects/pai-opencode-graphviz/.opencode/skills/PAI/SYSTEM/PAISYSTEMARCHITECTURE.md
+# - /Users/zuul/Projects/pai-opencode-graphviz/.opencode/skills/PAI/SYSTEM/DOCUMENTATIONINDEX.md
+# Deploy to runtime via installer after source changes are complete.
 ```
 
 ### Step 2: Log the Change (If Applicable)
@@ -49,8 +50,9 @@ If this was triggered by an installation or upgrade:
 ### Step 3: Verify Health
 
 ```bash
-# Recommended verification checks:
-# bun ~/.config/opencode/skills/system/Tools/ScanBrokenRefs.ts
+# Recommended SOURCE verification checks:
+# bun .opencode/skills/PAI/Tools/RunCoherenceChecks.ts --mode source --root /Users/zuul/Projects/pai-opencode-graphviz/.opencode
+# Optional runtime-anchored check (after deploy):
 # bun ~/.config/opencode/skills/system/Tools/ValidateSkillSystemDocs.ts
 ```
 

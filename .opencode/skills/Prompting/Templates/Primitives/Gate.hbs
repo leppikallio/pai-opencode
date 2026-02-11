@@ -1,32 +1,10 @@
 {{!--
-  GATE Template - Validation Checklists
+  GATE Template — Validation and completion checklist
 
-  Purpose: Generate reusable quality and completion checks.
-
-  Use Cases:
-  - Art mandatory elements
-  - Development completion gates
-  - Research source verification
-  - Deployment checklists
-  - Security reviews
-
-  Input Data Structure:
-  ```yaml
-  gate:
-    name: string
-    category: string
-    description: string
-    action_on_fail: string
-    mandatory:
-      - name: string
-        description: string
-    recommended:
-      - name: string
-        description: string
-  ```
-
-  Usage:
-  bun run RenderTemplate.ts -t Primitives/Gate.hbs -d Data/ValidationGates.yaml -o Compiled/Gates.md
+  Goal:
+  - Define mandatory vs recommended checks
+  - Make fail behavior explicit
+  - Encourage evidence-backed completion
 --}}
 
 {{#if gates}}
@@ -45,66 +23,78 @@
 **Category:** `{{category}}`
 {{/if}}
 {{#if description}}
-**Description:** {{description}}
+**Purpose:** {{description}}
 {{/if}}
 {{#if action_on_fail}}
-**On Failure:** {{action_on_fail}}
+**If Gate Fails:** {{action_on_fail}}
 {{/if}}
 
+### Mandatory Checks
 {{#if mandatory}}
-### 🚨 MANDATORY
-
-{{#if action_on_fail}}
-*If ANY item below fails → **{{action_on_fail}}***
-{{/if}}
-
 {{#each mandatory}}
 - [ ] **{{name}}** — {{description}}
 {{/each}}
+{{else}}
+- [ ] *(No mandatory checks provided)*
 {{/if}}
 
+### Recommended Checks
 {{#if recommended}}
-### ✅ RECOMMENDED
-
 {{#each recommended}}
 - [ ] {{name}} — {{description}}
 {{/each}}
+{{else}}
+- [ ] *(No recommended checks provided)*
 {{/if}}
 
----
+### Evidence Contract
 
+For each mandatory check marked complete, include:
+- evidence type
+- evidence source
+- evidence content
+
+---
 {{/each}}
 
 {{else}}
-{{!-- Single gate mode --}}
+
 ## {{gate.name}} Checklist
 
 {{#if gate.category}}
 **Category:** `{{gate.category}}`
 {{/if}}
 {{#if gate.description}}
-{{gate.description}}
+**Purpose:** {{gate.description}}
 {{/if}}
-
-{{#if gate.mandatory}}
-### 🚨 MANDATORY
-
 {{#if gate.action_on_fail}}
-*If ANY item below fails → **{{gate.action_on_fail}}***
+**If Gate Fails:** {{gate.action_on_fail}}
 {{/if}}
 
+### Mandatory Checks
+{{#if gate.mandatory}}
 {{#each gate.mandatory}}
 - [ ] **{{name}}** — {{description}}
 {{/each}}
+{{else}}
+- [ ] *(No mandatory checks provided)*
 {{/if}}
 
+### Recommended Checks
 {{#if gate.recommended}}
-### ✅ RECOMMENDED
-
 {{#each gate.recommended}}
 - [ ] {{name}} — {{description}}
 {{/each}}
+{{else}}
+- [ ] *(No recommended checks provided)*
 {{/if}}
+
+### Evidence Contract
+
+For each mandatory check marked complete, include:
+- evidence type
+- evidence source
+- evidence content
 
 {{/if}}
 
@@ -114,7 +104,7 @@
 ## Categories
 
 | Category | Description |
-|----------|-------------|
+|---|---|
 {{#each categories}}
 | `{{this}}` | Gates related to {{this}} |
 {{/each}}

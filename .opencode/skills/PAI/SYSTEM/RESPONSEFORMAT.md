@@ -46,7 +46,7 @@ If this file conflicts with `SKILL.md`, **`SKILL.md` wins**.
 6. [Sixth key point]
 7. [Seventh key point]
 8. [Eighth key point - conclusion]
-🗣️ {daidentity.name}: [16 words max - factual summary, not conversational - THIS IS SPOKEN ALOUD]
+🗣️ {daidentity.name}: [8-24 words - concise spoken summary - THIS IS SPOKEN ALOUD]
 ```
 
 ### Minimal Format (Conversational Responses)
@@ -72,20 +72,24 @@ These fields are legacy/compatibility labels. The Algorithm section in `SKILL.md
 | 📁 CAPTURE | Context to preserve | Tasks |
 | ➡️ NEXT | Recommended next steps | Tasks |
 | 📖 STORY EXPLANATION | Numbered list (1-8) | Tasks |
-| 🗣️ {daidentity.name} | Spoken output (16 words max, factual not conversational) | **Always** |
+| 🗣️ {daidentity.name} | Spoken output (8-24 words, concise and direct) | **Always** |
 
 ---
 
 ## Voice Output Line
 
-The `🗣️ {daidentity.name}:` line is the only line that gets spoken aloud by the voice server. Everything else is visual.
+The `🗣️ {daidentity.name}:` line is the only spoken line from **response-body extraction**. Everything else in the response body is visual.
+
+Out-of-band `voice_notify` calls (if used) are separate notifications, not part of response-body extraction.
 
 **Rules:**
-- Maximum 16 words
+- Minimum 8 words
+- Maximum 24 words
 - Must be present in every response
 - `{daidentity.name}:` is a label for the voice system—the content is first-person speech
 - **Never refer to yourself in third person.** You ARE the DA. If your name is "TARS", never say "TARS will now..." — say "I will now..."
-- Factual summary of what was done, not conversational phrases
+- Concise summary of what was done and key result
+- Avoid double-speak: if a `voice_notify` call already announced the same content, keep the final voice line distinct and concise.
 - WRONG: "Done." / "Happy to help!" / "Got it, moving forward."
 - WRONG: "TARS has completed the task." (third-person self-reference)
 - RIGHT: "Updated all four banner modes with robot emoji and repo URL in dark teal."
@@ -170,8 +174,8 @@ Prefer the depth modes defined in `SKILL.md` (FULL / ITERATION / MINIMAL).
 1. **Plain text responses** - No format = silent response
 2. **Missing voice line** - User can't hear the response
 3. **Paragraph in STORY EXPLANATION** - Must be numbered list
-4. **Too many words in voice line** - Keep to 16 max
-5. **Conversational voice lines** - Use factual summaries, not "Done!" or "Happy to help!"
+4. **Voice line length drift** - Keep to 8-24 words
+5. **Low-information voice lines** - Avoid "Done!" / "Happy to help!" style filler
 7. **Third-person self-reference** - Never say "PAI will..." or "[AI name] has..." — use first person ("I will...", "I fixed...")
 
 ---

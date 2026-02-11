@@ -25,7 +25,7 @@ Normalize ambiguous/legacy labels before routing:
 ### 1) Canonical routable IDs
 
 - Thinking skills: `council`, `red-team`, `first-principles`, `be-creative`
-- Capability agents: `Engineer`, `Architect`, `Designer`, `QATester`, `Pentester`, `Explore`, etc.
+- Capability agents: `Engineer`, `Architect`, `Designer`, `QATester`, `Pentester`, `explore`, etc.
 
 ### 2) Accepted aliases
 

@@ -1531,14 +1531,15 @@ export const PaiUnified: Plugin = async (ctx) => {
 
         // Codex clean-slate: replace OpenCode's assembled system bundle with
         // canonical sources (opencode.json instructions[] + nested AGENTS.md).
-        if (sessionId && isCodexOverrideSession(sessionId) && kind === "primary") {
+        // Apply to primary + subagent sessions (exclude internal helper sessions).
+        if (sessionId && isCodexOverrideSession(sessionId) && kind !== "internal") {
           const projectDir = directory || process.cwd();
           output.system.length = 0;
           output.system.push(
             ...buildCanonicalSystemBundle({
               scratchpadDir,
               projectDir,
-              includeSubagentDirective: false,
+              includeSubagentDirective: kind !== "primary",
             })
           );
 

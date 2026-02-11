@@ -1,0 +1,96 @@
+digraph PAI_Algorithm_Flow {
+  rankdir=TB;
+  labelloc=t;
+  label="PAI Algorithm Flow (v0.2.34 localized, overview)";
+  fontname="Helvetica";
+  fontsize=18;
+  nodesep=0.4;
+  ranksep=0.55;
+
+  node [fontname="Helvetica", fontsize=11, style="rounded,filled", fillcolor="#F8FAFC", color="#1F2937"];
+  edge [fontname="Helvetica", fontsize=10, color="#374151"];
+
+  // Entry and depth selection
+  start [shape=box, fillcolor="#DBEAFE", label="Start response\n(first token must be 🤖)"];
+  classify [shape=diamond, fillcolor="#F1F5F9", label="Depth classification\n(FULL / ITERATION / MINIMAL)"];
+
+  start -> classify [color="#B91C1C", penwidth=2.0, label="MUST"];
+
+  // FULL path (authoritative execution pipeline)
+  subgraph cluster_full {
+    label="Authoritative FULL pipeline";
+    color="#065F46";
+    penwidth=1.8;
+
+    observe [shape=box, fillcolor="#ECFDF5", label="1) OBSERVE\nReverse-engineer request\nCreate ISC tasks\n(see algorithm-observe.dot)"];
+    think [shape=box, fillcolor="#ECFDF5", label="2) THINK\nAssess thinking tools\nCapability selection\n(see algorithm-think.dot)"];
+    plan [shape=box, fillcolor="#ECFDF5", label="3) PLAN\nFinalize approach\n(phase detail TBD)"];
+    dep_check [shape=diamond, fillcolor="#F1F5F9", label="Independent tasks present?"];
+    parallel_fanout [shape=box, fillcolor="#ECFDF5", label="4) BUILD/EXECUTE\nFan-out parallel workstreams"];
+    serial_exec [shape=box, fillcolor="#ECFDF5", label="4) BUILD/EXECUTE\nSerial path for dependencies"];
+    fanin [shape=box, fillcolor="#ECFDF5", label="Collect outputs (fan-in)"];
+    verify [shape=octagon, fillcolor="#FEF3C7", label="6) VERIFY (culmination)\nEvidence + criteria closure\n(phase detail TBD)"];
+    learn [shape=box, fillcolor="#ECFDF5", label="7) LEARN\nCapture improvements"];
+    summary [shape=note, fillcolor="#E0E7FF", label="Output: Summary + Marvin line"];
+
+    observe -> think   [color="#B91C1C", penwidth=2.0, label="MUST"];
+    think -> plan      [color="#B91C1C", penwidth=2.0, label="MUST"];
+    plan -> dep_check  [color="#B91C1C", penwidth=2.0, label="MUST"];
+    dep_check -> parallel_fanout [color="#B91C1C", penwidth=2.0, label="YES"];
+    dep_check -> serial_exec [color="#B91C1C", penwidth=2.0, label="NO"];
+    parallel_fanout -> fanin [color="#B91C1C", penwidth=2.0, label="MUST"];
+    serial_exec -> fanin [color="#B91C1C", penwidth=2.0, label="MUST"];
+    fanin -> verify [color="#B91C1C", penwidth=2.0, label="MUST"];
+    verify -> learn    [color="#B91C1C", penwidth=2.0, label="MUST"];
+    learn -> summary   [color="#B91C1C", penwidth=2.0, label="MUST"];
+  }
+
+  // ITERATION path
+  subgraph cluster_iteration {
+    label="ITERATION path";
+    color="#9A3412";
+    penwidth=1.4;
+
+    iter_change [shape=box, fillcolor="#FFF7ED", label="CHANGE\nWhat's different now"];
+    iter_verify [shape=octagon, fillcolor="#FEF3C7", label="VERIFY\nShow evidence"];
+    iter_out [shape=note, fillcolor="#E0E7FF", label="Output: iteration result + Marvin line"];
+
+    iter_change -> iter_verify [color="#B91C1C", penwidth=2.0, label="MUST"];
+    iter_verify -> iter_out [color="#B91C1C", penwidth=2.0, label="MUST"];
+  }
+
+  // MINIMAL path
+  subgraph cluster_minimal {
+    label="MINIMAL path";
+    color="#6B7280";
+    style="dashed";
+
+    minimal_summary [shape=box, fillcolor="#F9FAFB", label="Compact summary"];
+    minimal_voice [shape=note, fillcolor="#E5E7EB", label="Marvin voice line"];
+
+    minimal_summary -> minimal_voice [color="#B91C1C", penwidth=2.0, label="MUST"];
+  }
+
+  // Branching from depth classification
+  classify -> observe [color="#B91C1C", penwidth=2.0, label="FULL (MUST)"];
+  classify -> iter_change [color="#B91C1C", penwidth=2.0, label="ITERATION (MUST)"];
+  classify -> minimal_summary [color="#B91C1C", penwidth=2.0, label="MINIMAL (MUST)"];
+
+  // Question tool gate (applies inside all paths)
+  need_input [shape=diamond, fillcolor="#F1F5F9", label="Input required to proceed safely?"];
+  use_question [shape=octagon, fillcolor="#FEE2E2", label="Use question tool\n(no inline plain-text questions)"];
+
+  think -> need_input [style=dashed, color="#6B7280", label="MAY"];
+  plan -> need_input [style=dashed, color="#6B7280", label="MAY"];
+  need_input -> use_question [color="#B91C1C", penwidth=2.0, label="YES (MUST)"];
+  need_input -> dep_check [style=dashed, color="#6B7280", label="NO"];
+  use_question -> dep_check [color="#B91C1C", penwidth=2.0, label="resume"];
+
+  // Voice notification constraints (best-effort contract)
+  voice_gate [shape=diamond, fillcolor="#F1F5F9", label="Announce phase milestone?"];
+  voice_notify [shape=octagon, fillcolor="#FEF3C7", label="voice_notify tool call\n(1 per assistant message, no advance)"];
+  think -> voice_gate [style=dashed, color="#D97706", label="SHOULD"];
+  fanin -> voice_gate [style=dashed, color="#D97706", label="SHOULD"];
+  verify -> voice_gate [style=dashed, color="#D97706", label="SHOULD"];
+  voice_gate -> voice_notify [color="#D97706", penwidth=1.6, label="YES"];
+}

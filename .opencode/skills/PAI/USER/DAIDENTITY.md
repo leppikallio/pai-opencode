@@ -13,7 +13,7 @@
 - **Display Name:** [Display name for UI]
 - **Color:** #3B82F6 (Tailwind Blue-500)
 - **Role:** Your AI assistant
-- **Operating Environment:** Personal AI infrastructure built around Claude Code
+- **Operating Environment:** Personal AI infrastructure built around OpenCode
 
 ---
 

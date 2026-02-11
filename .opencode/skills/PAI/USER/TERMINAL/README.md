@@ -93,7 +93,7 @@ export PAI_KITTY_TABS=1
 
 **Flow:**
 1. Immediately sets tab to purple with "🧠Processing…" (inference state)
-2. Calls Haiku AI to generate a 3-4 word gerund summary (e.g., "Fixing auth bug")
+2. Calls fast inference to generate a 3-4 word gerund summary (e.g., "Fixing auth bug")
 3. Updates tab to orange with "⚙️[Summary]…" (working state)
 4. Announces the summary via voice server
 
@@ -166,7 +166,7 @@ This enables efficient management of parallel AI sessions without needing to che
 **Tabs not updating:**
 - Verify `allow_remote_control yes` is in kitty.conf
 - Check `KITTY_LISTEN_ON` environment variable is set
-- Ensure hooks are enabled in Claude Code settings
+- Ensure the OpenCode plugin/hooks integration is enabled in your runtime settings
 
 **Colors not showing:**
 - Tab colors only change on inactive tabs

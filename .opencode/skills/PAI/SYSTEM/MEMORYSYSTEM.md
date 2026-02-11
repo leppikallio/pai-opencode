@@ -49,17 +49,13 @@ Plugins maintain projections:
 
 ## Directory Details
 
-### Claude Code projects/ - Native Session Storage
+### Legacy upstream note — Claude Code projects/
 
-**Location:** `~/.config/opencode/projects/-Users-{username}--claude/`
-*(Replace `{username}` with your system username, e.g., `-Users-john--claude`)*
-**What populates it:** Claude Code automatically (every conversation)
-**Content:** Complete session transcripts in JSONL format
-**Format:** `{uuid}.jsonl` - one file per session
-**Retention:** 30 days (Claude Code manages cleanup)
-**Purpose:** Source of truth for all session data; Observability and harvesting tools read from here
+**Legacy location (upstream reference):** `~/.config/opencode/projects/-Users-{username}--claude/`
 
-This is the actual "firehose" - every message, tool call, and response. PAI leverages this native storage rather than duplicating it.
+This section is historical compatibility context only.
+
+In OpenCode PAI, `MEMORY/RAW/` is the active append-only firehose and source of truth.
 
 ### WORK/ - Primary Work Tracking
 
@@ -128,13 +124,13 @@ Legacy note:
 **Not implemented yet (OpenCode port):** implicit sentiment capture.
 
 Update (v2.5 port): implicit sentiment capture is implemented as heuristic-gated carrier inference.
-- Writes: `MEMORY/LEARNING/SIGNALS/ratings.jsonl` with `source: "implicit"`
+- Writes: `MEMORY/LEARNING/SIGNALS/` rating stream entries with `source: "implicit"`
 
 **Structure:**
 - `LEARNING/SYSTEM/YYYY-MM/` - PAI/tooling learnings (infrastructure issues)
 - `LEARNING/ALGORITHM/YYYY-MM/` - Task execution learnings (approach errors)
 - `LEARNING/SYSTEM/` - Aggregated pattern analysis reports
-- `MEMORY/LEARNING/SIGNALS/ratings.jsonl` - All user satisfaction ratings
+- `MEMORY/LEARNING/SIGNALS/` - User satisfaction signal stream
 
 **Categorization logic:**
 | Directory | When Used | Example Triggers |
@@ -224,7 +220,7 @@ This is mutable state that changes during execution - not historical records. If
 | Plugin/Handler | OpenCode Event | Writes To |
 |---------------|----------------|----------|
 | `plugins/handlers/history-capture.ts` | `message.*`, `session.status`, `session.deleted` | WORK/, RAW/, STATE/current-work.json |
-| `plugins/handlers/rating-capture.ts` | user message commit | MEMORY/LEARNING/SIGNALS/ratings.jsonl (+ low-rating learnings) |
+| `plugins/handlers/rating-capture.ts` | user message commit | MEMORY/LEARNING/SIGNALS/ (+ low-rating learnings) |
 | `plugins/handlers/learning-capture.ts` | idle checkpoint, session.deleted | LEARNING/ |
 | `plugins/handlers/agent-capture.ts` | `tool.execute.after` (Task) | RESEARCH/ |
 | `plugins/handlers/security-validator.ts` | `tool.execute.before` | `~/.config/opencode/MEMORY/SECURITY/YYYY-MM/security.jsonl` |
@@ -272,7 +268,7 @@ ls ~/.config/opencode/MEMORY/WORK/ | tail -5
 
 ### Check ratings
 ```bash
-tail ~/.config/opencode/MEMORY/LEARNING/SIGNALS/ratings.jsonl
+ls ~/.config/opencode/MEMORY/LEARNING/SIGNALS/
 ```
 
 ### View RAW events
@@ -301,7 +297,7 @@ cat ~/.config/opencode/MEMORY/LEARNING/FAILURES/2026-01/*/CONTEXT.md | head -100
 
 Automated failure-capture tooling is not implemented yet. Low-rating signals are captured to:
 
-- `~/.config/opencode/MEMORY/LEARNING/SIGNALS/ratings.jsonl`
+- `~/.config/opencode/MEMORY/LEARNING/SIGNALS/`
 
 ### Check multi-session progress
 ```bash

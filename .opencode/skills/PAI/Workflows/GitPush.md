@@ -1,6 +1,6 @@
 # Git Workflow - Push Updates
 
-**Purpose:** Complete workflow for committing and pushing changes from the **PAI source repo** (`~/Projects/pai-opencode`).
+**Purpose:** Complete workflow for committing and pushing changes from the active **PAI source repo** (confirm path first).
 
 **When User Says:** "push changes" or "update repo" or "commit and push"
 
@@ -10,7 +10,7 @@
 
 | Repository | Directory | Purpose |
 |------------|-----------|---------|
-| **PAI SOURCE REPO** | `~/Projects/pai-opencode/` | Where you edit and commit changes |
+| **PAI SOURCE REPO** | `<source-repo-path>/` | Where you edit and commit changes |
 | **PAI RUNTIME** | `~/.config/opencode/` | Installed runtime (not authoritative source) |
 | **PUBLIC TEMPLATE** | (varies) | Open source template / public repo |
 
@@ -35,7 +35,7 @@ Before EVERY push: `git remote -v` must show the intended source-repo remote (pr
 
 ```bash
 # MUST be in the SOURCE repo
-cd "~/Projects/pai-opencode" && pwd
+pwd
 
 # MUST show the correct (private) remote
 git remote -v
@@ -43,7 +43,7 @@ git remote -v
 ```
 
 **⛔ STOP IMMEDIATELY if:**
-- `pwd` is not `~/Projects/pai-opencode`
+- `pwd` is not the confirmed source repo path
 - `git remote -v` points to any public template remote
 
 **This is a HARD STOP condition.** Never proceed if verification fails.
@@ -82,10 +82,6 @@ git commit -m "$(cat <<'EOF'
 - Key change 1
 - Key change 2
 - Key change 3
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
 EOF
 )"
 ```
@@ -133,7 +129,7 @@ git status  # Confirm clean working directory
 
 ## Security Checklist (ALWAYS)
 
-- ✅ Verified we're in ~/Projects/pai-opencode/ directory
+- ✅ Verified we're in the confirmed source repo directory
 - ✅ Verified remote is the correct private repository
 - ✅ Reviewed changes for sensitive data
 - ✅ Commit message is descriptive and professional
@@ -166,7 +162,7 @@ git status
 
 ## CRITICAL
 
-**This workflow is for the SOURCE repo (`~/Projects/pai-opencode`) only.**
+**This workflow is for the confirmed SOURCE repo only.**
 
 | If User Says... | What to Do |
 |-----------------|------------|

@@ -10,7 +10,7 @@ The PAI system uses Kitty terminal tab colors and title suffixes to provide inst
 
 | State | Icon | Format | Suffix | Inactive Background | When |
 |-------|------|--------|--------|---------------------|------|
-| **Inference** | 🧠 | Normal | `…` | Purple `#1E0A3C` | AI thinking (Haiku/Sonnet inference) |
+| **Inference** | 🧠 | Normal | `…` | Purple `#1E0A3C` | AI inference in progress |
 | **Working** | ⚙️ | *Italic* | `…` | Orange `#804000` | Processing your request |
 | **Completed** | ✓ | Normal | (none) | Green `#022800` | Task finished successfully |
 | **Awaiting Input** | ❓ | **BOLD CAPS** | (none) | Teal `#085050` | question tool used |

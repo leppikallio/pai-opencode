@@ -1,77 +1,30 @@
 {{!--
-  COMPARISON Template - A/B Testing
-
-  Purpose: Generate side-by-side prompt variant comparisons.
-
-  Use Cases:
-  - A/B testing prompt variations
-  - Comparing model outputs
-  - Parameter sweep analysis
-  - Prompt optimization
-
-  Key Principles (from research):
-  - Position swapping to mitigate bias
-  - Same test cases for both variants
-  - Statistical significance testing
-  - Multi-judge panels for reliability
-
-  Input Data Structure:
-  ```yaml
-  comparison:
-    name: string
-    hypothesis: string
-    variants:
-      a:
-        name: string
-        description: string
-        prompt: string (or path)
-      b:
-        name: string
-        description: string
-        prompt: string (or path)
-    test_cases: [string] (test case IDs)
-    judges:
-      - name: string
-        model: string
-        focus: string
-    settings:
-      position_swap: boolean
-      num_runs: number
-      confidence_level: number
-  ```
-
-  Usage:
-  bun run RenderTemplate.ts -t Evals/Comparison.hbs -d Data/PromptABTest.yaml
+  COMPARISON Template — A/B prompt experiment contract
 --}}
 
 # {{comparison.name}}
 
 ## Hypothesis
-
 {{comparison.hypothesis}}
 
 ---
 
 ## Variants
 
-### Variant A: {{comparison.variants.a.name}}
-
+### Variant A — {{comparison.variants.a.name}}
 {{comparison.variants.a.description}}
-
 {{#if comparison.variants.a.prompt}}
-**Prompt:**
-```
+
+```text
 {{comparison.variants.a.prompt}}
 ```
 {{/if}}
 
-### Variant B: {{comparison.variants.b.name}}
-
+### Variant B — {{comparison.variants.b.name}}
 {{comparison.variants.b.description}}
-
 {{#if comparison.variants.b.prompt}}
-**Prompt:**
-```
+
+```text
 {{comparison.variants.b.prompt}}
 ```
 {{/if}}
@@ -80,21 +33,19 @@
 
 ## Evaluation Setup
 
-### Test Cases
-
 {{#if comparison.test_cases}}
-Running against {{comparison.test_cases.length}} test cases:
+**Test Cases ({{comparison.test_cases.length}}):**
 {{#each comparison.test_cases}}
 - `{{this}}`
 {{/each}}
 {{else}}
-*Test cases not specified - will use all available*
+**Test Cases:** use full suite
 {{/if}}
 
 ### Judges
 
 | Judge | Model | Focus |
-|-------|-------|-------|
+|---|---|---|
 {{#each comparison.judges}}
 | {{name}} | `{{model}}` | {{focus}} |
 {{/each}}
@@ -102,82 +53,57 @@ Running against {{comparison.test_cases.length}} test cases:
 ### Settings
 
 | Setting | Value |
-|---------|-------|
-| Position Swapping | {{#if comparison.settings.position_swap}}Yes (bias mitigation){{else}}No{{/if}} |
-| Runs per Test Case | {{default comparison.settings.num_runs 1}} |
-| Confidence Level | {{default comparison.settings.confidence_level 0.95}} |
+|---|---|
+| Position swap | {{#if comparison.settings.position_swap}}enabled{{else}}disabled{{/if}} |
+| Runs per case | {{default comparison.settings.num_runs 1}} |
+| Confidence level | {{default comparison.settings.confidence_level 0.95}} |
 
 ---
 
 ## Execution Protocol
 
-1. **For each test case:**
-   {{#if comparison.settings.position_swap}}
-   - Run with Variant A as "Option 1", Variant B as "Option 2"
-   - Run with Variant B as "Option 1", Variant A as "Option 2"
-   - Average scores to mitigate position bias
-   {{else}}
-   - Generate output with both variants
-   - Evaluate with all judges
-   {{/if}}
-
-2. **For each judge:**
-   - Evaluate both outputs independently
-   - Record scores and reasoning
-   - Calculate winner for each dimension
-
-3. **Aggregate results:**
-   - Calculate win rates per variant
-   - Compute statistical significance
-   - Determine overall winner
+1. Run both variants on identical test inputs.
+2. If position swap enabled, evaluate both A/B and B/A ordering.
+3. Score with same judges and rubric.
+4. Aggregate per-case and overall outcomes.
+5. Compute significance before declaring winner.
 
 ---
 
-## Results Template
+## Result Contract
 
-### Summary
+Produce final report with:
+
+1. Win rate per variant
+2. Mean score and variance
+3. Significance signal (p-value or equivalent)
+4. Per-dimension breakdown
+5. Recommendation (accept/reject/inconclusive)
+
+Significance method:
+- Numeric score comparison: two-sided paired t-test (or bootstrap CI if non-normal)
+- Binary win/loss outcomes: McNemar's test
+- Report method used alongside p-value/confidence interval
+
+Output format (default):
+- Markdown with fixed headings:
+  - `## Summary`
+  - `## Metrics`
+  - `## Significance`
+  - `## Per-Dimension Breakdown`
+  - `## Recommendation`
+
+Suggested table skeleton:
 
 | Metric | Variant A | Variant B |
-|--------|-----------|-----------|
-| Win Rate | __%      | __%       |
-| Avg Score | __       | __        |
-| Std Dev | __        | __        |
-
-### Statistical Significance
-
-- **p-value:** __
-- **Confidence Interval:** [__, __]
-- **Significant Difference:** Yes/No
-
-### Per-Dimension Breakdown
-
-| Dimension | A Wins | B Wins | Tie |
-|-----------|--------|--------|-----|
-{{#each comparison.judges.[0].dimensions}}
-| {{this}} | __ | __ | __ |
-{{/each}}
-
-### Conclusion
-
-Based on the results:
-- **Winner:** [Variant A / Variant B / No Clear Winner]
-- **Confidence:** [High / Medium / Low]
-- **Recommendation:** [Accept hypothesis / Reject hypothesis / Inconclusive]
-
----
-
-## Run Command
-
-```bash
-bun run ~/.config/opencode/Skills/Evals/EvalServer/Lib/compare.ts \
-  --config {{comparison.name}}.yaml \
-  --output results/{{comparison.name}}_$(date +%Y%m%d).json
-```
+|---|---:|---:|
+| Win Rate | __ | __ |
+| Mean Score | __ | __ |
+| Std Dev | __ | __ |
 
 ---
 
 {{#if comparison.notes}}
 ## Notes
-
 {{comparison.notes}}
 {{/if}}

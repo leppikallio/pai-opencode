@@ -1,6 +1,6 @@
 # Background Delegation Workflow
 
-Launch parallel Task calls while you continue working.
+Launch parallel `functions.task` calls while you continue working.
 
 ## Triggers
 
@@ -12,20 +12,20 @@ Launch parallel Task calls while you continue working.
 ## How It Works
 
 1. Parse the task(s) to delegate
-2. Launch each agent as a normal Task call
-3. Continue working while tasks run
-4. Collect results when each Task completes
+2. Launch each agent as a normal `functions.task` call
+3. Continue working while calls execute
+4. Collect results when each `functions.task` call completes
 
 ## Launching Background Agents
 
 OpenCode does not expose a background execution flag in the Task tool.
-To emulate background work, run multiple Task calls and keep working while they execute.
+To emulate background work, run multiple `functions.task` calls and keep working while they execute.
 
 ```typescript
-Task({
+functions.task({
   description: "Research OpenAI news",
   prompt: "Research the latest OpenAI developments...",
-  subagent_type: "PerplexityResearcher"  // must exist as an agent name
+  subagent_type: "researcher"  // use an available runtime subagent type
 })
 ```
 
@@ -36,7 +36,7 @@ Task({
 ## Checking Status
 
 OpenCode does not provide a separate Task output retrieval tool.
-Task outputs are returned in-band when the Task call completes.
+Task outputs are returned in-band when the `functions.task` call completes.
 
 ## Retrieving Results
 
@@ -49,13 +49,12 @@ Additionally, the runtime plugin captures Task outputs to `~/.config/opencode/ME
 
 ```
 User: "I'm writing the newsletter. Background agents research
-       the OpenAI drama, Anthropic's new model, and Google's update."
+       the latest OpenAI, xAI, and Google updates."
 
 → Launches 3 background agents in parallel
 → Reports agent IDs and what each is researching
 → User continues writing
-→ User checks "Background status" periodically
-→ User retrieves results when ready
+→ User retrieves in-band results as each `functions.task` call completes
 ```
 
 ### OSINT Investigation
@@ -66,8 +65,8 @@ User: "Background agents investigate John Smith, Jane Doe,
 
 → Launches 3 Intern agents with OSINT prompts
 → User continues other work
-→ Status check shows 2/3 complete
-→ Results retrieved when ready
+→ User continues other work until task results return
+→ Results are consumed in-band on completion
 ```
 
 ### Code Exploration
@@ -76,7 +75,7 @@ User: "Background agents investigate John Smith, Jane Doe,
 User: "Background agents explore the codebase for
        auth patterns, API endpoints, and test coverage."
 
-→ Launches 3 Explore agents
+→ Launches 3 `explore` agents
 → Reports what each is analyzing
 → User continues coding
 ```
@@ -84,10 +83,10 @@ User: "Background agents explore the codebase for
 ## Best Practices
 
 1. **Use for parallel work** - When you have 3+ independent tasks
-2. **Pick the right model** - Haiku for speed, Sonnet for quality
+2. **Pick the right subagent** - choose by task type and risk level
 3. **Don't over-spawn** - 3-5 agents is usually optimal
-4. **Check periodically** - Poll status every few minutes if curious
-5. **Retrieve when needed** - Don't wait for completion unless you need results
+4. **No separate status API** - rely on in-band Task completion results
+5. **Retrieve when needed** - consume results as each Task returns
 
 ## Contrast with Foreground Delegation
 
@@ -95,13 +94,13 @@ User: "Background agents explore the codebase for
 |--------|---------------------|------------|
 | Blocking | Yes - waits for each | No dedicated background mode |
 | When to use | Need results now | Can work on other things |
-| Syntax | Normal Task call | (no background flag) |
-| Retrieval | Automatic | In-band Task result |
+| Syntax | Normal `functions.task` call | (no background flag) |
+| Retrieval | Automatic | In-band task result |
 
 ## Integration
 
-- Works with all agent types: Intern, Researchers, Explore, etc.
+- Works with all agent types: Intern, researcher, explore, Engineer, etc.
+- For codebase exploration specifically, use `subagent_type: "explore"` (not researcher variants).
 - Combine with research skill for background research workflows
 - Use with osint skill for parallel investigations
 - Pairs well with newsletter/content workflows
-

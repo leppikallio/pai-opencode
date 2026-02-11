@@ -10,7 +10,7 @@ PAI has three agent systems that serve different purposes. Confusing them causes
 
 | System | What It Is | When to Use | Has Unique Voice? |
 |--------|-----------|-------------|-------------------|
-| **Task Tool Subagent Types** | Pre-built agents in Claude Code (Architect, Designer, Engineer, Intern, Explore, etc.) | Internal workflow use ONLY | No |
+| **Task Tool Subagent Types** | Pre-built subagent types in OpenCode runtime (Architect, Designer, Engineer, Intern, explore, etc.) | Runtime delegation (including generic user requests), not custom-agent composition | No |
 | **Named Agents** | Persistent identities with backstories and ElevenLabs voices (Serena, Marcus, Rook, etc.) | Recurring work, voice output, relationships | Yes |
 | **Custom Agents** | Dynamic agents composed via AgentFactory traits | When user says "custom agents" | Yes (trait-mapped) |
 
@@ -22,12 +22,12 @@ PAI has three agent systems that serve different purposes. Confusing them causes
 
 ```typescript
 // ❌ WRONG - These are Task tool subagent_types, NOT custom agents
-Task({ subagent_type: "Architect", prompt: "..." })
-Task({ subagent_type: "Designer", prompt: "..." })
-Task({ subagent_type: "Engineer", prompt: "..." })
+functions.task({ subagent_type: "Architect", prompt: "...", description: "..." })
+functions.task({ subagent_type: "Designer", prompt: "...", description: "..." })
+functions.task({ subagent_type: "Engineer", prompt: "...", description: "..." })
 
 // ✅ RIGHT - Invoke the agents skill for custom agents
-Skill("agents")  // → CreateCustomAgent workflow
+// Use the `agents` skill → CreateCustomAgent workflow
 // OR follow the workflow directly:
 // 1. Run AgentFactory with different trait combinations
 // 2. Launch agents with the generated prompts
@@ -42,16 +42,16 @@ Skill("agents")  // → CreateCustomAgent workflow
 
 | User Says | Action | Implementation |
 |-----------|--------|----------------|
-| "**custom agents**", "spin up **custom** agents" | Invoke agents skill | `Skill("agents")` → CreateCustomAgent workflow |
-| "agents", "launch agents", "parallel agents" | Generic Interns | `Task({ subagent_type: "Intern" })` |
+| "**custom agents**", "spin up **custom** agents" | Invoke agents skill | `agents` skill → CreateCustomAgent workflow |
+| "agents", "launch agents", "parallel agents" | Generic Interns | `functions.task({ subagent_type: "Intern", ... })` |
 | "use Remy", "get Ava to" | Named agent | Use appropriate researcher subagent_type |
-| (Internal workflow calls) | Task subagent_types | `Task({ subagent_type: "Engineer" })` etc. |
+| (Internal workflow calls) | Task subagent_types | `functions.task({ subagent_type: "Engineer", ... })` etc. |
 
 ### Custom Agent Creation Flow
 
 When user requests custom agents:
 
-1. **Invoke agents skill** via `Skill("agents")` or follow CreateCustomAgent workflow
+1. **Load `agents` skill** (for example via `functions.skill_use`/`functions.skill`) and follow CreateCustomAgent workflow
 2. **Run AgentFactory** for EACH agent with DIFFERENT trait combinations
 3. **Extract prompt and voice_id** from ComposeAgent output
 4. **Launch agents** with Task tool using the composed prompts
@@ -59,16 +59,16 @@ When user requests custom agents:
 
 ```bash
 # Example: 3 custom research agents
-bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts --traits "research,enthusiastic,exploratory"
-bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts --traits "research,skeptical,systematic"
-bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts --traits "research,analytical,synthesizing"
+bun run ../../agents/Tools/AgentFactory.ts --traits "research,enthusiastic,exploratory"
+bun run ../../agents/Tools/AgentFactory.ts --traits "research,skeptical,systematic"
+bun run ../../agents/Tools/AgentFactory.ts --traits "research,analytical,synthesizing"
 ```
 
 ---
 
-## Task Tool Subagent Types (Internal Use Only)
+## Task Tool Subagent Types (Runtime Delegation)
 
-These are pre-built agents available via OpenCode's Task tool. They are for **internal workflow use**, not for user-requested "custom agents."
+These are pre-built agents available via OpenCode's Task tool. Use them for runtime delegation work (including generic user requests), but not for user-requested "custom agents."
 
 | Subagent Type | Purpose | When Used |
 |---------------|---------|-----------|
@@ -77,7 +77,7 @@ These are pre-built agents available via OpenCode's Task tool. They are for **in
 | `Designer` | UX/UI design | Implementation/design workflows (capability routing) |
 | `Engineer` | Code implementation | Implementation/design workflows (capability routing) |
 | `Intern` | General-purpose parallel work | Parallel grunt work, research |
-| `Explore` | Codebase exploration | Finding files, understanding structure |
+| `explore` | Codebase exploration | Finding files, understanding structure |
 | `QATester` | Quality assurance | Browser testing workflows |
 | `Pentester` | Security testing | web-assessment workflows |
 | `ClaudeResearcher` | Claude-based research | research skill workflows |
@@ -100,10 +100,10 @@ Named agents have rich backstories, personality traits, and mapped ElevenLabs vo
 | Marcus Webb | Engineer | Premium Male | Strategic technical leadership |
 | Rook Blackburn | Pentester | Enhanced UK Male | Security testing with personality |
 | Dev Patel | Intern | High-energy genius | Parallel grunt work |
-| Ava Sterling | Claude Researcher | Premium US Female | Strategic research |
+| Ava Sterling | Strategic Researcher | Premium US Female | Strategic research |
 | Alex Rivera | Gemini Researcher | Multi-perspective | Comprehensive analysis |
 
-**Full backstories and voice settings:** `skills/agents/AgentPersonalities.md`
+**Full backstories and voice settings:** `../../agents/AgentPersonalities.md`
 
 ---
 
@@ -131,7 +131,7 @@ Custom agents are composed on-the-fly from traits using AgentFactory. Each uniqu
 | security + adversarial | Callum (edgy) | Hacker character |
 | analytical + meticulous | Charlotte (sophisticated) | Precision analysis |
 
-**Full trait definitions and voice mappings:** `skills/agents/Data/Traits.yaml`
+**Full trait definitions and voice mappings:** `../../agents/Data/Traits.yaml`
 
 ---
 
@@ -151,10 +151,11 @@ If explicit model override support is introduced in the runtime, verify tool sch
 
 ## Spotcheck Pattern
 
-**Always launch a spotcheck agent after parallel work:**
+**Launch a spotcheck agent when outputs are high-stakes, heterogeneous, or conflict-prone:**
 
 ```typescript
-Task({
+functions.task({
+  description: "Spotcheck parallel outputs",
   prompt: "Verify consistency across all agent outputs: [results]",
   subagent_type: "Intern"
 })
@@ -164,11 +165,11 @@ Task({
 
 ## References
 
-- **agents Skill:** `skills/agents/SKILL.md` — Custom agent creation, workflows
-- **AgentFactory:** `skills/agents/Tools/AgentFactory.ts` — Dynamic composition tool
-- **Traits:** `skills/agents/Data/Traits.yaml` — Trait definitions and voice mappings
-- **Agent Personalities:** `skills/agents/AgentPersonalities.md` — Named agent backstories
+- **agents Skill:** `../../agents/SKILL.md` — Custom agent creation, workflows
+- **AgentFactory:** `../../agents/Tools/AgentFactory.ts` — Dynamic composition tool
+- **Traits:** `../../agents/Data/Traits.yaml` — Trait definitions and voice mappings
+- **Agent Personalities:** `../../agents/AgentPersonalities.md` — Named agent backstories
 
 ---
 
-*Last updated: 2026-01-14*
+*Last updated: 2026-02-11*

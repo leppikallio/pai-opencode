@@ -1,1 +1,2 @@
-console.log("Hello via Bun!");
+export { renderTemplate } from './RenderTemplate';
+export { validateTemplate } from './ValidateTemplate';

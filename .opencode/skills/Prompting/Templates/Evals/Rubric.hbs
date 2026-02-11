@@ -1,39 +1,10 @@
 {{!--
-  RUBRIC Template - Evaluation Criteria Definition
+  RUBRIC Template — weighted evaluation rubric
 
-  Purpose: Generate structured rubrics with dimensions and scoring scales.
-
-  Use Cases:
-  - Defining evaluation criteria for prompts
-  - Creating scoring matrices
-  - Standardizing quality assessment
-  - Training evaluators (human or AI)
-
-  Input Data Structure:
-  ```yaml
-  rubric:
-    name: string
-    version: string
-    purpose: string
-    total_weight: number (should sum to 1.0)
-  dimensions:
-    - name: string
-      description: string
-      weight: number (0-1)
-      levels:
-        - score: number
-          label: string
-          description: string
-          indicators: [string]
-  pass_threshold: number
-  metadata:
-    created: string
-    author: string
-    use_case: string
-  ```
-
-  Usage:
-  bun run RenderTemplate.ts -t Evals/Rubric.hbs -d Data/ContentQualityRubric.yaml
+  Goals:
+  - Explicit dimensions and weights
+  - Per-level criteria clarity
+  - Reusable scoring instructions
 --}}
 
 # {{rubric.name}}
@@ -60,83 +31,66 @@
 
 ---
 
-## Scoring Dimensions
+## Dimensions
 
 {{#each dimensions}}
 ### {{@index}}. {{name}} ({{percent weight 1}}% weight)
 
 {{description}}
 
-| Score | Level | Description |
-|-------|-------|-------------|
+| Score | Label | Description |
+|---|---|---|
 {{#each levels}}
 | **{{score}}** | {{label}} | {{description}} |
 {{/each}}
 
-{{#if levels.[0].indicators}}
-**Indicators for Top Score ({{levels.[0].score}}):**
-{{#each levels.[0].indicators}}
+{{#each levels}}
+{{#if indicators}}
+**Indicators for score {{score}} ({{label}}):**
+{{#each indicators}}
 - {{this}}
 {{/each}}
 {{/if}}
-
-{{#if levels.[-1].indicators}}
-**Indicators for Lowest Score ({{levels.[-1].score}}):**
-{{#each levels.[-1].indicators}}
-- {{this}}
 {{/each}}
-{{/if}}
 
 ---
-
 {{/each}}
 
 ## Scoring Summary
 
-| Dimension | Weight | Score Range |
-|-----------|--------|-------------|
+| Dimension | Weight |
+|---|---|
 {{#each dimensions}}
-| {{name}} | {{percent weight 1}}% | {{levels.[-1].score}} - {{levels.[0].score}} |
+| {{name}} | {{percent weight 1}}% |
 {{/each}}
-| **Total** | **100%** | |
-
----
-
-## Pass/Fail Threshold
+| **Total** | **100%** |
 
 {{#if pass_threshold}}
-**Passing Score:** {{pass_threshold}} or higher
-
-**Calculation:** Weighted average of all dimension scores must meet or exceed {{pass_threshold}}.
+**Pass Threshold:** {{pass_threshold}} or higher (weighted average)
 {{else}}
-**Threshold:** Not specified (scoring only, no pass/fail determination)
+**Pass Threshold:** Not specified (scoring-only rubric)
 {{/if}}
 
 ---
 
-## How to Use This Rubric
+## Evaluator Instructions
 
-1. **Read each dimension** and understand what it measures
-2. **For each dimension:**
-   - Review the output against the level descriptions
-   - Identify which level best describes the output
-   - Assign the corresponding score
-3. **Calculate weighted average:**
-   - Multiply each dimension score by its weight
-   - Sum all weighted scores
-4. **Compare to threshold** to determine pass/fail (if applicable)
-
----
+1. Score each dimension independently using level definitions.
+2. Quote evidence when scoring contentious dimensions.
+3. Compute weighted average from all dimensions.
+4. Report confidence level (high/medium/low) if uncertainty exists.
 
 {{#if rubric.notes}}
-## Notes
+---
 
+## Notes
 {{rubric.notes}}
 {{/if}}
 
 {{#if rubric.examples}}
-## Examples
+---
 
+## Examples
 {{#each rubric.examples}}
 ### Example {{@index}}: {{title}}
 
