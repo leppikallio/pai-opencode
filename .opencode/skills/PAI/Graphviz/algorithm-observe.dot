@@ -1,0 +1,63 @@
+digraph PAI_Algorithm_Observe {
+  rankdir=TB;
+  labelloc=t;
+  label="PAI Algorithm — Phase 1/7 OBSERVE (detail)";
+  fontname="Helvetica";
+  fontsize=16;
+
+  node [fontname="Helvetica", fontsize=10, style="rounded,filled", fillcolor="#F8FAFC", color="#1F2937"];
+  edge [fontname="Helvetica", fontsize=9, color="#374151"];
+
+  start [shape=box, fillcolor="#DBEAFE", label="Enter OBSERVE phase"];
+  reverse [shape=box, fillcolor="#ECFDF5", label="Reverse engineer request"];
+
+  asked [shape=box, fillcolor="#ECFDF5", label="Extract explicit asks"];
+  implied [shape=box, fillcolor="#ECFDF5", label="Extract implied goals"];
+  dontwant [shape=box, fillcolor="#ECFDF5", label="Extract anti-requirements\n(what user does NOT want)"];
+
+  need_clarify [shape=diamond, fillcolor="#F1F5F9", label="Blocker ambiguity?\nCannot proceed safely/correctly"];
+  question_tool [shape=octagon, fillcolor="#FEE2E2", label="Use question tool\n(never plain-text questions)"];
+
+  draft_isc [shape=box, fillcolor="#ECFDF5", label="Draft ISC criteria from\nexplicit + implied + anti-requirements"];
+
+  rule8 [shape=diamond, fillcolor="#F1F5F9", label="8 words exactly?"];
+  state_not_action [shape=diamond, fillcolor="#F1F5F9", label="State, not action?"];
+  binary [shape=diamond, fillcolor="#F1F5F9", label="Binary testable in ~2 sec?"];
+  granular [shape=diamond, fillcolor="#F1F5F9", label="Single concern only?"];
+
+  fix_isc [shape=box, fillcolor="#FFF7ED", label="Rewrite failing criterion"];
+  write_todos [shape=octagon, fillcolor="#FEF3C7", label="Persist ISC via todowrite"];
+  output [shape=note, fillcolor="#E0E7FF", label="Output artifact:\nvalidated ISC task set"];
+
+  start -> reverse [color="#B91C1C", penwidth=2, label="MUST"];
+  reverse -> asked [color="#B91C1C", penwidth=2, label="MUST"];
+  reverse -> implied [color="#B91C1C", penwidth=2, label="MUST"];
+  reverse -> dontwant [color="#B91C1C", penwidth=2, label="MUST"];
+
+  asked -> need_clarify [style=dashed, color="#6B7280", label="MAY"];
+  implied -> need_clarify [style=dashed, color="#6B7280", label="MAY"];
+  dontwant -> need_clarify [style=dashed, color="#6B7280", label="MAY"];
+  need_clarify -> question_tool [color="#B91C1C", penwidth=2, label="YES (MUST)"];
+  question_tool -> draft_isc [color="#B91C1C", penwidth=2, label="resume"];
+  need_clarify -> draft_isc [style=dashed, color="#6B7280", label="NO"];
+
+  asked -> draft_isc [color="#B91C1C", penwidth=2, label="MUST"];
+  implied -> draft_isc [color="#B91C1C", penwidth=2, label="MUST"];
+  dontwant -> draft_isc [color="#B91C1C", penwidth=2, label="MUST"];
+
+  draft_isc -> rule8 [color="#B91C1C", penwidth=2, label="MUST"];
+  rule8 -> fix_isc [color="#B91C1C", penwidth=2, label="NO"];
+  fix_isc -> draft_isc [color="#B91C1C", penwidth=2, label="retry"];
+  rule8 -> state_not_action [color="#B91C1C", penwidth=2, label="YES"];
+
+  state_not_action -> fix_isc [color="#B91C1C", penwidth=2, label="NO"];
+  state_not_action -> binary [color="#B91C1C", penwidth=2, label="YES"];
+
+  binary -> fix_isc [color="#B91C1C", penwidth=2, label="NO"];
+  binary -> granular [color="#B91C1C", penwidth=2, label="YES"];
+
+  granular -> fix_isc [color="#B91C1C", penwidth=2, label="NO"];
+  granular -> write_todos [color="#B91C1C", penwidth=2, label="YES"];
+
+  write_todos -> output [color="#B91C1C", penwidth=2, label="MUST"];
+}

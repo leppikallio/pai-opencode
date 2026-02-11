@@ -25,8 +25,24 @@ import { getPaiDir } from "../../../pai-tools/PaiRuntime";
 const PAI_DIR = getPaiDir();
 const MEMORY_DIR = path.join(PAI_DIR, "MEMORY");
 const USERNAME = process.env.USER || require("node:os").userInfo().username;
-const PROJECTS_DIR = path.join(PAI_DIR, "projects", `-Users-${USERNAME}--claude`);  // Claude Code native storage
+const PROJECTS_ROOT = path.join(PAI_DIR, "projects");
 const SYSTEM_UPDATES_DIR = path.join(MEMORY_DIR, "PAISYSTEMUPDATES");  // Canonical system change history
+
+function resolveLegacySessionsDir(): string {
+  if (!fs.existsSync(PROJECTS_ROOT)) {
+    return path.join(PROJECTS_ROOT, `-Users-${USERNAME}--legacy`);
+  }
+
+  const candidates = fs.readdirSync(PROJECTS_ROOT, { withFileTypes: true })
+    .filter(e => e.isDirectory() && e.name.startsWith(`-Users-${USERNAME}--`))
+    .map(e => e.name)
+    .sort();
+
+  const selected = candidates[0] || `-Users-${USERNAME}--legacy`;
+  return path.join(PROJECTS_ROOT, selected);
+}
+
+const LEGACY_SESSIONS_DIR = resolveLegacySessionsDir(); // Legacy projects-native session storage
 
 function normalizeSlashes(p: string): string {
   return p.replace(/\\/g, "/");
@@ -134,7 +150,7 @@ function getRelativePath(filePath: string): string {
 // Event Parsing
 // ============================================================================
 
-// Projects/ format from Claude Code native storage
+// Legacy projects/ transcript entry format
 interface ProjectsEntry {
   sessionId?: string;
   type?: "user" | "assistant" | "summary";
@@ -156,19 +172,19 @@ interface ProjectsEntry {
  * Get session files from today (modified within last 24 hours)
  */
 function getTodaySessionFiles(): string[] {
-  if (!fs.existsSync(PROJECTS_DIR)) {
+  if (!fs.existsSync(LEGACY_SESSIONS_DIR)) {
     return [];
   }
 
   const now = Date.now();
   const oneDayAgo = now - 24 * 60 * 60 * 1000;
 
-  const files = fs.readdirSync(PROJECTS_DIR)
+  const files = fs.readdirSync(LEGACY_SESSIONS_DIR)
     .filter(f => f.endsWith('.jsonl'))
     .map(f => ({
       name: f,
-      path: path.join(PROJECTS_DIR, f),
-      mtime: fs.statSync(path.join(PROJECTS_DIR, f)).mtime.getTime()
+      path: path.join(LEGACY_SESSIONS_DIR, f),
+      mtime: fs.statSync(path.join(LEGACY_SESSIONS_DIR, f)).mtime.getTime()
     }))
     .filter(f => f.mtime > oneDayAgo)
     .sort((a, b) => b.mtime - a.mtime);
@@ -180,11 +196,11 @@ async function parseEvents(sessionFilter?: string): Promise<ParsedActivity> {
   const today = new Date();
   const dateStr = today.toISOString().split("T")[0];
 
-  // Get today's session files from projects/
+  // Get today's session files from legacy projects/ transcripts
   const sessionFiles = getTodaySessionFiles();
 
   if (sessionFiles.length === 0) {
-    console.error(`No session files found for today in: ${PROJECTS_DIR}`);
+    console.error(`No session files found for today in: ${LEGACY_SESSIONS_DIR}`);
     return emptyActivity(dateStr, sessionFilter || null);
   }
 

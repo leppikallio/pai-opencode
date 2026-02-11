@@ -16,13 +16,13 @@ Single inference tool with three run levels for different speed/capability trade
 
 **Usage:**
 ```bash
-# Fast (Haiku) - quick tasks, simple generation
+# Fast - quick tasks, simple generation
 bun ~/.config/opencode/skills/PAI/Tools/Inference.ts --level fast "System prompt" "User prompt"
 
-# Standard (Sonnet) - balanced reasoning, typical analysis
+# Standard - balanced reasoning, typical analysis
 bun ~/.config/opencode/skills/PAI/Tools/Inference.ts --level standard "System prompt" "User prompt"
 
-# Smart (Opus) - deep reasoning, strategic decisions
+# Smart - deep reasoning, strategic decisions
 bun ~/.config/opencode/skills/PAI/Tools/Inference.ts --level smart "System prompt" "User prompt"
 
 # With JSON output
@@ -35,9 +35,9 @@ bun ~/.config/opencode/skills/PAI/Tools/Inference.ts --level standard --timeout 
 **Run Levels:**
 | Level | Model | Default Timeout | Use Case |
 |-------|-------|-----------------|----------|
-| **fast** | Haiku | 15s | Quick tasks, simple generation, basic classification |
-| **standard** | Sonnet | 30s | Balanced reasoning, typical analysis, decisions |
-| **smart** | Opus | 90s | Deep reasoning, strategic decisions, complex analysis |
+| **fast** | Runtime profile mapping | 15s | Quick tasks, simple generation, basic classification |
+| **standard** | Runtime profile mapping | 30s | Balanced reasoning, typical analysis, decisions |
+| **smart** | Runtime profile mapping | 90s | Deep reasoning, strategic decisions, complex analysis |
 
 **Programmatic Usage:**
 ```typescript
@@ -64,7 +64,7 @@ if (result.success) {
 - Hooks use this for sentiment analysis, tab titles, work classification
 
 **Technical Details:**
-- Uses Claude CLI with subscription (not API key)
+- Uses the runtime-configured inference backend/profile
 - Disables tools and hooks to prevent recursion
 - Returns latency metrics for monitoring
 
@@ -400,4 +400,3 @@ Archived skill files may exist outside this repo.
 ---
 
 **Last Updated:** 2026-01-12
-

@@ -30,7 +30,7 @@ Log everything for security audit trail.
 
 **Why this approach?**
 
-Many users run Claude Code with `--dangerously-skip-permissions` to avoid constant prompts. This is understandable—permission fatigue is real—but it's not a configuration we want to normalize. Running with all safety checks disabled trades convenience for risk.
+Many users run AI coding tools with permissive settings to avoid constant prompts. This is understandable—permission fatigue is real—but it's not a configuration we want to normalize. Running with all safety checks disabled trades convenience for risk.
 
 Instead, PAI carefully curates security patterns to:
 - **Block** only truly catastrophic operations (filesystem destruction, credential exposure)

@@ -1,41 +1,5 @@
 {{!--
-  TEST_CASE Template - Test Definition
-
-  Purpose: Generate input/expected output pairs with metadata for evals.
-
-  Use Cases:
-  - Defining test cases for prompt evaluation
-  - Creating golden output sets
-  - Regression testing prompts
-  - Building eval datasets
-
-  Input Data Structure:
-  ```yaml
-  test_suite:
-    name: string
-    version: string
-    description: string
-    target_prompt: string (path or identifier)
-  test_cases:
-    - id: string
-      name: string
-      category: string
-      difficulty: string (easy | medium | hard)
-      input:
-        content: string
-        variables: object (optional)
-      expected:
-        output: string (optional - golden output)
-        must_contain: [string] (optional)
-        must_not_contain: [string] (optional)
-        format: string (optional)
-      metadata:
-        tags: [string]
-        notes: string
-  ```
-
-  Usage:
-  bun run RenderTemplate.ts -t Evals/TestCase.hbs -d Data/SummaryTestCases.yaml
+  TEST_CASE Template — eval dataset and expected-contract definition
 --}}
 
 # {{test_suite.name}}
@@ -56,17 +20,13 @@
 ## Test Cases ({{test_cases.length}} total)
 
 {{#each test_cases}}
-### {{id}}: {{name}}
+### {{id}} — {{name}}
 
-{{#if category}}
-**Category:** `{{category}}`
-{{/if}}
-{{#if difficulty}}
-**Difficulty:** {{difficulty}}
-{{/if}}
-{{#if metadata.tags}}
-**Tags:** {{join metadata.tags ", "}}
-{{/if}}
+{{#if category}}**Category:** `{{category}}`{{/if}}
+{{#if difficulty}}  
+**Difficulty:** {{difficulty}}{{/if}}
+{{#if metadata.tags}}  
+**Tags:** {{join metadata.tags ", "}}{{/if}}
 
 #### Input
 
@@ -84,7 +44,7 @@
 {{input.content}}
 ```
 
-#### Expected Output
+#### Expected Contract
 
 {{#if expected.output}}
 **Golden Output:**
@@ -94,21 +54,21 @@
 {{/if}}
 
 {{#if expected.must_contain}}
-**Must Contain:**
+**Must contain:**
 {{#each expected.must_contain}}
 - `{{this}}`
 {{/each}}
 {{/if}}
 
 {{#if expected.must_not_contain}}
-**Must NOT Contain:**
+**Must NOT contain:**
 {{#each expected.must_not_contain}}
 - `{{this}}`
 {{/each}}
 {{/if}}
 
 {{#if expected.format}}
-**Expected Format:** {{expected.format}}
+**Expected format:** {{expected.format}}
 {{/if}}
 
 {{#if metadata.notes}}
@@ -116,38 +76,31 @@
 {{/if}}
 
 ---
-
 {{/each}}
 
-## Summary Statistics
+## Suite-level Evaluation Rules
 
-| Category | Count |
-|----------|-------|
+1. Run all test cases with identical environment/settings.
+2. Preserve raw model outputs before judge scoring.
+3. Judge against expected contract (not style preference unless specified).
+4. Store pass/fail + reason for every failed case.
+
+Matching semantics defaults:
+- `must_contain`: case-insensitive substring match unless test metadata overrides.
+- `must_not_contain`: case-insensitive substring match unless overridden.
+- `expected.format`: structural requirement (e.g., JSON/markdown) must pass before content checks.
+
+---
+
+## Summary
+
+| Metric | Value |
+|---|---|
 | Total Test Cases | {{test_cases.length}} |
-{{!-- Could add category counts if needed --}}
-
----
-
-## Usage
-
-To run these test cases:
-
-```bash
-# Run all test cases
-bun run ~/.config/opencode/Skills/Evals/EvalServer/Lib/run-eval.ts \
-  --use-case {{test_suite.name}} \
-  --all
-
-# Run specific test case
-bun run ~/.config/opencode/Skills/Evals/EvalServer/Lib/run-eval.ts \
-  --use-case {{test_suite.name}} \
-  --test-id <test_id>
-```
-
----
 
 {{#if test_suite.notes}}
-## Notes
+---
 
+## Notes
 {{test_suite.notes}}
 {{/if}}

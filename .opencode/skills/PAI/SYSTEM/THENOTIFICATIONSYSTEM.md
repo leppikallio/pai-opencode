@@ -11,14 +11,17 @@ This system provides:
 
 ## Task Start Announcements
 
-**When STARTING a task, do BOTH:**
+For significant workflow/task starts, follow `SKILL.md` voice contract first.
+Voice notifications are optional and should be used when progress signaling is genuinely useful.
 
-1. **Send voice notification**:
-   Use the `voice_notify` tool:
+Voice contract separation:
+- `voice_notify` = optional out-of-band progress announcement
+- `🗣️` line in the response body = mandatory spoken summary line per Algorithm contract
+- Avoid double-speak: do not announce the same sentence in both channels.
 
-- `message`: "[Doing what {PRINCIPAL.NAME} asked]"
-Executing the **WorkflowName** workflow within the **SkillName** skill...
-```
+1. **If notifying, send one voice notification** using `voice_notify`:
+
+- `message`: "Running the WORKFLOWNAME workflow in the SKILLNAME skill to ACTION"
 
 **Examples:**
 - "Executing the **GIT** workflow within the **PAI** skill..."
@@ -29,7 +32,7 @@ Executing the **WorkflowName** workflow within the **SkillName** skill...
 - If it's not listed in a skill's Workflow Routing, DON'T use "Executing" format
 - For non-workflow tasks, use context-appropriate gerund
 
-### The curl Pattern (Workflow-Based Skills Only)
+### Workflow-Based Pattern
 
 When executing an actual workflow file from a `Workflows/` directory:
 
@@ -69,7 +72,7 @@ Legacy notifier modules like `TaskNotifier.ts`, `AlgorithmPhaseNotifier.ts`, and
 - Thorough: "Running THE ALGORITHM at thorough effort with multi-agent analysis and deep thinking to design the architecture"
 - Exhaustive: "Running THE ALGORITHM at exhaustive effort with fleet operations and full decision support to build the new feature"
 
-Note: There is no `~/.config/opencode/current-effort.json` state file in the current runtime.
+Note: The current runtime does not use a `current-effort.json` state file.
 
 ---
 
@@ -80,7 +83,7 @@ Note: There is no `~/.config/opencode/current-effort.json` state file in the cur
 | **{DAIDENTITY.NAME}** (default) | `{DAIDENTITY.VOICEID}` | Use for most workflows |
 | **Priya** (Artist) | `ZF6FPAbjXT4488VcRRnw` | art skill workflows |
 
-**Full voice registry:** `~/.config/opencode/skills/agents/AgentPersonalities.md`
+**Full voice registry:** `../../agents/AgentPersonalities.md`
 
 ---
 
@@ -93,14 +96,13 @@ For skills that have a `Workflows/` directory:
 ```markdown
 ## Voice Notification
 
-**When executing a workflow, do BOTH:**
+When executing a workflow and notification adds value:
 
-1. **Send voice notification**:
-   Use the `voice_notify` tool:
+1. Send one `voice_notify` call:
 
 - `message`: "Running the WORKFLOWNAME workflow in the SKILLNAME skill to ACTION"
 
-Replace `WORKFLOWNAME`, `SKILLNAME`, and `ACTION` with actual values when executing. ACTION should be under 6 words describing what the workflow does.
+Replace `WORKFLOWNAME`, `SKILLNAME`, and `ACTION` with actual values. Keep ACTION under 6 words.
 
 ### Template B: Skills WITHOUT Workflows
 
@@ -248,4 +250,3 @@ To send a notification, use the `voice_notify` tool:
 2. **Fail gracefully** - Missing services don't cause errors
 3. **Conservative defaults** - Avoid notification fatigue
 4. **Duration-aware** - Only push for long-running tasks (>5 min)
-

@@ -1,313 +1,198 @@
-# PAI Templating System
+# Prompting Templates Guide
 
-**Version:** 1.0.0
-**Rollback Point:** v2.5.0
+**Status:** Active (OpenCode + GPT-5.2/5.3 aligned)
+
+---
 
 ## Overview
 
-The PAI templating system enables **prompts that write prompts**—dynamic composition where structure is fixed but content is parameterized. Based on Anthropic's official `{{variable}}` syntax and industry best practices.
+The templates system enables reusable prompt composition:
 
-## Directory Structure
+- **Templates** define structure
+- **Data files** supply content
+- **Tools** render and validate output
 
-```
+This keeps prompt logic maintainable and eval-friendly.
+
+---
+
+## Directory structure
+
+```text
 Templates/
-├── Primitives/       # Core template files (.hbs)
-│   ├── Roster.hbs    # Agent/skill definitions
-│   ├── Voice.hbs     # Personality calibration
-│   ├── Structure.hbs # Workflow patterns
-│   ├── Briefing.hbs  # Agent context handoff
-│   └── Gate.hbs      # Validation checklists
-├── Data/             # YAML data sources
-│   ├── Agents.yaml   # All agent definitions
-│   ├── Skills.yaml   # All skill definitions
-│   ├── VoicePresets.yaml    # Voice calibration presets
-│   └── ValidationGates.yaml # Standard validation gates
-├── Evals/            # Eval-specific templates
-│   ├── Judge.hbs     # LLM-as-Judge prompt template
-│   ├── Rubric.hbs    # Evaluation rubric generator
-│   ├── TestCase.hbs  # Test case definition
-│   ├── Comparison.hbs # A/B comparison template
-│   └── Report.hbs    # Eval results report
-├── Compiled/         # Generated output (gitignored)
-└── Tools/            # Rendering utilities
-    ├── RenderTemplate.ts   # Core rendering engine
-    └── ValidateTemplate.ts # Template syntax checker
+├── Primitives/
+│   ├── Roster.hbs
+│   ├── Voice.hbs
+│   ├── Structure.hbs
+│   ├── Briefing.hbs
+│   └── Gate.hbs
+├── Evals/
+│   ├── Judge.hbs
+│   ├── Rubric.hbs
+│   ├── TestCase.hbs
+│   ├── Comparison.hbs
+│   └── Report.hbs
+├── Data/
+│   ├── Agents.yaml
+│   ├── VoicePresets.yaml
+│   └── ValidationGates.yaml
+├── Tools/
+│   ├── RenderTemplate.ts
+│   └── ValidateTemplate.ts
+└── README.md
 ```
 
-## Core Syntax
+---
 
-PAI uses Handlebars notation for template variables:
+## Handlebars syntax
 
 | Syntax | Purpose | Example |
-|--------|---------|---------|
-| `{{variable}}` | Simple interpolation | `Hello {{name}}` |
-| `{{object.property}}` | Nested access | `{{agent.voice_id}}` |
-| `{{#each items}}...{{/each}}` | Iteration | List generation |
-| `{{#if condition}}...{{/if}}` | Conditional | Optional sections |
-| `{{> partial}}` | Include partial | Reusable components |
+|---|---|---|
+| `{{variable}}` | interpolation | `Hello {{name}}` |
+| `{{obj.field}}` | nested access | `{{agent.id}}` |
+| `{{#each items}}...{{/each}}` | iterate | list rendering |
+| `{{#if cond}}...{{/if}}` | conditional | optional blocks |
+| `{{> partial}}` | include partial | reusable fragments |
 
-## Five Core Primitives
+---
 
-### 1. ROSTER — Agent & Skill Definitions
+## Rendering and validation
 
-Data-driven generation of structured definitions from YAML.
-
-**Use Cases:**
-- 32 RedTeam agent personalities
-- 83 skill frontmatter definitions
-- Voice configuration presets
-
-### 2. VOICE — Personality Calibration
-
-Parameterized voice and tone settings.
-
-**Use Cases:**
-- Agent voice parameters (stability, similarity_boost)
-- Speaking rate calibration
-- Character archetype mapping
-
-### 3. STRUCTURE — Workflow Patterns
-
-Standardized multi-step execution patterns.
-
-**Use Cases:**
-- Phased analysis (red-team 5-phase)
-- Round-based debate (Council 3-round)
-- Sequential pipeline (Development gates)
-
-### 4. BRIEFING — Agent Context Handoff
-
-How agents receive tasks and context.
-
-**Use Cases:**
-- Research agent queries
-- RedTeam analyst prompts
-- Delegation context packages
-
-### 5. GATE — Validation Checklists
-
-Reusable quality and completion checks.
-
-**Use Cases:**
-- Art mandatory elements
-- Development completion gates
-- Research source verification
-
-## Eval Templates
-
-### JUDGE — LLM-as-Judge Prompt
-
-Configurable judge prompts with reasoning-first pattern.
-
-### RUBRIC — Evaluation Criteria
-
-Structured rubrics with dimensions and scoring scales.
-
-### TEST_CASE — Test Definition
-
-Input/expected output pairs with metadata.
-
-### COMPARISON — A/B Testing
-
-Side-by-side prompt variant comparison.
-
-### REPORT — Results Summary
-
-Statistical reporting with confidence intervals.
-
-## Usage
-
-### Basic Rendering
+### Render
 
 ```bash
-bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
+bun run --install=fallback --cwd "$HOME/.config/opencode/skills/prompting/Templates/Tools" RenderTemplate.ts \
   --template Primitives/Roster.hbs \
   --data Data/Agents.yaml \
-  --output Compiled/AgentRoster.md
-```
-
-### Inline in Prompts
-
-```handlebars
-{{> briefing agent=current_agent task=current_task}}
-```
-
-## Best Practices
-
-1. **Separation of Concerns**
-   - Templates: Structure and formatting
-   - Data: Content and parameters
-   - Logic: Rendering and validation
-
-2. **Keep Templates Simple**
-   - Avoid complex logic in templates
-   - Use helpers for transformations
-   - Business logic belongs in TypeScript
-
-3. **Version Control**
-   - Templates and data in separate files
-   - Track changes independently
-   - Enable A/B testing of structures
-
-4. **Validate Before Rendering**
-   - Check all required variables exist
-   - Validate data against schema
-   - Test with edge cases
-
-5. **DRY Principle**
-   - Extract repeated patterns into partials
-   - Use presets for common configurations
-   - Single source of truth for definitions
-
-## Rollback Instructions
-
-If anything breaks, rollback to v2.5.0:
-
-```bash
-cd ~/.config/opencode
-git checkout v2.5.0
-# Or to just undo templating:
-rm -rf Templates/
-git checkout v2.5.0 -- skills/prompting/Templates/README.md
-```
-
-## Token Savings
-
-| Area | Before | After | Savings |
-|------|--------|-------|---------|
-| SKILL.md Frontmatter | 20,750 | 8,300 | 60% |
-| Agent Personalities | 3,000 | 1,200 | 60% |
-| Workflow Steps | 7,500 | 3,000 | 60% |
-| Agent Briefings | 6,400 | 1,900 | 70% |
-| Voice Notifications | 6,225 | 725 | 88% |
-| **TOTAL** | ~53,000 | ~18,000 | **65%** |
-
-## Available Helpers
-
-The RenderTemplate.ts engine provides these custom Handlebars helpers:
-
-### String Helpers
-| Helper | Example | Output |
-|--------|---------|--------|
-| `uppercase` | `{{uppercase "hello"}}` | `HELLO` |
-| `lowercase` | `{{lowercase "HELLO"}}` | `hello` |
-| `titlecase` | `{{titlecase "hello world"}}` | `Hello World` |
-| `truncate` | `{{truncate text 50}}` | First 50 chars... |
-
-### Formatting Helpers
-| Helper | Example | Output |
-|--------|---------|--------|
-| `indent` | `{{indent text 2}}` | Indented by 2 spaces |
-| `join` | `{{join items ", "}}` | `a, b, c` |
-| `json` | `{{json object}}` | JSON string |
-| `codeblock` | `{{codeblock code "ts"}}` | Fenced code block |
-
-### Logic Helpers
-| Helper | Example | Purpose |
-|--------|---------|---------|
-| `eq` | `{{#if (eq a b)}}` | Equality check |
-| `gt` | `{{#if (gt a b)}}` | Greater than |
-| `lt` | `{{#if (lt a b)}}` | Less than |
-| `includes` | `{{#if (includes arr item)}}` | Array contains |
-
-### Number Helpers
-| Helper | Example | Output |
-|--------|---------|--------|
-| `formatNumber` | `{{formatNumber 1234567}}` | `1,234,567` |
-| `percent` | `{{percent 0.85 1}}` | `85.0` |
-
-### Utility Helpers
-| Helper | Example | Output |
-|--------|---------|--------|
-| `now` | `{{now "YYYY-MM-DD"}}` | `2025-12-09` |
-| `pluralize` | `{{pluralize count "item"}}` | `items` or `item` |
-| `default` | `{{default value "fallback"}}` | Value or fallback |
-| `repeat` | `{{repeat 3 "="}}` | `===` |
-
-## CLI Usage
-
-### Render a Template
-
-```bash
-bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
-  --template Primitives/Roster.hbs \
-  --data Data/Agents.yaml \
-  --output Compiled/AgentRoster.md
-```
-
-### Preview Without Writing
-
-```bash
-bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
-  --template Evals/Judge.hbs \
-  --data path/to/judge-config.yaml \
   --preview
 ```
 
-### Validate Template Syntax
+### Validate
 
 ```bash
-bun run ~/.config/opencode/skills/prompting/Tools/ValidateTemplate.ts \
+bun run --install=fallback --cwd "$HOME/.config/opencode/skills/prompting/Templates/Tools" ValidateTemplate.ts \
   --template Primitives/Briefing.hbs \
-  --data Data/sample-briefing.yaml
+  --data Data/ValidationGates.yaml
 ```
 
-## Quick Reference
+### Programmatic API
 
-### Template Selection Guide
+```ts
+import { renderTemplate } from "./Templates/Tools/RenderTemplate";
 
-| I want to... | Use Template | With Data |
-|--------------|--------------|-----------|
-| Generate agent roster | `Roster.hbs` | `Agents.yaml` |
-| Configure voice settings | `Voice.hbs` | `VoicePresets.yaml` |
-| Create workflow structure | `Structure.hbs` | Custom YAML |
-| Brief an agent | `Briefing.hbs` | Task context |
-| Create validation checklist | `Gate.hbs` | `ValidationGates.yaml` |
-| Create LLM judge prompt | `Judge.hbs` | Judge config |
-| Define evaluation rubric | `Rubric.hbs` | Rubric config |
-| Set up A/B test | `Comparison.hbs` | Comparison config |
-| Generate results report | `Report.hbs` | Results data |
-
-### Common Patterns
-
-**Iterate over agents:**
-```handlebars
-{{#each agents}}
-- **{{name}}**: {{description}}
-{{/each}}
+const output = renderTemplate({
+  templatePath: "Primitives/Roster.hbs",
+  dataPath: "Data/Agents.yaml",
+  preview: false,
+});
 ```
 
-**Conditional sections:**
-```handlebars
-{{#if reasoning_required}}
-Provide your reasoning BEFORE giving a score.
-{{/if}}
+> `renderTemplate` currently expects paths, not inline data objects.
+> `ValidateTemplate` without `--strict` checks syntax and reports missing variables as warnings.
+
+---
+
+## Built-in helpers (accurate contracts)
+
+### String helpers
+
+| Helper | Example | Output |
+|---|---|---|
+| `uppercase` | `{{uppercase "hello"}}` | `HELLO` |
+| `lowercase` | `{{lowercase "HELLO"}}` | `hello` |
+| `titlecase` | `{{titlecase "hello world"}}` | `Hello World` |
+| `truncate` | `{{truncate text 50}}` | first 50 chars + `...` |
+
+### Formatting helpers
+
+| Helper | Example | Output |
+|---|---|---|
+| `indent` | `{{indent text 2}}` | text indented by 2 spaces |
+| `join` | `{{join items ", "}}` | `a, b, c` |
+| `json` | `{{json obj true}}` | pretty JSON |
+| `codeblock` | `{{codeblock code "ts"}}` | fenced code block |
+
+### Logic helpers
+
+| Helper | Example |
+|---|---|
+| `eq` | `{{#if (eq a b)}}...{{/if}}` |
+| `gt` | `{{#if (gt a b)}}...{{/if}}` |
+| `lt` | `{{#if (lt a b)}}...{{/if}}` |
+| `includes` | `{{#if (includes arr item)}}...{{/if}}` |
+
+### Number/time helpers
+
+| Helper | Example | Output |
+|---|---|---|
+| `formatNumber` | `{{formatNumber 1234567}}` | `1,234,567` |
+| `percent` | `{{percent 85 100 1}}` | `85.0` |
+| `now` | `{{now "date"}}` | `YYYY-MM-DD` |
+| `now` | `{{now "time"}}` | `HH:MM:SS` |
+| `now` | `{{now}}` | ISO timestamp |
+
+### Utility helpers
+
+| Helper | Example | Output |
+|---|---|---|
+| `pluralize` | `{{pluralize count "item"}}` | `item/items` |
+| `default` | `{{default value "fallback"}}` | value or fallback |
+| `repeat` (block) | `{{#repeat 3}}={{/repeat}}` | `===` |
+
+---
+
+## Template selection quick map
+
+| Need | Template | Data |
+|---|---|---|
+| Agent/skill roster block | `Primitives/Roster.hbs` | `Data/Agents.yaml` |
+| Voice/persona settings | `Primitives/Voice.hbs` | `Data/VoicePresets.yaml` |
+| Workflow scaffolding | `Primitives/Structure.hbs` | custom YAML/JSON |
+| Task handoff / agent briefing | `Primitives/Briefing.hbs` | task context file |
+| Validation checklist | `Primitives/Gate.hbs` | `Data/ValidationGates.yaml` |
+| Judge prompt | `Evals/Judge.hbs` | eval config |
+| Rubric | `Evals/Rubric.hbs` | eval config |
+| Test case | `Evals/TestCase.hbs` | test config |
+| A/B comparison | `Evals/Comparison.hbs` | comparison config |
+| Eval report | `Evals/Report.hbs` | result data |
+
+---
+
+## Quality checklist
+
+Before publishing or using generated prompts:
+
+1. Template compiles and validates (`ValidateTemplate.ts`)
+2. Required variables exist in data file
+3. Output shape matches consuming workflow expectations
+4. Paths/examples are case-consistent (`Evals/`, not mixed case)
+5. No runtime-only destructive instructions in docs
+
+6. Eval templates use stable criterion identifiers (`id`) for machine-parsed outputs
+7. JSON output contracts specify concrete value types (not placeholder strings)
+
+---
+
+## Safe rollback and recovery
+
+Do not edit runtime content directly for source fixes.
+
+Use source-repo workflow:
+
+1. Update files in base repo (`/Users/zuul/Projects/pai-opencode-graphviz/.opencode/...`)
+2. Validate
+3. Deploy with installer:
+
+```bash
+bun Tools/Install.ts --target "/Users/zuul/.config/opencode" --non-interactive --skills "PAI,prompting"
 ```
 
-**Include partial:**
-```handlebars
-{{> validation-gate gate=art_validation}}
-```
+If rollback is needed, revert source commit/changes in repo, then reinstall.
 
-**Nested property access:**
-```handlebars
-{{agent.voice.settings.stability}}
-```
+---
 
-## Research Foundation
+## Notes on provider guidance
 
-This system is based on research from:
-- **Anthropic**: `{{handlebars}}` syntax, context engineering patterns
-- **OpenAI**: Structured Outputs, meta-prompting
-- **LangChain**: LCEL composition, prompt templates
-- **Academic**: The Prompt Report (58 techniques), DSPy
+This template system is provider-agnostic. Provider-specific prompting tips belong in `../Standards.md` provider profile sections.
 
-## Related Documentation
-
-- `~/.config/opencode/skills/prompting/Standards.md`
-- `~/.config/opencode/skills/prompting/SKILL.md`
-- `<~/.config/opencode/skills/evals/SKILL.md>`
-
-Optional (not shipped in all runtimes):
-- `<~/.config/opencode/History/research/...>`
-- `<~/.config/opencode/History/learnings/...>`
+For GPT-5.2/5.3 defaults, use the OpenAI profile in `Standards.md`.

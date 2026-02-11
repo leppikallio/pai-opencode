@@ -2,6 +2,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 type Finding = {
   file: string;
@@ -10,10 +11,24 @@ type Finding = {
   text: string;
 };
 
-const skillRoot = path.join(import.meta.dir, "..");
+const currentDir = path.dirname(fileURLToPath(import.meta.url));
+const skillRoot = path.join(currentDir, "..");
+
+function resolveLatestAlgorithmFile(): string {
+  const latestPath = path.join(skillRoot, "Components", "Algorithm", "LATEST");
+  try {
+    const latest = fs.readFileSync(latestPath, "utf8").trim();
+    if (latest.length > 0) {
+      return `Components/Algorithm/${latest}.md`;
+    }
+  } catch {
+    // fall through
+  }
+  return "Components/Algorithm/v0.2.25.md";
+}
 
 const canonicalFiles = [
-  "Components/Algorithm/v0.2.25.md",
+  resolveLatestAlgorithmFile(),
   "SYSTEM/PAIAGENTSYSTEM.md",
   "SYSTEM/THEDELEGATIONSYSTEM.md",
   "SYSTEM/DOCUMENTATIONINDEX.md",
@@ -73,8 +88,15 @@ for (const rel of canonicalFiles) {
   if (!fs.existsSync(full)) continue;
 
   const lines = readLines(full);
+  const changelogStart = lines.findIndex((line) => line.trim() === "## Changelog");
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    const inChangelog = changelogStart !== -1 && i >= changelogStart;
+    if (inChangelog) continue;
+    const isLocalizationAliasLine =
+      rel.startsWith("Components/Algorithm/") &&
+      (line.includes("Algorithm term") || line.includes("`Council` / `RedTeam` / `FirstPrinciples` / `BeCreative`"));
+    if (isLocalizationAliasLine) continue;
     if (badThinkingToken.test(line)) {
       findings.push({
         file: rel,

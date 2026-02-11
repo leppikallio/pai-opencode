@@ -7,7 +7,7 @@
 | ------------- | ----------------------------------------------------------------------------------- | -------------------------------- |
 | **FULL**      | Any non-trivial work: problem-solving, implementation, design, analysis, thinking   | 7 phases with ISC Tasks          |
 | **ITERATION** | Continuing/adjusting existing work in progress                                      | Condensed: What changed + Verify |
-| **MINIMAL**   | Pure social with zero task content: greetings, ratings (1-10), acknowledgments only | Header + Summary + Voice         |
+| **MINIMAL**   | Pure social with zero task content: greetings, ratings (1-10), acknowledgments only | Header + Summary + 🗣️ Marvin    |
 
 **ITERATION Format** (for back-and-forth on existing work):
 ```

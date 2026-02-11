@@ -278,7 +278,7 @@ Security audit log: `~/.config/opencode/MEMORY/SECURITY/YYYY-MM/security.jsonl`
 
 ## Security Patterns
 
-Security validation uses the YAML schema in `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml`.
+Security validation uses the YAML schema in `~/.config/opencode/skills/PAI/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml`.
 
 Current command pattern keys under `bash` are:
 
@@ -300,7 +300,7 @@ Current command pattern keys under `bash` are:
 - `npm install -g` - Global installs
 - `docker rm` - Container removal
 
-See `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml` for full definitions, including `paths.*` protections.
+See `~/.config/opencode/skills/PAI/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml` for full definitions, including `paths.*` protections.
 
 ---
 

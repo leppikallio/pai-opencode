@@ -1,6 +1,6 @@
 # Session Continuity Protocol
 
-**Purpose:** Maintain structured continuity artifacts for multi-session work based on Anthropic's agent harness patterns.
+**Purpose:** Maintain structured continuity artifacts for multi-session work based on proven agent harness patterns.
 
 **When to Use:**
 - Starting complex multi-session tasks
@@ -9,7 +9,7 @@
 
 ## Core Principle
 
-> "Each new session begins with no memory of what came before" - Anthropic
+> "Each new session begins with no memory of what came before" - general LLM session constraint
 >
 > Session continuity files are the handoff documentation that makes multi-session work reliable.
 
@@ -46,7 +46,7 @@ bun run ~/.config/opencode/skills/PAI/Tools/FeatureRegistry.ts <command>
 
 ## Session Initialization Sequence
 
-**Based on Anthropic's 6-step startup that "conserves tokens by eliminating redundant setup reasoning":**
+**Based on a 6-step startup that conserves tokens by eliminating redundant setup reasoning:**
 
 ### Step 1: Confirm Working Directory
 ```bash
@@ -147,7 +147,7 @@ When using Engineer/Architect/Designer capabilities for complex features:
 ## JSON vs Markdown
 
 **Why JSON for feature tracking:**
-> "JSON for feature tracking proved more robust than Markdown, as models were less likely to inadvertently corrupt structured data." - Anthropic
+> "JSON for feature tracking is more robust than Markdown because models are less likely to corrupt structured data."
 
 - Feature registries use JSON for reliability
 - Progress files use JSON for machine-readability
@@ -155,7 +155,7 @@ When using Engineer/Architect/Designer capabilities for complex features:
 
 ## Single-Feature Focus
 
-**From Anthropic's research:**
+**From agent workflow research:**
 > "Rather than attempting comprehensive implementations, agents work on one feature sequentially."
 
 When working on multi-feature tasks:
@@ -175,7 +175,7 @@ When working on multi-feature tasks:
 
 ## Source
 
-Based on Anthropic's "Effective Harnesses for Long-Running Agents" engineering blog:
+Based on engineering guidance for effective long-running agent harnesses:
 - `claude-progress.txt` pattern for chronological activity logs
 - JSON feature registries with pass/fail status
 - 6-step session initialization sequence

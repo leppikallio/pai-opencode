@@ -19,10 +19,11 @@ They live under:
 - Every skill SHOULD have a `Tools/` directory.
 - Tools MUST live directly under `Tools/` (no nested tool subdirectories).
 
-### Filenames (MANDATORY)
+### Filenames (preferred + exceptions)
 
-- Tool files MUST be **TitleCase**: `ToolName.ts` (no hyphens/underscores).
-- If a help/usage doc exists, it MUST be TitleCase: `ToolName.help.md`.
+- Preferred: tool files use **TitleCase** (e.g., `ToolName.ts`) for consistency.
+- Exception: vendor/imported or runtime-constrained scripts may keep native names (e.g., `extract-transcript.py`) if documented.
+- If a help/usage doc exists, prefer matching TitleCase (`ToolName.help.md`).
 
 ### Language/runtime
 

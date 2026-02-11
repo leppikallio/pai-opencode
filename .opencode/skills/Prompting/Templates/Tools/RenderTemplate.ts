@@ -254,7 +254,7 @@ Options:
 
 Examples:
   bun run RenderTemplate.ts -t Primitives/Roster.hbs -d Data/Agents.yaml -p
-  bun run RenderTemplate.ts -t evals/Judge.hbs -d Data/JudgeConfig.yaml -o Compiled/judge.md
+  bun run RenderTemplate.ts -t Evals/Judge.hbs -d Data/JudgeConfig.yaml -o Compiled/judge.md
 
 Available Helpers:
   {{uppercase str}}           - Convert to uppercase
@@ -295,4 +295,3 @@ Available Helpers:
 if (import.meta.main) {
   main();
 }
-

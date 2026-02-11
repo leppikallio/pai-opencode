@@ -1,8 +1,8 @@
 #!/usr/bin/env bun
 /**
- * TranscriptParser.ts - Claude transcript parsing utilities
+ * TranscriptParser.ts - Session transcript parsing utilities
  *
- * Shared library for extracting content from Claude Code transcript files.
+ * Shared library for extracting content from session transcript files.
  * Used by Stop hooks for voice, tab state, and response capture.
  *
  * CLI Usage:
@@ -58,7 +58,7 @@ export interface ParsedTranscript {
 // ============================================================================
 
 /**
- * Safely convert Claude content (string or array of blocks) to plain text.
+ * Safely convert transcript content (string or array of blocks) to plain text.
  */
 export function contentToText(content: unknown): string {
   if (typeof content === 'string') return content;
