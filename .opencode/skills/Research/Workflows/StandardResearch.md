@@ -18,6 +18,10 @@ See `SKILL.md` for full URL Verification Protocol.
 - User says "do research" or "research this"
 - Need multiple perspectives quickly
 
+## Continuation Rule
+
+If this is a follow-up request on existing research artifacts, run `IterativeResearch.md` first to rehydrate state before launching new collection.
+
 ## Workflow
 
 ### Step 1: Craft One Query Per Researcher

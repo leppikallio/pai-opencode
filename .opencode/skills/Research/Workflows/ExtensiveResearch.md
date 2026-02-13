@@ -19,6 +19,10 @@ See `SKILL.md` for full URL Verification Protocol.
 - Comprehensive multi-domain coverage required
 - The "big daddy" research mode
 
+## Continuation Rule
+
+If prior research state already exists, start with `IterativeResearch.md` rehydration. Then run this workflow only if broad parallel expansion is still needed.
+
 ## Workflow
 
 ### Step 0: Generate Creative Research Angles (deep thinking)

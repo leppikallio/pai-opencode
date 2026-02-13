@@ -45,6 +45,8 @@ Route to the appropriate workflow based on the request.
 - Quick/minor research (1 Perplexity, 1 query) -> `Workflows/QuickResearch.md`
 - Standard research - DEFAULT (3 agents: Perplexity + Claude + Gemini) -> `Workflows/StandardResearch.md`
 - Extensive research (4 types x 3 threads = 12 agents) -> `Workflows/ExtensiveResearch.md`
+- Iterative multi-turn research (stateful, no reset between turns) -> `Workflows/IterativeResearch.md`
+- Import existing research artifacts into iterative state pack -> `Workflows/ImportResearch.md`
 
 ### Deep Content Analysis
 - Extract alpha / deep analysis / highest-alpha insights -> `Workflows/ExtractAlpha.md`
@@ -104,3 +106,14 @@ Route to the appropriate workflow based on the request.
 - This ties research artifacts to the work item for learning and context
 
 **History (permanent):** `~/.config/opencode/History/research/YYYY-MM/YYYY-MM-DD_[topic]/`
+
+## Stateful Continuation Rule
+
+For any ongoing research thread, large-file analysis, or follow-up session:
+
+1. Use `Workflows/IterativeResearch.md`
+2. Rehydrate prior state from scratch artifacts before new collection
+3. Prefer continuing same subagent via `task_id` when delegating
+4. Do not restart broad discovery unless state is missing/corrupted
+
+If state is missing/corrupted but artifacts exist, run `Workflows/ImportResearch.md` first.
