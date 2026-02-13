@@ -1,0 +1,43 @@
+# spec-feature-flags-v1 (P01-06)
+
+## Purpose
+Define the feature flags (config surface) for Option C in the **integration layer**.
+
+## Constraints
+- No OpenCode core changes.
+- Flags must be readable by tools/plugins/commands.
+
+## Proposed config sources (priority order)
+1. Environment variables (fast, safe for rollout)
+2. PAI/OpenCode settings.json in the integration layer (deployed into runtime)
+
+Evidence that settings.json exists in integration layer:
+- `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/settings.json`
+
+## Flag namespace
+Prefix: `PAI_DR_` (Deep Research)
+
+## Flags (v1)
+| Flag | Type | Default | Purpose |
+|---|---|---:|---|
+| `PAI_DR_OPTION_C_ENABLED` | bool | false | master enable/disable |
+| `PAI_DR_MODE_DEFAULT` | enum | standard | `quick|standard|deep` |
+| `PAI_DR_MAX_WAVE1_AGENTS` | int | 6 | fan-out cap |
+| `PAI_DR_MAX_WAVE2_AGENTS` | int | 6 | fan-out cap |
+| `PAI_DR_MAX_SUMMARY_KB` | int | 5 | per-summary cap |
+| `PAI_DR_MAX_TOTAL_SUMMARY_KB` | int | 60 | summary-pack cap |
+| `PAI_DR_MAX_REVIEW_ITERATIONS` | int | 4 | synthesis reviewer loop cap |
+| `PAI_DR_CITATION_VALIDATION_TIER` | enum | standard | `basic|standard|thorough` |
+| `PAI_DR_NO_WEB` | bool | false | force offline/no-web mode |
+
+## Rules
+1. Flags must be recorded into `manifest.json` at run start (for reproducibility).
+2. Changing flags mid-run must not invalidate resume; the manifest’s stored values win.
+
+## Acceptance criteria
+- Flags can disable the whole subsystem safely.
+- Caps prevent runaway parallelization.
+- Flags are visible in manifest for audit.
+
+## Evidence
+This file defines concrete flag names, defaults, and rules.

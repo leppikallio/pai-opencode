@@ -9,6 +9,13 @@
 - Time-sensitive requests
 - Just need a fast answer
 
+## When NOT to Use
+
+- Ongoing thread with prior collected artifacts
+- Large-file analysis that requires iterative deepening
+
+For those, use `IterativeResearch.md`.
+
 ## Workflow
 
 ### Step 1: Launch Single Claude Agent

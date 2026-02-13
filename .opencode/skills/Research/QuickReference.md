@@ -7,6 +7,8 @@
 | "quick research", "minor research" | Quick | 1 Perplexity agent | ~10-15s |
 | "do research", "research this" | Standard | 3 agents (Perplexity + Claude + Gemini) | ~15-30s |
 | "extensive research" | Extensive | 12 agents (4 types x 3 threads each) | ~60-90s |
+| "continue this research", follow-up on prior data, large-file iterative work | Iterative | Stateful rehydration + delta execution | Variable |
+| "import this scratchpad research", "continue from existing files" | Import | Bootstrap state pack from existing artifacts | ~1-3 min |
 
 ## Extract Alpha Philosophy
 
@@ -26,6 +28,24 @@ Output: 24-30 insights, Paul Graham style, 8-12 word bullets
 Only escalate when previous layer fails.
 
 ## Examples
+
+**Example 0: Ongoing thread / follow-up questions**
+```
+User: "Continue the prior analysis and dig deeper into section 4"
+-> Route to IterativeResearch workflow
+-> Rehydrate research-state.md + facts.jsonl + open-questions.md
+-> Execute one focused delta (section 4)
+-> Update state pack and continue
+```
+
+**Example 0b: Import existing scratchpad**
+```
+User: "Import this scratchpad and continue from what we already have"
+-> Route to ImportResearch workflow
+-> Inventory artifacts + resolve conflicts
+-> Build canonical state pack files
+-> Hand off to IterativeResearch for next turn
+```
 
 **Example 1: Quick research on a topic**
 ```
