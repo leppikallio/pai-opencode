@@ -15,7 +15,10 @@ All program plans and specs live here:
 If you are running this program and don’t have prior context:
 1) Read **this file**.
 2) Then read `deep-research-option-c-recovery-pack.md`.
-3) Then open the current phase plan doc (Phase 04: `deep-research-option-c-phase-04-citation-system.md`).
+3) Then open the current phase executable backlog doc (Phase 04: `deep-research-option-c-phase-04-executable-backlog.md`).
+
+Optional context:
+- Phase 04 outline: `deep-research-option-c-phase-04-citation-system.md`
 
 Session loss / compaction safe recovery:
 - `deep-research-option-c-recovery-pack.md`
