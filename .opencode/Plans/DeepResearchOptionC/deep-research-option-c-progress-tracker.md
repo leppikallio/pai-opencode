@@ -5,7 +5,7 @@
 - Planned window: 12–16 weeks
 - Status: `in_progress`
 - Last updated: `2026-02-14`
-- Current phase: `Phase 05` (in_progress)
+- Current phase: `Phase 06` (pending)
 
 ## Plan root directory (canonical)
 All program plans and specs live here:
@@ -15,7 +15,7 @@ All program plans and specs live here:
 If you are running this program and don’t have prior context:
 1) Read **this file**.
 2) Then read `deep-research-option-c-recovery-pack.md`.
-3) Then open the current phase executable backlog doc (Phase 04: `deep-research-option-c-phase-04-executable-backlog.md`).
+3) Then open the current phase executable backlog doc (Phase 06: `deep-research-option-c-phase-06-executable-backlog.md`).
 
 Optional context:
 - Phase 04 outline: `deep-research-option-c-phase-04-citation-system.md`
@@ -38,7 +38,7 @@ Session loss / compaction safe recovery:
 | 02 | Orchestrator engine | Engineer | done | QATester | Gate B | Signed off: `PHASE-02-CHECKPOINT-GATE-B.md` + `PHASE-02-CHECKPOINT-QA-REVIEW.md` |
 | 03 | Agent contracts & wave graph | Engineer | done | Architect | Gate B | Signed off: `PHASE-03-CHECKPOINT-GATE-B.md` |
 | 04 | Citation validation services | Engineer | done | QATester | Gate C | Signed off: `PHASE-04-CHECKPOINT-GATE-C.md` |
-| 05 | Synthesis/reviewer factory | Engineer | in_progress | Architect | Gate D/E | Implement bounded summary pack + Gate D/E tools |
+| 05 | Synthesis/reviewer factory | Engineer | done | Architect | Gate D/E | Signed off: `PHASE-05-CHECKPOINT-GATE-D-E.md` |
 | 06 | Observability + quality automation | Engineer | pending | QATester | Gate E | Metrics + harness |
 | 07 | Rollout hardening & canary | Engineer | pending | Architect | Gate F | Flags + fallback |
 
@@ -50,7 +50,7 @@ Session loss / compaction safe recovery:
 | B | Orchestration/runtime | done | Phase 02 stage engine complete |
 | C | Agents/contracts | done | Phase 03 Gate B passed |
 | D | Citation/evidence | done | Phase 04 Gate C passed |
-| E | Synthesis/review | in_progress | P05-02/04/06/08 tools + entity tests |
+| E | Synthesis/review | done | 0 |
 | F | QA/observability | pending | 0 |
 
 ## Phase 00 completion evidence
@@ -64,9 +64,9 @@ Session loss / compaction safe recovery:
 3. Tool permission drift causing non-deterministic behavior.
 
 ## Next 3 Actions
-1. Review Phase 04 Gate C signoff: `PHASE-04-CHECKPOINT-GATE-C.md`.
-2. Start Phase 05 implementation using `deep-research-option-c-phase-05-executable-backlog.md` (bounded summary pack + Gate D/E).
-3. Keep OFFLINE tests fixture-driven (`PAI_DR_NO_WEB=1`) for Phase 05 entity tests.
+1. Review Phase 05 Gate D/E signoff: `PHASE-05-CHECKPOINT-GATE-D-E.md`.
+2. Start Phase 06 using `deep-research-option-c-phase-06-executable-backlog.md` (telemetry + replay harness + Gate E reports).
+3. Keep OFFLINE tests fixture-driven (`PAI_DR_NO_WEB=1`) for Phase 06 entity tests.
 
 ## Pause/Resume Protocol
 Before pausing, update:
