@@ -3,13 +3,13 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 import { dry_run_seed } from "../../tools/deep_research.ts";
-import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
+import { fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 describe("deep_research_dry_run_seed (entity)", () => {
   test("seeds run root from fixture and records dry_run constraint", async () => {
     await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
-        const fixtureDir = path.resolve(process.cwd(), "tests", "fixtures", "dry-run", "case-minimal");
+        const fixtureDir = fixturePath("dry-run", "case-minimal");
         const runId = "dr_test_dry_seed_001";
 
         const outRaw = (await (dry_run_seed as any).execute(

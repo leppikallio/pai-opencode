@@ -1,0 +1,10 @@
+{"normalized_url":"https://source.example.com/u1","status":"valid"}
+{"normalized_url":"https://source.example.com/u2","status":"valid"}
+{"normalized_url":"https://source.example.com/u3","status":"valid"}
+{"normalized_url":"https://source.example.com/u4","status":"valid"}
+{"normalized_url":"https://source.example.com/u5","status":"valid"}
+{"normalized_url":"https://source.example.com/u6","status":"valid"}
+{"normalized_url":"https://source.example.com/u7","status":"valid"}
+{"normalized_url":"https://source.example.com/u8","status":"valid"}
+{"normalized_url":"https://source.example.com/u9","status":"paywalled"}
+{"normalized_url":"https://source.example.com/u10","status":"invalid"}

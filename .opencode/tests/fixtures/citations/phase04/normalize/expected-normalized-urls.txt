@@ -1,0 +1,3 @@
+http://example.com/dir
+https://example.com/path?a=1&b=2
+https://example.com/trailing

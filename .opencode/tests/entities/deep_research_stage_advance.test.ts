@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 import { run_init, stage_advance } from "../../tools/deep_research.ts";
-import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
+import { fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 describe("deep_research_stage_advance (entity)", () => {
   test("advances init -> wave1 when perspectives artifact exists", async () => {
@@ -19,15 +19,8 @@ describe("deep_research_stage_advance (entity)", () => {
 
         const manifestPath = (init as any).manifest_path as string;
         const runRoot = path.dirname(manifestPath);
-        const fixturePath = path.resolve(
-          process.cwd(),
-          "tests",
-          "fixtures",
-          "runs",
-          "p02-stage-advance-init",
-          "perspectives.json",
-        );
-        await fs.copyFile(fixturePath, path.join(runRoot, "perspectives.json"));
+        const p = fixturePath("runs", "p02-stage-advance-init", "perspectives.json");
+        await fs.copyFile(p, path.join(runRoot, "perspectives.json"));
 
         const outRaw = (await (stage_advance as any).execute(
           {

@@ -79,4 +79,29 @@ describe("deep_research_run_init (entity)", () => {
       });
     });
   });
+
+  test("uses PAI_DR_RUNS_ROOT when root_override is omitted", async () => {
+    await withTempDir(async (runsRoot) => {
+      await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_RUNS_ROOT: runsRoot }, async () => {
+        const runId = "dr_test_runs_root_001";
+        const outRaw = (await (run_init as any).execute(
+          {
+            query: "Research Y",
+            mode: "standard",
+            sensitivity: "normal",
+            run_id: runId,
+          },
+          makeToolContext(),
+        )) as string;
+
+        const out = parseToolJson(outRaw);
+        expect(out.ok).toBe(true);
+        expect((out as any).root).toBe(path.join(runsRoot, runId));
+
+        const manifestPath = (out as any).manifest_path as string;
+        const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        expect(manifest.query.constraints.deep_research_flags.PAI_DR_RUNS_ROOT).toBe(runsRoot);
+      });
+    });
+  });
 });

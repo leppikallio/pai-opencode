@@ -27,6 +27,26 @@ export async function withTempDir<T>(fn: (dir: string) => Promise<T>, prefix = "
   }
 }
 
+function resolveOpencodeRootFromCwd(): string {
+  // Tests are often run from `.opencode/` but should also work from repo root.
+  // This keeps fixture resolution deterministic regardless of cwd.
+  return path.basename(process.cwd()) === ".opencode"
+    ? process.cwd()
+    : path.resolve(process.cwd(), ".opencode");
+}
+
+export function testsRootDir(): string {
+  return path.join(resolveOpencodeRootFromCwd(), "tests");
+}
+
+export function fixturesDir(): string {
+  return path.join(testsRootDir(), "fixtures");
+}
+
+export function fixturePath(...parts: string[]): string {
+  return path.join(fixturesDir(), ...parts);
+}
+
 export function makeToolContext(): any {
   return {
     sessionID: "ses_test",
