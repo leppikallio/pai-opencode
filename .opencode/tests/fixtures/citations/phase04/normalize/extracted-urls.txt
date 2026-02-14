@@ -1,0 +1,6 @@
+https://Example.com:443/path/?b=2&a=1&utm_source=abc#frag
+https://example.com/path?a=1&b=2
+http://example.com:80/dir/?fbclid=zzz
+http://example.com/dir
+https://example.com/trailing/
+https://example.com/trailing

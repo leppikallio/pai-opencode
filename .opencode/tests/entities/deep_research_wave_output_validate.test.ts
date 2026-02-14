@@ -2,11 +2,10 @@ import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
 
 import { wave_output_validate } from "../../tools/deep_research.ts";
-import { makeToolContext, parseToolJson } from "../helpers/dr-harness";
+import { fixturePath, makeToolContext, parseToolJson } from "../helpers/dr-harness";
 
 describe("deep_research_wave_output_validate (entity)", () => {
-  const fixture = (name: string) =>
-    path.resolve(process.cwd(), "tests", "fixtures", "wave-output", name);
+  const fixture = (name: string) => fixturePath("wave-output", name);
   const perspectivesPath = fixture("perspectives.json");
   const perspectiveId = "p1";
 

@@ -1,14 +1,13 @@
 import { tool, type ToolContext } from "@opencode-ai/plugin";
 import * as fs from "node:fs";
+import * as os from "node:os";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import {
   ensureDir,
-  getCurrentWorkPathForSession,
 } from "../plugins/lib/paths";
-import { ensureScratchpadSession } from "../plugins/lib/scratchpad";
 
 type JsonObject = Record<string, unknown>;
 
@@ -25,6 +24,7 @@ type DeepResearchFlagsV1 = {
   maxReviewIterations: number;
   citationValidationTier: "basic" | "standard" | "thorough";
   noWeb: boolean;
+  runsRoot: string;
   source: {
     env: string[];
     settings: string[];
@@ -82,6 +82,19 @@ function parseEnum<T extends string>(v: unknown, allowed: readonly T[]): T | nul
   return (allowed as readonly string[]).includes(s) ? (s as T) : null;
 }
 
+function parseAbsolutePathSetting(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const raw = v.trim();
+  if (!raw) return null;
+  const expanded = raw === "~"
+    ? os.homedir()
+    : raw.startsWith("~/")
+      ? path.join(os.homedir(), raw.slice(2))
+      : raw;
+  if (!path.isAbsolute(expanded)) return null;
+  return path.normalize(expanded);
+}
+
 function integrationRootFromToolFile(): string {
   // Works both in repo (.opencode/tools/...) and runtime (~/.config/opencode/tools/...).
   const toolFile = fileURLToPath(import.meta.url);
@@ -113,6 +126,7 @@ function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
   let maxReviewIterations = 4;
   let citationValidationTier: DeepResearchFlagsV1["citationValidationTier"] = "standard";
   let noWeb = false;
+  let runsRoot = path.join(os.homedir(), ".config", "opencode", "research-runs");
 
   // Optional: read from integration-layer settings.json (if present).
   // Shape is intentionally flexible for now:
@@ -174,6 +188,10 @@ function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
     const b = parseBool(flagsFromSettings!.PAI_DR_NO_WEB);
     if (b !== null) noWeb = b;
   });
+  applySetting("PAI_DR_RUNS_ROOT", () => {
+    const p = parseAbsolutePathSetting(flagsFromSettings!.PAI_DR_RUNS_ROOT);
+    if (p) runsRoot = p;
+  });
 
   // Env overrides settings.
   const applyEnv = (key: string, apply: (v: string) => void) => {
@@ -219,6 +237,10 @@ function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
     const b = parseBool(v);
     if (b !== null) noWeb = b;
   });
+  applyEnv("PAI_DR_RUNS_ROOT", (v) => {
+    const p = parseAbsolutePathSetting(v);
+    if (p) runsRoot = p;
+  });
 
   // Basic sanity caps (avoid nonsense values).
   const clampInt = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
@@ -238,6 +260,7 @@ function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
     maxReviewIterations,
     citationValidationTier,
     noWeb,
+    runsRoot,
     source,
   };
 }
@@ -253,6 +276,14 @@ async function atomicWriteJson(filePath: string, value: unknown): Promise<void> 
   await ensureDir(dir);
   const tmp = `${filePath}.tmp.${process.pid}.${Date.now()}`;
   await fs.promises.writeFile(tmp, JSON.stringify(value, null, 2) + "\n", "utf8");
+  await fs.promises.rename(tmp, filePath);
+}
+
+async function atomicWriteText(filePath: string, value: string): Promise<void> {
+  const dir = path.dirname(filePath);
+  await ensureDir(dir);
+  const tmp = `${filePath}.tmp.${process.pid}.${Date.now()}`;
+  await fs.promises.writeFile(tmp, value, "utf8");
   await fs.promises.rename(tmp, filePath);
 }
 
@@ -838,23 +869,22 @@ export const run_init = tool({
 
     let base: string | undefined;
     try {
-      if (args.root_override && path.isAbsolute(args.root_override)) {
+      if (args.root_override) {
+        if (!path.isAbsolute(args.root_override)) {
+          return err("INVALID_ARGS", "root_override must be absolute path", {
+            root_override: args.root_override,
+          });
+        }
         base = args.root_override;
       } else {
-        const sid = context.sessionID ?? "";
-        const work = sid ? await getCurrentWorkPathForSession(sid) : null;
-        if (work) base = path.join(work, "scratch", "research-runs");
-        else {
-          const sp = await ensureScratchpadSession(sid);
-          base = path.join(sp.dir, "research-runs");
-        }
+        base = flags.runsRoot;
       }
     } catch (e) {
-      return err("PATH_NOT_WRITABLE", "failed to resolve scratch root", { message: String(e) });
+      return err("PATH_NOT_WRITABLE", "failed to resolve runs root", { message: String(e) });
     }
 
     if (!base) {
-      return err("PATH_NOT_WRITABLE", "failed to resolve scratch root", {
+      return err("PATH_NOT_WRITABLE", "failed to resolve runs root", {
         reason: "base path resolved empty",
       });
     }
@@ -947,6 +977,7 @@ export const run_init = tool({
               PAI_DR_MAX_REVIEW_ITERATIONS: flags.maxReviewIterations,
               PAI_DR_CITATION_VALIDATION_TIER: flags.citationValidationTier,
               PAI_DR_NO_WEB: flags.noWeb,
+              PAI_DR_RUNS_ROOT: flags.runsRoot,
               source: flags.source,
             },
           },
@@ -2398,6 +2429,906 @@ export const wave_review = tool({
   },
 });
 
+export const citations_extract_urls = tool({
+  description: "Extract candidate citation URLs from wave markdown",
+  args: {
+    manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
+    include_wave2: tool.schema.boolean().optional().describe("Whether to include wave-2 artifacts (default true)"),
+    extracted_urls_path: tool.schema.string().optional().describe("Absolute output path for extracted-urls.txt"),
+    found_by_path: tool.schema.string().optional().describe("Absolute output path for found-by.json"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: {
+    manifest_path: string;
+    include_wave2?: boolean;
+    extracted_urls_path?: string;
+    found_by_path?: string;
+    reason: string;
+  }) {
+    try {
+      const manifestPath = args.manifest_path.trim();
+      const reason = args.reason.trim();
+      if (!manifestPath) return err("INVALID_ARGS", "manifest_path must be non-empty");
+      if (!path.isAbsolute(manifestPath)) {
+        return err("INVALID_ARGS", "manifest_path must be absolute", { manifest_path: args.manifest_path });
+      }
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+
+      let manifestRaw: unknown;
+      try {
+        manifestRaw = await readJson(manifestPath);
+      } catch (e) {
+        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path missing", { manifest_path: manifestPath });
+        if (e instanceof SyntaxError) return err("INVALID_JSON", "manifest unreadable", { manifest_path: manifestPath });
+        throw e;
+      }
+
+      const mErr = validateManifestV1(manifestRaw);
+      if (mErr) return mErr;
+
+      const manifest = manifestRaw as Record<string, unknown>;
+      const runId = String(manifest.run_id ?? "");
+      const runRoot = String((manifest.artifacts as any)?.root ?? path.dirname(manifestPath));
+      const pathsObj = ((manifest.artifacts as any)?.paths ?? {}) as Record<string, unknown>;
+
+      const wave1DirName = String(pathsObj.wave1_dir ?? "wave-1");
+      const wave2DirName = String(pathsObj.wave2_dir ?? "wave-2");
+      const defaultExtractedPath = path.join(runRoot, "citations", "extracted-urls.txt");
+      const defaultFoundByPath = path.join(runRoot, "citations", "found-by.json");
+
+      const extractedUrlsPath = (args.extracted_urls_path ?? "").trim() || defaultExtractedPath;
+      const foundByPath = (args.found_by_path ?? "").trim() || defaultFoundByPath;
+      if (!path.isAbsolute(extractedUrlsPath)) {
+        return err("INVALID_ARGS", "extracted_urls_path must be absolute", { extracted_urls_path: args.extracted_urls_path ?? null });
+      }
+      if (!path.isAbsolute(foundByPath)) {
+        return err("INVALID_ARGS", "found_by_path must be absolute", { found_by_path: args.found_by_path ?? null });
+      }
+
+      const includeWave2 = args.include_wave2 ?? true;
+      const wave1Dir = path.join(runRoot, wave1DirName);
+      const wave2Dir = path.join(runRoot, wave2DirName);
+
+      const wave1Stat = await statPath(wave1Dir);
+      if (!wave1Stat?.isDirectory()) {
+        return err("NOT_FOUND", "wave dir missing", { wave_dir: wave1DirName, path: wave1Dir });
+      }
+
+      const scanTargets: Array<{ wave: "wave-1" | "wave-2"; dir: string }> = [{ wave: "wave-1", dir: wave1Dir }];
+      if (includeWave2) {
+        const wave2Stat = await statPath(wave2Dir);
+        if (wave2Stat?.isDirectory()) scanTargets.push({ wave: "wave-2", dir: wave2Dir });
+      }
+
+      const scannedFiles: Array<{ wave: "wave-1" | "wave-2"; abs: string }> = [];
+      for (const target of scanTargets) {
+        const files = await listMarkdownFilesRecursive(target.dir);
+        for (const file of files) scannedFiles.push({ wave: target.wave, abs: file });
+      }
+      scannedFiles.sort((a, b) => a.abs.localeCompare(b.abs));
+
+      const extractedAll: string[] = [];
+      const foundByItems: Array<{
+        url_original: string;
+        wave: "wave-1" | "wave-2";
+        perspective_id: string;
+        source_line: string;
+        ordinal: number;
+      }> = [];
+
+      for (const file of scannedFiles) {
+        const markdown = await fs.promises.readFile(file.abs, "utf8");
+        const section = findHeadingSection(markdown, "Sources");
+        if (section === null) continue;
+
+        const perspectiveId = path.basename(file.abs, path.extname(file.abs));
+        const lines = section.split(/\r?\n/);
+        let ordinal = 0;
+        for (const rawLine of lines) {
+          const line = rawLine.trim();
+          if (!line) continue;
+          const urls = extractHttpUrlsFromLine(line);
+          for (const url of urls) {
+            ordinal += 1;
+            extractedAll.push(url);
+            foundByItems.push({
+              url_original: url,
+              wave: file.wave,
+              perspective_id: perspectiveId,
+              source_line: line,
+              ordinal,
+            });
+          }
+        }
+      }
+
+      const uniqueUrls = Array.from(new Set(extractedAll)).sort((a, b) => a.localeCompare(b));
+
+      const boundedByUrl = new Map<string, typeof foundByItems>();
+      for (const item of foundByItems) {
+        const list = boundedByUrl.get(item.url_original) ?? [];
+        if (list.length < 20) list.push(item);
+        boundedByUrl.set(item.url_original, list);
+      }
+
+      const foundBySorted = Array.from(boundedByUrl.entries())
+        .flatMap(([, items]) => items)
+        .sort((a, b) => {
+          const byUrl = a.url_original.localeCompare(b.url_original);
+          if (byUrl !== 0) return byUrl;
+          const byWave = a.wave.localeCompare(b.wave);
+          if (byWave !== 0) return byWave;
+          const byPerspective = a.perspective_id.localeCompare(b.perspective_id);
+          if (byPerspective !== 0) return byPerspective;
+          return a.ordinal - b.ordinal;
+        });
+
+      const extractedText = uniqueUrls.length > 0 ? `${uniqueUrls.join("\n")}\n` : "";
+      const foundByDoc = {
+        schema_version: "found_by.v1",
+        run_id: runId,
+        items: foundBySorted,
+      };
+
+      const inputsDigest = sha256DigestForJson({
+        schema: "citations_extract_urls.inputs.v1",
+        run_id: runId,
+        include_wave2: includeWave2,
+        run_root: runRoot,
+        wave1_dir: wave1DirName,
+        wave2_dir: wave2DirName,
+        scanned_files: scannedFiles.map((entry) => toPosixPath(path.relative(runRoot, entry.abs))),
+      });
+
+      try {
+        await atomicWriteText(extractedUrlsPath, extractedText);
+        await atomicWriteJson(foundByPath, foundByDoc);
+      } catch (e) {
+        return err("WRITE_FAILED", "cannot write output artifacts", {
+          extracted_urls_path: extractedUrlsPath,
+          found_by_path: foundByPath,
+          message: String(e),
+        });
+      }
+
+      try {
+        await appendAuditJsonl({
+          runRoot,
+          event: {
+            ts: nowIso(),
+            kind: "citations_extract_urls",
+            run_id: runId,
+            reason,
+            extracted_urls_path: extractedUrlsPath,
+            found_by_path: foundByPath,
+            total_found: extractedAll.length,
+            unique_found: uniqueUrls.length,
+            inputs_digest: inputsDigest,
+          },
+        });
+      } catch {
+        // best effort
+      }
+
+      return ok({
+        run_id: runId,
+        extracted_urls_path: extractedUrlsPath,
+        found_by_path: foundByPath,
+        total_found: extractedAll.length,
+        unique_found: uniqueUrls.length,
+        inputs_digest: inputsDigest,
+      });
+    } catch (e) {
+      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required artifact missing");
+      return err("WRITE_FAILED", "citations_extract_urls failed", { message: String(e) });
+    }
+  },
+});
+
+export const citations_normalize = tool({
+  description: "Normalize extracted URLs and compute deterministic cids",
+  args: {
+    manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
+    extracted_urls_path: tool.schema.string().optional().describe("Absolute path to extracted-urls.txt"),
+    normalized_urls_path: tool.schema.string().optional().describe("Absolute output path for normalized-urls.txt"),
+    url_map_path: tool.schema.string().optional().describe("Absolute output path for url-map.json"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: {
+    manifest_path: string;
+    extracted_urls_path?: string;
+    normalized_urls_path?: string;
+    url_map_path?: string;
+    reason: string;
+  }) {
+    try {
+      const manifestPath = args.manifest_path.trim();
+      const reason = args.reason.trim();
+      if (!manifestPath) return err("INVALID_ARGS", "manifest_path must be non-empty");
+      if (!path.isAbsolute(manifestPath)) {
+        return err("INVALID_ARGS", "manifest_path must be absolute", { manifest_path: args.manifest_path });
+      }
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+
+      let manifestRaw: unknown;
+      try {
+        manifestRaw = await readJson(manifestPath);
+      } catch (e) {
+        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path missing", { manifest_path: manifestPath });
+        if (e instanceof SyntaxError) return err("INVALID_JSON", "manifest unreadable", { manifest_path: manifestPath });
+        throw e;
+      }
+      const mErr = validateManifestV1(manifestRaw);
+      if (mErr) return mErr;
+
+      const manifest = manifestRaw as Record<string, unknown>;
+      const runId = String(manifest.run_id ?? "");
+      const runRoot = String((manifest.artifacts as any)?.root ?? path.dirname(manifestPath));
+
+      const extractedUrlsPath = (args.extracted_urls_path ?? "").trim() || path.join(runRoot, "citations", "extracted-urls.txt");
+      const normalizedUrlsPath = (args.normalized_urls_path ?? "").trim() || path.join(runRoot, "citations", "normalized-urls.txt");
+      const urlMapPath = (args.url_map_path ?? "").trim() || path.join(runRoot, "citations", "url-map.json");
+
+      for (const [name, p] of [
+        ["extracted_urls_path", extractedUrlsPath],
+        ["normalized_urls_path", normalizedUrlsPath],
+        ["url_map_path", urlMapPath],
+      ] as const) {
+        if (!path.isAbsolute(p)) return err("INVALID_ARGS", `${name} must be absolute`, { [name]: p });
+      }
+
+      let extractedRaw: string;
+      try {
+        extractedRaw = await fs.promises.readFile(extractedUrlsPath, "utf8");
+      } catch (e) {
+        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "extracted urls missing", { extracted_urls_path: extractedUrlsPath });
+        throw e;
+      }
+
+      const extractedUrls = extractedRaw
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+      const uniqueOriginalUrls = Array.from(new Set(extractedUrls)).sort((a, b) => a.localeCompare(b));
+      const urlMapItems: Array<{ url_original: string; normalized_url: string; cid: string }> = [];
+
+      for (const urlOriginal of uniqueOriginalUrls) {
+        const normalized = normalizeCitationUrl(urlOriginal);
+        if (!normalized.ok) {
+          return err("SCHEMA_VALIDATION_FAILED", normalized.message, {
+            url_original: urlOriginal,
+            ...normalized.details,
+          });
+        }
+
+        urlMapItems.push({
+          url_original: urlOriginal,
+          normalized_url: normalized.normalized_url,
+          cid: citationCid(normalized.normalized_url),
+        });
+      }
+
+      urlMapItems.sort((a, b) => {
+        const byNormalized = a.normalized_url.localeCompare(b.normalized_url);
+        if (byNormalized !== 0) return byNormalized;
+        return a.url_original.localeCompare(b.url_original);
+      });
+
+      const normalizedUrls = Array.from(new Set(urlMapItems.map((item) => item.normalized_url))).sort((a, b) => a.localeCompare(b));
+      const normalizedText = normalizedUrls.length > 0 ? `${normalizedUrls.join("\n")}\n` : "";
+      const urlMapDoc = {
+        schema_version: "url_map.v1",
+        run_id: runId,
+        items: urlMapItems,
+      };
+
+      const inputsDigest = sha256DigestForJson({
+        schema: "citations_normalize.inputs.v1",
+        run_id: runId,
+        extracted_urls: uniqueOriginalUrls,
+      });
+
+      try {
+        await atomicWriteText(normalizedUrlsPath, normalizedText);
+        await atomicWriteJson(urlMapPath, urlMapDoc);
+      } catch (e) {
+        return err("WRITE_FAILED", "cannot write output artifacts", {
+          normalized_urls_path: normalizedUrlsPath,
+          url_map_path: urlMapPath,
+          message: String(e),
+        });
+      }
+
+      try {
+        await appendAuditJsonl({
+          runRoot,
+          event: {
+            ts: nowIso(),
+            kind: "citations_normalize",
+            run_id: runId,
+            reason,
+            normalized_urls_path: normalizedUrlsPath,
+            url_map_path: urlMapPath,
+            unique_normalized: normalizedUrls.length,
+            inputs_digest: inputsDigest,
+          },
+        });
+      } catch {
+        // best effort
+      }
+
+      return ok({
+        run_id: runId,
+        normalized_urls_path: normalizedUrlsPath,
+        url_map_path: urlMapPath,
+        unique_normalized: normalizedUrls.length,
+        inputs_digest: inputsDigest,
+      });
+    } catch (e) {
+      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required artifact missing");
+      return err("WRITE_FAILED", "citations_normalize failed", { message: String(e) });
+    }
+  },
+});
+
+export const citations_validate = tool({
+  description: "Validate normalized URLs into citations.jsonl records",
+  args: {
+    manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
+    url_map_path: tool.schema.string().optional().describe("Absolute path to url-map.json"),
+    citations_path: tool.schema.string().optional().describe("Absolute output path for citations.jsonl"),
+    offline_fixtures_path: tool.schema.string().optional().describe("Absolute JSON fixtures path for offline mode"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: {
+    manifest_path: string;
+    url_map_path?: string;
+    citations_path?: string;
+    offline_fixtures_path?: string;
+    reason: string;
+  }) {
+    try {
+      const manifestPath = args.manifest_path.trim();
+      const reason = args.reason.trim();
+      if (!manifestPath) return err("INVALID_ARGS", "manifest_path must be non-empty");
+      if (!path.isAbsolute(manifestPath)) {
+        return err("INVALID_ARGS", "manifest_path must be absolute", { manifest_path: args.manifest_path });
+      }
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+
+      const noWebRaw = process.env.PAI_DR_NO_WEB;
+      const noWebParsed = noWebRaw === undefined ? false : parseBool(noWebRaw);
+      if (noWebRaw !== undefined && noWebParsed === null) {
+        return err("INVALID_ARGS", "PAI_DR_NO_WEB must be boolean-like (0/1/true/false)", {
+          PAI_DR_NO_WEB: noWebRaw,
+        });
+      }
+      const mode: "offline" | "online" = noWebParsed === true ? "offline" : "online";
+
+      let manifestRaw: unknown;
+      try {
+        manifestRaw = await readJson(manifestPath);
+      } catch (e) {
+        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path missing", { manifest_path: manifestPath });
+        if (e instanceof SyntaxError) return err("INVALID_JSON", "manifest unreadable", { manifest_path: manifestPath });
+        throw e;
+      }
+      const mErr = validateManifestV1(manifestRaw);
+      if (mErr) return mErr;
+
+      const manifest = manifestRaw as Record<string, unknown>;
+      const runId = String(manifest.run_id ?? "");
+      const runRoot = String((manifest.artifacts as any)?.root ?? path.dirname(manifestPath));
+      const checkedAt = isNonEmptyString(manifest.updated_at) ? String(manifest.updated_at) : nowIso();
+
+      const urlMapPath = (args.url_map_path ?? "").trim() || path.join(runRoot, "citations", "url-map.json");
+      const citationsPath = (args.citations_path ?? "").trim() || path.join(runRoot, "citations", "citations.jsonl");
+      const offlineFixturesPath = (args.offline_fixtures_path ?? "").trim();
+
+      if (!path.isAbsolute(urlMapPath)) return err("INVALID_ARGS", "url_map_path must be absolute", { url_map_path: args.url_map_path ?? null });
+      if (!path.isAbsolute(citationsPath)) return err("INVALID_ARGS", "citations_path must be absolute", { citations_path: args.citations_path ?? null });
+      if (offlineFixturesPath && !path.isAbsolute(offlineFixturesPath)) {
+        return err("INVALID_ARGS", "offline_fixtures_path must be absolute", { offline_fixtures_path: args.offline_fixtures_path });
+      }
+      if (mode === "offline" && !offlineFixturesPath) {
+        return err("INVALID_ARGS", "offline_fixtures_path required in OFFLINE mode", {
+          mode,
+          PAI_DR_NO_WEB: noWebRaw ?? null,
+        });
+      }
+
+      let urlMapRaw: unknown;
+      try {
+        urlMapRaw = await readJson(urlMapPath);
+      } catch (e) {
+        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required file missing", { url_map_path: urlMapPath });
+        if (e instanceof SyntaxError) return err("INVALID_JSON", "url-map unreadable JSON", { url_map_path: urlMapPath });
+        throw e;
+      }
+
+      const urlMapValidation = validateUrlMapV1(urlMapRaw, runId);
+      if (!urlMapValidation.ok) return err("SCHEMA_VALIDATION_FAILED", urlMapValidation.message, urlMapValidation.details);
+
+      const urlMapItemsSorted = [...urlMapValidation.items].sort((a, b) => {
+        const byNormalized = a.normalized_url.localeCompare(b.normalized_url);
+        if (byNormalized !== 0) return byNormalized;
+        return a.url_original.localeCompare(b.url_original);
+      });
+
+      const urlMapItemsByNormalized = new Map<string, UrlMapItemV1>();
+      const normalizedToOriginals = new Map<string, string[]>();
+      for (const item of urlMapItemsSorted) {
+        if (!urlMapItemsByNormalized.has(item.normalized_url)) {
+          urlMapItemsByNormalized.set(item.normalized_url, item);
+        }
+        const originals = normalizedToOriginals.get(item.normalized_url) ?? [];
+        originals.push(item.url_original);
+        normalizedToOriginals.set(item.normalized_url, originals);
+      }
+      const urlMapItems = Array.from(urlMapItemsByNormalized.values()).sort((a, b) => a.normalized_url.localeCompare(b.normalized_url));
+
+      let fixtureLookup: OfflineFixtureLookup = emptyOfflineFixtureLookup();
+      if (mode === "offline") {
+        let fixtureRaw: unknown;
+        try {
+          fixtureRaw = await readJson(offlineFixturesPath);
+        } catch (e) {
+          if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "offline_fixtures_path missing", { offline_fixtures_path: offlineFixturesPath });
+          if (e instanceof SyntaxError) return err("INVALID_JSON", "offline fixtures unreadable JSON", { offline_fixtures_path: offlineFixturesPath });
+          throw e;
+        }
+
+        const fixtureResult = buildOfflineFixtureLookup(fixtureRaw);
+        if (!fixtureResult.ok) return err("SCHEMA_VALIDATION_FAILED", fixtureResult.message, fixtureResult.details);
+        fixtureLookup = fixtureResult.lookup;
+      }
+
+      const foundByPath = path.join(runRoot, "citations", "found-by.json");
+      const foundByLookup = await readFoundByLookup(foundByPath);
+
+      const records: Array<Record<string, unknown>> = [];
+      for (const item of urlMapItems) {
+        const fixture = mode === "offline" ? findFixtureForUrlMapItem(fixtureLookup, item) : null;
+
+        let status: CitationStatus;
+        let notes: string;
+        let urlValue = fixture?.url?.trim() || item.normalized_url;
+        let httpStatus: number | undefined;
+        let title: string | undefined;
+        let publisher: string | undefined;
+        let evidenceSnippet: string | undefined;
+
+        if (mode === "offline") {
+          if (!fixture) {
+            status = "invalid";
+            notes = "offline fixture not found for normalized_url";
+          } else {
+            status = isCitationStatus(fixture.status) ? fixture.status : "invalid";
+            notes = fixture.notes?.trim() || (status === "valid" ? "ok" : `offline fixture status=${status}`);
+            if (typeof fixture.http_status === "number" && Number.isFinite(fixture.http_status)) {
+              httpStatus = Math.trunc(fixture.http_status);
+            }
+            if (isNonEmptyString(fixture.title)) title = fixture.title;
+            if (isNonEmptyString(fixture.publisher)) publisher = fixture.publisher;
+            if (isNonEmptyString(fixture.evidence_snippet)) evidenceSnippet = fixture.evidence_snippet;
+          }
+        } else {
+          const onlineStub = classifyOnlineStub(item.normalized_url);
+          status = onlineStub.status;
+          notes = onlineStub.notes;
+          urlValue = onlineStub.url;
+          // Placeholder ladder contract (no network in this implementation):
+          // 1) direct fetch, 2) bright-data progressive scrape, 3) apify/rag-web-browser.
+        }
+
+        const redactedOriginal = redactSensitiveUrl(item.url_original);
+        const redactedUrl = redactSensitiveUrl(urlValue);
+        if (redactedOriginal.hadUserinfo || redactedUrl.hadUserinfo) {
+          status = "invalid";
+          notes = appendNote(notes, "userinfo stripped; marked invalid per redaction policy");
+        }
+
+        const originalsForNormalized = normalizedToOriginals.get(item.normalized_url) ?? [item.url_original];
+        const foundBy = originalsForNormalized
+          .flatMap((urlOriginal) => foundByLookup.get(urlOriginal) ?? []);
+        const record: Record<string, unknown> = {
+          schema_version: "citation.v1",
+          normalized_url: item.normalized_url,
+          cid: item.cid,
+          url: redactedUrl.value,
+          url_original: redactedOriginal.value,
+          status,
+          checked_at: checkedAt,
+          found_by: foundBy,
+          notes,
+        };
+        if (httpStatus !== undefined) record.http_status = httpStatus;
+        if (title) record.title = title;
+        if (publisher) record.publisher = publisher;
+        if (evidenceSnippet) record.evidence_snippet = evidenceSnippet;
+        records.push(record);
+      }
+
+      records.sort((a, b) => {
+        const an = String(a.normalized_url ?? "");
+        const bn = String(b.normalized_url ?? "");
+        const byNormalized = an.localeCompare(bn);
+        if (byNormalized !== 0) return byNormalized;
+        return String(a.url_original ?? "").localeCompare(String(b.url_original ?? ""));
+      });
+
+      const jsonl = records.map((record) => JSON.stringify(record)).join("\n");
+      const payload = jsonl.length > 0 ? `${jsonl}\n` : "";
+
+      try {
+        await atomicWriteText(citationsPath, payload);
+      } catch (e) {
+        return err("WRITE_FAILED", "cannot write citations.jsonl", {
+          citations_path: citationsPath,
+          message: String(e),
+        });
+      }
+
+      const inputsDigest = sha256DigestForJson({
+        schema: "citations_validate.inputs.v1",
+        run_id: runId,
+        mode,
+        url_map: urlMapItems,
+        fixture_digest: mode === "offline" ? fixtureLookup.fixtureDigest : null,
+      });
+
+      try {
+        await appendAuditJsonl({
+          runRoot,
+          event: {
+            ts: nowIso(),
+            kind: "citations_validate",
+            run_id: runId,
+            reason,
+            mode,
+            citations_path: citationsPath,
+            validated: records.length,
+            inputs_digest: inputsDigest,
+          },
+        });
+      } catch {
+        // best effort
+      }
+
+      return ok({
+        run_id: runId,
+        citations_path: citationsPath,
+        mode,
+        validated: records.length,
+        inputs_digest: inputsDigest,
+      });
+    } catch (e) {
+      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required file missing");
+      return err("WRITE_FAILED", "citations_validate failed", { message: String(e) });
+    }
+  },
+});
+
+export const gate_c_compute = tool({
+  description: "Compute deterministic Gate C metrics from citation artifacts",
+  args: {
+    manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
+    citations_path: tool.schema.string().optional().describe("Absolute path to citations.jsonl"),
+    extracted_urls_path: tool.schema.string().optional().describe("Absolute path to extracted-urls.txt"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: {
+    manifest_path: string;
+    citations_path?: string;
+    extracted_urls_path?: string;
+    reason: string;
+  }) {
+    try {
+      const manifestPath = args.manifest_path.trim();
+      const reason = args.reason.trim();
+      if (!manifestPath) return err("INVALID_ARGS", "manifest_path must be non-empty");
+      if (!path.isAbsolute(manifestPath)) {
+        return err("INVALID_ARGS", "manifest_path must be absolute", { manifest_path: args.manifest_path });
+      }
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+
+      let manifestRaw: unknown;
+      try {
+        manifestRaw = await readJson(manifestPath);
+      } catch (e) {
+        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path missing", { manifest_path: manifestPath });
+        if (e instanceof SyntaxError) return err("INVALID_JSON", "manifest unreadable", { manifest_path: manifestPath });
+        throw e;
+      }
+      const mErr = validateManifestV1(manifestRaw);
+      if (mErr) return mErr;
+
+      const manifest = manifestRaw as Record<string, unknown>;
+      const runRoot = String((manifest.artifacts as any)?.root ?? path.dirname(manifestPath));
+
+      const citationsPath = (args.citations_path ?? "").trim() || path.join(runRoot, "citations", "citations.jsonl");
+      const extractedUrlsPath = (args.extracted_urls_path ?? "").trim() || path.join(runRoot, "citations", "extracted-urls.txt");
+      if (!path.isAbsolute(citationsPath)) return err("INVALID_ARGS", "citations_path must be absolute", { citations_path: args.citations_path ?? null });
+      if (!path.isAbsolute(extractedUrlsPath)) {
+        return err("INVALID_ARGS", "extracted_urls_path must be absolute", { extracted_urls_path: args.extracted_urls_path ?? null });
+      }
+
+      let extractedRaw: string;
+      try {
+        extractedRaw = await fs.promises.readFile(extractedUrlsPath, "utf8");
+      } catch (e) {
+        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required file missing", { extracted_urls_path: extractedUrlsPath });
+        throw e;
+      }
+
+      const extractedOriginal = extractedRaw
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0);
+
+      const normalizedExtractedSet = new Set<string>();
+      for (const urlOriginal of extractedOriginal) {
+        const normalized = normalizeCitationUrl(urlOriginal);
+        if (!normalized.ok) {
+          return err("SCHEMA_VALIDATION_FAILED", "failed to normalize extracted URL", {
+            url_original: urlOriginal,
+            ...normalized.details,
+          });
+        }
+        normalizedExtractedSet.add(normalized.normalized_url);
+      }
+      const normalizedExtracted = Array.from(normalizedExtractedSet).sort((a, b) => a.localeCompare(b));
+
+      let citationRecords: Array<Record<string, unknown>>;
+      try {
+        citationRecords = await readJsonlObjects(citationsPath);
+      } catch (e) {
+        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required file missing", { citations_path: citationsPath });
+        if (e instanceof SyntaxError) return err("INVALID_JSONL", "citations.jsonl malformed", { citations_path: citationsPath, message: String(e) });
+        throw e;
+      }
+
+      const statusByNormalized = new Map<string, string>();
+      for (const record of citationRecords) {
+        const normalizedUrl = String(record.normalized_url ?? "").trim();
+        const status = String(record.status ?? "").trim();
+        if (!normalizedUrl) return err("SCHEMA_VALIDATION_FAILED", "citation record missing normalized_url", { record });
+        if (!status) return err("SCHEMA_VALIDATION_FAILED", "citation record missing status", { normalized_url: normalizedUrl });
+        if (statusByNormalized.has(normalizedUrl)) {
+          return err("SCHEMA_VALIDATION_FAILED", "duplicate normalized_url in citations.jsonl", {
+            normalized_url: normalizedUrl,
+          });
+        }
+        statusByNormalized.set(normalizedUrl, status);
+      }
+
+      const denominator = normalizedExtracted.length;
+      let validatedCount = 0;
+      let invalidCount = 0;
+      let uncategorizedCount = 0;
+
+      for (const normalizedUrl of normalizedExtracted) {
+        const status = statusByNormalized.get(normalizedUrl);
+        if (status === "valid" || status === "paywalled") {
+          validatedCount += 1;
+        } else if (status === "invalid" || status === "blocked" || status === "mismatch") {
+          invalidCount += 1;
+        } else {
+          uncategorizedCount += 1;
+        }
+      }
+
+      const rate = (num: number, den: number) => (den <= 0 ? 0 : Number((num / den).toFixed(6)));
+      const metrics = {
+        validated_url_rate: rate(validatedCount, denominator),
+        invalid_url_rate: rate(invalidCount, denominator),
+        uncategorized_url_rate: rate(uncategorizedCount, denominator),
+      };
+
+      const warnings: string[] = [];
+      if (denominator <= 0) warnings.push("NO_URLS_EXTRACTED");
+
+      const pass = denominator > 0
+        && metrics.validated_url_rate >= 0.9
+        && metrics.invalid_url_rate <= 0.1
+        && metrics.uncategorized_url_rate === 0;
+      const status: "pass" | "fail" = pass ? "pass" : "fail";
+
+      const notes = denominator <= 0
+        ? "Gate C failed: NO_URLS_EXTRACTED"
+        : `Gate C ${status}: ${validatedCount}/${denominator} validated, ${invalidCount} invalid, ${uncategorizedCount} uncategorized.`;
+
+      const checkedAt = nowIso();
+      const update = {
+        C: {
+          status,
+          checked_at: checkedAt,
+          metrics,
+          artifacts: [
+            toPosixPath(path.relative(runRoot, citationsPath)),
+            toPosixPath(path.relative(runRoot, extractedUrlsPath)),
+          ],
+          warnings,
+          notes,
+        },
+      };
+
+      const inputsDigest = sha256DigestForJson({
+        schema: "gate_c_compute.inputs.v1",
+        extracted_set: normalizedExtracted,
+        citations_set: Array.from(statusByNormalized.entries())
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .map(([normalized_url, s]) => ({ normalized_url, status: s })),
+      });
+
+      try {
+        await appendAuditJsonl({
+          runRoot,
+          event: {
+            ts: checkedAt,
+            kind: "gate_c_compute",
+            run_id: String(manifest.run_id ?? ""),
+            reason,
+            status,
+            metrics,
+            inputs_digest: inputsDigest,
+          },
+        });
+      } catch {
+        // best effort
+      }
+
+      return ok({
+        gate_id: "C",
+        status,
+        metrics,
+        update,
+        inputs_digest: inputsDigest,
+      });
+    } catch (e) {
+      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required file missing");
+      return err("WRITE_FAILED", "gate_c_compute failed", { message: String(e) });
+    }
+  },
+});
+
+export const citations_render_md = tool({
+  description: "Render deterministic validated-citations markdown report",
+  args: {
+    manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
+    citations_path: tool.schema.string().optional().describe("Absolute path to citations.jsonl"),
+    output_md_path: tool.schema.string().optional().describe("Absolute output markdown path"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: {
+    manifest_path: string;
+    citations_path?: string;
+    output_md_path?: string;
+    reason: string;
+  }) {
+    try {
+      const manifestPath = args.manifest_path.trim();
+      const reason = args.reason.trim();
+      if (!manifestPath) return err("INVALID_ARGS", "manifest_path must be non-empty");
+      if (!path.isAbsolute(manifestPath)) {
+        return err("INVALID_ARGS", "manifest_path must be absolute", { manifest_path: args.manifest_path });
+      }
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+
+      let manifestRaw: unknown;
+      try {
+        manifestRaw = await readJson(manifestPath);
+      } catch (e) {
+        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path missing", { manifest_path: manifestPath });
+        if (e instanceof SyntaxError) return err("INVALID_JSON", "manifest unreadable", { manifest_path: manifestPath });
+        throw e;
+      }
+      const mErr = validateManifestV1(manifestRaw);
+      if (mErr) return mErr;
+
+      const manifest = manifestRaw as Record<string, unknown>;
+      const runId = String(manifest.run_id ?? "");
+      const runRoot = String((manifest.artifacts as any)?.root ?? path.dirname(manifestPath));
+
+      const citationsPath = (args.citations_path ?? "").trim() || path.join(runRoot, "citations", "citations.jsonl");
+      const outputMdPath = (args.output_md_path ?? "").trim() || path.join(runRoot, "citations", "validated-citations.md");
+      if (!path.isAbsolute(citationsPath)) return err("INVALID_ARGS", "citations_path must be absolute", { citations_path: args.citations_path ?? null });
+      if (!path.isAbsolute(outputMdPath)) return err("INVALID_ARGS", "output_md_path must be absolute", { output_md_path: args.output_md_path ?? null });
+
+      let records: Array<Record<string, unknown>>;
+      try {
+        records = await readJsonlObjects(citationsPath);
+      } catch (e) {
+        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "citations.jsonl missing", { citations_path: citationsPath });
+        if (e instanceof SyntaxError) return err("INVALID_JSONL", "citations.jsonl malformed", { citations_path: citationsPath, message: String(e) });
+        throw e;
+      }
+
+      records.sort((a, b) => {
+        const an = String(a.normalized_url ?? "");
+        const bn = String(b.normalized_url ?? "");
+        const byNormalized = an.localeCompare(bn);
+        if (byNormalized !== 0) return byNormalized;
+        return String(a.cid ?? "").localeCompare(String(b.cid ?? ""));
+      });
+
+      const lines: string[] = [
+        "# Validated Citations",
+        "",
+        `Run ID: ${runId}`,
+        `Rendered: ${records.length}`,
+        "",
+      ];
+
+      for (const record of records) {
+        const cid = String(record.cid ?? "").trim();
+        const url = String(record.url ?? "").trim();
+        const status = String(record.status ?? "").trim();
+
+        lines.push(`## ${cid || "(missing-cid)"}`);
+        lines.push(`- URL: ${url || "(missing-url)"}`);
+        lines.push(`- Status: ${status || "(missing-status)"}`);
+
+        const title = String(record.title ?? "").trim();
+        const publisher = String(record.publisher ?? "").trim();
+        if (title) lines.push(`- Title: ${title}`);
+        if (publisher) lines.push(`- Publisher: ${publisher}`);
+        lines.push("");
+      }
+
+      const markdown = `${lines.join("\n")}\n`;
+      try {
+        await atomicWriteText(outputMdPath, markdown);
+      } catch (e) {
+        return err("WRITE_FAILED", "cannot write validated-citations.md", {
+          output_md_path: outputMdPath,
+          message: String(e),
+        });
+      }
+
+      const inputsDigest = sha256DigestForJson({
+        schema: "citations_render_md.inputs.v1",
+        run_id: runId,
+        records: records.map((record) => ({
+          normalized_url: String(record.normalized_url ?? ""),
+          cid: String(record.cid ?? ""),
+          url: String(record.url ?? ""),
+          status: String(record.status ?? ""),
+          title: String(record.title ?? ""),
+          publisher: String(record.publisher ?? ""),
+        })),
+      });
+
+      try {
+        await appendAuditJsonl({
+          runRoot,
+          event: {
+            ts: nowIso(),
+            kind: "citations_render_md",
+            run_id: runId,
+            reason,
+            output_md_path: outputMdPath,
+            rendered: records.length,
+            inputs_digest: inputsDigest,
+          },
+        });
+      } catch {
+        // best effort
+      }
+
+      return ok({
+        output_md_path: outputMdPath,
+        rendered: records.length,
+        inputs_digest: inputsDigest,
+      });
+    } catch (e) {
+      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required file missing");
+      return err("WRITE_FAILED", "citations_render_md failed", { message: String(e) });
+    }
+  },
+});
+
 export const stage_advance = tool({
   description: "Advance deep research stage deterministically (Phase 02)",
   args: {
@@ -2817,6 +3748,393 @@ export const watchdog_check = tool({
     }
   },
 });
+
+type CitationStatus = "valid" | "paywalled" | "blocked" | "mismatch" | "invalid";
+
+type UrlMapItemV1 = {
+  url_original: string;
+  normalized_url: string;
+  cid: string;
+};
+
+type OfflineFixtureEntry = {
+  normalized_url?: string;
+  url_original?: string;
+  cid?: string;
+  status?: string;
+  url?: string;
+  http_status?: number;
+  title?: string;
+  publisher?: string;
+  evidence_snippet?: string;
+  notes?: string;
+};
+
+type OfflineFixtureLookup = {
+  byNormalized: Map<string, OfflineFixtureEntry>;
+  byOriginal: Map<string, OfflineFixtureEntry>;
+  byCid: Map<string, OfflineFixtureEntry>;
+  fixtureDigest: string;
+};
+
+function isCitationStatus(value: unknown): value is CitationStatus {
+  return value === "valid" || value === "paywalled" || value === "blocked" || value === "mismatch" || value === "invalid";
+}
+
+function appendNote(current: string, next: string): string {
+  const base = current.trim();
+  const tail = next.trim();
+  if (!base) return tail;
+  if (!tail) return base;
+  return `${base}; ${tail}`;
+}
+
+function toPosixPath(value: string): string {
+  return value.split(path.sep).join("/");
+}
+
+async function listMarkdownFilesRecursive(dir: string): Promise<string[]> {
+  const out: string[] = [];
+  const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+  for (const entry of entries) {
+    const abs = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const nested = await listMarkdownFilesRecursive(abs);
+      out.push(...nested);
+      continue;
+    }
+    if (entry.isFile() && entry.name.toLowerCase().endsWith(".md")) out.push(abs);
+  }
+  return out;
+}
+
+function extractHttpUrlsFromLine(line: string): string[] {
+  const matches = line.match(/https?:\/\/[^\s<>()\[\]"'`]+/g) ?? [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of matches) {
+    const cleaned = raw.replace(/[),.;:!?]+$/g, "").trim();
+    if (!cleaned) continue;
+    try {
+      const parsed = new URL(cleaned);
+      const protocol = parsed.protocol.toLowerCase();
+      if (protocol !== "http:" && protocol !== "https:") continue;
+      const value = parsed.toString();
+      if (seen.has(value)) continue;
+      seen.add(value);
+      out.push(value);
+    } catch {
+      // ignore non-URL tokens
+    }
+  }
+  return out;
+}
+
+function normalizeCitationUrl(urlOriginal: string):
+  | { ok: true; normalized_url: string }
+  | { ok: false; message: string; details: Record<string, unknown> } {
+  try {
+    const parsed = new URL(urlOriginal);
+    const protocol = parsed.protocol.toLowerCase();
+    if (protocol !== "http:" && protocol !== "https:") {
+      return {
+        ok: false,
+        message: "only http/https URLs are allowed",
+        details: { protocol: parsed.protocol },
+      };
+    }
+
+    const host = parsed.hostname.toLowerCase();
+    let port = parsed.port;
+    if ((protocol === "http:" && port === "80") || (protocol === "https:" && port === "443")) {
+      port = "";
+    }
+
+    let pathname = parsed.pathname || "/";
+    if (pathname !== "/" && pathname.endsWith("/")) pathname = pathname.slice(0, -1);
+
+    const filteredPairs = [...parsed.searchParams.entries()]
+      .filter(([key]) => {
+        const lower = key.toLowerCase();
+        if (lower.startsWith("utm_")) return false;
+        if (lower === "gclid" || lower === "fbclid") return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const byKey = a[0].localeCompare(b[0]);
+        if (byKey !== 0) return byKey;
+        return a[1].localeCompare(b[1]);
+      });
+
+    const query = filteredPairs
+      .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+      .join("&");
+
+    const authority = port ? `${host}:${port}` : host;
+    const normalizedUrl = `${protocol}//${authority}${pathname}${query ? `?${query}` : ""}`;
+    return { ok: true, normalized_url: normalizedUrl };
+  } catch (e) {
+    return {
+      ok: false,
+      message: "invalid absolute URL",
+      details: { error: String(e) },
+    };
+  }
+}
+
+function citationCid(normalizedUrl: string): string {
+  return `cid_${sha256HexLowerUtf8(normalizedUrl)}`;
+}
+
+function validateUrlMapV1(
+  value: unknown,
+  expectedRunId: string,
+):
+  | { ok: true; items: UrlMapItemV1[] }
+  | { ok: false; message: string; details: Record<string, unknown> } {
+  if (!isPlainObject(value)) return { ok: false, message: "url-map must be object", details: {} };
+  if (value.schema_version !== "url_map.v1") {
+    return { ok: false, message: "url-map schema_version must be url_map.v1", details: { schema_version: value.schema_version ?? null } };
+  }
+  if (String(value.run_id ?? "") !== expectedRunId) {
+    return {
+      ok: false,
+      message: "url-map run_id mismatch",
+      details: { expected_run_id: expectedRunId, got: String(value.run_id ?? "") },
+    };
+  }
+
+  const itemsRaw = (value as any).items;
+  if (!Array.isArray(itemsRaw)) return { ok: false, message: "url-map items must be array", details: {} };
+
+  const items: UrlMapItemV1[] = [];
+  for (let i = 0; i < itemsRaw.length; i += 1) {
+    const raw = itemsRaw[i];
+    if (!isPlainObject(raw)) return { ok: false, message: "url-map item must be object", details: { index: i } };
+    const urlOriginal = String(raw.url_original ?? "").trim();
+    const normalizedUrl = String(raw.normalized_url ?? "").trim();
+    const cid = String(raw.cid ?? "").trim();
+    if (!urlOriginal || !normalizedUrl || !cid) {
+      return {
+        ok: false,
+        message: "url-map item missing required fields",
+        details: { index: i, url_original: urlOriginal, normalized_url: normalizedUrl, cid },
+      };
+    }
+    items.push({ url_original: urlOriginal, normalized_url: normalizedUrl, cid });
+  }
+  return { ok: true, items };
+}
+
+function emptyOfflineFixtureLookup(): OfflineFixtureLookup {
+  return {
+    byNormalized: new Map(),
+    byOriginal: new Map(),
+    byCid: new Map(),
+    fixtureDigest: sha256DigestForJson({ schema: "citations_validate.offline_fixtures.v1", items: [] }),
+  };
+}
+
+function buildOfflineFixtureLookup(
+  value: unknown,
+):
+  | { ok: true; lookup: OfflineFixtureLookup }
+  | { ok: false; message: string; details: Record<string, unknown> } {
+  let itemsRaw: unknown[] = [];
+  if (Array.isArray(value)) {
+    itemsRaw = value;
+  } else if (isPlainObject(value) && Array.isArray((value as any).items)) {
+    itemsRaw = ((value as any).items as unknown[]);
+  } else if (isPlainObject(value)) {
+    itemsRaw = Object.entries(value).map(([normalized, entry]) => {
+      if (isPlainObject(entry)) return { normalized_url: normalized, ...entry };
+      return { normalized_url: normalized, status: String(entry ?? "") };
+    });
+  } else {
+    return { ok: false, message: "offline fixtures must be array/object", details: {} };
+  }
+
+  const byNormalized = new Map<string, OfflineFixtureEntry>();
+  const byOriginal = new Map<string, OfflineFixtureEntry>();
+  const byCid = new Map<string, OfflineFixtureEntry>();
+  const normalizedForDigest: OfflineFixtureEntry[] = [];
+
+  for (let i = 0; i < itemsRaw.length; i += 1) {
+    const raw = itemsRaw[i];
+    if (!isPlainObject(raw)) {
+      return { ok: false, message: "offline fixture entry must be object", details: { index: i } };
+    }
+    const item: OfflineFixtureEntry = {
+      normalized_url: isNonEmptyString(raw.normalized_url) ? raw.normalized_url.trim() : undefined,
+      url_original: isNonEmptyString(raw.url_original) ? raw.url_original.trim() : undefined,
+      cid: isNonEmptyString(raw.cid) ? raw.cid.trim() : undefined,
+      status: isNonEmptyString(raw.status) ? raw.status.trim() : undefined,
+      url: isNonEmptyString(raw.url) ? raw.url.trim() : undefined,
+      http_status: isFiniteNumber(raw.http_status) ? Math.trunc(raw.http_status) : undefined,
+      title: isNonEmptyString(raw.title) ? raw.title.trim() : undefined,
+      publisher: isNonEmptyString(raw.publisher) ? raw.publisher.trim() : undefined,
+      evidence_snippet: isNonEmptyString(raw.evidence_snippet) ? raw.evidence_snippet.trim() : undefined,
+      notes: isNonEmptyString(raw.notes) ? raw.notes.trim() : undefined,
+    };
+
+    if (item.normalized_url) byNormalized.set(item.normalized_url, item);
+    if (item.url_original) byOriginal.set(item.url_original, item);
+    if (item.cid) byCid.set(item.cid, item);
+    normalizedForDigest.push(item);
+  }
+
+  return {
+    ok: true,
+    lookup: {
+      byNormalized,
+      byOriginal,
+      byCid,
+      fixtureDigest: sha256DigestForJson({
+        schema: "citations_validate.offline_fixtures.v1",
+        items: normalizedForDigest,
+      }),
+    },
+  };
+}
+
+function findFixtureForUrlMapItem(lookup: OfflineFixtureLookup, item: UrlMapItemV1): OfflineFixtureEntry | null {
+  return lookup.byNormalized.get(item.normalized_url)
+    ?? lookup.byOriginal.get(item.url_original)
+    ?? lookup.byCid.get(item.cid)
+    ?? null;
+}
+
+const SENSITIVE_QUERY_KEYS = ["token", "key", "api_key", "access_token", "auth", "session", "password"];
+
+function redactSensitiveUrl(input: string): { value: string; hadUserinfo: boolean } {
+  try {
+    const parsed = new URL(input);
+    const hadUserinfo = Boolean(parsed.username || parsed.password);
+    parsed.username = "";
+    parsed.password = "";
+
+    const keys = Array.from(new Set([...parsed.searchParams.keys()]));
+    for (const key of keys) {
+      const lower = key.toLowerCase();
+      if (SENSITIVE_QUERY_KEYS.some((needle) => lower.includes(needle))) {
+        parsed.searchParams.set(key, "[REDACTED]");
+      }
+    }
+    return { value: parsed.toString(), hadUserinfo };
+  } catch {
+    return { value: input, hadUserinfo: false };
+  }
+}
+
+function isPrivateOrLocalHost(hostnameInput: string): boolean {
+  const hostname = hostnameInput.toLowerCase().replace(/^\[(.*)\]$/, "$1");
+  if (hostname === "localhost" || hostname === "::1") return true;
+
+  const ipv4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
+  if (ipv4) {
+    const parts = ipv4.slice(1).map((part) => Number(part));
+    if (parts.some((part) => !Number.isFinite(part) || part < 0 || part > 255)) return false;
+    const [a, b] = parts;
+    if (a === 10) return true;
+    if (a === 127) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 192 && b === 168) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+  }
+
+  if (hostname.startsWith("fc") || hostname.startsWith("fd")) return true;
+  if (hostname.startsWith("fe8") || hostname.startsWith("fe9") || hostname.startsWith("fea") || hostname.startsWith("feb")) return true;
+  return false;
+}
+
+function classifyOnlineStub(urlValue: string): { status: CitationStatus; notes: string; url: string } {
+  const redacted = redactSensitiveUrl(urlValue);
+  try {
+    const parsed = new URL(redacted.value);
+    const protocol = parsed.protocol.toLowerCase();
+    if (protocol !== "http:" && protocol !== "https:") {
+      return { status: "invalid", notes: "online stub: disallowed protocol", url: redacted.value };
+    }
+    if (isPrivateOrLocalHost(parsed.hostname)) {
+      return { status: "invalid", notes: "online stub: private/local target blocked by SSRF policy", url: redacted.value };
+    }
+    if (redacted.hadUserinfo) {
+      return { status: "invalid", notes: "online stub: userinfo stripped and marked invalid", url: redacted.value };
+    }
+    return {
+      status: "blocked",
+      notes: "online stub: ladder placeholder [direct_fetch -> bright_data -> apify]",
+      url: redacted.value,
+    };
+  } catch {
+    return { status: "invalid", notes: "online stub: malformed URL", url: redacted.value };
+  }
+}
+
+async function readJsonlObjects(filePath: string): Promise<Array<Record<string, unknown>>> {
+  const raw = await fs.promises.readFile(filePath, "utf8");
+  const lines = raw.split(/\r?\n/);
+  const out: Array<Record<string, unknown>> = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i].trim();
+    if (!line) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(line);
+    } catch (e) {
+      throw new SyntaxError(`invalid JSONL at line ${i + 1}: ${String(e)}`);
+    }
+    if (!isPlainObject(parsed)) {
+      throw new SyntaxError(`invalid JSONL object at line ${i + 1}`);
+    }
+    out.push(parsed);
+  }
+  return out;
+}
+
+async function readFoundByLookup(foundByPath: string): Promise<Map<string, Array<Record<string, unknown>>>> {
+  const out = new Map<string, Array<Record<string, unknown>>>();
+  let raw: unknown;
+  try {
+    raw = await readJson(foundByPath);
+  } catch {
+    return out;
+  }
+
+  if (!isPlainObject(raw) || !Array.isArray((raw as any).items)) return out;
+  for (const item of (raw as any).items as unknown[]) {
+    if (!isPlainObject(item)) continue;
+    const urlOriginal = String(item.url_original ?? "").trim();
+    if (!urlOriginal) continue;
+
+    const waveRaw = String(item.wave ?? "").trim();
+    const wave = waveRaw === "wave-2" ? 2 : 1;
+    const perspectiveId = String(item.perspective_id ?? "").trim();
+    const entry: Record<string, unknown> = {
+      wave,
+      perspective_id: perspectiveId || "unknown",
+      agent_type: "unknown",
+      artifact_path: perspectiveId ? `${waveRaw || `wave-${wave}`}/${perspectiveId}.md` : `${waveRaw || `wave-${wave}`}/unknown.md`,
+    };
+    const list = out.get(urlOriginal) ?? [];
+    list.push(entry);
+    out.set(urlOriginal, list);
+  }
+
+  for (const [key, value] of out.entries()) {
+    value.sort((a, b) => {
+      const byWave = Number(a.wave ?? 0) - Number(b.wave ?? 0);
+      if (byWave !== 0) return byWave;
+      const byPerspective = String(a.perspective_id ?? "").localeCompare(String(b.perspective_id ?? ""));
+      if (byPerspective !== 0) return byPerspective;
+      return String(a.artifact_path ?? "").localeCompare(String(b.artifact_path ?? ""));
+    });
+    out.set(key, value);
+  }
+
+  return out;
+}
 
 async function exists(p: string): Promise<boolean> {
   try {

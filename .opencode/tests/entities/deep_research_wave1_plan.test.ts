@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 import { run_init, wave1_plan } from "../../tools/deep_research.ts";
-import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
+import { fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 describe("deep_research_wave1_plan (entity)", () => {
   test("writes deterministic plan artifact under wave-1/wave1-plan.json", async () => {
@@ -25,15 +25,8 @@ describe("deep_research_wave1_plan (entity)", () => {
           const manifestPath = (init as any).manifest_path as string;
           const runRoot = path.dirname(manifestPath);
 
-          const fixturePath = path.resolve(
-            process.cwd(),
-            "tests",
-            "fixtures",
-            "runs",
-            "p03-wave1-plan-min",
-            "perspectives.json",
-          );
-          await fs.copyFile(fixturePath, path.join(runRoot, "perspectives.json"));
+          const p = fixturePath("runs", "p03-wave1-plan-min", "perspectives.json");
+          await fs.copyFile(p, path.join(runRoot, "perspectives.json"));
 
           const outRaw = (await (wave1_plan as any).execute(
             {
@@ -89,15 +82,8 @@ describe("deep_research_wave1_plan (entity)", () => {
           const manifestPath = (init as any).manifest_path as string;
           const runRoot = path.dirname(manifestPath);
 
-          const fixturePath = path.resolve(
-            process.cwd(),
-            "tests",
-            "fixtures",
-            "runs",
-            "p03-wave1-plan-min",
-            "perspectives.json",
-          );
-          const content = await fs.readFile(fixturePath, "utf8");
+          const p = fixturePath("runs", "p03-wave1-plan-min", "perspectives.json");
+          const content = await fs.readFile(p, "utf8");
           const patched = JSON.parse(content);
           patched.run_id = runId;
           await fs.writeFile(path.join(runRoot, "perspectives.json"), JSON.stringify(patched, null, 2) + "\n", "utf8");

@@ -1,0 +1,21 @@
+{
+  "schema_version": "url_map.v1",
+  "run_id": "dr_fixture_validate",
+  "items": [
+    {
+      "url_original": "https://example.com/open",
+      "normalized_url": "https://example.com/open",
+      "cid": "cid_c670cd0eb843b54f7bf606819590ba27f769b0fbbaa2a5b44ca776f536daea44"
+    },
+    {
+      "url_original": "https://paywall.example.com/premium",
+      "normalized_url": "https://paywall.example.com/premium",
+      "cid": "cid_c71202c119c0d2e9fc984b25ad56c2f462ee25fb38fde503a7cbc1d8ea0a3e38"
+    },
+    {
+      "url_original": "https://example.com/dead",
+      "normalized_url": "https://example.com/dead",
+      "cid": "cid_6210bee52fd785ae11c7083ffc988ef12f8197ac7ec0f1de2cf064de3cfc75c6"
+    }
+  ]
+}

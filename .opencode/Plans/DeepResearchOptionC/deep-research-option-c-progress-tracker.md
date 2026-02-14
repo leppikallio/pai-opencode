@@ -5,7 +5,7 @@
 - Planned window: 12–16 weeks
 - Status: `in_progress`
 - Last updated: `2026-02-14`
-- Current phase: `Phase 04` (pending)
+- Current phase: `Phase 04` (in_progress)
 
 ## Plan root directory (canonical)
 All program plans and specs live here:
@@ -37,7 +37,7 @@ Session loss / compaction safe recovery:
 | 01 | Platform core scaffolding | Engineer | done | Architect | Gate A | Signed off: `PHASE-01-CHECKPOINT-GATE-A-SIGNOFF.md` |
 | 02 | Orchestrator engine | Engineer | done | QATester | Gate B | Signed off: `PHASE-02-CHECKPOINT-GATE-B.md` + `PHASE-02-CHECKPOINT-QA-REVIEW.md` |
 | 03 | Agent contracts & wave graph | Engineer | done | Architect | Gate B | Signed off: `PHASE-03-CHECKPOINT-GATE-B.md` |
-| 04 | Citation validation services | Engineer | pending | QATester | Gate C | Canonical pool |
+| 04 | Citation validation services | Engineer | in_progress | QATester | Gate C | Implement P04 tools + entity tests/fixtures |
 | 05 | Synthesis/reviewer factory | Engineer | pending | Architect | Gate D/E | Writer-review loop |
 | 06 | Observability + quality automation | Engineer | pending | QATester | Gate E | Metrics + harness |
 | 07 | Rollout hardening & canary | Engineer | pending | Architect | Gate F | Flags + fallback |
@@ -49,7 +49,7 @@ Session loss / compaction safe recovery:
 | A | Core platform/state | done | Phase 01 complete; Phase 02 unblocked |
 | B | Orchestration/runtime | done | Phase 02 stage engine complete |
 | C | Agents/contracts | done | Phase 03 Gate B passed |
-| D | Citation/evidence | pending | 0 |
+| D | Citation/evidence | in_progress | P04-02/04/06/08/09 tools + entity tests |
 | E | Synthesis/review | pending | 0 |
 | F | QA/observability | pending | 0 |
 

@@ -1,0 +1,23 @@
+{
+  "items": [
+    {
+      "normalized_url": "https://example.com/open",
+      "status": "valid",
+      "title": "Open Example",
+      "publisher": "Example News",
+      "notes": "ok"
+    },
+    {
+      "normalized_url": "https://paywall.example.com/premium",
+      "status": "paywalled",
+      "publisher": "Paywall Times",
+      "notes": "paywalled"
+    },
+    {
+      "normalized_url": "https://example.com/dead",
+      "status": "invalid",
+      "http_status": 404,
+      "notes": "404"
+    }
+  ]
+}
