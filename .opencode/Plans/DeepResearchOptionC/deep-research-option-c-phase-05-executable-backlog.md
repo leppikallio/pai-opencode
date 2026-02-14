@@ -13,7 +13,7 @@ This phase operationalizes:
 ## Dependencies
 
 - Phase 04 citation gate operational:
-  - `scratch/research-runs/<run_id>/citations/citations.jsonl` exists and Gate C passes.
+  - `~/.config/opencode/research-runs/<run_id>/citations/citations.jsonl` exists and Gate C passes.
 - Summary pack schema is authoritative (do not reinvent):
   - `spec-router-summary-schemas-v1.md` (`summary_pack.v1`)
 - Gate definitions + thresholds are authoritative:
@@ -30,9 +30,9 @@ This phase operationalizes:
 ### Gate D — Summary pack boundedness (HARD)
 
 Per-run artifact paths in this system:
-- `scratch/research-runs/<run_id>/manifest.json`
-- `scratch/research-runs/<run_id>/summaries/summary-pack.json`
-- `scratch/research-runs/<run_id>/summaries/*.md`
+- `~/.config/opencode/research-runs/<run_id>/manifest.json`
+- `~/.config/opencode/research-runs/<run_id>/summaries/summary-pack.json`
+- `~/.config/opencode/research-runs/<run_id>/summaries/*.md`
 
 > ## Gate D — Summary pack boundedness (HARD)
 >
@@ -59,8 +59,8 @@ Reviewer evidence expectations (Gate D rubric):
 ### Gate E — Synthesis quality (HARD with warnings)
 
 Per-run artifact paths in this system:
-- `scratch/research-runs/<run_id>/synthesis/final-synthesis.md`
-- `scratch/research-runs/<run_id>/citations/citations.jsonl`
+- `~/.config/opencode/research-runs/<run_id>/synthesis/final-synthesis.md`
+- `~/.config/opencode/research-runs/<run_id>/citations/citations.jsonl`
 
 > ## Gate E — Synthesis quality (HARD with warnings)
 >
@@ -83,7 +83,7 @@ Per-run artifact paths in this system:
 >
 > ### Soft metric formulas (deterministic)
 > - Report citation syntax (required): `[@<cid>]` where `<cid>` is from `citations.jsonl`.
-> - `validated_cids_count` = count of unique `cid` where `status=valid`.
+> - `validated_cids_count` = count of unique `cid` where `status IN {"valid","paywalled"}`.
 > - `used_cids_count` = count of unique `<cid>` occurrences in the report.
 > - `citation_utilization_rate` = `used_cids_count / validated_cids_count`.
 > - `total_cid_mentions` = total count of `[@<cid>]` mentions in the report.
@@ -104,22 +104,22 @@ Reviewer evidence expectations (Gate E rubric):
 | ID | Task | Owner | Reviewer | Dependencies | Deliverable | Evidence |
 |---|---|---|---|---|---|---|
 | P05-01 | Define deterministic **summary pack build** contract: inputs are validated wave outputs + `citations/citations.jsonl` + `manifest.json`; output is `summary_pack.v1` + per-perspective bounded markdown summaries; stable ordering; **no raw wave dumps** into synthesis | Architect | Engineer | Phase 04 (Gate C pass) + `spec-router-summary-schemas-v1.md` + `spec-gate-thresholds-v1.md` | `spec-tool-deep-research-summary-pack-build-v1.md` | Spec cites `summary_pack.v1` fields, defines ordering + byte/KB cap rules, includes at least one valid example |
-| P05-02 | Implement tool: `deep_research_summary_pack_build` (writes `scratch/research-runs/<run_id>/summaries/summary-pack.json` + `summaries/*.md`) | Engineer | Architect | P05-01 | Tool implementation + schema-conformant artifacts under `scratch/research-runs/<run_id>/summaries/` | Fixture run produces `summary-pack.json` with `schema_version="summary_pack.v1"` and summaries referencing citation cids (not raw URLs) |
+| P05-02 | Implement tool: `deep_research_summary_pack_build` (writes `~/.config/opencode/research-runs/<run_id>/summaries/summary-pack.json` + `summaries/*.md`) | Engineer | Architect | P05-01 | Tool implementation + schema-conformant artifacts under `~/.config/opencode/research-runs/<run_id>/summaries/` | Fixture run produces `summary-pack.json` with `schema_version="summary_pack.v1"` and summaries referencing citation cids (not raw URLs) |
 | P05-T1 | Add entity tests + fixtures for `deep_research_summary_pack_build` (size caps enforced; stable ordering; schema validation) | Engineer | QATester | P05-02 | `.opencode/tests/entities/deep_research_summary_pack_build.test.ts` + fixtures | `bun test .opencode/tests/entities/deep_research_summary_pack_build.test.ts` passes (offline, seconds-fast) |
 | P05-03 | Define **Gate D evaluator** contract: compute Gate D metrics deterministically from `manifest.json` + summary artifacts; emit gate report + gate status update payload | Architect | Engineer | `spec-gate-thresholds-v1.md` + `spec-reviewer-rubrics-v1.md` | `spec-tool-deep-research-gate-d-evaluate-v1.md` | Spec reproduces Gate D metric names exactly and includes pass/fail examples and output JSON example |
-| P05-04 | Implement tool: `deep_research_gate_d_evaluate` (reads `manifest.json`, `summaries/summary-pack.json`, `summaries/*.md`; emits byte/KB report + Gate D status/warnings) | Engineer | Architect | P05-03 + P05-02 | `scratch/research-runs/<run_id>/reports/gate-d.json` (or equivalent) + `gates.json` update payload | Tool output shows: `summary_count / expected`, `max_summary_kb`, `total_summary_pack_kb`, plus pass/fail aligned to Gate D thresholds |
+| P05-04 | Implement tool: `deep_research_gate_d_evaluate` (reads `manifest.json`, `summaries/summary-pack.json`, `summaries/*.md`; emits byte/KB report + Gate D status/warnings) | Engineer | Architect | P05-03 + P05-02 | `~/.config/opencode/research-runs/<run_id>/reports/gate-d.json` (or equivalent) + `gates.json` update payload | Tool output shows: `summary_count / expected`, `max_summary_kb`, `total_summary_pack_kb`, plus pass/fail aligned to Gate D thresholds |
 | P05-T2 | Add entity tests + fixtures for `deep_research_gate_d_evaluate` (missing summary; oversize; totalsize overflow; expected-count mismatch) | Engineer | QATester | P05-04 | `.opencode/tests/entities/deep_research_gate_d_evaluate.test.ts` + fixtures | `bun test .opencode/tests/entities/deep_research_gate_d_evaluate.test.ts` passes (offline, deterministic) |
 | P05-05 | Define deterministic **synthesis writer** contract: synthesis input is **only** `summaries/summary-pack.json` + validated citation pool; output `synthesis/draft-synthesis.md`; supports report templates with required sections list | Architect | Engineer | P05-04 (Gate D pass) + `spec-router-summary-schemas-v1.md` + Gate E section requirements | `spec-tool-deep-research-synthesis-write-v1.md` | Spec explicitly forbids ingesting raw wave dumps; includes required section list for Gate E `report_sections_present` computation |
-| P05-06 | Implement tool: `deep_research_synthesis_write` (writes `scratch/research-runs/<run_id>/synthesis/draft-synthesis.md`) | Engineer | Architect | P05-05 | Tool implementation + artifact `synthesis/draft-synthesis.md` | Fixture-driven test run produces draft containing required headings and citation syntax `[@<cid>]` |
+| P05-06 | Implement tool: `deep_research_synthesis_write` (writes `~/.config/opencode/research-runs/<run_id>/synthesis/draft-synthesis.md`) | Engineer | Architect | P05-05 | Tool implementation + artifact `synthesis/draft-synthesis.md` | Fixture-driven test run produces draft containing required headings and citation syntax `[@<cid>]` |
 | P05-T3 | Add entity tests + fixtures for `deep_research_synthesis_write` (template selection; stable output scaffolding; no disallowed inputs) | Engineer | QATester | P05-06 | `.opencode/tests/entities/deep_research_synthesis_write.test.ts` + fixtures | `bun test .opencode/tests/entities/deep_research_synthesis_write.test.ts` passes (offline; fixtures simulate model output where needed) |
 | P05-07 | Define **Gate E evaluator** contract: compute `uncited_numeric_claims`, `report_sections_present`, `citation_utilization_rate`, `duplicate_citation_rate` deterministically; emit warnings for soft metric failures | Architect | Engineer | `spec-gate-thresholds-v1.md` + `spec-reviewer-rubrics-v1.md` | `spec-tool-deep-research-gate-e-evaluate-v1.md` | Spec reproduces Gate E formulas and citation syntax exactly; includes output JSON example with hard pass + soft warnings |
-| P05-08 | Implement tool: `deep_research_gate_e_evaluate` (reads `synthesis/final-synthesis.md` + `citations/citations.jsonl`; emits Gate E metrics + warnings + gate status update payload) | Engineer | Architect | P05-07 | `scratch/research-runs/<run_id>/reports/gate-e.json` (or equivalent) + `gates.json` update payload | Tool output includes: `uncited_numeric_claims = 0` proof, `report_sections_present = 100%`, utilization + duplicate rates, warnings array for soft fails |
+| P05-08 | Implement tool: `deep_research_gate_e_evaluate` (reads `synthesis/final-synthesis.md` + `citations/citations.jsonl`; emits Gate E metrics + warnings + gate status update payload) | Engineer | Architect | P05-07 | `~/.config/opencode/research-runs/<run_id>/reports/gate-e.json` (or equivalent) + `gates.json` update payload | Tool output includes: `uncited_numeric_claims = 0` proof, `report_sections_present = 100%`, utilization + duplicate rates, warnings array for soft fails |
 | P05-T4 | Add entity tests + fixtures for `deep_research_gate_e_evaluate` (missing required section; uncited numeric claim; low utilization warning; high duplicate warning) | Engineer | QATester | P05-08 | `.opencode/tests/entities/deep_research_gate_e_evaluate.test.ts` + fixtures | `bun test .opencode/tests/entities/deep_research_gate_e_evaluate.test.ts` passes (offline, deterministic) |
 | P05-09 | Define **reviewer factory** contract: run parallel reviewers over draft synthesis for (a) structure/sections, (b) uncited numeric claims, (c) citation utilization + duplicates, (d) coverage gaps; output bounded review bundle with PASS/CHANGES_REQUIRED and explicit evidence pointers | Architect | Engineer | P05-06 + `spec-reviewer-rubrics-v1.md` + `spec-stage-machine-v1.md` | `spec-tool-deep-research-review-factory-run-v1.md` | Spec defines review bundle schema + deterministic aggregation policy + max iteration policy for stage machine `review -> synthesis` |
-| P05-10 | Implement tool: `deep_research_review_factory_run` (produces review bundle under `scratch/research-runs/<run_id>/review/`) and **revision controller** (`deep_research_revision_control`) enforcing bounded iterations and explicit escalation | Engineer | Architect | P05-09 + P05-08 (Gate E evaluator available) | `review/review-bundle.json` + `review/*.md` + `review/revision-directives.json` (or equivalent) | Fixture run shows: deterministic PASS/CHANGES_REQUIRED; bounded iteration counter; explicit escalation reason when max iterations reached |
+| P05-10 | Implement tool: `deep_research_review_factory_run` (produces review bundle under `~/.config/opencode/research-runs/<run_id>/review/`) and **revision controller** (`deep_research_revision_control`) enforcing bounded iterations and explicit escalation | Engineer | Architect | P05-09 + P05-08 (Gate E evaluator available) | `review/review-bundle.json` + `review/*.md` + `review/revision-directives.json` (or equivalent) | Fixture run shows: deterministic PASS/CHANGES_REQUIRED; bounded iteration counter; explicit escalation reason when max iterations reached |
 | P05-T5 | Add entity tests + fixtures for reviewer factory + revision controller (aggregation determinism; max-iterations stop; correct stage-machine decision outputs) | Engineer | QATester | P05-10 | `.opencode/tests/entities/deep_research_review_factory_run.test.ts` + `.opencode/tests/entities/deep_research_revision_control.test.ts` + fixtures | `bun test ...` passes for both tools; no network; no real agent execution in tests |
 | P05-X1 | Phase 05 checkpoint + **Gate D + Gate E signoff** (evidence pack assembled exactly per reviewer rubrics; Phase 06/Finalize unblocked) | Architect | QATester | all P05-* | `PHASE-05-CHECKPOINT-GATE-D-E.md` | Includes links/paths to: `summaries/summary-pack.json`, size report, `synthesis/final-synthesis.md`, numeric-claim check output, utilization report output, and `gates.json` excerpts for D and E |
 
 ## Notes
-- Artifact root for Phase 05 tools: `scratch/research-runs/<run_id>/...`
+- Artifact root for Phase 05 tools: `~/.config/opencode/research-runs/<run_id>/...`
 - Tool naming convention: `deep_research_*`

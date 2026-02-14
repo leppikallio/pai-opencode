@@ -89,12 +89,13 @@ Final Answer (rendered from final-synthesis.md + run metrics)
 ```
 
 ### 1.4 State model (run directory + files)
-**Run directory location (OpenCode-native):**
-- Use the research skill’s convention: artifacts under `~/.config/opencode/MEMORY/WORK/{current_work}/scratch/`.
+**Run directory location (Option C, cross-session persistent):**
+- Default: `~/.config/opencode/research-runs/<run_id>/`.
+- Override: `PAI_DR_RUNS_ROOT` (see `spec-feature-flags-v1.md`).
 
-**Proposed run folder structure:**
+**Proposed run folder structure (default root):**
 ```text
-scratch/research-runs/{run-id}/
+~/.config/opencode/research-runs/{run-id}/
   manifest.json                 # canonical run metadata + config + status
   query.md                      # original user query (verbatim)
   perspectives.json             # router output (angles, agent assignment, track)

@@ -10,7 +10,7 @@ This artifact is the deterministic output of `deep_research_pivot_decide` and is
 ---
 
 ## File
-- Canonical path (per `spec-manifest-schema-v1.md`): `scratch/research-runs/<run_id>/pivot.json`
+- Canonical path (per `spec-manifest-schema-v1.md`, default): `~/.config/opencode/research-runs/<run_id>/pivot.json`
 - Format: JSON
 
 ---
@@ -96,7 +96,7 @@ Each `wave1.outputs[]` entry:
         "validator_report": {
           "ok": true,
           "perspective_id": "p1",
-          "markdown_path": "/abs/scratch/research-runs/dr_20260214_001/wave-1/p1.md",
+           "markdown_path": "/abs/home/.config/opencode/research-runs/dr_20260214_001/wave-1/p1.md",
           "words": 842,
           "sources": 9,
           "missing_sections": []
@@ -108,7 +108,7 @@ Each `wave1.outputs[]` entry:
         "validator_report": {
           "ok": true,
           "perspective_id": "p2",
-          "markdown_path": "/abs/scratch/research-runs/dr_20260214_001/wave-1/p2.md",
+           "markdown_path": "/abs/home/.config/opencode/research-runs/dr_20260214_001/wave-1/p2.md",
           "words": 799,
           "sources": 7,
           "missing_sections": []

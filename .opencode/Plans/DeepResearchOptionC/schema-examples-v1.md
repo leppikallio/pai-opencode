@@ -28,7 +28,7 @@ Provides valid/invalid examples for schema validation and harness testing.
   },
   "agents": { "policy": "existing-runtime-only" },
   "artifacts": {
-    "root": "/abs/path/scratch/research-runs/dr_20260213_001",
+    "root": "/abs/home/.config/opencode/research-runs/dr_20260213_001",
     "paths": {
       "wave1_dir": "wave-1",
       "wave2_dir": "wave-2",

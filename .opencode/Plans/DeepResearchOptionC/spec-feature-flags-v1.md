@@ -29,10 +29,12 @@ Prefix: `PAI_DR_` (Deep Research)
 | `PAI_DR_MAX_REVIEW_ITERATIONS` | int | 4 | synthesis reviewer loop cap |
 | `PAI_DR_CITATION_VALIDATION_TIER` | enum | standard | `basic|standard|thorough` |
 | `PAI_DR_NO_WEB` | bool | false | force offline/no-web mode |
+| `PAI_DR_RUNS_ROOT` | string | `~/.config/opencode/research-runs` | base directory for long-lived run roots |
 
 ## Rules
 1. Flags must be recorded into `manifest.json` at run start (for reproducibility).
 2. Changing flags mid-run must not invalidate resume; the manifest’s stored values win.
+3. `PAI_DR_RUNS_ROOT` controls the default `artifacts.root` used by `deep_research_run_init` when `root_override` is not provided.
 
 ## Acceptance criteria
 - Flags can disable the whole subsystem safely.

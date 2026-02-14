@@ -57,6 +57,11 @@ Each gate rubric includes:
 - [ ] Synthesis blocks if Gate C fails
 - [ ] Invalid/mismatch citations surface reasons
 
+Status semantics (v1):
+- `valid` and `paywalled` count toward `validated_url_rate`.
+- `invalid`, `blocked`, and `mismatch` count toward `invalid_url_rate`.
+- Any other status counts toward `uncategorized_url_rate` and fails the gate.
+
 ### Required evidence
 - `citations/citations.jsonl` sample (at least 5 lines)
 - Proof that every extracted URL has a status (no unknown)

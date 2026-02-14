@@ -70,9 +70,12 @@ Each gate has:
 Let `U` = the set of extracted URLs after normalization/deduplication (one entry per `normalized_url`).
 Let each `u ∈ U` have exactly one status in `citations/citations.jsonl`.
 
-- `validated_url_rate` = `count(u where status="valid") / count(U)`
-- `invalid_url_rate` = `count(u where status="invalid") / count(U)`
-- `uncategorized_url_rate` = `count(u where status NOT IN {"valid","invalid"}) / count(U)`
+Allowed statuses (v1):
+- `valid|paywalled|invalid|blocked|mismatch`
+
+- `validated_url_rate` = `count(u where status IN {"valid","paywalled"}) / count(U)`
+- `invalid_url_rate` = `count(u where status IN {"invalid","blocked","mismatch"}) / count(U)`
+- `uncategorized_url_rate` = `count(u where status NOT IN {"valid","paywalled","invalid","blocked","mismatch"}) / count(U)`
 
 Rules:
 - The gate MUST FAIL if any extracted URL has missing status (treated as uncategorized).
@@ -120,7 +123,7 @@ Rules:
 
 ### Soft metric formulas (deterministic)
 - Report citation syntax (required): `[@<cid>]` where `<cid>` is from `citations.jsonl`.
-- `validated_cids_count` = count of unique `cid` where `status=valid`.
+- `validated_cids_count` = count of unique `cid` where `status IN {"valid","paywalled"}`.
 - `used_cids_count` = count of unique `<cid>` occurrences in the report.
 - `citation_utilization_rate` = `used_cids_count / validated_cids_count`.
 - `total_cid_mentions` = total count of `[@<cid>]` mentions in the report.

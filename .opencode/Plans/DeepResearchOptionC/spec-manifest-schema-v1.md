@@ -6,7 +6,8 @@ Defines the canonical **run manifest** for Option C Deep Research runs.
 The manifest is the **resume anchor**: if everything else is lost, the run can be reconstructed from this file + artifact directory.
 
 ## File
-- Path (per run): `scratch/research-runs/<run_id>/manifest.json`
+- Path (per run, default): `~/.config/opencode/research-runs/<run_id>/manifest.json`
+- Alternate: any absolute `manifest_path` is allowed as long as `artifacts.root` points to the run directory.
 - Format: JSON
 - Update rule: atomic write (never partial). Every write increments `revision`.
 
@@ -132,7 +133,7 @@ Canonical artifact pointers (keys):
   },
   "agents": { "policy": "existing-runtime-only" },
   "artifacts": {
-    "root": "/abs/path/scratch/research-runs/dr_20260213_001",
+    "root": "/abs/home/.config/opencode/research-runs/dr_20260213_001",
     "paths": {
       "wave1_dir": "wave-1",
       "wave2_dir": "wave-2",

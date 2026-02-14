@@ -17,7 +17,12 @@ Create a new Option C deep-research run directory (artifact-first substrate) and
 | `mode` | string | ✅ | `quick|standard|deep` |
 | `sensitivity` | string | ✅ | `normal|restricted|no_web` |
 | `run_id` | string | ❌ | if omitted, tool generates one |
-| `root_override` | string | ❌ | absolute path override for run root (debug only) |
+| `root_override` | string | ❌ | absolute path override for run root (tests/debug only) |
+
+## Default run root (cross-session persistence)
+By default (when `root_override` is not provided), the tool MUST create run roots under:
+- `PAI_DR_RUNS_ROOT` if set, otherwise
+- `~/.config/opencode/research-runs/<run_id>`
 
 ## Outputs (return value)
 Return JSON (stringified or object, depending on tool conventions) with:
@@ -42,7 +47,7 @@ On expected failures:
 ```
 
 ## Side effects
-- Creates directory structure under scratchpad.
+- Creates directory structure under a cross-session persistent runs root.
 - Writes `manifest.json` (schema `manifest.v1`) with `status=created`, `stage.current=init`.
 - Writes `gates.json` (schema `gates.v1`) with all gates `not_run`, `revision=1`, and a placeholder `inputs_digest`.
 

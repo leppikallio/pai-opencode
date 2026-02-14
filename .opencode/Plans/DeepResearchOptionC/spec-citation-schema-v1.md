@@ -9,7 +9,7 @@ This is how we prevent “phantom citations” and enforce:
 - utilization measurement.
 
 ## File
-- Path (per run): `scratch/research-runs/<run_id>/citations/citations.jsonl`
+- Path (per run, default): `~/.config/opencode/research-runs/<run_id>/citations/citations.jsonl`
 - Format: JSON Lines (one record per line)
 
 ## Record fields (v1)
@@ -20,7 +20,7 @@ This is how we prevent “phantom citations” and enforce:
 | `cid` | string | ✅ | `cid_` + 64-char **lowercase** hex SHA-256 of **UTF-8 bytes** of `normalized_url` |
 | `url` | string | ✅ | canonical URL after redirects |
 | `url_original` | string | ✅ | as extracted from wave output |
-| `status` | string | ✅ | `valid|invalid|mismatch|paywalled|blocked` |
+| `status` | string | ✅ | `valid|invalid|mismatch|paywalled|blocked` (see Gate C semantics) |
 | `checked_at` | string | ✅ | ISO |
 | `http_status` | number | ❌ | if available |
 | `title` | string | ❌ | best-effort |
@@ -28,6 +28,25 @@ This is how we prevent “phantom citations” and enforce:
 | `found_by` | array | ✅ | provenance pointers |
 | `evidence_snippet` | string | ❌ | quote or short excerpt |
 | `notes` | string | ✅ | diagnostics |
+
+## Gate C semantics (how `status` is used)
+
+Gate C (citation validation integrity) requires that **every extracted URL** has exactly one status.
+
+Status meanings (v1):
+- `valid`: URL reachable and content can be fetched sufficiently to extract at least basic metadata/snippet.
+- `paywalled`: URL is a legitimate/reputable target but content is behind a paywall or access barrier; treat as **caution** (can be cited, but semantic verification may be limited).
+- `blocked`: URL appears legitimate, but validation was blocked by bot-detection or access denial after escalation.
+- `mismatch`: URL reachable but content does not match the citation context (wrong page / redirect mismatch).
+- `invalid`: URL malformed, dead, or definitively unusable.
+
+Implementation note:
+- When using online validation, the validator MUST use a tool escalation ladder (see Phase 04 plan + Bright Data workflow) before setting `blocked` or `invalid`.
+
+Downstream usage policy:
+- Synthesis may cite `valid` and `paywalled` sources.
+- Synthesis must not cite `invalid`, `blocked`, or `mismatch` sources.
+- Final report should mark `paywalled` citations as **caution** (operator-visible).
 
 ### `found_by[]` entry
 | Field | Type | Required | Notes |

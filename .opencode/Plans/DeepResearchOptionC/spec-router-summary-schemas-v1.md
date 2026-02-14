@@ -12,7 +12,7 @@ This is the primary anti-context-exhaustion mechanism: synthesis reads a bounded
 ## 1) `perspectives.json` (router output)
 
 ### File
-- Path: `scratch/research-runs/<run_id>/perspectives.json`
+- Path (per run, default): `~/.config/opencode/research-runs/<run_id>/perspectives.json`
 - Format: JSON
 
 ### Fields (v1)
@@ -70,7 +70,7 @@ This is the primary anti-context-exhaustion mechanism: synthesis reads a bounded
 ## 2) `summary-pack.json` (bounded synthesis input)
 
 ### File
-- Path: `scratch/research-runs/<run_id>/summaries/summary-pack.json`
+- Path (per run, default): `~/.config/opencode/research-runs/<run_id>/summaries/summary-pack.json`
 - Format: JSON
 
 ### Fields

@@ -8,7 +8,7 @@ This is separate from `manifest.json`:
 - gates = pass/fail decisions + metrics snapshots
 
 ## File
-- Path (per run): `scratch/research-runs/<run_id>/gates.json`
+- Path (per run, default): `~/.config/opencode/research-runs/<run_id>/gates.json`
 - Format: JSON
 
 ## Fields (v1)
