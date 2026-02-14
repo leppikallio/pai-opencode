@@ -1,0 +1,43 @@
+{
+  "schema_version": "perspectives.v1",
+  "run_id": "dr_test_phase05",
+  "created_at": "2026-02-14T00:00:00.000Z",
+  "perspectives": [
+    {
+      "id": "p1",
+      "title": "Systems view",
+      "track": "standard",
+      "agent_type": "Engineer",
+      "prompt_contract": {
+        "max_words": 900,
+        "max_sources": 12,
+        "tool_budget": { "search_calls": 2, "fetch_calls": 2 },
+        "must_include_sections": ["Findings", "Sources", "Gaps"]
+      }
+    },
+    {
+      "id": "p2",
+      "title": "Risk view",
+      "track": "independent",
+      "agent_type": "Architect",
+      "prompt_contract": {
+        "max_words": 900,
+        "max_sources": 12,
+        "tool_budget": { "search_calls": 2, "fetch_calls": 2 },
+        "must_include_sections": ["Findings", "Sources", "Gaps"]
+      }
+    },
+    {
+      "id": "p3",
+      "title": "Delivery view",
+      "track": "contrarian",
+      "agent_type": "Intern",
+      "prompt_contract": {
+        "max_words": 900,
+        "max_sources": 12,
+        "tool_budget": { "search_calls": 2, "fetch_calls": 2 },
+        "must_include_sections": ["Findings", "Sources", "Gaps"]
+      }
+    }
+  ]
+}

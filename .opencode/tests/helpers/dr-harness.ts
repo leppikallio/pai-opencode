@@ -7,6 +7,13 @@ export type ToolJson = {
   [key: string]: unknown;
 };
 
+export function asRecord(value: unknown, label = "value"): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  return value as Record<string, unknown>;
+}
+
 export function parseToolJson(raw: string): ToolJson {
   const v = JSON.parse(raw) as ToolJson;
   if (!v || typeof v !== "object") throw new Error(`Tool returned non-object JSON: ${raw}`);
@@ -47,7 +54,7 @@ export function fixturePath(...parts: string[]): string {
   return path.join(fixturesDir(), ...parts);
 }
 
-export function makeToolContext(): any {
+export function makeToolContext() {
   return {
     sessionID: "ses_test",
     messageID: "msg_test",
@@ -55,8 +62,8 @@ export function makeToolContext(): any {
     directory: process.cwd(),
     worktree: process.cwd(),
     abort: new AbortController().signal,
-    metadata() {},
-    ask: async () => {},
+    metadata(..._args: unknown[]) {},
+    ask: async (..._args: unknown[]) => {},
   };
 }
 
