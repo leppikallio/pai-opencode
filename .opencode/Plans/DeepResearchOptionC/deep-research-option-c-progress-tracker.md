@@ -4,8 +4,8 @@
 - Program: OpenCode Deep Research Option C
 - Planned window: 12–16 weeks
 - Status: `in_progress`
-- Last updated: `2026-02-13`
-- Current phase: `Phase 01`
+- Last updated: `2026-02-14`
+- Current phase: `Phase 04` (pending)
 
 ## Plan root directory (canonical)
 All program plans and specs live here:
@@ -15,7 +15,7 @@ All program plans and specs live here:
 If you are running this program and don’t have prior context:
 1) Read **this file**.
 2) Then read `deep-research-option-c-recovery-pack.md`.
-3) Then open the current phase executable backlog (Phase 01: `deep-research-option-c-phase-01-executable-backlog.md`).
+3) Then open the current phase plan doc (Phase 04: `deep-research-option-c-phase-04-citation-system.md`).
 
 Session loss / compaction safe recovery:
 - `deep-research-option-c-recovery-pack.md`
@@ -33,7 +33,7 @@ Session loss / compaction safe recovery:
 | 00 | Governance & contracts | Architect | done | Engineer | Gate A | Signed off: `PHASE-00-CHECKPOINT-GATE-A-SIGNOFF.md` |
 | 01 | Platform core scaffolding | Engineer | done | Architect | Gate A | Signed off: `PHASE-01-CHECKPOINT-GATE-A-SIGNOFF.md` |
 | 02 | Orchestrator engine | Engineer | done | QATester | Gate B | Signed off: `PHASE-02-CHECKPOINT-GATE-B.md` + `PHASE-02-CHECKPOINT-QA-REVIEW.md` |
-| 03 | Agent contracts & wave graph | Engineer | in_progress | Architect | Gate B | Building perspectives + wave1 contracts |
+| 03 | Agent contracts & wave graph | Engineer | done | Architect | Gate B | Signed off: `PHASE-03-CHECKPOINT-GATE-B.md` |
 | 04 | Citation validation services | Engineer | pending | QATester | Gate C | Canonical pool |
 | 05 | Synthesis/reviewer factory | Engineer | pending | Architect | Gate D/E | Writer-review loop |
 | 06 | Observability + quality automation | Engineer | pending | QATester | Gate E | Metrics + harness |
@@ -45,7 +45,7 @@ Session loss / compaction safe recovery:
 | G | Governance/contracts (Phase 00) | done | 0 |
 | A | Core platform/state | done | Phase 01 complete; Phase 02 unblocked |
 | B | Orchestration/runtime | done | Phase 02 stage engine complete |
-| C | Agents/contracts | in_progress | Phase 03 kickoff |
+| C | Agents/contracts | done | Phase 03 Gate B passed |
 | D | Citation/evidence | pending | 0 |
 | E | Synthesis/review | pending | 0 |
 | F | QA/observability | pending | 0 |
@@ -61,9 +61,9 @@ Session loss / compaction safe recovery:
 3. Tool permission drift causing non-deterministic behavior.
 
 ## Next 3 Actions
-1. Start Phase 01 Wave 1 tasks from `deep-research-option-c-phase-01-executable-backlog.md`.
-2. After Phase 01 checkpoint, start Phase 02 (stage engine) tasks.
-3. Keep Phase 02 blocked until Phase 01 manifest/gates IO tools are implemented.
+1. Start Phase 04 by implementing citation validation services (`deep-research-option-c-phase-04-citation-system.md`).
+2. Add entity tests + fixtures for citation schema + canonical pool updates.
+3. Add Gate C checkpoint doc once citation pool + validators are deterministic and fixture-testable.
 
 ## Pause/Resume Protocol
 Before pausing, update:
