@@ -35,6 +35,7 @@ These MUST remain true across all phases unless Phase 00 explicitly revises the 
 3. **Hard gates block:** Gate C (citations) and Gate D (summary bounds) block synthesis.
 4. **Existing agents only:** use existing runtime researcher agents; no new “agent universe”.
 5. **No OpenCode core changes:** deliver via tools/commands/plugins/MCP only.
+6. **Entity tests required:** every functional entity ships with isolated, fixture-driven tests.
 
 ## Program Architecture (high-level)
 1. **Tool-driven Stage Machine** (custom tools implement deterministic stage transitions)

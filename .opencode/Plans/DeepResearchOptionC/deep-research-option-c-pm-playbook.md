@@ -35,3 +35,11 @@ If it’s not updated in files, it’s not real.
 - No OpenCode core changes.
 - Existing runtime agents only.
 - Artifact-first; synthesis bounded.
+
+## 5) Testing requirement (Phase 01+)
+No phase may be signed off unless:
+- entity-level tests exist for new functional entities introduced in the phase
+- tests can run in isolation (fixtures/dry-run) without executing full research
+
+Canonical strategy doc:
+- `deep-research-option-c-testing-strategy-v1.md`

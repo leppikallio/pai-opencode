@@ -32,8 +32,8 @@ Session loss / compaction safe recovery:
 |---|---|---|---|---|---|---|
 | 00 | Governance & contracts | Architect | done | Engineer | Gate A | Signed off: `PHASE-00-CHECKPOINT-GATE-A-SIGNOFF.md` |
 | 01 | Platform core scaffolding | Engineer | done | Architect | Gate A | Signed off: `PHASE-01-CHECKPOINT-GATE-A-SIGNOFF.md` |
-| 02 | Orchestrator engine | Engineer | pending | QATester | Gate B | Scheduler + retries |
-| 03 | Agent contracts & wave graph | Engineer | pending | Architect | Gate B | Fan-out/fan-in |
+| 02 | Orchestrator engine | Engineer | done | QATester | Gate B | Signed off: `PHASE-02-CHECKPOINT-GATE-B.md` + `PHASE-02-CHECKPOINT-QA-REVIEW.md` |
+| 03 | Agent contracts & wave graph | Engineer | in_progress | Architect | Gate B | Building perspectives + wave1 contracts |
 | 04 | Citation validation services | Engineer | pending | QATester | Gate C | Canonical pool |
 | 05 | Synthesis/reviewer factory | Engineer | pending | Architect | Gate D/E | Writer-review loop |
 | 06 | Observability + quality automation | Engineer | pending | QATester | Gate E | Metrics + harness |
@@ -44,8 +44,8 @@ Session loss / compaction safe recovery:
 |---|---|---|---|
 | G | Governance/contracts (Phase 00) | done | 0 |
 | A | Core platform/state | done | Phase 01 complete; Phase 02 unblocked |
-| B | Orchestration/runtime | pending | 0 |
-| C | Agents/contracts | pending | 0 |
+| B | Orchestration/runtime | done | Phase 02 stage engine complete |
+| C | Agents/contracts | in_progress | Phase 03 kickoff |
 | D | Citation/evidence | pending | 0 |
 | E | Synthesis/review | pending | 0 |
 | F | QA/observability | pending | 0 |

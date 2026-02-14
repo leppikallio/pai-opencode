@@ -31,6 +31,10 @@ If session context is lost, follow the recovery pack.
 - Phase 00 executable backlog:
   - `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-00-executable-backlog.md`
 
+## Testing strategy (Phase 01+ requirement)
+- Entity-level testing strategy:
+  - `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/Plans/DeepResearchOptionC/deep-research-option-c-testing-strategy-v1.md`
+
 ## Phase 01/02 executable backlogs
 - Phase 01:
   - `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-01-executable-backlog.md`

@@ -27,6 +27,11 @@ Every backlog item must have:
 3) **evidence** (what proves it’s done),
 4) **owner** (builder) and **reviewer**.
 
+Testing requirement (Phase 01+):
+- Every new functional entity (tool/command/orchestrator stage) must have an entity contract test that runs in isolation.
+- Prefer fixtures/dry-run so tests do not require executing full research.
+- Canonical strategy doc: `deep-research-option-c-testing-strategy-v1.md`.
+
 ### Builder/Reviewer pairing
 - Builder produces the deliverable and runs self-validation.
 - Reviewer validates against acceptance criteria and marks:
