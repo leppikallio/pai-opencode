@@ -1,0 +1,19 @@
+{
+  "schema_version": "perspectives.v1",
+  "run_id": "dr_test_wave_output_validate_001",
+  "created_at": "2026-02-14T00:00:00Z",
+  "perspectives": [
+    {
+      "id": "p1",
+      "title": "Fixture perspective",
+      "track": "standard",
+      "agent_type": "ClaudeResearcher",
+      "prompt_contract": {
+        "max_words": 25,
+        "max_sources": 2,
+        "tool_budget": { "search_calls": 2, "fetch_calls": 3 },
+        "must_include_sections": ["Findings", "Sources", "Gaps"]
+      }
+    }
+  ]
+}
