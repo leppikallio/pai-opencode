@@ -5,11 +5,13 @@ import * as path from "node:path";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
-import {
-  ensureDir,
-} from "../plugins/lib/paths";
+import { ensureDir } from "../plugins/lib/paths";
 
 type JsonObject = Record<string, unknown>;
+
+type ToolWithExecute = {
+  execute: (...args: unknown[]) => unknown | Promise<unknown>;
+};
 
 type RunMode = "quick" | "standard" | "deep";
 type Sensitivity = "normal" | "restricted" | "no_web";
@@ -113,6 +115,37 @@ function readSettingsJson(root: string): Record<string, unknown> | null {
   }
 }
 
+function getObjectProp(value: Record<string, unknown>, key: string): Record<string, unknown> | null {
+  const v = value[key];
+  return isPlainObject(v) ? v : null;
+}
+
+function getStringProp(value: Record<string, unknown>, key: string): string | null {
+  const v = value[key];
+  return typeof v === "string" ? v : null;
+}
+
+function getNumberProp(value: Record<string, unknown>, key: string): number | null {
+  const v = value[key];
+  return typeof v === "number" && Number.isFinite(v) ? v : null;
+}
+
+function errorCode(e: unknown): string | null {
+  if (!isPlainObject(e)) return null;
+  const code = e.code;
+  return typeof code === "string" ? code : null;
+}
+
+function getManifestArtifacts(manifest: Record<string, unknown>): Record<string, unknown> | null {
+  return getObjectProp(manifest, "artifacts");
+}
+
+function getManifestPaths(manifest: Record<string, unknown>): Record<string, unknown> {
+  const artifacts = getManifestArtifacts(manifest);
+  const paths = artifacts ? getObjectProp(artifacts, "paths") : null;
+  return paths ?? {};
+}
+
 function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
   const source: DeepResearchFlagsV1["source"] = { env: [], settings: [] };
 
@@ -135,61 +168,60 @@ function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
   const settings = readSettingsJson(integrationRootFromToolFile());
   const flagsFromSettings = (() => {
     if (!settings) return null;
-    const direct = (settings as any).deepResearch;
-    const pai = (settings as any).pai;
-    const nested = pai && typeof pai === "object" && !Array.isArray(pai) ? (pai as any).deepResearch : undefined;
+
+    const direct = getObjectProp(settings, "deepResearch");
+    const pai = getObjectProp(settings, "pai");
+    const nested = pai ? getObjectProp(pai, "deepResearch") : null;
     const candidate = direct ?? nested;
-    if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) return null;
-    const flags = (candidate as any).flags;
-    if (!flags || typeof flags !== "object" || Array.isArray(flags)) return null;
-    return flags as Record<string, unknown>;
+    if (!candidate) return null;
+    return getObjectProp(candidate, "flags");
   })();
 
-  const applySetting = (key: string, apply: () => void) => {
+  const applySetting = (key: string, apply: (flags: Record<string, unknown>) => void) => {
     if (!flagsFromSettings) return;
     if (!(key in flagsFromSettings)) return;
-    apply();
+    apply(flagsFromSettings);
     source.settings.push(key);
   };
 
-  applySetting("PAI_DR_OPTION_C_ENABLED", () => {
-    const b = parseBool(flagsFromSettings!.PAI_DR_OPTION_C_ENABLED);
+  applySetting("PAI_DR_OPTION_C_ENABLED", (flags) => {
+    const b = parseBool(flags["PAI_DR_OPTION_C_ENABLED"]);
     if (b !== null) optionCEnabled = b;
   });
-  applySetting("PAI_DR_MODE_DEFAULT", () => {
-    const e = parseEnum(flagsFromSettings!.PAI_DR_MODE_DEFAULT, ["quick", "standard", "deep"] as const);
+  applySetting("PAI_DR_MODE_DEFAULT", (flags) => {
+    const e = parseEnum(flags["PAI_DR_MODE_DEFAULT"], ["quick", "standard", "deep"] as const);
     if (e) modeDefault = e;
   });
-  applySetting("PAI_DR_MAX_WAVE1_AGENTS", () => {
-    const n = parseIntSafe(flagsFromSettings!.PAI_DR_MAX_WAVE1_AGENTS);
+  applySetting("PAI_DR_MAX_WAVE1_AGENTS", (flags) => {
+    const n = parseIntSafe(flags["PAI_DR_MAX_WAVE1_AGENTS"]);
     if (n !== null) maxWave1Agents = n;
   });
-  applySetting("PAI_DR_MAX_WAVE2_AGENTS", () => {
-    const n = parseIntSafe(flagsFromSettings!.PAI_DR_MAX_WAVE2_AGENTS);
+  applySetting("PAI_DR_MAX_WAVE2_AGENTS", (flags) => {
+    const n = parseIntSafe(flags["PAI_DR_MAX_WAVE2_AGENTS"]);
     if (n !== null) maxWave2Agents = n;
   });
-  applySetting("PAI_DR_MAX_SUMMARY_KB", () => {
-    const n = parseIntSafe(flagsFromSettings!.PAI_DR_MAX_SUMMARY_KB);
+  applySetting("PAI_DR_MAX_SUMMARY_KB", (flags) => {
+    const n = parseIntSafe(flags["PAI_DR_MAX_SUMMARY_KB"]);
     if (n !== null) maxSummaryKb = n;
   });
-  applySetting("PAI_DR_MAX_TOTAL_SUMMARY_KB", () => {
-    const n = parseIntSafe(flagsFromSettings!.PAI_DR_MAX_TOTAL_SUMMARY_KB);
+  applySetting("PAI_DR_MAX_TOTAL_SUMMARY_KB", (flags) => {
+    const n = parseIntSafe(flags["PAI_DR_MAX_TOTAL_SUMMARY_KB"]);
     if (n !== null) maxTotalSummaryKb = n;
   });
-  applySetting("PAI_DR_MAX_REVIEW_ITERATIONS", () => {
-    const n = parseIntSafe(flagsFromSettings!.PAI_DR_MAX_REVIEW_ITERATIONS);
+  applySetting("PAI_DR_MAX_REVIEW_ITERATIONS", (flags) => {
+    const n = parseIntSafe(flags["PAI_DR_MAX_REVIEW_ITERATIONS"]);
     if (n !== null) maxReviewIterations = n;
   });
-  applySetting("PAI_DR_CITATION_VALIDATION_TIER", () => {
-    const e = parseEnum(flagsFromSettings!.PAI_DR_CITATION_VALIDATION_TIER, ["basic", "standard", "thorough"] as const);
+  applySetting("PAI_DR_CITATION_VALIDATION_TIER", (flags) => {
+    const e = parseEnum(flags["PAI_DR_CITATION_VALIDATION_TIER"], ["basic", "standard", "thorough"] as const);
     if (e) citationValidationTier = e;
   });
-  applySetting("PAI_DR_NO_WEB", () => {
-    const b = parseBool(flagsFromSettings!.PAI_DR_NO_WEB);
+  applySetting("PAI_DR_NO_WEB", (flags) => {
+    const b = parseBool(flags["PAI_DR_NO_WEB"]);
     if (b !== null) noWeb = b;
   });
-  applySetting("PAI_DR_RUNS_ROOT", () => {
-    const p = parseAbsolutePathSetting(flagsFromSettings!.PAI_DR_RUNS_ROOT);
+  applySetting("PAI_DR_RUNS_ROOT", (flags) => {
+    const p = parseAbsolutePathSetting(flags["PAI_DR_RUNS_ROOT"]);
     if (p) runsRoot = p;
   });
 
@@ -275,7 +307,7 @@ async function atomicWriteJson(filePath: string, value: unknown): Promise<void> 
   const dir = path.dirname(filePath);
   await ensureDir(dir);
   const tmp = `${filePath}.tmp.${process.pid}.${Date.now()}`;
-  await fs.promises.writeFile(tmp, JSON.stringify(value, null, 2) + "\n", "utf8");
+  await fs.promises.writeFile(tmp, `${JSON.stringify(value, null, 2)}\n`, "utf8");
   await fs.promises.rename(tmp, filePath);
 }
 
@@ -437,8 +469,9 @@ function validateManifestV1(value: unknown): string | null {
   }
 
   if (!isPlainObject(v.limits)) return errorWithPath("manifest.limits missing", "$.limits");
+  const limits = v.limits as Record<string, unknown>;
   for (const key of ["max_wave1_agents", "max_wave2_agents", "max_summary_kb", "max_total_summary_kb", "max_review_iterations"]) {
-    if (!isFiniteNumber((v.limits as any)[key])) return errorWithPath(`manifest.limits.${key} invalid`, `$.limits.${key}`);
+    if (!isFiniteNumber(limits[key])) return errorWithPath(`manifest.limits.${key} invalid`, `$.limits.${key}`);
   }
 
   if (!isPlainObject(v.artifacts)) return errorWithPath("manifest.artifacts missing", "$.artifacts");
@@ -446,6 +479,7 @@ function validateManifestV1(value: unknown): string | null {
     return errorWithPath("manifest.artifacts.root must be absolute path", "$.artifacts.root");
   }
   if (!isPlainObject(v.artifacts.paths)) return errorWithPath("manifest.artifacts.paths missing", "$.artifacts.paths");
+  const artifactPaths = v.artifacts.paths as Record<string, unknown>;
   for (const k of [
     "wave1_dir",
     "wave2_dir",
@@ -459,7 +493,7 @@ function validateManifestV1(value: unknown): string | null {
     "summary_pack_file",
     "pivot_file",
   ]) {
-    if (!isNonEmptyString((v.artifacts.paths as any)[k])) return errorWithPath(`manifest.artifacts.paths.${k} missing`, `$.artifacts.paths.${k}`);
+    if (!isNonEmptyString(artifactPaths[k])) return errorWithPath(`manifest.artifacts.paths.${k} missing`, `$.artifacts.paths.${k}`);
   }
 
   if (!isPlainObject(v.metrics)) return errorWithPath("manifest.metrics must be object", "$.metrics");
@@ -480,8 +514,9 @@ function validateGatesV1(value: unknown): string | null {
   if (!isPlainObject(v.gates)) return errorWithPath("gates.gates missing", "$.gates");
 
   const requiredGateIds = ["A", "B", "C", "D", "E", "F"];
+  const gatesObj = v.gates as Record<string, unknown>;
   for (const gateId of requiredGateIds) {
-    if (!((v.gates as any)[gateId])) return errorWithPath("missing required gate", `$.gates.${gateId}`);
+    if (!gatesObj[gateId]) return errorWithPath("missing required gate", `$.gates.${gateId}`);
   }
 
   for (const [gateId, gate] of Object.entries(v.gates)) {
@@ -803,7 +838,7 @@ async function appendAuditJsonl(args: { runRoot: string; event: Record<string, u
   const logsDir = path.join(args.runRoot, "logs");
   const auditPath = path.join(logsDir, "audit.jsonl");
   await ensureDir(logsDir);
-  await fs.promises.appendFile(auditPath, JSON.stringify(args.event) + "\n", "utf8");
+  await fs.promises.appendFile(auditPath, `${JSON.stringify(args.event)}\n`, "utf8");
 }
 
 function listPatchPaths(value: unknown, prefix: string): string[] {
@@ -951,7 +986,7 @@ export const run_init = tool({
           sensitivity: requestedSensitivity,
         };
         await ensureDir(path.dirname(ledgerPath));
-        await fs.promises.appendFile(ledgerPath, JSON.stringify(entry) + "\n", "utf8");
+        await fs.promises.appendFile(ledgerPath, `${JSON.stringify(entry)}\n`, "utf8");
         ledgerWritten = true;
       } catch (e) {
         ledgerError = String(e);
@@ -1156,7 +1191,7 @@ export const dry_run_seed = tool({
         return err("INVALID_ARGS", "root_override must be absolute", { root_override: args.root_override ?? null });
       }
 
-      const initRaw = (await (run_init as any).execute(
+      const initRaw = (await (run_init as unknown as ToolWithExecute).execute(
         {
           query: `dry-run fixture seed: ${caseId}`,
           mode: "standard",
@@ -1171,20 +1206,21 @@ export const dry_run_seed = tool({
       if (!initParsed.ok) {
         return err("UPSTREAM_INVALID_JSON", "run_init returned non-JSON", { raw: initParsed.value });
       }
-      if (!initParsed.value?.ok) {
+      if (!isPlainObject(initParsed.value) || initParsed.value.ok !== true) {
         return JSON.stringify(initParsed.value, null, 2);
       }
-      if (initParsed.value.created === false) {
+      const initValue = initParsed.value;
+      if (initValue.created === false) {
         return err("ALREADY_EXISTS", "run already exists; dry-run seed requires a fresh run_id", {
           run_id: runId,
-          root: initParsed.value.root ?? null,
+          root: initValue.root ?? null,
         });
       }
 
-      const runRoot = String(initParsed.value.root ?? "");
+      const runRoot = String(initValue.root ?? "");
       if (!runRoot || !path.isAbsolute(runRoot)) {
         return err("INVALID_STATE", "run_init returned invalid run root", {
-          root: initParsed.value.root ?? null,
+          root: initValue.root ?? null,
         });
       }
 
@@ -1215,9 +1251,9 @@ export const dry_run_seed = tool({
         });
       }
 
-      const patchRaw = (await (manifest_write as any).execute(
+      const patchRaw = (await (manifest_write as unknown as ToolWithExecute).execute(
         {
-          manifest_path: String(initParsed.value.manifest_path),
+          manifest_path: String(initValue.manifest_path),
           reason: `dry_run_seed: ${reason}`,
           patch: {
             query: {
@@ -1238,9 +1274,7 @@ export const dry_run_seed = tool({
       if (!patchParsed.ok) {
         return err("UPSTREAM_INVALID_JSON", "manifest_write returned non-JSON", { raw: patchParsed.value });
       }
-      if (!patchParsed.value?.ok) {
-        return JSON.stringify(patchParsed.value, null, 2);
-      }
+      if (!isPlainObject(patchParsed.value) || patchParsed.value.ok !== true) return JSON.stringify(patchParsed.value, null, 2);
 
       copiedEntries.sort();
       copiedRoots.sort();
@@ -1248,8 +1282,8 @@ export const dry_run_seed = tool({
       return ok({
         run_id: runId,
         root: runRoot,
-        manifest_path: String(initParsed.value.manifest_path),
-        gates_path: String(initParsed.value.gates_path),
+        manifest_path: String(initValue.manifest_path),
+        gates_path: String(initValue.gates_path),
         root_override: rootOverride,
         copied: {
           roots: copiedRoots,
@@ -1259,7 +1293,7 @@ export const dry_run_seed = tool({
           fixture_dir: fixtureDir,
           case_id: caseId,
         },
-        manifest_revision: Number(patchParsed.value.new_revision ?? 0),
+        manifest_revision: Number((patchParsed.value as Record<string, unknown>).new_revision ?? 0),
       });
     } catch (e) {
       return err("WRITE_FAILED", "dry_run_seed failed", { message: String(e) });
@@ -1312,7 +1346,7 @@ export const manifest_write = tool({
       const auditEvent = {
         ts: nowIso(),
         kind: "manifest_write",
-        run_id: String((next as any).run_id ?? ""),
+        run_id: getStringProp(next, "run_id") ?? "",
         prev_revision: curRev,
         new_revision: nextRev,
         reason: args.reason,
@@ -1325,7 +1359,7 @@ export const manifest_write = tool({
         return ok({ new_revision: nextRev, updated_at: String(next.updated_at), audit_written: false, audit_error: String(e) });
       }
     } catch (e) {
-      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path not found");
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "manifest_path not found");
       return err("WRITE_FAILED", "manifest write failed", { message: String(e) });
     }
   },
@@ -1386,7 +1420,7 @@ export const retry_record = tool({
         },
       };
 
-      const writeRaw = (await (manifest_write as any).execute({
+      const writeRaw = (await (manifest_write as unknown as ToolWithExecute).execute({
         manifest_path: args.manifest_path,
         patch,
         reason: `retry_record(${args.gate_id}#${next}): ${reason}`,
@@ -1397,20 +1431,19 @@ export const retry_record = tool({
         return err("WRITE_FAILED", "failed to parse manifest_write response", { raw: writeObj.value });
       }
 
-      if (!writeObj.value?.ok) {
-        return JSON.stringify(writeObj.value, null, 2);
-      }
+      if (!isPlainObject(writeObj.value) || writeObj.value.ok !== true) return JSON.stringify(writeObj.value, null, 2);
+      const writeValue = writeObj.value;
 
       return ok({
         gate_id: args.gate_id,
         retry_count: next,
         max_retries: max,
         attempt: next,
-        audit_written: Boolean(writeObj.value.audit_written),
-        audit_path: typeof writeObj.value.audit_path === "string" ? writeObj.value.audit_path : null,
+        audit_written: Boolean(writeValue.audit_written),
+        audit_path: typeof writeValue.audit_path === "string" ? writeValue.audit_path : null,
       });
     } catch (e) {
-      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path not found");
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "manifest_path not found");
       return err("WRITE_FAILED", "retry_record failed", { message: String(e) });
     }
   },
@@ -1440,7 +1473,7 @@ export const gates_write = tool({
         }
       }
 
-      const gatesObj = cur.gates as Record<string, any> | undefined;
+      const gatesObj = cur.gates as Record<string, Record<string, unknown>> | undefined;
       if (!gatesObj || typeof gatesObj !== "object") return err("SCHEMA_VALIDATION_FAILED", "gates.gates missing");
 
       for (const [gateId, patchObj] of Object.entries(args.update)) {
@@ -1448,11 +1481,11 @@ export const gates_write = tool({
         if (!patchObj || typeof patchObj !== "object") return err("INVALID_ARGS", `gate patch must be object: ${gateId}`);
 
         const allowed = new Set(["status", "checked_at", "metrics", "artifacts", "warnings", "notes"]);
-        for (const k of Object.keys(patchObj as any)) {
+        for (const k of Object.keys(patchObj as Record<string, unknown>)) {
           if (!allowed.has(k)) return err("INVALID_ARGS", `illegal gate patch key '${k}' for ${gateId}`);
         }
 
-        const nextGate = { ...gatesObj[gateId], ...(patchObj as any) };
+        const nextGate = { ...gatesObj[gateId], ...(patchObj as Record<string, unknown>) };
         // lifecycle: hard gate cannot be warn
         if (nextGate.class === "hard" && nextGate.status === "warn") {
           return err("LIFECYCLE_RULE_VIOLATION", `hard gate cannot be warn: ${gateId}`);
@@ -1478,7 +1511,7 @@ export const gates_write = tool({
       const auditEvent = {
         ts: nowIso(),
         kind: "gates_write",
-        run_id: String((cur as any).run_id ?? ""),
+        run_id: getStringProp(cur, "run_id") ?? "",
         prev_revision: curRev,
         new_revision: nextRev,
         reason: args.reason,
@@ -1491,7 +1524,7 @@ export const gates_write = tool({
         return ok({ new_revision: nextRev, updated_at: String(cur.updated_at), audit_written: false, audit_error: String(e) });
       }
     } catch (e) {
-      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "gates_path not found");
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "gates_path not found");
       return err("WRITE_FAILED", "gates write failed", { message: String(e) });
     }
   },
@@ -1564,7 +1597,7 @@ export const wave1_plan = tool({
       try {
         manifestRaw = await readJson(manifestPath);
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path not found", { manifest_path: manifestPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "manifest_path not found", { manifest_path: manifestPath });
         if (e instanceof SyntaxError) return err("INVALID_JSON", "manifest_path contains invalid JSON", { manifest_path: manifestPath });
         throw e;
       }
@@ -1573,11 +1606,13 @@ export const wave1_plan = tool({
       if (mErr) return mErr;
 
       const manifest = manifestRaw as Record<string, unknown>;
-      const runRoot = String((manifest.artifacts as any)?.root ?? path.dirname(manifestPath));
+      const artifacts = getManifestArtifacts(manifest);
+      const runRoot = String((artifacts ? getStringProp(artifacts, "root") : null) ?? path.dirname(manifestPath));
       const runId = String(manifest.run_id ?? "");
 
-      const wave1Dir = String((manifest.artifacts as any)?.paths?.wave1_dir ?? "wave-1");
-      const perspectivesFile = String((manifest.artifacts as any)?.paths?.perspectives_file ?? "perspectives.json");
+      const pathsObj = getManifestPaths(manifest);
+      const wave1Dir = String(pathsObj.wave1_dir ?? "wave-1");
+      const perspectivesFile = String(pathsObj.perspectives_file ?? "perspectives.json");
 
       const perspectivesPathInput = args.perspectives_path?.trim() ?? "";
       const perspectivesPath = perspectivesPathInput || path.join(runRoot, perspectivesFile);
@@ -1589,7 +1624,7 @@ export const wave1_plan = tool({
       try {
         perspectivesRaw = await readJson(perspectivesPath);
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "perspectives_path not found", { perspectives_path: perspectivesPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "perspectives_path not found", { perspectives_path: perspectivesPath });
         if (e instanceof SyntaxError) return err("INVALID_JSON", "perspectives_path contains invalid JSON", { perspectives_path: perspectivesPath });
         throw e;
       }
@@ -1622,7 +1657,8 @@ export const wave1_plan = tool({
         return aId.localeCompare(bId);
       });
 
-      const queryText = String((manifest.query as any)?.text ?? "");
+      const queryObj = isPlainObject(manifest.query) ? (manifest.query as Record<string, unknown>) : {};
+      const queryText = String(queryObj.text ?? "");
 
       const digestPayload = {
         schema: "wave1_plan.inputs.v1",
@@ -1705,7 +1741,7 @@ export const wave1_plan = tool({
         planned: entries.length,
       });
     } catch (e) {
-      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path or perspectives_path not found");
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "manifest_path or perspectives_path not found");
       return err("WRITE_FAILED", "wave1 plan failed", { message: String(e) });
     }
   },
@@ -1738,7 +1774,7 @@ export const wave_output_validate = tool({
       try {
         perspectivesRaw = await readJson(perspectivesPath);
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "perspectives_path not found", { perspectives_path: perspectivesPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "perspectives_path not found", { perspectives_path: perspectivesPath });
         if (e instanceof SyntaxError) return err("INVALID_JSON", "perspectives_path contains invalid JSON", { perspectives_path: perspectivesPath });
         throw e;
       }
@@ -1767,7 +1803,7 @@ export const wave_output_validate = tool({
       try {
         markdown = await fs.promises.readFile(markdownPath, "utf8");
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "markdown_path not found", { markdown_path: markdownPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "markdown_path not found", { markdown_path: markdownPath });
         throw e;
       }
 
@@ -1822,7 +1858,7 @@ export const wave_output_validate = tool({
         missing_sections: [],
       });
     } catch (e) {
-      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "perspectives_path or markdown_path not found");
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "perspectives_path or markdown_path not found");
       return err("WRITE_FAILED", "wave output validation failed", { message: String(e) });
     }
   },
@@ -1855,7 +1891,7 @@ export const pivot_decide = tool({
       try {
         manifestRaw = await readJson(manifestPath);
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path not found", { manifest_path: manifestPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "manifest_path not found", { manifest_path: manifestPath });
         if (e instanceof SyntaxError) return err("INVALID_JSON", "manifest_path contains invalid JSON", { manifest_path: manifestPath });
         throw e;
       }
@@ -1865,12 +1901,14 @@ export const pivot_decide = tool({
 
       const manifest = manifestRaw as Record<string, unknown>;
       const runId = String(manifest.run_id ?? "");
-      const runRoot = String((manifest.artifacts as any)?.root ?? path.dirname(manifestPath));
+      const artifacts = getManifestArtifacts(manifest);
+      const runRoot = String((artifacts ? getStringProp(artifacts, "root") : null) ?? path.dirname(manifestPath));
       if (!runRoot || !path.isAbsolute(runRoot)) {
         return err("INVALID_STATE", "manifest.artifacts.root invalid", { root: runRoot });
       }
 
-      const pivotFile = String((manifest.artifacts as any)?.paths?.pivot_file ?? "pivot.json");
+      const pathsObj = getManifestPaths(manifest);
+      const pivotFile = String(pathsObj.pivot_file ?? "pivot.json");
       const pivotPath = path.isAbsolute(pivotFile) ? pivotFile : path.join(runRoot, pivotFile);
 
       if (!Array.isArray(args.wave1_outputs) || !Array.isArray(args.wave1_validation_reports)) {
@@ -1913,7 +1951,8 @@ export const pivot_decide = tool({
         }
 
         const perspectiveId = normalizeWhitespace(String(outputRaw.perspective_id ?? ""));
-        const outputMdPathRaw = normalizeWhitespace(String((outputRaw as any).output_md_path ?? ""));
+        const outputObj = isPlainObject(outputRaw) ? (outputRaw as Record<string, unknown>) : {};
+        const outputMdPathRaw = normalizeWhitespace(String(outputObj.output_md_path ?? ""));
         if (!perspectiveId) {
           return err("INVALID_ARGS", "wave1_outputs perspective_id missing", { index: i });
         }
@@ -2047,7 +2086,7 @@ export const pivot_decide = tool({
           try {
             markdown = await fs.promises.readFile(pair.output_abs_path, "utf8");
           } catch (e) {
-            if ((e as any)?.code === "ENOENT") {
+            if (errorCode(e) === "ENOENT") {
               return err("NOT_FOUND", "wave1 output markdown not found", {
                 perspective_id: pair.perspective_id,
                 output_md_path: pair.output_abs_path,
@@ -2057,7 +2096,7 @@ export const pivot_decide = tool({
           }
 
           const extracted = extractPivotGapsFromMarkdown(markdown, pair.perspective_id);
-          if (!extracted.ok) {
+          if ("code" in extracted) {
             return err(extracted.code, extracted.message, extracted.details);
           }
           gaps.push(...extracted.gaps);
@@ -2191,7 +2230,7 @@ export const pivot_decide = tool({
         audit_written: auditWritten,
       });
     } catch (e) {
-      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required artifact not found");
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required artifact not found");
       return err("WRITE_FAILED", "pivot_decide failed", { message: String(e) });
     }
   },
@@ -2249,7 +2288,7 @@ export const wave_review = tool({
       try {
         perspectivesRaw = await readJson(perspectivesPath);
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "perspectives_path not found", { perspectives_path: perspectivesPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "perspectives_path not found", { perspectives_path: perspectivesPath });
         if (e instanceof SyntaxError) return err("INVALID_JSON", "perspectives_path contains invalid JSON", { perspectives_path: perspectivesPath });
         throw e;
       }
@@ -2306,7 +2345,12 @@ export const wave_review = tool({
       }> = [];
 
       for (const perspectiveId of selectedPerspectiveIds) {
-        const perspective = perspectiveMap.get(perspectiveId)!;
+        const perspective = perspectiveMap.get(perspectiveId);
+        if (!perspective) {
+          return err("PERSPECTIVE_NOT_FOUND", "perspective_id not found", {
+            perspective_id: perspectiveId,
+          });
+        }
         const markdownPath = path.join(outputsDir, `${perspectiveId}.md`);
         const markdownStat = await statPath(markdownPath);
         if (!markdownStat || !markdownStat.isFile()) {
@@ -2326,7 +2370,7 @@ export const wave_review = tool({
           requiredSections,
         });
 
-        const validationRaw = (await (wave_output_validate as any).execute({
+        const validationRaw = (await (wave_output_validate as unknown as ToolWithExecute).execute({
           perspectives_path: perspectivesPath,
           perspective_id: perspectiveId,
           markdown_path: markdownPath,
@@ -2423,7 +2467,7 @@ export const wave_review = tool({
 
       return JSON.stringify(payload, null, 2);
     } catch (e) {
-      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "perspectives_path or outputs_dir not found");
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "perspectives_path or outputs_dir not found");
       return err("WRITE_FAILED", "wave review failed", { message: String(e) });
     }
   },
@@ -2458,7 +2502,7 @@ export const citations_extract_urls = tool({
       try {
         manifestRaw = await readJson(manifestPath);
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path missing", { manifest_path: manifestPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "manifest_path missing", { manifest_path: manifestPath });
         if (e instanceof SyntaxError) return err("INVALID_JSON", "manifest unreadable", { manifest_path: manifestPath });
         throw e;
       }
@@ -2468,8 +2512,9 @@ export const citations_extract_urls = tool({
 
       const manifest = manifestRaw as Record<string, unknown>;
       const runId = String(manifest.run_id ?? "");
-      const runRoot = String((manifest.artifacts as any)?.root ?? path.dirname(manifestPath));
-      const pathsObj = ((manifest.artifacts as any)?.paths ?? {}) as Record<string, unknown>;
+      const artifacts = getManifestArtifacts(manifest);
+      const runRoot = String((artifacts ? getStringProp(artifacts, "root") : null) ?? path.dirname(manifestPath));
+      const pathsObj = getManifestPaths(manifest);
 
       const wave1DirName = String(pathsObj.wave1_dir ?? "wave-1");
       const wave2DirName = String(pathsObj.wave2_dir ?? "wave-2");
@@ -2619,7 +2664,7 @@ export const citations_extract_urls = tool({
         inputs_digest: inputsDigest,
       });
     } catch (e) {
-      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required artifact missing");
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required artifact missing");
       return err("WRITE_FAILED", "citations_extract_urls failed", { message: String(e) });
     }
   },
@@ -2654,7 +2699,7 @@ export const citations_normalize = tool({
       try {
         manifestRaw = await readJson(manifestPath);
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path missing", { manifest_path: manifestPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "manifest_path missing", { manifest_path: manifestPath });
         if (e instanceof SyntaxError) return err("INVALID_JSON", "manifest unreadable", { manifest_path: manifestPath });
         throw e;
       }
@@ -2663,7 +2708,8 @@ export const citations_normalize = tool({
 
       const manifest = manifestRaw as Record<string, unknown>;
       const runId = String(manifest.run_id ?? "");
-      const runRoot = String((manifest.artifacts as any)?.root ?? path.dirname(manifestPath));
+      const artifacts = getManifestArtifacts(manifest);
+      const runRoot = String((artifacts ? getStringProp(artifacts, "root") : null) ?? path.dirname(manifestPath));
 
       const extractedUrlsPath = (args.extracted_urls_path ?? "").trim() || path.join(runRoot, "citations", "extracted-urls.txt");
       const normalizedUrlsPath = (args.normalized_urls_path ?? "").trim() || path.join(runRoot, "citations", "normalized-urls.txt");
@@ -2681,7 +2727,7 @@ export const citations_normalize = tool({
       try {
         extractedRaw = await fs.promises.readFile(extractedUrlsPath, "utf8");
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "extracted urls missing", { extracted_urls_path: extractedUrlsPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "extracted urls missing", { extracted_urls_path: extractedUrlsPath });
         throw e;
       }
 
@@ -2695,17 +2741,18 @@ export const citations_normalize = tool({
 
       for (const urlOriginal of uniqueOriginalUrls) {
         const normalized = normalizeCitationUrl(urlOriginal);
-        if (!normalized.ok) {
-          return err("SCHEMA_VALIDATION_FAILED", normalized.message, {
+        if ("normalized_url" in normalized) {
+          urlMapItems.push({
             url_original: urlOriginal,
-            ...normalized.details,
+            normalized_url: normalized.normalized_url,
+            cid: citationCid(normalized.normalized_url),
           });
+          continue;
         }
 
-        urlMapItems.push({
+        return err("SCHEMA_VALIDATION_FAILED", normalized.message, {
           url_original: urlOriginal,
-          normalized_url: normalized.normalized_url,
-          cid: citationCid(normalized.normalized_url),
+          ...normalized.details,
         });
       }
 
@@ -2766,7 +2813,7 @@ export const citations_normalize = tool({
         inputs_digest: inputsDigest,
       });
     } catch (e) {
-      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required artifact missing");
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required artifact missing");
       return err("WRITE_FAILED", "citations_normalize failed", { message: String(e) });
     }
   },
@@ -2810,7 +2857,7 @@ export const citations_validate = tool({
       try {
         manifestRaw = await readJson(manifestPath);
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path missing", { manifest_path: manifestPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "manifest_path missing", { manifest_path: manifestPath });
         if (e instanceof SyntaxError) return err("INVALID_JSON", "manifest unreadable", { manifest_path: manifestPath });
         throw e;
       }
@@ -2819,7 +2866,8 @@ export const citations_validate = tool({
 
       const manifest = manifestRaw as Record<string, unknown>;
       const runId = String(manifest.run_id ?? "");
-      const runRoot = String((manifest.artifacts as any)?.root ?? path.dirname(manifestPath));
+      const artifacts = getManifestArtifacts(manifest);
+      const runRoot = String((artifacts ? getStringProp(artifacts, "root") : null) ?? path.dirname(manifestPath));
       const checkedAt = isNonEmptyString(manifest.updated_at) ? String(manifest.updated_at) : nowIso();
 
       const urlMapPath = (args.url_map_path ?? "").trim() || path.join(runRoot, "citations", "url-map.json");
@@ -2842,13 +2890,15 @@ export const citations_validate = tool({
       try {
         urlMapRaw = await readJson(urlMapPath);
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required file missing", { url_map_path: urlMapPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required file missing", { url_map_path: urlMapPath });
         if (e instanceof SyntaxError) return err("INVALID_JSON", "url-map unreadable JSON", { url_map_path: urlMapPath });
         throw e;
       }
 
       const urlMapValidation = validateUrlMapV1(urlMapRaw, runId);
-      if (!urlMapValidation.ok) return err("SCHEMA_VALIDATION_FAILED", urlMapValidation.message, urlMapValidation.details);
+      if (!("items" in urlMapValidation)) {
+        return err("SCHEMA_VALIDATION_FAILED", urlMapValidation.message, urlMapValidation.details);
+      }
 
       const urlMapItemsSorted = [...urlMapValidation.items].sort((a, b) => {
         const byNormalized = a.normalized_url.localeCompare(b.normalized_url);
@@ -2874,14 +2924,17 @@ export const citations_validate = tool({
         try {
           fixtureRaw = await readJson(offlineFixturesPath);
         } catch (e) {
-          if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "offline_fixtures_path missing", { offline_fixtures_path: offlineFixturesPath });
+          if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "offline_fixtures_path missing", { offline_fixtures_path: offlineFixturesPath });
           if (e instanceof SyntaxError) return err("INVALID_JSON", "offline fixtures unreadable JSON", { offline_fixtures_path: offlineFixturesPath });
           throw e;
         }
 
         const fixtureResult = buildOfflineFixtureLookup(fixtureRaw);
-        if (!fixtureResult.ok) return err("SCHEMA_VALIDATION_FAILED", fixtureResult.message, fixtureResult.details);
-        fixtureLookup = fixtureResult.lookup;
+        if ("lookup" in fixtureResult) {
+          fixtureLookup = fixtureResult.lookup;
+        } else {
+          return err("SCHEMA_VALIDATION_FAILED", fixtureResult.message, fixtureResult.details);
+        }
       }
 
       const foundByPath = path.join(runRoot, "citations", "found-by.json");
@@ -3004,7 +3057,7 @@ export const citations_validate = tool({
         inputs_digest: inputsDigest,
       });
     } catch (e) {
-      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required file missing");
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required file missing");
       return err("WRITE_FAILED", "citations_validate failed", { message: String(e) });
     }
   },
@@ -3037,7 +3090,7 @@ export const gate_c_compute = tool({
       try {
         manifestRaw = await readJson(manifestPath);
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path missing", { manifest_path: manifestPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "manifest_path missing", { manifest_path: manifestPath });
         if (e instanceof SyntaxError) return err("INVALID_JSON", "manifest unreadable", { manifest_path: manifestPath });
         throw e;
       }
@@ -3045,7 +3098,8 @@ export const gate_c_compute = tool({
       if (mErr) return mErr;
 
       const manifest = manifestRaw as Record<string, unknown>;
-      const runRoot = String((manifest.artifacts as any)?.root ?? path.dirname(manifestPath));
+      const artifacts = getManifestArtifacts(manifest);
+      const runRoot = String((artifacts ? getStringProp(artifacts, "root") : null) ?? path.dirname(manifestPath));
 
       const citationsPath = (args.citations_path ?? "").trim() || path.join(runRoot, "citations", "citations.jsonl");
       const extractedUrlsPath = (args.extracted_urls_path ?? "").trim() || path.join(runRoot, "citations", "extracted-urls.txt");
@@ -3058,7 +3112,7 @@ export const gate_c_compute = tool({
       try {
         extractedRaw = await fs.promises.readFile(extractedUrlsPath, "utf8");
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required file missing", { extracted_urls_path: extractedUrlsPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required file missing", { extracted_urls_path: extractedUrlsPath });
         throw e;
       }
 
@@ -3070,13 +3124,14 @@ export const gate_c_compute = tool({
       const normalizedExtractedSet = new Set<string>();
       for (const urlOriginal of extractedOriginal) {
         const normalized = normalizeCitationUrl(urlOriginal);
-        if (!normalized.ok) {
+        if ("normalized_url" in normalized) {
+          normalizedExtractedSet.add(normalized.normalized_url);
+        } else {
           return err("SCHEMA_VALIDATION_FAILED", "failed to normalize extracted URL", {
             url_original: urlOriginal,
             ...normalized.details,
           });
         }
-        normalizedExtractedSet.add(normalized.normalized_url);
       }
       const normalizedExtracted = Array.from(normalizedExtractedSet).sort((a, b) => a.localeCompare(b));
 
@@ -3084,7 +3139,7 @@ export const gate_c_compute = tool({
       try {
         citationRecords = await readJsonlObjects(citationsPath);
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required file missing", { citations_path: citationsPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required file missing", { citations_path: citationsPath });
         if (e instanceof SyntaxError) return err("INVALID_JSONL", "citations.jsonl malformed", { citations_path: citationsPath, message: String(e) });
         throw e;
       }
@@ -3187,7 +3242,7 @@ export const gate_c_compute = tool({
         inputs_digest: inputsDigest,
       });
     } catch (e) {
-      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required file missing");
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required file missing");
       return err("WRITE_FAILED", "gate_c_compute failed", { message: String(e) });
     }
   },
@@ -3220,7 +3275,7 @@ export const citations_render_md = tool({
       try {
         manifestRaw = await readJson(manifestPath);
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path missing", { manifest_path: manifestPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "manifest_path missing", { manifest_path: manifestPath });
         if (e instanceof SyntaxError) return err("INVALID_JSON", "manifest unreadable", { manifest_path: manifestPath });
         throw e;
       }
@@ -3229,7 +3284,8 @@ export const citations_render_md = tool({
 
       const manifest = manifestRaw as Record<string, unknown>;
       const runId = String(manifest.run_id ?? "");
-      const runRoot = String((manifest.artifacts as any)?.root ?? path.dirname(manifestPath));
+      const artifacts = getManifestArtifacts(manifest);
+      const runRoot = String((artifacts ? getStringProp(artifacts, "root") : null) ?? path.dirname(manifestPath));
 
       const citationsPath = (args.citations_path ?? "").trim() || path.join(runRoot, "citations", "citations.jsonl");
       const outputMdPath = (args.output_md_path ?? "").trim() || path.join(runRoot, "citations", "validated-citations.md");
@@ -3240,7 +3296,7 @@ export const citations_render_md = tool({
       try {
         records = await readJsonlObjects(citationsPath);
       } catch (e) {
-        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "citations.jsonl missing", { citations_path: citationsPath });
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "citations.jsonl missing", { citations_path: citationsPath });
         if (e instanceof SyntaxError) return err("INVALID_JSONL", "citations.jsonl malformed", { citations_path: citationsPath, message: String(e) });
         throw e;
       }
@@ -3323,7 +3379,7 @@ export const citations_render_md = tool({
         inputs_digest: inputsDigest,
       });
     } catch (e) {
-      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "required file missing");
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required file missing");
       return err("WRITE_FAILED", "citations_render_md failed", { message: String(e) });
     }
   },
@@ -3350,28 +3406,30 @@ export const stage_advance = tool({
       const manifest = manifestRaw as Record<string, unknown>;
       const gatesDoc = gatesRaw as Record<string, unknown>;
 
-      const from = String((manifest.stage as any)?.current ?? "");
+      const stageObj = isPlainObject(manifest.stage) ? (manifest.stage as Record<string, unknown>) : {};
+      const from = String(stageObj.current ?? "");
       const allowedStages = ["init", "wave1", "pivot", "wave2", "citations", "summaries", "synthesis", "review", "finalize"] as const;
-      if (!from || !allowedStages.includes(from as any)) {
+      if (!from || !allowedStages.includes(from as (typeof allowedStages)[number])) {
         return err("INVALID_STATE", "stage not recognized", { stage: from });
       }
 
-      const runRoot = String((manifest.artifacts as any)?.root ?? "");
+      const artifacts = getManifestArtifacts(manifest);
+      const runRoot = String((artifacts ? getStringProp(artifacts, "root") : null) ?? "");
       if (!runRoot || !path.isAbsolute(runRoot)) {
         return err("INVALID_STATE", "manifest.artifacts.root invalid", { root: runRoot });
       }
 
-      const paths = (manifest.artifacts as any)?.paths ?? {};
+      const paths = getManifestPaths(manifest);
       const wave1Dir = String(paths.wave1_dir ?? "wave-1");
       const wave2Dir = String(paths.wave2_dir ?? "wave-2");
       const citationsDir = String(paths.citations_dir ?? "citations");
-      const summariesDir = String(paths.summaries_dir ?? "summaries");
+      const _summariesDir = String(paths.summaries_dir ?? "summaries");
       const synthesisDir = String(paths.synthesis_dir ?? "synthesis");
       const perspectivesFile = String(paths.perspectives_file ?? "perspectives.json");
       const pivotFile = String(paths.pivot_file ?? "pivot.json");
       const summaryPackFile = String(paths.summary_pack_file ?? "summaries/summary-pack.json");
 
-      const gates = (gatesDoc.gates as any) || {};
+      const gates = isPlainObject(gatesDoc.gates) ? (gatesDoc.gates as Record<string, unknown>) : {};
       const gatesRevision = Number(gatesDoc.revision ?? 0);
 
       const evaluated: Array<{ kind: string; name: string; ok: boolean; details: Record<string, unknown> }> = [];
@@ -3383,8 +3441,8 @@ export const stage_advance = tool({
       };
 
       const evalGatePass = (gateId: string) => {
-        const gate = gates[gateId];
-        const status = gate?.status;
+        const gate = isPlainObject(gates[gateId]) ? (gates[gateId] as Record<string, unknown>) : null;
+        const status = gate ? gate.status : undefined;
         const okv = status === "pass";
         evaluated.push({ kind: "gate", name: `Gate ${gateId}`, ok: okv, details: { gate: gateId, status: status ?? null } });
         return okv;
@@ -3414,8 +3472,10 @@ export const stage_advance = tool({
             const raw = await fs.promises.readFile(p, "utf8");
             const v = JSON.parse(raw);
             if (!v || typeof v !== "object") return { ok: false, run_wave2: false, error: "pivot not object" };
-            const decisionFlag = (v as any)?.decision?.wave2_required;
-            const legacyFlag = (v as any).run_wave2;
+            const vObj = isPlainObject(v) ? (v as Record<string, unknown>) : null;
+            const decisionObj = vObj && isPlainObject(vObj.decision) ? (vObj.decision as Record<string, unknown>) : null;
+            const decisionFlag = decisionObj ? decisionObj.wave2_required : undefined;
+            const legacyFlag = vObj ? vObj.run_wave2 : undefined;
             const flag = typeof decisionFlag === "boolean" ? decisionFlag : legacyFlag;
             if (typeof flag !== "boolean") return { ok: false, run_wave2: false, error: "pivot.run_wave2 missing" };
             return { ok: true, run_wave2: flag };
@@ -3460,7 +3520,7 @@ export const stage_advance = tool({
       let to: string;
 
       if (requested) {
-        if (!allowedStages.includes(requested as any)) {
+        if (!allowedStages.includes(requested as (typeof allowedStages)[number])) {
           return err("REQUESTED_NEXT_NOT_ALLOWED", "requested_next is not a stage", { requested_next: requested });
         }
         if (!allowedNext.includes(requested)) {
@@ -3558,12 +3618,12 @@ export const stage_advance = tool({
         manifest_revision: Number(manifest.revision ?? 0),
         gates_revision: gatesRevision,
         gates_status: {
-          A: gates.A?.status ?? null,
-          B: gates.B?.status ?? null,
-          C: gates.C?.status ?? null,
-          D: gates.D?.status ?? null,
-          E: gates.E?.status ?? null,
-          F: gates.F?.status ?? null,
+          A: (isPlainObject(gates.A) ? (gates.A as Record<string, unknown>).status : null) ?? null,
+          B: (isPlainObject(gates.B) ? (gates.B as Record<string, unknown>).status : null) ?? null,
+          C: (isPlainObject(gates.C) ? (gates.C as Record<string, unknown>).status : null) ?? null,
+          D: (isPlainObject(gates.D) ? (gates.D as Record<string, unknown>).status : null) ?? null,
+          E: (isPlainObject(gates.E) ? (gates.E as Record<string, unknown>).status : null) ?? null,
+          F: (isPlainObject(gates.F) ? (gates.F as Record<string, unknown>).status : null) ?? null,
         },
         evaluated,
       };
@@ -3581,7 +3641,7 @@ export const stage_advance = tool({
       }
 
       const ts = nowIso();
-      const stage = (manifest.stage as any) || {};
+      const stage = isPlainObject(manifest.stage) ? (manifest.stage as Record<string, unknown>) : {};
       const history = Array.isArray(stage.history) ? stage.history : [];
       const historyEntry = {
         from,
@@ -3602,7 +3662,7 @@ export const stage_advance = tool({
         },
       };
 
-      const writeRaw = (await (manifest_write as any).execute({
+      const writeRaw = (await (manifest_write as unknown as ToolWithExecute).execute({
         manifest_path: args.manifest_path,
         patch,
         reason: `stage_advance: ${args.reason}`,
@@ -3619,7 +3679,7 @@ export const stage_advance = tool({
 
       return ok({ from, to, decision });
     } catch (e) {
-      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path or gates_path not found");
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "manifest_path or gates_path not found");
       return err("WRITE_FAILED", "stage_advance failed", { message: String(e) });
     }
   },
@@ -3643,7 +3703,8 @@ export const watchdog_check = tool({
       if (mErr) return mErr;
 
       const manifest = manifestRaw as Record<string, unknown>;
-      const currentStage = String((manifest.stage as any)?.current ?? "");
+      const stageObj2 = isPlainObject(manifest.stage) ? (manifest.stage as Record<string, unknown>) : {};
+      const currentStage = String(stageObj2.current ?? "");
       const stageArg = (args.stage ?? "").trim();
       const stage = stageArg || currentStage;
 
@@ -3668,7 +3729,8 @@ export const watchdog_check = tool({
         return err("INVALID_ARGS", "now_iso must be a valid ISO timestamp", { now_iso: args.now_iso ?? null });
       }
 
-      const startedAtRaw = String((manifest.stage as any)?.started_at ?? "");
+      const stageObj3 = isPlainObject(manifest.stage) ? (manifest.stage as Record<string, unknown>) : {};
+      const startedAtRaw = String(stageObj3.started_at ?? "");
       const startedAt = new Date(startedAtRaw);
       if (!startedAtRaw || Number.isNaN(startedAt.getTime())) {
         return err("INVALID_STATE", "manifest.stage.started_at invalid", { started_at: startedAtRaw });
@@ -3680,16 +3742,17 @@ export const watchdog_check = tool({
         return ok({ timed_out: false, stage, elapsed_s, timeout_s });
       }
 
-      const runRoot = String((manifest.artifacts as any)?.root ?? "");
+      const artifacts = getManifestArtifacts(manifest);
+      const runRoot = String((artifacts ? getStringProp(artifacts, "root") : null) ?? "");
       if (!runRoot || !path.isAbsolute(runRoot)) {
         return err("INVALID_STATE", "manifest.artifacts.root invalid", { root: runRoot });
       }
 
-      const logsDir = String((manifest.artifacts as any)?.paths?.logs_dir ?? "logs");
+      const logsDir = String(getManifestPaths(manifest).logs_dir ?? "logs");
       const checkpointPath = path.join(runRoot, logsDir, "timeout-checkpoint.md");
       const failureTs = now.toISOString();
 
-      const checkpointContent = [
+      const checkpointContent = `${[
         "# Timeout Checkpoint",
         "",
         `- stage: ${stage}`,
@@ -3699,7 +3762,7 @@ export const watchdog_check = tool({
         "- next_steps:",
         "  1. Inspect logs/audit.jsonl for recent events.",
         "  2. Decide whether to restart this stage or abort run.",
-      ].join("\n") + "\n";
+      ].join("\n")}\n`;
 
       await ensureDir(path.dirname(checkpointPath));
       await fs.promises.writeFile(checkpointPath, checkpointContent, "utf8");
@@ -3719,7 +3782,7 @@ export const watchdog_check = tool({
         ],
       };
 
-      const writeRaw = (await (manifest_write as any).execute({
+      const writeRaw = (await (manifest_write as unknown as ToolWithExecute).execute({
         manifest_path: args.manifest_path,
         patch,
         reason: `watchdog_check: ${reason}`,
@@ -3730,9 +3793,7 @@ export const watchdog_check = tool({
         return err("WRITE_FAILED", "failed to parse manifest_write response", { raw: writeObj.value });
       }
 
-      if (!writeObj.value?.ok) {
-        return JSON.stringify(writeObj.value, null, 2);
-      }
+      if (!isPlainObject(writeObj.value) || writeObj.value.ok !== true) return JSON.stringify(writeObj.value, null, 2);
 
       return ok({
         timed_out: true,
@@ -3740,10 +3801,10 @@ export const watchdog_check = tool({
         elapsed_s,
         timeout_s,
         checkpoint_path: checkpointPath,
-        manifest_revision: Number(writeObj.value.new_revision ?? 0),
+        manifest_revision: Number((writeObj.value as Record<string, unknown>).new_revision ?? 0),
       });
     } catch (e) {
-      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path not found");
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "manifest_path not found");
       return err("WRITE_FAILED", "watchdog_check failed", { message: String(e) });
     }
   },
@@ -3905,7 +3966,7 @@ function validateUrlMapV1(
     };
   }
 
-  const itemsRaw = (value as any).items;
+  const itemsRaw = (value as Record<string, unknown>).items;
   if (!Array.isArray(itemsRaw)) return { ok: false, message: "url-map items must be array", details: {} };
 
   const items: UrlMapItemV1[] = [];
@@ -3944,8 +4005,8 @@ function buildOfflineFixtureLookup(
   let itemsRaw: unknown[] = [];
   if (Array.isArray(value)) {
     itemsRaw = value;
-  } else if (isPlainObject(value) && Array.isArray((value as any).items)) {
-    itemsRaw = ((value as any).items as unknown[]);
+  } else if (isPlainObject(value) && Array.isArray((value as Record<string, unknown>).items)) {
+    itemsRaw = ((value as Record<string, unknown>).items as unknown[]);
   } else if (isPlainObject(value)) {
     itemsRaw = Object.entries(value).map(([normalized, entry]) => {
       if (isPlainObject(entry)) return { normalized_url: normalized, ...entry };
@@ -4102,8 +4163,8 @@ async function readFoundByLookup(foundByPath: string): Promise<Map<string, Array
     return out;
   }
 
-  if (!isPlainObject(raw) || !Array.isArray((raw as any).items)) return out;
-  for (const item of (raw as any).items as unknown[]) {
+  if (!isPlainObject(raw) || !Array.isArray((raw as Record<string, unknown>).items)) return out;
+  for (const item of (raw as Record<string, unknown>).items as unknown[]) {
     if (!isPlainObject(item)) continue;
     const urlOriginal = String(item.url_original ?? "").trim();
     if (!urlOriginal) continue;
@@ -4145,10 +4206,1057 @@ async function exists(p: string): Promise<boolean> {
   }
 }
 
-function parseJsonSafe(raw: string): { ok: true; value: any } | { ok: false; value: string } {
+function parseJsonSafe(raw: string): { ok: true; value: unknown } | { ok: false; value: string } {
   try {
     return { ok: true, value: JSON.parse(raw) };
   } catch {
     return { ok: false, value: raw };
   }
 }
+
+function resolveRunRootFromManifest(manifestPath: string, manifest: Record<string, unknown>): string {
+  const artifacts = getObjectProp(manifest, "artifacts");
+  const root = String((artifacts ? getStringProp(artifacts, "root") : null) ?? "").trim();
+  if (root && path.isAbsolute(root)) return root;
+  return path.dirname(manifestPath);
+}
+
+function resolveArtifactPath(argsPath: string | undefined, runRoot: string, manifestRel: string | undefined, fallbackRel: string): string {
+  const provided = (argsPath ?? "").trim();
+  if (provided) return provided;
+  const rel = (manifestRel ?? "").trim() || fallbackRel;
+  return path.join(runRoot, rel);
+}
+
+function extractCitationMentions(markdown: string): string[] {
+  const out = new Set<string>();
+  const regex = /\[@([A-Za-z0-9_:-]+)\]/g;
+  let match: RegExpExecArray | null = regex.exec(markdown);
+  while (match !== null) {
+    const cid = (match[1] ?? "").trim();
+    if (cid) out.add(cid);
+    match = regex.exec(markdown);
+  }
+  return [...out].sort((a, b) => a.localeCompare(b));
+}
+
+function hasRawHttpUrl(markdown: string): boolean {
+  return /https?:\/\//i.test(markdown);
+}
+
+function formatRate(value: number): number {
+  return Number(value.toFixed(6));
+}
+
+async function readValidatedCids(citationsPath: string): Promise<Set<string>> {
+  const records = await readJsonlObjects(citationsPath);
+  const out = new Set<string>();
+  for (const record of records) {
+    const cid = String(record.cid ?? "").trim();
+    const status = String(record.status ?? "").trim();
+    if (!cid) continue;
+    if (status === "valid" || status === "paywalled") out.add(cid);
+  }
+  return out;
+}
+
+function requiredSynthesisHeadingsV1(): string[] {
+  return ["Summary", "Key Findings", "Evidence", "Caveats"];
+}
+
+function countUncitedNumericClaims(markdown: string): number {
+  const lines = markdown.split(/\r?\n/);
+  const numericRegex = /\b\d+(?:\.\d+)?%?\b/;
+  let count = 0;
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i].trim();
+    if (!line || line.startsWith("#")) continue;
+    if (!numericRegex.test(line)) continue;
+    if (/\[@[A-Za-z0-9_:-]+\]/.test(line)) continue;
+    const nextLine = (lines[i + 1] ?? "").trim();
+    if (!/\[@[A-Za-z0-9_:-]+\]/.test(nextLine)) count += 1;
+  }
+  return count;
+}
+
+export const summary_pack_build = tool({
+  description: "Build bounded summary-pack and summary markdown artifacts",
+  args: {
+    manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
+    perspectives_path: tool.schema.string().optional().describe("Absolute path to perspectives.json"),
+    citations_path: tool.schema.string().optional().describe("Absolute path to citations.jsonl"),
+    mode: tool.schema.enum(["fixture", "generate"]).optional().describe("Build mode"),
+    fixture_summaries_dir: tool.schema.string().optional().describe("Absolute fixture summaries directory for mode=fixture"),
+    summary_pack_path: tool.schema.string().optional().describe("Absolute output summary-pack path"),
+    summaries_dir: tool.schema.string().optional().describe("Absolute output summaries directory"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: {
+    manifest_path: string;
+    perspectives_path?: string;
+    citations_path?: string;
+    mode?: "fixture" | "generate";
+    fixture_summaries_dir?: string;
+    summary_pack_path?: string;
+    summaries_dir?: string;
+    reason: string;
+  }) {
+    try {
+      const manifestPath = args.manifest_path.trim();
+      const reason = args.reason.trim();
+      const mode = args.mode ?? "fixture";
+
+      if (!manifestPath) return err("INVALID_ARGS", "manifest_path must be non-empty");
+      if (!path.isAbsolute(manifestPath)) return err("INVALID_ARGS", "manifest_path must be absolute", { manifest_path: args.manifest_path });
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+      if (mode !== "fixture") return err("INVALID_ARGS", "only fixture mode is supported", { mode });
+
+      const manifestRaw = await readJson(manifestPath);
+      const mErr = validateManifestV1(manifestRaw);
+      if (mErr) return mErr;
+
+      const manifest = manifestRaw as Record<string, unknown>;
+      const runId = String(manifest.run_id ?? "");
+      const runRoot = resolveRunRootFromManifest(manifestPath, manifest);
+      const artifactPaths = getManifestPaths(manifest);
+
+      const perspectivesPath = resolveArtifactPath(
+        args.perspectives_path,
+        runRoot,
+        typeof artifactPaths.perspectives_file === "string" ? artifactPaths.perspectives_file : undefined,
+        "perspectives.json",
+      );
+      const citationsPath = resolveArtifactPath(
+        args.citations_path,
+        runRoot,
+        typeof artifactPaths.citations_file === "string" ? artifactPaths.citations_file : undefined,
+        "citations/citations.jsonl",
+      );
+      const summariesDir = resolveArtifactPath(
+        args.summaries_dir,
+        runRoot,
+        typeof artifactPaths.summaries_dir === "string" ? artifactPaths.summaries_dir : undefined,
+        "summaries",
+      );
+      const summaryPackPath = resolveArtifactPath(
+        args.summary_pack_path,
+        runRoot,
+        typeof artifactPaths.summary_pack_file === "string" ? artifactPaths.summary_pack_file : undefined,
+        "summaries/summary-pack.json",
+      );
+      const fixtureSummariesDir = (args.fixture_summaries_dir ?? "").trim();
+
+      if (!path.isAbsolute(perspectivesPath)) return err("INVALID_ARGS", "perspectives_path must be absolute", { perspectives_path: args.perspectives_path ?? null });
+      if (!path.isAbsolute(citationsPath)) return err("INVALID_ARGS", "citations_path must be absolute", { citations_path: args.citations_path ?? null });
+      if (!path.isAbsolute(summariesDir)) return err("INVALID_ARGS", "summaries_dir must be absolute", { summaries_dir: args.summaries_dir ?? null });
+      if (!path.isAbsolute(summaryPackPath)) return err("INVALID_ARGS", "summary_pack_path must be absolute", { summary_pack_path: args.summary_pack_path ?? null });
+      if (!fixtureSummariesDir || !path.isAbsolute(fixtureSummariesDir)) {
+        return err("INVALID_ARGS", "fixture_summaries_dir must be absolute in fixture mode", {
+          fixture_summaries_dir: args.fixture_summaries_dir ?? null,
+        });
+      }
+
+      const relSummariesDir = toPosixPath(path.relative(runRoot, summariesDir));
+      const relSummaryPackPath = toPosixPath(path.relative(runRoot, summaryPackPath));
+      if (relSummariesDir.startsWith("..") || path.isAbsolute(relSummariesDir)) {
+        return err("INVALID_ARGS", "summaries_dir must be under run root", { summaries_dir: summariesDir, run_root: runRoot });
+      }
+      if (relSummaryPackPath.startsWith("..") || path.isAbsolute(relSummaryPackPath)) {
+        return err("INVALID_ARGS", "summary_pack_path must be under run root", { summary_pack_path: summaryPackPath, run_root: runRoot });
+      }
+
+      const perspectivesRaw = await readJson(perspectivesPath);
+      const pErr = validatePerspectivesV1(perspectivesRaw);
+      if (pErr) return pErr;
+
+      const perspectivesDoc = perspectivesRaw as Record<string, unknown>;
+      const perspectivesList = Array.isArray(perspectivesDoc.perspectives)
+        ? (perspectivesDoc.perspectives as Array<Record<string, unknown>>)
+        : [];
+      const perspectives = perspectivesList
+        .map((item) => ({
+          id: String(item.id ?? "").trim(),
+          source_artifact: String((item as Record<string, unknown>).source_artifact ?? "").trim(),
+        }))
+        .filter((item) => item.id.length > 0)
+        .sort((a, b) => a.id.localeCompare(b.id));
+
+      if (perspectives.length === 0) return err("SCHEMA_VALIDATION_FAILED", "perspectives list is empty", { path: "$.perspectives" });
+
+      const validatedCids = await readValidatedCids(citationsPath);
+
+      const limitsObj = isPlainObject(manifest.limits) ? (manifest.limits as Record<string, unknown>) : {};
+      const maxSummaryKb = getNumberProp(limitsObj, "max_summary_kb") ?? Number(limitsObj.max_summary_kb ?? 0);
+      const maxTotalSummaryKb = getNumberProp(limitsObj, "max_total_summary_kb") ?? Number(limitsObj.max_total_summary_kb ?? 0);
+      if (!Number.isFinite(maxSummaryKb) || maxSummaryKb <= 0) {
+        return err("INVALID_STATE", "manifest.limits.max_summary_kb invalid", { value: limitsObj.max_summary_kb ?? null });
+      }
+      if (!Number.isFinite(maxTotalSummaryKb) || maxTotalSummaryKb <= 0) {
+        return err("INVALID_STATE", "manifest.limits.max_total_summary_kb invalid", { value: limitsObj.max_total_summary_kb ?? null });
+      }
+
+      const prepared: Array<{
+        perspective_id: string;
+        markdown: string;
+        summary_path: string;
+        summary_rel: string;
+        cids: string[];
+      }> = [];
+
+      let totalKb = 0;
+      for (const perspective of perspectives) {
+        const fixtureFile = path.join(fixtureSummariesDir, `${perspective.id}.md`);
+        let markdown: string;
+        try {
+          markdown = await fs.promises.readFile(fixtureFile, "utf8");
+        } catch (e) {
+          if (errorCode(e) === "ENOENT") {
+            return err("NOT_FOUND", "fixture summary missing", { perspective_id: perspective.id, fixture_file: fixtureFile });
+          }
+          throw e;
+        }
+
+        if (hasRawHttpUrl(markdown)) {
+          return err("RAW_URL_NOT_ALLOWED", "raw URL detected in summary fixture", {
+            perspective_id: perspective.id,
+            fixture_file: fixtureFile,
+          });
+        }
+
+        const cids = extractCitationMentions(markdown);
+        for (const cid of cids) {
+          if (!validatedCids.has(cid)) {
+            return err("UNKNOWN_CID", "summary references cid not present in validated pool", {
+              perspective_id: perspective.id,
+              cid,
+            });
+          }
+        }
+
+        const kb = Buffer.byteLength(markdown, "utf8") / 1024;
+        if (kb > maxSummaryKb) {
+          return err("SIZE_CAP_EXCEEDED", "summary exceeds max_summary_kb", {
+            perspective_id: perspective.id,
+            summary_kb: formatRate(kb),
+            max_summary_kb: maxSummaryKb,
+          });
+        }
+
+        const summaryPath = path.join(summariesDir, `${perspective.id}.md`);
+        const summaryRel = toPosixPath(path.relative(runRoot, summaryPath));
+        prepared.push({
+          perspective_id: perspective.id,
+          markdown,
+          summary_path: summaryPath,
+          summary_rel: summaryRel,
+          cids,
+        });
+        totalKb += kb;
+      }
+
+      if (totalKb > maxTotalSummaryKb) {
+        return err("SIZE_CAP_EXCEEDED", "total summaries exceed max_total_summary_kb", {
+          total_summary_kb: formatRate(totalKb),
+          max_total_summary_kb: maxTotalSummaryKb,
+        });
+      }
+
+      await ensureDir(summariesDir);
+      for (const item of prepared) {
+        await atomicWriteText(item.summary_path, item.markdown);
+      }
+
+      const summaryPack = {
+        schema_version: "summary_pack.v1",
+        run_id: runId,
+        generated_at: nowIso(),
+        limits: {
+          max_summary_kb: maxSummaryKb,
+          max_total_summary_kb: maxTotalSummaryKb,
+        },
+        summaries: prepared.map((item) => ({
+          perspective_id: item.perspective_id,
+          source_artifact: `wave-1/${item.perspective_id}.md`,
+          summary_md: item.summary_rel,
+          key_claims: [
+            {
+              claim: `Bounded synthesis summary for ${item.perspective_id}`,
+              citation_cids: item.cids,
+              confidence: 80,
+            },
+          ],
+        })),
+        total_estimated_tokens: Math.max(1, Math.round((totalKb * 1024) / 4)),
+      };
+
+      await atomicWriteJson(summaryPackPath, summaryPack);
+
+      const inputsDigest = sha256DigestForJson({
+        schema: "summary_pack_build.inputs.v1",
+        run_id: runId,
+        manifest_revision: Number(manifest.revision ?? 0),
+        perspectives: prepared.map((item) => item.perspective_id),
+        validated_cids: [...validatedCids].sort((a, b) => a.localeCompare(b)),
+        fixtures: prepared.map((item) => ({
+          perspective_id: item.perspective_id,
+          hash: sha256HexLowerUtf8(item.markdown),
+        })),
+      });
+
+      try {
+        await appendAuditJsonl({
+          runRoot,
+          event: {
+            ts: nowIso(),
+            kind: "summary_pack_build",
+            run_id: runId,
+            reason,
+            summary_count: prepared.length,
+            inputs_digest: inputsDigest,
+          },
+        });
+      } catch {
+        // best effort
+      }
+
+      return ok({
+        summary_pack_path: summaryPackPath,
+        summaries_dir: summariesDir,
+        summary_count: prepared.length,
+        inputs_digest: inputsDigest,
+      });
+    } catch (e) {
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required file missing");
+      if (e instanceof SyntaxError) return err("INVALID_JSON", "invalid JSON artifact", { message: String(e) });
+      return err("WRITE_FAILED", "summary_pack_build failed", { message: String(e) });
+    }
+  },
+});
+
+export const gate_d_evaluate = tool({
+  description: "Compute deterministic Gate D metrics from summary artifacts",
+  args: {
+    manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
+    summary_pack_path: tool.schema.string().optional().describe("Absolute path to summary-pack.json"),
+    summaries_dir: tool.schema.string().optional().describe("Absolute summaries directory"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: {
+    manifest_path: string;
+    summary_pack_path?: string;
+    summaries_dir?: string;
+    reason: string;
+  }) {
+    try {
+      const manifestPath = args.manifest_path.trim();
+      const reason = args.reason.trim();
+      if (!manifestPath) return err("INVALID_ARGS", "manifest_path must be non-empty");
+      if (!path.isAbsolute(manifestPath)) return err("INVALID_ARGS", "manifest_path must be absolute", { manifest_path: args.manifest_path });
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+
+      const manifestRaw = await readJson(manifestPath);
+      const mErr = validateManifestV1(manifestRaw);
+      if (mErr) return mErr;
+
+      const manifest = manifestRaw as Record<string, unknown>;
+      const runId = String(manifest.run_id ?? "");
+      const runRoot = resolveRunRootFromManifest(manifestPath, manifest);
+      const artifactPaths = getManifestPaths(manifest);
+
+      const summaryPackPath = resolveArtifactPath(
+        args.summary_pack_path,
+        runRoot,
+        typeof artifactPaths.summary_pack_file === "string" ? artifactPaths.summary_pack_file : undefined,
+        "summaries/summary-pack.json",
+      );
+      const summariesDir = resolveArtifactPath(
+        args.summaries_dir,
+        runRoot,
+        typeof artifactPaths.summaries_dir === "string" ? artifactPaths.summaries_dir : undefined,
+        "summaries",
+      );
+      const perspectivesPath = resolveArtifactPath(
+        undefined,
+        runRoot,
+        typeof artifactPaths.perspectives_file === "string" ? artifactPaths.perspectives_file : undefined,
+        "perspectives.json",
+      );
+
+      if (!path.isAbsolute(summaryPackPath)) return err("INVALID_ARGS", "summary_pack_path must be absolute", { summary_pack_path: args.summary_pack_path ?? null });
+      if (!path.isAbsolute(summariesDir)) return err("INVALID_ARGS", "summaries_dir must be absolute", { summaries_dir: args.summaries_dir ?? null });
+
+      const summaryPackRaw = await readJson(summaryPackPath);
+      if (!isPlainObject(summaryPackRaw) || summaryPackRaw.schema_version !== "summary_pack.v1") {
+        return err("SCHEMA_VALIDATION_FAILED", "summary-pack schema_version must be summary_pack.v1", {
+          summary_pack_path: summaryPackPath,
+        });
+      }
+      const summaryPackDoc = summaryPackRaw as Record<string, unknown>;
+      const entriesRaw = Array.isArray(summaryPackDoc.summaries) ? (summaryPackDoc.summaries as unknown[]) : [];
+
+      let expectedCount = entriesRaw.length;
+      try {
+        const perspectivesRaw = await readJson(perspectivesPath);
+        const pErr = validatePerspectivesV1(perspectivesRaw);
+        if (!pErr) {
+          const perspectivesDoc = perspectivesRaw as Record<string, unknown>;
+          expectedCount = Array.isArray(perspectivesDoc.perspectives) ? perspectivesDoc.perspectives.length : 0;
+        }
+      } catch {
+        // fallback to summary entries length
+      }
+
+      const missingSummaries: string[] = [];
+      let totalKb = 0;
+      let maxKb = 0;
+      let existingCount = 0;
+
+      for (const entryRaw of entriesRaw) {
+        if (!isPlainObject(entryRaw)) continue;
+        const entryObj = entryRaw as Record<string, unknown>;
+        const perspectiveId = String(entryObj.perspective_id ?? "").trim() || "unknown";
+        const summaryMd = String(entryObj.summary_md ?? "").trim();
+        if (!summaryMd) {
+          missingSummaries.push(`${perspectiveId}:<missing summary_md>`);
+          continue;
+        }
+
+        const summaryPath = path.isAbsolute(summaryMd) ? summaryMd : path.join(runRoot, summaryMd);
+        try {
+          const content = await fs.promises.readFile(summaryPath, "utf8");
+          const kb = Buffer.byteLength(content, "utf8") / 1024;
+          totalKb += kb;
+          if (kb > maxKb) maxKb = kb;
+          existingCount += 1;
+        } catch (e) {
+          if (errorCode(e) === "ENOENT") {
+            missingSummaries.push(toPosixPath(path.relative(runRoot, summaryPath)));
+            continue;
+          }
+          throw e;
+        }
+      }
+
+      const ratio = expectedCount > 0 ? existingCount / expectedCount : 0;
+      const limitsObj = isPlainObject(manifest.limits) ? (manifest.limits as Record<string, unknown>) : {};
+      const maxSummaryKbLimit = getNumberProp(limitsObj, "max_summary_kb") ?? Number(limitsObj.max_summary_kb ?? 0);
+      const maxTotalSummaryKbLimit = getNumberProp(limitsObj, "max_total_summary_kb") ?? Number(limitsObj.max_total_summary_kb ?? 0);
+
+      const metrics = {
+        summary_count_ratio: formatRate(ratio),
+        max_summary_kb: formatRate(maxKb),
+        total_summary_pack_kb: formatRate(totalKb),
+        summary_count: existingCount,
+        expected_count: expectedCount,
+      };
+
+      const warnings: string[] = [];
+      if (missingSummaries.length > 0) warnings.push(`MISSING_SUMMARIES:${missingSummaries.length}`);
+
+      const pass =
+        ratio >= 0.9
+        && maxKb <= maxSummaryKbLimit
+        && totalKb <= maxTotalSummaryKbLimit
+        && missingSummaries.length === 0;
+
+      const status: "pass" | "fail" = pass ? "pass" : "fail";
+      const checkedAt = nowIso();
+      const update = {
+        D: {
+          status,
+          checked_at: checkedAt,
+          metrics,
+          artifacts: [
+            toPosixPath(path.relative(runRoot, summaryPackPath)),
+            toPosixPath(path.relative(runRoot, summariesDir)),
+          ],
+          warnings,
+          notes: pass
+            ? "Gate D passed with bounded summaries"
+            : "Gate D failed: boundedness or completeness threshold not met",
+        },
+      };
+
+      const inputsDigest = sha256DigestForJson({
+        schema: "gate_d_evaluate.inputs.v1",
+        run_id: runId,
+        summary_pack_path: toPosixPath(path.relative(runRoot, summaryPackPath)),
+        entries: entriesRaw,
+        metrics,
+      });
+
+      try {
+        await appendAuditJsonl({
+          runRoot,
+          event: {
+            ts: checkedAt,
+            kind: "gate_d_evaluate",
+            run_id: runId,
+            reason,
+            status,
+            metrics,
+            missing_summaries: missingSummaries,
+            inputs_digest: inputsDigest,
+          },
+        });
+      } catch {
+        // best effort
+      }
+
+      return ok({
+        gate_id: "D",
+        status,
+        metrics,
+        update,
+        inputs_digest: inputsDigest,
+      });
+    } catch (e) {
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required file missing");
+      if (e instanceof SyntaxError) return err("INVALID_JSON", "invalid JSON artifact", { message: String(e) });
+      return err("WRITE_FAILED", "gate_d_evaluate failed", { message: String(e) });
+    }
+  },
+});
+
+export const synthesis_write = tool({
+  description: "Write bounded synthesis draft from summary-pack and citations",
+  args: {
+    manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
+    summary_pack_path: tool.schema.string().optional().describe("Absolute path to summary-pack.json"),
+    citations_path: tool.schema.string().optional().describe("Absolute path to citations.jsonl"),
+    mode: tool.schema.enum(["fixture", "generate"]).optional().describe("Write mode"),
+    fixture_draft_path: tool.schema.string().optional().describe("Absolute fixture markdown path for mode=fixture"),
+    output_path: tool.schema.string().optional().describe("Absolute synthesis output path"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: {
+    manifest_path: string;
+    summary_pack_path?: string;
+    citations_path?: string;
+    mode?: "fixture" | "generate";
+    fixture_draft_path?: string;
+    output_path?: string;
+    reason: string;
+  }) {
+    try {
+      const manifestPath = args.manifest_path.trim();
+      const reason = args.reason.trim();
+      const mode = args.mode ?? "fixture";
+
+      if (!manifestPath) return err("INVALID_ARGS", "manifest_path must be non-empty");
+      if (!path.isAbsolute(manifestPath)) return err("INVALID_ARGS", "manifest_path must be absolute", { manifest_path: args.manifest_path });
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+      if (mode !== "fixture") return err("INVALID_ARGS", "only fixture mode is supported", { mode });
+
+      const manifestRaw = await readJson(manifestPath);
+      const mErr = validateManifestV1(manifestRaw);
+      if (mErr) return mErr;
+      const manifest = manifestRaw as Record<string, unknown>;
+      const runId = String(manifest.run_id ?? "");
+      const runRoot = resolveRunRootFromManifest(manifestPath, manifest);
+      const artifactPaths = getManifestPaths(manifest);
+
+      const summaryPackPath = resolveArtifactPath(
+        args.summary_pack_path,
+        runRoot,
+        typeof artifactPaths.summary_pack_file === "string" ? artifactPaths.summary_pack_file : undefined,
+        "summaries/summary-pack.json",
+      );
+      const citationsPath = resolveArtifactPath(
+        args.citations_path,
+        runRoot,
+        typeof artifactPaths.citations_file === "string" ? artifactPaths.citations_file : undefined,
+        "citations/citations.jsonl",
+      );
+      const outputPath = resolveArtifactPath(
+        args.output_path,
+        runRoot,
+        typeof artifactPaths.synthesis_dir === "string" ? `${artifactPaths.synthesis_dir}/draft-synthesis.md` : undefined,
+        "synthesis/draft-synthesis.md",
+      );
+      const fixtureDraftPath = (args.fixture_draft_path ?? "").trim();
+
+      if (!path.isAbsolute(summaryPackPath)) return err("INVALID_ARGS", "summary_pack_path must be absolute", { summary_pack_path: args.summary_pack_path ?? null });
+      if (!path.isAbsolute(citationsPath)) return err("INVALID_ARGS", "citations_path must be absolute", { citations_path: args.citations_path ?? null });
+      if (!path.isAbsolute(outputPath)) return err("INVALID_ARGS", "output_path must be absolute", { output_path: args.output_path ?? null });
+      if (!fixtureDraftPath || !path.isAbsolute(fixtureDraftPath)) {
+        return err("INVALID_ARGS", "fixture_draft_path must be absolute in fixture mode", {
+          fixture_draft_path: args.fixture_draft_path ?? null,
+        });
+      }
+
+      await readJson(summaryPackPath);
+      const validatedCids = await readValidatedCids(citationsPath);
+
+      const markdown = await fs.promises.readFile(fixtureDraftPath, "utf8");
+      const requiredHeadings = requiredSynthesisHeadingsV1();
+      for (const heading of requiredHeadings) {
+        if (!hasHeading(markdown, heading)) {
+          return err("SCHEMA_VALIDATION_FAILED", "missing required synthesis heading", {
+            heading,
+          });
+        }
+      }
+
+      const cited = extractCitationMentions(markdown);
+      if (cited.length === 0) return err("SCHEMA_VALIDATION_FAILED", "draft must include citation syntax [@cid]");
+      for (const cid of cited) {
+        if (!validatedCids.has(cid)) {
+          return err("UNKNOWN_CID", "draft references cid not present in validated pool", { cid });
+        }
+      }
+
+      await atomicWriteText(outputPath, markdown);
+
+      const inputsDigest = sha256DigestForJson({
+        schema: "synthesis_write.inputs.v1",
+        run_id: runId,
+        summary_pack_path: toPosixPath(path.relative(runRoot, summaryPackPath)),
+        fixture_draft_hash: sha256HexLowerUtf8(markdown),
+        cited,
+      });
+
+      try {
+        await appendAuditJsonl({
+          runRoot,
+          event: {
+            ts: nowIso(),
+            kind: "synthesis_write",
+            run_id: runId,
+            reason,
+            output_path: toPosixPath(path.relative(runRoot, outputPath)),
+            inputs_digest: inputsDigest,
+          },
+        });
+      } catch {
+        // best effort
+      }
+
+      return ok({
+        output_path: outputPath,
+        inputs_digest: inputsDigest,
+      });
+    } catch (e) {
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required file missing");
+      if (e instanceof SyntaxError) return err("INVALID_JSON", "invalid JSON artifact", { message: String(e) });
+      return err("WRITE_FAILED", "synthesis_write failed", { message: String(e) });
+    }
+  },
+});
+
+export const gate_e_evaluate = tool({
+  description: "Compute deterministic Gate E metrics from final synthesis",
+  args: {
+    manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
+    synthesis_path: tool.schema.string().optional().describe("Absolute path to final-synthesis.md"),
+    citations_path: tool.schema.string().optional().describe("Absolute path to citations.jsonl"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: {
+    manifest_path: string;
+    synthesis_path?: string;
+    citations_path?: string;
+    reason: string;
+  }) {
+    try {
+      const manifestPath = args.manifest_path.trim();
+      const reason = args.reason.trim();
+      if (!manifestPath) return err("INVALID_ARGS", "manifest_path must be non-empty");
+      if (!path.isAbsolute(manifestPath)) return err("INVALID_ARGS", "manifest_path must be absolute", { manifest_path: args.manifest_path });
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+
+      const manifestRaw = await readJson(manifestPath);
+      const mErr = validateManifestV1(manifestRaw);
+      if (mErr) return mErr;
+
+      const manifest = manifestRaw as Record<string, unknown>;
+      const runId = String(manifest.run_id ?? "");
+      const runRoot = resolveRunRootFromManifest(manifestPath, manifest);
+      const artifactPaths = getManifestPaths(manifest);
+
+      const synthesisPath = resolveArtifactPath(
+        args.synthesis_path,
+        runRoot,
+        typeof artifactPaths.synthesis_dir === "string" ? `${artifactPaths.synthesis_dir}/final-synthesis.md` : undefined,
+        "synthesis/final-synthesis.md",
+      );
+      const citationsPath = resolveArtifactPath(
+        args.citations_path,
+        runRoot,
+        typeof artifactPaths.citations_file === "string" ? artifactPaths.citations_file : undefined,
+        "citations/citations.jsonl",
+      );
+
+      if (!path.isAbsolute(synthesisPath)) return err("INVALID_ARGS", "synthesis_path must be absolute", { synthesis_path: args.synthesis_path ?? null });
+      if (!path.isAbsolute(citationsPath)) return err("INVALID_ARGS", "citations_path must be absolute", { citations_path: args.citations_path ?? null });
+
+      const markdown = await fs.promises.readFile(synthesisPath, "utf8");
+      const validatedCids = await readValidatedCids(citationsPath);
+      const requiredHeadings = requiredSynthesisHeadingsV1();
+      const headingsPresent = requiredHeadings.filter((heading) => hasHeading(markdown, heading)).length;
+      const reportSectionsPresent = requiredHeadings.length > 0
+        ? formatRate(headingsPresent / requiredHeadings.length)
+        : 0;
+
+      const allMentions = [...markdown.matchAll(/\[@([A-Za-z0-9_:-]+)\]/g)].map((m) => (m[1] ?? "").trim()).filter(Boolean);
+      const usedValidCidSet = new Set<string>();
+      for (const cid of allMentions) {
+        if (validatedCids.has(cid)) usedValidCidSet.add(cid);
+      }
+
+      const validatedCidsCount = validatedCids.size;
+      const usedCidsCount = usedValidCidSet.size;
+      const totalCidMentions = allMentions.length;
+
+      const citationUtilizationRate = validatedCidsCount > 0
+        ? formatRate(usedCidsCount / validatedCidsCount)
+        : 0;
+      const duplicateCitationRate = totalCidMentions > 0
+        ? formatRate(1 - (usedCidsCount / totalCidMentions))
+        : 0;
+
+      const uncitedNumericClaims = countUncitedNumericClaims(markdown);
+
+      const metrics = {
+        uncited_numeric_claims: uncitedNumericClaims,
+        report_sections_present: reportSectionsPresent,
+        citation_utilization_rate: citationUtilizationRate,
+        duplicate_citation_rate: duplicateCitationRate,
+      };
+
+      const warnings: string[] = [];
+      if (citationUtilizationRate < 0.6) warnings.push("LOW_CITATION_UTILIZATION");
+      if (duplicateCitationRate > 0.2) warnings.push("HIGH_DUPLICATE_CITATION_RATE");
+
+      const passHard = uncitedNumericClaims === 0 && reportSectionsPresent === 1;
+      const status: "pass" | "fail" = passHard ? "pass" : "fail";
+      const checkedAt = nowIso();
+      const update = {
+        E: {
+          status,
+          checked_at: checkedAt,
+          metrics,
+          artifacts: [
+            toPosixPath(path.relative(runRoot, synthesisPath)),
+            toPosixPath(path.relative(runRoot, citationsPath)),
+          ],
+          warnings,
+          notes: passHard
+            ? "Gate E hard metrics satisfied"
+            : "Gate E hard metric failure",
+        },
+      };
+
+      const inputsDigest = sha256DigestForJson({
+        schema: "gate_e_evaluate.inputs.v1",
+        run_id: runId,
+        markdown_hash: sha256HexLowerUtf8(markdown),
+        validated_cids_count: validatedCidsCount,
+      });
+
+      try {
+        await appendAuditJsonl({
+          runRoot,
+          event: {
+            ts: checkedAt,
+            kind: "gate_e_evaluate",
+            run_id: runId,
+            reason,
+            status,
+            metrics,
+            warnings,
+            inputs_digest: inputsDigest,
+          },
+        });
+      } catch {
+        // best effort
+      }
+
+      return ok({
+        gate_id: "E",
+        status,
+        metrics,
+        warnings,
+        update,
+        inputs_digest: inputsDigest,
+      });
+    } catch (e) {
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required file missing");
+      if (e instanceof SyntaxError) return err("INVALID_JSON", "invalid JSON artifact", { message: String(e) });
+      return err("WRITE_FAILED", "gate_e_evaluate failed", { message: String(e) });
+    }
+  },
+});
+
+export const review_factory_run = tool({
+  description: "Run deterministic fixture-based reviewer aggregation",
+  args: {
+    manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
+    draft_path: tool.schema.string().optional().describe("Absolute path to synthesis draft markdown"),
+    citations_path: tool.schema.string().optional().describe("Absolute path to citations.jsonl"),
+    mode: tool.schema.enum(["fixture", "generate"]).optional().describe("Reviewer mode"),
+    fixture_bundle_dir: tool.schema.string().optional().describe("Absolute fixture directory containing review-bundle.json"),
+    review_dir: tool.schema.string().optional().describe("Absolute review output directory"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: {
+    manifest_path: string;
+    draft_path?: string;
+    citations_path?: string;
+    mode?: "fixture" | "generate";
+    fixture_bundle_dir?: string;
+    review_dir?: string;
+    reason: string;
+  }) {
+    try {
+      const manifestPath = args.manifest_path.trim();
+      const reason = args.reason.trim();
+      const mode = args.mode ?? "fixture";
+
+      if (!manifestPath) return err("INVALID_ARGS", "manifest_path must be non-empty");
+      if (!path.isAbsolute(manifestPath)) return err("INVALID_ARGS", "manifest_path must be absolute", { manifest_path: args.manifest_path });
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+      if (mode !== "fixture") return err("INVALID_ARGS", "only fixture mode is supported", { mode });
+
+      const manifestRaw = await readJson(manifestPath);
+      const mErr = validateManifestV1(manifestRaw);
+      if (mErr) return mErr;
+      const manifest = manifestRaw as Record<string, unknown>;
+      const runId = String(manifest.run_id ?? "");
+      const runRoot = resolveRunRootFromManifest(manifestPath, manifest);
+      const artifactPaths = getManifestPaths(manifest);
+
+      const draftPath = resolveArtifactPath(
+        args.draft_path,
+        runRoot,
+        typeof artifactPaths.synthesis_dir === "string" ? `${artifactPaths.synthesis_dir}/draft-synthesis.md` : undefined,
+        "synthesis/draft-synthesis.md",
+      );
+      const citationsPath = resolveArtifactPath(
+        args.citations_path,
+        runRoot,
+        typeof artifactPaths.citations_file === "string" ? artifactPaths.citations_file : undefined,
+        "citations/citations.jsonl",
+      );
+      const reviewDir = resolveArtifactPath(args.review_dir, runRoot, undefined, "review");
+      const fixtureBundleDir = (args.fixture_bundle_dir ?? "").trim();
+      if (!fixtureBundleDir || !path.isAbsolute(fixtureBundleDir)) {
+        return err("INVALID_ARGS", "fixture_bundle_dir must be absolute in fixture mode", {
+          fixture_bundle_dir: args.fixture_bundle_dir ?? null,
+        });
+      }
+
+      await fs.promises.readFile(draftPath, "utf8");
+      await fs.promises.readFile(citationsPath, "utf8");
+
+      const fixtureBundlePath = path.join(fixtureBundleDir, "review-bundle.json");
+      const fixtureBundleRaw = await readJson(fixtureBundlePath);
+      if (!isPlainObject(fixtureBundleRaw)) {
+        return err("SCHEMA_VALIDATION_FAILED", "fixture review bundle must be object", {
+          fixture_bundle_path: fixtureBundlePath,
+        });
+      }
+
+      const fixtureDoc = fixtureBundleRaw as Record<string, unknown>;
+      const decision = String(fixtureDoc.decision ?? "").trim();
+      if (decision !== "PASS" && decision !== "CHANGES_REQUIRED") {
+        return err("SCHEMA_VALIDATION_FAILED", "review bundle decision invalid", { decision });
+      }
+
+      const findings = Array.isArray(fixtureDoc.findings)
+        ? (fixtureDoc.findings as unknown[]).slice(0, 100)
+        : [];
+      const directives = Array.isArray(fixtureDoc.directives)
+        ? (fixtureDoc.directives as unknown[]).slice(0, 100)
+        : [];
+
+      const reviewBundle = {
+        schema_version: "review_bundle.v1",
+        run_id: runId,
+        decision,
+        findings,
+        directives,
+      };
+
+      await ensureDir(reviewDir);
+      const reviewBundlePath = path.join(reviewDir, "review-bundle.json");
+      await atomicWriteJson(reviewBundlePath, reviewBundle);
+      await atomicWriteJson(path.join(reviewDir, "revision-directives.json"), {
+        schema_version: "revision_directives.v1",
+        run_id: runId,
+        directives,
+      });
+
+      const inputsDigest = sha256DigestForJson({
+        schema: "review_factory_run.inputs.v1",
+        run_id: runId,
+        decision,
+        findings_count: findings.length,
+        directives_count: directives.length,
+      });
+
+      try {
+        await appendAuditJsonl({
+          runRoot,
+          event: {
+            ts: nowIso(),
+            kind: "review_factory_run",
+            run_id: runId,
+            reason,
+            decision,
+            findings_count: findings.length,
+            directives_count: directives.length,
+            inputs_digest: inputsDigest,
+          },
+        });
+      } catch {
+        // best effort
+      }
+
+      return ok({
+        review_bundle_path: reviewBundlePath,
+        decision,
+        inputs_digest: inputsDigest,
+      });
+    } catch (e) {
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required file missing");
+      if (e instanceof SyntaxError) return err("INVALID_JSON", "invalid JSON artifact", { message: String(e) });
+      return err("WRITE_FAILED", "review_factory_run failed", { message: String(e) });
+    }
+  },
+});
+
+export const revision_control = tool({
+  description: "Apply deterministic bounded review revision-control policy",
+  args: {
+    manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
+    gates_path: tool.schema.string().describe("Absolute path to gates.json"),
+    review_bundle_path: tool.schema.string().describe("Absolute path to review-bundle.json"),
+    current_iteration: tool.schema.number().describe("1-indexed current review iteration"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: {
+    manifest_path: string;
+    gates_path: string;
+    review_bundle_path: string;
+    current_iteration: number;
+    reason: string;
+  }) {
+    try {
+      const manifestPath = args.manifest_path.trim();
+      const gatesPath = args.gates_path.trim();
+      const reviewBundlePath = args.review_bundle_path.trim();
+      const reason = args.reason.trim();
+      const currentIteration = Math.trunc(args.current_iteration);
+
+      if (!manifestPath || !path.isAbsolute(manifestPath)) return err("INVALID_ARGS", "manifest_path must be absolute", { manifest_path: args.manifest_path });
+      if (!gatesPath || !path.isAbsolute(gatesPath)) return err("INVALID_ARGS", "gates_path must be absolute", { gates_path: args.gates_path });
+      if (!reviewBundlePath || !path.isAbsolute(reviewBundlePath)) {
+        return err("INVALID_ARGS", "review_bundle_path must be absolute", { review_bundle_path: args.review_bundle_path });
+      }
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+      if (!Number.isInteger(currentIteration) || currentIteration <= 0) {
+        return err("INVALID_ARGS", "current_iteration must be positive integer", { current_iteration: args.current_iteration });
+      }
+
+      const manifestRaw = await readJson(manifestPath);
+      const mErr = validateManifestV1(manifestRaw);
+      if (mErr) return mErr;
+      const manifest = manifestRaw as Record<string, unknown>;
+      const runId = String(manifest.run_id ?? "");
+      const runRoot = resolveRunRootFromManifest(manifestPath, manifest);
+
+      const gatesRaw = await readJson(gatesPath);
+      const gErr = validateGatesV1(gatesRaw);
+      if (gErr) return gErr;
+      const gatesDoc = gatesRaw as Record<string, unknown>;
+      const gatesObj = isPlainObject(gatesDoc.gates) ? (gatesDoc.gates as Record<string, unknown>) : {};
+      const gateE = isPlainObject(gatesObj.E) ? (gatesObj.E as Record<string, unknown>) : {};
+      const gateEStatus = String(gateE.status ?? "").trim();
+
+      const reviewRaw = await readJson(reviewBundlePath);
+      if (!isPlainObject(reviewRaw)) return err("SCHEMA_VALIDATION_FAILED", "review bundle must be object");
+      const reviewDoc = reviewRaw as Record<string, unknown>;
+      const decision = String(reviewDoc.decision ?? "").trim();
+      if (decision !== "PASS" && decision !== "CHANGES_REQUIRED") {
+        return err("SCHEMA_VALIDATION_FAILED", "review bundle decision invalid", { decision });
+      }
+
+      const limitsObj = isPlainObject(manifest.limits) ? (manifest.limits as Record<string, unknown>) : {};
+      const maxReviewIterations = getNumberProp(limitsObj, "max_review_iterations") ?? Number(limitsObj.max_review_iterations ?? 0);
+      if (!Number.isFinite(maxReviewIterations) || maxReviewIterations < 0) {
+        return err("INVALID_STATE", "manifest.limits.max_review_iterations invalid", {
+          value: limitsObj.max_review_iterations ?? null,
+        });
+      }
+
+      let action: "advance" | "revise" | "escalate";
+      let nextStage: "finalize" | "synthesis" | "review";
+      let notes: string;
+
+      if (decision === "PASS" && gateEStatus === "pass") {
+        action = "advance";
+        nextStage = "finalize";
+        notes = "Review passed and Gate E hard metrics passed";
+      } else if (currentIteration >= maxReviewIterations) {
+        action = "escalate";
+        nextStage = "review";
+        notes = `Max review iterations reached (${currentIteration}/${maxReviewIterations})`;
+      } else {
+        action = "revise";
+        nextStage = "synthesis";
+        notes = decision === "CHANGES_REQUIRED"
+          ? "Reviewer requested changes within iteration budget"
+          : "Gate E not pass; revise synthesis within iteration budget";
+      }
+
+      const inputsDigest = sha256DigestForJson({
+        schema: "revision_control.inputs.v1",
+        run_id: runId,
+        decision,
+        gate_e_status: gateEStatus,
+        current_iteration: currentIteration,
+        max_review_iterations: maxReviewIterations,
+      });
+
+      try {
+        await appendAuditJsonl({
+          runRoot,
+          event: {
+            ts: nowIso(),
+            kind: "revision_control",
+            run_id: runId,
+            reason,
+            action,
+            next_stage: nextStage,
+            decision,
+            gate_e_status: gateEStatus,
+            current_iteration: currentIteration,
+            max_review_iterations: maxReviewIterations,
+            inputs_digest: inputsDigest,
+          },
+        });
+      } catch {
+        // best effort
+      }
+
+      return ok({
+        action,
+        next_stage: nextStage,
+        notes,
+        inputs_digest: inputsDigest,
+      });
+    } catch (e) {
+      if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required file missing");
+      if (e instanceof SyntaxError) return err("INVALID_JSON", "invalid JSON artifact", { message: String(e) });
+      return err("WRITE_FAILED", "revision_control failed", { message: String(e) });
+    }
+  },
+});
+
+export const deep_research_summary_pack_build = summary_pack_build;
+export const deep_research_gate_d_evaluate = gate_d_evaluate;
+export const deep_research_synthesis_write = synthesis_write;
+export const deep_research_gate_e_evaluate = gate_e_evaluate;
+export const deep_research_review_factory_run = review_factory_run;
+export const deep_research_revision_control = revision_control;

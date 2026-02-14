@@ -1,0 +1,3 @@
+{"cid":"cid_alpha","url":"https://example.com/source-a","normalized_url":"https://example.com/source-a","status":"valid","notes":"fixture valid"}
+{"cid":"cid_beta","url":"https://example.com/source-b","normalized_url":"https://example.com/source-b","status":"paywalled","notes":"fixture paywalled"}
+{"cid":"cid_gamma","url":"https://example.com/source-c","normalized_url":"https://example.com/source-c","status":"valid","notes":"fixture valid"}

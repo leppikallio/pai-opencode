@@ -1,0 +1,19 @@
+{
+  "schema_version": "review_bundle.v1",
+  "run_id": "dr_test_phase05",
+  "decision": "CHANGES_REQUIRED",
+  "findings": [
+    {
+      "id": "f1",
+      "severity": "high",
+      "message": "One numeric claim should be anchored with a citation"
+    }
+  ],
+  "directives": [
+    {
+      "id": "d1",
+      "target": "Key Findings",
+      "change": "Attach citation syntax to every numeric statement"
+    }
+  ]
+}

@@ -5,7 +5,7 @@
 - Planned window: 12–16 weeks
 - Status: `in_progress`
 - Last updated: `2026-02-14`
-- Current phase: `Phase 05` (pending)
+- Current phase: `Phase 05` (in_progress)
 
 ## Plan root directory (canonical)
 All program plans and specs live here:
@@ -38,7 +38,7 @@ Session loss / compaction safe recovery:
 | 02 | Orchestrator engine | Engineer | done | QATester | Gate B | Signed off: `PHASE-02-CHECKPOINT-GATE-B.md` + `PHASE-02-CHECKPOINT-QA-REVIEW.md` |
 | 03 | Agent contracts & wave graph | Engineer | done | Architect | Gate B | Signed off: `PHASE-03-CHECKPOINT-GATE-B.md` |
 | 04 | Citation validation services | Engineer | done | QATester | Gate C | Signed off: `PHASE-04-CHECKPOINT-GATE-C.md` |
-| 05 | Synthesis/reviewer factory | Engineer | pending | Architect | Gate D/E | Writer-review loop |
+| 05 | Synthesis/reviewer factory | Engineer | in_progress | Architect | Gate D/E | Implement bounded summary pack + Gate D/E tools |
 | 06 | Observability + quality automation | Engineer | pending | QATester | Gate E | Metrics + harness |
 | 07 | Rollout hardening & canary | Engineer | pending | Architect | Gate F | Flags + fallback |
 
@@ -50,7 +50,7 @@ Session loss / compaction safe recovery:
 | B | Orchestration/runtime | done | Phase 02 stage engine complete |
 | C | Agents/contracts | done | Phase 03 Gate B passed |
 | D | Citation/evidence | done | Phase 04 Gate C passed |
-| E | Synthesis/review | pending | 0 |
+| E | Synthesis/review | in_progress | P05-02/04/06/08 tools + entity tests |
 | F | QA/observability | pending | 0 |
 
 ## Phase 00 completion evidence
