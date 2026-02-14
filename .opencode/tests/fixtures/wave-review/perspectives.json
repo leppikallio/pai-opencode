@@ -1,0 +1,52 @@
+{
+  "schema_version": "perspectives.v1",
+  "run_id": "dr_wave_review_fixture",
+  "created_at": "2026-01-01T00:00:00.000Z",
+  "perspectives": [
+    {
+      "id": "p2",
+      "title": "Perspective Two",
+      "track": "standard",
+      "agent_type": "ClaudeResearcher",
+      "prompt_contract": {
+        "max_words": 30,
+        "max_sources": 2,
+        "tool_budget": {},
+        "must_include_sections": [
+          "Answer",
+          "Sources"
+        ]
+      }
+    },
+    {
+      "id": "p1",
+      "title": "Perspective One",
+      "track": "standard",
+      "agent_type": "ClaudeResearcher",
+      "prompt_contract": {
+        "max_words": 60,
+        "max_sources": 2,
+        "tool_budget": {},
+        "must_include_sections": [
+          "Answer",
+          "Sources"
+        ]
+      }
+    },
+    {
+      "id": "p3",
+      "title": "Perspective Three",
+      "track": "contrarian",
+      "agent_type": "GrokResearcher",
+      "prompt_contract": {
+        "max_words": 40,
+        "max_sources": 1,
+        "tool_budget": {},
+        "must_include_sections": [
+          "Answer",
+          "Sources"
+        ]
+      }
+    }
+  ]
+}
