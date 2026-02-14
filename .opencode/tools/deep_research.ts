@@ -306,6 +306,29 @@ function errorWithPath(message: string, pathStr: string) {
 const MANIFEST_STATUS: string[] = ["created", "running", "paused", "failed", "completed", "cancelled"];
 const MANIFEST_MODE: string[] = ["quick", "standard", "deep"];
 const MANIFEST_STAGE: string[] = ["init", "wave1", "pivot", "wave2", "citations", "summaries", "synthesis", "review", "finalize"];
+const STAGE_TIMEOUT_SECONDS_V1: Record<string, number> = {
+  init: 120,
+  wave1: 600,
+  pivot: 120,
+  wave2: 600,
+  citations: 600,
+  summaries: 600,
+  synthesis: 600,
+  review: 300,
+  finalize: 120,
+};
+const GATE_IDS = ["A", "B", "C", "D", "E", "F"] as const;
+type GateId = typeof GATE_IDS[number];
+
+// Source: .opencode/Plans/DeepResearchOptionC/spec-gate-escalation-v1.md
+const GATE_RETRY_CAPS_V1: Record<GateId, number> = {
+  A: 0,
+  B: 2,
+  C: 1,
+  D: 1,
+  E: 3,
+  F: 0,
+};
 
 // Phase 01: validate manifest + gates strongly enough to reject invalid examples.
 function validateManifestV1(value: unknown): string | null {
@@ -422,6 +445,61 @@ function validateGatesV1(value: unknown): string | null {
       return errorWithPath("gate.warnings must be string[]", `$.gates.${gateId}.warnings`);
     }
     if (typeof gate.notes !== "string") return errorWithPath("gate.notes must be string", `$.gates.${gateId}.notes`);
+  }
+
+  return null;
+}
+
+function validatePerspectivesV1(value: unknown): string | null {
+  if (!isPlainObject(value)) return errorWithPath("perspectives must be an object", "$");
+  const v = value;
+
+  if (v.schema_version !== "perspectives.v1") {
+    return errorWithPath("perspectives.schema_version must be perspectives.v1", "$.schema_version");
+  }
+  if (!isNonEmptyString(v.run_id)) return errorWithPath("perspectives.run_id missing", "$.run_id");
+  if (!isNonEmptyString(v.created_at)) return errorWithPath("perspectives.created_at missing", "$.created_at");
+  if (!Array.isArray(v.perspectives)) return errorWithPath("perspectives.perspectives must be array", "$.perspectives");
+
+  const allowedTracks = ["standard", "independent", "contrarian"];
+
+  for (let i = 0; i < v.perspectives.length; i++) {
+    const p = v.perspectives[i];
+    if (!isPlainObject(p)) return errorWithPath("perspective must be object", `$.perspectives[${i}]`);
+    if (!isNonEmptyString(p.id)) return errorWithPath("perspective.id missing", `$.perspectives[${i}].id`);
+    if (!isNonEmptyString(p.title)) return errorWithPath("perspective.title missing", `$.perspectives[${i}].title`);
+    if (!isNonEmptyString(p.track) || !assertEnum(p.track, allowedTracks)) {
+      return errorWithPath("perspective.track invalid", `$.perspectives[${i}].track`);
+    }
+    if (!isNonEmptyString(p.agent_type)) {
+      return errorWithPath("perspective.agent_type missing", `$.perspectives[${i}].agent_type`);
+    }
+
+    if (!isPlainObject(p.prompt_contract)) {
+      return errorWithPath("perspective.prompt_contract must be object", `$.perspectives[${i}].prompt_contract`);
+    }
+
+    const c = p.prompt_contract;
+    if (!isFiniteNumber(c.max_words)) {
+      return errorWithPath("prompt_contract.max_words invalid", `$.perspectives[${i}].prompt_contract.max_words`);
+    }
+    if (!isFiniteNumber(c.max_sources)) {
+      return errorWithPath("prompt_contract.max_sources invalid", `$.perspectives[${i}].prompt_contract.max_sources`);
+    }
+    if (!isPlainObject(c.tool_budget)) {
+      return errorWithPath("prompt_contract.tool_budget must be object", `$.perspectives[${i}].prompt_contract.tool_budget`);
+    }
+    if (!Array.isArray(c.must_include_sections)) {
+      return errorWithPath("prompt_contract.must_include_sections must be array", `$.perspectives[${i}].prompt_contract.must_include_sections`);
+    }
+    for (let j = 0; j < c.must_include_sections.length; j++) {
+      if (!isNonEmptyString(c.must_include_sections[j])) {
+        return errorWithPath(
+          "prompt_contract.must_include_sections entries must be non-empty strings",
+          `$.perspectives[${i}].prompt_contract.must_include_sections[${j}]`,
+        );
+      }
+    }
   }
 
   return null;
@@ -688,6 +766,213 @@ export const run_init = tool({
   },
 });
 
+async function statPath(p: string): Promise<fs.Stats | null> {
+  try {
+    return await fs.promises.stat(p);
+  } catch {
+    return null;
+  }
+}
+
+async function copyDirContents(
+  srcDir: string,
+  dstDir: string,
+  copiedEntries: string[],
+  relativePrefix: string,
+): Promise<void> {
+  await ensureDir(dstDir);
+  const entries = await fs.promises.readdir(srcDir, { withFileTypes: true });
+  entries.sort((a, b) => a.name.localeCompare(b.name));
+
+  for (const entry of entries) {
+    const srcPath = path.join(srcDir, entry.name);
+    const dstPath = path.join(dstDir, entry.name);
+    const relPath = path.join(relativePrefix, entry.name);
+
+    if (entry.isDirectory()) {
+      await copyDirContents(srcPath, dstPath, copiedEntries, relPath);
+      continue;
+    }
+
+    if (entry.isFile()) {
+      await ensureDir(path.dirname(dstPath));
+      await fs.promises.copyFile(srcPath, dstPath);
+      copiedEntries.push(relPath);
+      continue;
+    }
+
+    // Keep fixtures deterministic and simple.
+    throw new Error(`unsupported fixture entry type at ${srcPath}`);
+  }
+}
+
+export const dry_run_seed = tool({
+  description: "Seed deterministic dry-run run root from fixture artifacts",
+  args: {
+    fixture_dir: tool.schema.string().describe("Absolute path to fixtures/dry-run/<case-id>"),
+    run_id: tool.schema.string().describe("Deterministic run id"),
+    reason: tool.schema.string().describe("Audit reason"),
+    root_override: tool.schema.string().optional().describe("Absolute root override for run_init"),
+  },
+  async execute(
+    args: {
+      fixture_dir: string;
+      run_id: string;
+      reason: string;
+      root_override?: string;
+    },
+    context: ToolContext,
+  ) {
+    try {
+      const fixtureDirInput = args.fixture_dir.trim();
+      const runId = args.run_id.trim();
+      const reason = args.reason.trim();
+      const rootOverrideInput = (args.root_override ?? "").trim();
+
+      if (!fixtureDirInput) return err("INVALID_ARGS", "fixture_dir must be non-empty");
+      if (!runId) return err("INVALID_ARGS", "run_id must be non-empty");
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+
+      const fixtureDir = path.resolve(fixtureDirInput);
+      if (!path.isAbsolute(fixtureDir)) {
+        return err("INVALID_ARGS", "fixture_dir must be absolute", { fixture_dir: args.fixture_dir });
+      }
+
+      const fixtureStat = await statPath(fixtureDir);
+      if (!fixtureStat?.isDirectory()) {
+        return err("NOT_FOUND", "fixture_dir not found or not a directory", { fixture_dir: fixtureDir });
+      }
+
+      const manifestSeedPath = path.join(fixtureDir, "manifest.json");
+      const wave1SeedPath = path.join(fixtureDir, "wave-1");
+
+      const hasManifestSeed = Boolean((await statPath(manifestSeedPath))?.isFile());
+      const hasWave1Seed = Boolean((await statPath(wave1SeedPath))?.isDirectory());
+
+      if (!hasManifestSeed && !hasWave1Seed) {
+        return err("INVALID_FIXTURE", "fixture must include manifest.json or wave-1/", {
+          fixture_dir: fixtureDir,
+          required_any_of: ["manifest.json", "wave-1/"],
+        });
+      }
+
+      const caseId = path.basename(fixtureDir);
+      const rootOverride = rootOverrideInput || path.join(path.dirname(fixtureDir), ".tmp-runs");
+      if (!path.isAbsolute(rootOverride)) {
+        return err("INVALID_ARGS", "root_override must be absolute", { root_override: args.root_override ?? null });
+      }
+
+      const initRaw = (await (run_init as any).execute(
+        {
+          query: `dry-run fixture seed: ${caseId}`,
+          mode: "standard",
+          sensitivity: "no_web",
+          run_id: runId,
+          root_override: rootOverride,
+        },
+        context,
+      )) as string;
+
+      const initParsed = parseJsonSafe(initRaw);
+      if (!initParsed.ok) {
+        return err("UPSTREAM_INVALID_JSON", "run_init returned non-JSON", { raw: initParsed.value });
+      }
+      if (!initParsed.value?.ok) {
+        return JSON.stringify(initParsed.value, null, 2);
+      }
+      if (initParsed.value.created === false) {
+        return err("ALREADY_EXISTS", "run already exists; dry-run seed requires a fresh run_id", {
+          run_id: runId,
+          root: initParsed.value.root ?? null,
+        });
+      }
+
+      const runRoot = String(initParsed.value.root ?? "");
+      if (!runRoot || !path.isAbsolute(runRoot)) {
+        return err("INVALID_STATE", "run_init returned invalid run root", {
+          root: initParsed.value.root ?? null,
+        });
+      }
+
+      const copiedRoots: string[] = [];
+      const copiedEntries: string[] = [];
+
+      for (const artifactName of ["wave-1", "wave-2", "citations"] as const) {
+        const src = path.join(fixtureDir, artifactName);
+        const dst = path.join(runRoot, artifactName);
+        const st = await statPath(src);
+        if (!st) continue;
+
+        copiedRoots.push(artifactName);
+        if (st.isDirectory()) {
+          await copyDirContents(src, dst, copiedEntries, artifactName);
+          continue;
+        }
+        if (st.isFile()) {
+          await ensureDir(path.dirname(dst));
+          await fs.promises.copyFile(src, dst);
+          copiedEntries.push(artifactName);
+          continue;
+        }
+
+        return err("INVALID_FIXTURE", "fixture contains unsupported artifact type", {
+          artifact: artifactName,
+          path: src,
+        });
+      }
+
+      const patchRaw = (await (manifest_write as any).execute(
+        {
+          manifest_path: String(initParsed.value.manifest_path),
+          reason: `dry_run_seed: ${reason}`,
+          patch: {
+            query: {
+              sensitivity: "no_web",
+              constraints: {
+                dry_run: {
+                  fixture_dir: fixtureDir,
+                  case_id: caseId,
+                },
+              },
+            },
+          },
+        },
+        context,
+      )) as string;
+
+      const patchParsed = parseJsonSafe(patchRaw);
+      if (!patchParsed.ok) {
+        return err("UPSTREAM_INVALID_JSON", "manifest_write returned non-JSON", { raw: patchParsed.value });
+      }
+      if (!patchParsed.value?.ok) {
+        return JSON.stringify(patchParsed.value, null, 2);
+      }
+
+      copiedEntries.sort();
+      copiedRoots.sort();
+
+      return ok({
+        run_id: runId,
+        root: runRoot,
+        manifest_path: String(initParsed.value.manifest_path),
+        gates_path: String(initParsed.value.gates_path),
+        root_override: rootOverride,
+        copied: {
+          roots: copiedRoots,
+          entries: copiedEntries,
+        },
+        dry_run: {
+          fixture_dir: fixtureDir,
+          case_id: caseId,
+        },
+        manifest_revision: Number(patchParsed.value.new_revision ?? 0),
+      });
+    } catch (e) {
+      return err("WRITE_FAILED", "dry_run_seed failed", { message: String(e) });
+    }
+  },
+});
+
 export const manifest_write = tool({
   description: "Atomic manifest.json writer with revision bump",
   args: {
@@ -748,6 +1033,91 @@ export const manifest_write = tool({
     } catch (e) {
       if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path not found");
       return err("WRITE_FAILED", "manifest write failed", { message: String(e) });
+    }
+  },
+});
+
+export const retry_record = tool({
+  description: "Record a bounded retry attempt for a gate",
+  args: {
+    manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
+    gate_id: tool.schema.enum(["A", "B", "C", "D", "E", "F"]).describe("Gate id"),
+    change_note: tool.schema.string().describe("Material change for this retry"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: { manifest_path: string; gate_id: GateId; change_note: string; reason: string }) {
+    try {
+      const changeNote = args.change_note.trim();
+      const reason = args.reason.trim();
+      if (!changeNote) return err("INVALID_ARGS", "change_note must be non-empty");
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+
+      const manifestRaw = await readJson(args.manifest_path);
+      const mErr = validateManifestV1(manifestRaw);
+      if (mErr) return mErr;
+
+      const manifest = manifestRaw as Record<string, unknown>;
+      const metrics = isPlainObject(manifest.metrics) ? (manifest.metrics as Record<string, unknown>) : {};
+      const retryCounts = isPlainObject(metrics.retry_counts) ? (metrics.retry_counts as Record<string, unknown>) : {};
+      const currentRaw = retryCounts[args.gate_id];
+      const current = isInteger(currentRaw) && currentRaw >= 0 ? currentRaw : 0;
+      const max = GATE_RETRY_CAPS_V1[args.gate_id];
+
+      if (current >= max) {
+        return err("RETRY_EXHAUSTED", `retry cap exhausted for gate ${args.gate_id}`, {
+          gate_id: args.gate_id,
+          retry_count: current,
+          max_retries: max,
+        });
+      }
+
+      const next = current + 1;
+      const retryHistory = Array.isArray(metrics.retry_history) ? metrics.retry_history : [];
+      const retryEntry = {
+        ts: nowIso(),
+        gate_id: args.gate_id,
+        attempt: next,
+        change_note: changeNote,
+        reason,
+      };
+
+      const patch = {
+        metrics: {
+          ...metrics,
+          retry_counts: {
+            ...retryCounts,
+            [args.gate_id]: next,
+          },
+          retry_history: [...retryHistory, retryEntry],
+        },
+      };
+
+      const writeRaw = (await (manifest_write as any).execute({
+        manifest_path: args.manifest_path,
+        patch,
+        reason: `retry_record(${args.gate_id}#${next}): ${reason}`,
+      })) as string;
+      const writeObj = parseJsonSafe(writeRaw);
+
+      if (!writeObj.ok) {
+        return err("WRITE_FAILED", "failed to parse manifest_write response", { raw: writeObj.value });
+      }
+
+      if (!writeObj.value?.ok) {
+        return JSON.stringify(writeObj.value, null, 2);
+      }
+
+      return ok({
+        gate_id: args.gate_id,
+        retry_count: next,
+        max_retries: max,
+        attempt: next,
+        audit_written: Boolean(writeObj.value.audit_written),
+        audit_path: typeof writeObj.value.audit_path === "string" ? writeObj.value.audit_path : null,
+      });
+    } catch (e) {
+      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path not found");
+      return err("WRITE_FAILED", "retry_record failed", { message: String(e) });
     }
   },
 });
@@ -833,6 +1203,51 @@ export const gates_write = tool({
   },
 });
 
+export const perspectives_write = tool({
+  description: "Validate and atomically write perspectives.json (perspectives.v1)",
+  args: {
+    perspectives_path: tool.schema.string().describe("Absolute path to perspectives.json"),
+    value: tool.schema.record(tool.schema.string(), tool.schema.any()).describe("perspectives.v1 JSON payload"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: { perspectives_path: string; value: Record<string, unknown>; reason: string }) {
+    try {
+      const perspectivesPath = args.perspectives_path.trim();
+      const reason = args.reason.trim();
+
+      if (!perspectivesPath) return err("INVALID_ARGS", "perspectives_path must be non-empty");
+      if (!path.isAbsolute(perspectivesPath)) {
+        return err("INVALID_ARGS", "perspectives_path must be absolute", { perspectives_path: args.perspectives_path });
+      }
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+
+      const vErr = validatePerspectivesV1(args.value);
+      if (vErr) return vErr;
+
+      await atomicWriteJson(perspectivesPath, args.value);
+
+      const runRoot = path.dirname(perspectivesPath);
+      const auditEvent = {
+        ts: nowIso(),
+        kind: "perspectives_write",
+        run_id: String(args.value.run_id ?? ""),
+        reason,
+        path: perspectivesPath,
+        value_digest: `sha256:${sha256HexLowerUtf8(JSON.stringify(args.value))}`,
+      };
+
+      try {
+        await appendAuditJsonl({ runRoot, event: auditEvent });
+        return ok({ path: perspectivesPath, audit_written: true, audit_path: path.join(runRoot, "logs", "audit.jsonl") });
+      } catch (e) {
+        return ok({ path: perspectivesPath, audit_written: false, audit_error: String(e) });
+      }
+    } catch (e) {
+      return err("WRITE_FAILED", "perspectives write failed", { message: String(e) });
+    }
+  },
+});
+
 export const stage_advance = tool({
   description: "Advance deep research stage deterministically (Phase 02)",
   args: {
@@ -841,7 +1256,429 @@ export const stage_advance = tool({
     requested_next: tool.schema.string().optional().describe("Optional target stage"),
     reason: tool.schema.string().describe("Audit reason"),
   },
-  async execute(_args: { manifest_path: string; gates_path: string; requested_next?: string; reason: string }) {
-    return err("NOT_IMPLEMENTED", "stage_advance is implemented in Phase 02");
+  async execute(args: { manifest_path: string; gates_path: string; requested_next?: string; reason: string }) {
+    try {
+      const manifestRaw = await readJson(args.manifest_path);
+      const gatesRaw = await readJson(args.gates_path);
+
+      const mErr = validateManifestV1(manifestRaw);
+      if (mErr) return mErr;
+      const gErr = validateGatesV1(gatesRaw);
+      if (gErr) return gErr;
+
+      const manifest = manifestRaw as Record<string, unknown>;
+      const gatesDoc = gatesRaw as Record<string, unknown>;
+
+      const from = String((manifest.stage as any)?.current ?? "");
+      const allowedStages = ["init", "wave1", "pivot", "wave2", "citations", "summaries", "synthesis", "review", "finalize"] as const;
+      if (!from || !allowedStages.includes(from as any)) {
+        return err("INVALID_STATE", "stage not recognized", { stage: from });
+      }
+
+      const runRoot = String((manifest.artifacts as any)?.root ?? "");
+      if (!runRoot || !path.isAbsolute(runRoot)) {
+        return err("INVALID_STATE", "manifest.artifacts.root invalid", { root: runRoot });
+      }
+
+      const paths = (manifest.artifacts as any)?.paths ?? {};
+      const wave1Dir = String(paths.wave1_dir ?? "wave-1");
+      const wave2Dir = String(paths.wave2_dir ?? "wave-2");
+      const citationsDir = String(paths.citations_dir ?? "citations");
+      const summariesDir = String(paths.summaries_dir ?? "summaries");
+      const synthesisDir = String(paths.synthesis_dir ?? "synthesis");
+      const perspectivesFile = String(paths.perspectives_file ?? "perspectives.json");
+      const pivotFile = String(paths.pivot_file ?? "pivot.json");
+      const summaryPackFile = String(paths.summary_pack_file ?? "summaries/summary-pack.json");
+
+      const gates = (gatesDoc.gates as any) || {};
+      const gatesRevision = Number(gatesDoc.revision ?? 0);
+
+      const evaluated: Array<{ kind: string; name: string; ok: boolean; details: Record<string, unknown> }> = [];
+
+      const evalArtifact = async (name: string, absPath: string) => {
+        const okv = await exists(absPath);
+        evaluated.push({ kind: "artifact", name, ok: okv, details: { path: absPath } });
+        return okv;
+      };
+
+      const evalGatePass = (gateId: string) => {
+        const gate = gates[gateId];
+        const status = gate?.status;
+        const okv = status === "pass";
+        evaluated.push({ kind: "gate", name: `Gate ${gateId}`, ok: okv, details: { gate: gateId, status: status ?? null } });
+        return okv;
+      };
+
+      const evalDirHasFiles = async (name: string, absDir: string) => {
+        let okv = false;
+        let count = 0;
+        try {
+          const entries = await fs.promises.readdir(absDir);
+          const filtered = entries.filter((x) => !x.startsWith("."));
+          count = filtered.length;
+          okv = count > 0;
+        } catch {
+          okv = false;
+        }
+        evaluated.push({ kind: "artifact", name, ok: okv, details: { path: absDir, count } });
+        return okv;
+      };
+
+      const parsePivotRunWave2 = async (): Promise<{ ok: boolean; run_wave2: boolean; error?: string }> => {
+          const p = path.join(runRoot, pivotFile);
+          if (!(await exists(p))) {
+            return { ok: false, run_wave2: false, error: "pivot.json missing" };
+          }
+          try {
+            const raw = await fs.promises.readFile(p, "utf8");
+            const v = JSON.parse(raw);
+            if (!v || typeof v !== "object") return { ok: false, run_wave2: false, error: "pivot not object" };
+            const flag = (v as any).run_wave2;
+            if (typeof flag !== "boolean") return { ok: false, run_wave2: false, error: "pivot.run_wave2 missing" };
+            return { ok: true, run_wave2: flag };
+          } catch (e) {
+            return { ok: false, run_wave2: false, error: String(e) };
+          }
+        };
+
+      const allowedNextFor = (stage: string): string[] => {
+        switch (stage) {
+          case "init":
+            return ["wave1"];
+          case "wave1":
+            return ["pivot"];
+          case "pivot":
+            return ["wave2", "citations"];
+          case "wave2":
+            return ["citations"];
+          case "citations":
+            return ["summaries"];
+          case "summaries":
+            return ["synthesis"];
+          case "synthesis":
+            return ["review"];
+          case "review":
+            return ["synthesis", "finalize"];
+          case "finalize":
+            return [];
+          default:
+            return [];
+        }
+      };
+
+      if (from === "finalize") {
+        return err("INVALID_STATE", "already finalized", { stage: from });
+      }
+
+      const allowedNext = allowedNextFor(from);
+      const requested = (args.requested_next ?? "").trim();
+      const toCandidate = requested || "";
+
+      let to: string;
+
+      if (requested) {
+        if (!allowedStages.includes(requested as any)) {
+          return err("REQUESTED_NEXT_NOT_ALLOWED", "requested_next is not a stage", { requested_next: requested });
+        }
+        if (!allowedNext.includes(requested)) {
+          return err("REQUESTED_NEXT_NOT_ALLOWED", "requested_next not allowed from current stage", {
+            from,
+            requested_next: requested,
+            allowed_next: allowedNext,
+          });
+        }
+        to = requested;
+      } else {
+        if (from === "pivot") {
+          const pivot = await parsePivotRunWave2();
+          evaluated.push({
+            kind: "artifact",
+            name: pivotFile,
+            ok: pivot.ok,
+            details: { path: path.join(runRoot, pivotFile), run_wave2: pivot.run_wave2, error: pivot.error ?? null },
+          });
+          if (!pivot.ok) {
+            return err("MISSING_ARTIFACT", "pivot decision incomplete", { file: pivotFile });
+          }
+          to = pivot.run_wave2 ? "wave2" : "citations";
+        } else if (allowedNext.length === 1) {
+          to = allowedNext[0];
+        } else {
+          // review has multiple outcomes; require requested_next until Phase 05 defines reviewer artifacts.
+          return err("INVALID_STATE", "ambiguous transition; requested_next required", { from, allowed_next: allowedNext });
+        }
+      }
+
+      evaluated.push({ kind: "transition", name: `${from} -> ${to}`, ok: true, details: {} });
+
+      // Preconditions per spec-stage-machine-v1
+      type StageAdvanceBlock = { code: string; message: string; details: Record<string, unknown> };
+      let block: StageAdvanceBlock | null = null;
+
+      const blockIfFailed = (
+        okv: boolean,
+        code: string,
+        message: string,
+        details: Record<string, unknown>,
+      ): StageAdvanceBlock | null => {
+        if (okv) return null;
+        return { code, message, details };
+      };
+
+      if (from === "init" && to === "wave1") {
+        block ??= blockIfFailed(await evalArtifact(perspectivesFile, path.join(runRoot, perspectivesFile)), "MISSING_ARTIFACT", "perspectives.json missing", { file: perspectivesFile });
+      }
+
+      if (from === "wave1" && to === "pivot") {
+        block ??= blockIfFailed(await evalDirHasFiles(wave1Dir, path.join(runRoot, wave1Dir)), "MISSING_ARTIFACT", "wave1 artifacts missing", { dir: wave1Dir });
+        block ??= blockIfFailed(evalGatePass("B"), "GATE_BLOCKED", "Gate B not pass", { gate: "B" });
+      }
+
+      if (from === "pivot") {
+        // pivot file existence already evaluated above.
+        if (to === "wave2") {
+          // require wave2 dir to eventually contain files; we only check existence now.
+          await evalArtifact(wave2Dir, path.join(runRoot, wave2Dir));
+        }
+      }
+
+      if (from === "wave2" && to === "citations") {
+        block ??= blockIfFailed(await evalDirHasFiles(wave2Dir, path.join(runRoot, wave2Dir)), "MISSING_ARTIFACT", "wave2 artifacts missing", { dir: wave2Dir });
+      }
+
+      if (from === "citations" && to === "summaries") {
+        block ??= blockIfFailed(evalGatePass("C"), "GATE_BLOCKED", "Gate C not pass", { gate: "C" });
+        // Also require citations dir exists.
+        await evalArtifact(citationsDir, path.join(runRoot, citationsDir));
+      }
+
+      if (from === "summaries" && to === "synthesis") {
+        block ??= blockIfFailed(evalGatePass("D"), "GATE_BLOCKED", "Gate D not pass", { gate: "D" });
+        block ??= blockIfFailed(await evalArtifact(summaryPackFile, path.join(runRoot, summaryPackFile)), "MISSING_ARTIFACT", "summary-pack.json missing", { file: summaryPackFile });
+      }
+
+      if (from === "synthesis" && to === "review") {
+        const finalSynthesis = path.join(runRoot, synthesisDir, "final-synthesis.md");
+        block ??= blockIfFailed(await evalArtifact(`${synthesisDir}/final-synthesis.md`, finalSynthesis), "MISSING_ARTIFACT", "final-synthesis.md missing", { file: `${synthesisDir}/final-synthesis.md` });
+      }
+
+      if (from === "review" && to === "finalize") {
+        block ??= blockIfFailed(evalGatePass("E"), "GATE_BLOCKED", "Gate E not pass", { gate: "E" });
+      }
+
+      // Deterministic digest of evaluated outcomes + key doc revisions.
+      const digestInput = {
+        schema: "stage_advance.decision.v1",
+        from,
+        to,
+        requested_next: requested || null,
+        manifest_revision: Number(manifest.revision ?? 0),
+        gates_revision: gatesRevision,
+        gates_status: {
+          A: gates.A?.status ?? null,
+          B: gates.B?.status ?? null,
+          C: gates.C?.status ?? null,
+          D: gates.D?.status ?? null,
+          E: gates.E?.status ?? null,
+          F: gates.F?.status ?? null,
+        },
+        evaluated,
+      };
+      const inputs_digest = `sha256:${sha256HexLowerUtf8(JSON.stringify(digestInput))}`;
+
+      const allowed = block === null;
+      const decision = {
+        allowed,
+        evaluated,
+        inputs_digest,
+      };
+
+      if (block) {
+        return err(block.code, block.message, { ...block.details, from, to: toCandidate || to, decision });
+      }
+
+      const ts = nowIso();
+      const stage = (manifest.stage as any) || {};
+      const history = Array.isArray(stage.history) ? stage.history : [];
+      const historyEntry = {
+        from,
+        to,
+        ts,
+        reason: args.reason,
+        inputs_digest,
+        gates_revision: gatesRevision,
+      };
+
+      const nextStatus = to === "finalize" ? "completed" : "running";
+      const patch = {
+        status: nextStatus,
+        stage: {
+          current: to,
+          started_at: ts,
+          history: [...history, historyEntry],
+        },
+      };
+
+      const writeRaw = (await (manifest_write as any).execute({
+        manifest_path: args.manifest_path,
+        patch,
+        reason: `stage_advance: ${args.reason}`,
+      })) as string;
+
+      const writeObj = parseJsonSafe(writeRaw);
+      if (!writeObj.ok) {
+        return err("WRITE_FAILED", "failed to persist manifest stage transition", {
+          from,
+          to,
+          write_error: writeObj.value,
+        });
+      }
+
+      return ok({ from, to, decision });
+    } catch (e) {
+      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path or gates_path not found");
+      return err("WRITE_FAILED", "stage_advance failed", { message: String(e) });
+    }
   },
 });
+
+export const watchdog_check = tool({
+  description: "Check stage timeout and fail run deterministically",
+  args: {
+    manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
+    stage: tool.schema.string().optional().describe("Optional stage override; defaults to manifest.stage.current"),
+    now_iso: tool.schema.string().optional().describe("Optional current time override for deterministic tests"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: { manifest_path: string; stage?: string; now_iso?: string; reason: string }) {
+    try {
+      const reason = args.reason.trim();
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+
+      const manifestRaw = await readJson(args.manifest_path);
+      const mErr = validateManifestV1(manifestRaw);
+      if (mErr) return mErr;
+
+      const manifest = manifestRaw as Record<string, unknown>;
+      const currentStage = String((manifest.stage as any)?.current ?? "");
+      const stageArg = (args.stage ?? "").trim();
+      const stage = stageArg || currentStage;
+
+      if (!stage || !MANIFEST_STAGE.includes(stage)) {
+        return err("INVALID_ARGS", "stage is invalid", { stage });
+      }
+
+      if (stageArg && stageArg !== currentStage) {
+        return err("STAGE_MISMATCH", "stage override must match manifest.stage.current", {
+          requested_stage: stageArg,
+          current_stage: currentStage,
+        });
+      }
+
+      const timeout_s = STAGE_TIMEOUT_SECONDS_V1[stage];
+      if (!isInteger(timeout_s) || timeout_s <= 0) {
+        return err("INVALID_STATE", "no timeout configured for stage", { stage });
+      }
+
+      const now = args.now_iso ? new Date(args.now_iso) : new Date();
+      if (Number.isNaN(now.getTime())) {
+        return err("INVALID_ARGS", "now_iso must be a valid ISO timestamp", { now_iso: args.now_iso ?? null });
+      }
+
+      const startedAtRaw = String((manifest.stage as any)?.started_at ?? "");
+      const startedAt = new Date(startedAtRaw);
+      if (!startedAtRaw || Number.isNaN(startedAt.getTime())) {
+        return err("INVALID_STATE", "manifest.stage.started_at invalid", { started_at: startedAtRaw });
+      }
+
+      const elapsed_s = Math.max(0, Math.floor((now.getTime() - startedAt.getTime()) / 1000));
+
+      if (elapsed_s <= timeout_s) {
+        return ok({ timed_out: false, stage, elapsed_s, timeout_s });
+      }
+
+      const runRoot = String((manifest.artifacts as any)?.root ?? "");
+      if (!runRoot || !path.isAbsolute(runRoot)) {
+        return err("INVALID_STATE", "manifest.artifacts.root invalid", { root: runRoot });
+      }
+
+      const logsDir = String((manifest.artifacts as any)?.paths?.logs_dir ?? "logs");
+      const checkpointPath = path.join(runRoot, logsDir, "timeout-checkpoint.md");
+      const failureTs = now.toISOString();
+
+      const checkpointContent = [
+        "# Timeout Checkpoint",
+        "",
+        `- stage: ${stage}`,
+        `- elapsed_seconds: ${elapsed_s}`,
+        `- timeout_seconds: ${timeout_s}`,
+        "- last_known_subtask: unavailable (placeholder)",
+        "- next_steps:",
+        "  1. Inspect logs/audit.jsonl for recent events.",
+        "  2. Decide whether to restart this stage or abort run.",
+      ].join("\n") + "\n";
+
+      await ensureDir(path.dirname(checkpointPath));
+      await fs.promises.writeFile(checkpointPath, checkpointContent, "utf8");
+
+      const existingFailures = Array.isArray(manifest.failures) ? manifest.failures : [];
+      const patch = {
+        status: "failed",
+        failures: [
+          ...existingFailures,
+          {
+            kind: "timeout",
+            stage,
+            message: `timeout after ${elapsed_s}s`,
+            retryable: false,
+            ts: failureTs,
+          },
+        ],
+      };
+
+      const writeRaw = (await (manifest_write as any).execute({
+        manifest_path: args.manifest_path,
+        patch,
+        reason: `watchdog_check: ${reason}`,
+      })) as string;
+
+      const writeObj = parseJsonSafe(writeRaw);
+      if (!writeObj.ok) {
+        return err("WRITE_FAILED", "failed to parse manifest_write response", { raw: writeObj.value });
+      }
+
+      if (!writeObj.value?.ok) {
+        return JSON.stringify(writeObj.value, null, 2);
+      }
+
+      return ok({
+        timed_out: true,
+        stage,
+        elapsed_s,
+        timeout_s,
+        checkpoint_path: checkpointPath,
+        manifest_revision: Number(writeObj.value.new_revision ?? 0),
+      });
+    } catch (e) {
+      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path not found");
+      return err("WRITE_FAILED", "watchdog_check failed", { message: String(e) });
+    }
+  },
+});
+
+async function exists(p: string): Promise<boolean> {
+  try {
+    await fs.promises.stat(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function parseJsonSafe(raw: string): { ok: true; value: any } | { ok: false; value: string } {
+  try {
+    return { ok: true, value: JSON.parse(raw) };
+  } catch {
+    return { ok: false, value: raw };
+  }
+}
