@@ -5,7 +5,7 @@
 - Planned window: 12–16 weeks
 - Status: `in_progress`
 - Last updated: `2026-02-14`
-- Current phase: `Phase 04` (in_progress)
+- Current phase: `Phase 05` (pending)
 
 ## Plan root directory (canonical)
 All program plans and specs live here:
@@ -37,7 +37,7 @@ Session loss / compaction safe recovery:
 | 01 | Platform core scaffolding | Engineer | done | Architect | Gate A | Signed off: `PHASE-01-CHECKPOINT-GATE-A-SIGNOFF.md` |
 | 02 | Orchestrator engine | Engineer | done | QATester | Gate B | Signed off: `PHASE-02-CHECKPOINT-GATE-B.md` + `PHASE-02-CHECKPOINT-QA-REVIEW.md` |
 | 03 | Agent contracts & wave graph | Engineer | done | Architect | Gate B | Signed off: `PHASE-03-CHECKPOINT-GATE-B.md` |
-| 04 | Citation validation services | Engineer | in_progress | QATester | Gate C | Implement P04 tools + entity tests/fixtures |
+| 04 | Citation validation services | Engineer | done | QATester | Gate C | Signed off: `PHASE-04-CHECKPOINT-GATE-C.md` |
 | 05 | Synthesis/reviewer factory | Engineer | pending | Architect | Gate D/E | Writer-review loop |
 | 06 | Observability + quality automation | Engineer | pending | QATester | Gate E | Metrics + harness |
 | 07 | Rollout hardening & canary | Engineer | pending | Architect | Gate F | Flags + fallback |
@@ -49,7 +49,7 @@ Session loss / compaction safe recovery:
 | A | Core platform/state | done | Phase 01 complete; Phase 02 unblocked |
 | B | Orchestration/runtime | done | Phase 02 stage engine complete |
 | C | Agents/contracts | done | Phase 03 Gate B passed |
-| D | Citation/evidence | in_progress | P04-02/04/06/08/09 tools + entity tests |
+| D | Citation/evidence | done | Phase 04 Gate C passed |
 | E | Synthesis/review | pending | 0 |
 | F | QA/observability | pending | 0 |
 
@@ -64,9 +64,9 @@ Session loss / compaction safe recovery:
 3. Tool permission drift causing non-deterministic behavior.
 
 ## Next 3 Actions
-1. Review and accept Phase 04–07 executable backlogs + testing plan (Phase 04 is now unblocked for implementation).
-2. Start Phase 04 implementation using `deep-research-option-c-phase-04-executable-backlog.md` (do P04-01.. in order; keep OFFLINE tests fixture-driven).
-3. Cut Phase 04 checkpoint doc once Gate C tools + tests are deterministic and fixture-testable.
+1. Review Phase 04 Gate C signoff: `PHASE-04-CHECKPOINT-GATE-C.md`.
+2. Start Phase 05 implementation using `deep-research-option-c-phase-05-executable-backlog.md` (bounded summary pack + Gate D/E).
+3. Keep OFFLINE tests fixture-driven (`PAI_DR_NO_WEB=1`) for Phase 05 entity tests.
 
 ## Pause/Resume Protocol
 Before pausing, update:
