@@ -61,9 +61,9 @@ Session loss / compaction safe recovery:
 3. Tool permission drift causing non-deterministic behavior.
 
 ## Next 3 Actions
-1. Start Phase 04 by implementing citation validation services (`deep-research-option-c-phase-04-citation-system.md`).
-2. Add entity tests + fixtures for citation schema + canonical pool updates.
-3. Add Gate C checkpoint doc once citation pool + validators are deterministic and fixture-testable.
+1. Review and accept Phase 04–07 executable backlogs + testing plan (Phase 04 is now unblocked for implementation).
+2. Start Phase 04 implementation using `deep-research-option-c-phase-04-executable-backlog.md` (do P04-01.. in order; keep OFFLINE tests fixture-driven).
+3. Cut Phase 04 checkpoint doc once Gate C tools + tests are deterministic and fixture-testable.
 
 ## Pause/Resume Protocol
 Before pausing, update:

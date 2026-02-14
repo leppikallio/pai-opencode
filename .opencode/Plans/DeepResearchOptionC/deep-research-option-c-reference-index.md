@@ -41,6 +41,21 @@ If session context is lost, follow the recovery pack.
 - Phase 02:
   - `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-02-executable-backlog.md`
 
+## Phase 03–07 executable backlogs
+- Phase 03:
+  - `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-03-executable-backlog.md`
+- Phase 04:
+  - `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-04-executable-backlog.md`
+- Phase 05:
+  - `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-05-executable-backlog.md`
+- Phase 06:
+  - `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-06-executable-backlog.md`
+- Phase 07:
+  - `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-executable-backlog.md`
+
+## Phase 04–07 testing plan
+- `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phases-04-07-testing-plan.md`
+
 ## PM playbook
 - `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/Plans/DeepResearchOptionC/deep-research-option-c-pm-playbook.md`
 
