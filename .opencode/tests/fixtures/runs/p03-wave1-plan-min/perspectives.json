@@ -1,0 +1,43 @@
+{
+  "schema_version": "perspectives.v1",
+  "run_id": "dr_test_wave1_plan_001",
+  "created_at": "2026-02-14T00:00:00Z",
+  "perspectives": [
+    {
+      "id": "p3",
+      "title": "Third perspective",
+      "track": "contrarian",
+      "agent_type": "GrokResearcher",
+      "prompt_contract": {
+        "max_words": 800,
+        "max_sources": 8,
+        "tool_budget": { "search_calls": 2, "fetch_calls": 3 },
+        "must_include_sections": ["Findings", "Sources", "Gaps"]
+      }
+    },
+    {
+      "id": "p1",
+      "title": "First perspective",
+      "track": "standard",
+      "agent_type": "ClaudeResearcher",
+      "prompt_contract": {
+        "max_words": 900,
+        "max_sources": 10,
+        "tool_budget": { "search_calls": 3, "fetch_calls": 4 },
+        "must_include_sections": ["Findings", "Sources", "Gaps"]
+      }
+    },
+    {
+      "id": "p2",
+      "title": "Second perspective",
+      "track": "independent",
+      "agent_type": "GeminiResearcher",
+      "prompt_contract": {
+        "max_words": 850,
+        "max_sources": 9,
+        "tool_budget": { "search_calls": 3, "fetch_calls": 4 },
+        "must_include_sections": ["Findings", "Sources", "Gaps"]
+      }
+    }
+  ]
+}

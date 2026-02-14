@@ -39,6 +39,23 @@ function sha256HexLowerUtf8(input: string): string {
   return createHash("sha256").update(Buffer.from(input, "utf8")).digest("hex");
 }
 
+function canonicalizeJson(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((item) => canonicalizeJson(item));
+  if (!isPlainObject(value)) return value;
+
+  const out: Record<string, unknown> = {};
+  const keys = Object.keys(value).sort((a, b) => a.localeCompare(b));
+  for (const key of keys) {
+    out[key] = canonicalizeJson((value as Record<string, unknown>)[key]);
+  }
+  return out;
+}
+
+function sha256DigestForJson(value: unknown): string {
+  const stable = JSON.stringify(canonicalizeJson(value));
+  return `sha256:${sha256HexLowerUtf8(stable)}`;
+}
+
 function parseBool(v: unknown): boolean | null {
   if (typeof v === "boolean") return v;
   if (typeof v !== "string") return null;
@@ -503,6 +520,85 @@ function validatePerspectivesV1(value: unknown): string | null {
   }
 
   return null;
+}
+
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function hasHeading(markdown: string, heading: string): boolean {
+  const headingRegex = new RegExp(`^\\s{0,3}#{1,6}\\s+${escapeRegex(heading)}\\s*(?:#+\\s*)?$`, "m");
+  return headingRegex.test(markdown);
+}
+
+function findHeadingSection(markdown: string, heading: string): string | null {
+  const headingRegex = new RegExp(`^\\s{0,3}#{1,6}\\s+${escapeRegex(heading)}\\s*(?:#+\\s*)?$`, "m");
+  const startMatch = headingRegex.exec(markdown);
+  if (!startMatch || startMatch.index === undefined) return null;
+
+  const sectionStart = startMatch.index + startMatch[0].length;
+  const rest = markdown.slice(sectionStart);
+  const nextHeading = /^\s{0,3}#{1,6}\s+/m.exec(rest);
+  const sectionEnd = nextHeading ? sectionStart + (nextHeading.index ?? 0) : markdown.length;
+  return markdown.slice(sectionStart, sectionEnd);
+}
+
+function countWords(markdown: string): number {
+  const trimmed = markdown.trim();
+  if (!trimmed) return 0;
+  return trimmed.split(/\s+/).length;
+}
+
+function parseSourcesSection(sectionBody: string):
+  | { ok: true; count: number }
+  | { ok: false; reason: "NOT_BULLET" | "MISSING_URL"; line: string } {
+  const lines = sectionBody
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  let count = 0;
+  for (const line of lines) {
+    if (!/^([-*+]\s+|\d+\.\s+)/.test(line)) {
+      return { ok: false, reason: "NOT_BULLET", line };
+    }
+    if (!/https?:\/\//.test(line)) {
+      return { ok: false, reason: "MISSING_URL", line };
+    }
+    count += 1;
+  }
+
+  return { ok: true, count };
+}
+
+function buildWave1PromptMd(args: {
+  queryText: string;
+  perspectiveId: string;
+  title: string;
+  track: string;
+  agentType: string;
+  maxWords: number;
+  maxSources: number;
+  mustIncludeSections: string[];
+}): string {
+  return [
+    "# Wave 1 Perspective Plan",
+    "",
+    `- Perspective ID: ${args.perspectiveId}`,
+    `- Title: ${args.title}`,
+    `- Track: ${args.track}`,
+    `- Agent Type: ${args.agentType}`,
+    "",
+    "## Query",
+    args.queryText,
+    "",
+    "## Prompt Contract",
+    `- Max words: ${args.maxWords}`,
+    `- Max sources: ${args.maxSources}`,
+    `- Required sections: ${args.mustIncludeSections.join(", ")}`,
+    "",
+    "Produce markdown that satisfies the prompt contract exactly.",
+  ].join("\n");
 }
 
 async function appendAuditJsonl(args: { runRoot: string; event: Record<string, unknown> }): Promise<void> {
@@ -1244,6 +1340,292 @@ export const perspectives_write = tool({
       }
     } catch (e) {
       return err("WRITE_FAILED", "perspectives write failed", { message: String(e) });
+    }
+  },
+});
+
+export const wave1_plan = tool({
+  description: "Build deterministic Wave 1 plan artifact from perspectives.v1",
+  args: {
+    manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
+    perspectives_path: tool.schema.string().optional().describe("Absolute path to perspectives.json"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: { manifest_path: string; perspectives_path?: string; reason: string }) {
+    try {
+      const manifestPath = args.manifest_path.trim();
+      const reason = args.reason.trim();
+
+      if (!manifestPath) return err("INVALID_ARGS", "manifest_path must be non-empty");
+      if (!path.isAbsolute(manifestPath)) {
+        return err("INVALID_ARGS", "manifest_path must be absolute", { manifest_path: args.manifest_path });
+      }
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+
+      let manifestRaw: unknown;
+      try {
+        manifestRaw = await readJson(manifestPath);
+      } catch (e) {
+        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path not found", { manifest_path: manifestPath });
+        if (e instanceof SyntaxError) return err("INVALID_JSON", "manifest_path contains invalid JSON", { manifest_path: manifestPath });
+        throw e;
+      }
+
+      const mErr = validateManifestV1(manifestRaw);
+      if (mErr) return mErr;
+
+      const manifest = manifestRaw as Record<string, unknown>;
+      const runRoot = String((manifest.artifacts as any)?.root ?? path.dirname(manifestPath));
+      const runId = String(manifest.run_id ?? "");
+
+      const wave1Dir = String((manifest.artifacts as any)?.paths?.wave1_dir ?? "wave-1");
+      const perspectivesFile = String((manifest.artifacts as any)?.paths?.perspectives_file ?? "perspectives.json");
+
+      const perspectivesPathInput = args.perspectives_path?.trim() ?? "";
+      const perspectivesPath = perspectivesPathInput || path.join(runRoot, perspectivesFile);
+      if (!path.isAbsolute(perspectivesPath)) {
+        return err("INVALID_ARGS", "perspectives_path must be absolute", { perspectives_path: args.perspectives_path ?? null });
+      }
+
+      let perspectivesRaw: unknown;
+      try {
+        perspectivesRaw = await readJson(perspectivesPath);
+      } catch (e) {
+        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "perspectives_path not found", { perspectives_path: perspectivesPath });
+        if (e instanceof SyntaxError) return err("INVALID_JSON", "perspectives_path contains invalid JSON", { perspectives_path: perspectivesPath });
+        throw e;
+      }
+
+      const pErr = validatePerspectivesV1(perspectivesRaw);
+      if (pErr) return pErr;
+
+      const perspectivesDoc = perspectivesRaw as Record<string, unknown>;
+      if (String(perspectivesDoc.run_id ?? "") !== runId) {
+        return err("INVALID_STATE", "manifest and perspectives run_id mismatch", {
+          manifest_run_id: runId,
+          perspectives_run_id: String(perspectivesDoc.run_id ?? ""),
+        });
+      }
+
+      const maxWave1AgentsRaw = (manifest.limits as Record<string, unknown>)?.max_wave1_agents;
+      const maxWave1Agents = isFiniteNumber(maxWave1AgentsRaw) ? Math.max(0, Math.floor(maxWave1AgentsRaw)) : 0;
+
+      const rawPerspectives = ((perspectivesDoc.perspectives as Array<Record<string, unknown>>) ?? []);
+      if (rawPerspectives.length > maxWave1Agents) {
+        return err("WAVE_CAP_EXCEEDED", "too many perspectives for wave1", {
+          cap: maxWave1Agents,
+          count: rawPerspectives.length,
+        });
+      }
+
+      const sortedPerspectives = [...rawPerspectives].sort((a, b) => {
+        const aId = String(a.id ?? "");
+        const bId = String(b.id ?? "");
+        return aId.localeCompare(bId);
+      });
+
+      const queryText = String((manifest.query as any)?.text ?? "");
+
+      const digestPayload = {
+        schema: "wave1_plan.inputs.v1",
+        run_id: runId,
+        query_text: queryText,
+        max_wave1_agents: maxWave1Agents,
+        wave1_dir: wave1Dir,
+        perspectives: sortedPerspectives.map((perspective) => {
+          const contract = (perspective.prompt_contract ?? {}) as Record<string, unknown>;
+          return {
+            id: String(perspective.id ?? ""),
+            agent_type: String(perspective.agent_type ?? ""),
+            max_words: Number(contract.max_words ?? 0),
+            max_sources: Number(contract.max_sources ?? 0),
+            must_include_sections: Array.isArray(contract.must_include_sections)
+              ? contract.must_include_sections.map((value) => String(value ?? "").trim()).filter((value) => value.length > 0)
+              : [],
+          };
+        }),
+      };
+      const inputsDigest = sha256DigestForJson(digestPayload);
+
+      const entries = sortedPerspectives.map((perspective) => {
+        const perspectiveId = String(perspective.id ?? "");
+        const contract = (perspective.prompt_contract ?? {}) as Record<string, unknown>;
+        const maxWords = Number(contract.max_words ?? 0);
+        const maxSources = Number(contract.max_sources ?? 0);
+        const mustIncludeSections = Array.isArray(contract.must_include_sections)
+          ? contract.must_include_sections.map((value) => String(value ?? "").trim()).filter((value) => value.length > 0)
+          : [];
+
+        return {
+          perspective_id: perspectiveId,
+          agent_type: String(perspective.agent_type ?? ""),
+          output_md: `${wave1Dir}/${perspectiveId}.md`,
+          prompt_md: buildWave1PromptMd({
+            queryText,
+            perspectiveId,
+            title: String(perspective.title ?? ""),
+            track: String(perspective.track ?? ""),
+            agentType: String(perspective.agent_type ?? ""),
+            maxWords,
+            maxSources,
+            mustIncludeSections,
+          }),
+        };
+      });
+
+      const generatedAt = nowIso();
+      const plan = {
+        schema_version: "wave1_plan.v1",
+        run_id: runId,
+        generated_at: generatedAt,
+        inputs_digest: inputsDigest,
+        entries,
+      };
+
+      const planPath = path.join(runRoot, wave1Dir, "wave1-plan.json");
+      await atomicWriteJson(planPath, plan);
+
+      const auditEvent = {
+        ts: generatedAt,
+        kind: "wave1_plan",
+        run_id: runId,
+        reason,
+        plan_path: planPath,
+        planned: entries.length,
+        inputs_digest: inputsDigest,
+      };
+
+      try {
+        await appendAuditJsonl({ runRoot, event: auditEvent });
+      } catch {
+        // best effort only
+      }
+
+      return ok({
+        plan_path: planPath,
+        inputs_digest: inputsDigest,
+        planned: entries.length,
+      });
+    } catch (e) {
+      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "manifest_path or perspectives_path not found");
+      return err("WRITE_FAILED", "wave1 plan failed", { message: String(e) });
+    }
+  },
+});
+
+export const wave_output_validate = tool({
+  description: "Validate Wave output markdown contract for a single perspective",
+  args: {
+    perspectives_path: tool.schema.string().describe("Absolute path to perspectives.json (perspectives.v1)"),
+    perspective_id: tool.schema.string().describe("Perspective id to validate against"),
+    markdown_path: tool.schema.string().describe("Absolute path to markdown output"),
+  },
+  async execute(args: { perspectives_path: string; perspective_id: string; markdown_path: string }) {
+    try {
+      const perspectivesPath = args.perspectives_path.trim();
+      const perspectiveId = args.perspective_id.trim();
+      const markdownPath = args.markdown_path.trim();
+
+      if (!perspectivesPath) return err("INVALID_ARGS", "perspectives_path must be non-empty");
+      if (!path.isAbsolute(perspectivesPath)) {
+        return err("INVALID_ARGS", "perspectives_path must be absolute", { perspectives_path: args.perspectives_path });
+      }
+      if (!perspectiveId) return err("INVALID_ARGS", "perspective_id must be non-empty");
+      if (!markdownPath) return err("INVALID_ARGS", "markdown_path must be non-empty");
+      if (!path.isAbsolute(markdownPath)) {
+        return err("INVALID_ARGS", "markdown_path must be absolute", { markdown_path: args.markdown_path });
+      }
+
+      let perspectivesRaw: unknown;
+      try {
+        perspectivesRaw = await readJson(perspectivesPath);
+      } catch (e) {
+        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "perspectives_path not found", { perspectives_path: perspectivesPath });
+        if (e instanceof SyntaxError) return err("INVALID_JSON", "perspectives_path contains invalid JSON", { perspectives_path: perspectivesPath });
+        throw e;
+      }
+
+      const pErr = validatePerspectivesV1(perspectivesRaw);
+      if (pErr) return pErr;
+
+      const perspectivesDoc = perspectivesRaw as Record<string, unknown>;
+      const perspective = ((perspectivesDoc.perspectives as Array<Record<string, unknown>>) ?? [])
+        .find((entry) => String(entry.id ?? "") === perspectiveId);
+
+      if (!perspective) {
+        return err("PERSPECTIVE_NOT_FOUND", "perspective_id not found", {
+          perspective_id: perspectiveId,
+        });
+      }
+
+      const contract = perspective.prompt_contract as Record<string, unknown>;
+      const maxWords = Number(contract.max_words ?? 0);
+      const maxSources = Number(contract.max_sources ?? 0);
+      const requiredSections = Array.isArray(contract.must_include_sections)
+        ? contract.must_include_sections.map((value) => String(value ?? "").trim()).filter((value) => value.length > 0)
+        : [];
+
+      let markdown: string;
+      try {
+        markdown = await fs.promises.readFile(markdownPath, "utf8");
+      } catch (e) {
+        if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "markdown_path not found", { markdown_path: markdownPath });
+        throw e;
+      }
+
+      const missingSections = requiredSections.filter((section) => !hasHeading(markdown, section));
+      if (missingSections.length > 0) {
+        return err("MISSING_REQUIRED_SECTION", `Missing section: ${missingSections[0]}`, {
+          section: missingSections[0],
+          missing_sections: missingSections,
+        });
+      }
+
+      const words = countWords(markdown);
+      if (words > maxWords) {
+        return err("TOO_MANY_WORDS", "word count exceeds max_words", {
+          max_words: maxWords,
+          words,
+        });
+      }
+
+      let sources = 0;
+      const sourceHeading = requiredSections.find((section) => section.toLowerCase() === "sources");
+      if (sourceHeading) {
+        const sourcesSection = findHeadingSection(markdown, sourceHeading);
+        if (sourcesSection === null) {
+          return err("MISSING_REQUIRED_SECTION", "Missing section: Sources", {
+            section: "Sources",
+          });
+        }
+
+        const parsedSources = parseSourcesSection(sourcesSection);
+        if (parsedSources.ok === false) {
+          return err("MALFORMED_SOURCES", "sources section has malformed entries", {
+            line: parsedSources.line,
+            reason: parsedSources.reason,
+          });
+        }
+
+        sources = parsedSources.count;
+        if (sources > maxSources) {
+          return err("TOO_MANY_SOURCES", "sources exceed max_sources", {
+            max_sources: maxSources,
+            sources,
+          });
+        }
+      }
+
+      return ok({
+        perspective_id: perspectiveId,
+        markdown_path: markdownPath,
+        words,
+        sources,
+        missing_sections: [],
+      });
+    } catch (e) {
+      if ((e as any)?.code === "ENOENT") return err("NOT_FOUND", "perspectives_path or markdown_path not found");
+      return err("WRITE_FAILED", "wave output validation failed", { message: String(e) });
     }
   },
 });
