@@ -1,0 +1,21 @@
+{
+  "run_id": "dr_test_watchdog_timeout_fixture_001",
+  "query": "P06 watchdog timeout fixture",
+  "mode": "standard",
+  "sensitivity": "no_web",
+  "stage": "init",
+  "started_at": "2026-02-14T11:50:00.000Z",
+  "now_iso": "2026-02-14T12:00:00.000Z",
+  "reason": "test: watchdog timeout fixture simulation",
+  "expected": {
+    "elapsed_s": 600,
+    "timeout_s": 120,
+    "message_includes": "600s",
+    "checkpoint_required_fields": [
+      "- stage: init",
+      "- elapsed_seconds: 600",
+      "- last_known_subtask: unavailable (placeholder)",
+      "- next_steps:"
+    ]
+  }
+}
