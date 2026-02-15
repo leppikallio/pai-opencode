@@ -6734,6 +6734,807 @@ const regression_run = tool({
   },
 });
 
+type QualityAuditSeverity = "info" | "warn" | "error";
+
+type QualityAuditFinding = {
+  code: string;
+  severity: QualityAuditSeverity;
+  bundle_id: string;
+  run_id: string;
+  details: Record<string, unknown>;
+};
+
+function qualitySeverityRank(value: QualityAuditSeverity): number {
+  if (value === "error") return 3;
+  if (value === "warn") return 2;
+  return 1;
+}
+
+function sortQualityFindings(findings: QualityAuditFinding[]): QualityAuditFinding[] {
+  return [...findings].sort((a, b) => {
+    const bySeverity = qualitySeverityRank(b.severity) - qualitySeverityRank(a.severity);
+    if (bySeverity !== 0) return bySeverity;
+    const byCode = a.code.localeCompare(b.code);
+    if (byCode !== 0) return byCode;
+    const byBundle = a.bundle_id.localeCompare(b.bundle_id);
+    if (byBundle !== 0) return byBundle;
+    return a.run_id.localeCompare(b.run_id);
+  });
+}
+
+function toFiniteNumberOrNull(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return value;
+}
+
+function toIntegerOrNull(value: unknown): number | null {
+  const n = toFiniteNumberOrNull(value);
+  if (n === null) return null;
+  return Math.trunc(n);
+}
+
+function resolveCommonAncestor(pathsInput: string[]): string {
+  if (pathsInput.length === 0) return "";
+  let ancestor = path.resolve(pathsInput[0] ?? "");
+  for (let i = 1; i < pathsInput.length; i += 1) {
+    const current = path.resolve(pathsInput[i] ?? "");
+    while (true) {
+      if (current === ancestor || current.startsWith(`${ancestor}${path.sep}`)) break;
+      const parent = path.dirname(ancestor);
+      if (parent === ancestor) break;
+      ancestor = parent;
+    }
+  }
+  return ancestor;
+}
+
+async function readJsonObjectAt(filePath: string): Promise<
+  | { ok: true; value: Record<string, unknown> }
+  | { ok: false; reason: "missing" | "not_file" | "parse_failed" | "not_object"; message?: string }
+> {
+  const st = await statPath(filePath);
+  if (!st) return { ok: false, reason: "missing" };
+  if (!st.isFile()) return { ok: false, reason: "not_file" };
+
+  try {
+    const raw = await readJson(filePath);
+    if (!isPlainObject(raw)) return { ok: false, reason: "not_object" };
+    return { ok: true, value: raw as Record<string, unknown> };
+  } catch (e) {
+    if (e instanceof SyntaxError) {
+      return { ok: false, reason: "parse_failed", message: String(e) };
+    }
+    return { ok: false, reason: "parse_failed", message: String(e) };
+  }
+}
+
+function normalizeMetricStageDuration(
+  runMetrics: Record<string, unknown>,
+  stageId: string,
+): number | null {
+  const stage = isPlainObject(runMetrics.stage) ? (runMetrics.stage as Record<string, unknown>) : null;
+  const duration = stage && isPlainObject(stage.duration_s)
+    ? (stage.duration_s as Record<string, unknown>)
+    : null;
+  const byStage = duration && isPlainObject(duration.by_stage_id)
+    ? (duration.by_stage_id as Record<string, unknown>)
+    : null;
+  return byStage ? toIntegerOrNull(byStage[stageId]) : null;
+}
+
+function normalizeGateStatus(
+  statusDoc: Record<string, unknown>,
+): {
+  status: "pass" | "fail";
+  warnings: string[];
+  uncited_numeric_claims: number | null;
+  report_sections_present: number | null;
+  citation_utilization_rate: number | null;
+  duplicate_citation_rate: number | null;
+} | null {
+  const statusRaw = String(statusDoc.status ?? "").trim();
+  if (statusRaw !== "pass" && statusRaw !== "fail") return null;
+
+  const warnings = normalizeWarningList(statusDoc.warnings);
+  const hardMetrics = isPlainObject(statusDoc.hard_metrics)
+    ? (statusDoc.hard_metrics as Record<string, unknown>)
+    : {};
+  const softMetrics = isPlainObject(statusDoc.soft_metrics)
+    ? (statusDoc.soft_metrics as Record<string, unknown>)
+    : {};
+
+  return {
+    status: statusRaw,
+    warnings,
+    uncited_numeric_claims: toIntegerOrNull(hardMetrics.uncited_numeric_claims),
+    report_sections_present: toIntegerOrNull(hardMetrics.report_sections_present),
+    citation_utilization_rate: toFiniteNumberOrNull(softMetrics.citation_utilization_rate),
+    duplicate_citation_rate: toFiniteNumberOrNull(softMetrics.duplicate_citation_rate),
+  };
+}
+
+export const quality_audit = tool({
+  description: "Audit fixture bundle quality drift offline",
+  args: {
+    fixtures_root: tool.schema.string().optional().describe("Absolute root containing fixture bundles"),
+    bundle_roots: tool.schema.array(tool.schema.string()).optional().describe("Optional absolute fixture bundle roots"),
+    bundle_paths: tool.schema.array(tool.schema.string()).optional().describe("Optional alias for bundle_roots"),
+    output_dir: tool.schema.string().optional().describe("Optional absolute output directory"),
+    min_bundles: tool.schema.number().optional().describe("Minimum valid bundles required (default 1)"),
+    include_telemetry_metrics: tool.schema.boolean().optional().describe("Include telemetry-derived metrics when present (default true)"),
+    schema_version: tool.schema.string().optional().describe("Optional report schema version"),
+    reason: tool.schema.string().describe("Audit reason"),
+  },
+  async execute(args: {
+    fixtures_root?: string;
+    bundle_roots?: string[];
+    bundle_paths?: string[];
+    output_dir?: string;
+    min_bundles?: number;
+    include_telemetry_metrics?: boolean;
+    schema_version?: string;
+    reason: string;
+  }) {
+    try {
+      const reason = args.reason.trim();
+      if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
+
+      const schemaVersion = (args.schema_version ?? "").trim() || "quality_audit.report.v1";
+      const includeTelemetryMetrics = args.include_telemetry_metrics ?? true;
+
+      const minBundlesRaw = args.min_bundles ?? 1;
+      if (!isInteger(minBundlesRaw) || minBundlesRaw < 1) {
+        return err("INVALID_ARGS", "min_bundles must be a positive integer", {
+          min_bundles: args.min_bundles ?? null,
+        });
+      }
+      const minBundles = Math.trunc(minBundlesRaw);
+
+      const fixturesRoot = (args.fixtures_root ?? "").trim();
+      if (fixturesRoot && !path.isAbsolute(fixturesRoot)) {
+        return err("INVALID_ARGS", "fixtures_root must be absolute", {
+          fixtures_root: args.fixtures_root,
+        });
+      }
+
+      const explicitBundleRoots = [
+        ...(Array.isArray(args.bundle_roots) ? args.bundle_roots : []),
+        ...(Array.isArray(args.bundle_paths) ? args.bundle_paths : []),
+      ]
+        .map((entry) => String(entry ?? "").trim())
+        .filter((entry) => entry.length > 0);
+
+      if (explicitBundleRoots.some((entry) => !path.isAbsolute(entry))) {
+        return err("INVALID_ARGS", "bundle_roots/bundle_paths entries must be absolute", {
+          bundle_roots: explicitBundleRoots,
+        });
+      }
+
+      const discoveredRoots: string[] = [];
+      if (fixturesRoot) {
+        const st = await statPath(fixturesRoot);
+        if (!st?.isDirectory()) {
+          return err("INVALID_ARGS", "fixtures_root not found or not a directory", {
+            fixtures_root: fixturesRoot,
+          });
+        }
+
+        const entries = await fs.promises.readdir(fixturesRoot, { withFileTypes: true });
+        for (const entry of entries) {
+          if (!entry.isDirectory()) continue;
+          if (entry.name.startsWith(".")) continue;
+          discoveredRoots.push(path.join(fixturesRoot, entry.name));
+        }
+      }
+
+      const bundleRoots = sortedLex([...new Set([...discoveredRoots, ...explicitBundleRoots])]);
+      if (bundleRoots.length === 0) {
+        return err("INVALID_ARGS", "no bundle roots found", {
+          fixtures_root: fixturesRoot || null,
+          bundle_roots: explicitBundleRoots,
+        });
+      }
+
+      const outputDirInput = (args.output_dir ?? "").trim();
+      if (outputDirInput && !path.isAbsolute(outputDirInput)) {
+        return err("INVALID_ARGS", "output_dir must be absolute", {
+          output_dir: args.output_dir,
+        });
+      }
+
+      const defaultOutputBase = fixturesRoot || resolveCommonAncestor(bundleRoots);
+      const outputDir = outputDirInput || path.join(defaultOutputBase, "reports");
+      if (!path.isAbsolute(outputDir)) {
+        return err("INVALID_ARGS", "output_dir resolved to non-absolute path", {
+          output_dir: outputDir,
+        });
+      }
+      const outputPath = path.join(outputDir, "quality-audit.json");
+
+      const bundleMeta: Array<{
+        bundle_root: string;
+        bundle_id: string;
+        run_id: string;
+        bundle_json: Record<string, unknown> | null;
+        bundle_json_error: string | null;
+      }> = [];
+
+      for (const bundleRoot of bundleRoots) {
+        const bundleJsonPath = bundlePath(bundleRoot, "bundle.json");
+        const readBundleJson = await readJsonObjectAt(bundleJsonPath);
+        if (!readBundleJson.ok) {
+          bundleMeta.push({
+            bundle_root: bundleRoot,
+            bundle_id: path.basename(bundleRoot),
+            run_id: "",
+            bundle_json: null,
+            bundle_json_error: readBundleJson.reason,
+          });
+          continue;
+        }
+
+        const bundleId = String(readBundleJson.value.bundle_id ?? "").trim() || path.basename(bundleRoot);
+        const runId = String(readBundleJson.value.run_id ?? "").trim();
+        bundleMeta.push({
+          bundle_root: bundleRoot,
+          bundle_id: bundleId,
+          run_id: runId,
+          bundle_json: readBundleJson.value,
+          bundle_json_error: null,
+        });
+      }
+
+      bundleMeta.sort((a, b) => {
+        const byBundleId = a.bundle_id.localeCompare(b.bundle_id);
+        if (byBundleId !== 0) return byBundleId;
+        const byRunId = a.run_id.localeCompare(b.run_id);
+        if (byRunId !== 0) return byRunId;
+        return a.bundle_root.localeCompare(b.bundle_root);
+      });
+
+      const findings: QualityAuditFinding[] = [];
+      const invalidBundles: Array<Record<string, unknown>> = [];
+      const usedBundles: Array<{
+        bundle_id: string;
+        run_id: string;
+        bundle_root: string;
+        status: "pass" | "fail";
+        warnings: string[];
+        citation_utilization_rate: number | null;
+        duplicate_citation_rate: number | null;
+        report_sections_present: number | null;
+        missing_headings: string[];
+        uncited_numeric_claims: number | null;
+        replay_used: boolean;
+        telemetry: {
+          run_duration_s: number | null;
+          failures_total: number | null;
+          stage_timeouts_total: number | null;
+          citations_duration_s: number | null;
+          source_path: string | null;
+        };
+      }> = [];
+
+      for (const meta of bundleMeta) {
+        const { bundle_root: bundleRoot, bundle_id: bundleId, run_id: runId } = meta;
+
+        if (!meta.bundle_json) {
+          findings.push({
+            code: "BUNDLE_INVALID",
+            severity: "error",
+            bundle_id: bundleId,
+            run_id: runId,
+            details: {
+              reason: "bundle.json missing or invalid",
+              bundle_root: bundleRoot,
+              bundle_json_error: meta.bundle_json_error,
+            },
+          });
+          invalidBundles.push({
+            bundle_id: bundleId,
+            run_id: runId,
+            bundle_root: bundleRoot,
+            reason: "bundle.json missing or invalid",
+          });
+          continue;
+        }
+
+        let statusDocResult = await readJsonObjectAt(bundlePath(bundleRoot, "reports/gate-e-status.json"));
+        let utilizationDocResult = await readJsonObjectAt(bundlePath(bundleRoot, "reports/gate-e-citation-utilization.json"));
+        let sectionsDocResult = await readJsonObjectAt(bundlePath(bundleRoot, "reports/gate-e-sections-present.json"));
+        let replayUsed = false;
+
+        if (!statusDocResult.ok || !utilizationDocResult.ok) {
+          const replayRaw = await (fixture_replay as unknown as ToolWithExecute).execute({
+            bundle_root: bundleRoot,
+            reason: `quality_audit:${reason}:${bundleId}`,
+          });
+          const replayResult = parseToolResult(replayRaw);
+          if (!replayResult.ok) {
+            findings.push({
+              code: "BUNDLE_INVALID",
+              severity: "error",
+              bundle_id: bundleId,
+              run_id: runId,
+              details: {
+                reason: "required Gate E reports missing and replay failed",
+                bundle_root: bundleRoot,
+                replay_error_code: replayResult.code,
+                replay_error_message: replayResult.message,
+                status_report_state: statusDocResult.ok ? "ok" : statusDocResult.reason,
+                utilization_report_state: utilizationDocResult.ok ? "ok" : utilizationDocResult.reason,
+              },
+            });
+            invalidBundles.push({
+              bundle_id: bundleId,
+              run_id: runId,
+              bundle_root: bundleRoot,
+              reason: "required Gate E reports missing and replay failed",
+            });
+            continue;
+          }
+
+          replayUsed = true;
+          if (!statusDocResult.ok) {
+            statusDocResult = await readJsonObjectAt(path.join(bundleRoot, "replay", "recomputed-reports", "gate-e-status.json"));
+          }
+          if (!utilizationDocResult.ok) {
+            utilizationDocResult = await readJsonObjectAt(path.join(bundleRoot, "replay", "recomputed-reports", "gate-e-citation-utilization.json"));
+          }
+          if (!sectionsDocResult.ok) {
+            sectionsDocResult = await readJsonObjectAt(path.join(bundleRoot, "replay", "recomputed-reports", "gate-e-sections-present.json"));
+          }
+        }
+
+        if (!statusDocResult.ok || !utilizationDocResult.ok) {
+          findings.push({
+            code: "PARSE_FAILED",
+            severity: "error",
+            bundle_id: bundleId,
+            run_id: runId,
+            details: {
+              reason: "required Gate E reports unavailable after replay",
+              bundle_root: bundleRoot,
+              status_report_state: statusDocResult.ok ? "ok" : statusDocResult.reason,
+              utilization_report_state: utilizationDocResult.ok ? "ok" : utilizationDocResult.reason,
+            },
+          });
+          invalidBundles.push({
+            bundle_id: bundleId,
+            run_id: runId,
+            bundle_root: bundleRoot,
+            reason: "required Gate E reports unavailable after replay",
+          });
+          continue;
+        }
+
+        const statusMetrics = normalizeGateStatus(statusDocResult.value);
+        if (!statusMetrics) {
+          findings.push({
+            code: "PARSE_FAILED",
+            severity: "error",
+            bundle_id: bundleId,
+            run_id: runId,
+            details: {
+              reason: "gate-e-status.json missing required fields",
+              bundle_root: bundleRoot,
+            },
+          });
+          invalidBundles.push({
+            bundle_id: bundleId,
+            run_id: runId,
+            bundle_root: bundleRoot,
+            reason: "gate-e-status.json missing required fields",
+          });
+          continue;
+        }
+
+        const utilizationMetricsRoot = isPlainObject(utilizationDocResult.value.metrics)
+          ? (utilizationDocResult.value.metrics as Record<string, unknown>)
+          : {};
+        const citationUtilizationRate = toFiniteNumberOrNull(
+          utilizationMetricsRoot.citation_utilization_rate ?? statusMetrics.citation_utilization_rate,
+        );
+        const duplicateCitationRate = toFiniteNumberOrNull(
+          utilizationMetricsRoot.duplicate_citation_rate ?? statusMetrics.duplicate_citation_rate,
+        );
+        if (citationUtilizationRate === null || duplicateCitationRate === null) {
+          findings.push({
+            code: "PARSE_FAILED",
+            severity: "error",
+            bundle_id: bundleId,
+            run_id: runId,
+            details: {
+              reason: "citation utilization metrics missing",
+              bundle_root: bundleRoot,
+            },
+          });
+          invalidBundles.push({
+            bundle_id: bundleId,
+            run_id: runId,
+            bundle_root: bundleRoot,
+            reason: "citation utilization metrics missing",
+          });
+          continue;
+        }
+
+        const sectionsDoc = sectionsDocResult.ok ? sectionsDocResult.value : null;
+        const sectionsMetrics = sectionsDoc && isPlainObject(sectionsDoc.metrics)
+          ? (sectionsDoc.metrics as Record<string, unknown>)
+          : {};
+        const reportSectionsPresent = statusMetrics.report_sections_present
+          ?? toIntegerOrNull(sectionsMetrics.report_sections_present);
+        const missingHeadings = sectionsDoc && Array.isArray(sectionsDoc.missing_headings)
+          ? sortedLex(
+              sectionsDoc.missing_headings
+                .map((entry) => String(entry ?? "").trim())
+                .filter((entry) => entry.length > 0),
+            )
+          : [];
+
+        if (statusMetrics.status === "fail") {
+          findings.push({
+            code: "GATE_E_STATUS_FAIL",
+            severity: "error",
+            bundle_id: bundleId,
+            run_id: runId,
+            details: {
+              uncited_numeric_claims: statusMetrics.uncited_numeric_claims,
+              report_sections_present: reportSectionsPresent,
+            },
+          });
+        }
+
+        if (missingHeadings.length > 0 || (reportSectionsPresent !== null && reportSectionsPresent < 100)) {
+          findings.push({
+            code: "MISSING_REQUIRED_SECTIONS",
+            severity: "error",
+            bundle_id: bundleId,
+            run_id: runId,
+            details: {
+              report_sections_present: reportSectionsPresent,
+              missing_headings: missingHeadings,
+            },
+          });
+        }
+
+        for (const warningCode of statusMetrics.warnings) {
+          findings.push({
+            code: warningCode,
+            severity: "warn",
+            bundle_id: bundleId,
+            run_id: runId,
+            details: {
+              citation_utilization_rate: citationUtilizationRate,
+              duplicate_citation_rate: duplicateCitationRate,
+            },
+          });
+        }
+
+        if (citationUtilizationRate < 0.6 && !statusMetrics.warnings.includes("LOW_CITATION_UTILIZATION")) {
+          findings.push({
+            code: "LOW_CITATION_UTILIZATION",
+            severity: "warn",
+            bundle_id: bundleId,
+            run_id: runId,
+            details: {
+              citation_utilization_rate: citationUtilizationRate,
+              threshold: 0.6,
+              source: "derived",
+            },
+          });
+        }
+
+        if (duplicateCitationRate > 0.2 && !statusMetrics.warnings.includes("HIGH_DUPLICATE_CITATION_RATE")) {
+          findings.push({
+            code: "HIGH_DUPLICATE_CITATION_RATE",
+            severity: "warn",
+            bundle_id: bundleId,
+            run_id: runId,
+            details: {
+              duplicate_citation_rate: duplicateCitationRate,
+              threshold: 0.2,
+              source: "derived",
+            },
+          });
+        }
+
+        let telemetry = {
+          run_duration_s: null as number | null,
+          failures_total: null as number | null,
+          stage_timeouts_total: null as number | null,
+          citations_duration_s: null as number | null,
+          source_path: null as string | null,
+        };
+
+        if (includeTelemetryMetrics) {
+          const telemetryPathCandidates = [
+            path.join(bundleRoot, "metrics", "run-metrics.json"),
+            path.join(bundleRoot, "metrics", "run-metrics.expected.json"),
+          ];
+
+          let telemetryPath: string | null = null;
+          for (const candidatePath of telemetryPathCandidates) {
+            const st = await statPath(candidatePath);
+            if (st?.isFile()) {
+              telemetryPath = candidatePath;
+              break;
+            }
+          }
+
+          if (telemetryPath) {
+            const telemetryRead = await readJsonObjectAt(telemetryPath);
+            if (!telemetryRead.ok) {
+              findings.push({
+                code: "TELEMETRY_PARSE_FAILED",
+                severity: "warn",
+                bundle_id: bundleId,
+                run_id: runId,
+                details: {
+                  telemetry_path: telemetryPath,
+                  reason: telemetryRead.reason,
+                  message: telemetryRead.message ?? null,
+                },
+              });
+            } else {
+              const run = isPlainObject(telemetryRead.value.run)
+                ? (telemetryRead.value.run as Record<string, unknown>)
+                : {};
+              telemetry = {
+                run_duration_s: toIntegerOrNull(run.duration_s),
+                failures_total: toIntegerOrNull(run.failures_total),
+                stage_timeouts_total: toIntegerOrNull(run.stage_timeouts_total),
+                citations_duration_s: normalizeMetricStageDuration(telemetryRead.value, "citations"),
+                source_path: telemetryPath,
+              };
+            }
+          }
+        }
+
+        usedBundles.push({
+          bundle_id: bundleId,
+          run_id: runId,
+          bundle_root: bundleRoot,
+          status: statusMetrics.status,
+          warnings: statusMetrics.warnings,
+          citation_utilization_rate: citationUtilizationRate,
+          duplicate_citation_rate: duplicateCitationRate,
+          report_sections_present: reportSectionsPresent,
+          missing_headings: missingHeadings,
+          uncited_numeric_claims: statusMetrics.uncited_numeric_claims,
+          replay_used: replayUsed,
+          telemetry,
+        });
+      }
+
+      if (usedBundles.length < minBundles) {
+        return err("NO_VALID_BUNDLES", "not enough valid bundles for audit", {
+          bundles_scanned_total: bundleMeta.length,
+          bundles_used_total: usedBundles.length,
+          min_bundles: minBundles,
+          invalid_bundles: invalidBundles,
+        });
+      }
+
+      const utilizationSeries = usedBundles
+        .filter((bundle) => bundle.citation_utilization_rate !== null)
+        .map((bundle) => ({
+          bundle_id: bundle.bundle_id,
+          run_id: bundle.run_id,
+          value: bundle.citation_utilization_rate as number,
+        }));
+
+      if (utilizationSeries.length >= 2) {
+        let nonIncreasing = true;
+        let hasDrop = false;
+        for (let i = 1; i < utilizationSeries.length; i += 1) {
+          const prev = utilizationSeries[i - 1]?.value ?? 0;
+          const next = utilizationSeries[i]?.value ?? 0;
+          if (next > prev) nonIncreasing = false;
+          if (next < prev) hasDrop = true;
+        }
+        if (nonIncreasing && hasDrop) {
+          const first = utilizationSeries[0] as { bundle_id: string; run_id: string; value: number };
+          const last = utilizationSeries[utilizationSeries.length - 1] as { bundle_id: string; run_id: string; value: number };
+          findings.push({
+            code: "UTILIZATION_TREND_DOWN",
+            severity: "warn",
+            bundle_id: last.bundle_id,
+            run_id: last.run_id,
+            details: {
+              from_bundle_id: first.bundle_id,
+              from_run_id: first.run_id,
+              from_rate: first.value,
+              to_bundle_id: last.bundle_id,
+              to_run_id: last.run_id,
+              to_rate: last.value,
+              delta: formatRate(last.value - first.value),
+            },
+          });
+        }
+      }
+
+      const duplicateSeries = usedBundles
+        .filter((bundle) => bundle.duplicate_citation_rate !== null)
+        .map((bundle) => ({
+          bundle_id: bundle.bundle_id,
+          run_id: bundle.run_id,
+          value: bundle.duplicate_citation_rate as number,
+        }));
+
+      if (duplicateSeries.length >= 2) {
+        let nonDecreasing = true;
+        let hasIncrease = false;
+        for (let i = 1; i < duplicateSeries.length; i += 1) {
+          const prev = duplicateSeries[i - 1]?.value ?? 0;
+          const next = duplicateSeries[i]?.value ?? 0;
+          if (next < prev) nonDecreasing = false;
+          if (next > prev) hasIncrease = true;
+        }
+        if (nonDecreasing && hasIncrease) {
+          const first = duplicateSeries[0] as { bundle_id: string; run_id: string; value: number };
+          const last = duplicateSeries[duplicateSeries.length - 1] as { bundle_id: string; run_id: string; value: number };
+          findings.push({
+            code: "DUPLICATE_RATE_TREND_UP",
+            severity: "warn",
+            bundle_id: last.bundle_id,
+            run_id: last.run_id,
+            details: {
+              from_bundle_id: first.bundle_id,
+              from_run_id: first.run_id,
+              from_rate: first.value,
+              to_bundle_id: last.bundle_id,
+              to_run_id: last.run_id,
+              to_rate: last.value,
+              delta: formatRate(last.value - first.value),
+            },
+          });
+        }
+      }
+
+      const sectionFailures = usedBundles.filter((bundle) =>
+        bundle.missing_headings.length > 0 || ((bundle.report_sections_present ?? 100) < 100)
+      );
+      if (sectionFailures.length >= 2) {
+        const last = sectionFailures[sectionFailures.length - 1] as {
+          bundle_id: string;
+          run_id: string;
+          report_sections_present: number | null;
+          missing_headings: string[];
+        };
+        findings.push({
+          code: "RECURRING_SECTION_OMISSIONS",
+          severity: "error",
+          bundle_id: last.bundle_id,
+          run_id: last.run_id,
+          details: {
+            affected_bundles: sectionFailures.map((bundle) => bundle.bundle_id),
+            occurrences: sectionFailures.length,
+            latest_report_sections_present: last.report_sections_present,
+            latest_missing_headings: last.missing_headings,
+          },
+        });
+      }
+
+      const telemetrySeries = usedBundles
+        .filter((bundle) => bundle.telemetry.run_duration_s !== null)
+        .map((bundle) => ({
+          bundle_id: bundle.bundle_id,
+          run_id: bundle.run_id,
+          run_duration_s: bundle.telemetry.run_duration_s as number,
+          citations_duration_s: bundle.telemetry.citations_duration_s,
+        }));
+
+      if (telemetrySeries.length >= 2) {
+        const first = telemetrySeries[0] as {
+          bundle_id: string;
+          run_id: string;
+          run_duration_s: number;
+        };
+        const last = telemetrySeries[telemetrySeries.length - 1] as {
+          bundle_id: string;
+          run_id: string;
+          run_duration_s: number;
+        };
+        if (last.run_duration_s > first.run_duration_s) {
+          findings.push({
+            code: "LATENCY_ENVELOPE_REGRESSION",
+            severity: "warn",
+            bundle_id: last.bundle_id,
+            run_id: last.run_id,
+            details: {
+              metric: "run.duration_s",
+              from_bundle_id: first.bundle_id,
+              from_run_id: first.run_id,
+              from_value: first.run_duration_s,
+              to_bundle_id: last.bundle_id,
+              to_run_id: last.run_id,
+              to_value: last.run_duration_s,
+              delta: last.run_duration_s - first.run_duration_s,
+            },
+          });
+        }
+      }
+
+      const sortedFindings = sortQualityFindings(findings);
+
+      const warningsTotal = sortedFindings.filter((finding) => finding.severity === "warn").length;
+      const errorsTotal = sortedFindings.filter((finding) => finding.severity === "error").length;
+      const infosTotal = sortedFindings.filter((finding) => finding.severity === "info").length;
+
+      const telemetryDurations = telemetrySeries.map((entry) => entry.run_duration_s);
+      const telemetrySummary = telemetryDurations.length > 0
+        ? {
+            run_duration_s: {
+              min: Math.min(...telemetryDurations),
+              max: Math.max(...telemetryDurations),
+              avg: formatRate(
+                telemetryDurations.reduce((acc, value) => acc + value, 0)
+                / telemetryDurations.length,
+              ),
+            },
+          }
+        : null;
+
+      const driftFlags = sortedLex(
+        [...new Set(
+          sortedFindings
+            .map((finding) => finding.code)
+            .filter((code) =>
+              code.includes("TREND")
+              || code === "RECURRING_SECTION_OMISSIONS"
+              || code === "LOW_CITATION_UTILIZATION"
+              || code === "HIGH_DUPLICATE_CITATION_RATE",
+            ),
+        )],
+      );
+
+      const report = {
+        ok: true,
+        schema_version: schemaVersion,
+        bundles_scanned_total: bundleMeta.length,
+        bundles_used_total: usedBundles.length,
+        findings: sortedFindings,
+        summary: {
+          warnings_total: warningsTotal,
+          errors_total: errorsTotal,
+          info_total: infosTotal,
+          invalid_bundles_total: invalidBundles.length,
+          bundles_with_telemetry_total: telemetrySeries.length,
+          gate_e_status: {
+            pass: usedBundles.filter((bundle) => bundle.status === "pass").length,
+            fail: usedBundles.filter((bundle) => bundle.status === "fail").length,
+          },
+          drift_flags: driftFlags,
+          telemetry: telemetrySummary,
+        },
+        bundles: usedBundles.map((bundle) => ({
+          bundle_id: bundle.bundle_id,
+          run_id: bundle.run_id,
+          status: bundle.status,
+          warnings: bundle.warnings,
+          citation_utilization_rate: bundle.citation_utilization_rate,
+          duplicate_citation_rate: bundle.duplicate_citation_rate,
+          report_sections_present: bundle.report_sections_present,
+          missing_headings: bundle.missing_headings,
+          uncited_numeric_claims: bundle.uncited_numeric_claims,
+          replay_used: bundle.replay_used,
+          telemetry: bundle.telemetry,
+        })),
+        invalid_bundles: invalidBundles,
+        output_path: outputPath,
+      };
+
+      await atomicWriteCanonicalJson(outputPath, report);
+      return JSON.stringify(report, null, 2);
+    } catch (e) {
+      if (errorCode(e) === "ENOENT") return err("BUNDLE_INVALID", "required bundle file missing");
+      if (e instanceof SyntaxError) return err("PARSE_FAILED", "invalid JSON artifact in bundle", { message: String(e) });
+      return err("WRITE_FAILED", "quality_audit failed", { message: String(e) });
+    }
+  },
+});
+
 export const deep_research_summary_pack_build = summary_pack_build;
 export const deep_research_gate_d_evaluate = gate_d_evaluate;
 export const deep_research_synthesis_write = synthesis_write;
@@ -6746,3 +7547,4 @@ export const deep_research_revision_control = revision_control;
 export const deep_research_fixture_bundle_capture = fixture_bundle_capture;
 export const deep_research_fixture_replay = fixture_replay;
 export const deep_research_regression_run = regression_run;
+export const deep_research_quality_audit = quality_audit;
