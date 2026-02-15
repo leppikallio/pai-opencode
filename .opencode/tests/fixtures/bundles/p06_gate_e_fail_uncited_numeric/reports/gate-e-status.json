@@ -1,0 +1,13 @@
+{
+  "hard_metrics": {
+    "report_sections_present": 100,
+    "uncited_numeric_claims": 1
+  },
+  "schema_version": "gate_e.status_report.v1",
+  "soft_metrics": {
+    "citation_utilization_rate": 1,
+    "duplicate_citation_rate": 0
+  },
+  "status": "fail",
+  "warnings": []
+}

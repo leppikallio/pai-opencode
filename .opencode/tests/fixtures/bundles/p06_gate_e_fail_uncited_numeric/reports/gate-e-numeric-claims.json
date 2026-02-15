@@ -1,0 +1,14 @@
+{
+  "findings": [
+    {
+      "col": 21,
+      "line": 5,
+      "line_text": "Run quality reached 87% under load.",
+      "token": "87%"
+    }
+  ],
+  "metrics": {
+    "uncited_numeric_claims": 1
+  },
+  "schema_version": "gate_e.numeric_claims_report.v1"
+}

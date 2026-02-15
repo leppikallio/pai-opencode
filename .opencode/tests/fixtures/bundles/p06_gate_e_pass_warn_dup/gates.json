@@ -1,0 +1,85 @@
+{
+  "schema_version": "gates.v1",
+  "run_id": "dr_fixture_p06_gate_e_pass_warn_dup",
+  "revision": 1,
+  "updated_at": "2026-02-15T00:00:00.000Z",
+  "inputs_digest": "sha256:fixture-pass",
+  "gates": {
+    "A": {
+      "id": "A",
+      "name": "Planning completeness",
+      "class": "hard",
+      "status": "not_run",
+      "checked_at": null,
+      "metrics": {},
+      "artifacts": [],
+      "warnings": [],
+      "notes": ""
+    },
+    "B": {
+      "id": "B",
+      "name": "Wave output contract compliance",
+      "class": "hard",
+      "status": "not_run",
+      "checked_at": null,
+      "metrics": {},
+      "artifacts": [],
+      "warnings": [],
+      "notes": ""
+    },
+    "C": {
+      "id": "C",
+      "name": "Citation validation integrity",
+      "class": "hard",
+      "status": "not_run",
+      "checked_at": null,
+      "metrics": {},
+      "artifacts": [],
+      "warnings": [],
+      "notes": ""
+    },
+    "D": {
+      "id": "D",
+      "name": "Summary pack boundedness",
+      "class": "hard",
+      "status": "not_run",
+      "checked_at": null,
+      "metrics": {},
+      "artifacts": [],
+      "warnings": [],
+      "notes": ""
+    },
+    "E": {
+      "id": "E",
+      "name": "Synthesis quality",
+      "class": "hard",
+      "status": "pass",
+      "checked_at": "2026-02-15T00:00:00.000Z",
+      "metrics": {
+        "uncited_numeric_claims": 0,
+        "report_sections_present": 1,
+        "citation_utilization_rate": 1,
+        "duplicate_citation_rate": 0.571429
+      },
+      "artifacts": [
+        "synthesis/final-synthesis.md",
+        "citations/citations.jsonl"
+      ],
+      "warnings": [
+        "HIGH_DUPLICATE_CITATION_RATE"
+      ],
+      "notes": "Gate E hard metrics satisfied"
+    },
+    "F": {
+      "id": "F",
+      "name": "Rollout safety",
+      "class": "hard",
+      "status": "not_run",
+      "checked_at": null,
+      "metrics": {},
+      "artifacts": [],
+      "warnings": [],
+      "notes": ""
+    }
+  }
+}

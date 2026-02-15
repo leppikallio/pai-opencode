@@ -1,0 +1,22 @@
+{
+  "cids": {
+    "used_cids": [
+      "cid_alpha",
+      "cid_beta",
+      "cid_gamma"
+    ],
+    "validated_cids": [
+      "cid_alpha",
+      "cid_beta",
+      "cid_gamma"
+    ]
+  },
+  "metrics": {
+    "citation_utilization_rate": 1,
+    "duplicate_citation_rate": 0,
+    "total_cid_mentions": 3,
+    "used_cids_count": 3,
+    "validated_cids_count": 3
+  },
+  "schema_version": "gate_e.citation_utilization_report.v1"
+}

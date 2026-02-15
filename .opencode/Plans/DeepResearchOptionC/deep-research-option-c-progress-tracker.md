@@ -5,7 +5,7 @@
 - Planned window: 12–16 weeks
 - Status: `in_progress`
 - Last updated: `2026-02-14`
-- Current phase: `Phase 06` (pending)
+- Current phase: `Phase 06` (in_progress)
 
 ## Plan root directory (canonical)
 All program plans and specs live here:
@@ -39,7 +39,7 @@ Session loss / compaction safe recovery:
 | 03 | Agent contracts & wave graph | Engineer | done | Architect | Gate B | Signed off: `PHASE-03-CHECKPOINT-GATE-B.md` |
 | 04 | Citation validation services | Engineer | done | QATester | Gate C | Signed off: `PHASE-04-CHECKPOINT-GATE-C.md` |
 | 05 | Synthesis/reviewer factory | Engineer | done | Architect | Gate D/E | Signed off: `PHASE-05-CHECKPOINT-GATE-D-E.md` |
-| 06 | Observability + quality automation | Engineer | pending | QATester | Gate E | Metrics + harness |
+| 06 | Observability + quality automation | Engineer | in_progress | QATester | Gate E | Telemetry + replay harness + Gate E reports |
 | 07 | Rollout hardening & canary | Engineer | pending | Architect | Gate F | Flags + fallback |
 
 ## Workstream Tracker
@@ -51,7 +51,7 @@ Session loss / compaction safe recovery:
 | C | Agents/contracts | done | Phase 03 Gate B passed |
 | D | Citation/evidence | done | Phase 04 Gate C passed |
 | E | Synthesis/review | done | 0 |
-| F | QA/observability | pending | 0 |
+| F | QA/observability | in_progress | P06-01/03/05/07 specs (in progress) |
 
 ## Phase 00 completion evidence
 - `PHASE-00-CHECKPOINT-ARCH-REVIEW.md`

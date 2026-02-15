@@ -1,0 +1,15 @@
+{
+  "hard_metrics": {
+    "report_sections_present": 100,
+    "uncited_numeric_claims": 0
+  },
+  "schema_version": "gate_e.status_report.v1",
+  "soft_metrics": {
+    "citation_utilization_rate": 1,
+    "duplicate_citation_rate": 0.571429
+  },
+  "status": "pass",
+  "warnings": [
+    "HIGH_DUPLICATE_CITATION_RATE"
+  ]
+}
