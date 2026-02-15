@@ -1,0 +1,7 @@
+{
+  "findings": [],
+  "metrics": {
+    "uncited_numeric_claims": 0
+  },
+  "schema_version": "gate_e.numeric_claims_report.v1"
+}

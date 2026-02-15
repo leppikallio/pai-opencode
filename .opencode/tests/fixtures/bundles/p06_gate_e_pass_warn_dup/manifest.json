@@ -1,0 +1,67 @@
+{
+  "schema_version": "manifest.v1",
+  "run_id": "dr_fixture_p06_gate_e_pass_warn_dup",
+  "created_at": "2026-02-15T00:00:00.000Z",
+  "updated_at": "2026-02-15T00:00:00.000Z",
+  "revision": 1,
+  "query": {
+    "text": "Phase06 fixture pass with duplicate warning",
+    "constraints": {
+      "deep_research_flags": {
+        "PAI_DR_OPTION_C_ENABLED": true,
+        "PAI_DR_MODE_DEFAULT": "standard",
+        "PAI_DR_MAX_WAVE1_AGENTS": 6,
+        "PAI_DR_MAX_WAVE2_AGENTS": 6,
+        "PAI_DR_MAX_SUMMARY_KB": 5,
+        "PAI_DR_MAX_TOTAL_SUMMARY_KB": 60,
+        "PAI_DR_MAX_REVIEW_ITERATIONS": 4,
+        "PAI_DR_CITATION_VALIDATION_TIER": "standard",
+        "PAI_DR_NO_WEB": true,
+        "PAI_DR_RUNS_ROOT": "/fixtures/bundles",
+        "source": {
+          "env": [
+            "PAI_DR_OPTION_C_ENABLED",
+            "PAI_DR_NO_WEB"
+          ],
+          "settings": []
+        }
+      }
+    },
+    "sensitivity": "no_web"
+  },
+  "mode": "standard",
+  "status": "created",
+  "stage": {
+    "current": "init",
+    "started_at": "2026-02-15T00:00:00.000Z",
+    "history": []
+  },
+  "limits": {
+    "max_wave1_agents": 6,
+    "max_wave2_agents": 6,
+    "max_summary_kb": 5,
+    "max_total_summary_kb": 60,
+    "max_review_iterations": 4
+  },
+  "agents": {
+    "policy": "existing-runtime-only"
+  },
+  "artifacts": {
+    "root": "/Users/zuul/Projects/pai-opencode-graphviz-phase06/.opencode/tests/fixtures/bundles/p06_gate_e_pass_warn_dup",
+    "paths": {
+      "wave1_dir": "wave-1",
+      "wave2_dir": "wave-2",
+      "citations_dir": "citations",
+      "summaries_dir": "summaries",
+      "synthesis_dir": "synthesis",
+      "logs_dir": "logs",
+      "gates_file": "gates.json",
+      "perspectives_file": "perspectives.json",
+      "citations_file": "citations/citations.jsonl",
+      "summary_pack_file": "summaries/summary-pack.json",
+      "pivot_file": "pivot.json"
+    }
+  },
+  "metrics": {},
+  "failures": []
+}

@@ -1,0 +1,19 @@
+{
+  "metrics": {
+    "report_sections_present": 100
+  },
+  "missing_headings": [],
+  "present_headings": [
+    "## Caveats",
+    "## Evidence",
+    "## Key Findings",
+    "## Summary"
+  ],
+  "required_headings": [
+    "## Summary",
+    "## Key Findings",
+    "## Evidence",
+    "## Caveats"
+  ],
+  "schema_version": "gate_e.sections_present_report.v1"
+}
