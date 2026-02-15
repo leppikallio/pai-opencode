@@ -7,8 +7,10 @@ import {
   canonicalizeJson,
   getObjectProp,
   getStringProp,
+  hasHeading,
   isPlainObject,
 } from "./utils";
+import { readJsonlObjects } from "./citations_validate_lib";
 import { parseJsonSafe } from "./wave_tools_io";
 
 export function resolveRunRootFromManifest(manifestPath: string, manifest: Record<string, unknown>): string {
@@ -31,6 +33,101 @@ export function formatRate(value: number): number {
 
 export function requiredSynthesisHeadingsV1(): string[] {
   return ["Summary", "Key Findings", "Evidence", "Caveats"];
+}
+
+export type GateESectionCoverageV1 = {
+  required_headings: string[];
+  present_headings: string[];
+  missing_headings: string[];
+  report_sections_present: number;
+};
+
+export function computeGateESectionCoverageV1(markdown: string): GateESectionCoverageV1 {
+  const requiredHeadingLines = requiredSynthesisHeadingsV1().map((heading) => `## ${heading}`);
+  const presentHeadings = requiredHeadingLines
+    .filter((headingLine) => hasHeading(markdown, headingLine.replace(/^##\s+/, "")))
+    .sort((a, b) => a.localeCompare(b));
+  const missingHeadings = requiredHeadingLines
+    .filter((headingLine) => !hasHeading(markdown, headingLine.replace(/^##\s+/, "")))
+    .sort((a, b) => a.localeCompare(b));
+  const reportSectionsPresent = requiredHeadingLines.length > 0
+    ? Math.floor((100 * presentHeadings.length) / requiredHeadingLines.length)
+    : 0;
+
+  return {
+    required_headings: requiredHeadingLines,
+    present_headings: presentHeadings,
+    missing_headings: missingHeadings,
+    report_sections_present: reportSectionsPresent,
+  };
+}
+
+export async function readValidatedCids(citationsPath: string): Promise<Set<string>> {
+  const records = await readJsonlObjects(citationsPath);
+  const out = new Set<string>();
+  for (const record of records) {
+    const cid = String(record.cid ?? "").trim();
+    const status = String(record.status ?? "").trim();
+    if (!cid) continue;
+    if (status === "valid" || status === "paywalled") out.add(cid);
+  }
+  return out;
+}
+
+export type GateECitationMetricsV1 = {
+  validated_cids: string[];
+  used_cids: string[];
+  validated_cids_count: number;
+  used_cids_count: number;
+  total_cid_mentions: number;
+  citation_utilization_rate: number;
+  duplicate_citation_rate: number;
+};
+
+export function computeGateECitationMetricsV1(markdown: string, validatedCids: Set<string>): GateECitationMetricsV1 {
+  const allCidMentions = [...markdown.matchAll(/\[@([A-Za-z0-9_:-]+)\]/g)]
+    .map((match) => String(match[1] ?? "").trim())
+    .filter((cid) => cid.length > 0);
+
+  const usedValidCidSet = new Set<string>();
+  for (const cid of allCidMentions) {
+    if (validatedCids.has(cid)) usedValidCidSet.add(cid);
+  }
+
+  const validatedCidsSorted = [...validatedCids].sort((a, b) => a.localeCompare(b));
+  const usedCidsSorted = [...usedValidCidSet].sort((a, b) => a.localeCompare(b));
+  const validatedCidsCount = validatedCidsSorted.length;
+  const usedCidsCount = usedCidsSorted.length;
+  const totalCidMentions = allCidMentions.length;
+
+  const citationUtilizationRate = validatedCidsCount > 0
+    ? formatRate(usedCidsCount / validatedCidsCount)
+    : 0;
+  const duplicateCitationRate = totalCidMentions > 0
+    ? formatRate(1 - (usedCidsCount / totalCidMentions))
+    : 0;
+
+  return {
+    validated_cids: validatedCidsSorted,
+    used_cids: usedCidsSorted,
+    validated_cids_count: validatedCidsCount,
+    used_cids_count: usedCidsCount,
+    total_cid_mentions: totalCidMentions,
+    citation_utilization_rate: citationUtilizationRate,
+    duplicate_citation_rate: duplicateCitationRate,
+  };
+}
+
+export function computeGateEWarningsV1(citationUtilizationRate: number, duplicateCitationRate: number): string[] {
+  const warnings: string[] = [];
+  if (citationUtilizationRate < 0.6) warnings.push("LOW_CITATION_UTILIZATION");
+  if (duplicateCitationRate > 0.2) warnings.push("HIGH_DUPLICATE_CITATION_RATE");
+  warnings.sort((a, b) => a.localeCompare(b));
+  return warnings;
+}
+
+export function isGateEHardPassV1(uncitedNumericClaims: number, reportSectionsPresent: number): boolean {
+  return uncitedNumericClaims === 0 && reportSectionsPresent === 100;
 }
 
 export type NumericClaimFindingV1 = {

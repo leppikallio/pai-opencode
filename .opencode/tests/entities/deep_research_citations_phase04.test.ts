@@ -197,13 +197,13 @@ describe("deep_research citations phase04 (entity)", () => {
     });
   });
 
-  test("online mode returns stub statuses with ladder placeholder", async () => {
+  test("online mode runs deterministic dry-run ladder without stub placeholders", async () => {
     await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "0" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_citations_002";
         const initRaw = (await (run_init as any).execute(
           {
-            query: "Citations online stub",
+            query: "Citations online ladder",
             mode: "standard",
             sensitivity: "normal",
             run_id: runId,
@@ -230,12 +230,13 @@ describe("deep_research citations phase04 (entity)", () => {
         const normalize = parseToolJson(normalizeRaw);
 
         const validateRaw = (await (citations_validate as any).execute(
-          {
-            manifest_path: manifestPath,
-            url_map_path: (normalize as any).url_map_path,
-            reason: "test: validate-online",
-          },
-          makeToolContext(),
+            {
+              manifest_path: manifestPath,
+              url_map_path: (normalize as any).url_map_path,
+              online_dry_run: true,
+              reason: "test: validate-online",
+            },
+            makeToolContext(),
         )) as string;
         const validate = parseToolJson(validateRaw);
         expect(validate.ok).toBe(true);
@@ -244,8 +245,9 @@ describe("deep_research citations phase04 (entity)", () => {
         const citationsRaw = await fs.readFile((validate as any).citations_path, "utf8");
         const records = parseJsonl(citationsRaw);
         expect(records.length).toBe(1);
-        expect(["blocked", "invalid"]).toContain(String(records[0].status));
-        expect(String(records[0].notes)).toContain("ladder placeholder");
+        expect(["blocked", "invalid", "valid", "paywalled", "mismatch"]).toContain(String(records[0].status));
+        expect(String(records[0].notes)).not.toContain("ladder placeholder");
+        expect(String(records[0].notes)).not.toContain("online stub");
       });
     });
   });

@@ -22,7 +22,7 @@ import {
 import {
   appendNote,
   buildOfflineFixtureLookup,
-  classifyOnlineStub,
+  classifyOnlineWithLadder,
   emptyOfflineFixtureLookup,
   findFixtureForUrlMapItem,
   isCitationStatus,
@@ -38,6 +38,8 @@ export const citations_validate = tool({
     url_map_path: tool.schema.string().optional().describe("Absolute path to url-map.json"),
     citations_path: tool.schema.string().optional().describe("Absolute output path for citations.jsonl"),
     offline_fixtures_path: tool.schema.string().optional().describe("Absolute JSON fixtures path for offline mode"),
+    online_fixtures_path: tool.schema.string().optional().describe("Absolute JSON fixtures path for deterministic online ladder mode"),
+    online_dry_run: tool.schema.boolean().optional().describe("Disable network and run ladder in deterministic dry-run mode"),
     reason: tool.schema.string().describe("Audit reason"),
   },
   async execute(args: {
@@ -45,6 +47,8 @@ export const citations_validate = tool({
     url_map_path?: string;
     citations_path?: string;
     offline_fixtures_path?: string;
+    online_fixtures_path?: string;
+    online_dry_run?: boolean;
     reason: string;
   }) {
     try {
@@ -64,6 +68,15 @@ export const citations_validate = tool({
         });
       }
       const mode: "offline" | "online" = noWebParsed === true ? "offline" : "online";
+
+      const onlineDryRunRaw = process.env.PAI_DR_CITATIONS_ONLINE_DRY_RUN;
+      const onlineDryRunParsed = onlineDryRunRaw === undefined ? null : parseBool(onlineDryRunRaw);
+      if (onlineDryRunRaw !== undefined && onlineDryRunParsed === null) {
+        return err("INVALID_ARGS", "PAI_DR_CITATIONS_ONLINE_DRY_RUN must be boolean-like (0/1/true/false)", {
+          PAI_DR_CITATIONS_ONLINE_DRY_RUN: onlineDryRunRaw,
+        });
+      }
+      const onlineDryRun = args.online_dry_run ?? onlineDryRunParsed ?? false;
 
       let manifestRaw: unknown;
       try {
@@ -85,11 +98,17 @@ export const citations_validate = tool({
       const urlMapPath = (args.url_map_path ?? "").trim() || path.join(runRoot, "citations", "url-map.json");
       const citationsPath = (args.citations_path ?? "").trim() || path.join(runRoot, "citations", "citations.jsonl");
       const offlineFixturesPath = (args.offline_fixtures_path ?? "").trim();
+      const onlineFixturesPath = (args.online_fixtures_path ?? "").trim();
+      const brightDataEndpoint = String(process.env.PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT ?? "").trim();
+      const apifyEndpoint = String(process.env.PAI_DR_CITATIONS_APIFY_ENDPOINT ?? "").trim();
 
       if (!path.isAbsolute(urlMapPath)) return err("INVALID_ARGS", "url_map_path must be absolute", { url_map_path: args.url_map_path ?? null });
       if (!path.isAbsolute(citationsPath)) return err("INVALID_ARGS", "citations_path must be absolute", { citations_path: args.citations_path ?? null });
       if (offlineFixturesPath && !path.isAbsolute(offlineFixturesPath)) {
         return err("INVALID_ARGS", "offline_fixtures_path must be absolute", { offline_fixtures_path: args.offline_fixtures_path });
+      }
+      if (onlineFixturesPath && !path.isAbsolute(onlineFixturesPath)) {
+        return err("INVALID_ARGS", "online_fixtures_path must be absolute", { online_fixtures_path: args.online_fixtures_path });
       }
       if (mode === "offline" && !offlineFixturesPath) {
         return err("INVALID_ARGS", "offline_fixtures_path required in OFFLINE mode", {
@@ -149,6 +168,25 @@ export const citations_validate = tool({
         }
       }
 
+      let onlineFixtureLookup: OfflineFixtureLookup = emptyOfflineFixtureLookup();
+      if (mode === "online" && onlineFixturesPath) {
+        let onlineFixtureRaw: unknown;
+        try {
+          onlineFixtureRaw = await readJson(onlineFixturesPath);
+        } catch (e) {
+          if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "online_fixtures_path missing", { online_fixtures_path: onlineFixturesPath });
+          if (e instanceof SyntaxError) return err("INVALID_JSON", "online fixtures unreadable JSON", { online_fixtures_path: onlineFixturesPath });
+          throw e;
+        }
+
+        const onlineFixtureResult = buildOfflineFixtureLookup(onlineFixtureRaw);
+        if ("lookup" in onlineFixtureResult) {
+          onlineFixtureLookup = onlineFixtureResult.lookup;
+        } else {
+          return err("SCHEMA_VALIDATION_FAILED", onlineFixtureResult.message, onlineFixtureResult.details);
+        }
+      }
+
       const foundByPath = path.join(runRoot, "citations", "found-by.json");
       const foundByLookup = await readFoundByLookup(foundByPath);
 
@@ -179,12 +217,21 @@ export const citations_validate = tool({
             if (isNonEmptyString(fixture.evidence_snippet)) evidenceSnippet = fixture.evidence_snippet;
           }
         } else {
-          const onlineStub = classifyOnlineStub(item.normalized_url);
-          status = onlineStub.status;
-          notes = onlineStub.notes;
-          urlValue = onlineStub.url;
-          // Placeholder ladder contract (no network in this implementation):
-          // 1) direct fetch, 2) bright-data progressive scrape, 3) apify/rag-web-browser.
+          const onlineFixture = onlineFixturesPath ? findFixtureForUrlMapItem(onlineFixtureLookup, item) : null;
+          const onlineResult = await classifyOnlineWithLadder(item.normalized_url, {
+            dryRun: onlineDryRun,
+            fixture: onlineFixture,
+            brightDataEndpoint,
+            apifyEndpoint,
+          });
+
+          status = onlineResult.status;
+          notes = onlineResult.notes;
+          urlValue = onlineResult.url;
+          httpStatus = onlineResult.http_status;
+          title = onlineResult.title;
+          publisher = onlineResult.publisher;
+          evidenceSnippet = onlineResult.evidence_snippet;
         }
 
         const redactedOriginal = redactSensitiveUrl(item.url_original);
@@ -241,6 +288,8 @@ export const citations_validate = tool({
         mode,
         url_map: urlMapItems,
         fixture_digest: mode === "offline" ? fixtureLookup.fixtureDigest : null,
+        online_fixture_digest: mode === "online" ? onlineFixtureLookup.fixtureDigest : null,
+        online_dry_run: mode === "online" ? onlineDryRun : null,
       });
 
       try {
@@ -265,6 +314,7 @@ export const citations_validate = tool({
         run_id: runId,
         citations_path: citationsPath,
         mode,
+        online_dry_run: mode === "online" ? onlineDryRun : null,
         validated: records.length,
         inputs_digest: inputsDigest,
       });

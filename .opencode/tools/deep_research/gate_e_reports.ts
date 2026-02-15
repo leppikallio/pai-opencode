@@ -8,13 +8,15 @@ import { appendAuditJsonl, toPosixPath } from "./citations_lib";
 import {
   atomicWriteCanonicalJson,
   collectUncitedNumericClaimFindingsV1,
-  formatRate,
-  requiredSynthesisHeadingsV1,
+  computeGateECitationMetricsV1,
+  computeGateESectionCoverageV1,
+  computeGateEWarningsV1,
+  isGateEHardPassV1,
+  readValidatedCids,
   resolveArtifactPath,
   resolveRunRootFromManifest,
 } from "./deep_research_shared_lib";
 import { validateManifestV1 } from "./schema_v1";
-import { readJsonlObjects } from "./citations_validate_lib";
 import {
   err,
   errorCode,
@@ -87,64 +89,33 @@ export const gate_e_reports = tool({
       if (!path.isAbsolute(reportsDir)) return err("INVALID_ARGS", "output_dir must resolve to absolute path", { output_dir: args.output_dir ?? null });
 
       const markdown = await fs.promises.readFile(synthesisPath, "utf8");
-      const citationRecords = await readJsonlObjects(citationsPath);
+      const validatedCids = await readValidatedCids(citationsPath);
 
       const numericFindings = collectUncitedNumericClaimFindingsV1(markdown);
       const uncitedNumericClaims = numericFindings.length;
 
-      const requiredHeadingLines = requiredSynthesisHeadingsV1().map((heading) => `## ${heading}`);
-      const markdownLineSet = new Set(markdown.split(/\r?\n/).map((line) => line.trim()));
-      const presentHeadings = requiredHeadingLines
-        .filter((heading) => markdownLineSet.has(heading))
-        .sort((a, b) => a.localeCompare(b));
-      const missingHeadings = requiredHeadingLines
-        .filter((heading) => !markdownLineSet.has(heading))
-        .sort((a, b) => a.localeCompare(b));
-      const reportSectionsPresent = requiredHeadingLines.length > 0
-        ? Math.floor((100 * presentHeadings.length) / requiredHeadingLines.length)
-        : 0;
+      const sectionCoverage = computeGateESectionCoverageV1(markdown);
+      const citationMetrics = computeGateECitationMetricsV1(markdown, validatedCids);
+      const warnings = computeGateEWarningsV1(
+        citationMetrics.citation_utilization_rate,
+        citationMetrics.duplicate_citation_rate,
+      );
 
-      const validatedCidSet = new Set<string>();
-      for (const record of citationRecords) {
-        const cid = String(record.cid ?? "").trim();
-        const status = String(record.status ?? "").trim();
-        if (!cid) continue;
-        if (status === "valid" || status === "paywalled") validatedCidSet.add(cid);
-      }
-
-      const allCidMentions = [...markdown.matchAll(/\[@([A-Za-z0-9_:-]+)\]/g)]
-        .map((match) => String(match[1] ?? "").trim())
-        .filter((cid) => cid.length > 0);
-      const usedCidSet = new Set(allCidMentions);
-
-      const validatedCids = [...validatedCidSet].sort((a, b) => a.localeCompare(b));
-      const usedCids = [...usedCidSet].sort((a, b) => a.localeCompare(b));
-      const validatedCidsCount = validatedCids.length;
-      const usedCidsCount = usedCids.length;
-      const totalCidMentions = allCidMentions.length;
-
-      const citationUtilizationRate = validatedCidsCount > 0
-        ? formatRate(usedCidsCount / validatedCidsCount)
-        : 0;
-      const duplicateCitationRate = totalCidMentions > 0
-        ? formatRate(1 - (usedCidsCount / totalCidMentions))
-        : 1;
-
-      const warnings: string[] = [];
-      if (citationUtilizationRate < 0.6) warnings.push("LOW_CITATION_UTILIZATION");
-      if (duplicateCitationRate > 0.2) warnings.push("HIGH_DUPLICATE_CITATION_RATE");
-      warnings.sort((a, b) => a.localeCompare(b));
-
-      const status: "pass" | "fail" = uncitedNumericClaims === 0 && reportSectionsPresent === 100 ? "pass" : "fail";
+      const status: "pass" | "fail" = isGateEHardPassV1(
+        uncitedNumericClaims,
+        sectionCoverage.report_sections_present,
+      )
+        ? "pass"
+        : "fail";
 
       const metricsSummary = {
         uncited_numeric_claims: uncitedNumericClaims,
-        report_sections_present: reportSectionsPresent,
-        validated_cids_count: validatedCidsCount,
-        used_cids_count: usedCidsCount,
-        total_cid_mentions: totalCidMentions,
-        citation_utilization_rate: citationUtilizationRate,
-        duplicate_citation_rate: duplicateCitationRate,
+        report_sections_present: sectionCoverage.report_sections_present,
+        validated_cids_count: citationMetrics.validated_cids_count,
+        used_cids_count: citationMetrics.used_cids_count,
+        total_cid_mentions: citationMetrics.total_cid_mentions,
+        citation_utilization_rate: citationMetrics.citation_utilization_rate,
+        duplicate_citation_rate: citationMetrics.duplicate_citation_rate,
       };
 
       const numericClaimsReport = {
@@ -157,26 +128,26 @@ export const gate_e_reports = tool({
 
       const sectionsReport = {
         schema_version: "gate_e.sections_present_report.v1",
-        required_headings: requiredHeadingLines,
-        present_headings: presentHeadings,
-        missing_headings: missingHeadings,
+        required_headings: sectionCoverage.required_headings,
+        present_headings: sectionCoverage.present_headings,
+        missing_headings: sectionCoverage.missing_headings,
         metrics: {
-          report_sections_present: reportSectionsPresent,
+          report_sections_present: sectionCoverage.report_sections_present,
         },
       };
 
       const citationUtilizationReport = {
         schema_version: "gate_e.citation_utilization_report.v1",
         metrics: {
-          validated_cids_count: validatedCidsCount,
-          used_cids_count: usedCidsCount,
-          total_cid_mentions: totalCidMentions,
-          citation_utilization_rate: citationUtilizationRate,
-          duplicate_citation_rate: duplicateCitationRate,
+          validated_cids_count: citationMetrics.validated_cids_count,
+          used_cids_count: citationMetrics.used_cids_count,
+          total_cid_mentions: citationMetrics.total_cid_mentions,
+          citation_utilization_rate: citationMetrics.citation_utilization_rate,
+          duplicate_citation_rate: citationMetrics.duplicate_citation_rate,
         },
         cids: {
-          validated_cids: validatedCids,
-          used_cids: usedCids,
+          validated_cids: citationMetrics.validated_cids,
+          used_cids: citationMetrics.used_cids,
         },
       };
 
@@ -186,11 +157,11 @@ export const gate_e_reports = tool({
         warnings,
         hard_metrics: {
           uncited_numeric_claims: uncitedNumericClaims,
-          report_sections_present: reportSectionsPresent,
+          report_sections_present: sectionCoverage.report_sections_present,
         },
         soft_metrics: {
-          citation_utilization_rate: citationUtilizationRate,
-          duplicate_citation_rate: duplicateCitationRate,
+          citation_utilization_rate: citationMetrics.citation_utilization_rate,
+          duplicate_citation_rate: citationMetrics.duplicate_citation_rate,
         },
       };
 

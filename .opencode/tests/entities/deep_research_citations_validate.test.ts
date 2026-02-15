@@ -88,4 +88,138 @@ describe("deep_research_citations_validate (entity)", () => {
       });
     });
   });
+
+  maybeTest("ONLINE mode blocks private/local URLs as invalid", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "0" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_p04_validate_003";
+        const initRaw = (await (run_init as any).execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = (init as any).manifest_path as string;
+        const runRoot = path.dirname(manifestPath);
+        const urlMapPath = path.join(runRoot, "citations", "url-map.json");
+
+        await fs.writeFile(
+          urlMapPath,
+          JSON.stringify(
+            {
+              schema_version: "url_map.v1",
+              run_id: runId,
+              items: [{
+                url_original: "http://127.0.0.1/private",
+                normalized_url: "http://127.0.0.1/private",
+                cid: "cid_private_001",
+              }],
+            },
+            null,
+            2,
+          ) + "\n",
+          "utf8",
+        );
+
+        const outRaw = (await (citations_validate as any).execute(
+          {
+            manifest_path: manifestPath,
+            online_dry_run: true,
+            reason: "test: online private/local blocked",
+          },
+          makeToolContext(),
+        )) as string;
+        const out = parseToolJson(outRaw);
+
+        expect(out.ok).toBe(true);
+        expect((out as any).mode).toBe("online");
+
+        const citationsPath = (out as any).citations_path as string;
+        const rows = (await fs.readFile(citationsPath, "utf8"))
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .filter(Boolean)
+          .map((line) => JSON.parse(line));
+
+        expect(rows.length).toBe(1);
+        expect(rows[0].status).toBe("invalid");
+        expect(String(rows[0].notes)).toContain("private/local target blocked by SSRF policy");
+      });
+    });
+  });
+
+  maybeTest("ONLINE mode uses fixture-driven deterministic ladder path without network", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "0" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_p04_validate_004";
+        const initRaw = (await (run_init as any).execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = (init as any).manifest_path as string;
+        const runRoot = path.dirname(manifestPath);
+        const urlMapPath = path.join(runRoot, "citations", "url-map.json");
+
+        await fs.writeFile(
+          urlMapPath,
+          JSON.stringify(
+            {
+              schema_version: "url_map.v1",
+              run_id: runId,
+              items: [{
+                url_original: "https://example.org/article",
+                normalized_url: "https://example.org/article",
+                cid: "cid_public_001",
+              }],
+            },
+            null,
+            2,
+          ) + "\n",
+          "utf8",
+        );
+
+        const originalFetch = globalThis.fetch;
+        let fetchCalls = 0;
+        (globalThis as any).fetch = async (..._args: unknown[]) => {
+          fetchCalls += 1;
+          throw new Error("network calls are disallowed in deterministic test");
+        };
+
+        try {
+          const outRaw = (await (citations_validate as any).execute(
+            {
+              manifest_path: manifestPath,
+              online_fixtures_path: fixture("validate", "online-ladder-fixtures.json"),
+              online_dry_run: true,
+              reason: "test: online deterministic ladder fixture",
+            },
+            makeToolContext(),
+          )) as string;
+          const out = parseToolJson(outRaw);
+
+          expect(out.ok).toBe(true);
+          expect((out as any).mode).toBe("online");
+
+          const citationsPath = (out as any).citations_path as string;
+          const rows = (await fs.readFile(citationsPath, "utf8"))
+            .split(/\r?\n/)
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .map((line) => JSON.parse(line));
+
+          expect(rows.length).toBe(1);
+          expect(rows[0].status).toBe("valid");
+          expect(String(rows[0].notes)).toContain("online ladder: bright_data");
+          expect(String(rows[0].notes)).not.toContain("online stub");
+          expect(fetchCalls).toBe(0);
+        } finally {
+          (globalThis as any).fetch = originalFetch;
+        }
+      });
+    });
+  });
 });

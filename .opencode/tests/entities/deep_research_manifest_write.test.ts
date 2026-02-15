@@ -101,4 +101,49 @@ describe("deep_research_manifest_write (entity)", () => {
       });
     });
   });
+
+  test("writes audit under manifest artifacts root when it differs", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_manifest_003";
+        const initRaw = (await (run_init as any).execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = (init as any).manifest_path as string;
+        const legacyRunRoot = path.dirname(manifestPath);
+        const externalRoot = path.join(base, "external-artifacts-root");
+        await fs.mkdir(externalRoot, { recursive: true });
+
+        const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        manifest.artifacts.root = externalRoot;
+        await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+        const writeRaw = (await (manifest_write as any).execute(
+          {
+            manifest_path: manifestPath,
+            expected_revision: 1,
+            reason: "test: external artifacts root",
+            patch: { status: "running" },
+          },
+          makeToolContext(),
+        )) as string;
+        const write = parseToolJson(writeRaw);
+        expect(write.ok).toBe(true);
+        expect((write as any).audit_written).toBe(true);
+
+        const externalAuditPath = path.join(externalRoot, "logs", "audit.jsonl");
+        const externalAuditTxt = await fs.readFile(externalAuditPath, "utf8");
+        expect(externalAuditTxt).toContain('"kind":"manifest_write"');
+        expect(externalAuditTxt).toContain('"reason":"test: external artifacts root"');
+
+        const legacyAuditPath = path.join(legacyRunRoot, "logs", "audit.jsonl");
+        const legacyAuditStat = await fs.stat(legacyAuditPath).catch(() => null);
+        expect(legacyAuditStat).toBeNull();
+      });
+    });
+  });
 });
