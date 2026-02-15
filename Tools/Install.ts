@@ -1071,7 +1071,7 @@ function maybeInstallDependencies(args: { targetDir: string; dryRun: boolean; en
     { rel: ".", label: "root" },
     { rel: "skills/browser", label: "browser", requireModule: "playwright" },
     { rel: "skills/apify", label: "apify", requireModule: "apify-client" },
-    { rel: "skills/agents/Tools", label: "Agents tools", requireModule: "yaml" },
+    { rel: "skills/Agents/Tools", label: "Agents tools", requireModule: "yaml" },
   ];
 
   for (const pkg of packages) {
