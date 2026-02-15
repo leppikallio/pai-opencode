@@ -6923,7 +6923,10 @@ export const quality_audit = tool({
         for (const entry of entries) {
           if (!entry.isDirectory()) continue;
           if (entry.name.startsWith(".")) continue;
-          discoveredRoots.push(path.join(fixturesRoot, entry.name));
+          const candidateRoot = path.join(fixturesRoot, entry.name);
+          const bundleJsonStat = await statPath(path.join(candidateRoot, "bundle.json"));
+          if (!bundleJsonStat?.isFile()) continue;
+          discoveredRoots.push(candidateRoot);
         }
       }
 
