@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "normalized_url": "https://example.org/article",
+      "status": "valid",
+      "title": "Fixture Article",
+      "publisher": "Fixture Publisher",
+      "evidence_snippet": "Fixture-backed citation validation result",
+      "notes": "deterministic mocked ladder result; online ladder: bright_data"
+    }
+  ]
+}

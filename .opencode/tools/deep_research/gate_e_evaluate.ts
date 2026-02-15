@@ -3,6 +3,16 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { toPosixPath } from "./citations_lib";
+import {
+  collectUncitedNumericClaimFindingsV1,
+  computeGateECitationMetricsV1,
+  computeGateESectionCoverageV1,
+  computeGateEWarningsV1,
+  isGateEHardPassV1,
+  readValidatedCids,
+  resolveArtifactPath,
+  resolveRunRootFromManifest,
+} from "./deep_research_shared_lib";
 import { validateManifestV1 } from "./schema_v1";
 import {
   err,
@@ -15,15 +25,6 @@ import {
   sha256HexLowerUtf8,
 } from "./utils";
 import { appendAuditJsonl } from "./wave_tools_shared";
-import {
-  countUncitedNumericClaims,
-  formatRate,
-  readValidatedCids,
-  requiredSynthesisHeadingsV1,
-  resolveArtifactPath,
-  resolveRunRootFromManifest,
-  hasHeading,
-} from "./phase05_lib";
 
 export const gate_e_evaluate = tool({
   description: "Compute deterministic Gate E metrics from final synthesis",
@@ -73,43 +74,23 @@ export const gate_e_evaluate = tool({
 
       const markdown = await fs.promises.readFile(synthesisPath, "utf8");
       const validatedCids = await readValidatedCids(citationsPath);
-      const requiredHeadings = requiredSynthesisHeadingsV1();
-      const headingsPresent = requiredHeadings.filter((heading) => hasHeading(markdown, heading)).length;
-      const reportSectionsPresent = requiredHeadings.length > 0
-        ? formatRate(headingsPresent / requiredHeadings.length)
-        : 0;
-
-      const allMentions = [...markdown.matchAll(/\[@([A-Za-z0-9_:-]+)\]/g)].map((m) => (m[1] ?? "").trim()).filter(Boolean);
-      const usedValidCidSet = new Set<string>();
-      for (const cid of allMentions) {
-        if (validatedCids.has(cid)) usedValidCidSet.add(cid);
-      }
-
-      const validatedCidsCount = validatedCids.size;
-      const usedCidsCount = usedValidCidSet.size;
-      const totalCidMentions = allMentions.length;
-
-      const citationUtilizationRate = validatedCidsCount > 0
-        ? formatRate(usedCidsCount / validatedCidsCount)
-        : 0;
-      const duplicateCitationRate = totalCidMentions > 0
-        ? formatRate(1 - (usedCidsCount / totalCidMentions))
-        : 0;
-
-      const uncitedNumericClaims = countUncitedNumericClaims(markdown);
+      const sectionCoverage = computeGateESectionCoverageV1(markdown);
+      const citationMetrics = computeGateECitationMetricsV1(markdown, validatedCids);
+      const uncitedNumericClaims = collectUncitedNumericClaimFindingsV1(markdown).length;
 
       const metrics = {
         uncited_numeric_claims: uncitedNumericClaims,
-        report_sections_present: reportSectionsPresent,
-        citation_utilization_rate: citationUtilizationRate,
-        duplicate_citation_rate: duplicateCitationRate,
+        report_sections_present: sectionCoverage.report_sections_present,
+        citation_utilization_rate: citationMetrics.citation_utilization_rate,
+        duplicate_citation_rate: citationMetrics.duplicate_citation_rate,
       };
 
-      const warnings: string[] = [];
-      if (citationUtilizationRate < 0.6) warnings.push("LOW_CITATION_UTILIZATION");
-      if (duplicateCitationRate > 0.2) warnings.push("HIGH_DUPLICATE_CITATION_RATE");
+      const warnings = computeGateEWarningsV1(
+        citationMetrics.citation_utilization_rate,
+        citationMetrics.duplicate_citation_rate,
+      );
 
-      const passHard = uncitedNumericClaims === 0 && reportSectionsPresent === 1;
+      const passHard = isGateEHardPassV1(uncitedNumericClaims, sectionCoverage.report_sections_present);
       const status: "pass" | "fail" = passHard ? "pass" : "fail";
       const checkedAt = nowIso();
       const update = {
@@ -132,7 +113,7 @@ export const gate_e_evaluate = tool({
         schema: "gate_e_evaluate.inputs.v1",
         run_id: runId,
         markdown_hash: sha256HexLowerUtf8(markdown),
-        validated_cids_count: validatedCidsCount,
+        validated_cids_count: citationMetrics.validated_cids_count,
       });
 
       try {

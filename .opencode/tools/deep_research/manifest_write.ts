@@ -2,6 +2,10 @@ import { tool } from "@opencode-ai/plugin";
 import * as path from "node:path";
 
 import {
+  resolveRunRootFromManifest,
+} from "./deep_research_shared_lib";
+
+import {
   appendAuditJsonl,
   atomicWriteJson,
   containsImmutableManifestPatch,
@@ -57,7 +61,7 @@ export const manifest_write = tool({
 
       await atomicWriteJson(args.manifest_path, next);
 
-      const runRoot = path.dirname(args.manifest_path);
+      const runRoot = resolveRunRootFromManifest(args.manifest_path, next);
       const auditEvent = {
         ts: nowIso(),
         kind: "manifest_write",

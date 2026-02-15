@@ -63,6 +63,7 @@ export const stage_advance = tool({
       const perspectivesFile = String(paths.perspectives_file ?? "perspectives.json");
       const pivotFile = String(paths.pivot_file ?? "pivot.json");
       const summaryPackFile = String(paths.summary_pack_file ?? "summaries/summary-pack.json");
+      const reviewBundleFile = String(paths.review_bundle_file ?? "review/review-bundle.json");
 
       const gates = isPlainObject(gatesDoc.gates) ? (gatesDoc.gates as Record<string, unknown>) : {};
       const gatesRevision = Number(gatesDoc.revision ?? 0);
@@ -119,6 +120,30 @@ export const stage_advance = tool({
         }
       };
 
+      const parseReviewDecision = async (): Promise<{
+        ok: boolean;
+        decision: "PASS" | "CHANGES_REQUIRED" | null;
+        error?: string;
+      }> => {
+        const p = path.join(runRoot, reviewBundleFile);
+        if (!(await exists(p))) {
+          return { ok: false, decision: null, error: "review-bundle.json missing" };
+        }
+        try {
+          const raw = await fs.promises.readFile(p, "utf8");
+          const v = JSON.parse(raw);
+          if (!v || typeof v !== "object") return { ok: false, decision: null, error: "review bundle not object" };
+          const vObj = isPlainObject(v) ? (v as Record<string, unknown>) : null;
+          const decision = String(vObj?.decision ?? "").trim();
+          if (decision !== "PASS" && decision !== "CHANGES_REQUIRED") {
+            return { ok: false, decision: null, error: "review decision invalid" };
+          }
+          return { ok: true, decision };
+        } catch (e) {
+          return { ok: false, decision: null, error: String(e) };
+        }
+      };
+
       const allowedNextFor = (stage: string): string[] => {
         switch (stage) {
           case "init": return ["wave1"];
@@ -168,6 +193,22 @@ export const stage_advance = tool({
             return err("MISSING_ARTIFACT", "pivot decision incomplete", { file: pivotFile });
           }
           to = pivot.run_wave2 ? "wave2" : "citations";
+        } else if (from === "review") {
+          const review = await parseReviewDecision();
+          evaluated.push({
+            kind: "artifact",
+            name: reviewBundleFile,
+            ok: review.ok,
+            details: {
+              path: path.join(runRoot, reviewBundleFile),
+              decision: review.decision,
+              error: review.error ?? null,
+            },
+          });
+          if (!review.ok) {
+            return err("MISSING_ARTIFACT", "review decision incomplete", { file: reviewBundleFile });
+          }
+          to = review.decision === "PASS" ? "finalize" : "synthesis";
         } else if (allowedNext.length === 1) {
           to = allowedNext[0];
         } else {

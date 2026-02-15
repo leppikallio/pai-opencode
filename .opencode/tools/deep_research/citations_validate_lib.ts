@@ -147,6 +147,10 @@ export function findFixtureForUrlMapItem(lookup: OfflineFixtureLookup, item: Url
 
 const SENSITIVE_QUERY_KEYS = ["token", "key", "api_key", "access_token", "auth", "session", "password"];
 
+const DEFAULT_DIRECT_FETCH_TIMEOUT_MS = 5000;
+const DEFAULT_MAX_REDIRECTS = 5;
+const DEFAULT_MAX_BODY_BYTES = 2 * 1024 * 1024;
+
 export function redactSensitiveUrl(input: string): { value: string; hadUserinfo: boolean } {
   try {
     const parsed = new URL(input);
@@ -188,28 +192,374 @@ function isPrivateOrLocalHost(hostnameInput: string): boolean {
   return false;
 }
 
-export function classifyOnlineStub(urlValue: string): { status: CitationStatus; notes: string; url: string } {
+type FetchLike = (input: string | URL, init?: RequestInit) => Promise<Response>;
+
+type OnlineStepName = "direct_fetch" | "bright_data" | "apify";
+
+type OnlineAttempt = {
+  step: OnlineStepName;
+  outcome: "success" | "failed" | "skipped";
+  detail: string;
+};
+
+type LadderSuccess = {
+  status: CitationStatus;
+  notes: string;
+  url: string;
+  http_status?: number;
+  title?: string;
+  publisher?: string;
+  evidence_snippet?: string;
+};
+
+type LadderStepResult =
+  | { ok: true; detail: string; data: LadderSuccess }
+  | { ok: false; detail: string };
+
+export type OnlineLadderOptions = {
+  dryRun?: boolean;
+  fixture?: OfflineFixtureEntry | null;
+  fetchImpl?: FetchLike;
+  directFetchTimeoutMs?: number;
+  maxRedirects?: number;
+  maxBodyBytes?: number;
+  brightDataEndpoint?: string;
+  apifyEndpoint?: string;
+};
+
+export type OnlineCitationResult = {
+  status: CitationStatus;
+  notes: string;
+  url: string;
+  http_status?: number;
+  title?: string;
+  publisher?: string;
+  evidence_snippet?: string;
+};
+
+function classifyReachabilityStatus(httpStatus: number): CitationStatus | null {
+  if (httpStatus >= 200 && httpStatus < 300) return "valid";
+  if (httpStatus === 401 || httpStatus === 402 || httpStatus === 403 || httpStatus === 451) return "paywalled";
+  if (httpStatus === 404 || httpStatus === 410) return "invalid";
+  return null;
+}
+
+function extractHtmlTitle(raw: string): string | undefined {
+  const m = /<title[^>]*>([\s\S]*?)<\/title>/i.exec(raw);
+  if (!m) return undefined;
+  const text = m[1].replace(/\s+/g, " ").trim();
+  return text || undefined;
+}
+
+function firstSnippet(raw: string, maxChars = 240): string | undefined {
+  const normalized = raw.replace(/\s+/g, " ").trim();
+  if (!normalized) return undefined;
+  if (normalized.length <= maxChars) return normalized;
+  return `${normalized.slice(0, maxChars - 1)}…`;
+}
+
+function parseEndpointJson(value: unknown, fallbackUrl: string): LadderSuccess | null {
+  if (!isPlainObject(value)) return null;
+
+  const statusRaw = String(value.status ?? "").trim();
+  if (!isCitationStatus(statusRaw)) return null;
+
+  const out: LadderSuccess = {
+    status: statusRaw,
+    notes: isNonEmptyString(value.notes) ? value.notes.trim() : `online ladder endpoint status=${statusRaw}`,
+    url: isNonEmptyString(value.url) ? value.url.trim() : fallbackUrl,
+  };
+
+  if (typeof value.http_status === "number" && Number.isFinite(value.http_status)) out.http_status = Math.trunc(value.http_status);
+  if (isNonEmptyString(value.title)) out.title = value.title.trim();
+  if (isNonEmptyString(value.publisher)) out.publisher = value.publisher.trim();
+  if (isNonEmptyString(value.evidence_snippet)) out.evidence_snippet = value.evidence_snippet.trim();
+  return out;
+}
+
+async function fetchWithSsrfCheckedRedirects(args: {
+  fetchImpl: FetchLike;
+  url: string;
+  timeoutMs: number;
+  maxRedirects: number;
+}): Promise<Response> {
+  let currentUrl = args.url;
+
+  for (let hop = 0; hop <= args.maxRedirects; hop += 1) {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), args.timeoutMs);
+    try {
+      const response = await args.fetchImpl(currentUrl, {
+        method: "GET",
+        redirect: "manual",
+        signal: ctrl.signal,
+      });
+
+      if (response.status >= 300 && response.status < 400) {
+        if (hop === args.maxRedirects) {
+          throw new Error(`redirect limit exceeded (${args.maxRedirects})`);
+        }
+
+        const location = response.headers.get("location");
+        if (!location) {
+          throw new Error("redirect missing location header");
+        }
+
+        const nextUrl = new URL(location, currentUrl).toString();
+        const preflight = classifyOnlineUrlPreflight(nextUrl);
+        if (!preflight.ok) {
+          throw new Error(`redirect blocked by SSRF policy: ${preflight.result.notes}`);
+        }
+        currentUrl = preflight.url;
+        continue;
+      }
+
+      return response;
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  throw new Error("redirect processing failed");
+}
+
+async function readResponseTextWithinCap(response: Response, maxBodyBytes: number): Promise<string> {
+  const contentLength = Number(response.headers.get("content-length") ?? "");
+  if (Number.isFinite(contentLength) && contentLength > maxBodyBytes) {
+    throw new Error(`response body too large (${contentLength} bytes > ${maxBodyBytes})`);
+  }
+
+  const text = await response.text();
+  const bytes = Buffer.byteLength(text, "utf8");
+  if (bytes > maxBodyBytes) {
+    throw new Error(`response body exceeded cap (${bytes} bytes > ${maxBodyBytes})`);
+  }
+  return text;
+}
+
+async function runDirectFetchStep(args: {
+  url: string;
+  fetchImpl: FetchLike;
+  timeoutMs: number;
+  maxRedirects: number;
+  maxBodyBytes: number;
+}): Promise<LadderStepResult> {
+  try {
+    const response = await fetchWithSsrfCheckedRedirects({
+      fetchImpl: args.fetchImpl,
+      url: args.url,
+      timeoutMs: args.timeoutMs,
+      maxRedirects: args.maxRedirects,
+    });
+
+    const classifiedStatus = classifyReachabilityStatus(response.status);
+    if (!classifiedStatus) {
+      return { ok: false, detail: `http ${response.status}` };
+    }
+
+    if (classifiedStatus === "valid") {
+      const body = await readResponseTextWithinCap(response, args.maxBodyBytes);
+      return {
+        ok: true,
+        detail: `http ${response.status}`,
+        data: {
+          status: "valid",
+          notes: "online ladder: direct_fetch",
+          url: args.url,
+          http_status: response.status,
+          title: extractHtmlTitle(body),
+          evidence_snippet: firstSnippet(body),
+        },
+      };
+    }
+
+    return {
+      ok: true,
+      detail: `http ${response.status}`,
+      data: {
+        status: classifiedStatus,
+        notes: "online ladder: direct_fetch",
+        url: args.url,
+        http_status: response.status,
+      },
+    };
+  } catch (e) {
+    return { ok: false, detail: String(e) };
+  }
+}
+
+async function runEndpointStep(args: {
+  step: "bright_data" | "apify";
+  endpoint: string;
+  url: string;
+  fetchImpl: FetchLike;
+  timeoutMs: number;
+}): Promise<LadderStepResult> {
+  if (!args.endpoint) return { ok: false, detail: "endpoint not configured" };
+
+  const ctrl = new AbortController();
+  const timeout = setTimeout(() => ctrl.abort(), args.timeoutMs);
+  try {
+    const response = await args.fetchImpl(args.endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url: args.url, ladder_step: args.step }),
+      signal: ctrl.signal,
+    });
+
+    if (!response.ok) {
+      return { ok: false, detail: `endpoint http ${response.status}` };
+    }
+
+    let parsed: unknown;
+    try {
+      parsed = await response.json();
+    } catch (e) {
+      return { ok: false, detail: `invalid endpoint json: ${String(e)}` };
+    }
+
+    const payload = parseEndpointJson(parsed, args.url);
+    if (!payload) return { ok: false, detail: "endpoint response missing citation status" };
+    if (payload.status === "blocked") return { ok: false, detail: "endpoint returned blocked" };
+
+    payload.notes = `${payload.notes}; online ladder: ${args.step}`;
+    return { ok: true, detail: "endpoint success", data: payload };
+  } catch (e) {
+    return { ok: false, detail: String(e) };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function classifyOnlineUrlPreflight(urlValue: string):
+  | { ok: true; url: string }
+  | { ok: false; result: OnlineCitationResult } {
   const redacted = redactSensitiveUrl(urlValue);
   try {
     const parsed = new URL(redacted.value);
     const protocol = parsed.protocol.toLowerCase();
     if (protocol !== "http:" && protocol !== "https:") {
-      return { status: "invalid", notes: "online stub: disallowed protocol", url: redacted.value };
+      return {
+        ok: false,
+        result: {
+          status: "invalid",
+          notes: "online ladder: disallowed protocol",
+          url: redacted.value,
+        },
+      };
     }
     if (isPrivateOrLocalHost(parsed.hostname)) {
-      return { status: "invalid", notes: "online stub: private/local target blocked by SSRF policy", url: redacted.value };
+      return {
+        ok: false,
+        result: {
+          status: "invalid",
+          notes: "online ladder: private/local target blocked by SSRF policy",
+          url: redacted.value,
+        },
+      };
     }
     if (redacted.hadUserinfo) {
-      return { status: "invalid", notes: "online stub: userinfo stripped and marked invalid", url: redacted.value };
+      return {
+        ok: false,
+        result: {
+          status: "invalid",
+          notes: "online ladder: userinfo stripped and marked invalid",
+          url: redacted.value,
+        },
+      };
     }
+    return { ok: true, url: redacted.value };
+  } catch {
+    return {
+      ok: false,
+      result: {
+        status: "invalid",
+        notes: "online ladder: malformed URL",
+        url: redacted.value,
+      },
+    };
+  }
+}
+
+function fixtureToOnlineResult(url: string, fixture: OfflineFixtureEntry): OnlineCitationResult {
+  const status = isCitationStatus(fixture.status) ? fixture.status : "invalid";
+  const baseNotes = fixture.notes?.trim() || `online fixture status=${status}`;
+  const notes = baseNotes.includes("online ladder:")
+    ? baseNotes
+    : `${baseNotes}; online ladder: fixture`;
+
+  const out: OnlineCitationResult = {
+    status,
+    notes,
+    url: fixture.url?.trim() || url,
+  };
+  if (typeof fixture.http_status === "number" && Number.isFinite(fixture.http_status)) out.http_status = Math.trunc(fixture.http_status);
+  if (isNonEmptyString(fixture.title)) out.title = fixture.title.trim();
+  if (isNonEmptyString(fixture.publisher)) out.publisher = fixture.publisher.trim();
+  if (isNonEmptyString(fixture.evidence_snippet)) out.evidence_snippet = fixture.evidence_snippet.trim();
+  return out;
+}
+
+function formatLadderAttempts(attempts: OnlineAttempt[]): string {
+  return attempts.map((attempt) => `${attempt.step}=${attempt.outcome}(${attempt.detail})`).join("; ");
+}
+
+export async function classifyOnlineWithLadder(urlValue: string, options: OnlineLadderOptions = {}): Promise<OnlineCitationResult> {
+  const preflight = classifyOnlineUrlPreflight(urlValue);
+  if (!preflight.ok) return preflight.result;
+
+  if (options.fixture) return fixtureToOnlineResult(preflight.url, options.fixture);
+
+  const dryRun = options.dryRun === true;
+  const attempts: OnlineAttempt[] = [];
+  const fetchImpl = options.fetchImpl ?? fetch;
+
+  if (dryRun) {
+    attempts.push({ step: "direct_fetch", outcome: "skipped", detail: "dry-run" });
+    attempts.push({ step: "bright_data", outcome: "skipped", detail: "dry-run" });
+    attempts.push({ step: "apify", outcome: "skipped", detail: "dry-run" });
     return {
       status: "blocked",
-      notes: "online stub: ladder placeholder [direct_fetch -> bright_data -> apify]",
-      url: redacted.value,
+      notes: `online ladder blocked: ${formatLadderAttempts(attempts)}`,
+      url: preflight.url,
     };
-  } catch {
-    return { status: "invalid", notes: "online stub: malformed URL", url: redacted.value };
   }
+
+  const direct = await runDirectFetchStep({
+    url: preflight.url,
+    fetchImpl,
+    timeoutMs: options.directFetchTimeoutMs ?? DEFAULT_DIRECT_FETCH_TIMEOUT_MS,
+    maxRedirects: options.maxRedirects ?? DEFAULT_MAX_REDIRECTS,
+    maxBodyBytes: options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES,
+  });
+  if (direct.ok) return direct.data;
+  attempts.push({ step: "direct_fetch", outcome: "failed", detail: direct.detail });
+
+  const bright = await runEndpointStep({
+    step: "bright_data",
+    endpoint: (options.brightDataEndpoint ?? "").trim(),
+    url: preflight.url,
+    fetchImpl,
+    timeoutMs: options.directFetchTimeoutMs ?? DEFAULT_DIRECT_FETCH_TIMEOUT_MS,
+  });
+  if (bright.ok) return bright.data;
+  attempts.push({ step: "bright_data", outcome: "failed", detail: bright.detail });
+
+  const apify = await runEndpointStep({
+    step: "apify",
+    endpoint: (options.apifyEndpoint ?? "").trim(),
+    url: preflight.url,
+    fetchImpl,
+    timeoutMs: options.directFetchTimeoutMs ?? DEFAULT_DIRECT_FETCH_TIMEOUT_MS,
+  });
+  if (apify.ok) return apify.data;
+  attempts.push({ step: "apify", outcome: "failed", detail: apify.detail });
+
+  return {
+    status: "blocked",
+    notes: `online ladder blocked: ${formatLadderAttempts(attempts)}`,
+    url: preflight.url,
+  };
 }
 
 export async function readJsonlObjects(filePath: string): Promise<Array<Record<string, unknown>>> {
