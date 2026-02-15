@@ -8,6 +8,11 @@ Deliver a production-safe rollout of Deep Research Option C using **feature flag
 - Gate F authoritative definitions:
   - `spec-gate-thresholds-v1.md` (Gate F — Rollout safety)
   - `spec-reviewer-rubrics-v1.md` (Gate F Rubric — Rollout safety)
+- Phase 07 governance docs:
+  - `PHASE-07-CHECKPOINT-GATE-F.md`
+  - `deep-research-option-c-phase-07-orchestration-runbook.md`
+- Cross-phase testing plan:
+  - `deep-research-option-c-phases-04-07-testing-plan.md`
 - Rollout control and safety specs:
   - `spec-feature-flags-v1.md` (flag names, defaults, rules)
   - `spec-watchdog-v1.md` (no silent hangs; timeouts + terminal artifacts)
@@ -49,3 +54,17 @@ Deliver a production-safe rollout of Deep Research Option C using **feature flag
 ## Notes
 - Feature flags are the primary safety mechanism; prefer env vars for canary and emergency disable.
 - Canary/online work must be explicitly opt-in and sandboxed; OFFLINE defaults should use `PAI_DR_NO_WEB=1`.
+
+## Verification commands (inline)
+
+Run from repo root (offline-first default):
+
+```bash
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_feature_flags.contract.test.ts
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_fallback_path.test.ts
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_watchdog_timeout.test.ts
+```
+
+Expected:
+- Exit code `0` for each command
+- Failures block `P07-10` and `P07-X1` completion

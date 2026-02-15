@@ -5,6 +5,15 @@ Deliver production-safe rollout with feature flags, canary controls, and fallbac
 
 ## Dependencies
 - Phase 06 quality automation complete.
+- Gate F authority docs:
+  - `spec-gate-thresholds-v1.md`
+  - `spec-reviewer-rubrics-v1.md`
+- Cross-phase testing plan:
+  - `deep-research-option-c-phases-04-07-testing-plan.md`
+
+## Phase 07 governance docs
+- Checkpoint/signoff record: `PHASE-07-CHECKPOINT-GATE-F.md`
+- Execution orchestration: `deep-research-option-c-phase-07-orchestration-runbook.md`
 
 ## Workstreams (parallel)
 ### WS-07A: Feature flag orchestration
@@ -39,6 +48,20 @@ Deliver production-safe rollout with feature flags, canary controls, and fallbac
 
 ## Gate
 - **Gate F:** production readiness and rollback confidence.
+
+## Verification commands (inline)
+
+Run from repo root (offline-first default):
+
+```bash
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_feature_flags.contract.test.ts
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_fallback_path.test.ts
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_watchdog_timeout.test.ts
+```
+
+Expected:
+- Exit code `0` for each command
+- Failures block Gate F signoff until corrected and re-run
 
 ## Program Exit
 - Option C enabled for general use behind guardrails.

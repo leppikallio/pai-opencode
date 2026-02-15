@@ -1,0 +1,82 @@
+# Phase 07 Checkpoint — Gate F Signoff
+
+Date: 2026-02-15
+
+## Scope
+Phase 07 — **Rollout Hardening, Canary, and Fallback** for Deep Research Option C.
+
+Goal: Gate F (“Rollout safety”) is reviewable offline-first, with explicit evidence mapped to authoritative specs.
+
+Primary plan sources:
+- `deep-research-option-c-phase-07-rollout-hardening.md`
+- `deep-research-option-c-phase-07-executable-backlog.md`
+- `deep-research-option-c-phase-07-orchestration-runbook.md`
+- `deep-research-option-c-phases-04-07-testing-plan.md`
+
+## Gate F authoritative mapping
+
+Gate F definition source:
+- `spec-gate-thresholds-v1.md` → **Gate F — Rollout safety (HARD)**
+
+Gate F reviewer source:
+- `spec-reviewer-rubrics-v1.md` → **Gate F Rubric — Rollout safety**
+
+| Gate F requirement | Threshold spec mapping | Rubric mapping | Evidence artifact(s) |
+|---|---|---|---|
+| Feature flags exist for enable/disable and caps | `spec-gate-thresholds-v1.md` Gate F pass criteria | `spec-reviewer-rubrics-v1.md` Gate F PASS checklist item 1 | `spec-feature-flags-v1.md`, `.opencode/tests/entities/deep_research_feature_flags.contract.test.ts` |
+| Canary plan exists with rollback triggers | `spec-gate-thresholds-v1.md` Gate F pass criteria | `spec-reviewer-rubrics-v1.md` Gate F PASS checklist item 2 | `deep-research-option-c-phase-07-rollout-hardening.md`, `deep-research-option-c-phase-07-orchestration-runbook.md` |
+| Fallback to standard workflow is documented and tested, preserving artifacts | `spec-gate-thresholds-v1.md` Gate F pass criteria + fallback language | `spec-reviewer-rubrics-v1.md` Gate F PASS checklist item 3 + required evidence | `.opencode/tests/entities/deep_research_fallback_path.test.ts`, `deep-research-option-c-phase-07-orchestration-runbook.md`, `spec-rollback-fallback-v1.md` |
+
+## QA checklist (offline-first default)
+
+- [ ] Use offline-first env defaults: `PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1`
+- [ ] Run Gate F feature-flag contract test and confirm pass
+- [ ] Run Gate F fallback-path test and confirm pass
+- [ ] Run Phase 07 watchdog timeout test and confirm pass
+- [ ] Confirm rollout + backlog docs reference this checkpoint and orchestration runbook
+- [ ] Confirm verification commands are present inline in both Phase 07 plan docs
+
+## Evidence
+
+All commands are copy/paste-ready from repo root.
+
+### 1) Feature flags contract test (Gate F)
+```bash
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_feature_flags.contract.test.ts
+```
+Expected outcome:
+- Exit code `0`
+- Test output shows PASS/ok for feature flag enable/disable + cap behavior
+
+### 2) Fallback path test (Gate F)
+```bash
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_fallback_path.test.ts
+```
+Expected outcome:
+- Exit code `0`
+- Output confirms deterministic fallback to standard workflow and artifact retention behavior
+
+### 3) Watchdog timeout test (Phase 07 operational readiness)
+```bash
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_watchdog_timeout.test.ts
+```
+Expected outcome:
+- Exit code `0`
+- Output confirms watchdog breach is detected deterministically
+
+### 4) Check governance references in rollout hardening doc
+```bash
+rg -n "PHASE-07-CHECKPOINT-GATE-F|phase-07-orchestration-runbook|phases-04-07-testing-plan" .opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md
+```
+Expected outcome:
+- One or more matches proving references to checkpoint, runbook, and testing plan exist
+
+### 5) Check governance references in executable backlog doc
+```bash
+rg -n "PHASE-07-CHECKPOINT-GATE-F|phase-07-orchestration-runbook|phases-04-07-testing-plan" .opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-executable-backlog.md
+```
+Expected outcome:
+- One or more matches proving references to checkpoint, runbook, and testing plan exist
+
+## Signoff criteria
+Gate F signoff is complete when all checklist items above are checked and the command outcomes match expected results.
