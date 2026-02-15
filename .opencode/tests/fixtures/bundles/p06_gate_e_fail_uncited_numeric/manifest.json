@@ -47,7 +47,7 @@
     "policy": "existing-runtime-only"
   },
   "artifacts": {
-    "root": "/Users/zuul/Projects/pai-opencode-graphviz-phase06/.opencode/tests/fixtures/bundles/p06_gate_e_fail_uncited_numeric",
+    "root": "/tests/fixtures/bundles/p06_gate_e_fail_uncited_numeric",
     "paths": {
       "wave1_dir": "wave-1",
       "wave2_dir": "wave-2",
