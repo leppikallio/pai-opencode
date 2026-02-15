@@ -15,6 +15,7 @@
 | User Request | File to Reference |
 |--------------|-------------------|
 | "Check my PAI installation" | `CheckPAIState.md` |
+| "Use Swamp with PAI/OpenCode" | `pai-swamp-adapter.md` |
 | "Create a new pack" | `PAIPackTemplate.md` |
 | "Create a new bundle" | `PAIBundleTemplate.md` |
 | "What's wrong with my PAI setup?" | `CheckPAIState.md` |
