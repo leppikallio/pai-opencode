@@ -1,7 +1,8 @@
 ---
 description: Fast execution engineer for narrow, low-risk tasks. Prioritizes speed, concise output, and targeted verification.
 mode: subagent
-model: openai/gpt-5.3-codex
+model: openai/gpt-5.3-codex-spark
+variant: low
 reasoningEffort: low
 textVerbosity: low
 steps: 12
