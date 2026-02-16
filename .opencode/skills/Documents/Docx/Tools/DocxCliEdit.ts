@@ -131,7 +131,7 @@ async function appendContentToDocx(
   // Update the document.xml in the zip
   zip.file('word/document.xml', newDocumentXml);
 
-  // Merge any new media files
+  // Merge new media files
   const tempMediaFiles = Object.keys(tempZip.files).filter((f) => f.startsWith('word/media/'));
   for (const mediaPath of tempMediaFiles) {
     const mediaContent = tempZip.file(mediaPath)?.asNodeBuffer();

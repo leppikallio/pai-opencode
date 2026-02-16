@@ -78,7 +78,7 @@ export interface LinkedInJobsInput extends PaginationOptions {
   location?: string
   /** Maximum number of jobs to scrape */
   maxResults?: number
-  /** Date posted filter ("past-24h", "past-week", "past-month", "any") */
+  /** Date posted filter ("past-24h", "past-week", "past-month", or no filter) */
   datePosted?: string
   /** Experience level filter */
   experienceLevel?: string[]

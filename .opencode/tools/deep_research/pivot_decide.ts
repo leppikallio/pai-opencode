@@ -29,9 +29,9 @@ export const pivot_decide = tool({
   description: "Build deterministic pivot decision artifact from Wave 1 outputs",
   args: {
     manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
-    wave1_outputs: tool.schema.any().describe("Array of { perspective_id, output_md_path }"),
-    wave1_validation_reports: tool.schema.any().describe("Array of validator success reports from deep_research_wave_output_validate"),
-    explicit_gaps: tool.schema.any().optional().describe("Optional normalized explicit gaps"),
+    wave1_outputs: tool.schema.unknown().describe("Array of { perspective_id, output_md_path }"),
+    wave1_validation_reports: tool.schema.unknown().describe("Array of validator success reports from deep_research_wave_output_validate"),
+    explicit_gaps: tool.schema.unknown().optional().describe("Optional normalized explicit gaps"),
     reason: tool.schema.string().optional().describe("Optional audit reason"),
   },
   async execute(args: {

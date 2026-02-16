@@ -436,7 +436,7 @@ export async function validateForwardReverse(
     reverseDomains.set(ip, reverse);
   }
 
-  // Check if any reverse matches the original domain
+  // Check if a reverse matches the original domain
   const matched = Array.from(reverseDomains.values()).some(
     (reverse) => reverse === domain
   );

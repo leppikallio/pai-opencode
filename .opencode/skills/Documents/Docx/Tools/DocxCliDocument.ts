@@ -264,7 +264,7 @@ function mergeRelationships(templateZip: PizZip, contentZip: PizZip): Map<string
     for (let i = 0; i < hyperlinkRels.length; i++) {
       const rel = hyperlinkRels[i];
       if (rel) {
-        // Extract the old ID (could be any format like rId-abc123 or rId5)
+        // Extract the old ID (could use format like rId-abc123 or rId5)
         const oldIdMatch = rel.match(/Id="([^"]+)"/);
         const oldId = oldIdMatch?.[1] || '';
 

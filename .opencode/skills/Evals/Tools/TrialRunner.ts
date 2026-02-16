@@ -143,7 +143,7 @@ export class TrialRunner {
    * Formula: 1 - (n-c choose k) / (n choose k)
    * where n = total trials, c = successful trials, k = trials considered
    *
-   * For k = n (using all trials): 1 if any passed, 0 otherwise
+   * For k = n (using all trials): 1 if one passed, 0 otherwise
    * Simplified: At least one trial passed
    */
   private calculatePassAtK(trials: Trial[]): number {
@@ -173,7 +173,7 @@ export function calculatePassAtKForK(trials: Trial[], k: number): number {
 
   if (k > n) return 0;  // Can't calculate for k > n
   if (c === 0) return 0;  // No successes
-  if (c >= k) return 1;  // Guaranteed at least one success in any k sample
+  if (c >= k) return 1;  // Guaranteed at least one success in each k sample
 
   // Calculate: 1 - (n-c choose k) / (n choose k)
   // = 1 - [(n-c)! / (k! * (n-c-k)!)] / [n! / (k! * (n-k)!)]

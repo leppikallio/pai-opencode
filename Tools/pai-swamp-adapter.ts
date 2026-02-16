@@ -208,11 +208,15 @@ function failIfTrackedVaultSecrets(repoRoot: string) {
           `Remove from git history and add ignore rules. Examples:\n- ${files.join("\n- ")}`,
       );
     }
-  } catch (err: any) {
-    const msg = String(err?.message || err);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("not a git repository") || msg.includes("ENOENT")) return;
     if (msg.includes("Vault secret material appears tracked")) throw err;
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 function parseClaudeAllowlistToBashPatterns(allow: unknown): string[] {
@@ -404,7 +408,7 @@ function writeNormalizedSkills(repoRoot: string, dryRun: boolean) {
   }
 }
 
-function parseJsonMaybeJsonc(text: string): any {
+function parseJsonMaybeJsonc(text: string): unknown {
   // MVP: we only write JSON-compatible .jsonc (no comments). Parse as JSON.
   return JSON.parse(text);
 }
@@ -477,7 +481,13 @@ async function sync(opts: SyncOptions): Promise<void> {
   if (isFile(claudeSettingsPath)) {
     try {
       const settings = parseJsonMaybeJsonc(readUtf8(claudeSettingsPath));
-      swampAllowPatterns = parseClaudeAllowlistToBashPatterns(settings?.permissions?.allow);
+      const allow =
+        isRecord(settings) &&
+        isRecord(settings.permissions) &&
+        "allow" in settings.permissions
+          ? settings.permissions.allow
+          : undefined;
+      swampAllowPatterns = parseClaudeAllowlistToBashPatterns(allow);
     } catch {
       console.log(`[warn] failed to parse ${claudeSettingsPath}; continuing with minimal allowlist`);
     }

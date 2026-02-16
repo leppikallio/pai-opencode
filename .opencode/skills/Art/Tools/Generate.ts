@@ -325,7 +325,7 @@ function parseArgs(argv: string[]): CLIArgs {
     }
   }
 
-  // Assign collected reference images if any
+  // Assign collected reference images if present
   if (referenceImages.length > 0) {
     parsed.referenceImages = referenceImages;
   }

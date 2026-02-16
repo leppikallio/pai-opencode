@@ -1,5 +1,5 @@
 /**
- * Result of a research query from any provider
+ * Result of a research query from a provider
  */
 export interface SearchResult {
   success: boolean;

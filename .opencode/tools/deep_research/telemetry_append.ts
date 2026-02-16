@@ -29,7 +29,7 @@ export const telemetry_append = tool({
   description: "Append canonical telemetry event to run log",
   args: {
     manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
-    event: tool.schema.record(tool.schema.string(), tool.schema.any()).describe("Telemetry event object"),
+    event: tool.schema.record(tool.schema.string(), tool.schema.unknown()).describe("Telemetry event object"),
     reason: tool.schema.string().describe("Audit reason"),
   },
   async execute(args: { manifest_path: string; event: Record<string, unknown>; reason: string }) {

@@ -15,7 +15,7 @@ export const perspectives_write = tool({
   description: "Validate and atomically write perspectives.json (perspectives.v1)",
   args: {
     perspectives_path: tool.schema.string().describe("Absolute path to perspectives.json"),
-    value: tool.schema.record(tool.schema.string(), tool.schema.any()).describe("perspectives.v1 JSON payload"),
+    value: tool.schema.record(tool.schema.string(), tool.schema.unknown()).describe("perspectives.v1 JSON payload"),
     reason: tool.schema.string().describe("Audit reason"),
   },
   async execute(args: { perspectives_path: string; value: Record<string, unknown>; reason: string }) {

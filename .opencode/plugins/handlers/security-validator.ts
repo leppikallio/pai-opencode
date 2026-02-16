@@ -64,7 +64,7 @@ function getCategory(toolName: string, command: string): "bash_command" | "path_
 }
 
 /**
- * Check if a command matches any dangerous pattern
+ * Check if a command matches a dangerous pattern
  */
 type RawRule = {
   id?: string;

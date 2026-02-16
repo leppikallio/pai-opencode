@@ -4,7 +4,7 @@
  * Apify Actor: apify/web-scraper (94,522 users, 4.39 rating)
  * Pricing: FREE - only pay for Apify platform usage
  *
- * Crawl any website and extract structured data using JavaScript functions.
+ * Crawl websites and extract structured data using JavaScript functions.
  * Most versatile actor - handles ANY website!
  */
 

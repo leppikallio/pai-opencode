@@ -2,7 +2,7 @@
 /**
  * Precommit - repo pre-commit gate
  *
- * Runs mandatory checks and fails the commit on any failure:
+ * Runs mandatory checks and fails the commit on each failure:
  * - Biome lint on staged TypeScript files
  * - gitleaks leak detection (staged)
  * - PAI protected file validation (staged)

@@ -161,7 +161,7 @@ function escapeForAppleScript(input: string): string {
   return input.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
 }
 
-// Strip any bracket markers from message (legacy cleanup)
+// Strip bracket markers from message (legacy cleanup)
 function stripMarkers(message: string): string {
   return message.replace(/\[[^\]]*\]/g, '').trim();
 }

@@ -148,7 +148,7 @@ function formatFindings(findings: TruffleHogFinding[], verbose: boolean) {
     console.log('\n🚨 CRITICAL - VERIFIED ACTIVE CREDENTIALS FOUND:');
     console.log('1. IMMEDIATELY rotate/revoke these credentials');
     console.log('2. Check if these were ever pushed to a public repository');
-    console.log('3. Audit logs for any unauthorized access');
+    console.log('3. Audit logs for unauthorized access');
     console.log('4. Move all secrets to environment variables or secret vaults');
   }
   

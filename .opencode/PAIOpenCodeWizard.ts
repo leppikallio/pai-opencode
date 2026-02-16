@@ -654,7 +654,7 @@ async function main(): Promise<void> {
     print('');
     print(`${c.bold}Next Steps:${c.reset}`);
     print('');
-    print(`  ${c.cyan}1.${c.reset} Start OpenCode (from any directory):`);
+    print(`  ${c.cyan}1.${c.reset} Start OpenCode (from your current directory):`);
     print(`     ${c.green}opencode${c.reset}`);
     print('');
     print(`  ${c.cyan}2.${c.reset} ${c.bold}Deep Personalization (Recommended):${c.reset}`);

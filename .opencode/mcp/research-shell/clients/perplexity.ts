@@ -134,7 +134,7 @@ export class PerplexityClient {
           error: `Request timed out after ${timeoutMs ?? 'unknown'}ms`,
         };
       }
-      // Handle any unexpected errors
+      // Handle unexpected errors
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       return {

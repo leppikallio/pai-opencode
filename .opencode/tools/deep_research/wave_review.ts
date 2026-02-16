@@ -22,7 +22,7 @@ export const wave_review = tool({
   args: {
     perspectives_path: tool.schema.string().describe("Absolute path to perspectives.json (perspectives.v1)"),
     outputs_dir: tool.schema.string().describe("Absolute directory containing <perspective_id>.md outputs"),
-    perspective_ids: tool.schema.any().optional().describe("Optional subset of perspective ids to validate"),
+    perspective_ids: tool.schema.unknown().optional().describe("Optional subset of perspective ids to validate"),
     max_failures: tool.schema.number().optional().describe("Retry/report cap (1..500), defaults to 25"),
     report_path: tool.schema.string().optional().describe("Optional absolute path to write JSON report"),
   },

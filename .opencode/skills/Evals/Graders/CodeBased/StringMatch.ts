@@ -35,7 +35,7 @@ export class StringMatchGrader extends BaseGrader {
       passed = matchCount === patterns.length;
       score = matchCount / patterns.length;
     } else {
-      // 'any' mode
+      // one-or-more mode
       passed = matchCount > 0;
       score = passed ? 1 : 0;
     }

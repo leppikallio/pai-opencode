@@ -451,7 +451,7 @@ Return ONLY "PASS" or "FAIL: <reason>"`,
   {
     id: "LLM-005",
     name: "skill_index_completeness",
-    agentPrompt: `Compare .opencode/skills/ directory with any skill index/registry and verify:
+    agentPrompt: `Compare .opencode/skills/ directory with a skill index/registry and verify:
 1. All skills in directory are registered
 2. No broken references
 3. Skill descriptions match USE WHEN patterns

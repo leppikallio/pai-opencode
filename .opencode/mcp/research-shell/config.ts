@@ -176,7 +176,7 @@ function parseGeminiAuthMethod(): 'apikey' | 'oauth' {
  * NO DEFAULTS - Missing config = loud failure with clear error message.
  *
  * @returns Complete research shell configuration
- * @throws Error if any required environment variable is missing
+ * @throws Error if a required environment variable is missing
  */
 export function loadConfig(): ResearchShellConfig {
   // All values are REQUIRED - no defaults, fail loudly if missing

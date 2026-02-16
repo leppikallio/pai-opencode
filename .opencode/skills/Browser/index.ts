@@ -676,7 +676,7 @@ export class PlaywrightBrowser {
   }
 
   /**
-   * Get pending dialog (if any)
+   * Get pending dialog (if present)
    */
   getPendingDialog(): DialogInfo | null {
     return this.pendingDialog

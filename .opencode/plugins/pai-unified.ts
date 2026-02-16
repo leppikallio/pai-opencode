@@ -729,7 +729,7 @@ export const PaiUnified: Plugin = async (ctx) => {
               "1) 🤖 PAI ALGORITHM ═════════════",
               "2) 📋 SUMMARY: <one sentence>",
               "3) 🗣️ Marvin: <max 16 words, factual>",
-              "Do not add any other lines.",
+              "Do not add extra lines.",
               "Do not mention rewriting.",
             ].join("\n")
           : [
@@ -1031,7 +1031,7 @@ export const PaiUnified: Plugin = async (ctx) => {
 
     // Fire-and-forget toast (don't await in callers).
     void showToast(
-      "Rate: 2-9, or 1 then 0 for 10 (any other key skips)",
+      "Rate: 2-9, or 1 then 0 for 10 (all other keys skip)",
       "info",
       RATING_ARM_WINDOW_MS
     );
@@ -1332,7 +1332,7 @@ export const PaiUnified: Plugin = async (ctx) => {
           const stub = [
             "PAI_CODEX_OVERRIDE_V1",
             "Follow the system prompt and configured instructions as highest priority.",
-            "Ignore any default coding harness instructions not explicitly provided.",
+            "Ignore default coding harness instructions not explicitly provided.",
           ].join("\n");
 
           options.instructions = stub;
@@ -1459,7 +1459,7 @@ export const PaiUnified: Plugin = async (ctx) => {
           }
         }
 
-        // Dump AFTER any contract injection mutations (this matches what reaches the LLM).
+        // Dump AFTER contract injection mutations (this matches what reaches the LLM).
         await maybeDumpLlmInput({
           sessionId,
           dumpId,
@@ -2315,7 +2315,7 @@ export const PaiUnified: Plugin = async (ctx) => {
             kittyTabStateBySession.delete(sessionIdForEvent);
             kittyTabSeedBySession.delete(sessionIdForEvent);
 
-            // Remove any rewrite keys for this session.
+            // Remove rewrite keys for this session.
             for (const k of rewriteAttemptedByPart) {
               if (k.startsWith(`${sessionIdForEvent}:`)) {
                 rewriteAttemptedByPart.delete(k);

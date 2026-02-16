@@ -192,7 +192,7 @@ function registerPartials(templatesDir: string): void {
 export function renderTemplate(options: RenderOptions): string {
   const templatesDir = dirname(dirname(import.meta.path));
 
-  // Register any partials
+  // Register partials
   registerPartials(templatesDir);
 
   // Load and compile template

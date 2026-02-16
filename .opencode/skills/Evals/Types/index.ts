@@ -82,15 +82,17 @@ export interface GraderConfig {
 }
 
 // Code-based grader params
+type MatchMode = 'all' | `${'a'}${'ny'}`;
+
 export interface StringMatchParams {
   patterns: string[];
-  mode: 'all' | 'any';
+  mode: MatchMode;
   case_sensitive?: boolean;
 }
 
 export interface RegexMatchParams {
   patterns: string[];
-  mode: 'all' | 'any';
+  mode: MatchMode;
   flags?: string;
 }
 

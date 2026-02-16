@@ -412,7 +412,7 @@ function generateRecommendation(update: Update): string {
   // SKILLS - Critical for PAI's skill system
   if (titleLower.includes('skill') || titleLower.includes('skills')) {
     return `**PAI Impact:** CRITICAL for skills ecosystem\n` +
-      `**Why:** PAI's entire infrastructure is built on skills - any changes to skill patterns, specifications, or examples directly affect how we build and organize PAI's capabilities.\n` +
+      `**Why:** PAI's entire infrastructure is built on skills - changes to skill patterns, specifications, or examples directly affect how we build and organize PAI's capabilities.\n` +
       `**Action:** Review immediately and update PAI's skill templates/patterns if new conventions emerge. Check if new skill categories or capabilities can be adopted.`;
   }
 
@@ -455,7 +455,7 @@ function generateRecommendation(update: Update): string {
   if (titleLower.includes('plugin') || titleLower.includes('marketplace')) {
     return `**PAI Impact:** MEDIUM - Ecosystem expansion\n` +
       `**Why:** Plugin/marketplace features could provide new capabilities to integrate into PAI's toolkit.\n` +
-      `**Action:** Explore available plugins. Assess if any solve current PAI limitations or add valuable features.`;
+      `**Action:** Explore available plugins. Assess whether some solve current PAI limitations or add valuable features.`;
   }
 
   // Cookbooks/Quickstarts/Courses - Implementation patterns
@@ -912,4 +912,3 @@ main().catch(error => {
   console.error('❌ Fatal error:', error);
   process.exit(1);
 });
-

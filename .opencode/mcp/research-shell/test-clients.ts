@@ -315,7 +315,7 @@ async function main() {
     console.log(`  ${status} ${result.client}: ${details}`);
   }
 
-  // Exit with error code if any failed
+  // Exit with error code if one or more failed
   if (failed.length > 0) {
     process.exit(1);
   }

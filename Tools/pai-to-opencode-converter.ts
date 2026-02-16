@@ -704,7 +704,7 @@ function translateSkills(
   ensureDir(skillsTarget, dryRun);
   processSkillsDir(skillsSource, skillsTarget, "skills/");
 
-  // Update any .claude references in skill files to .opencode
+  // Update all .claude references in skill files to .opencode
   if (!dryRun) {
     for (const file of converted) {
       if (file.endsWith(".md") || file.endsWith(".ts")) {
@@ -1342,7 +1342,7 @@ Task({ subagent_type: "Engineer", prompt: "implement Z" })
 | \`Plan\` | Sonnet | Native implementation planning |
 | \`general-purpose\` | Varies | Custom prompts |
 
-**Migration action:** Ensure any AI delegation documentation uses \`Task({subagent_type})\` syntax, NOT \`@agentname\` syntax.
+**Migration action:** Ensure AI delegation documentation uses \`Task({subagent_type})\` syntax, NOT \`@agentname\` syntax.
 
 See \`PAIAGENTSYSTEM.md\` for complete agent documentation.
 `;
@@ -1651,4 +1651,3 @@ main().catch(err => {
   console.error("❌ Converter failed:", err);
   process.exit(1);
 });
-

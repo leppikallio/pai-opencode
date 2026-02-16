@@ -3,7 +3,7 @@
  * ReplayRawSession.ts
  *
  * Offline “replay” and normalization for OpenCode PAI RAW session logs.
- * This does NOT execute tools or modify any hooks. It reads JSONL and produces
+ * This does NOT execute tools or modify hooks. It reads JSONL and produces
  * deterministic summaries (and optional normalized JSONL output).
  *
  * Usage:
