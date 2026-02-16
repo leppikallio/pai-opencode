@@ -2,7 +2,9 @@
 
 Scope: P07-09 operator drills log with reproducible tool-call/test procedures and SEC2 scan step.
 
-Canonical run root for all drills: `~/.config/opencode/research-runs/operator-drill{1..4}-20260216`
+Canonical run roots for all drills:
+- `~/.config/opencode/research-runs/operator-drill{1..4}-20260216`
+- `~/.config/opencode/research-runs/operator-drill5-case-minimal-20260216`
 
 ## Run-root artifact capture (evidence)
 
@@ -390,6 +392,8 @@ RUN_ROOT=/Users/zuul/.config/opencode/research-runs/operator-drill5-case-minimal
   }
 }
 ```
+
+Note: `init -> wave1` expects `perspectives.json` to exist. This failure is expected until it is created/seeded.
 
 - **Actual (run-root tree):**
 
