@@ -5,6 +5,7 @@ export * from "./retry_record";
 export * from "./gates_write";
 export * from "./stage_advance";
 export * from "./watchdog_check";
+export * from "./fallback_offer";
 
 export * from "./perspectives_write";
 export * from "./wave1_plan";

@@ -4,8 +4,8 @@
 - Program: OpenCode Deep Research Option C
 - Planned window: 12–16 weeks
 - Status: `in_progress`
-- Last updated: `2026-02-15`
-- Current phase: `Phase 07` (pending)
+- Last updated: `2026-02-16`
+- Current phase: `Phase 07` (in_progress)
 
 ## Plan root directory (canonical)
 All program plans and specs live here:
@@ -40,7 +40,7 @@ Session loss / compaction safe recovery:
 | 04 | Citation validation services | Engineer | done | QATester | Gate C | Signed off: `PHASE-04-CHECKPOINT-GATE-C.md` |
 | 05 | Synthesis/reviewer factory | Engineer | done | Architect | Gate D/E | Signed off: `PHASE-05-CHECKPOINT-GATE-D-E.md` |
 | 06 | Observability + quality automation | Engineer | done | QATester | Gate E | Signed off: `PHASE-06-CHECKPOINT-GATE-E.md` |
-| 07 | Rollout hardening & canary | Engineer | pending | Architect | Gate F | Flags + fallback |
+| 07 | Rollout hardening & canary | Engineer | in_progress | Architect | Gate F | Wave 0 docs present; fallback offer+test and drills log exist |
 
 ## Workstream Tracker
 | Stream | Scope | Status | Active tasks |
@@ -63,10 +63,15 @@ Session loss / compaction safe recovery:
 2. Reviewer loops stalling due to unclear acceptance rubric.
 3. Tool permission drift causing non-deterministic behavior.
 
+## Phase 07 Notes (in progress)
+- Wave 0 docs exist.
+- P07-05 fallback_offer tool+test exists.
+- Drills log exists.
+
 ## Next 3 Actions
-1. Review Phase 06 Gate E signoff: `PHASE-06-CHECKPOINT-GATE-E.md`.
-2. Start Phase 07 using `deep-research-option-c-phase-07-executable-backlog.md` (rollout hardening + canary).
-3. Keep OFFLINE tests fixture-driven (`PAI_DR_NO_WEB=1`) for Phase 07 entity tests.
+1. Complete P07-02 feature-flag orchestration surface and verify `deep_research_feature_flags.contract.test.ts` (OFFLINE `PAI_DR_NO_WEB=1`).
+2. Close P07-03/P07-04 canary constraints + emergency disable/rollback routing, then align rollout playbook/runbook knobs to spec.
+3. Finish P07-06 watchdog timeout wiring/checkpoint artifact and fold existing P07-05 + drills-log evidence into Gate F checkpoint assembly.
 
 ## Pause/Resume Protocol
 Before pausing, update:

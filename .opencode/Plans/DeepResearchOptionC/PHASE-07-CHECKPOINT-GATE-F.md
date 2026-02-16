@@ -24,14 +24,15 @@ Gate F reviewer source:
 | Gate F requirement | Threshold spec mapping | Rubric mapping | Evidence artifact(s) |
 |---|---|---|---|
 | Feature flags exist for enable/disable and caps | `spec-gate-thresholds-v1.md` Gate F pass criteria | `spec-reviewer-rubrics-v1.md` Gate F PASS checklist item 1 | `spec-feature-flags-v1.md`, `.opencode/tests/entities/deep_research_feature_flags.contract.test.ts` |
-| Canary plan exists with rollback triggers | `spec-gate-thresholds-v1.md` Gate F pass criteria | `spec-reviewer-rubrics-v1.md` Gate F PASS checklist item 2 | `deep-research-option-c-phase-07-rollout-hardening.md`, `deep-research-option-c-phase-07-orchestration-runbook.md` |
-| Fallback to standard workflow is documented and tested, preserving artifacts | `spec-gate-thresholds-v1.md` Gate F pass criteria + fallback language | `spec-reviewer-rubrics-v1.md` Gate F PASS checklist item 3 + required evidence | `.opencode/tests/entities/deep_research_fallback_path.test.ts`, `deep-research-option-c-phase-07-orchestration-runbook.md`, `spec-rollback-fallback-v1.md` |
+| Canary plan exists with rollback triggers and Wave 0 operational docs | `spec-gate-thresholds-v1.md` Gate F pass criteria | `spec-reviewer-rubrics-v1.md` Gate F PASS checklist item 2 | `.opencode/Plans/DeepResearchOptionC/rollout-playbook-v1.md`, `.opencode/Plans/DeepResearchOptionC/incident-response-matrix-v1.md`, `.opencode/Plans/DeepResearchOptionC/operator-runbooks-v1.md`, `.opencode/Plans/DeepResearchOptionC/operator-drills-log-v1.md`, `deep-research-option-c-phase-07-rollout-hardening.md`, `deep-research-option-c-phase-07-orchestration-runbook.md` |
+| Fallback to standard workflow is documented and tested, preserving artifacts | `spec-gate-thresholds-v1.md` Gate F pass criteria + fallback language | `spec-reviewer-rubrics-v1.md` Gate F PASS checklist item 3 + required evidence | `.opencode/tools/deep_research/fallback_offer.ts`, `.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts`, `.opencode/tests/entities/deep_research_fallback_path.test.ts`, `deep-research-option-c-phase-07-orchestration-runbook.md`, `spec-rollback-fallback-v1.md` |
 
 ## QA checklist (offline-first default)
 
 - [ ] Use offline-first env defaults: `PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1`
 - [ ] Run Gate F feature-flag contract test and confirm pass
 - [ ] Run Gate F fallback-path test and confirm pass
+- [ ] Run Gate F fallback-offer hard-gate test and confirm pass
 - [ ] Run Phase 07 watchdog timeout test and confirm pass
 - [ ] Confirm rollout + backlog docs reference this checkpoint and orchestration runbook
 - [ ] Confirm verification commands are present inline in both Phase 07 plan docs
@@ -42,7 +43,7 @@ All commands are copy/paste-ready from repo root.
 
 ### 1) Feature flags contract test (Gate F)
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_feature_flags.contract.test.ts
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
 ```
 Expected outcome:
 - Exit code `0`
@@ -50,28 +51,36 @@ Expected outcome:
 
 ### 2) Fallback path test (Gate F)
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_fallback_path.test.ts
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_path.test.ts
 ```
 Expected outcome:
 - Exit code `0`
 - Output confirms deterministic fallback to standard workflow and artifact retention behavior
 
-### 3) Watchdog timeout test (Phase 07 operational readiness)
+### 3) Fallback offer hard-gate test (P07-05)
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_watchdog_timeout.test.ts
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
+```
+Expected outcome:
+- Exit code `0`
+- Output confirms hard-gate failure triggers deterministic fallback offer behavior
+
+### 4) Watchdog timeout test (Phase 07 operational readiness)
+```bash
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
 ```
 Expected outcome:
 - Exit code `0`
 - Output confirms watchdog breach is detected deterministically
 
-### 4) Check governance references in rollout hardening doc
+### 5) Check governance references in rollout hardening doc
 ```bash
 rg -n "PHASE-07-CHECKPOINT-GATE-F|phase-07-orchestration-runbook|phases-04-07-testing-plan" .opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md
 ```
 Expected outcome:
 - One or more matches proving references to checkpoint, runbook, and testing plan exist
 
-### 5) Check governance references in executable backlog doc
+### 6) Check governance references in executable backlog doc
 ```bash
 rg -n "PHASE-07-CHECKPOINT-GATE-F|phase-07-orchestration-runbook|phases-04-07-testing-plan" .opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-executable-backlog.md
 ```

@@ -42,9 +42,12 @@ Deliver production-safe rollout with feature flags, canary controls, and fallbac
 - Pause/resume proven on interrupted long-running execution.
 
 ## Deliverables
-- Rollout playbook
-- Incident response matrix
-- Operational readiness checklist
+- `.opencode/Plans/DeepResearchOptionC/rollout-playbook-v1.md`
+- `.opencode/Plans/DeepResearchOptionC/incident-response-matrix-v1.md`
+- `.opencode/Plans/DeepResearchOptionC/operator-runbooks-v1.md`
+- `.opencode/Plans/DeepResearchOptionC/operator-drills-log-v1.md`
+- `.opencode/tools/deep_research/fallback_offer.ts`
+- `.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts`
 
 ## Gate
 - **Gate F:** production readiness and rollback confidence.
@@ -54,9 +57,10 @@ Deliver production-safe rollout with feature flags, canary controls, and fallbac
 Run from repo root (offline-first default):
 
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_feature_flags.contract.test.ts
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_fallback_path.test.ts
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_watchdog_timeout.test.ts
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_path.test.ts
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
+PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
 ```
 
 Expected:
