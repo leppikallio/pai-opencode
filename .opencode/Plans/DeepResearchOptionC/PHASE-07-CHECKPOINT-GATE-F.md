@@ -87,5 +87,9 @@ rg -n "PHASE-07-CHECKPOINT-GATE-F|phase-07-orchestration-runbook|phases-04-07-te
 Expected outcome:
 - One or more matches proving references to checkpoint, runbook, and testing plan exist
 
+## Evidence transcript
+- Full command transcript with captured outputs:
+  [`PHASE-07-GATE-F-EVIDENCE-TRANSCRIPT-2026-02-16.md`](./PHASE-07-GATE-F-EVIDENCE-TRANSCRIPT-2026-02-16.md)
+
 ## Signoff criteria
 Gate F signoff is complete when all checklist items above are checked and the command outcomes match expected results.
