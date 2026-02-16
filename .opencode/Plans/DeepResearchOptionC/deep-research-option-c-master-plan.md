@@ -43,7 +43,7 @@ These MUST remain true across all phases unless Phase 00 explicitly revises the 
 3. **Evidence/Citation Services** (tools + MCP-backed retrieval; validated citation pool)
 4. **Synthesis & Reviewer Factory** (writer/reviewer loop + bounded summary pack)
 5. **Quality Gates** (A–F as machine-checkable artifacts + reviewer rubrics)
-6. **Run Ledger** (manifest + gates state stored in scratchpad)
+6. **Run Ledger** (canonical run roots stored under `~/.config/opencode/research-runs/`; scratchpad stores temporary drafts)
 
 ## Phase Plan (separate files)
 - `deep-research-option-c-phase-00-governance.md`
