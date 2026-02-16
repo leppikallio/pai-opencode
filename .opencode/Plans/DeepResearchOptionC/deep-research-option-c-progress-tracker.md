@@ -63,15 +63,17 @@ Session loss / compaction safe recovery:
 2. Reviewer loops stalling due to unclear acceptance rubric.
 3. Tool permission drift causing non-deterministic behavior.
 
-## Phase 07 Notes (in progress)
-- Wave 0 docs exist.
-- P07-05 fallback_offer tool+test exists.
-- Drills log exists.
+## Phase 07 Notes (done)
+- Gate F signed off:
+  - `PHASE-07-CHECKPOINT-GATE-F.md`
+  - `PHASE-07-CHECKPOINT-GATE-F-SIGNOFF.md`
+- Gate F evidence transcript:
+  - `PHASE-07-GATE-F-EVIDENCE-TRANSCRIPT-2026-02-16.md`
 
 ## Next 3 Actions
-1. Complete P07-02 feature-flag orchestration surface and verify `deep_research_feature_flags.contract.test.ts` (OFFLINE `PAI_DR_NO_WEB=1`).
-2. Close P07-03/P07-04 canary constraints + emergency disable/rollback routing, then align rollout playbook/runbook knobs to spec.
-3. Finish P07-06 watchdog timeout wiring/checkpoint artifact and fold existing P07-05 + drills-log evidence into Gate F checkpoint assembly.
+1. Run **P07-11**: remove remaining explicit TypeScript `any` outside `.opencode/tests/**` in one cleanup commit (after Gate F signoff).
+2. Decide whether to strengthen Phase 07 operational proof by capturing at least one drill with real run-root artifacts (optional; not required for Gate F as written).
+3. Keep the Option C orchestration entrypoint constraint visible: `.opencode/commands/deep-research.md` currently stops after init.
 
 ## Pause/Resume Protocol
 Before pausing, update:
