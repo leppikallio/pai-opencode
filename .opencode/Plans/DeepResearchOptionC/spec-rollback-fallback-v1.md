@@ -12,6 +12,8 @@ Immediate rollback if any occurs:
 ## Rollback mechanism
 - Master env flag `PAI_DR_OPTION_C_ENABLED=0` (or unset) disables Option C.
 - Default route returns to existing standard research workflow.
+- While disabled, `deep_research_stage_advance` returns `DISABLED` for existing runs and prevents further stage transitions.
+- While disabled, existing runs perform no `manifest.json` or `gates.json` writes.
 
 ## Fallback behavior
 If Option C run fails a hard gate:

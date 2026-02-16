@@ -31,6 +31,20 @@ export const stage_advance = tool({
   },
   async execute(args: { manifest_path: string; gates_path: string; requested_next?: string; reason: string }) {
     try {
+      const optionCEnabledRaw = process.env.PAI_DR_OPTION_C_ENABLED;
+      if (optionCEnabledRaw !== undefined) {
+        const normalizedOptionCEnabled = optionCEnabledRaw.trim().toLowerCase();
+        const optionCExplicitlyDisabled =
+          normalizedOptionCEnabled === "" || normalizedOptionCEnabled === "0" || normalizedOptionCEnabled === "false";
+
+        if (optionCExplicitlyDisabled) {
+          return err("DISABLED", "Option C is disabled", {
+            env: { PAI_DR_OPTION_C_ENABLED: optionCEnabledRaw },
+            instruction: "Run the standard workflow instead of Option C stage advance.",
+          });
+        }
+      }
+
       const manifestRaw = await readJson(args.manifest_path);
       const gatesRaw = await readJson(args.gates_path);
 
