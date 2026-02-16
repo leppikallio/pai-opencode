@@ -24,7 +24,7 @@ export const manifest_write = tool({
   description: "Atomic manifest.json writer with revision bump",
   args: {
     manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
-    patch: tool.schema.record(tool.schema.string(), tool.schema.any()).describe("JSON Merge Patch (RFC 7396)"),
+    patch: tool.schema.record(tool.schema.string(), tool.schema.unknown()).describe("JSON Merge Patch (RFC 7396)"),
     expected_revision: tool.schema.number().optional().describe("Optional optimistic lock"),
     reason: tool.schema.string().describe("Audit reason"),
   },

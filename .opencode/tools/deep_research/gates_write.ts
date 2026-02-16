@@ -17,7 +17,7 @@ export const gates_write = tool({
   description: "Atomic gates.json writer with lifecycle rules",
   args: {
     gates_path: tool.schema.string().describe("Absolute path to gates.json"),
-    update: tool.schema.record(tool.schema.string(), tool.schema.any()).describe("Gate patch object"),
+    update: tool.schema.record(tool.schema.string(), tool.schema.unknown()).describe("Gate patch object"),
     inputs_digest: tool.schema.string().describe("Digest of inputs used to compute the update"),
     expected_revision: tool.schema.number().optional().describe("Optional optimistic lock"),
     reason: tool.schema.string().describe("Audit reason"),

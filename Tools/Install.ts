@@ -11,7 +11,7 @@
  * Design goals:
  * - Keep repo shareable (no private USER/MEMORY content required)
  * - Keep runtime upgradeable (overwrite SYSTEM, preserve USER/MEMORY)
- * - Make OpenCode work from any working directory
+ * - Make OpenCode work from all working directories
  */
 
 import fs from "node:fs";
@@ -1867,7 +1867,7 @@ async function sync(mode: Mode, opts: Options) {
   }
 
   // Always keep MEMORY/README.md up to date (managed documentation).
-  // Do not overwrite any other MEMORY content.
+  // Do not overwrite other MEMORY content.
   const srcMemoryReadme = path.join(sourceDir, "MEMORY", "README.md");
   const destMemoryReadme = path.join(targetDir, "MEMORY", "README.md");
   if (fs.existsSync(srcMemoryReadme)) {

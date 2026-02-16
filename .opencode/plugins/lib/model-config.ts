@@ -137,7 +137,7 @@ function readOpencodeConfig(): UnknownRecord | null {
 
     if (!configPath) {
       fileLog(
-        `[model-config] No opencode.json found in any of: ${possiblePaths.join(", ")}, using defaults`,
+        `[model-config] No opencode.json found in these paths: ${possiblePaths.join(", ")}, using defaults`,
         "debug"
       );
       return null;

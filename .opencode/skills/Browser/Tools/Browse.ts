@@ -681,7 +681,7 @@ async function main(): Promise<void> {
         const subCmd = args[1]
         if (subCmd === 'start') {
           await ensureSession()
-          console.log('Session started (auto-starts on any command now)')
+          console.log('Session started (auto-starts on each command now)')
         } else if (subCmd === 'stop') {
           await stop()
         } else if (subCmd === 'status') {

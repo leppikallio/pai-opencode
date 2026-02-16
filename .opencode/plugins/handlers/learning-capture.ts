@@ -219,7 +219,7 @@ export async function extractLearningsFromWork(sessionIdRaw: string): Promise<Ca
       // ISC.json might not exist or be invalid
     }
 
-    // 3. Check scratch/ for any markdown files with insights
+    // 3. Check scratch/ for markdown files with insights
     const scratchDir = path.join(workPath, "scratch");
     try {
       const scratchFiles = await fs.promises.readdir(scratchDir);

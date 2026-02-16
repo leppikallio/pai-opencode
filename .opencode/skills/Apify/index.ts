@@ -87,7 +87,7 @@ export class Apify {
       const username = (actor.username || '').toLowerCase()
       const searchText = `${name} ${title} ${description} ${username}`
 
-      // Match if any query word is found
+      // Match if a query word is found
       return queryWords.some(word => searchText.includes(word))
     })
 

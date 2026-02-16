@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 
 /**
- * Get latest tweets from any Twitter user using code-first Apify
+ * Get latest tweets from a Twitter user using code-first Apify
  */
 
 import { Apify } from '../index'

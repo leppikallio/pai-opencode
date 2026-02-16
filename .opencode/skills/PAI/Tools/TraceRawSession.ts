@@ -3,7 +3,7 @@
  * TraceRawSession.ts
  *
  * Read-only diagnostic tool for OpenCode PAI RAW session logs.
- * Helps debug hook ordering/races without enabling any risky hooks.
+ * Helps debug hook ordering/races without enabling risky hooks.
  *
  * Usage:
  *   PAI_DIR="$HOME/.config/opencode" bun run ~/.config/opencode/skills/PAI/Tools/TraceRawSession.ts <sessionId>

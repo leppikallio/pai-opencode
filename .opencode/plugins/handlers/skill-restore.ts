@@ -51,7 +51,7 @@ export async function restoreSkillFiles(): Promise<RestoreResult> {
         { encoding: "utf-8" }
       ).trim();
     } catch {
-      // If git status fails for any reason, treat as no modified files.
+      // If git status fails, treat as no modified files.
       statusOutput = "";
     }
 

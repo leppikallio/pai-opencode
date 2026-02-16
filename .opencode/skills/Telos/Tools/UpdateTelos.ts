@@ -3,7 +3,7 @@
  * update-telos - Update TELOS life context with automatic backups and change tracking
  *
  * This command manages updates to the TELOS life context files, ensuring:
- * - Automatic timestamped backups before any modification
+ * - Automatic timestamped backups before each modification
  * - Change tracking in updates.md
  * - Complete version history
  *

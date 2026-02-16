@@ -93,7 +93,7 @@ async function main() {
     // console.log(`   Filtered to top ${filtered.length} high-engagement recent posts\n`)
     //
     // // Step 5: Show token savings
-    // const estimateTokens = (data: any) => {
+    // const estimateTokens = (data: unknown) => {
     //   return Math.ceil(JSON.stringify(data).length / 4)
     // }
     //
