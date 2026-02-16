@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import {
-  ToolWithExecute,
+  type ToolWithExecute,
   err,
   errorCode,
   exists,
@@ -99,24 +99,36 @@ export const stage_advance = tool({
         return okv;
       };
 
-      const parsePivotRunWave2 = async (): Promise<{ ok: boolean; run_wave2: boolean; error?: string }> => {
+      const parsePivotRunWave2 = async (): Promise<{ ok: boolean; run_wave2: boolean; wave2_gap_ids: string[]; error?: string }> => {
         const p = path.join(runRoot, pivotFile);
         if (!(await exists(p))) {
-          return { ok: false, run_wave2: false, error: "pivot.json missing" };
+          return { ok: false, run_wave2: false, wave2_gap_ids: [], error: "pivot.json missing" };
         }
         try {
           const raw = await fs.promises.readFile(p, "utf8");
           const v = JSON.parse(raw);
-          if (!v || typeof v !== "object") return { ok: false, run_wave2: false, error: "pivot not object" };
+          if (!v || typeof v !== "object") return { ok: false, run_wave2: false, wave2_gap_ids: [], error: "pivot not object" };
           const vObj = isPlainObject(v) ? (v as Record<string, unknown>) : null;
           const decisionObj = vObj && isPlainObject(vObj.decision) ? (vObj.decision as Record<string, unknown>) : null;
           const decisionFlag = decisionObj ? decisionObj.wave2_required : undefined;
           const legacyFlag = vObj ? vObj.run_wave2 : undefined;
           const flag = typeof decisionFlag === "boolean" ? decisionFlag : legacyFlag;
-          if (typeof flag !== "boolean") return { ok: false, run_wave2: false, error: "pivot.run_wave2 missing" };
-          return { ok: true, run_wave2: flag };
+          if (typeof flag !== "boolean") return { ok: false, run_wave2: false, wave2_gap_ids: [], error: "pivot.run_wave2 missing" };
+
+          const decisionGapIds = decisionObj ? decisionObj.wave2_gap_ids : undefined;
+          const legacyGapIds = vObj ? vObj.wave2_gap_ids : undefined;
+          const gapIdsRaw = Array.isArray(decisionGapIds)
+            ? decisionGapIds
+            : Array.isArray(legacyGapIds)
+              ? legacyGapIds
+              : [];
+          if (!gapIdsRaw.every((x) => typeof x === "string")) {
+            return { ok: false, run_wave2: false, wave2_gap_ids: [], error: "pivot.wave2_gap_ids invalid" };
+          }
+
+          return { ok: true, run_wave2: flag, wave2_gap_ids: gapIdsRaw };
         } catch (e) {
-          return { ok: false, run_wave2: false, error: String(e) };
+          return { ok: false, run_wave2: false, wave2_gap_ids: [], error: String(e) };
         }
       };
 
@@ -168,6 +180,8 @@ export const stage_advance = tool({
       const toCandidate = requested || "";
 
       let to: string;
+      let pivotForTransition: Awaited<ReturnType<typeof parsePivotRunWave2>> | null = null;
+
       if (requested) {
         if (!allowedStages.includes(requested as (typeof allowedStages)[number])) {
           return err("REQUESTED_NEXT_NOT_ALLOWED", "requested_next is not a stage", { requested_next: requested });
@@ -183,11 +197,17 @@ export const stage_advance = tool({
       } else {
         if (from === "pivot") {
           const pivot = await parsePivotRunWave2();
+          pivotForTransition = pivot;
           evaluated.push({
             kind: "artifact",
             name: pivotFile,
             ok: pivot.ok,
-            details: { path: path.join(runRoot, pivotFile), run_wave2: pivot.run_wave2, error: pivot.error ?? null },
+            details: {
+              path: path.join(runRoot, pivotFile),
+              run_wave2: pivot.run_wave2,
+              wave2_gap_count: pivot.wave2_gap_ids.length,
+              error: pivot.error ?? null,
+            },
           });
           if (!pivot.ok) {
             return err("MISSING_ARTIFACT", "pivot decision incomplete", { file: pivotFile });
@@ -242,6 +262,48 @@ export const stage_advance = tool({
 
       if (from === "pivot" && to === "wave2") {
         await evalArtifact(wave2Dir, path.join(runRoot, wave2Dir));
+
+        if (!pivotForTransition) {
+          pivotForTransition = await parsePivotRunWave2();
+          evaluated.push({
+            kind: "artifact",
+            name: pivotFile,
+            ok: pivotForTransition.ok,
+            details: {
+              path: path.join(runRoot, pivotFile),
+              run_wave2: pivotForTransition.run_wave2,
+              wave2_gap_count: pivotForTransition.wave2_gap_ids.length,
+              error: pivotForTransition.error ?? null,
+            },
+          });
+        }
+
+        block ??= blockIfFailed(
+          pivotForTransition.ok,
+          "MISSING_ARTIFACT",
+          "pivot decision incomplete",
+          { file: pivotFile },
+        );
+
+        if (!block && pivotForTransition.run_wave2) {
+          const limitsObj = isPlainObject(manifest.limits) ? (manifest.limits as Record<string, unknown>) : {};
+          const capRaw = limitsObj.max_wave2_agents;
+          const cap = typeof capRaw === "number" && Number.isFinite(capRaw) ? Math.trunc(capRaw) : 0;
+          const count = pivotForTransition.wave2_gap_ids.length;
+          const capOk = count <= cap;
+          evaluated.push({
+            kind: "limit",
+            name: "wave2_gap_ids <= max_wave2_agents",
+            ok: capOk,
+            details: { stage: "wave2", cap, count },
+          });
+          block ??= blockIfFailed(
+            capOk,
+            "WAVE_CAP_EXCEEDED",
+            "wave2 gap ids exceed manifest limit",
+            { cap, count, stage: "wave2" },
+          );
+        }
       }
 
       if (from === "wave2" && to === "citations") {
