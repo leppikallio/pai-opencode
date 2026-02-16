@@ -5,7 +5,7 @@
 - Planned window: 12–16 weeks
 - Status: `in_progress`
 - Last updated: `2026-02-16`
-- Current phase: `Phase 07` (in_progress)
+- Current phase: `Phase 07` (Gate F signed off)
 
 ## Plan root directory (canonical)
 All program plans and specs live here:
@@ -40,7 +40,7 @@ Session loss / compaction safe recovery:
 | 04 | Citation validation services | Engineer | done | QATester | Gate C | Signed off: `PHASE-04-CHECKPOINT-GATE-C.md` |
 | 05 | Synthesis/reviewer factory | Engineer | done | Architect | Gate D/E | Signed off: `PHASE-05-CHECKPOINT-GATE-D-E.md` |
 | 06 | Observability + quality automation | Engineer | done | QATester | Gate E | Signed off: `PHASE-06-CHECKPOINT-GATE-E.md` |
-| 07 | Rollout hardening & canary | Engineer | in_progress | Architect | Gate F | Wave 0 docs present; fallback offer+test and drills log exist |
+| 07 | Rollout hardening & canary | Engineer | done | Architect | Gate F | Signed off: `PHASE-07-CHECKPOINT-GATE-F.md` + `PHASE-07-CHECKPOINT-GATE-F-SIGNOFF.md` |
 
 ## Workstream Tracker
 | Stream | Scope | Status | Active tasks |

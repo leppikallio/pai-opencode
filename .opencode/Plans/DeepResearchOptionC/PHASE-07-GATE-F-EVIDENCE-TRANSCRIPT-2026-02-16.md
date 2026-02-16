@@ -111,3 +111,28 @@ Output:
 15:  - `deep-research-option-c-phases-04-07-testing-plan.md`
 51:| P07-10 | Gate F evidence pack assembly: ensure all Gate F required evidence artifacts exist and are easy to review (single checklist) | Architect | QATester | P07-01..P07-09 + `spec-reviewer-rubrics-v1.md` | `PHASE-07-CHECKPOINT-GATE-F.md` | Checklist maps each Gate F PASS item to the specific doc/artifact proving it |
 ```
+
+## 7) Inline verification commands present in Phase 07 plan docs
+
+Command:
+
+```bash
+rg -n "bun test \./\.opencode/" \
+  .opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md \
+  .opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-orchestration-runbook.md
+```
+
+Output:
+
+```text
+.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-orchestration-runbook.md:64:bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
+.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-orchestration-runbook.md:69:bun test ./.opencode/tests/entities/deep_research_fallback_path.test.ts
+.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-orchestration-runbook.md:74:bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
+.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-orchestration-runbook.md:79:bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
+.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-orchestration-runbook.md:84:bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts ./.opencode/tests/entities/deep_research_fallback_path.test.ts ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
+.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-orchestration-runbook.md:113:bun test ./.opencode/tests
+.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md:60:PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
+.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md:61:PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_path.test.ts
+.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md:62:PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
+.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md:63:PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
+```

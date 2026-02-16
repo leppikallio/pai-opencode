@@ -1,6 +1,6 @@
 # Phase 07 Checkpoint — Gate F Signoff
 
-Date: 2026-02-15
+Date: 2026-02-16
 
 ## Scope
 Phase 07 — **Rollout Hardening, Canary, and Fallback** for Deep Research Option C.
@@ -12,6 +12,9 @@ Primary plan sources:
 - `deep-research-option-c-phase-07-executable-backlog.md`
 - `deep-research-option-c-phase-07-orchestration-runbook.md`
 - `deep-research-option-c-phases-04-07-testing-plan.md`
+
+Signoff record:
+- `PHASE-07-CHECKPOINT-GATE-F-SIGNOFF.md`
 
 ## Gate F authoritative mapping
 
@@ -29,13 +32,13 @@ Gate F reviewer source:
 
 ## QA checklist (offline-first default)
 
-- [ ] Use offline-first env defaults: `PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1`
-- [ ] Run Gate F feature-flag contract test and confirm pass
-- [ ] Run Gate F fallback-path test and confirm pass
-- [ ] Run Gate F fallback-offer hard-gate test and confirm pass
-- [ ] Run Phase 07 watchdog timeout test and confirm pass
-- [ ] Confirm rollout + backlog docs reference this checkpoint and orchestration runbook
-- [ ] Confirm verification commands are present inline in both Phase 07 plan docs
+- [x] Use offline-first env defaults: `PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1`
+- [x] Run Gate F feature-flag contract test and confirm pass
+- [x] Run Gate F fallback-path test and confirm pass
+- [x] Run Gate F fallback-offer hard-gate test and confirm pass
+- [x] Run Phase 07 watchdog timeout test and confirm pass
+- [x] Confirm rollout + backlog docs reference this checkpoint and orchestration runbook
+- [x] Confirm verification commands are present inline in both Phase 07 plan docs
 
 ## Evidence
 
@@ -86,6 +89,15 @@ rg -n "PHASE-07-CHECKPOINT-GATE-F|phase-07-orchestration-runbook|phases-04-07-te
 ```
 Expected outcome:
 - One or more matches proving references to checkpoint, runbook, and testing plan exist
+
+### 7) Confirm inline verification commands exist in both Phase 07 plan docs
+```bash
+rg -n "bun test \\./\\.opencode/" \
+  .opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md \
+  .opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-orchestration-runbook.md
+```
+Expected outcome:
+- One or more matches in each file
 
 ## Evidence transcript
 - Full command transcript with captured outputs:
