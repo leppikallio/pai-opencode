@@ -55,6 +55,21 @@ Default minimal perspective payload (single perspective, id `p1`):
 }
 ```
 
+### Stage advance fallback (all modes)
+
+- Prefer calling `deep_research_stage_advance` first.
+- If it returns `{ code: "NOT_IMPLEMENTED", ... }`, immediately fallback to the CLI wrapper via bash:
+
+```bash
+bun "Tools/deep-research-option-c-stage-advance.ts" --manifest "<manifest_path>" --gates "<gates_path>" --next "<stage>" --reason "<reason>"
+```
+
+- For transitions where `requested_next` is intentionally omitted:
+
+```bash
+bun "Tools/deep-research-option-c-stage-advance.ts" --manifest "<manifest_path>" --gates "<gates_path>" --reason "<reason>"
+```
+
 ---
 
 ## A) plan mode (offline)
@@ -69,7 +84,10 @@ Default minimal perspective payload (single perspective, id `p1`):
    - `run_id`: optional parsed flag
 3. Build absolute `perspectives_path = <run_root>/perspectives.json`.
 4. Call `deep_research_perspectives_write` using the default `p1` payload above.
-5. Call `deep_research_stage_advance` (`init -> wave1`) with reason `operator: plan init->wave1`.
+5. Advance `init -> wave1`:
+   - Prefer `deep_research_stage_advance` with reason `operator: plan init->wave1`.
+   - If tool returns `NOT_IMPLEMENTED`, run:
+     - `bun "Tools/deep-research-option-c-stage-advance.ts" --manifest "<manifest_path>" --gates "<gates_path>" --next "wave1" --reason "operator: plan init->wave1"`
 6. Call `deep_research_wave1_plan` with:
    - `manifest_path`
    - `perspectives_path`
@@ -94,7 +112,7 @@ Default minimal perspective payload (single perspective, id `p1`):
    - Required arg: `fixture_dir` = scenario path above
    - Also pass: `run_id` (flag value or generated deterministic id), `reason`
 5. After seed, loop stage progression:
-   - Repeatedly call `deep_research_stage_advance` from current stage.
+   - Repeatedly advance from current stage (prefer `deep_research_stage_advance`; if it returns `NOT_IMPLEMENTED`, use the stage-advance fallback command above).
    - Stop when stage reaches `finalize`.
    - Stop immediately on hard error (`GATE_BLOCKED`, `MISSING_ARTIFACT`, `WAVE_CAP_EXCEEDED`, `REQUESTED_NEXT_NOT_ALLOWED`, `INVALID_STATE`, `NOT_FOUND`, `WRITE_FAILED`).
 6. Print required final contract fields and stop.
@@ -110,7 +128,7 @@ Default minimal perspective payload (single perspective, id `p1`):
 2. Initialize run + perspectives + wave1 plan:
    - `deep_research_run_init`
    - `deep_research_perspectives_write` (default `p1`) — must happen before stage advance
-   - `deep_research_stage_advance` (`init -> wave1`)
+    - advance (`init -> wave1`) using preferred tool; fallback to wrapper on `NOT_IMPLEMENTED`
    - `deep_research_wave1_plan`
 3. Explain live execution contract clearly:
    - Wave execution spawns agents (Task tool) to produce perspective markdown.
@@ -118,12 +136,12 @@ Default minimal perspective payload (single perspective, id `p1`):
    - Review with `deep_research_wave_review`.
    - Derive Gate B decisions with `deep_research_gate_b_derive`.
    - Persist gate decisions with `deep_research_gates_write`.
-   - Advance lifecycle with `deep_research_stage_advance`.
+    - Advance lifecycle (prefer `deep_research_stage_advance`; fallback to wrapper on `NOT_IMPLEMENTED`).
 4. Minimal working wave1->pivot attempt:
    - Spawn Task for `p1` markdown output.
    - Ingest output via `deep_research_wave_output_ingest` (`wave: wave1`).
    - Run `deep_research_wave_review` on `<run_root>/wave-1`.
-   - If review passes, derive Gate B with `deep_research_gate_b_derive`, then write via `deep_research_gates_write`, then advance `wave1 -> pivot`.
+    - If review passes, derive Gate B with `deep_research_gate_b_derive`, then write via `deep_research_gates_write`, then advance `wave1 -> pivot` (tool first, wrapper fallback on `NOT_IMPLEMENTED`).
 5. If full live path cannot be completed, print explicit TODOs:
    - TODO: robust multi-perspective Task fan-out
    - TODO: retry loop for failed wave outputs
