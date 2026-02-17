@@ -1,0 +1,16 @@
+{
+  "schema_version": "wave_review.v1",
+  "run_id": "dr_fixture_m1_finalize_happy",
+  "ok": true,
+  "pass": true,
+  "validated": 1,
+  "failed": 0,
+  "results": [
+    {
+      "perspective_id": "standard-1",
+      "pass": true,
+      "failure": null
+    }
+  ],
+  "retry_directives": []
+}

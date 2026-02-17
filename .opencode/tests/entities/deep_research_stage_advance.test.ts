@@ -119,6 +119,25 @@ async function writePivotDecision(runRoot: string, runId: string, wave2Required:
   });
 }
 
+async function writeWaveReviewReport(runRoot: string, runId: string) {
+  await writeJson(path.join(runRoot, "wave-review.json"), {
+    schema_version: "wave_review.v1",
+    run_id: runId,
+    ok: true,
+    pass: true,
+    validated: 1,
+    failed: 0,
+    results: [
+      {
+        perspective_id: "standard-1",
+        pass: true,
+        failure: null,
+      },
+    ],
+    retry_directives: [],
+  });
+}
+
 async function writeReviewBundle(runRoot: string, runId: string, decision: "PASS" | "CHANGES_REQUIRED" | "MAYBE") {
   await writeJson(path.join(runRoot, "review", "review-bundle.json"), {
     schema_version: "review_bundle.v1",
@@ -188,9 +207,10 @@ describe("deep_research_stage_advance (entity)", () => {
   });
 
   test("blocks wave1 -> pivot with GATE_BLOCKED when Gate B is not pass", async () => {
-    await withOptionCRun("dr_test_stage_006", async ({ manifestPath, gatesPath, runRoot }) => {
+    await withOptionCRun("dr_test_stage_006", async ({ runId, manifestPath, gatesPath, runRoot }) => {
       await setStage(manifestPath, "wave1");
       await writeText(path.join(runRoot, "wave-1", "p1.md"), "# wave1 output\n");
+      await writeWaveReviewReport(runRoot, runId);
 
       const out = await advance(manifestPath, gatesPath, "test: wave1 gate blocked");
       expect(out.ok).toBe(false);
@@ -199,10 +219,24 @@ describe("deep_research_stage_advance (entity)", () => {
     });
   });
 
-  test("advances wave1 -> pivot when artifacts exist and Gate B passes", async () => {
-    await withOptionCRun("dr_test_stage_007", async ({ manifestPath, gatesPath, runRoot }) => {
+  test("blocks wave1 -> pivot with MISSING_ARTIFACT when wave review is absent", async () => {
+    await withOptionCRun("dr_test_stage_021", async ({ manifestPath, gatesPath, runRoot }) => {
       await setStage(manifestPath, "wave1");
       await writeText(path.join(runRoot, "wave-1", "p1.md"), "# wave1 output\n");
+      await setGatePass(gatesPath, "B", "test: gate b pass missing wave review");
+
+      const out = await advance(manifestPath, gatesPath, "test: wave1 missing wave review");
+      expect(out.ok).toBe(false);
+      expect(getErrorCode(out)).toBe("MISSING_ARTIFACT");
+      expect(getErrorDetails(out)).toMatchObject({ from: "wave1", to: "pivot", file: "wave-review.json" });
+    });
+  });
+
+  test("advances wave1 -> pivot when artifacts exist and Gate B passes", async () => {
+    await withOptionCRun("dr_test_stage_007", async ({ runId, manifestPath, gatesPath, runRoot }) => {
+      await setStage(manifestPath, "wave1");
+      await writeText(path.join(runRoot, "wave-1", "p1.md"), "# wave1 output\n");
+      await writeWaveReviewReport(runRoot, runId);
       await setGatePass(gatesPath, "B", "test: gate b pass");
 
       const out = await advance(manifestPath, gatesPath, "test: wave1 -> pivot");

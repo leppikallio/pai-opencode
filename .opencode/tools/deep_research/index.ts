@@ -14,6 +14,7 @@ export * from "./wave_output_validate";
 export * from "./wave_output_ingest";
 export * from "./pivot_decide";
 export * from "./wave_review";
+export * from "./gate_b_derive";
 
 export * from "./citations_extract_urls";
 export * from "./citations_normalize";
