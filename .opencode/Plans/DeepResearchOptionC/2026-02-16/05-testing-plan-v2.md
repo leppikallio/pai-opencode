@@ -93,6 +93,23 @@ M2 proves a real operator run can:
 - write Gate B and pivot decision
 - advance to stage `pivot`
 
+### 2.1.1 Gate B derivation contract (authoritative)
+Gate B MUST be derived from the persisted `wave-review.json` artifact (written by `deep_research_wave_review` via `report_path`) and not written manually.
+
+Gate B is **PASS** iff all are true:
+- `wave_review.ok === true`
+- `wave_review.pass === true`
+- `wave_review.validated > 0`
+- `wave_review.failed === 0`
+- `wave_review.retry_directives.length === 0`
+- `wave_review.results.length === wave_review.validated`
+- every `wave_review.results[*].pass === true`
+
+Recommended deterministic write flow:
+1) `deep_research_wave_review` (persist `wave-review.json`)
+2) `deep_research_gate_b_derive` (compute `{ update.B, inputs_digest }`)
+3) `deep_research_gates_write` (atomic Gate B write)
+
 ### 2.2 Required new ingestion tool + entity test (exact paths)
 - **MUST ADD tool**: `.opencode/tools/deep_research/wave_output_ingest.ts`
 - **MUST ADD test**: `.opencode/tests/entities/deep_research_wave_output_ingest.test.ts`
@@ -106,6 +123,9 @@ Ingest test must prove:
 
 ### 2.3 Orchestrator boundary test (fixture driver, deterministic)
 - **MUST ADD**: `.opencode/tests/entities/deep_research_orchestrator_tick_fixture.test.ts`
+
+Gate B derivation must also be covered by an entity test:
+- **MUST ADD**: `.opencode/tests/entities/deep_research_gate_b_derive.test.ts`
 
 This must drive `init → pivot` using a fixture driver (no agents) and assert:
 - wave plan exists

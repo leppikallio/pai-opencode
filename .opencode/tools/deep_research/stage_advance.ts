@@ -76,6 +76,7 @@ export const stage_advance = tool({
       const synthesisDir = String(paths.synthesis_dir ?? "synthesis");
       const perspectivesFile = String(paths.perspectives_file ?? "perspectives.json");
       const pivotFile = String(paths.pivot_file ?? "pivot.json");
+      const waveReviewFile = String(paths.wave_review_report_file ?? "wave-review.json");
       const summaryPackFile = String(paths.summary_pack_file ?? "summaries/summary-pack.json");
       const reviewBundleFile = String(paths.review_bundle_file ?? "review/review-bundle.json");
 
@@ -285,6 +286,12 @@ export const stage_advance = tool({
 
       if (from === "wave1" && to === "pivot") {
         block ??= blockIfFailed(await evalDirHasFiles(wave1Dir, path.join(runRoot, wave1Dir)), "MISSING_ARTIFACT", "wave1 artifacts missing", { dir: wave1Dir });
+        block ??= blockIfFailed(
+          await evalArtifact(waveReviewFile, path.join(runRoot, waveReviewFile)),
+          "MISSING_ARTIFACT",
+          "wave-review.json missing",
+          { file: waveReviewFile },
+        );
         block ??= blockIfFailed(evalGatePass("B"), "GATE_BLOCKED", "Gate B not pass", { gate: "B" });
       }
 

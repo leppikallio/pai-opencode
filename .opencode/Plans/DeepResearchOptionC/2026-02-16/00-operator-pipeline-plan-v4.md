@@ -154,7 +154,7 @@ This matrix is authoritative for the runbook and for acceptance tests.
 | Transition | Preconditions | Required artifacts | Tool(s) | Gate evidence |
 |---|---|---|---|---|
 | init → wave1 | perspectives exists | `perspectives.json` | `deep_research_run_init`, `deep_research_perspectives_write`, `deep_research_stage_advance` | Gate A present |
-| wave1 → pivot | wave outputs exist; Gate B pass (bounded retries) | `wave-1/*.md`, `wave-1/wave1-plan.json`, `wave-review.json` | `deep_research_wave1_plan`, `deep_research_wave_output_validate`, `deep_research_wave_review`, `deep_research_gates_write`, `deep_research_stage_advance` | Gate B PASS derived from wave-review |
+| wave1 → pivot | wave outputs exist; Gate B pass (bounded retries) | `wave-1/*.md`, `wave-1/wave1-plan.json`, `wave-review.json` | `deep_research_wave1_plan`, `deep_research_wave_output_validate`, `deep_research_wave_review`, `deep_research_gate_b_derive`, `deep_research_gates_write`, `deep_research_stage_advance` | Gate B PASS iff `ok=true`, `pass=true`, `validated>0`, `failed=0`, `retry_directives=0`, `results_count=validated`, and every result passes |
 | pivot → (wave2 or citations) | pivot decision complete | `pivot.json` | `deep_research_pivot_decide`, `deep_research_stage_advance` | pivot integrity |
 | wave2 → citations | wave2 outputs exist (or skipped) | `wave-2/*.md` (if used) | orchestrator + `deep_research_wave_output_ingest` + `deep_research_stage_advance` | Gate B still PASS |
 | citations → summaries | Gate C pass | `citations/citations.jsonl` | citation tools + `deep_research_gate_c_compute` + `deep_research_gates_write` + `deep_research_stage_advance` | Gate C PASS |

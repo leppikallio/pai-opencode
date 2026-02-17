@@ -50,6 +50,7 @@ Implementation files live under:
 | `.opencode/tools/deep_research/wave1_plan.ts` | `wave1_plan` | `deep_research_wave1_plan` |
 | `.opencode/tools/deep_research/wave_output_validate.ts` | `wave_output_validate` | `deep_research_wave_output_validate` |
 | `.opencode/tools/deep_research/wave_review.ts` | `wave_review` | `deep_research_wave_review` |
+| `.opencode/tools/deep_research/gate_b_derive.ts` | `gate_b_derive` | `deep_research_gate_b_derive` |
 | `.opencode/tools/deep_research/pivot_decide.ts` | `pivot_decide` | `deep_research_pivot_decide` |
 | `.opencode/tools/deep_research/citations_extract_urls.ts` | `citations_extract_urls` | `deep_research_citations_extract_urls` |
 | `.opencode/tools/deep_research/citations_normalize.ts` | `citations_normalize` | `deep_research_citations_normalize` |
