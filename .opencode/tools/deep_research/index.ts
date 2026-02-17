@@ -33,6 +33,7 @@ export * from "./telemetry_append";
 export * from "./run_metrics_write";
 
 export * from "./fixture_bundle_capture";
+export * from "./fixture_run_seed";
 export * from "./fixture_replay";
 export * from "./regression_run";
 export * from "./quality_audit";

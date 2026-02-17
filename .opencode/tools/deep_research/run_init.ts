@@ -17,6 +17,19 @@ import {
   validateManifestV1,
 } from "./lifecycle_lib";
 
+function isPathWithin(baseDir: string, targetPath: string): boolean {
+  const rel = path.relative(baseDir, targetPath);
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
+function runIdTraversalError(runId: string): string | null {
+  if (path.isAbsolute(runId)) return "run_id must not be an absolute path";
+  if (runId === "." || runId === "..") return "run_id must not be '.' or '..'";
+  if (runId.includes("/") || runId.includes("\\")) return "run_id must not contain path separators";
+  if (runId.includes("..")) return "run_id must not contain '..'";
+  return null;
+}
+
 export const run_init = tool({
   description: "Initialize an Option C deep research run directory",
   args: {
@@ -49,6 +62,11 @@ export const run_init = tool({
     const runId = (args.run_id ?? "").trim() || stableRunId();
     if (!runId) return err("INVALID_ARGS", "run_id resolved empty");
 
+    const traversalError = runIdTraversalError(runId);
+    if (traversalError) {
+      return err("PATH_TRAVERSAL", traversalError, { run_id: runId });
+    }
+
     let base: string | undefined;
     try {
       if (args.root_override) {
@@ -71,10 +89,14 @@ export const run_init = tool({
       });
     }
 
-    const root = path.join(base, runId);
+    const baseResolved = path.resolve(base);
+    const root = path.resolve(baseResolved, runId);
+    if (!isPathWithin(baseResolved, root)) {
+      return err("PATH_TRAVERSAL", "run_id resolves outside runs root", { run_id: runId });
+    }
     const manifestPath = path.join(root, "manifest.json");
     const gatesPath = path.join(root, "gates.json");
-    const ledgerPath = path.join(base, "runs-ledger.jsonl");
+    const ledgerPath = path.join(baseResolved, "runs-ledger.jsonl");
 
     try {
       const st = await fs.promises.stat(root).catch(() => null);
