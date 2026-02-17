@@ -19,12 +19,12 @@ Define the deterministic stage machine for Option C.
 |---|---|---|---|
 | init | wave1 | manifest valid; perspectives.json generated | fail run (hard) |
 | wave1 | pivot | wave1 artifacts exist; **Gate B pass** (after bounded retries) | stop (hard) |
-| pivot | wave2 | pivot decision says wave2 | skip wave2 |
-| pivot | citations | pivot decision complete | fail run (hard) |
+| pivot | wave2 | pivot decision artifact (`pivot.json`) exists and says `wave2_required=true` | skip wave2 |
+| pivot | citations | pivot decision artifact (`pivot.json`) exists and says `wave2_required=false` | fail run (hard) |
 | wave2 | citations | wave2 artifacts exist OR wave2 skipped | continue |
-| citations | summaries | Gate C pass | stop (hard) |
-| summaries | synthesis | Gate D pass | stop (hard) |
-| synthesis | review | draft exists | stop (hard) |
+| citations | summaries | **Gate C pass** AND citations pool exists (`citations/citations.jsonl`) | stop (hard) |
+| summaries | synthesis | **Gate D pass** AND summary pack exists (`summaries/summary-pack.json`) | stop (hard) |
+| synthesis | review | final synthesis exists (`synthesis/final-synthesis.md`) | stop (hard) |
 | review | synthesis | reviewer says CHANGES_REQUIRED; iterations < max | continue |
 | review | finalize | Gate E hard metrics pass | stop (hard) |
 | review | (terminal failed) | Gate E hard metrics fail; iterations >= max | fail run (hard) |

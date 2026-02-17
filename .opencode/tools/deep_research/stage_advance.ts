@@ -72,7 +72,7 @@ export const stage_advance = tool({
       const paths = getManifestPaths(manifest);
       const wave1Dir = String(paths.wave1_dir ?? "wave-1");
       const wave2Dir = String(paths.wave2_dir ?? "wave-2");
-      const citationsDir = String(paths.citations_dir ?? "citations");
+      const citationsFile = String(paths.citations_file ?? "citations/citations.jsonl");
       const synthesisDir = String(paths.synthesis_dir ?? "synthesis");
       const perspectivesFile = String(paths.perspectives_file ?? "perspectives.json");
       const pivotFile = String(paths.pivot_file ?? "pivot.json");
@@ -170,6 +170,18 @@ export const stage_advance = tool({
         }
       };
 
+      const countReviewToSynthesisTransitions = (): number => {
+        const history = Array.isArray(stageObj.history) ? stageObj.history : [];
+        let count = 0;
+        for (const entry of history) {
+          if (!isPlainObject(entry)) continue;
+          const fromStage = String(entry.from ?? "");
+          const toStage = String(entry.to ?? "");
+          if (fromStage === "review" && toStage === "synthesis") count += 1;
+        }
+        return count;
+      };
+
       const allowedNextFor = (stage: string): string[] => {
         switch (stage) {
           case "init": return ["wave1"];
@@ -195,6 +207,7 @@ export const stage_advance = tool({
 
       let to: string;
       let pivotForTransition: Awaited<ReturnType<typeof parsePivotRunWave2>> | null = null;
+      let reviewForTransition: Awaited<ReturnType<typeof parseReviewDecision>> | null = null;
 
       if (requested) {
         if (!allowedStages.includes(requested as (typeof allowedStages)[number])) {
@@ -229,6 +242,7 @@ export const stage_advance = tool({
           to = pivot.run_wave2 ? "wave2" : "citations";
         } else if (from === "review") {
           const review = await parseReviewDecision();
+          reviewForTransition = review;
           evaluated.push({
             kind: "artifact",
             name: reviewBundleFile,
@@ -320,13 +334,60 @@ export const stage_advance = tool({
         }
       }
 
+      if (from === "pivot" && to === "citations") {
+        if (!pivotForTransition) {
+          pivotForTransition = await parsePivotRunWave2();
+          evaluated.push({
+            kind: "artifact",
+            name: pivotFile,
+            ok: pivotForTransition.ok,
+            details: {
+              path: path.join(runRoot, pivotFile),
+              run_wave2: pivotForTransition.run_wave2,
+              wave2_gap_count: pivotForTransition.wave2_gap_ids.length,
+              error: pivotForTransition.error ?? null,
+            },
+          });
+        }
+
+        block ??= blockIfFailed(
+          pivotForTransition.ok,
+          "MISSING_ARTIFACT",
+          "pivot decision incomplete",
+          { file: pivotFile },
+        );
+
+        if (!block) {
+          const skipWave2 = !pivotForTransition.run_wave2;
+          evaluated.push({
+            kind: "policy",
+            name: "pivot requires citations only when wave2 is skipped",
+            ok: skipWave2,
+            details: {
+              run_wave2: pivotForTransition.run_wave2,
+            },
+          });
+          block ??= blockIfFailed(
+            skipWave2,
+            "REQUESTED_NEXT_NOT_ALLOWED",
+            "pivot requires wave2; citations transition not allowed",
+            { requested_next: requested || null, run_wave2: pivotForTransition.run_wave2 },
+          );
+        }
+      }
+
       if (from === "wave2" && to === "citations") {
         block ??= blockIfFailed(await evalDirHasFiles(wave2Dir, path.join(runRoot, wave2Dir)), "MISSING_ARTIFACT", "wave2 artifacts missing", { dir: wave2Dir });
       }
 
       if (from === "citations" && to === "summaries") {
         block ??= blockIfFailed(evalGatePass("C"), "GATE_BLOCKED", "Gate C not pass", { gate: "C" });
-        await evalArtifact(citationsDir, path.join(runRoot, citationsDir));
+        block ??= blockIfFailed(
+          await evalArtifact(citationsFile, path.join(runRoot, citationsFile)),
+          "MISSING_ARTIFACT",
+          "citations.jsonl missing",
+          { file: citationsFile },
+        );
       }
 
       if (from === "summaries" && to === "synthesis") {
@@ -337,6 +398,76 @@ export const stage_advance = tool({
       if (from === "synthesis" && to === "review") {
         const finalSynthesis = path.join(runRoot, synthesisDir, "final-synthesis.md");
         block ??= blockIfFailed(await evalArtifact(`${synthesisDir}/final-synthesis.md`, finalSynthesis), "MISSING_ARTIFACT", "final-synthesis.md missing", { file: `${synthesisDir}/final-synthesis.md` });
+      }
+
+      if (from === "review" && to === "synthesis") {
+        if (!reviewForTransition) {
+          reviewForTransition = await parseReviewDecision();
+          evaluated.push({
+            kind: "artifact",
+            name: reviewBundleFile,
+            ok: reviewForTransition.ok,
+            details: {
+              path: path.join(runRoot, reviewBundleFile),
+              decision: reviewForTransition.decision,
+              error: reviewForTransition.error ?? null,
+            },
+          });
+        }
+
+        block ??= blockIfFailed(
+          reviewForTransition.ok,
+          "MISSING_ARTIFACT",
+          "review decision incomplete",
+          { file: reviewBundleFile },
+        );
+
+        if (!block) {
+          const changesRequired = reviewForTransition.decision === "CHANGES_REQUIRED";
+          evaluated.push({
+            kind: "policy",
+            name: "review->synthesis requires CHANGES_REQUIRED",
+            ok: changesRequired,
+            details: { decision: reviewForTransition.decision },
+          });
+          block ??= blockIfFailed(
+            changesRequired,
+            "REQUESTED_NEXT_NOT_ALLOWED",
+            "review decision must be CHANGES_REQUIRED for synthesis transition",
+            { decision: reviewForTransition.decision, requested_next: requested || null },
+          );
+        }
+
+        if (!block) {
+          const limitsObj = isPlainObject(manifest.limits) ? (manifest.limits as Record<string, unknown>) : {};
+          const capRaw = limitsObj.max_review_iterations;
+          const capNumber = typeof capRaw === "number" ? capRaw : Number(capRaw ?? Number.NaN);
+          const capValid = Number.isFinite(capNumber) && capNumber >= 0;
+          const cap = capValid ? Math.trunc(capNumber) : 0;
+          const count = countReviewToSynthesisTransitions();
+
+          if (!capValid) {
+            block = {
+              code: "INVALID_STATE",
+              message: "manifest.limits.max_review_iterations invalid",
+              details: { value: capRaw ?? null },
+            };
+          } else {
+            const withinCap = count < cap;
+            evaluated.push({
+              kind: "limit",
+              name: "review->synthesis count < max_review_iterations",
+              ok: withinCap,
+              details: { cap, count },
+            });
+            block ??= blockIfFailed(
+              withinCap,
+              "REVIEW_CAP_EXCEEDED",
+              "review->synthesis transition cap reached",
+              { cap, count },
+            );
+          }
+        }
       }
 
       if (from === "review" && to === "finalize") {

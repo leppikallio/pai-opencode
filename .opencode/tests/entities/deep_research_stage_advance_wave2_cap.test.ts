@@ -36,7 +36,14 @@ describe("deep_research_stage_advance wave2 cap (entity)", () => {
         const pivotPath = path.join(runRoot, "pivot.json");
         await fs.writeFile(
           pivotPath,
-          `${JSON.stringify({ run_id: runId, run_wave2: true, wave2_gap_ids: wave2GapIds }, null, 2)}\n`,
+          `${JSON.stringify({
+            schema_version: "pivot_decision.v1",
+            run_id: runId,
+            decision: {
+              wave2_required: true,
+              wave2_gap_ids: wave2GapIds,
+            },
+          }, null, 2)}\n`,
           "utf8",
         );
 
