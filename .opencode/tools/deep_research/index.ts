@@ -5,6 +5,7 @@ export * from "./retry_record";
 export * from "./gates_write";
 export * from "./stage_advance";
 export * from "./orchestrator_tick_fixture";
+export * from "./orchestrator_tick_live";
 export * from "./watchdog_check";
 export * from "./fallback_offer";
 
