@@ -4,6 +4,7 @@ export * from "./manifest_write";
 export * from "./retry_record";
 export * from "./gates_write";
 export * from "./stage_advance";
+export * from "./orchestrator_tick_fixture";
 export * from "./watchdog_check";
 export * from "./fallback_offer";
 
