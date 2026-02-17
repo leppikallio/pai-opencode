@@ -10,6 +10,7 @@ export * from "./fallback_offer";
 export * from "./perspectives_write";
 export * from "./wave1_plan";
 export * from "./wave_output_validate";
+export * from "./wave_output_ingest";
 export * from "./pivot_decide";
 export * from "./wave_review";
 
