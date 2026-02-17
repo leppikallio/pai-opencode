@@ -1,0 +1,11 @@
+{
+  "schema_version": "wave1_plan.v1",
+  "run_id": "dr_fixture_m1_gate_c_blocks",
+  "generated_at": "2026-02-16T00:00:00.000Z",
+  "plan": [
+    {
+      "perspective_id": "standard-1",
+      "output_path": "wave-1/standard-1.md"
+    }
+  ]
+}

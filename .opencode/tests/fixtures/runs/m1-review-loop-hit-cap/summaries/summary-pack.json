@@ -1,0 +1,13 @@
+{
+  "schema_version": "summary_pack.v1",
+  "run_id": "dr_fixture_m1_review_loop_hit_cap",
+  "generated_at": "2026-02-16T00:00:00.000Z",
+  "summaries": [
+    {
+      "id": "summary-1",
+      "perspective_id": "standard-1",
+      "text": "Summary placeholder.",
+      "size_kb": 1
+    }
+  ]
+}
