@@ -104,4 +104,25 @@ describe("deep_research_run_init (entity)", () => {
       });
     });
   });
+
+  test("rejects path traversal run_id values", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const outRaw = (await (run_init as any).execute(
+          {
+            query: "Research Z",
+            mode: "standard",
+            sensitivity: "normal",
+            run_id: "../escape",
+            root_override: base,
+          },
+          makeToolContext(),
+        )) as string;
+
+        const out = parseToolJson(outRaw);
+        expect(out.ok).toBe(false);
+        expect((out as any).error.code).toBe("PATH_TRAVERSAL");
+      });
+    });
+  });
 });
