@@ -1,6 +1,6 @@
 ---
 description: Show latest deep research plan status
-agent: build
+agent: researcher
 ---
 
 Open and summarize the current Option C status tracker:
