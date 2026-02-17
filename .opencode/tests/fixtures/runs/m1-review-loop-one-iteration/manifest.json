@@ -1,0 +1,117 @@
+{
+  "schema_version": "manifest.v1",
+  "run_id": "dr_fixture_m1_review_loop_one_iteration",
+  "created_at": "2026-02-16T00:00:00.000Z",
+  "updated_at": "2026-02-16T00:00:00.000Z",
+  "revision": 1,
+  "query": {
+    "text": "M1 review loop one iteration fixture",
+    "constraints": {
+      "deep_research_flags": {
+        "PAI_DR_OPTION_C_ENABLED": true,
+        "PAI_DR_MODE_DEFAULT": "standard",
+        "PAI_DR_MAX_WAVE1_AGENTS": 6,
+        "PAI_DR_MAX_WAVE2_AGENTS": 6,
+        "PAI_DR_MAX_SUMMARY_KB": 5,
+        "PAI_DR_MAX_TOTAL_SUMMARY_KB": 60,
+        "PAI_DR_MAX_REVIEW_ITERATIONS": 3,
+        "PAI_DR_CITATION_VALIDATION_TIER": "standard",
+        "PAI_DR_NO_WEB": true,
+        "PAI_DR_RUNS_ROOT": "/tmp/deep-research-fixtures",
+        "source": {
+          "env": [
+            "PAI_DR_OPTION_C_ENABLED",
+            "PAI_DR_NO_WEB"
+          ],
+          "settings": []
+        }
+      }
+    },
+    "sensitivity": "no_web"
+  },
+  "mode": "standard",
+  "status": "running",
+  "stage": {
+    "current": "review",
+    "started_at": "2026-02-16T00:00:00.000Z",
+    "history": [
+      {
+        "from": "init",
+        "to": "wave1",
+        "ts": "2026-02-16T00:00:00.000Z",
+        "reason": "fixture seed",
+        "inputs_digest": "sha256:fixture-seed-wave1",
+        "gates_revision": 1
+      },
+      {
+        "from": "wave1",
+        "to": "pivot",
+        "ts": "2026-02-16T00:00:00.000Z",
+        "reason": "fixture seed",
+        "inputs_digest": "sha256:fixture-seed-pivot",
+        "gates_revision": 1
+      },
+      {
+        "from": "pivot",
+        "to": "citations",
+        "ts": "2026-02-16T00:00:00.000Z",
+        "reason": "fixture seed",
+        "inputs_digest": "sha256:fixture-seed-citations",
+        "gates_revision": 1
+      },
+      {
+        "from": "citations",
+        "to": "summaries",
+        "ts": "2026-02-16T00:00:00.000Z",
+        "reason": "fixture seed",
+        "inputs_digest": "sha256:fixture-seed-summaries",
+        "gates_revision": 1
+      },
+      {
+        "from": "summaries",
+        "to": "synthesis",
+        "ts": "2026-02-16T00:00:00.000Z",
+        "reason": "fixture seed",
+        "inputs_digest": "sha256:fixture-seed-synthesis",
+        "gates_revision": 1
+      },
+      {
+        "from": "synthesis",
+        "to": "review",
+        "ts": "2026-02-16T00:00:00.000Z",
+        "reason": "fixture seed",
+        "inputs_digest": "sha256:fixture-seed-review",
+        "gates_revision": 1
+      }
+    ]
+  },
+  "limits": {
+    "max_wave1_agents": 6,
+    "max_wave2_agents": 6,
+    "max_summary_kb": 5,
+    "max_total_summary_kb": 60,
+    "max_review_iterations": 3
+  },
+  "agents": {
+    "policy": "existing-runtime-only"
+  },
+  "artifacts": {
+    "root": "/tmp/deep-research-fixtures/m1-review-loop-one-iteration",
+    "paths": {
+      "wave1_dir": "wave-1",
+      "wave2_dir": "wave-2",
+      "citations_dir": "citations",
+      "summaries_dir": "summaries",
+      "synthesis_dir": "synthesis",
+      "logs_dir": "logs",
+      "gates_file": "gates.json",
+      "perspectives_file": "perspectives.json",
+      "citations_file": "citations/citations.jsonl",
+      "summary_pack_file": "summaries/summary-pack.json",
+      "pivot_file": "pivot.json",
+      "review_bundle_file": "review/review-bundle.json"
+    }
+  },
+  "metrics": {},
+  "failures": []
+}

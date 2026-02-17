@@ -1,0 +1,7 @@
+{
+  "schema_version": "review_bundle.v1",
+  "run_id": "dr_fixture_m1_finalize_happy",
+  "decision": "PASS",
+  "findings": [],
+  "directives": []
+}

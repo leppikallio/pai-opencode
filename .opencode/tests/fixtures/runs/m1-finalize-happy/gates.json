@@ -1,0 +1,97 @@
+{
+  "schema_version": "gates.v1",
+  "run_id": "dr_fixture_m1_finalize_happy",
+  "revision": 1,
+  "updated_at": "2026-02-16T00:00:00.000Z",
+  "inputs_digest": "sha256:m1-finalize-happy",
+  "gates": {
+    "A": {
+      "id": "A",
+      "name": "Planning completeness",
+      "class": "hard",
+      "status": "pass",
+      "checked_at": "2026-02-16T00:00:00.000Z",
+      "metrics": {
+        "planning_sections": 5
+      },
+      "artifacts": [
+        "perspectives.json"
+      ],
+      "warnings": [],
+      "notes": "Fixture gate A pass"
+    },
+    "B": {
+      "id": "B",
+      "name": "Wave output contract compliance",
+      "class": "hard",
+      "status": "pass",
+      "checked_at": "2026-02-16T00:00:00.000Z",
+      "metrics": {
+        "validated_outputs": 1
+      },
+      "artifacts": [
+        "wave-1/standard-1.md"
+      ],
+      "warnings": [],
+      "notes": "Fixture gate B pass"
+    },
+    "C": {
+      "id": "C",
+      "name": "Citation validation integrity",
+      "class": "hard",
+      "status": "pass",
+      "checked_at": "2026-02-16T00:00:00.000Z",
+      "metrics": {
+        "uncited_numeric_claims": 0
+      },
+      "artifacts": [
+        "citations/citations.jsonl"
+      ],
+      "warnings": [],
+      "notes": "Fixture gate C pass"
+    },
+    "D": {
+      "id": "D",
+      "name": "Summary pack boundedness",
+      "class": "hard",
+      "status": "pass",
+      "checked_at": "2026-02-16T00:00:00.000Z",
+      "metrics": {
+        "total_summary_kb": 1
+      },
+      "artifacts": [
+        "summaries/summary-pack.json"
+      ],
+      "warnings": [],
+      "notes": "Fixture gate D pass"
+    },
+    "E": {
+      "id": "E",
+      "name": "Synthesis quality",
+      "class": "hard",
+      "status": "pass",
+      "checked_at": "2026-02-16T00:00:00.000Z",
+      "metrics": {
+        "uncited_numeric_claims": 0,
+        "report_sections_present": 1
+      },
+      "artifacts": [
+        "synthesis/final-synthesis.md",
+        "review/review-bundle.json"
+      ],
+      "warnings": [],
+      "notes": "Fixture gate E pass"
+    },
+    "F": {
+      "id": "F",
+      "name": "Rollout safety",
+      "class": "hard",
+      "status": "not_run",
+      "checked_at": null,
+      "metrics": {},
+      "artifacts": [],
+      "warnings": [],
+      "notes": ""
+    }
+  }
+}

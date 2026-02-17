@@ -1,0 +1,15 @@
+{
+  "schema_version": "review_bundle.v1",
+  "run_id": "dr_fixture_m1_review_loop_one_iteration",
+  "decision": "CHANGES_REQUIRED",
+  "findings": [
+    {
+      "id": "f-1",
+      "severity": "medium",
+      "message": "Add one clarification pass before finalization."
+    }
+  ],
+  "directives": [
+    "Revise synthesis once before approving."
+  ]
+}

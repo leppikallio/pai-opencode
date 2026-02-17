@@ -1,0 +1,87 @@
+{
+  "schema_version": "gates.v1",
+  "run_id": "dr_fixture_m1_gate_c_blocks",
+  "revision": 1,
+  "updated_at": "2026-02-16T00:00:00.000Z",
+  "inputs_digest": "sha256:m1-gate-c-blocks",
+  "gates": {
+    "A": {
+      "id": "A",
+      "name": "Planning completeness",
+      "class": "hard",
+      "status": "pass",
+      "checked_at": "2026-02-16T00:00:00.000Z",
+      "metrics": {},
+      "artifacts": [
+        "perspectives.json"
+      ],
+      "warnings": [],
+      "notes": ""
+    },
+    "B": {
+      "id": "B",
+      "name": "Wave output contract compliance",
+      "class": "hard",
+      "status": "pass",
+      "checked_at": "2026-02-16T00:00:00.000Z",
+      "metrics": {},
+      "artifacts": [
+        "wave-1/standard-1.md"
+      ],
+      "warnings": [],
+      "notes": ""
+    },
+    "C": {
+      "id": "C",
+      "name": "Citation validation integrity",
+      "class": "hard",
+      "status": "fail",
+      "checked_at": "2026-02-16T00:00:00.000Z",
+      "metrics": {
+        "uncited_numeric_claims": 2
+      },
+      "artifacts": [
+        "citations/citations.jsonl"
+      ],
+      "warnings": [],
+      "notes": "Gate C intentionally failed for smoke fixture"
+    },
+    "D": {
+      "id": "D",
+      "name": "Summary pack boundedness",
+      "class": "hard",
+      "status": "pass",
+      "checked_at": "2026-02-16T00:00:00.000Z",
+      "metrics": {},
+      "artifacts": [
+        "summaries/summary-pack.json"
+      ],
+      "warnings": [],
+      "notes": ""
+    },
+    "E": {
+      "id": "E",
+      "name": "Synthesis quality",
+      "class": "hard",
+      "status": "pass",
+      "checked_at": "2026-02-16T00:00:00.000Z",
+      "metrics": {},
+      "artifacts": [
+        "synthesis/final-synthesis.md"
+      ],
+      "warnings": [],
+      "notes": ""
+    },
+    "F": {
+      "id": "F",
+      "name": "Rollout safety",
+      "class": "hard",
+      "status": "not_run",
+      "checked_at": null,
+      "metrics": {},
+      "artifacts": [],
+      "warnings": [],
+      "notes": ""
+    }
+  }
+}
