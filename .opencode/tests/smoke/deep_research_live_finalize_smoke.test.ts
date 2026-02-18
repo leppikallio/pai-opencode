@@ -2,50 +2,22 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-const LIVE_ENV_ENABLED = process.env.PAI_DR_LIVE_TESTS === "1"
-  && process.env.PAI_DR_OPTION_C_ENABLED === "1";
+import {
+  orchestrator_tick_live,
+  orchestrator_tick_post_pivot,
+  orchestrator_tick_post_summaries,
+  run_init,
+  stage_advance,
+} from "../../tools/deep_research.ts";
 
-const liveSmoke = LIVE_ENV_ENABLED ? test : test.skip;
-
-const FINALIZE_ACCEPTANCE_CRITERIA = [
-  "manifest stage is finalize",
-  "summaries/summary-pack.json exists",
-  "synthesis/final-synthesis.md exists",
-  "reports/gate-e-status.json exists",
-  "reports/gate-e-status.json indicates pass",
-  "gates.json marks Gate E as pass",
-  "logs/audit.jsonl exists",
-  "review/review-bundle.json exists",
-] as const;
+import { fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 type JsonObject = Record<string, unknown>;
 
 async function assertFileExists(runRoot: string, relPath: string): Promise<void> {
   const fullPath = path.join(runRoot, relPath);
-  try {
-    const st = await fs.stat(fullPath);
-    if (!st.isFile()) {
-      throw new Error(`artifact is not a file: ${relPath}`);
-    }
-  } catch (err) {
-    const details = err instanceof Error ? err.message : String(err);
-    throw new Error(`[runRoot=${runRoot}] required artifact check failed for ${relPath}: ${details}`);
-  }
-}
-
-async function readJsonFromRunRoot<T>(runRoot: string, relPath: string): Promise<T> {
-  const fullPath = path.join(runRoot, relPath);
-  const raw = await fs.readFile(fullPath, "utf8").catch((err: unknown) => {
-    const details = err instanceof Error ? err.message : String(err);
-    throw new Error(`[runRoot=${runRoot}] failed to read ${relPath}: ${details}`);
-  });
-
-  try {
-    return JSON.parse(raw) as T;
-  } catch (err) {
-    const details = err instanceof Error ? err.message : String(err);
-    throw new Error(`[runRoot=${runRoot}] failed to parse ${relPath}: ${details}`);
-  }
+  const st = await fs.stat(fullPath);
+  if (!st.isFile()) throw new Error(`artifact is not a file: ${relPath}`);
 }
 
 function gateStatusFromReport(doc: JsonObject): "pass" | "fail" | undefined {
@@ -67,54 +39,129 @@ function gateStatusFromGatesDoc(doc: JsonObject, gateId: string): string | undef
       return typeof status === "string" ? status : undefined;
     }
   }
-
-  const topLevelGate = doc[gateId];
-  if (topLevelGate && typeof topLevelGate === "object" && !Array.isArray(topLevelGate)) {
-    const status = (topLevelGate as JsonObject).status;
-    return typeof status === "string" ? status : undefined;
-  }
-
   return undefined;
 }
 
-describe("deep_research live smoke (finalize skeleton)", () => {
-  liveSmoke("TODO: execute live finalize run when orchestrator mode is available", async () => {
-    // TODO acceptance criteria:
-    // 1) Run full live orchestrator to finalize without direct sub-agent spawning here.
-    // 2) Capture absolute run root path in PAI_DR_TEST_RUN_ROOT.
-    // 3) Validate all finalize artifacts listed below.
-    const runRoot = process.env.PAI_DR_TEST_RUN_ROOT;
-    if (!runRoot || !path.isAbsolute(runRoot)) {
-      throw new Error(`[runRoot=${runRoot ?? "<unset>"}] PAI_DR_TEST_RUN_ROOT must be an absolute run-root path.`);
-    }
+describe("deep_research canary (M3 finalize)", () => {
+  test("self-seeding canary reaches finalize with Gate E pass", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const baseReal = await fs.realpath(base).catch(() => base);
+        const runId = `dr_smoke_m3_${Date.now()}`;
 
-    if (FINALIZE_ACCEPTANCE_CRITERIA.length !== 8) {
-      throw new Error(`[runRoot=${runRoot}] finalize acceptance criteria drift detected.`);
-    }
+        const initRaw = (await (run_init as any).execute(
+          {
+            query: "smoke:M3",
+            mode: "standard",
+            sensitivity: "no_web",
+            run_id: runId,
+            root_override: baseReal,
+          },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+        if (!init.ok) return;
 
-    await assertFileExists(runRoot, "manifest.json");
-    await assertFileExists(runRoot, "gates.json");
-    await assertFileExists(runRoot, "summaries/summary-pack.json");
-    await assertFileExists(runRoot, "synthesis/final-synthesis.md");
-    await assertFileExists(runRoot, "reports/gate-e-status.json");
-    await assertFileExists(runRoot, "logs/audit.jsonl");
-    await assertFileExists(runRoot, "review/review-bundle.json");
+        const manifestPath = String((init as any).manifest_path);
+        const gatesPath = String((init as any).gates_path);
+        const runRoot = path.dirname(manifestPath);
 
-    const manifest = await readJsonFromRunRoot<{ stage?: { current?: string } }>(runRoot, "manifest.json");
+        const perspectivesFixture = JSON.parse(
+          await fs.readFile(fixturePath("wave-output", "perspectives.json"), "utf8"),
+        ) as Record<string, unknown>;
+        perspectivesFixture.run_id = runId;
+        await fs.writeFile(path.join(runRoot, "perspectives.json"), `${JSON.stringify(perspectivesFixture, null, 2)}\n`, "utf8");
 
-    if (manifest.stage?.current !== "finalize") {
-      throw new Error(`[runRoot=${runRoot}] expected manifest stage to be finalize, got: ${String(manifest.stage?.current)}`);
-    }
+        const stageAdvanceRaw = (await (stage_advance as any).execute(
+          {
+            manifest_path: manifestPath,
+            gates_path: gatesPath,
+            requested_next: "wave1",
+            reason: "smoke:M3 init->wave1",
+          },
+          makeToolContext(),
+        )) as string;
+        expect(parseToolJson(stageAdvanceRaw).ok).toBe(true);
 
-    const gateEStatusDoc = await readJsonFromRunRoot<JsonObject>(runRoot, "reports/gate-e-status.json");
-    const gateEReportStatus = gateStatusFromReport(gateEStatusDoc);
-    expect(gateEReportStatus).toBe("pass");
+        const validMarkdown = await fs.readFile(fixturePath("wave-output", "valid.md"), "utf8");
+        const drivers = {
+          runAgent: async () => ({ markdown: validMarkdown }),
+        };
 
-    const gatesDoc = await readJsonFromRunRoot<JsonObject>(runRoot, "gates.json");
-    const gateEStatus = gateStatusFromGatesDoc(gatesDoc, "E");
-    if (gateEStatus === undefined) {
-      throw new Error(`[runRoot=${runRoot}] gates.json does not expose Gate E status semantics.`);
-    }
-    expect(gateEStatus).toBe("pass");
+        const maxTicks = 60;
+        let reachedFinalize = false;
+        for (let i = 1; i <= maxTicks; i += 1) {
+          const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as {
+            stage?: { current?: string };
+            status?: string;
+          };
+          const stage = String(manifest.stage?.current ?? "");
+
+          if (stage === "finalize" || manifest.status === "completed") {
+            reachedFinalize = true;
+            break;
+          }
+
+          if (stage === "wave1" || stage === "wave2" || stage === "init") {
+            const tick = await orchestrator_tick_live({
+              manifest_path: manifestPath,
+              gates_path: gatesPath,
+              reason: `smoke:M3:tick-${i}`,
+              drivers,
+              tool_context: makeToolContext(),
+            });
+            expect(tick.ok).toBe(true);
+            if (!tick.ok) break;
+            continue;
+          }
+
+          if (stage === "pivot" || stage === "citations") {
+            const tick = await orchestrator_tick_post_pivot({
+              manifest_path: manifestPath,
+              gates_path: gatesPath,
+              reason: `smoke:M3:tick-${i}`,
+              tool_context: makeToolContext(),
+            });
+            expect(tick.ok).toBe(true);
+            if (!tick.ok) break;
+            continue;
+          }
+
+          const tick = await orchestrator_tick_post_summaries({
+            manifest_path: manifestPath,
+            gates_path: gatesPath,
+            reason: `smoke:M3:tick-${i}`,
+            tool_context: makeToolContext(),
+          });
+          expect(tick.ok).toBe(true);
+          if (!tick.ok) break;
+        }
+
+        if (!reachedFinalize) {
+          const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as { stage?: { current?: string }, status?: string };
+          throw new Error(
+            `M3 canary failed to reach finalize within ${maxTicks} ticks (stage=${String(manifest.stage?.current)}, status=${String(manifest.status)})`,
+          );
+        }
+
+        await assertFileExists(runRoot, "manifest.json");
+        await assertFileExists(runRoot, "gates.json");
+        await assertFileExists(runRoot, "summaries/summary-pack.json");
+        await assertFileExists(runRoot, "synthesis/final-synthesis.md");
+        await assertFileExists(runRoot, "reports/gate-e-status.json");
+        await assertFileExists(runRoot, "logs/audit.jsonl");
+        await assertFileExists(runRoot, "review/review-bundle.json");
+
+        const manifest = JSON.parse(await fs.readFile(path.join(runRoot, "manifest.json"), "utf8")) as { stage?: { current?: string } };
+        expect(String(manifest.stage?.current)).toBe("finalize");
+
+        const gateEStatusDoc = JSON.parse(await fs.readFile(path.join(runRoot, "reports", "gate-e-status.json"), "utf8")) as JsonObject;
+        expect(gateStatusFromReport(gateEStatusDoc)).toBe("pass");
+
+        const gatesDoc = JSON.parse(await fs.readFile(path.join(runRoot, "gates.json"), "utf8")) as JsonObject;
+        expect(gateStatusFromGatesDoc(gatesDoc, "E")).toBe("pass");
+      });
+    });
   });
 });
