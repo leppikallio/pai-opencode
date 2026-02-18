@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 import {
@@ -45,6 +46,39 @@ async function initRun(runId: string): Promise<{ manifestPath: string; gatesPath
 }
 
 describe("deep_research operator CLI ergonomics (entity)", () => {
+  test("init preserves existing perspectives unless --force", async () => {
+    await withTempDir(async (base) => {
+      await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_RUNS_ROOT: base }, async () => {
+        const runId = "dr_test_cli_init_resume_001";
+
+        const init1 = await runCli(["init", "Q", "--run-id", runId]);
+        expect(init1.exit).toBe(0);
+        expect(init1.stderr).not.toContain("ERROR:");
+
+        const runRoot = extractField(init1.stdout, "run_root");
+        const perspectivesPath = path.join(runRoot, "perspectives.json");
+
+        const raw = JSON.parse(await fs.readFile(perspectivesPath, "utf8"));
+        raw.perspectives[0].title = "SENTINEL";
+        await fs.writeFile(perspectivesPath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
+
+        const init2 = await runCli(["init", "Q", "--run-id", runId]);
+        expect(init2.exit).toBe(0);
+        expect(init2.stderr).not.toContain("ERROR:");
+
+        const after2 = JSON.parse(await fs.readFile(perspectivesPath, "utf8"));
+        expect(after2.perspectives[0].title).toBe("SENTINEL");
+
+        const init3 = await runCli(["init", "Q", "--run-id", runId, "--force"]);
+        expect(init3.exit).toBe(0);
+        expect(init3.stderr).not.toContain("ERROR:");
+
+        const after3 = JSON.parse(await fs.readFile(perspectivesPath, "utf8"));
+        expect(after3.perspectives[0].title).toBe("Default synthesis perspective");
+      });
+    });
+  });
+
   test("status/inspect/triage/pause/resume/tick/run accept --run-id", async () => {
     await withTempDir(async (base) => {
       await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_RUNS_ROOT: base }, async () => {

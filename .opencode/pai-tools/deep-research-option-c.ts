@@ -53,6 +53,7 @@ type InitCliArgs = {
   sensitivity: "normal" | "restricted" | "no_web";
   mode: "quick" | "standard" | "deep";
   writePerspectives: boolean;
+  force: boolean;
 };
 
 type RunHandleCliArgs = {
@@ -865,28 +866,74 @@ async function runInit(args: InitCliArgs): Promise<void> {
   const manifestPath = requireAbsolutePath(String(init.manifest_path ?? ""), "run_init manifest_path");
   const gatesPath = requireAbsolutePath(String(init.gates_path ?? ""), "run_init gates_path");
 
+  const created = Boolean(init.created);
+
+  if (!created) {
+    // Defensive: when reusing an existing run_id, ensure the run root in the manifest
+    // matches what run_init resolved. This prevents accidental cross-root reuse.
+    const existingManifest = await readJsonObject(manifestPath);
+    const manifestRunRoot = resolveRunRoot(existingManifest);
+    let expected = runRoot;
+    let actual = manifestRunRoot;
+    try {
+      expected = await fs.realpath(runRoot);
+    } catch {
+      // best effort only
+    }
+    try {
+      actual = await fs.realpath(manifestRunRoot);
+    } catch {
+      // best effort only
+    }
+    if (path.resolve(expected) !== path.resolve(actual)) {
+      throw new Error(
+        `manifest.artifacts.root mismatch for existing run (expected ${expected}, actual ${actual})`,
+      );
+    }
+  }
+
   if (args.writePerspectives) {
     const perspectivesPath = path.join(runRoot, "perspectives.json");
-    await callTool("perspectives_write", perspectives_write as unknown as ToolWithExecute, {
-      perspectives_path: perspectivesPath,
-      value: defaultPerspectivePayload(runId),
-      reason: "operator-cli init: default perspectives",
-    });
+    const perspectivesExists = await fs.stat(perspectivesPath).then(() => true).catch(() => false);
+
+    if (!perspectivesExists || args.force || created) {
+      await callTool("perspectives_write", perspectives_write as unknown as ToolWithExecute, {
+        perspectives_path: perspectivesPath,
+        value: defaultPerspectivePayload(runId),
+        reason: created
+          ? "operator-cli init: default perspectives (new run)"
+          : (args.force ? "operator-cli init: default perspectives (forced overwrite)" : "operator-cli init: default perspectives (missing file)"),
+      });
+    } else {
+      console.log("perspectives.note: existing perspectives preserved (use --force to overwrite)");
+    }
     console.log(`perspectives_path: ${perspectivesPath}`);
 
-    const wave1Plan = await callTool("wave1_plan", wave1_plan as unknown as ToolWithExecute, {
-      manifest_path: manifestPath,
-      reason: "operator-cli init: deterministic wave1 plan",
-    });
+    // wave1_plan writes a new artifact with a generated_at timestamp; only create it
+    // when missing/new, or when forced.
+    const wave1PlanPath = path.join(runRoot, "wave-1", "wave1-plan.json");
+    const wave1PlanExists = await fs.stat(wave1PlanPath).then(() => true).catch(() => false);
 
-    const wave1PlanPath = String(wave1Plan.plan_path ?? "").trim();
-    if (!wave1PlanPath || !path.isAbsolute(wave1PlanPath)) {
-      throw new Error("wave1_plan returned invalid plan_path");
+    if (!wave1PlanExists || args.force || created) {
+      const wave1Plan = await callTool("wave1_plan", wave1_plan as unknown as ToolWithExecute, {
+        manifest_path: manifestPath,
+        reason: created
+          ? "operator-cli init: deterministic wave1 plan (new run)"
+          : (args.force ? "operator-cli init: deterministic wave1 plan (forced overwrite)" : "operator-cli init: deterministic wave1 plan (missing file)"),
+      });
+
+      const produced = String(wave1Plan.plan_path ?? "").trim();
+      if (!produced || !path.isAbsolute(produced)) {
+        throw new Error("wave1_plan returned invalid plan_path");
+      }
+      console.log(`wave1_plan_path: ${produced}`);
+    } else {
+      console.log(`wave1_plan_path: ${wave1PlanPath}`);
+      console.log("wave1_plan.note: existing plan preserved (use --force to overwrite)");
     }
-    console.log(`wave1_plan_path: ${wave1PlanPath}`);
 
-    // Resume-safe: if this run already exists and is already in wave1, do not attempt
-    // a redundant stage_advance to the current stage.
+    // Resume-safe: if this run is already in wave1, do not attempt a redundant stage_advance.
+    // But if a run exists in init, it's still reasonable to advance to wave1.
     const preStageManifest = await readJsonObject(manifestPath);
     const preStage = asObject(preStageManifest.stage);
     const preCurrent = String(preStage.current ?? "").trim();
@@ -898,7 +945,9 @@ async function runInit(args: InitCliArgs): Promise<void> {
           manifest_path: manifestPath,
           gates_path: gatesPath,
           requested_next: "wave1",
-          reason: "operator-cli init: deterministic init->wave1",
+          reason: created
+            ? "operator-cli init: deterministic init->wave1 (new run)"
+            : "operator-cli init: deterministic init->wave1 (resume)",
         },
       );
 
@@ -1497,6 +1546,7 @@ const initCmd = command({
     sensitivity: option({ long: "sensitivity", type: optional(oneOf(["normal", "restricted", "no_web"])) }),
     mode: option({ long: "mode", type: optional(oneOf(["quick", "standard", "deep"])) }),
     noPerspectives: flag({ long: "no-perspectives", type: boolean }),
+    force: flag({ long: "force", type: boolean }),
   },
   handler: async (args) => {
     await runInit({
@@ -1505,6 +1555,7 @@ const initCmd = command({
       sensitivity: (args.sensitivity ?? "normal") as InitCliArgs["sensitivity"],
       mode: (args.mode ?? "standard") as InitCliArgs["mode"],
       writePerspectives: !args.noPerspectives,
+      force: args.force,
     });
   },
 });
