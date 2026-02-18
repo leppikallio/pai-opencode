@@ -220,10 +220,10 @@ export async function orchestrator_run_post_pivot(
     });
   }
 
-  if (startStage !== "pivot" && startStage !== "citations" && startStage !== "summaries") {
+  if (startStage !== "pivot" && startStage !== "wave2" && startStage !== "citations" && startStage !== "summaries") {
     return fail({
       code: "INVALID_STATE",
-      message: "orchestrator_run_post_pivot requires pivot|citations|summaries stage",
+      message: "orchestrator_run_post_pivot requires pivot|wave2|citations|summaries stage",
       details: { start_stage: startStage },
       run_id: runId,
       start_stage: startStage,

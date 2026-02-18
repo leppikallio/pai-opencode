@@ -8,8 +8,10 @@ import {
   getManifestPaths,
   getStringProp,
   isPlainObject,
+  nowIso,
   parseJsonSafe,
   readJson,
+  sha256HexLowerUtf8,
   validateManifestV1,
 } from "./lifecycle_lib";
 import { citations_extract_urls } from "./citations_extract_urls";
@@ -19,6 +21,7 @@ import { gate_c_compute } from "./gate_c_compute";
 import { gates_write } from "./gates_write";
 import { pivot_decide } from "./pivot_decide";
 import { stage_advance } from "./stage_advance";
+import { wave_output_ingest } from "./wave_output_ingest";
 import { wave_output_validate } from "./wave_output_validate";
 
 type ToolJsonOk = {
@@ -39,12 +42,31 @@ type PivotWaveEntry = {
   output_abs_path: string;
 };
 
+type PivotGap = {
+  gap_id: string;
+  priority: "P0" | "P1" | "P2" | "P3";
+  text: string;
+  from_perspective_id: string | null;
+};
+
+type Wave2PlanEntry = {
+  gap_id: string;
+  perspective_id: string;
+  source_perspective_id: string | null;
+  priority: "P0" | "P1" | "P2" | "P3";
+  text: string;
+  agent_type: string;
+  output_md: string;
+  prompt_md: string;
+};
+
 export type OrchestratorTickPostPivotArgs = {
   manifest_path: string;
   gates_path: string;
   reason: string;
   stage_advance_tool?: ToolWithExecute;
   pivot_decide_tool?: ToolWithExecute;
+  wave_output_ingest_tool?: ToolWithExecute;
   wave_output_validate_tool?: ToolWithExecute;
   citations_extract_urls_tool?: ToolWithExecute;
   citations_normalize_tool?: ToolWithExecute;
@@ -62,6 +84,8 @@ export type OrchestratorTickPostPivotSuccess = {
   to: string;
   decision_inputs_digest: string | null;
   pivot_created: boolean;
+  wave2_plan_path: string | null;
+  wave2_outputs_count: number | null;
   citations_path: string | null;
   gate_c_status: string | null;
 };
@@ -415,6 +439,607 @@ async function collectPivotWaveEntries(args: {
   return { ok: true, entries };
 }
 
+function normalizeGapId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed === "." || trimmed === "..") return null;
+  if (!/^[A-Za-z0-9._-]+$/.test(trimmed)) return null;
+  if (trimmed.includes("..")) return null;
+  return trimmed;
+}
+
+function normalizeGapPriority(value: unknown): "P0" | "P1" | "P2" | "P3" | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed === "P0" || trimmed === "P1" || trimmed === "P2" || trimmed === "P3"
+    ? trimmed
+    : null;
+}
+
+type ParsedPivotDecision = {
+  wave2_required: boolean;
+  wave2_gap_ids: string[];
+  gaps_by_id: Map<string, PivotGap>;
+};
+
+async function readPivotDecision(args: {
+  pivotPath: string;
+}): Promise<{ ok: true; pivot: ParsedPivotDecision } | { ok: false; code: string; message: string; details: Record<string, unknown> }> {
+  let pivotRaw: unknown;
+  try {
+    pivotRaw = await readJson(args.pivotPath);
+  } catch (e) {
+    if (e instanceof SyntaxError) {
+      return {
+        ok: false,
+        code: "INVALID_JSON",
+        message: "pivot.json contains invalid JSON",
+        details: { pivot_path: args.pivotPath },
+      };
+    }
+    return {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "pivot.json missing",
+      details: { pivot_path: args.pivotPath, message: String(e) },
+    };
+  }
+
+  if (!isPlainObject(pivotRaw)) {
+    return {
+      ok: false,
+      code: "SCHEMA_VALIDATION_FAILED",
+      message: "pivot.json must be an object",
+      details: { pivot_path: args.pivotPath },
+    };
+  }
+
+  const pivotObj = pivotRaw as Record<string, unknown>;
+  const decisionObj = isPlainObject(pivotObj.decision)
+    ? (pivotObj.decision as Record<string, unknown>)
+    : null;
+  if (!decisionObj) {
+    return {
+      ok: false,
+      code: "SCHEMA_VALIDATION_FAILED",
+      message: "pivot decision missing",
+      details: { pivot_path: args.pivotPath },
+    };
+  }
+
+  const wave2Required = decisionObj.wave2_required;
+  if (typeof wave2Required !== "boolean") {
+    return {
+      ok: false,
+      code: "SCHEMA_VALIDATION_FAILED",
+      message: "pivot decision wave2_required must be boolean",
+      details: { pivot_path: args.pivotPath },
+    };
+  }
+
+  const wave2GapIdsRaw = Array.isArray(decisionObj.wave2_gap_ids)
+    ? (decisionObj.wave2_gap_ids as unknown[])
+    : null;
+  if (!wave2GapIdsRaw) {
+    return {
+      ok: false,
+      code: "SCHEMA_VALIDATION_FAILED",
+      message: "pivot decision wave2_gap_ids must be array",
+      details: { pivot_path: args.pivotPath },
+    };
+  }
+
+  const normalizedWave2GapIds: string[] = [];
+  for (const [index, gapIdRaw] of wave2GapIdsRaw.entries()) {
+    const gapId = normalizeGapId(gapIdRaw);
+    if (!gapId) {
+      return {
+        ok: false,
+        code: "PATH_TRAVERSAL",
+        message: "pivot decision contains unsafe wave2 gap id",
+        details: {
+          pivot_path: args.pivotPath,
+          index,
+          gap_id: gapIdRaw ?? null,
+        },
+      };
+    }
+    normalizedWave2GapIds.push(gapId);
+  }
+
+  const gapIdSet = new Set<string>();
+  const dedupWave2GapIds: string[] = [];
+  for (const gapId of normalizedWave2GapIds) {
+    if (gapIdSet.has(gapId)) continue;
+    gapIdSet.add(gapId);
+    dedupWave2GapIds.push(gapId);
+  }
+
+  const gapsById = new Map<string, PivotGap>();
+  const gapsRaw = Array.isArray(pivotObj.gaps)
+    ? (pivotObj.gaps as Array<Record<string, unknown>>)
+    : [];
+
+  for (const [index, gapRaw] of gapsRaw.entries()) {
+    if (!isPlainObject(gapRaw)) {
+      return {
+        ok: false,
+        code: "SCHEMA_VALIDATION_FAILED",
+        message: "pivot gap entry must be object",
+        details: {
+          pivot_path: args.pivotPath,
+          index,
+        },
+      };
+    }
+
+    const gapId = normalizeGapId(gapRaw.gap_id);
+    const priority = normalizeGapPriority(gapRaw.priority);
+    const text = nonEmptyString(gapRaw.text);
+    const fromPerspectiveId = nonEmptyString(gapRaw.from_perspective_id);
+
+    if (!gapId || !priority || !text) {
+      return {
+        ok: false,
+        code: "SCHEMA_VALIDATION_FAILED",
+        message: "pivot gap entry is missing required fields",
+        details: {
+          pivot_path: args.pivotPath,
+          index,
+        },
+      };
+    }
+
+    if (!gapsById.has(gapId)) {
+      gapsById.set(gapId, {
+        gap_id: gapId,
+        priority,
+        text,
+        from_perspective_id: fromPerspectiveId,
+      });
+    }
+  }
+
+  return {
+    ok: true,
+    pivot: {
+      wave2_required: wave2Required,
+      wave2_gap_ids: dedupWave2GapIds,
+      gaps_by_id: gapsById,
+    },
+  };
+}
+
+function buildWave2PromptMd(args: {
+  queryText: string;
+  gap: PivotGap;
+}): string {
+  return [
+    "## Query",
+    args.queryText,
+    "",
+    "## Wave 2 Gap Focus",
+    `- gap_id: ${args.gap.gap_id}`,
+    `- priority: ${args.gap.priority}`,
+    `- source_perspective_id: ${args.gap.from_perspective_id ?? "n/a"}`,
+    `- gap_text: ${args.gap.text}`,
+    "",
+    "## Contract",
+    "- Address the gap with concrete follow-up findings.",
+    "- Include at least one source URL bullet.",
+    "- Preserve deterministic section headings: Findings, Sources, Gaps.",
+    "",
+  ].join("\n");
+}
+
+function buildWave2Markdown(args: { gap: PivotGap }): string {
+  return [
+    "## Findings",
+    `Wave 2 follow-up for ${args.gap.gap_id}: ${args.gap.text}`,
+    "",
+    "## Sources",
+    `- https://example.com/wave2/${encodeURIComponent(args.gap.gap_id)}`,
+    "",
+    "## Gaps",
+    "No additional unresolved gaps identified for this follow-up.",
+    "",
+  ].join("\n");
+}
+
+async function readPerspectiveAgentTypes(
+  perspectivesPath: string,
+): Promise<{ ok: true; agents: Map<string, string> } | { ok: false; code: string; message: string; details: Record<string, unknown> }> {
+  let perspectivesRaw: unknown;
+  try {
+    perspectivesRaw = await readJson(perspectivesPath);
+  } catch (e) {
+    if (e instanceof SyntaxError) {
+      return {
+        ok: false,
+        code: "INVALID_JSON",
+        message: "perspectives.json contains invalid JSON",
+        details: { perspectives_path: perspectivesPath },
+      };
+    }
+    return {
+      ok: false,
+      code: "NOT_FOUND",
+      message: "perspectives.json missing",
+      details: { perspectives_path: perspectivesPath, message: String(e) },
+    };
+  }
+
+  if (!isPlainObject(perspectivesRaw)) {
+    return {
+      ok: false,
+      code: "SCHEMA_VALIDATION_FAILED",
+      message: "perspectives.json must be object",
+      details: { perspectives_path: perspectivesPath },
+    };
+  }
+
+  const doc = perspectivesRaw as Record<string, unknown>;
+  const perspectives = Array.isArray(doc.perspectives)
+    ? (doc.perspectives as Array<Record<string, unknown>>)
+    : [];
+
+  const agents = new Map<string, string>();
+  for (const perspectiveRaw of perspectives) {
+    if (!isPlainObject(perspectiveRaw)) continue;
+    const id = nonEmptyString(perspectiveRaw.id);
+    const agentType = nonEmptyString(perspectiveRaw.agent_type);
+    if (!id || !agentType) continue;
+    if (!agents.has(id)) agents.set(id, agentType);
+  }
+
+  return { ok: true, agents };
+}
+
+function deriveWave2Plan(args: {
+  runId: string;
+  runRoot: string;
+  wave2DirPath: string;
+  maxWave2Agents: number;
+  queryText: string;
+  pivot: ParsedPivotDecision;
+  perspectiveAgents: Map<string, string>;
+}):
+  | {
+    ok: true;
+    plan: {
+      schema_version: "wave2_plan.v1";
+      run_id: string;
+      generated_at: string;
+      inputs_digest: string;
+      entries: Wave2PlanEntry[];
+    };
+  }
+  | { ok: false; code: string; message: string; details: Record<string, unknown> } {
+  const cap = Number.isFinite(args.maxWave2Agents)
+    ? Math.max(0, Math.trunc(args.maxWave2Agents))
+    : 0;
+  const count = args.pivot.wave2_gap_ids.length;
+  if (count > cap) {
+    return {
+      ok: false,
+      code: "WAVE_CAP_EXCEEDED",
+      message: "wave2 gap ids exceed manifest limit",
+      details: { cap, count, stage: "wave2" },
+    };
+  }
+
+  if (count === 0) {
+    return {
+      ok: false,
+      code: "INVALID_STATE",
+      message: "wave2 stage requires non-empty wave2_gap_ids",
+      details: { stage: "wave2" },
+    };
+  }
+
+  const runRootAbs = path.resolve(args.runRoot);
+  const entries: Wave2PlanEntry[] = [];
+  for (const gapId of [...args.pivot.wave2_gap_ids].sort((a, b) => a.localeCompare(b))) {
+    const normalizedGapId = normalizeGapId(gapId);
+    if (!normalizedGapId) {
+      return {
+        ok: false,
+        code: "PATH_TRAVERSAL",
+        message: "wave2 gap id is unsafe",
+        details: { gap_id: gapId },
+      };
+    }
+
+    const gap = args.pivot.gaps_by_id.get(normalizedGapId) ?? {
+      gap_id: normalizedGapId,
+      priority: "P2" as const,
+      text: `Follow-up needed for ${normalizedGapId}`,
+      from_perspective_id: null,
+    };
+
+    const outputAbsPath = path.join(args.wave2DirPath, `${normalizedGapId}.md`);
+    if (!isContainedWithin(runRootAbs, outputAbsPath)) {
+      return {
+        ok: false,
+        code: "PATH_TRAVERSAL",
+        message: "wave2 output path escapes run root",
+        details: {
+          gap_id: normalizedGapId,
+          output_path: outputAbsPath,
+          run_root: args.runRoot,
+        },
+      };
+    }
+
+    const outputMd = toPosixPath(path.relative(args.runRoot, outputAbsPath));
+    entries.push({
+      gap_id: normalizedGapId,
+      perspective_id: normalizedGapId,
+      source_perspective_id: gap.from_perspective_id,
+      priority: gap.priority,
+      text: gap.text,
+      agent_type: gap.from_perspective_id
+        ? (args.perspectiveAgents.get(gap.from_perspective_id) ?? "researcher")
+        : "researcher",
+      output_md: outputMd,
+      prompt_md: buildWave2PromptMd({
+        queryText: args.queryText,
+        gap,
+      }),
+    });
+  }
+
+  const digestPayload = {
+    schema: "wave2_plan.inputs.v1",
+    run_id: args.runId,
+    query_text: args.queryText,
+    max_wave2_agents: cap,
+    wave2_gap_ids: entries.map((entry) => entry.gap_id),
+    entries: entries.map((entry) => ({
+      gap_id: entry.gap_id,
+      perspective_id: entry.perspective_id,
+      source_perspective_id: entry.source_perspective_id,
+      priority: entry.priority,
+      text: entry.text,
+      agent_type: entry.agent_type,
+      output_md: entry.output_md,
+    })),
+  };
+
+  const inputsDigest = `sha256:${sha256HexLowerUtf8(JSON.stringify(digestPayload))}`;
+  const generatedAt = nowIso();
+  return {
+    ok: true,
+    plan: {
+      schema_version: "wave2_plan.v1",
+      run_id: args.runId,
+      generated_at: generatedAt,
+      inputs_digest: inputsDigest,
+      entries,
+    },
+  };
+}
+
+async function writeJsonFile(filePath: string, value: unknown): Promise<{ ok: true } | { ok: false; code: string; message: string; details: Record<string, unknown> }> {
+  try {
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+    return { ok: true };
+  } catch (e) {
+    return {
+      ok: false,
+      code: "WRITE_FAILED",
+      message: "failed to write JSON artifact",
+      details: {
+        file_path: filePath,
+        message: String(e),
+      },
+    };
+  }
+}
+
+async function executeWave2Stage(args: {
+  manifestPath: string;
+  runId: string;
+  runRoot: string;
+  runRootReal: string;
+  manifest: Record<string, unknown>;
+  perspectivesPath: string;
+  wave2DirPath: string;
+  pivotPath: string;
+  reason: string;
+  waveOutputIngestTool: ToolWithExecute;
+  waveOutputValidateTool: ToolWithExecute;
+  tool_context?: unknown;
+}): Promise<{ ok: true; plan_path: string; outputs_count: number } | { ok: false; code: string; message: string; details: Record<string, unknown> }> {
+  const pivot = await readPivotDecision({ pivotPath: args.pivotPath });
+  if (!pivot.ok) return pivot;
+
+  if (!pivot.pivot.wave2_required) {
+    return {
+      ok: false,
+      code: "INVALID_STATE",
+      message: "wave2 stage reached while pivot decision skips wave2",
+      details: {
+        pivot_path: args.pivotPath,
+      },
+    };
+  }
+
+  const perspectiveAgentsResult = await readPerspectiveAgentTypes(args.perspectivesPath);
+  if (!perspectiveAgentsResult.ok) return perspectiveAgentsResult;
+
+  const queryObj = isPlainObject(args.manifest.query)
+    ? (args.manifest.query as Record<string, unknown>)
+    : {};
+  const queryText = nonEmptyString(queryObj.text) ?? "";
+  const limitsObj = isPlainObject(args.manifest.limits)
+    ? (args.manifest.limits as Record<string, unknown>)
+    : {};
+  const maxWave2AgentsRaw = Number(limitsObj.max_wave2_agents ?? Number.NaN);
+  if (!Number.isFinite(maxWave2AgentsRaw) || Math.trunc(maxWave2AgentsRaw) < 0) {
+    return {
+      ok: false,
+      code: "INVALID_STATE",
+      message: "manifest.limits.max_wave2_agents invalid",
+      details: {
+        value: limitsObj.max_wave2_agents ?? null,
+      },
+    };
+  }
+
+  const planResult = deriveWave2Plan({
+    runId: args.runId,
+    runRoot: args.runRoot,
+    wave2DirPath: args.wave2DirPath,
+    maxWave2Agents: maxWave2AgentsRaw,
+    queryText,
+    pivot: pivot.pivot,
+    perspectiveAgents: perspectiveAgentsResult.agents,
+  });
+  if (!planResult.ok) return planResult;
+
+  const planPath = path.join(args.wave2DirPath, "wave2-plan.json");
+  const planPathResolved = await resolveContainedPath({
+    runRoot: args.runRoot,
+    runRootReal: args.runRootReal,
+    input: planPath,
+    field: "manifest.artifacts.paths.wave2_plan_file",
+  });
+  if (!planPathResolved.ok) {
+    return {
+      ok: false,
+      code: "PATH_TRAVERSAL",
+      message: planPathResolved.reason,
+      details: planPathResolved.details,
+    };
+  }
+
+  const planWrite = await writeJsonFile(planPathResolved.absPath, planResult.plan);
+  if (!planWrite.ok) return planWrite;
+
+  const wave2PerspectivesPath = path.join(args.wave2DirPath, "wave2-perspectives.json");
+  const wave2PerspectivesResolved = await resolveContainedPath({
+    runRoot: args.runRoot,
+    runRootReal: args.runRootReal,
+    input: wave2PerspectivesPath,
+    field: "manifest.artifacts.paths.wave2_perspectives_file",
+  });
+  if (!wave2PerspectivesResolved.ok) {
+    return {
+      ok: false,
+      code: "PATH_TRAVERSAL",
+      message: wave2PerspectivesResolved.reason,
+      details: wave2PerspectivesResolved.details,
+    };
+  }
+
+  const wave2PerspectivesDoc = {
+    schema_version: "perspectives.v1",
+    run_id: args.runId,
+    created_at: planResult.plan.generated_at,
+    perspectives: planResult.plan.entries.map((entry) => ({
+      id: entry.perspective_id,
+      title: `Wave 2 gap ${entry.gap_id}`,
+      track: "independent",
+      agent_type: entry.agent_type,
+      prompt_contract: {
+        max_words: 500,
+        max_sources: 8,
+        tool_budget: {
+          search_calls: 0,
+          fetch_calls: 0,
+        },
+        must_include_sections: ["Findings", "Sources", "Gaps"],
+      },
+    })),
+  };
+
+  const perspectivesWrite = await writeJsonFile(wave2PerspectivesResolved.absPath, wave2PerspectivesDoc);
+  if (!perspectivesWrite.ok) return perspectivesWrite;
+
+  const outputsForIngest = planResult.plan.entries.map((entry) => ({
+    perspective_id: entry.perspective_id,
+    markdown: buildWave2Markdown({
+      gap: {
+        gap_id: entry.gap_id,
+        priority: entry.priority,
+        text: entry.text,
+        from_perspective_id: entry.source_perspective_id,
+      },
+    }),
+    agent_type: entry.agent_type,
+    prompt_md: entry.prompt_md,
+  }));
+
+  const ingest = await executeToolJson({
+    name: "WAVE_OUTPUT_INGEST",
+    tool: args.waveOutputIngestTool,
+    payload: {
+      manifest_path: args.manifestPath,
+      perspectives_path: wave2PerspectivesResolved.absPath,
+      wave: "wave2",
+      outputs: outputsForIngest,
+    },
+    tool_context: args.tool_context,
+  });
+  if (!ingest.ok) {
+    return {
+      ok: false,
+      code: ingest.code,
+      message: ingest.message,
+      details: ingest.details,
+    };
+  }
+
+  for (const [index, entry] of planResult.plan.entries.entries()) {
+    const markdownResolved = await resolveContainedPath({
+      runRoot: args.runRoot,
+      runRootReal: args.runRootReal,
+      input: entry.output_md,
+      field: `wave2_plan.entries[${index}].output_md`,
+    });
+    if (!markdownResolved.ok) {
+      return {
+        ok: false,
+        code: "PATH_TRAVERSAL",
+        message: markdownResolved.reason,
+        details: markdownResolved.details,
+      };
+    }
+
+    const validate = await executeToolJson({
+      name: "WAVE_OUTPUT_VALIDATE",
+      tool: args.waveOutputValidateTool,
+      payload: {
+        perspectives_path: wave2PerspectivesResolved.absPath,
+        perspective_id: entry.perspective_id,
+        markdown_path: markdownResolved.absPath,
+      },
+      tool_context: args.tool_context,
+    });
+    if (!validate.ok) {
+      return {
+        ok: false,
+        code: validate.code,
+        message: validate.message,
+        details: {
+          ...validate.details,
+          perspective_id: entry.perspective_id,
+          markdown_path: markdownResolved.absPath,
+        },
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    plan_path: planPathResolved.absPath,
+    outputs_count: planResult.plan.entries.length,
+  };
+}
+
 async function writeDeterministicCitationFixtures(args: {
   urlMapPath: string;
   fixturesPath: string;
@@ -610,13 +1235,15 @@ export async function orchestrator_tick_post_pivot(
       to: "summaries",
       decision_inputs_digest: null,
       pivot_created: false,
+      wave2_plan_path: null,
+      wave2_outputs_count: null,
       citations_path: null,
       gate_c_status: null,
     };
   }
 
-  if (from !== "pivot" && from !== "citations") {
-    return fail("INVALID_STATE", "post-pivot tick only supports pivot|citations|summaries stages", {
+  if (from !== "pivot" && from !== "wave2" && from !== "citations") {
+    return fail("INVALID_STATE", "post-pivot tick only supports pivot|wave2|citations|summaries stages", {
       from,
     });
   }
@@ -644,6 +1271,17 @@ export async function orchestrator_tick_post_pivot(
   }
   const wave1DirPath = wave1DirResolved.absPath;
 
+  const wave2DirResolved = await resolveContainedPath({
+    runRoot,
+    runRootReal,
+    input: String(pathsObj.wave2_dir ?? "wave-2"),
+    field: "manifest.artifacts.paths.wave2_dir",
+  });
+  if (!wave2DirResolved.ok) {
+    return fail("PATH_TRAVERSAL", wave2DirResolved.reason, wave2DirResolved.details);
+  }
+  const wave2DirPath = wave2DirResolved.absPath;
+
   const pivotResolved = await resolveContainedPath({
     runRoot,
     runRootReal,
@@ -657,6 +1295,7 @@ export async function orchestrator_tick_post_pivot(
 
   const stageAdvanceTool = args.stage_advance_tool ?? (stage_advance as unknown as ToolWithExecute);
   const pivotDecideTool = args.pivot_decide_tool ?? (pivot_decide as unknown as ToolWithExecute);
+  const waveOutputIngestTool = args.wave_output_ingest_tool ?? (wave_output_ingest as unknown as ToolWithExecute);
   const waveOutputValidateTool = args.wave_output_validate_tool ?? (wave_output_validate as unknown as ToolWithExecute);
   const citationsExtractUrlsTool = args.citations_extract_urls_tool ?? (citations_extract_urls as unknown as ToolWithExecute);
   const citationsNormalizeTool = args.citations_normalize_tool ?? (citations_normalize as unknown as ToolWithExecute);
@@ -667,6 +1306,7 @@ export async function orchestrator_tick_post_pivot(
   const requiredTools: Array<{ name: string; tool: ToolWithExecute }> = [
     { name: "STAGE_ADVANCE", tool: stageAdvanceTool },
     { name: "PIVOT_DECIDE", tool: pivotDecideTool },
+    { name: "WAVE_OUTPUT_INGEST", tool: waveOutputIngestTool },
     { name: "WAVE_OUTPUT_VALIDATE", tool: waveOutputValidateTool },
     { name: "CITATIONS_EXTRACT_URLS", tool: citationsExtractUrlsTool },
     { name: "CITATIONS_NORMALIZE", tool: citationsNormalizeTool },
@@ -682,19 +1322,22 @@ export async function orchestrator_tick_post_pivot(
   }
 
   const runStageAdvance = async (
-    requestedNext: string,
-  ): Promise<ToolJsonOk | ToolJsonFailure> => executeToolJson({
-    name: "STAGE_ADVANCE",
-    tool: stageAdvanceTool,
-    payload: {
-        manifest_path: manifestPath,
-        gates_path: gatesPath,
-        requested_next: requestedNext,
-        expected_manifest_revision: manifestRevision,
-        reason,
-      },
+    requestedNext?: string,
+  ): Promise<ToolJsonOk | ToolJsonFailure> => {
+    const payload: Record<string, unknown> = {
+      manifest_path: manifestPath,
+      gates_path: gatesPath,
+      expected_manifest_revision: manifestRevision,
+      reason,
+    };
+    if (requestedNext) payload.requested_next = requestedNext;
+    return executeToolJson({
+      name: "STAGE_ADVANCE",
+      tool: stageAdvanceTool,
+      payload,
       tool_context: args.tool_context,
     });
+  };
 
   const syncManifestRevision = (
     stageAdvanceResult: ToolJsonOk,
@@ -782,6 +1425,67 @@ export async function orchestrator_tick_post_pivot(
       pivotCreated = true;
     }
 
+    const advanceFromPivot = await runStageAdvance();
+    if (!advanceFromPivot.ok) {
+      return fail(advanceFromPivot.code, advanceFromPivot.message, {
+        ...advanceFromPivot.details,
+        from,
+      });
+    }
+
+    const revisionSyncError = syncManifestRevision(advanceFromPivot);
+    if (revisionSyncError) return revisionSyncError;
+
+    const to = String(advanceFromPivot.to ?? "").trim();
+    if (to !== "wave2" && to !== "citations") {
+      return fail("INVALID_STATE", "pivot stage must transition to wave2 or citations", {
+        from,
+        to,
+      });
+    }
+
+    const decisionObj = isPlainObject(advanceFromPivot.decision)
+      ? (advanceFromPivot.decision as Record<string, unknown>)
+      : null;
+    const decisionInputsDigest =
+      decisionObj && typeof decisionObj.inputs_digest === "string"
+        ? decisionObj.inputs_digest
+        : null;
+
+    return {
+      ok: true,
+      schema_version: "orchestrator_tick.post_pivot.v1",
+      run_id: runId,
+      from,
+      to,
+      decision_inputs_digest: decisionInputsDigest,
+      pivot_created: pivotCreated,
+      wave2_plan_path: null,
+      wave2_outputs_count: null,
+      citations_path: null,
+      gate_c_status: null,
+    };
+  }
+
+  if (from === "wave2") {
+    const wave2 = await executeWave2Stage({
+      manifestPath,
+      runId,
+      runRoot,
+      runRootReal,
+      manifest,
+      perspectivesPath,
+      wave2DirPath,
+      pivotPath,
+      reason,
+      waveOutputIngestTool,
+      waveOutputValidateTool,
+      tool_context: args.tool_context,
+    });
+    if (!wave2.ok) {
+      return fail(wave2.code, wave2.message, wave2.details);
+    }
+
     const advanceToCitations = await runStageAdvance("citations");
     if (!advanceToCitations.ok) {
       return fail(advanceToCitations.code, advanceToCitations.message, {
@@ -810,7 +1514,9 @@ export async function orchestrator_tick_post_pivot(
       from,
       to,
       decision_inputs_digest: decisionInputsDigest,
-      pivot_created: pivotCreated,
+      pivot_created: false,
+      wave2_plan_path: wave2.plan_path,
+      wave2_outputs_count: wave2.outputs_count,
       citations_path: null,
       gate_c_status: null,
     };
@@ -978,6 +1684,8 @@ export async function orchestrator_tick_post_pivot(
     to,
     decision_inputs_digest: decisionInputsDigest,
     pivot_created: false,
+    wave2_plan_path: null,
+    wave2_outputs_count: null,
     citations_path: citationsPath,
     gate_c_status: String(gateC.status ?? ""),
   };
