@@ -57,6 +57,10 @@ import {
   setKittyTabState,
   type KittyTabState,
 } from "./handlers/kitty-tabs";
+import {
+  runMonitor,
+  type MonitorOptions,
+} from "../skills/pai-upgrade/Tools/MonitorSources";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -575,6 +579,35 @@ export const PaiUnified: Plugin = async (ctx) => {
     return Number.isFinite(n) && n > 0 ? n : 1200;
   })();
 
+  const ENABLE_PAI_UPGRADE_SESSION_TRIGGER = (() => {
+    const raw = (process.env.PAI_UPGRADE_SESSION_TRIGGER ?? "").trim().toLowerCase();
+    if (!raw) return true;
+    return !["0", "false", "no", "off"].includes(raw);
+  })();
+
+  function parsePositiveIntEnv(name: string, fallback: number): number {
+    const raw = (process.env[name] ?? "").trim();
+    const parsed = Number.parseInt(raw, 10);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+  }
+
+  const PAI_UPGRADE_SESSION_TRIGGER_PROVIDER =
+    (process.env.PAI_UPGRADE_SESSION_TRIGGER_PROVIDER ?? "anthropic").trim().toLowerCase() ||
+    "anthropic";
+  const PAI_UPGRADE_SESSION_TRIGGER_DAYS = parsePositiveIntEnv(
+    "PAI_UPGRADE_SESSION_TRIGGER_DAYS",
+    7
+  );
+  const PAI_UPGRADE_SESSION_TRIGGER_COOLDOWN_MS =
+    parsePositiveIntEnv("PAI_UPGRADE_SESSION_TRIGGER_COOLDOWN_HOURS", 24) * 60 * 60 * 1000;
+  const PAI_UPGRADE_SESSION_TRIGGER_TIMEOUT_MS = parsePositiveIntEnv(
+    "PAI_UPGRADE_SESSION_TRIGGER_TIMEOUT_MS",
+    45000
+  );
+
+  let paiUpgradeSessionTriggerInflight: Promise<void> | null = null;
+  let paiUpgradeSessionTriggerLastAttemptAt = 0;
+
   const lastHistoryCaptureToastAtBySession = new Map<string, number>();
   function maybeToastHistoryCaptureIssue(sessionId: string | undefined, message: string) {
     if (!ENABLE_HISTORY_CAPTURE_TOASTS) return;
@@ -613,6 +646,112 @@ export const PaiUnified: Plugin = async (ctx) => {
     } finally {
       if (timeoutId) clearTimeout(timeoutId);
     }
+  }
+
+  function readPaiUpgradeLastCheckTimestampMs(): number | null {
+    try {
+      const runtime = getPaiRuntimeInfo();
+      const statePath = path.join(
+        runtime.paiDir,
+        "skills",
+        "pai-upgrade",
+        "State",
+        "last-check.json"
+      );
+      if (!fs.existsSync(statePath)) return null;
+      const raw = fs.readFileSync(statePath, "utf-8");
+      const parsed = JSON.parse(raw) as unknown;
+      if (!isRecord(parsed)) return null;
+      const ts =
+        getStringProp(parsed, "last_check_timestamp") ??
+        getStringProp(parsed, "updated_at") ??
+        getStringProp(parsed, "last_check");
+      if (!ts) return null;
+      const asMs = new Date(ts).getTime();
+      return Number.isFinite(asMs) && asMs > 0 ? asMs : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function shouldRunPaiUpgradeSessionTrigger(nowMs: number): { run: boolean; reason: string } {
+    if (!ENABLE_PAI_UPGRADE_SESSION_TRIGGER) {
+      return { run: false, reason: "disabled" };
+    }
+
+    if (paiUpgradeSessionTriggerInflight) {
+      return { run: false, reason: "in-flight" };
+    }
+
+    if (paiUpgradeSessionTriggerLastAttemptAt > 0) {
+      const sinceLastAttempt = nowMs - paiUpgradeSessionTriggerLastAttemptAt;
+      if (sinceLastAttempt < PAI_UPGRADE_SESSION_TRIGGER_COOLDOWN_MS) {
+        return { run: false, reason: "cooldown-memory" };
+      }
+    }
+
+    const lastCheckMs = readPaiUpgradeLastCheckTimestampMs();
+    if (lastCheckMs) {
+      const ageMs = nowMs - lastCheckMs;
+      if (ageMs < PAI_UPGRADE_SESSION_TRIGGER_COOLDOWN_MS) {
+        return { run: false, reason: "cooldown-state" };
+      }
+    }
+
+    return { run: true, reason: "stale-or-missing-state" };
+  }
+
+  async function runPaiUpgradeSessionTrigger(sessionId: string | undefined): Promise<void> {
+    if (!sessionId || !isPrimarySession(sessionId)) return;
+
+    const nowMs = Date.now();
+    const decision = shouldRunPaiUpgradeSessionTrigger(nowMs);
+    if (!decision.run) {
+      fileLog(`[pai-upgrade] Session trigger skipped (${decision.reason})`, "debug");
+      return;
+    }
+
+    paiUpgradeSessionTriggerLastAttemptAt = nowMs;
+
+    const options: MonitorOptions = {
+      days: PAI_UPGRADE_SESSION_TRIGGER_DAYS,
+      force: false,
+      provider: PAI_UPGRADE_SESSION_TRIGGER_PROVIDER,
+      dryRun: false,
+      format: "json",
+      persistHistory: true,
+    };
+
+    const task = (async () => {
+      const timed = await withWallClockTimeout(
+        runMonitor(options),
+        PAI_UPGRADE_SESSION_TRIGGER_TIMEOUT_MS,
+        "pai-upgrade-session-trigger"
+      );
+
+      if (!timed.ok) {
+        fileLog(
+          `[pai-upgrade] Session trigger timed out (${timed.timeoutMs}ms)`,
+          "warn"
+        );
+        return;
+      }
+
+      const result = timed.value;
+      fileLog(
+        `[pai-upgrade] Session trigger complete updates=${result.summary.total} critical=${result.summary.critical} provider=${result.summary.provider}`,
+        "info"
+      );
+    })()
+      .catch((error) => {
+        fileLogError("[pai-upgrade] Session trigger failed", error);
+      })
+      .finally(() => {
+        paiUpgradeSessionTriggerInflight = null;
+      });
+
+    paiUpgradeSessionTriggerInflight = task;
+    await task;
   }
 
   async function bestEffortHistoryCapture<T>(opts: {
@@ -2248,6 +2387,12 @@ export const PaiUnified: Plugin = async (ctx) => {
           } catch (error) {
             fileLogError("Skill restore failed", error);
             // Don't throw - session should continue
+          }
+
+          // Session-triggered pai-upgrade monitor (primary sessions only).
+          // Non-blocking by design: run in background with cooldown safeguards.
+          if (sessionIdForEvent && isPrimarySession(sessionIdForEvent)) {
+            void runPaiUpgradeSessionTrigger(sessionIdForEvent);
           }
 
           // Kitty: mark inference state on new session (primary only).
