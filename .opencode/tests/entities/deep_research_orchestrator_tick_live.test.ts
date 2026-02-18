@@ -31,6 +31,17 @@ function validMarkdown(label: string): string {
   ].join("\n");
 }
 
+function invalidMarkdown(label: string): string {
+  return [
+    "## Findings",
+    `Primary finding for ${label}.`,
+    "",
+    "## Sources",
+    "not-a-bullet-source-line",
+    "",
+  ].join("\n");
+}
+
 async function writePerspectivesForRun(runRoot: string, runId: string): Promise<string> {
   const fixture = fixturePath("runs", "p03-wave1-plan-min", "perspectives.json");
   const raw = await fs.readFile(fixture, "utf8");
@@ -94,9 +105,10 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
         expect(out.from).toBe("wave1");
         expect(out.to).toBe("pivot");
         expect(typeof out.decision_inputs_digest).toBe("string");
-        expect(out.wave_outputs_count).toBe(1);
+        expect(out.wave_outputs_count).toBe(3);
 
-        expect(driverCalls.length).toBe(1);
+        expect(driverCalls.length).toBe(3);
+        expect(driverCalls.map((call) => call.perspective_id)).toEqual(["p1", "p2", "p3"]);
         expect(driverCalls[0]).toMatchObject({
           run_id: runId,
           stage: "wave1",
@@ -105,13 +117,30 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
           output_md: "wave-1/p1.md",
         });
 
-        const waveMarkdown = await fs.readFile(path.join(runRoot, "wave-1", "p1.md"), "utf8");
-        expect(waveMarkdown).toContain("## Findings");
+        const p1Markdown = await fs.readFile(path.join(runRoot, "wave-1", "p1.md"), "utf8");
+        const p2Markdown = await fs.readFile(path.join(runRoot, "wave-1", "p2.md"), "utf8");
+        const p3Markdown = await fs.readFile(path.join(runRoot, "wave-1", "p3.md"), "utf8");
+        expect(p1Markdown).toContain("## Findings");
+        expect(p2Markdown).toContain("## Findings");
+        expect(p3Markdown).toContain("## Findings");
+
+        const p1Meta = JSON.parse(await fs.readFile(path.join(runRoot, "wave-1", "p1.meta.json"), "utf8"));
+        const p2Meta = JSON.parse(await fs.readFile(path.join(runRoot, "wave-1", "p2.meta.json"), "utf8"));
+        const p3Meta = JSON.parse(await fs.readFile(path.join(runRoot, "wave-1", "p3.meta.json"), "utf8"));
+        for (const sidecar of [p1Meta, p2Meta, p3Meta]) {
+          expect(typeof sidecar.perspective_id).toBe("string");
+          expect(typeof sidecar.agent_type).toBe("string");
+          expect(typeof sidecar.output_md).toBe("string");
+          expect(typeof sidecar.prompt_digest).toBe("string");
+          expect(sidecar.prompt_digest.startsWith("sha256:")).toBe(true);
+          expect(typeof sidecar.created_at).toBe("string");
+          expect(sidecar.retry_count).toBe(0);
+        }
 
         const waveReview = JSON.parse(await fs.readFile(path.join(runRoot, "wave-review.json"), "utf8"));
         expect(waveReview.ok).toBe(true);
         expect(waveReview.pass).toBe(true);
-        expect(waveReview.validated).toBe(1);
+        expect(waveReview.validated).toBe(3);
         expect(waveReview.failed).toBe(0);
 
         const gates = JSON.parse(await fs.readFile(gatesPath, "utf8"));
@@ -322,7 +351,31 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
         await fs.writeFile(path.join(runRoot, "wave-1", "p1.md"), validMarkdown("p1"), "utf8");
         await fs.writeFile(
           path.join(runRoot, "wave-review.json"),
-          `${JSON.stringify({ ok: true, pass: true, validated: 1, failed: 0, total: 1 }, null, 2)}\n`,
+          `${JSON.stringify(
+            {
+              ok: true,
+              pass: true,
+              validated: 1,
+              failed: 0,
+              results: [
+                {
+                  perspective_id: "p1",
+                  markdown_path: path.join(runRoot, "wave-1", "p1.md"),
+                  pass: true,
+                  metrics: { words: 20, sources: 1, missing_sections: [] },
+                  failure: null,
+                },
+              ],
+              retry_directives: [],
+              report: {
+                failures_sample: [],
+                failures_omitted: 0,
+                notes: "ok",
+              },
+            },
+            null,
+            2,
+          )}\n`,
           "utf8",
         );
 
@@ -365,7 +418,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
   test("passes expected_revision to gates_write (mismatch path proves optimistic lock wiring)", async () => {
     await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
-        const runId = "dr_test_orchestrator_tick_live_005";
+        const runId = "dr_test_orchestrator_tick_live_optlock_005";
 
         const initRaw = (await (run_init as any).execute(
           { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
@@ -413,6 +466,142 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
         expect(out.ok).toBe(false);
         if (out.ok) return;
         expect(out.error.code).toBe("REVISION_MISMATCH");
+      });
+    });
+  });
+
+  test("records retry directives and bounded retry state when wave review fails", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_orchestrator_tick_live_retry_005";
+
+        const initRaw = (await (run_init as any).execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = String((init as any).manifest_path);
+        const gatesPath = String((init as any).gates_path);
+        const runRoot = path.dirname(manifestPath);
+        await writePerspectivesForRun(runRoot, runId);
+
+        const toWave1Raw = (await (stage_advance as any).execute(
+          {
+            manifest_path: manifestPath,
+            gates_path: gatesPath,
+            reason: "test: init -> wave1",
+            requested_next: "wave1",
+          },
+          makeToolContext(),
+        )) as string;
+        const toWave1 = parseToolJson(toWave1Raw);
+        expect(toWave1.ok).toBe(true);
+
+        await fs.mkdir(path.join(runRoot, "wave-1"), { recursive: true });
+        await fs.writeFile(path.join(runRoot, "wave-1", "p1.md"), invalidMarkdown("p1"), "utf8");
+        await fs.writeFile(path.join(runRoot, "wave-1", "p2.md"), invalidMarkdown("p2"), "utf8");
+        await fs.writeFile(path.join(runRoot, "wave-1", "p3.md"), invalidMarkdown("p3"), "utf8");
+
+        const out = await orchestrator_tick_live({
+          manifest_path: manifestPath,
+          gates_path: gatesPath,
+          reason: "test: retry directives",
+          drivers: {
+            runAgent: async () => {
+              throw new Error("runAgent should be skipped when outputs already exist");
+            },
+          },
+          stage_advance_tool: stage_advance as any,
+          tool_context: makeToolContext(),
+        });
+
+        expect(out.ok).toBe(false);
+        if (out.ok) return;
+        expect(out.error.code).toBe("RETRY_REQUIRED");
+
+        const retryPath = String(out.error.details.retry_directives_path ?? "");
+        expect(retryPath.endsWith(path.join("retry", "retry-directives.json"))).toBe(true);
+
+        const retryArtifact = JSON.parse(await fs.readFile(retryPath, "utf8"));
+        expect(retryArtifact.schema_version).toBe("wave1.retry_directives.v1");
+        expect(Array.isArray(retryArtifact.retry_directives)).toBe(true);
+        expect(retryArtifact.retry_directives.length).toBeGreaterThan(0);
+
+        const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        expect(manifest.metrics.retry_counts.B).toBe(1);
+
+        const gates = JSON.parse(await fs.readFile(gatesPath, "utf8"));
+        expect(gates.gates.B.status).toBe("fail");
+      });
+    });
+  });
+
+  test("returns typed cap exhaustion when retry cap for gate B is reached", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_orchestrator_tick_live_006";
+
+        const initRaw = (await (run_init as any).execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = String((init as any).manifest_path);
+        const gatesPath = String((init as any).gates_path);
+        const runRoot = path.dirname(manifestPath);
+        await writePerspectivesForRun(runRoot, runId);
+
+        const toWave1Raw = (await (stage_advance as any).execute(
+          {
+            manifest_path: manifestPath,
+            gates_path: gatesPath,
+            reason: "test: init -> wave1",
+            requested_next: "wave1",
+          },
+          makeToolContext(),
+        )) as string;
+        const toWave1 = parseToolJson(toWave1Raw);
+        expect(toWave1.ok).toBe(true);
+
+        await fs.mkdir(path.join(runRoot, "wave-1"), { recursive: true });
+        await fs.writeFile(path.join(runRoot, "wave-1", "p1.md"), invalidMarkdown("p1"), "utf8");
+        await fs.writeFile(path.join(runRoot, "wave-1", "p2.md"), invalidMarkdown("p2"), "utf8");
+        await fs.writeFile(path.join(runRoot, "wave-1", "p3.md"), invalidMarkdown("p3"), "utf8");
+
+        const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        manifest.metrics = {
+          ...(manifest.metrics ?? {}),
+          retry_counts: {
+            ...((manifest.metrics ?? {}).retry_counts ?? {}),
+            B: 2,
+          },
+        };
+        await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+        const out = await orchestrator_tick_live({
+          manifest_path: manifestPath,
+          gates_path: gatesPath,
+          reason: "test: retry cap exhaustion",
+          drivers: {
+            runAgent: async () => {
+              throw new Error("runAgent should be skipped when outputs already exist");
+            },
+          },
+          stage_advance_tool: stage_advance as any,
+          tool_context: makeToolContext(),
+        });
+
+        expect(out.ok).toBe(false);
+        if (out.ok) return;
+        expect(out.error.code).toBe("RETRY_CAP_EXHAUSTED");
+        expect(out.error.details.max_retries).toBe(2);
+
+        const updatedManifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        expect(updatedManifest.metrics.retry_counts.B).toBe(2);
       });
     });
   });
