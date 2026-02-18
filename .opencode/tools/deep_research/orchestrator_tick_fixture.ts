@@ -1,5 +1,6 @@
 import * as path from "node:path";
 
+import { acquireRunLock, releaseRunLock, startRunLockHeartbeat } from "./run_lock";
 import {
   type ToolWithExecute,
   getManifestArtifacts,
@@ -132,16 +133,40 @@ export async function orchestrator_tick_fixture(args: OrchestratorTickFixtureArg
 
   const manifest = manifestRaw as Record<string, unknown>;
   const runId = String(manifest.run_id ?? "").trim();
+  const manifestRevision = Number(manifest.revision ?? Number.NaN);
   const stageObj = isPlainObject(manifest.stage) ? (manifest.stage as Record<string, unknown>) : {};
   const from = String(stageObj.current ?? "").trim();
   const artifacts = getManifestArtifacts(manifest);
   const runRoot = String((artifacts ? getStringProp(artifacts, "root") : null) ?? path.dirname(manifestPath));
 
   if (!runId) return fail("INVALID_STATE", "manifest.run_id missing", { manifest_path: manifestPath });
+  if (!Number.isFinite(manifestRevision)) {
+    return fail("INVALID_STATE", "manifest.revision invalid", {
+      manifest_path: manifestPath,
+      revision: manifest.revision ?? null,
+    });
+  }
   if (!from) return fail("INVALID_STATE", "manifest.stage.current missing", { manifest_path: manifestPath });
   if (!runRoot || !path.isAbsolute(runRoot)) {
     return fail("INVALID_STATE", "manifest.artifacts.root invalid", { manifest_path: manifestPath, root: runRoot });
   }
+
+  const lockResult = await acquireRunLock({
+    run_root: runRoot,
+    lease_seconds: 120,
+    reason: `orchestrator_tick_fixture: ${reason}`,
+  });
+  if (!lockResult.ok) {
+    return fail(lockResult.code, lockResult.message, lockResult.details);
+  }
+  const runLockHandle = lockResult.handle;
+  const heartbeat = startRunLockHeartbeat({
+    handle: runLockHandle,
+    interval_ms: 30_000,
+    lease_seconds: 120,
+  });
+
+  try {
 
   let fixtureDriverRaw: OrchestratorFixtureDriverResult;
   try {
@@ -175,6 +200,7 @@ export async function orchestrator_tick_fixture(args: OrchestratorTickFixtureArg
     manifest_path: manifestPath,
     gates_path: gatesPath,
     requested_next: requestedNext,
+    expected_manifest_revision: manifestRevision,
     reason,
   };
 
@@ -238,4 +264,8 @@ export async function orchestrator_tick_fixture(args: OrchestratorTickFixtureArg
     wave_outputs: waveOutputs,
     decision_inputs_digest: inputsDigest,
   };
+  } finally {
+    heartbeat.stop();
+    await releaseRunLock(runLockHandle).catch(() => undefined);
+  }
 }

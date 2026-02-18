@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
+import { acquireRunLock, releaseRunLock, startRunLockHeartbeat } from "./run_lock";
 import {
   type ToolWithExecute,
   getManifestArtifacts,
@@ -531,6 +532,7 @@ export async function orchestrator_tick_post_pivot(
 
   const manifest = manifestRaw as Record<string, unknown>;
   const runId = String(manifest.run_id ?? "").trim();
+  let manifestRevision = Number(manifest.revision ?? Number.NaN);
   const stageObj = isPlainObject(manifest.stage)
     ? (manifest.stage as Record<string, unknown>)
     : {};
@@ -543,6 +545,12 @@ export async function orchestrator_tick_post_pivot(
   if (!runId) {
     return fail("INVALID_STATE", "manifest.run_id missing", {
       manifest_path: manifestPath,
+    });
+  }
+  if (!Number.isFinite(manifestRevision)) {
+    return fail("INVALID_STATE", "manifest.revision invalid", {
+      manifest_path: manifestPath,
+      revision: manifest.revision ?? null,
     });
   }
   if (!from) {
@@ -567,6 +575,23 @@ export async function orchestrator_tick_post_pivot(
       message: String(e),
     });
   }
+
+  const lockResult = await acquireRunLock({
+    run_root: runRoot,
+    lease_seconds: 120,
+    reason: `orchestrator_tick_post_pivot: ${reason}`,
+  });
+  if (!lockResult.ok) {
+    return fail(lockResult.code, lockResult.message, lockResult.details);
+  }
+  const runLockHandle = lockResult.handle;
+  const heartbeat = startRunLockHeartbeat({
+    handle: runLockHandle,
+    interval_ms: 30_000,
+    lease_seconds: 120,
+  });
+
+  try {
 
   if (from === "summaries") {
     return {
@@ -654,13 +679,27 @@ export async function orchestrator_tick_post_pivot(
     name: "STAGE_ADVANCE",
     tool: stageAdvanceTool,
     payload: {
-      manifest_path: manifestPath,
-      gates_path: gatesPath,
-      requested_next: requestedNext,
-      reason,
-    },
-    tool_context: args.tool_context,
-  });
+        manifest_path: manifestPath,
+        gates_path: gatesPath,
+        requested_next: requestedNext,
+        expected_manifest_revision: manifestRevision,
+        reason,
+      },
+      tool_context: args.tool_context,
+    });
+
+  const syncManifestRevision = (
+    stageAdvanceResult: ToolJsonOk,
+  ): OrchestratorTickPostPivotFailure | null => {
+    const nextRevision = Number(stageAdvanceResult.manifest_revision ?? Number.NaN);
+    if (!Number.isFinite(nextRevision)) {
+      return fail("INVALID_STATE", "stage_advance returned invalid manifest_revision", {
+        manifest_revision: stageAdvanceResult.manifest_revision ?? null,
+      });
+    }
+    manifestRevision = nextRevision;
+    return null;
+  };
 
   let pivotCreated = false;
 
@@ -743,6 +782,9 @@ export async function orchestrator_tick_post_pivot(
         requested_next: "citations",
       });
     }
+
+    const revisionSyncError = syncManifestRevision(advanceToCitations);
+    if (revisionSyncError) return revisionSyncError;
 
     const to = String(advanceToCitations.to ?? "").trim();
     const decisionObj = isPlainObject(advanceToCitations.decision)
@@ -860,16 +902,40 @@ export async function orchestrator_tick_post_pivot(
     });
   }
 
+  let gatesRevision: number;
+  try {
+    const gatesDoc = await readJson(gatesPath);
+    if (!isPlainObject(gatesDoc)) {
+      return fail("SCHEMA_VALIDATION_FAILED", "gates document must be object", {
+        gates_path: gatesPath,
+      });
+    }
+    const revisionRaw = Number(gatesDoc.revision ?? Number.NaN);
+    if (!Number.isFinite(revisionRaw)) {
+      return fail("INVALID_STATE", "gates.revision invalid", {
+        gates_path: gatesPath,
+        revision: (gatesDoc as Record<string, unknown>).revision ?? null,
+      });
+    }
+    gatesRevision = revisionRaw;
+  } catch (e) {
+    return fail("NOT_FOUND", "gates_path not found", {
+      gates_path: gatesPath,
+      message: String(e),
+    });
+  }
+
   const gatesWriteResult = await executeToolJson({
     name: "GATES_WRITE",
     tool: gatesWriteTool,
     payload: {
-      gates_path: gatesPath,
-      update: gateCUpdate,
-      inputs_digest: gateCInputsDigest,
-      reason,
-    },
-    tool_context: args.tool_context,
+        gates_path: gatesPath,
+        update: gateCUpdate,
+        inputs_digest: gateCInputsDigest,
+        expected_revision: gatesRevision,
+        reason,
+      },
+      tool_context: args.tool_context,
   });
   if (!gatesWriteResult.ok) {
     return fail(gatesWriteResult.code, gatesWriteResult.message, gatesWriteResult.details);
@@ -883,6 +949,9 @@ export async function orchestrator_tick_post_pivot(
       requested_next: "summaries",
     });
   }
+
+  const finalRevisionSyncError = syncManifestRevision(advanceToSummaries);
+  if (finalRevisionSyncError) return finalRevisionSyncError;
 
   const to = String(advanceToSummaries.to ?? "").trim();
   const decisionObj = isPlainObject(advanceToSummaries.decision)
@@ -904,4 +973,8 @@ export async function orchestrator_tick_post_pivot(
     citations_path: citationsPath,
     gate_c_status: String(gateC.status ?? ""),
   };
+  } finally {
+    heartbeat.stop();
+    await releaseRunLock(runLockHandle).catch(() => undefined);
+  }
 }

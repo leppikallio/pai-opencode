@@ -4,6 +4,7 @@ export * from "./manifest_write";
 export * from "./retry_record";
 export * from "./gates_write";
 export * from "./stage_advance";
+export * from "./run_lock";
 export * from "./orchestrator_tick_fixture";
 export * from "./orchestrator_tick_live";
 export * from "./orchestrator_run_live";

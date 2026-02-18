@@ -96,4 +96,62 @@ describe("deep_research_orchestrator_run_live (entity)", () => {
       });
     });
   });
+
+  test("halts with terminal timeout artifact when watchdog detects timeout", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_orchestrator_run_live_002";
+
+        const initRaw = (await (run_init as any).execute(
+          {
+            query: "Q",
+            mode: "standard",
+            sensitivity: "normal",
+            run_id: runId,
+            root_override: base,
+          },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = String((init as any).manifest_path);
+        const gatesPath = String((init as any).gates_path);
+        const runRoot = path.dirname(manifestPath);
+
+        const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        manifest.stage.current = "init";
+        manifest.stage.started_at = "2026-02-14T11:50:00.000Z";
+        await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+        let runAgentCalled = false;
+        const out = await orchestrator_run_live({
+          manifest_path: manifestPath,
+          gates_path: gatesPath,
+          reason: "test: watchdog timeout halt",
+          max_ticks: 2,
+          drivers: {
+            runAgent: async (_input: OrchestratorLiveRunAgentInput) => {
+              runAgentCalled = true;
+              return { markdown: validMarkdown("p1") };
+            },
+          },
+          tool_context: makeToolContext(),
+        });
+
+        expect(runAgentCalled).toBe(false);
+        expect(out.ok).toBe(false);
+        if (out.ok) return;
+        expect(out.error.code).toBe("WATCHDOG_TIMEOUT");
+        expect(out.error.details.phase).toBe("pre_tick");
+
+        const checkpointPath = path.join(runRoot, "logs", "timeout-checkpoint.md");
+        const checkpoint = await fs.readFile(checkpointPath, "utf8");
+        expect(checkpoint).toContain("# Timeout Checkpoint");
+
+        const manifestAfter = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        expect(manifestAfter.status).toBe("failed");
+      });
+    });
+  });
 });

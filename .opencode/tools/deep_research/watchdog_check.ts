@@ -7,7 +7,7 @@ import { ensureDir } from "../../plugins/lib/paths";
 import {
   MANIFEST_STAGE,
   STAGE_TIMEOUT_SECONDS_V1,
-  ToolWithExecute,
+  type ToolWithExecute,
   err,
   errorCode,
   getManifestArtifacts,
@@ -40,6 +40,12 @@ export const watchdog_check = tool({
       if (mErr) return mErr;
 
       const manifest = manifestRaw as Record<string, unknown>;
+      const manifestRevision = Number(manifest.revision ?? Number.NaN);
+      if (!Number.isFinite(manifestRevision)) {
+        return err("INVALID_STATE", "manifest.revision invalid", {
+          revision: manifest.revision ?? null,
+        });
+      }
       const stageObj2 = isPlainObject(manifest.stage) ? (manifest.stage as Record<string, unknown>) : {};
       const currentStage = String(stageObj2.current ?? "");
       const stageArg = (args.stage ?? "").trim();
@@ -122,6 +128,7 @@ export const watchdog_check = tool({
       const writeRaw = (await (manifest_write as unknown as ToolWithExecute).execute({
         manifest_path: args.manifest_path,
         patch,
+        expected_revision: manifestRevision,
         reason: `watchdog_check: ${reason}`,
       })) as string;
 
