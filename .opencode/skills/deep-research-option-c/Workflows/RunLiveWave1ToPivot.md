@@ -29,10 +29,10 @@ bun "pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_abs>"
 
 ## Validation Contract
 
-- [ ] `wave-1/wave1-plan.json` exists.
-- [ ] Every perspective in `perspectives.json` has per-perspective ingestion (`wave-1/<perspective_id>.md` produced and ingested).
-- [ ] `wave-review.json` reports `decision=PASS` and `retry_directives=[]`.
-- [ ] `gates.json` has `gates.B.status=pass`.
+- [ ] The printed `wave1_plan_path` exists.
+- [ ] Every planned perspective has an ingested wave output artifact (paths are inside `run_root` and produced by the CLI).
+- [ ] A wave review artifact exists and reports `decision=PASS` with no retry directives.
+- [ ] The printed `gates_path` has `gates.B.status=pass`.
 - [ ] `manifest.stage.current` advanced to `pivot`.
 
 ## Notes

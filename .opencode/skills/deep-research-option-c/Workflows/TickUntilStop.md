@@ -29,11 +29,11 @@ bun "pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_abs>" --gat
 bun "pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_abs>"
 ```
 
-3. Stop when terminal status reached or a typed blocker is emitted.
+3. Stop when terminal status reached or a typed blocker is emitted (the CLI prints the blocker artifact path when present).
 
 ## Validation Contract
 
-- [ ] Every tick results in either stage advancement or a typed stop artifact (`logs/halt.json`).
+- [ ] Every tick results in either stage advancement or a typed stop artifact (the CLI prints the halt artifact path).
 - [ ] Watchdog checks are enforced pre/post tick.
 - [ ] Manifest mutations happen only through lifecycle tools (`stage_advance` / `manifest_write`).
 

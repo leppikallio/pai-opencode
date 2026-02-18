@@ -11,14 +11,14 @@ Use this skill to run Option C reliably from planning through finalize using the
 
 ## Primary Surface
 
-- Command doc: `.opencode/commands/deep-research.md`
-- CLI: `bun "pai-tools/deep-research-option-c.ts" <command> [...flags]`
+- Command: `/deep-research` (installed command doc in the OpenCode runtime)
+- CLI: `bun "pai-tools/deep-research-option-c.ts" <command> [...flags]` (run from the OpenCode runtime root)
 
 ## No-env-var Guidance (required)
 
 - Do **not** require manual env var setup for normal operation.
 - Use explicit CLI flags (`--mode`, `--sensitivity`, `--driver`, `--reason`) as the source of truth.
-- Treat ambient env vars as non-authoritative; use run artifacts (`manifest.json`, `gates.json`, `run-config.json`) for state.
+- Treat ambient env vars as non-authoritative; use the run artifacts printed by the CLI for state.
 
 ## Scratchpad Policy (required)
 
@@ -37,12 +37,12 @@ Use this skill to run Option C reliably from planning through finalize using the
 
 ## Readiness Gates Checklist
 
-- [ ] **RunPlan** produced `manifest.json`, `gates.json`, `perspectives.json`, and `wave-1/wave1-plan.json` with `inputs_digest`.
+- [ ] **RunPlan** produced the run contract fields plus a deterministic Wave 1 plan (paths printed by the CLI).
 - [ ] **RunFixtureToFinalize** exited 0 with `manifest.status=completed` and `manifest.stage.current=finalize`.
-- [ ] **TickUntilStop** always ended each tick with either stage advancement or a typed halt artifact (`logs/halt.json`).
+- [ ] **TickUntilStop** always ended each tick with either stage advancement or a typed halt artifact (path printed by the CLI).
 - [ ] **TickUntilStop** enforced watchdog checks before and after ticks.
-- [ ] **PauseRun** wrote `manifest.status=paused` plus `logs/pause-checkpoint.md` with stage + next step.
-- [ ] **ResumeRun** wrote `manifest.status=running`, reset stage timer semantics, and created `logs/resume-checkpoint.md`.
+- [ ] **PauseRun** wrote `manifest.status=paused` plus a pause checkpoint containing stage + next step guidance.
+- [ ] **ResumeRun** wrote `manifest.status=running`, reset stage timer semantics, and wrote a resume checkpoint.
 
 ## Quick CLI Usage
 
