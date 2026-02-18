@@ -22,6 +22,7 @@ import { wave_output_ingest } from "./wave_output_ingest";
 import { wave_output_validate } from "./wave_output_validate";
 import { wave_review } from "./wave_review";
 import { wave1_plan } from "./wave1_plan";
+import { manifest_write } from "./manifest_write";
 
 type ToolJsonOk = {
   ok: true;
@@ -566,6 +567,7 @@ export async function orchestrator_tick_live(
   const gatesWriteTool = args.gates_write_tool ?? (gates_write as unknown as ToolWithExecute);
   const retryRecordTool = args.retry_record_tool ?? (retry_record as unknown as ToolWithExecute);
   const stageAdvanceTool = args.stage_advance_tool ?? (stage_advance as unknown as ToolWithExecute);
+  const manifestWriteTool = manifest_write as unknown as ToolWithExecute;
 
   const requiredTools: Array<{ name: string; tool: ToolWithExecute }> = [
     { name: "WAVE1_PLAN", tool: wave1PlanTool },
@@ -576,6 +578,7 @@ export async function orchestrator_tick_live(
     { name: "GATES_WRITE", tool: gatesWriteTool },
     { name: "RETRY_RECORD", tool: retryRecordTool },
     { name: "STAGE_ADVANCE", tool: stageAdvanceTool },
+    { name: "MANIFEST_WRITE", tool: manifestWriteTool },
   ];
   for (const requiredTool of requiredTools) {
     if (!requiredTool.tool || typeof requiredTool.tool.execute !== "function") {
@@ -605,6 +608,37 @@ export async function orchestrator_tick_live(
     if (!Number.isFinite(nextRevision)) {
       return fail("INVALID_STATE", "stage_advance returned invalid manifest_revision", {
         manifest_revision: stageAdvanceResult.manifest_revision ?? null,
+      });
+    }
+    manifestRevision = nextRevision;
+    return null;
+  };
+
+  const writeStageProgress = async (
+    checkpoint: string,
+  ): Promise<ToolJsonOk | ToolJsonFailure> => executeToolJson({
+    name: "MANIFEST_WRITE",
+    tool: manifestWriteTool,
+    payload: {
+      manifest_path: manifestPath,
+      patch: {
+        stage: {
+          last_progress_at: nowIso(),
+        },
+      },
+      expected_revision: manifestRevision,
+      reason: `${reason} [progress:${checkpoint}]`,
+    },
+    tool_context: args.tool_context,
+  });
+
+  const syncProgressRevision = (
+    progressResult: ToolJsonOk,
+  ): OrchestratorTickLiveFailure | null => {
+    const nextRevision = Number(progressResult.new_revision ?? Number.NaN);
+    if (!Number.isFinite(nextRevision)) {
+      return fail("INVALID_STATE", "manifest_write returned invalid new_revision", {
+        new_revision: progressResult.new_revision ?? null,
       });
     }
     manifestRevision = nextRevision;
@@ -875,6 +909,18 @@ export async function orchestrator_tick_live(
           perspective_id: entry.perspectiveId,
         });
       }
+
+      const progressResult = await writeStageProgress(`wave1_output_ingested:${entry.perspectiveId}`);
+      if (!progressResult.ok) {
+        return fail(progressResult.code, progressResult.message, {
+          ...progressResult.details,
+          perspective_id: entry.perspectiveId,
+          checkpoint: "wave1_output_ingested",
+        });
+      }
+
+      const progressRevisionError = syncProgressRevision(progressResult);
+      if (progressRevisionError) return progressRevisionError;
     }
 
     const validateResult = await executeToolJson({

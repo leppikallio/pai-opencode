@@ -23,6 +23,7 @@ import { pivot_decide } from "./pivot_decide";
 import { stage_advance } from "./stage_advance";
 import { wave_output_ingest } from "./wave_output_ingest";
 import { wave_output_validate } from "./wave_output_validate";
+import { manifest_write } from "./manifest_write";
 
 type ToolJsonOk = {
   ok: true;
@@ -851,6 +852,7 @@ async function executeWave2Stage(args: {
   reason: string;
   waveOutputIngestTool: ToolWithExecute;
   waveOutputValidateTool: ToolWithExecute;
+  markProgress?: (checkpoint: string) => Promise<{ ok: true } | { ok: false; code: string; message: string; details: Record<string, unknown> }>;
   tool_context?: unknown;
 }): Promise<{ ok: true; plan_path: string; outputs_count: number } | { ok: false; code: string; message: string; details: Record<string, unknown> }> {
   const pivot = await readPivotDecision({ pivotPath: args.pivotPath });
@@ -1030,6 +1032,22 @@ async function executeWave2Stage(args: {
           markdown_path: markdownResolved.absPath,
         },
       };
+    }
+
+    if (args.markProgress) {
+      const progress = await args.markProgress(`wave2_output_ingested:${entry.perspective_id}`);
+      if (!progress.ok) {
+        return {
+          ok: false,
+          code: progress.code,
+          message: progress.message,
+          details: {
+            ...progress.details,
+            perspective_id: entry.perspective_id,
+            checkpoint: "wave2_output_ingested",
+          },
+        };
+      }
     }
   }
 
@@ -1314,6 +1332,7 @@ export async function orchestrator_tick_post_pivot(
   const citationsValidateTool = args.citations_validate_tool ?? (citations_validate as unknown as ToolWithExecute);
   const gateCComputeTool = args.gate_c_compute_tool ?? (gate_c_compute as unknown as ToolWithExecute);
   const gatesWriteTool = args.gates_write_tool ?? (gates_write as unknown as ToolWithExecute);
+  const manifestWriteTool = manifest_write as unknown as ToolWithExecute;
 
   const requiredTools: Array<{ name: string; tool: ToolWithExecute }> = [
     { name: "STAGE_ADVANCE", tool: stageAdvanceTool },
@@ -1325,6 +1344,7 @@ export async function orchestrator_tick_post_pivot(
     { name: "CITATIONS_VALIDATE", tool: citationsValidateTool },
     { name: "GATE_C_COMPUTE", tool: gateCComputeTool },
     { name: "GATES_WRITE", tool: gatesWriteTool },
+    { name: "MANIFEST_WRITE", tool: manifestWriteTool },
   ];
 
   for (const requiredTool of requiredTools) {
@@ -1362,6 +1382,50 @@ export async function orchestrator_tick_post_pivot(
     }
     manifestRevision = nextRevision;
     return null;
+  };
+
+  const markProgress = async (
+    checkpoint: string,
+  ): Promise<{ ok: true } | { ok: false; code: string; message: string; details: Record<string, unknown> }> => {
+    const progress = await executeToolJson({
+      name: "MANIFEST_WRITE",
+      tool: manifestWriteTool,
+      payload: {
+        manifest_path: manifestPath,
+        patch: {
+          stage: {
+            last_progress_at: nowIso(),
+          },
+        },
+        expected_revision: manifestRevision,
+        reason: `${reason} [progress:${checkpoint}]`,
+      },
+      tool_context: args.tool_context,
+    });
+
+    if (!progress.ok) {
+      return {
+        ok: false,
+        code: progress.code,
+        message: progress.message,
+        details: progress.details,
+      };
+    }
+
+    const nextRevision = Number(progress.new_revision ?? Number.NaN);
+    if (!Number.isFinite(nextRevision)) {
+      return {
+        ok: false,
+        code: "INVALID_STATE",
+        message: "manifest_write returned invalid new_revision",
+        details: {
+          new_revision: progress.new_revision ?? null,
+        },
+      };
+    }
+
+    manifestRevision = nextRevision;
+    return { ok: true };
   };
 
   let pivotCreated = false;
@@ -1492,6 +1556,7 @@ export async function orchestrator_tick_post_pivot(
       reason,
       waveOutputIngestTool,
       waveOutputValidateTool,
+      markProgress,
       tool_context: args.tool_context,
     });
     if (!wave2.ok) {
@@ -1595,6 +1660,14 @@ export async function orchestrator_tick_post_pivot(
   });
   if (!validate.ok) {
     return fail(validate.code, validate.message, validate.details);
+  }
+
+  const citationsProgress = await markProgress("citations_validated");
+  if (!citationsProgress.ok) {
+    return fail(citationsProgress.code, citationsProgress.message, {
+      ...citationsProgress.details,
+      checkpoint: "citations_validated",
+    });
   }
 
   const citationsPath = nonEmptyString(validate.citations_path);

@@ -181,7 +181,7 @@ export const run_init = tool({
         },
         mode: requestedMode,
         status: "created",
-        stage: { current: "init", started_at: ts, history: [] },
+        stage: { current: "init", started_at: ts, last_progress_at: ts, history: [] },
         limits: {
           max_wave1_agents: flags.maxWave1Agents,
           max_wave2_agents: flags.maxWave2Agents,

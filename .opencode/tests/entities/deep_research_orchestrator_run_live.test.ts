@@ -122,6 +122,7 @@ describe("deep_research_orchestrator_run_live (entity)", () => {
         const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
         manifest.stage.current = "init";
         manifest.stage.started_at = "2026-02-14T11:50:00.000Z";
+        manifest.stage.last_progress_at = "2026-02-14T11:50:00.000Z";
         await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 
         let runAgentCalled = false;
