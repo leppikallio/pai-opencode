@@ -120,14 +120,44 @@ Default minimal perspective payload (single perspective, id `p1`):
    - `bun "pai-tools/deep-research-option-c.ts" init "<query>"`
 2. Run interactive live loop (operator-input driver):
      - `bun "pai-tools/deep-research-option-c.ts" run --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: live run" --driver live`
-   - The CLI will write:
-     - `operator/prompts/<stage>/<perspective_id>.md`
-     - `operator/drafts/<stage>/<perspective_id>.md`
-   - Edit the draft and press ENTER to continue each step.
+    - The CLI will write:
+      - `operator/prompts/<stage>/<perspective_id>.md`
+      - `operator/drafts/<stage>/<perspective_id>.md`
+    - Edit the draft and press ENTER to continue each step.
 3. If blocked, use:
-     - `inspect --manifest <abs>`
-     - `triage --manifest <abs>`
+      - `inspect --manifest <abs>`
+      - `triage --manifest <abs>`
 4. Print required final contract fields and stop.
+
+### Live driver artifact contract (E1-T1, Option A target)
+
+For autonomous `runAgent` execution in `wave1`, the driver contract is:
+
+- Prompt input artifact (required):
+  - `operator/prompts/<stage>/<perspective_id>.md`
+- Raw output artifact (required):
+  - `operator/outputs/<stage>/<perspective_id>.md`
+- Metadata sidecar (required):
+  - `operator/outputs/<stage>/<perspective_id>.meta.json`
+
+Required `meta.json` fields:
+
+```json
+{
+  "agent_run_id": "<string>",
+  "prompt_digest": "sha256:<hex>",
+  "retry_directives_digest": "sha256:<hex>|null",
+  "started_at": "<iso-8601>",
+  "finished_at": "<iso-8601>"
+}
+```
+
+Rules:
+
+- `prompt_digest` MUST be computed from the exact prompt content written to disk.
+- `retry_directives_digest` MUST be `null` when no retry directive is active; otherwise digest the applied retry directives payload.
+- `started_at` and `finished_at` MUST be run-local timestamps for the perspective execution.
+- The markdown file is the raw driver output; ingestion/validation remains in deterministic tools.
 
 ---
 

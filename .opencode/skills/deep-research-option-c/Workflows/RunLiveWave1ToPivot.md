@@ -35,6 +35,17 @@ bun "pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_abs>"
 - [ ] The printed `gates_path` has `gates.B.status=pass`.
 - [ ] `manifest.stage.current` advanced to `pivot`.
 
+## Per-perspective artifact contract (autonomous Option A target)
+
+- [ ] `operator/prompts/<stage>/<perspective_id>.md` exists.
+- [ ] `operator/outputs/<stage>/<perspective_id>.md` exists.
+- [ ] `operator/outputs/<stage>/<perspective_id>.meta.json` exists and includes:
+  - `agent_run_id`
+  - `prompt_digest`
+  - `retry_directives_digest` (`null` when no retry)
+  - `started_at`
+  - `finished_at`
+
 ## Notes
 
 - Keep operator notes in scratchpad only.
