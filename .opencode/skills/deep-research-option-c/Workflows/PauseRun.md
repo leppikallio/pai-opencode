@@ -15,13 +15,13 @@ Safely pause a long-running Option C run.
 bun "Tools/deep-research-option-c.ts" pause --manifest "<manifest_abs>" --reason "operator pause"
 ```
 
-2. Confirm checkpoint artifact exists under run logs.
+2. Confirm checkpoint artifact exists under run logs and includes restart guidance.
 
 ## Validation Contract
 
 - [ ] `manifest.status` is `paused`.
 - [ ] `logs/pause-checkpoint.md` exists.
-- [ ] Checkpoint includes stage and reason.
+- [ ] Checkpoint includes stage, reason, and `next_step` resume guidance.
 
 ## Notes
 
