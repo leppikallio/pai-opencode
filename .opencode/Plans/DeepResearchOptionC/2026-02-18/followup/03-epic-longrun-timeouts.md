@@ -91,12 +91,12 @@ Acceptance:
 
 | Task | Status | Owner | PR/Commit | Evidence |
 |---|---|---|---|---|
-| E3-T0 Policy doc | DONE | Marvin | pending | `followup/E3-timeout-policy.md` |
-| E3-T1 Implementation | DONE | Marvin | pending | heartbeat watchdog + stage heartbeat schema/write support |
-| E3-T2 Progress emission | DONE | Marvin | pending | progress writes in live/post-pivot/post-summaries orchestrators |
-| E3-T3 Tests | DONE | Marvin | pending | watchdog heartbeat/no-progress tests + full `.opencode/tests` pass |
+| E3-T0 Policy doc | DONE | Marvin | `96dfd5a` | `followup/E3-timeout-policy.md` |
+| E3-T1 Implementation | DONE | Marvin | `96dfd5a` | heartbeat watchdog + stage heartbeat schema/write support |
+| E3-T2 Progress emission | DONE | Marvin | `96dfd5a` | progress writes in live/post-pivot/post-summaries orchestrators |
+| E3-T3 Tests | DONE | Marvin | `96dfd5a` | watchdog heartbeat/no-progress tests + full `.opencode/tests` pass |
 | Architect PASS | TODO |  |  |  |
-| QA PASS | DONE | Marvin | pending | `bun test ./.opencode/tests`, `bun Tools/Precommit.ts` |
+| QA PASS | DONE | Marvin | `96dfd5a` | `bun test ./.opencode/tests`, `bun Tools/Precommit.ts` |
 
 ## Validator gates
 
