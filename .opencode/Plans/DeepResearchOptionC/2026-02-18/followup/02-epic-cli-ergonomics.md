@@ -126,9 +126,9 @@ Add entity tests under `.opencode/tests/entities/`:
 | E2-T3 `cancel` | DONE | Marvin |  | Added `cancel` command, manifest status mutation, cancel checkpoint artifact |
 | E2-T4 Auto-triage | DONE | Marvin |  | `tick`/`run` failures now print compact auto-triage blocker summary |
 | E2-T5 Inspect enrich | DONE | Marvin |  | `inspect` now surfaces blocked URLs, retry directives, latest fixtures pointer |
-| E2-T6 Tests | PARTIAL | Marvin |  | Added entity tests for CLI ergonomics + cancelled terminal handling; full suite blocked by missing `@opencode-ai/plugin` in this worktree |
+| E2-T6 Tests | DONE | Marvin | `231c35a`, `4a7c2d5`, `848edd3` | Entity tests added; full suite passes after `.opencode` deps install + env snapshot fix |
 | Architect PASS | TODO |  |  | Pending Architect validator pass |
-| QA PASS | PARTIAL | Marvin |  | `bun Tools/Precommit.ts` passed; `bun test ./.opencode/tests` failing on missing `@opencode-ai/plugin` module |
+| QA PASS | DONE | Marvin | `848edd3` | `bun test ./.opencode/tests`: 152 pass, 3 skip, 0 fail; `bun Tools/Precommit.ts` PASS |
 
 ## Validator gates
 
