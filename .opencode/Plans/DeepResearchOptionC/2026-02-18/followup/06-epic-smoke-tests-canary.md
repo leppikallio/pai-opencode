@@ -1,6 +1,6 @@
 # Epic E6 — Executable M2/M3 canaries + runbooks
 
-Status: TODO
+Status: IN_PROGRESS
 
 ## Context links (source reviews)
 - Engineer: `../engineer-review-raw-2.md` (Acceptance tests M2/M3; failures triage)
@@ -82,13 +82,13 @@ If E5 adds `capture-fixtures`, M3 runbook must include it.
 
 | Task | Status | Owner | PR/Commit | Evidence |
 |---|---|---|---|---|
-| E6-T0 Canary modes doc | TODO |  |  |  |
-| E6-T1 M2 smoke self-seeding | TODO |  |  |  |
-| E6-T2 M3 smoke self-seeding | TODO |  |  |  |
-| E6-T3 Runbooks | TODO |  |  |  |
-| E6-T4 Fixture capture step | TODO |  |  |  |
-| Architect PASS | TODO |  |  |  |
-| QA PASS | TODO |  |  |  |
+| E6-T0 Canary modes doc | DONE |  |  | `followup/E6-canary-modes.md` |
+| E6-T1 M2 smoke self-seeding | DONE |  |  | `deep_research_live_wave1_smoke.test.ts` self-seeds + ticks to pivot |
+| E6-T2 M3 smoke self-seeding | DONE |  |  | `deep_research_live_finalize_smoke.test.ts` self-seeds + ticks to finalize |
+| E6-T3 Runbooks | DONE |  |  | `E6-runbook-m2-live-wave1-to-pivot.md`, `E6-runbook-m3-live-finalize.md` |
+| E6-T4 Fixture capture step | DONE |  |  | Included in M3 runbook with fallback |
+| Architect PASS | DONE | Marvin | `01632d7` | Canary smoke tests and runbooks align with the stage machine + operator CLI; determinism boundaries unchanged. |
+| QA PASS | DONE | Marvin | `01632d7` | `bun test ./.opencode/tests`: 146 pass, 1 skip, 0 fail; `bun Tools/Precommit.ts`: PASS |
 
 ## Validator gates
 

@@ -20,7 +20,8 @@ bun ".opencode/pai-tools/deep-research-option-c.ts" run --manifest "<abs>" --gat
 3) If blocked:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-option-c.ts" triage --manifest "<abs>" --gates "<abs>"
+# triage is manifest-driven (no --gates flag)
+bun ".opencode/pai-tools/deep-research-option-c.ts" triage --manifest "<abs>"
 ```
 
 4) Evidence to capture:
