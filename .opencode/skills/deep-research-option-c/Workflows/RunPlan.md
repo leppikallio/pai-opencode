@@ -1,6 +1,6 @@
 # RunPlan Workflow
 
-Create a deterministic run root and stop at `stage=wave1`.
+Create a deterministic run root and produce the Wave 1 plan artifact.
 
 ## Inputs
 
@@ -20,6 +20,8 @@ bun "Tools/deep-research-option-c.ts" init "<query>" --mode standard --sensitivi
    - `gates.json`
    - `perspectives.json`
    - `wave-1/wave1-plan.json`
+
+The `init` command now writes `wave-1/wave1-plan.json` deterministically from `manifest.json` + `perspectives.json`.
 
 ## Validation Contract
 

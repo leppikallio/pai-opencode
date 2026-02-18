@@ -29,6 +29,7 @@ Use this skill to run Option C reliably from planning through finalize using the
 ## Workflows
 
 - `Workflows/RunPlan.md`
+- `Workflows/RunLiveWave1ToPivot.md`
 - `Workflows/RunFixtureToFinalize.md`
 - `Workflows/TickUntilStop.md`
 - `Workflows/PauseRun.md`

@@ -38,6 +38,7 @@ import {
   run_init,
   stage_advance,
   watchdog_check,
+  wave1_plan,
 } from "../.opencode/tools/deep_research.ts";
 import { resolveDeepResearchFlagsV1 } from "../.opencode/tools/deep_research/lifecycle_lib";
 
@@ -637,6 +638,17 @@ async function runInit(args: InitCliArgs): Promise<void> {
       reason: "operator-cli init: default perspectives",
     });
     console.log(`perspectives_path: ${perspectivesPath}`);
+
+    const wave1Plan = await callTool("wave1_plan", wave1_plan as unknown as ToolWithExecute, {
+      manifest_path: manifestPath,
+      reason: "operator-cli init: deterministic wave1 plan",
+    });
+
+    const wave1PlanPath = String(wave1Plan.plan_path ?? "").trim();
+    if (!wave1PlanPath || !path.isAbsolute(wave1PlanPath)) {
+      throw new Error("wave1_plan returned invalid plan_path");
+    }
+    console.log(`wave1_plan_path: ${wave1PlanPath}`);
   }
 
   const manifest = await readJsonObject(manifestPath);
@@ -1041,6 +1053,7 @@ async function runPause(args: PauseResumeCliArgs): Promise<void> {
           `- run_id: ${summary.runId}`,
           `- stage: ${summary.stageCurrent}`,
           `- reason: ${args.reason}`,
+          `- next_step: bun "Tools/deep-research-option-c.ts" resume --manifest "${args.manifest}" --reason "operator resume"`,
         ].join("\n"),
       });
 
