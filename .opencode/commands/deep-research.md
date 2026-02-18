@@ -17,6 +17,30 @@ Command shape:
 
 If args are invalid, print usage + what is wrong and stop.
 
+## CLI implementation (primary path)
+
+Use the Option C operator CLI as the implementation surface:
+
+```bash
+bun "Tools/deep-research-option-c.ts" <command> [...flags]
+```
+
+### Commands
+
+- `init "<query>" [--run-id <id>] [--sensitivity normal|restricted|no_web] [--mode quick|standard|deep] [--no-perspectives]`
+- `tick --manifest <abs> --gates <abs> --reason "..." --driver <fixture|live>`
+- `status --manifest <abs>`
+- `inspect --manifest <abs>`
+- `triage --manifest <abs>`
+
+### Routing from `/deep-research <mode> ...`
+
+- `plan` -> run `init` (offline/no_web recommended)
+- `fixture` -> run `init`, then run repeated `tick --driver fixture` until terminal state or blocker
+- `live` -> run `init`, then run `tick --driver live`
+
+Use `inspect` and `triage` to explain blockers between ticks.
+
 ## Required final print contract (all modes)
 
 Always print these fields before stopping:
@@ -55,98 +79,49 @@ Default minimal perspective payload (single perspective, id `p1`):
 }
 ```
 
-### Stage advance fallback (all modes)
+### Stage progression
 
-- Prefer calling `deep_research_stage_advance` first.
-- If it returns `{ code: "NOT_IMPLEMENTED", ... }`, immediately fallback to the CLI wrapper via bash:
-
-```bash
-bun "Tools/deep-research-option-c-stage-advance.ts" --manifest "<manifest_path>" --gates "<gates_path>" --next "<stage>" --reason "<reason>"
-```
-
-- For transitions where `requested_next` is intentionally omitted:
-
-```bash
-bun "Tools/deep-research-option-c-stage-advance.ts" --manifest "<manifest_path>" --gates "<gates_path>" --reason "<reason>"
-```
+- `tick` is the only stage progression command.
+- Driver decides progression strategy:
+  - `fixture`: deterministic fixture-style stage advancement.
+  - `live`: live orchestrator path (WS1 core only).
+- Use `triage` when a tick is blocked; it prints missing artifacts and blocked gates.
 
 ---
 
 ## A) plan mode (offline)
 
-1. Set env for this flow:
-   - `PAI_DR_OPTION_C_ENABLED=1`
-   - `PAI_DR_NO_WEB=1`
-2. Call `deep_research_run_init` with:
-   - `query`: parsed query
-   - `mode`: `standard`
-   - `sensitivity`: `no_web`
-   - `run_id`: optional parsed flag
-3. Build absolute `perspectives_path = <run_root>/perspectives.json`.
-4. Call `deep_research_perspectives_write` using the default `p1` payload above.
-5. Advance `init -> wave1`:
-   - Prefer `deep_research_stage_advance` with reason `operator: plan init->wave1`.
-   - If tool returns `NOT_IMPLEMENTED`, run:
-     - `bun "Tools/deep-research-option-c-stage-advance.ts" --manifest "<manifest_path>" --gates "<gates_path>" --next "wave1" --reason "operator: plan init->wave1"`
-6. Call `deep_research_wave1_plan` with:
-   - `manifest_path`
-   - `perspectives_path`
-   - reason `operator: plan wave1-plan`
-7. Print required final contract fields and stop.
-   - `stage.current = wave1`
-   - `status = running`
+1. Run:
+   - `bun "Tools/deep-research-option-c.ts" init "<query>" --sensitivity no_web`
+2. Optionally run:
+   - `bun "Tools/deep-research-option-c.ts" tick --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: plan tick" --driver fixture`
+3. Print required final contract fields and stop.
 
 ---
 
 ## B) fixture mode (offline)
 
-1. Set env for this flow:
-   - `PAI_DR_OPTION_C_ENABLED=1`
-   - `PAI_DR_NO_WEB=1`
-2. Ask which fixture scenario to run (default: `m1-finalize-happy`).
-   - Prefer `functions.question` with options.
-3. Resolve absolute fixture directory:
-   - `./.opencode/tests/fixtures/runs/<scenario>`
-4. Seed with fixture tool:
-   - Required: `deep_research_fixture_run_seed`
-   - Required arg: `fixture_dir` = scenario path above
-   - Also pass: `run_id` (flag value or generated deterministic id), `reason`
-5. After seed, loop stage progression:
-   - Repeatedly advance from current stage (prefer `deep_research_stage_advance`; if it returns `NOT_IMPLEMENTED`, use the stage-advance fallback command above).
-   - Stop when stage reaches `finalize`.
-   - Stop immediately on hard error (`GATE_BLOCKED`, `MISSING_ARTIFACT`, `WAVE_CAP_EXCEEDED`, `REQUESTED_NEXT_NOT_ALLOWED`, `INVALID_STATE`, `NOT_FOUND`, `WRITE_FAILED`).
-6. Print required final contract fields and stop.
-   - Success path: `stage.current = finalize`, `status = completed`
-   - Error path: keep last known stage, `status = error`
+1. Run init:
+   - `bun "Tools/deep-research-option-c.ts" init "<query>" --sensitivity no_web`
+2. Loop tick:
+   - `bun "Tools/deep-research-option-c.ts" tick --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: fixture tick" --driver fixture`
+3. If blocked, run:
+   - `bun "Tools/deep-research-option-c.ts" triage --manifest "<manifest_path>"`
+4. Print required final contract fields and stop.
 
 ---
 
-## C) live mode (skeleton)
+## C) live mode (WS1 live path)
 
-1. Set env:
-   - `PAI_DR_OPTION_C_ENABLED=1`
-2. Initialize run + perspectives + wave1 plan:
-   - `deep_research_run_init`
-   - `deep_research_perspectives_write` (default `p1`) — must happen before stage advance
-    - advance (`init -> wave1`) using preferred tool; fallback to wrapper on `NOT_IMPLEMENTED`
-   - `deep_research_wave1_plan`
-3. Explain live execution contract clearly:
-   - Wave execution spawns agents (Task tool) to produce perspective markdown.
-   - Ingest with `deep_research_wave_output_ingest`.
-   - Review with `deep_research_wave_review`.
-   - Derive Gate B decisions with `deep_research_gate_b_derive`.
-   - Persist gate decisions with `deep_research_gates_write`.
-    - Advance lifecycle (prefer `deep_research_stage_advance`; fallback to wrapper on `NOT_IMPLEMENTED`).
-4. Minimal working wave1->pivot attempt:
-   - Spawn Task for `p1` markdown output.
-   - Ingest output via `deep_research_wave_output_ingest` (`wave: wave1`).
-   - Run `deep_research_wave_review` on `<run_root>/wave-1`.
-    - If review passes, derive Gate B with `deep_research_gate_b_derive`, then write via `deep_research_gates_write`, then advance `wave1 -> pivot` (tool first, wrapper fallback on `NOT_IMPLEMENTED`).
-5. If full live path cannot be completed, print explicit TODOs:
-   - TODO: robust multi-perspective Task fan-out
-   - TODO: retry loop for failed wave outputs
-   - TODO: deterministic digest policy for gate writes
-6. Print required final contract fields and stop.
+1. Run init:
+   - `bun "Tools/deep-research-option-c.ts" init "<query>"`
+2. Run live tick:
+    - `bun "Tools/deep-research-option-c.ts" tick --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: live tick" --driver live`
+   - WS1 live currently supports deterministic stage progression through the live driver, but does not generate new research output yet.
+3. If blocked, use:
+    - `inspect --manifest <abs>`
+    - `triage --manifest <abs>`
+4. Print required final contract fields and stop.
 
 ---
 
