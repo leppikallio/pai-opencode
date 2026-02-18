@@ -15,6 +15,9 @@ async function runCli(args: string[]): Promise<{ exit: number; stdout: string; s
   const proc = Bun.spawn({
     cmd: ["bun", cliPath, ...args],
     cwd: repoRoot,
+    // Bun.spawn does not reliably inherit runtime mutations to process.env.
+    // Pass an explicit snapshot so `withEnv()` affects the child process.
+    env: { ...process.env },
     stdout: "pipe",
     stderr: "pipe",
   });
