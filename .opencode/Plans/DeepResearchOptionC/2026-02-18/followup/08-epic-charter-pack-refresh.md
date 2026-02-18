@@ -54,11 +54,11 @@ Run doc validation:
 
 | Task | Status | Owner | PR/Commit | Evidence |
 |---|---|---|---|---|
-| E8-T0 Drift inventory | TODO |  |  |  |
-| E8-T1 WS1 updates | TODO |  |  |  |
-| E8-T2 Readiness gates updates | TODO |  |  |  |
-| E8-T3 Workstream statuses | TODO |  |  |  |
-| E8-T4 Validation | TODO |  |  |  |
+| E8-T0 Drift inventory | DONE | Marvin | pending | `followup/E8-drift-inventory.md` |
+| E8-T1 WS1 updates | DONE | Marvin | pending | `charter-pack/workstreams/WS1-operator-cli-and-unified-runloop.md` |
+| E8-T2 Readiness gates updates | DONE | Marvin | pending | `charter-pack/01-readiness-gates.md` |
+| E8-T3 Workstream statuses | DONE | Marvin | pending | `charter-pack/README.md` |
+| E8-T4 Validation | DONE | Marvin | pending | Dry-run completed; installer ended with `Done.` and verification steps remained configured (`ScanBrokenRefs`, `ValidateSkillSystemDocs`) |
 | Architect PASS | TODO |  |  |  |
 | QA PASS | TODO |  |  |  |
 

@@ -12,7 +12,7 @@ Make Wave 1 truly multi-perspective and stable:
 
 ## Scope
 
-- Expand live wave execution beyond `entries[0]`.
+- Ensure live wave execution processes all plan entries (legacy `entries[0]` gap is closed).
 - Implement retry directive consumption and recording via `deep_research_retry_record`.
 - Persist agent execution metadata as sidecars (prompt hash, agent_type, agent_run_id, timestamps, retry count).
 

@@ -2,7 +2,7 @@
 
 Date: 2026-02-18
 
-This document is the **planning translation** of the Architect readiness rubric (see `../architect-review-raw.md`, section “Readiness rubric”).
+This document is the **planning translation** of the Architect readiness rubric (see `../architect-review-raw-2.md`, section “Readiness rubric”).
 
 Each gate is **binary**. If a gate is not PASS, we do not proceed to the next milestone.
 
@@ -47,7 +47,7 @@ Wave 1 is truly **multi-perspective** and stable: fan-out, ingest, validate, rev
 
 ### PASS conditions
 
-- [ ] Live execution runs **all** entries in `wave-1/wave1-plan.json` (not only `entries[0]`).
+- [ ] Live execution runs **all** entries in `wave-1/wave1-plan.json`.
 - [ ] For each planned perspective entry:
   - [ ] agent markdown exists at `wave-1/<perspective_id>.md`
   - [ ] passes `deep_research_wave_output_validate`
