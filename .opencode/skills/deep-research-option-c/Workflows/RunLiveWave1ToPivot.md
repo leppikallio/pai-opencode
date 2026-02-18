@@ -15,11 +15,15 @@ Run live Wave 1 collection and stop when the run reaches `stage.current=pivot`.
 bun "pai-tools/deep-research-option-c.ts" init "<query>" --mode standard --sensitivity normal
 ```
 
-2. Tick with the live driver until `status` output shows `stage.current: pivot`:
+2. Execute Wave 1 autonomously (Option A: Task-backed driver) until the run reaches `stage.current: pivot`.
 
-```bash
-bun "pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_abs>" --gates "<gates_abs>" --reason "live wave1 tick" --driver live
-```
+Preferred operator surface: `/deep-research live "<query>"` (see `.opencode/commands/deep-research.md`).
+
+If you must use the CLI directly, do NOT use the operator-input driver loop. Instead, use the deterministic tools + Task spawning described in the command doc, then advance stage.
+
+Notes:
+- The CLI `--driver live` path is **operator-input/manual** by default.
+- The autonomous Option A driver is executed by me (Marvin) using `functions.task` and deterministic deep-research tools.
 
 3. If progress stalls, inspect blockers:
 
@@ -35,7 +39,18 @@ bun "pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_abs>"
 - [ ] The printed `gates_path` has `gates.B.status=pass`.
 - [ ] `manifest.stage.current` advanced to `pivot`.
 
+## Per-perspective artifact contract (autonomous Option A target)
+
+- [ ] `operator/prompts/<stage>/<perspective_id>.md` exists.
+- [ ] `operator/outputs/<stage>/<perspective_id>.md` exists.
+- [ ] `operator/outputs/<stage>/<perspective_id>.meta.json` exists and includes:
+  - `agent_run_id`
+  - `prompt_digest`
+  - `retry_directives_digest` (`null` when no retry)
+  - `started_at`
+  - `finished_at`
+
 ## Notes
 
 - Keep operator notes in scratchpad only.
-- Do not use env vars; pass all controls through CLI flags.
+- Use env vars only for explicit enablement (`PAI_DR_OPTION_C_ENABLED=1`). Pass other controls via CLI flags.

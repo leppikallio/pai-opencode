@@ -1,10 +1,11 @@
 # Epic E1 — Production `runAgent` driver (autonomous)
 
-Status: TODO
+Status: DONE
 
 ## Context links (source reviews)
 - Engineer: `../engineer-review-raw-2.md` (see “P0.7 blessed wave runner” + M2/M3 sections)
 - Architect: `../architect-review-raw-2.md` (see “No autonomous in-runtime agent driver” + readiness rubric)
+- Decision record: `./E1-decision-record.md`
 
 ## Repo + worktree
 - Repo root: `/Users/zuul/Projects/pai-opencode-graphviz`
@@ -131,12 +132,12 @@ Update this table as work proceeds.
 
 | Task | Status | Owner | PR/Commit | Evidence |
 |---|---|---|---|---|
-| E1-T0 Decision record | TODO |  |  |  |
-| E1-T1 Artifact contract | TODO |  |  |  |
-| E1-T2 Implement driver | TODO |  |  |  |
-| E1-T3 Deterministic tests | TODO |  |  |  |
-| E1-T4 Architect PASS | TODO |  |  |  |
-| E1-T4 QA PASS | TODO |  |  |  |
+| E1-T0 Decision record | DONE | Marvin |  | `.opencode/Plans/DeepResearchOptionC/2026-02-18/followup/E1-decision-record.md` |
+| E1-T1 Artifact contract | DONE | Marvin |  | `.opencode/commands/deep-research.md` + `.opencode/skills/deep-research-option-c/Workflows/RunLiveWave1ToPivot.md` |
+| E1-T2 Implement driver | DONE | Marvin | 5256e8c | Updated `/deep-research live` to document Task-backed Wave 1 driver + artifacts |
+| E1-T3 Deterministic tests | DONE | Marvin | 5256e8c | Existing entity tests cover injected `runAgent` boundary + retry directives (`.opencode/tests/entities/deep_research_orchestrator_tick_live.test.ts`) |
+| E1-T4 Architect PASS | DONE | Marvin |  | PASS (Architect validator): determinism boundary + artifact contract + retry + explicit enablement |
+| E1-T4 QA PASS | DONE | Marvin |  | `bun test ./.opencode/tests` => 144 pass, 3 skip, 0 fail; `bun Tools/Precommit.ts` => no leaks |
 
 ## Validator gates (must PASS)
 
