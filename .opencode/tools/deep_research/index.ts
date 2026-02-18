@@ -39,6 +39,7 @@ export * from "./revision_control";
 
 export * from "./telemetry_append";
 export * from "./run_metrics_write";
+export * from "./tick_ledger_append";
 
 export * from "./fixture_bundle_capture";
 export * from "./fixture_run_seed";
