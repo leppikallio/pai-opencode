@@ -127,7 +127,7 @@ Add entity tests under `.opencode/tests/entities/`:
 | E2-T4 Auto-triage | DONE | Marvin |  | `tick`/`run` failures now print compact auto-triage blocker summary |
 | E2-T5 Inspect enrich | DONE | Marvin |  | `inspect` now surfaces blocked URLs, retry directives, latest fixtures pointer |
 | E2-T6 Tests | DONE | Marvin | `231c35a`, `4a7c2d5`, `848edd3` | Entity tests added; full suite passes after `.opencode` deps install + env snapshot fix |
-| Architect PASS | TODO |  |  | Pending Architect validator pass |
+| Architect PASS | DONE | Marvin | `39b6529` | CLI remains path-safe (`safeResolveManifestPath` uses realpath containment) and policy-safe (`ensureOptionCEnabledForCli` blocks when disabled); cancel writes durable `status=cancelled` checkpoint. |
 | QA PASS | DONE | Marvin | `848edd3` | `bun test ./.opencode/tests`: 152 pass, 3 skip, 0 fail; `bun Tools/Precommit.ts` PASS |
 
 ## Validator gates
