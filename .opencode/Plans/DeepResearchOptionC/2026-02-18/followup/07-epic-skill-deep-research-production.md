@@ -92,14 +92,14 @@ Steps:
 
 | Task | Status | Owner | PR/Commit | Evidence |
 |---|---|---|---|---|
-| E7-T0 Skill skeleton | DONE | Marvin | pending | Added `deep-research-production/SKILL.md` + `Workflows/` directory |
-| E7-T1 DraftPerspectivesFromQuery | DONE | Marvin | pending | Added workflow with ID/order/budget contracts and validation checklist |
-| E7-T2 RunWave1WithTaskDriver | DONE | Marvin | pending | Added Task-driver wave1 workflow with ingest/retry recording guidance |
-| E7-T3 OnlineCitationsLadderPolicy | DONE | Marvin | pending | Added sensitivity ladder + blocked URL + Gate C validation contract |
-| E7-T4 SynthesisAndReviewQualityLoop | DONE | Marvin | pending | Added bounded review loop with Gate D/E artifact requirements |
-| E7-T5 Installer validation | DONE | Marvin | pending | Installer dry-run succeeded; ScanBrokenRefs on new skill scope returned count=0 |
-| Architect PASS | DONE | Marvin | pending | Workflow contracts include validations and avoid brittle refs in new skill scope |
-| QA PASS | DONE | Marvin | pending | `bun Tools/Precommit.ts` passed in `/private/tmp/pai-dr-epic-e7` |
+| E7-T0 Skill skeleton | DONE | Marvin | `88ddfb4` | Added `deep-research-production/SKILL.md` + `Workflows/` directory |
+| E7-T1 DraftPerspectivesFromQuery | DONE | Marvin | `88ddfb4` | Added workflow with ID/order/budget contracts and validation checklist |
+| E7-T2 RunWave1WithTaskDriver | DONE | Marvin | `88ddfb4` | Added Task-driver wave1 workflow with ingest/retry recording guidance |
+| E7-T3 OnlineCitationsLadderPolicy | DONE | Marvin | `88ddfb4` | Added sensitivity ladder + blocked URL + Gate C validation contract |
+| E7-T4 SynthesisAndReviewQualityLoop | DONE | Marvin | `88ddfb4` | Added bounded review loop with Gate D/E artifact requirements |
+| E7-T5 Installer validation | DONE | Marvin | `88ddfb4` | Installer dry-run succeeded; ScanBrokenRefs on new skill scope returned count=0 |
+| Architect PASS | DONE | Marvin | `88ddfb4` | Workflow contracts include validations and avoid brittle refs in new skill scope |
+| QA PASS | DONE | Marvin | `88ddfb4` | `bun test ./.opencode/tests`: 144 pass, 3 skip, 0 fail; `bun Tools/Precommit.ts`: PASS |
 
 ## Validator gates
 
