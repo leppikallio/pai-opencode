@@ -107,7 +107,7 @@ interface Update {
   ranking_rationale?: string;
 }
 
-interface MonitorOptions {
+export interface MonitorOptions {
   days: number;
   force: boolean;
   provider: string;
@@ -150,7 +150,7 @@ type GitRelease = {
   body?: string;
 };
 
-interface RunResult {
+export interface RunResult {
   generatedAt: string;
   options: MonitorOptions;
   updates: Update[];
@@ -725,7 +725,10 @@ function buildRecommendationCandidates(updates: Update[]): RecommendationCandida
       summary: `${update.summary || ''} ${update.recommendation || ''}`.trim(),
       priority: toRecommendationPriority(update.priority),
       tags,
-      category: update.category
+      category: update.category,
+      source_id: update.source_id,
+      source_name: update.source,
+      update_type: update.type,
     };
   });
 }
@@ -809,7 +812,7 @@ function applyLearningRanking(updates: Update[], options: MonitorOptions): {
   };
 }
 
-async function runMonitor(options: MonitorOptions): Promise<RunResult> {
+export async function runMonitor(options: MonitorOptions): Promise<RunResult> {
   const allSources = loadSourcesConfig();
   const provider = options.provider.toLowerCase();
   const selectedSources = provider === 'all'

@@ -59,6 +59,23 @@ bun ~/.config/opencode/skills/pai-upgrade/Tools/Anthropic.ts 14
 
 Create a review draft with three priority bands: **High**, **Medium**, **Low**.
 
+### Step 6: Capture explicit recommendation outcomes (optional but recommended)
+
+When you (the operator) decide outcomes for top recommendations, record them to improve future ranking quality:
+
+```bash
+bun ~/.config/opencode/skills/pai-upgrade/Tools/RecordRecommendationFeedback.ts \
+  --recommendation-id <ranking_id> \
+  --decision accepted \
+  --helpfulness helpful \
+  --confidence 0.9
+```
+
+Supported values:
+
+- `--decision`: `accepted` | `ignored` | `deferred`
+- `--helpfulness`: `helpful` | `neutral` | `harmful`
+
 ## Verify
 
 - Tool evidence from step commands must succeed and emit non-empty output.
