@@ -95,7 +95,7 @@ Acceptance:
 | E3-T1 Implementation | DONE | Marvin | `96dfd5a` | heartbeat watchdog + stage heartbeat schema/write support |
 | E3-T2 Progress emission | DONE | Marvin | `96dfd5a` | progress writes in live/post-pivot/post-summaries orchestrators |
 | E3-T3 Tests | DONE | Marvin | `96dfd5a` | watchdog heartbeat/no-progress tests + full `.opencode/tests` pass |
-| Architect PASS | TODO |  |  |  |
+| Architect PASS | DONE | Marvin | `d2dd71e` | Heartbeat timestamps are observability only (not digest inputs); stage transition logic remains deterministic. |
 | QA PASS | DONE | Marvin | `96dfd5a` | `bun test ./.opencode/tests`, `bun Tools/Precommit.ts` |
 
 ## Validator gates
