@@ -1,6 +1,6 @@
 # Epic E7 — New skill: `deep-research-production`
 
-Status: TODO
+Status: DONE
 
 ## Context links (source reviews)
 - Engineer: `../engineer-review-raw-2.md` (contracts for wave outputs + citations policy + quality loop)
@@ -92,14 +92,14 @@ Steps:
 
 | Task | Status | Owner | PR/Commit | Evidence |
 |---|---|---|---|---|
-| E7-T0 Skill skeleton | TODO |  |  |  |
-| E7-T1 DraftPerspectivesFromQuery | TODO |  |  |  |
-| E7-T2 RunWave1WithTaskDriver | TODO |  |  |  |
-| E7-T3 OnlineCitationsLadderPolicy | TODO |  |  |  |
-| E7-T4 SynthesisAndReviewQualityLoop | TODO |  |  |  |
-| E7-T5 Installer validation | TODO |  |  |  |
-| Architect PASS | TODO |  |  |  |
-| QA PASS | TODO |  |  |  |
+| E7-T0 Skill skeleton | DONE | Marvin | pending | Added `deep-research-production/SKILL.md` + `Workflows/` directory |
+| E7-T1 DraftPerspectivesFromQuery | DONE | Marvin | pending | Added workflow with ID/order/budget contracts and validation checklist |
+| E7-T2 RunWave1WithTaskDriver | DONE | Marvin | pending | Added Task-driver wave1 workflow with ingest/retry recording guidance |
+| E7-T3 OnlineCitationsLadderPolicy | DONE | Marvin | pending | Added sensitivity ladder + blocked URL + Gate C validation contract |
+| E7-T4 SynthesisAndReviewQualityLoop | DONE | Marvin | pending | Added bounded review loop with Gate D/E artifact requirements |
+| E7-T5 Installer validation | DONE | Marvin | pending | Installer dry-run succeeded; ScanBrokenRefs on new skill scope returned count=0 |
+| Architect PASS | DONE | Marvin | pending | Workflow contracts include validations and avoid brittle refs in new skill scope |
+| QA PASS | DONE | Marvin | pending | `bun Tools/Precommit.ts` passed in `/private/tmp/pai-dr-epic-e7` |
 
 ## Validator gates
 
