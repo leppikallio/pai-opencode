@@ -8,12 +8,15 @@ import {
   getManifestPaths,
   getStringProp,
   isPlainObject,
+  nowIso,
   parseJsonSafe,
   readJson,
+  sha256HexLowerUtf8,
   validateManifestV1,
 } from "./lifecycle_lib";
 import { gate_b_derive } from "./gate_b_derive";
 import { gates_write } from "./gates_write";
+import { retry_record } from "./retry_record";
 import { stage_advance } from "./stage_advance";
 import { wave_output_ingest } from "./wave_output_ingest";
 import { wave_output_validate } from "./wave_output_validate";
@@ -70,6 +73,7 @@ export type OrchestratorTickLiveArgs = {
   wave_review_tool?: ToolWithExecute;
   gate_b_derive_tool?: ToolWithExecute;
   gates_write_tool?: ToolWithExecute;
+  retry_record_tool?: ToolWithExecute;
   stage_advance_tool?: ToolWithExecute;
   tool_context?: unknown;
 };
@@ -217,13 +221,6 @@ async function exists(filePath: string): Promise<boolean> {
   }
 }
 
-function gateBPassInDoc(doc: unknown): boolean {
-  if (!isPlainObject(doc)) return false;
-  const gatesObj = isPlainObject(doc.gates) ? (doc.gates as Record<string, unknown>) : null;
-  const gateB = gatesObj && isPlainObject(gatesObj.B) ? (gatesObj.B as Record<string, unknown>) : null;
-  return String(gateB?.status ?? "").trim().toLowerCase() === "pass";
-}
-
 async function executeToolJson(args: {
   name: string;
   tool: ToolWithExecute;
@@ -328,6 +325,80 @@ function normalizeRunAgentResult(
     ok: true,
     markdown,
   };
+}
+
+type PlannedWave1Entry = {
+  perspectiveId: string;
+  agentType: string;
+  promptMd: string;
+  outputMd: string;
+  outputMarkdownPath: string;
+  sidecarPath: string;
+};
+
+function getGateRetryCount(manifest: Record<string, unknown>, gateId: "A" | "B" | "C" | "D" | "E" | "F"): number {
+  const metrics = isPlainObject(manifest.metrics)
+    ? (manifest.metrics as Record<string, unknown>)
+    : null;
+  const retryCounts = metrics && isPlainObject(metrics.retry_counts)
+    ? (metrics.retry_counts as Record<string, unknown>)
+    : null;
+  const raw = retryCounts ? retryCounts[gateId] : null;
+  return typeof raw === "number" && Number.isInteger(raw) && raw >= 0 ? raw : 0;
+}
+
+const WAVE_OUTPUT_VALIDATE_RETRY_CODES = new Set<string>([
+  "MISSING_REQUIRED_SECTION",
+  "TOO_MANY_WORDS",
+  "MALFORMED_SOURCES",
+  "TOO_MANY_SOURCES",
+]);
+
+function shouldDeferValidationFailure(code: string): boolean {
+  return WAVE_OUTPUT_VALIDATE_RETRY_CODES.has(code);
+}
+
+function toRetryDirectives(value: unknown): Array<Record<string, unknown>> {
+  if (!Array.isArray(value)) return [];
+  return value.filter((entry): entry is Record<string, unknown> => isPlainObject(entry));
+}
+
+function getRetryChangeNote(retryDirectives: Array<Record<string, unknown>>): string {
+  for (const directive of retryDirectives) {
+    const note = nonEmptyString(directive.change_note);
+    if (note) return note;
+  }
+  return `wave_review emitted ${retryDirectives.length} retry directives`;
+}
+
+async function outputCreatedAtIso(outputMarkdownPath: string): Promise<string> {
+  try {
+    const stat = await fs.stat(outputMarkdownPath);
+    return stat.mtime.toISOString();
+  } catch {
+    return nowIso();
+  }
+}
+
+async function writeOutputMetadataSidecar(args: {
+  sidecarPath: string;
+  perspectiveId: string;
+  agentType: string;
+  outputMd: string;
+  promptMd: string;
+  retryCount: number;
+  createdAt: string;
+}): Promise<void> {
+  const payload = {
+    perspective_id: args.perspectiveId,
+    agent_type: args.agentType,
+    output_md: args.outputMd,
+    prompt_digest: `sha256:${sha256HexLowerUtf8(args.promptMd)}`,
+    created_at: args.createdAt,
+    retry_count: args.retryCount,
+  };
+  await fs.mkdir(path.dirname(args.sidecarPath), { recursive: true });
+  await fs.writeFile(args.sidecarPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
 }
 
 export async function orchestrator_tick_live(
@@ -478,6 +549,7 @@ export async function orchestrator_tick_live(
   const waveReviewTool = args.wave_review_tool ?? (wave_review as unknown as ToolWithExecute);
   const gateBDeriveTool = args.gate_b_derive_tool ?? (gate_b_derive as unknown as ToolWithExecute);
   const gatesWriteTool = args.gates_write_tool ?? (gates_write as unknown as ToolWithExecute);
+  const retryRecordTool = args.retry_record_tool ?? (retry_record as unknown as ToolWithExecute);
   const stageAdvanceTool = args.stage_advance_tool ?? (stage_advance as unknown as ToolWithExecute);
 
   const requiredTools: Array<{ name: string; tool: ToolWithExecute }> = [
@@ -487,6 +559,7 @@ export async function orchestrator_tick_live(
     { name: "WAVE_REVIEW", tool: waveReviewTool },
     { name: "GATE_B_DERIVE", tool: gateBDeriveTool },
     { name: "GATES_WRITE", tool: gatesWriteTool },
+    { name: "RETRY_RECORD", tool: retryRecordTool },
     { name: "STAGE_ADVANCE", tool: stageAdvanceTool },
   ];
   for (const requiredTool of requiredTools) {
@@ -628,118 +701,212 @@ export async function orchestrator_tick_live(
     });
   }
 
-  const firstEntryRaw = entries[0];
-  if (!isPlainObject(firstEntryRaw)) {
-    return fail("SCHEMA_VALIDATION_FAILED", "wave1 plan first entry must be object", {
-      plan_path: planPath,
-    });
-  }
+  const plannedEntries: PlannedWave1Entry[] = [];
+  const seenPerspectiveIds = new Set<string>();
 
-  const perspectiveId = nonEmptyString(firstEntryRaw.perspective_id);
-  const agentType = nonEmptyString(firstEntryRaw.agent_type);
-  const promptMd = nonEmptyString(firstEntryRaw.prompt_md);
-  const outputMd = nonEmptyString(firstEntryRaw.output_md);
+  for (let i = 0; i < entries.length; i += 1) {
+    const entryRaw = entries[i];
+    if (!isPlainObject(entryRaw)) {
+      return fail("SCHEMA_VALIDATION_FAILED", "wave1 plan entry must be object", {
+        plan_path: planPath,
+        index: i,
+      });
+    }
 
-  if (!perspectiveId || !agentType || !promptMd || !outputMd) {
-    return fail("SCHEMA_VALIDATION_FAILED", "wave1 plan entry is missing required fields", {
-      entry: firstEntryRaw,
-    });
-  }
+    const perspectiveId = nonEmptyString(entryRaw.perspective_id);
+    const agentType = nonEmptyString(entryRaw.agent_type);
+    const promptMd = nonEmptyString(entryRaw.prompt_md);
+    const outputMd = nonEmptyString(entryRaw.output_md);
 
-  const outputMarkdownResolved = await resolveContainedPath({
-    runRoot,
-    runRootReal,
-    input: outputMd,
-    field: "wave1_plan.entries[0].output_md",
-  });
-  if (!outputMarkdownResolved.ok) {
-    return fail("PATH_TRAVERSAL", outputMarkdownResolved.reason, outputMarkdownResolved.details);
-  }
-  const outputMarkdownPath = outputMarkdownResolved.absPath;
+    if (!perspectiveId || !agentType || !promptMd || !outputMd) {
+      return fail("SCHEMA_VALIDATION_FAILED", "wave1 plan entry is missing required fields", {
+        index: i,
+        entry: entryRaw,
+      });
+    }
 
-  const outputAlreadyExists = await exists(outputMarkdownPath);
-  if (!outputAlreadyExists) {
-    let runAgentRaw: OrchestratorLiveRunAgentResult;
-    try {
-      runAgentRaw = await args.drivers.runAgent({
-        run_id: runId,
-        stage: currentStage,
-        run_root: runRoot,
+    if (seenPerspectiveIds.has(perspectiveId)) {
+      return fail("SCHEMA_VALIDATION_FAILED", "wave1 plan contains duplicate perspective_id", {
         perspective_id: perspectiveId,
-        agent_type: agentType,
-        prompt_md: promptMd,
-        output_md: outputMd,
+      });
+    }
+    seenPerspectiveIds.add(perspectiveId);
+
+    const outputMarkdownResolved = await resolveContainedPath({
+      runRoot,
+      runRootReal,
+      input: outputMd,
+      field: `wave1_plan.entries[${i}].output_md`,
+    });
+    if (!outputMarkdownResolved.ok) {
+      return fail("PATH_TRAVERSAL", outputMarkdownResolved.reason, outputMarkdownResolved.details);
+    }
+
+    const sidecarInput = outputMd.endsWith(".md")
+      ? `${outputMd.slice(0, -3)}.meta.json`
+      : `${outputMd}.meta.json`;
+    const sidecarResolved = await resolveContainedPath({
+      runRoot,
+      runRootReal,
+      input: sidecarInput,
+      field: `wave1_plan.entries[${i}].meta_path`,
+    });
+    if (!sidecarResolved.ok) {
+      return fail("PATH_TRAVERSAL", sidecarResolved.reason, sidecarResolved.details);
+    }
+
+    plannedEntries.push({
+      perspectiveId,
+      agentType,
+      promptMd,
+      outputMd,
+      outputMarkdownPath: outputMarkdownResolved.absPath,
+      sidecarPath: sidecarResolved.absPath,
+    });
+  }
+
+  const gateBRetryCount = getGateRetryCount(manifest, "B");
+  const deferredValidationFailures: Array<Record<string, unknown>> = [];
+
+  for (const entry of plannedEntries) {
+    const outputAlreadyExists = await exists(entry.outputMarkdownPath);
+    if (!outputAlreadyExists) {
+      let runAgentRaw: OrchestratorLiveRunAgentResult;
+      try {
+        runAgentRaw = await args.drivers.runAgent({
+          run_id: runId,
+          stage: currentStage,
+          run_root: runRoot,
+          perspective_id: entry.perspectiveId,
+          agent_type: entry.agentType,
+          prompt_md: entry.promptMd,
+          output_md: entry.outputMd,
+        });
+      } catch (e) {
+        return fail("RUN_AGENT_FAILED", "drivers.runAgent threw", {
+          perspective_id: entry.perspectiveId,
+          message: String(e),
+        });
+      }
+
+      const normalizedRunAgent = normalizeRunAgentResult(runAgentRaw);
+      if (!normalizedRunAgent.ok) {
+        return fail(normalizedRunAgent.code, normalizedRunAgent.message, {
+          perspective_id: entry.perspectiveId,
+        });
+      }
+
+      const ingestResult = await executeToolJson({
+        name: "WAVE_OUTPUT_INGEST",
+        tool: waveOutputIngestTool,
+        payload: {
+          manifest_path: manifestPath,
+          perspectives_path: perspectivesPath,
+          wave: "wave1",
+          outputs: [
+            {
+              perspective_id: entry.perspectiveId,
+              markdown: normalizedRunAgent.markdown,
+              agent_type: entry.agentType,
+              prompt_md: entry.promptMd,
+            },
+          ],
+        },
+        tool_context: args.tool_context,
+      });
+      if (!ingestResult.ok) {
+        return fail(ingestResult.code, ingestResult.message, {
+          ...ingestResult.details,
+          perspective_id: entry.perspectiveId,
+        });
+      }
+    }
+
+    const validateResult = await executeToolJson({
+      name: "WAVE_OUTPUT_VALIDATE",
+      tool: waveOutputValidateTool,
+      payload: {
+        perspectives_path: perspectivesPath,
+        perspective_id: entry.perspectiveId,
+        markdown_path: entry.outputMarkdownPath,
+      },
+      tool_context: args.tool_context,
+    });
+    if (!validateResult.ok) {
+      if (!shouldDeferValidationFailure(validateResult.code)) {
+        return fail(validateResult.code, validateResult.message, {
+          ...validateResult.details,
+          perspective_id: entry.perspectiveId,
+          markdown_path: entry.outputMarkdownPath,
+        });
+      }
+      deferredValidationFailures.push({
+        perspective_id: entry.perspectiveId,
+        code: validateResult.code,
+        message: validateResult.message,
+      });
+    }
+
+    try {
+      await writeOutputMetadataSidecar({
+        sidecarPath: entry.sidecarPath,
+        perspectiveId: entry.perspectiveId,
+        agentType: entry.agentType,
+        outputMd: entry.outputMd,
+        promptMd: entry.promptMd,
+        retryCount: gateBRetryCount,
+        createdAt: await outputCreatedAtIso(entry.outputMarkdownPath),
       });
     } catch (e) {
-      return fail("RUN_AGENT_FAILED", "drivers.runAgent threw", {
-        perspective_id: perspectiveId,
+      return fail("WRITE_FAILED", "failed to persist wave output metadata sidecar", {
+        perspective_id: entry.perspectiveId,
+        sidecar_path: entry.sidecarPath,
         message: String(e),
       });
     }
-
-    const normalizedRunAgent = normalizeRunAgentResult(runAgentRaw);
-    if (!normalizedRunAgent.ok) {
-      return fail(normalizedRunAgent.code, normalizedRunAgent.message, {
-        perspective_id: perspectiveId,
-      });
-    }
-
-    const ingestResult = await executeToolJson({
-      name: "WAVE_OUTPUT_INGEST",
-      tool: waveOutputIngestTool,
-      payload: {
-        manifest_path: manifestPath,
-        perspectives_path: perspectivesPath,
-        wave: "wave1",
-        outputs: [
-          {
-            perspective_id: perspectiveId,
-            markdown: normalizedRunAgent.markdown,
-            agent_type: agentType,
-            prompt_md: promptMd,
-          },
-        ],
-      },
-      tool_context: args.tool_context,
-    });
-    if (!ingestResult.ok) {
-      return fail(ingestResult.code, ingestResult.message, ingestResult.details);
-    }
   }
 
-  const validateResult = await executeToolJson({
-    name: "WAVE_OUTPUT_VALIDATE",
-    tool: waveOutputValidateTool,
+  const plannedPerspectiveIds = plannedEntries.map((entry) => entry.perspectiveId);
+  const reviewResult = await executeToolJson({
+    name: "WAVE_REVIEW",
+    tool: waveReviewTool,
     payload: {
       perspectives_path: perspectivesPath,
-      perspective_id: perspectiveId,
-      markdown_path: outputMarkdownPath,
+      outputs_dir: wave1DirPath,
+      perspective_ids: plannedPerspectiveIds,
+      report_path: waveReviewPath,
     },
     tool_context: args.tool_context,
   });
-  if (!validateResult.ok) {
-    return fail(validateResult.code, validateResult.message, validateResult.details);
+  if (!reviewResult.ok) {
+    return fail(reviewResult.code, reviewResult.message, reviewResult.details);
   }
 
-  const waveReviewExists = await exists(waveReviewPath);
-  if (!waveReviewExists) {
-    const reviewResult = await executeToolJson({
-      name: "WAVE_REVIEW",
-      tool: waveReviewTool,
-      payload: {
-        perspectives_path: perspectivesPath,
-        outputs_dir: wave1DirPath,
-        perspective_ids: [perspectiveId],
-        report_path: waveReviewPath,
-      },
-      tool_context: args.tool_context,
+  const gateBDeriveResult = await executeToolJson({
+    name: "GATE_B_DERIVE",
+    tool: gateBDeriveTool,
+    payload: {
+      manifest_path: manifestPath,
+      wave_review_report_path: waveReviewPath,
+      reason,
+    },
+    tool_context: args.tool_context,
+  });
+  if (!gateBDeriveResult.ok) {
+    return fail(gateBDeriveResult.code, gateBDeriveResult.message, gateBDeriveResult.details);
+  }
+
+  const gateUpdate = isPlainObject(gateBDeriveResult.update)
+    ? (gateBDeriveResult.update as Record<string, unknown>)
+    : null;
+  const gateInputsDigest = nonEmptyString(gateBDeriveResult.inputs_digest);
+  if (!gateUpdate || !gateInputsDigest) {
+    return fail("INVALID_STATE", "gate_b_derive returned incomplete gate patch", {
+      update: gateBDeriveResult.update ?? null,
+      inputs_digest: gateBDeriveResult.inputs_digest ?? null,
     });
-    if (!reviewResult.ok) {
-      return fail(reviewResult.code, reviewResult.message, reviewResult.details);
-    }
   }
 
-  let gateBAlreadyPass = false;
   let gatesRevision: number | null = null;
   try {
     const gatesDoc = await readJson(gatesPath);
@@ -756,7 +923,6 @@ export async function orchestrator_tick_live(
       });
     }
     gatesRevision = revisionRaw;
-    gateBAlreadyPass = gateBPassInDoc(gatesDoc);
   } catch (e) {
     return fail("NOT_FOUND", "gates_path not found", {
       gates_path: gatesPath,
@@ -764,55 +930,89 @@ export async function orchestrator_tick_live(
     });
   }
 
-  if (!gateBAlreadyPass) {
-    const gateBDeriveResult = await executeToolJson({
-      name: "GATE_B_DERIVE",
-      tool: gateBDeriveTool,
+  const gatesWriteResult = await executeToolJson({
+    name: "GATES_WRITE",
+    tool: gatesWriteTool,
+    payload: {
+      gates_path: gatesPath,
+      update: gateUpdate,
+      inputs_digest: gateInputsDigest,
+      expected_revision: gatesRevision ?? undefined,
+      reason,
+    },
+    tool_context: args.tool_context,
+  });
+  if (!gatesWriteResult.ok) {
+    return fail(gatesWriteResult.code, gatesWriteResult.message, gatesWriteResult.details);
+  }
+
+  const retryDirectives = toRetryDirectives(reviewResult.retry_directives);
+  if (retryDirectives.length > 0) {
+    const retryDirectivesResolved = await resolveContainedPath({
+      runRoot,
+      runRootReal,
+      input: "retry/retry-directives.json",
+      field: "retry.retry_directives_file",
+    });
+    if (!retryDirectivesResolved.ok) {
+      return fail("PATH_TRAVERSAL", retryDirectivesResolved.reason, retryDirectivesResolved.details);
+    }
+
+    const retryDirectivesPath = retryDirectivesResolved.absPath;
+    const retryArtifact = {
+      schema_version: "wave1.retry_directives.v1",
+      run_id: runId,
+      stage: currentStage,
+      generated_at: nowIso(),
+      retry_directives: retryDirectives,
+      deferred_validation_failures: deferredValidationFailures,
+    };
+    try {
+      await fs.mkdir(path.dirname(retryDirectivesPath), { recursive: true });
+      await fs.writeFile(retryDirectivesPath, `${JSON.stringify(retryArtifact, null, 2)}\n`, "utf8");
+    } catch (e) {
+      return fail("WRITE_FAILED", "failed to write retry directives artifact", {
+        retry_directives_path: retryDirectivesPath,
+        message: String(e),
+      });
+    }
+
+    const retryRecordResult = await executeToolJson({
+      name: "RETRY_RECORD",
+      tool: retryRecordTool,
       payload: {
         manifest_path: manifestPath,
-        wave_review_report_path: waveReviewPath,
+        gate_id: "B",
+        change_note: getRetryChangeNote(retryDirectives),
         reason,
       },
       tool_context: args.tool_context,
     });
-    if (!gateBDeriveResult.ok) {
-      return fail(gateBDeriveResult.code, gateBDeriveResult.message, gateBDeriveResult.details);
-    }
-
-    const gateUpdate = isPlainObject(gateBDeriveResult.update)
-      ? (gateBDeriveResult.update as Record<string, unknown>)
-      : null;
-    const gateInputsDigest = nonEmptyString(gateBDeriveResult.inputs_digest);
-    if (!gateUpdate || !gateInputsDigest) {
-      return fail("INVALID_STATE", "gate_b_derive returned incomplete gate patch", {
-        update: gateBDeriveResult.update ?? null,
-        inputs_digest: gateBDeriveResult.inputs_digest ?? null,
+    if (!retryRecordResult.ok) {
+      if (retryRecordResult.code === "RETRY_EXHAUSTED") {
+        return fail("RETRY_CAP_EXHAUSTED", "wave1 retry cap exhausted", {
+          ...retryRecordResult.details,
+          gate_id: "B",
+          retry_directives_count: retryDirectives.length,
+          retry_directives_path: retryDirectivesPath,
+          perspective_ids: retryDirectives.map((directive) => String(directive.perspective_id ?? "")).filter(Boolean),
+        });
+      }
+      return fail(retryRecordResult.code, retryRecordResult.message, {
+        ...retryRecordResult.details,
+        retry_directives_path: retryDirectivesPath,
       });
     }
 
-    const gatesWriteResult = await executeToolJson({
-      name: "GATES_WRITE",
-      tool: gatesWriteTool,
-      payload: {
-        gates_path: gatesPath,
-        update: gateUpdate,
-        inputs_digest: gateInputsDigest,
-        expected_revision: gatesRevision ?? undefined,
-        reason,
-      },
-      tool_context: args.tool_context,
+    return fail("RETRY_REQUIRED", "wave1 outputs require retry before pivot", {
+      gate_id: "B",
+      retry_count: retryRecordResult.retry_count ?? null,
+      max_retries: retryRecordResult.max_retries ?? null,
+      retry_directives_count: retryDirectives.length,
+      retry_directives_path: retryDirectivesPath,
+      perspective_ids: retryDirectives.map((directive) => String(directive.perspective_id ?? "")).filter(Boolean),
+      deferred_validation_failures: deferredValidationFailures,
     });
-    if (!gatesWriteResult.ok) {
-      return fail(gatesWriteResult.code, gatesWriteResult.message, gatesWriteResult.details);
-    }
-
-    const nextGatesRevision = Number(gatesWriteResult.new_revision ?? Number.NaN);
-    if (!Number.isFinite(nextGatesRevision)) {
-      return fail("INVALID_STATE", "gates_write returned invalid new_revision", {
-        new_revision: gatesWriteResult.new_revision ?? null,
-      });
-    }
-    gatesRevision = nextGatesRevision;
   }
 
   const finalAdvance = await runStageAdvance("pivot");
@@ -842,7 +1042,7 @@ export async function orchestrator_tick_live(
     run_id: runId,
     from,
     to,
-    wave_outputs_count: 1,
+    wave_outputs_count: plannedEntries.length,
     decision_inputs_digest: decisionInputsDigest,
   };
   } finally {
