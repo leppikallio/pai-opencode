@@ -170,6 +170,8 @@ export const run_init = tool({
               PAI_DR_MAX_TOTAL_SUMMARY_KB: flags.maxTotalSummaryKb,
               PAI_DR_MAX_REVIEW_ITERATIONS: flags.maxReviewIterations,
               PAI_DR_CITATION_VALIDATION_TIER: flags.citationValidationTier,
+              PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT: flags.citationsBrightDataEndpoint,
+              PAI_DR_CITATIONS_APIFY_ENDPOINT: flags.citationsApifyEndpoint,
               PAI_DR_NO_WEB: flags.noWeb,
               PAI_DR_RUNS_ROOT: flags.runsRoot,
               source: flags.source,

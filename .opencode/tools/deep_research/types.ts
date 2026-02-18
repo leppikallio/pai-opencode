@@ -17,6 +17,8 @@ export type DeepResearchFlagsV1 = {
   maxTotalSummaryKb: number;
   maxReviewIterations: number;
   citationValidationTier: CitationValidationTier;
+  citationsBrightDataEndpoint: string | null;
+  citationsApifyEndpoint: string | null;
   noWeb: boolean;
   runsRoot: string;
   source: {
