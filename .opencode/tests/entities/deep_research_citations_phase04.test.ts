@@ -8,9 +8,11 @@ import {
   citations_render_md,
   citations_validate,
   gate_c_compute,
+  gates_write,
   run_init,
+  stage_advance,
 } from "../../tools/deep_research.ts";
-import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
+import { fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 function parseJsonl(raw: string): Array<Record<string, unknown>> {
   return raw
@@ -248,6 +250,113 @@ describe("deep_research citations phase04 (entity)", () => {
         expect(["blocked", "invalid", "valid", "paywalled", "mismatch"]).toContain(String(records[0].status));
         expect(String(records[0].notes)).not.toContain("ladder placeholder");
         expect(String(records[0].notes)).not.toContain("online stub");
+
+        const blockedUrlsPath = String((validate as any).blocked_urls_path);
+        const blockedDoc = JSON.parse(await fs.readFile(blockedUrlsPath, "utf8"));
+        expect(blockedDoc.schema_version).toBe("blocked_urls.v1");
+        expect(Array.isArray(blockedDoc.items)).toBe(true);
+        expect(blockedDoc.items.length).toBeGreaterThanOrEqual(1);
+        expect(typeof blockedDoc.items[0].action).toBe("string");
+      });
+    });
+  });
+
+  test("online fixture path enables Gate C pass and citations->summaries advance", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "0" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_citations_003";
+        const initRaw = (await (run_init as any).execute(
+          {
+            query: "Citations online gate path",
+            mode: "standard",
+            sensitivity: "normal",
+            run_id: runId,
+            root_override: base,
+          },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = String((init as any).manifest_path);
+        const gatesPath = String((init as any).gates_path);
+        const root = String((init as any).root);
+
+        await fs.writeFile(path.join(root, "wave-1", "p1.md"), "## Sources\n- https://example.org/article\n", "utf8");
+
+        const extractRaw = (await (citations_extract_urls as any).execute(
+          { manifest_path: manifestPath, reason: "test: extract-online-pass" },
+          makeToolContext(),
+        )) as string;
+        const extract = parseToolJson(extractRaw);
+        expect(extract.ok).toBe(true);
+
+        const normalizeRaw = (await (citations_normalize as any).execute(
+          {
+            manifest_path: manifestPath,
+            extracted_urls_path: String((extract as any).extracted_urls_path),
+            reason: "test: normalize-online-pass",
+          },
+          makeToolContext(),
+        )) as string;
+        const normalize = parseToolJson(normalizeRaw);
+        expect(normalize.ok).toBe(true);
+
+        const validateRaw = (await (citations_validate as any).execute(
+          {
+            manifest_path: manifestPath,
+            url_map_path: String((normalize as any).url_map_path),
+            online_fixtures_path: fixturePath("citations", "phase04", "validate", "online-ladder-fixtures.json"),
+            reason: "test: validate-online-pass",
+          },
+          makeToolContext(),
+        )) as string;
+        const validate = parseToolJson(validateRaw);
+        expect(validate.ok).toBe(true);
+        expect((validate as any).mode).toBe("online");
+
+        const gateRaw = (await (gate_c_compute as any).execute(
+          {
+            manifest_path: manifestPath,
+            citations_path: String((validate as any).citations_path),
+            extracted_urls_path: String((extract as any).extracted_urls_path),
+            reason: "test: gate-c-online-pass",
+          },
+          makeToolContext(),
+        )) as string;
+        const gate = parseToolJson(gateRaw);
+        expect(gate.ok).toBe(true);
+        expect((gate as any).status).toBe("pass");
+
+        const gatesWriteRaw = (await (gates_write as any).execute(
+          {
+            gates_path: gatesPath,
+            update: (gate as any).update,
+            inputs_digest: String((gate as any).inputs_digest),
+            reason: "test: gates-write-online-pass",
+          },
+          makeToolContext(),
+        )) as string;
+        const gatesWrite = parseToolJson(gatesWriteRaw);
+        expect(gatesWrite.ok).toBe(true);
+
+        const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        manifest.stage.current = "citations";
+        await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+        const advanceRaw = (await (stage_advance as any).execute(
+          {
+            manifest_path: manifestPath,
+            gates_path: gatesPath,
+            requested_next: "summaries",
+            reason: "test: citations-to-summaries-online-pass",
+          },
+          makeToolContext(),
+        )) as string;
+        const advance = parseToolJson(advanceRaw);
+        expect(advance.ok).toBe(true);
+        expect((advance as any).from).toBe("citations");
+        expect((advance as any).to).toBe("summaries");
       });
     });
   });

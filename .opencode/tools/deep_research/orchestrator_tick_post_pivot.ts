@@ -1161,7 +1161,12 @@ export async function orchestrator_tick_post_pivot(
   const stageObj = isPlainObject(manifest.stage)
     ? (manifest.stage as Record<string, unknown>)
     : {};
+  const queryObj = isPlainObject(manifest.query)
+    ? (manifest.query as Record<string, unknown>)
+    : {};
   const from = String(stageObj.current ?? "").trim();
+  const sensitivity = String(queryObj.sensitivity ?? "normal").trim();
+  const runOnlineValidation = sensitivity !== "no_web";
   const status = String(manifest.status ?? "").trim();
   const artifacts = getManifestArtifacts(manifest);
   const runRoot = String(
@@ -1557,26 +1562,28 @@ export async function orchestrator_tick_post_pivot(
     });
   }
 
-  const offlineFixturesPath = path.join(runRoot, "citations", "offline-fixtures.orchestrator.json");
-  const fixturesResult = await writeDeterministicCitationFixtures({
-    urlMapPath,
-    fixturesPath: offlineFixturesPath,
-  });
-  if (!fixturesResult.ok) {
-    return fail(fixturesResult.code, fixturesResult.message, fixturesResult.details);
+  const citationsValidatePayload: Record<string, unknown> = {
+    manifest_path: manifestPath,
+    url_map_path: urlMapPath,
+    reason,
+  };
+
+  if (!runOnlineValidation) {
+    const offlineFixturesPath = path.join(runRoot, "citations", "offline-fixtures.orchestrator.json");
+    const fixturesResult = await writeDeterministicCitationFixtures({
+      urlMapPath,
+      fixturesPath: offlineFixturesPath,
+    });
+    if (!fixturesResult.ok) {
+      return fail(fixturesResult.code, fixturesResult.message, fixturesResult.details);
+    }
+    citationsValidatePayload.offline_fixtures_path = offlineFixturesPath;
   }
 
   const validate = await executeToolJson({
     name: "CITATIONS_VALIDATE",
     tool: citationsValidateTool,
-    payload: {
-      manifest_path: manifestPath,
-      url_map_path: urlMapPath,
-      offline_fixtures_path: offlineFixturesPath,
-      online_fixtures_path: offlineFixturesPath,
-      online_dry_run: true,
-      reason,
-    },
+    payload: citationsValidatePayload,
     tool_context: args.tool_context,
   });
   if (!validate.ok) {

@@ -3,15 +3,16 @@ import * as path from "node:path";
 
 import {
   appendAuditJsonl,
+  atomicWriteJson,
   atomicWriteText,
   err,
   errorCode,
   getManifestArtifacts,
   getStringProp,
+  isPlainObject,
   isNonEmptyString,
   nowIso,
   ok,
-  parseBool,
   readJson,
   sha256DigestForJson,
   type CitationStatus,
@@ -30,6 +31,30 @@ import {
   redactSensitiveUrl,
   validateUrlMapV1,
 } from "./citations_validate_lib";
+
+function toTimestampToken(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?Z$/.exec(iso);
+  if (!m) return iso.replace(/[^A-Za-z0-9]/g, "") || `${Date.now()}`;
+  const ms = (m[7] ?? "").slice(0, 3).padEnd(3, "0");
+  return `${m[1]}${m[2]}${m[3]}T${m[4]}${m[5]}${m[6]}${ms}Z`;
+}
+
+function blockedUrlAction(notes: string): string {
+  const lower = notes.toLowerCase();
+  if (lower.includes("private/local target blocked")) {
+    return "Replace with publicly reachable source URL outside private/local networks.";
+  }
+  if (lower.includes("dry-run")) {
+    return "Run with online_dry_run=false or provide online fixtures replay input.";
+  }
+  if (lower.includes("endpoint not configured")) {
+    return "Configure Bright Data/Apify endpoint or provide deterministic online fixture.";
+  }
+  if (lower.includes("disallowed protocol")) {
+    return "Use http/https source URL for citation validation.";
+  }
+  return "Investigate URL manually and add deterministic online fixture if needed.";
+}
 
 export const citations_validate = tool({
   description: "Validate normalized URLs into citations.jsonl records",
@@ -60,23 +85,7 @@ export const citations_validate = tool({
       }
       if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
 
-      const noWebRaw = process.env.PAI_DR_NO_WEB;
-      const noWebParsed = noWebRaw === undefined ? false : parseBool(noWebRaw);
-      if (noWebRaw !== undefined && noWebParsed === null) {
-        return err("INVALID_ARGS", "PAI_DR_NO_WEB must be boolean-like (0/1/true/false)", {
-          PAI_DR_NO_WEB: noWebRaw,
-        });
-      }
-      const mode: "offline" | "online" = noWebParsed === true ? "offline" : "online";
-
-      const onlineDryRunRaw = process.env.PAI_DR_CITATIONS_ONLINE_DRY_RUN;
-      const onlineDryRunParsed = onlineDryRunRaw === undefined ? null : parseBool(onlineDryRunRaw);
-      if (onlineDryRunRaw !== undefined && onlineDryRunParsed === null) {
-        return err("INVALID_ARGS", "PAI_DR_CITATIONS_ONLINE_DRY_RUN must be boolean-like (0/1/true/false)", {
-          PAI_DR_CITATIONS_ONLINE_DRY_RUN: onlineDryRunRaw,
-        });
-      }
-      const onlineDryRun = args.online_dry_run ?? onlineDryRunParsed ?? false;
+      const onlineDryRun = args.online_dry_run ?? false;
 
       let manifestRaw: unknown;
       try {
@@ -94,6 +103,9 @@ export const citations_validate = tool({
       const artifacts = getManifestArtifacts(manifest);
       const runRoot = String((artifacts ? getStringProp(artifacts, "root") : null) ?? path.dirname(manifestPath));
       const checkedAt = isNonEmptyString(manifest.updated_at) ? String(manifest.updated_at) : nowIso();
+      const query = isPlainObject(manifest.query) ? (manifest.query as Record<string, unknown>) : {};
+      const sensitivity = String(query.sensitivity ?? "normal").trim();
+      const mode: "offline" | "online" = sensitivity === "no_web" ? "offline" : "online";
 
       const urlMapPath = (args.url_map_path ?? "").trim() || path.join(runRoot, "citations", "url-map.json");
       const citationsPath = (args.citations_path ?? "").trim() || path.join(runRoot, "citations", "citations.jsonl");
@@ -113,7 +125,7 @@ export const citations_validate = tool({
       if (mode === "offline" && !offlineFixturesPath) {
         return err("INVALID_ARGS", "offline_fixtures_path required in OFFLINE mode", {
           mode,
-          PAI_DR_NO_WEB: noWebRaw ?? null,
+          sensitivity,
         });
       }
 
@@ -191,6 +203,8 @@ export const citations_validate = tool({
       const foundByLookup = await readFoundByLookup(foundByPath);
 
       const records: Array<Record<string, unknown>> = [];
+      const onlineFixtureItems: Array<Record<string, unknown>> = [];
+      const blockedUrlsItems: Array<Record<string, unknown>> = [];
       for (const item of urlMapItems) {
         const fixture = mode === "offline" ? findFixtureForUrlMapItem(fixtureLookup, item) : null;
 
@@ -260,6 +274,33 @@ export const citations_validate = tool({
         if (publisher) record.publisher = publisher;
         if (evidenceSnippet) record.evidence_snippet = evidenceSnippet;
         records.push(record);
+
+        if (mode === "online") {
+          const fixtureEntry: Record<string, unknown> = {
+            normalized_url: item.normalized_url,
+            url_original: redactedOriginal.value,
+            cid: item.cid,
+            status,
+            url: redactedUrl.value,
+            notes,
+          };
+          if (httpStatus !== undefined) fixtureEntry.http_status = httpStatus;
+          if (title) fixtureEntry.title = title;
+          if (publisher) fixtureEntry.publisher = publisher;
+          if (evidenceSnippet) fixtureEntry.evidence_snippet = evidenceSnippet;
+          onlineFixtureItems.push(fixtureEntry);
+
+          if (status === "blocked") {
+            blockedUrlsItems.push({
+              normalized_url: item.normalized_url,
+              cid: item.cid,
+              url: redactedUrl.value,
+              notes,
+              action: blockedUrlAction(notes),
+              found_by: foundBy,
+            });
+          }
+        }
       }
 
       records.sort((a, b) => {
@@ -282,10 +323,53 @@ export const citations_validate = tool({
         });
       }
 
+      let onlineFixturesOutputPath: string | null = null;
+      let blockedUrlsPath: string | null = null;
+
+      if (mode === "online") {
+        const generatedAt = nowIso();
+        const tsToken = toTimestampToken(generatedAt);
+        const onlineFixturesOutputPathAbs = path.join(runRoot, "citations", `online-fixtures.${tsToken}.json`);
+        const blockedUrlsPathAbs = path.join(runRoot, "citations", "blocked-urls.json");
+        onlineFixturesOutputPath = onlineFixturesOutputPathAbs;
+        blockedUrlsPath = blockedUrlsPathAbs;
+
+        onlineFixtureItems.sort((a, b) => {
+          const byNormalized = String(a.normalized_url ?? "").localeCompare(String(b.normalized_url ?? ""));
+          if (byNormalized !== 0) return byNormalized;
+          return String(a.url_original ?? "").localeCompare(String(b.url_original ?? ""));
+        });
+        blockedUrlsItems.sort((a, b) => String(a.normalized_url ?? "").localeCompare(String(b.normalized_url ?? "")));
+
+        try {
+          await atomicWriteJson(onlineFixturesOutputPathAbs, {
+            schema_version: "online_fixtures.v1",
+            run_id: runId,
+            generated_at: generatedAt,
+            source_online_fixtures_path: onlineFixturesPath || null,
+            online_dry_run: onlineDryRun,
+            items: onlineFixtureItems,
+          });
+          await atomicWriteJson(blockedUrlsPathAbs, {
+            schema_version: "blocked_urls.v1",
+            run_id: runId,
+            generated_at: generatedAt,
+            items: blockedUrlsItems,
+          });
+        } catch (e) {
+          return err("WRITE_FAILED", "cannot persist online citation artifacts", {
+            online_fixtures_path: onlineFixturesOutputPath,
+            blocked_urls_path: blockedUrlsPath,
+            message: String(e),
+          });
+        }
+      }
+
       const inputsDigest = sha256DigestForJson({
         schema: "citations_validate.inputs.v1",
         run_id: runId,
         mode,
+        sensitivity,
         url_map: urlMapItems,
         fixture_digest: mode === "offline" ? fixtureLookup.fixtureDigest : null,
         online_fixture_digest: mode === "online" ? onlineFixtureLookup.fixtureDigest : null,
@@ -304,6 +388,9 @@ export const citations_validate = tool({
             citations_path: citationsPath,
             validated: records.length,
             inputs_digest: inputsDigest,
+            online_fixtures_path: onlineFixturesOutputPath,
+            blocked_urls_path: blockedUrlsPath,
+            blocked_urls: mode === "online" ? blockedUrlsItems.length : 0,
           },
         });
       } catch {
@@ -317,6 +404,10 @@ export const citations_validate = tool({
         online_dry_run: mode === "online" ? onlineDryRun : null,
         validated: records.length,
         inputs_digest: inputsDigest,
+        online_fixtures_path: onlineFixturesOutputPath,
+        online_fixtures_count: mode === "online" ? onlineFixtureItems.length : 0,
+        blocked_urls_path: blockedUrlsPath,
+        blocked_urls_count: mode === "online" ? blockedUrlsItems.length : 0,
       });
     } catch (e) {
       if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required file missing");

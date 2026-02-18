@@ -149,7 +149,7 @@ describe("deep_research_citations_validate (entity)", () => {
     });
   });
 
-  maybeTest("ONLINE mode uses fixture-driven deterministic ladder path without network", async () => {
+  maybeTest("ONLINE mode captures fixtures and replays deterministically without network", async () => {
     await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "0" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p04_validate_004";
@@ -194,8 +194,7 @@ describe("deep_research_citations_validate (entity)", () => {
             {
               manifest_path: manifestPath,
               online_fixtures_path: fixture("validate", "online-ladder-fixtures.json"),
-              online_dry_run: true,
-              reason: "test: online deterministic ladder fixture",
+              reason: "test: online deterministic ladder fixture capture",
             },
             makeToolContext(),
           )) as string;
@@ -215,10 +214,93 @@ describe("deep_research_citations_validate (entity)", () => {
           expect(rows[0].status).toBe("valid");
           expect(String(rows[0].notes)).toContain("online ladder: bright_data");
           expect(String(rows[0].notes)).not.toContain("online stub");
+
+          const onlineFixturesCapturePath = String((out as any).online_fixtures_path ?? "");
+          expect(onlineFixturesCapturePath).toContain(`${path.sep}citations${path.sep}online-fixtures.`);
+          const onlineFixturesCapture = JSON.parse(await fs.readFile(onlineFixturesCapturePath, "utf8"));
+          expect(onlineFixturesCapture.schema_version).toBe("online_fixtures.v1");
+          expect(Array.isArray(onlineFixturesCapture.items)).toBe(true);
+          expect(onlineFixturesCapture.items.length).toBe(1);
+          expect(onlineFixturesCapture.items[0].status).toBe("valid");
+
+          const blockedUrlsPath = String((out as any).blocked_urls_path ?? "");
+          expect(blockedUrlsPath).toContain(`${path.sep}citations${path.sep}blocked-urls.json`);
+          const blockedUrlsDoc = JSON.parse(await fs.readFile(blockedUrlsPath, "utf8"));
+          expect(blockedUrlsDoc.schema_version).toBe("blocked_urls.v1");
+          expect(Array.isArray(blockedUrlsDoc.items)).toBe(true);
+          expect(blockedUrlsDoc.items.length).toBe(0);
+
+          const replayRaw = (await (citations_validate as any).execute(
+            {
+              manifest_path: manifestPath,
+              online_fixtures_path: onlineFixturesCapturePath,
+              reason: "test: online deterministic ladder fixture replay",
+            },
+            makeToolContext(),
+          )) as string;
+          const replay = parseToolJson(replayRaw);
+
+          expect(replay.ok).toBe(true);
+          expect((replay as any).mode).toBe("online");
+
+          const replayRows = (await fs.readFile((replay as any).citations_path, "utf8"))
+            .split(/\r?\n/)
+            .map((line: string) => line.trim())
+            .filter(Boolean)
+            .map((line: string) => JSON.parse(line));
+          expect(replayRows.length).toBe(1);
+          expect(replayRows[0].status).toBe("valid");
           expect(fetchCalls).toBe(0);
         } finally {
           (globalThis as any).fetch = originalFetch;
         }
+      });
+    });
+  });
+
+  const canaryTest = ((globalThis as any).process?.env?.PAI_DR_ENABLE_ONLINE_CANARY === "1") ? maybeTest : test.skip;
+  canaryTest("ONLINE canary is opt-in and skipped by default", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "0" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_p04_validate_canary_001";
+        const initRaw = (await (run_init as any).execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = (init as any).manifest_path as string;
+        const runRoot = path.dirname(manifestPath);
+        const urlMapPath = path.join(runRoot, "citations", "url-map.json");
+        await fs.writeFile(
+          urlMapPath,
+          JSON.stringify(
+            {
+              schema_version: "url_map.v1",
+              run_id: runId,
+              items: [{
+                url_original: "https://example.com/",
+                normalized_url: "https://example.com",
+                cid: "cid_canary_001",
+              }],
+            },
+            null,
+            2,
+          ) + "\n",
+          "utf8",
+        );
+
+        const outRaw = (await (citations_validate as any).execute(
+          {
+            manifest_path: manifestPath,
+            reason: "test: online canary",
+          },
+          makeToolContext(),
+        )) as string;
+        const out = parseToolJson(outRaw);
+        expect(out.ok).toBe(true);
+        expect((out as any).mode).toBe("online");
       });
     });
   });
