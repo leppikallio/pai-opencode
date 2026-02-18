@@ -152,7 +152,9 @@ async function callTool(name: string, tool: ToolWithExecute, args: Record<string
 function ensureOptionCEnabledForCli(): void {
   const flags = resolveDeepResearchFlagsV1();
   if (!flags.optionCEnabled) {
-    process.env.PAI_DR_OPTION_C_ENABLED = "1";
+    throw new Error(
+      "Deep research Option C is disabled (set PAI_DR_OPTION_C_ENABLED=1 to enable for CLI operations)",
+    );
   }
 }
 
