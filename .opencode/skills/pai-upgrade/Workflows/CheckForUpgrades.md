@@ -1,176 +1,81 @@
-# Check for Upgrades
+# CheckForUpgrades
 
-Monitor all configured sources for updates and new content relevant to PAI infrastructure.
+## Purpose
 
-**Trigger:** "check for upgrades", "check upgrade sources", "any new updates", "check Anthropic", "check YouTube"
+Collect and consolidate new upgrade signals from configured sources, then produce a prioritized review list.
 
----
+## Inputs
 
-## Overview
+- Optional `days` argument (`7`, `14`, or `30`) to scope Anthropic/Claude ingestion.
+- Optional `--force` flag to bypass historical state and re-scan.
+- Optional source filter intent from user (Anthropic, YouTube, provider, or both).
+- Runtime config:
+  - `/Users/zuul/.config/opencode/skills/pai-upgrade/sources.v2.json` (preferred)
+  - `/Users/zuul/.config/opencode/skills/pai-upgrade/sources.json` (legacy fallback)
+  - `/Users/zuul/.config/opencode/skills/pai-upgrade/youtube-channels.json`
+  - `/Users/zuul/.config/opencode/skills/pai-upgrade/State/` (state and ledger outputs)
 
-This workflow checks all configured sources for new content:
-1. **Anthropic Sources** - Official blogs, GitHub repos, changelogs, documentation
-2. **YouTube Channels** - Configured via USER customization layer
+## Steps
 
-Both source types are checked, and results are combined into a single prioritized report.
+### Step 1: Load configuration and state
 
----
+1. Run:
 
-## Process
-
-### Step 1: Check Anthropic Sources
-
-Run the Anthropic check tool:
 ```bash
-bun ~/.config/opencode/skills/pai-upgrade/Tools/Anthropic.ts
+bun ~/.config/opencode/skills/PAI/Tools/LoadSkillConfig.ts /Users/zuul/.config/opencode/skills/pai-upgrade sources.v2.json
 ```
 
-**Options:**
-- No arguments: Check last 30 days (default)
-- `14` or `7`: Check last N days
-- `--force`: Ignore state, check all sources
+Prefer `sources.v2.json` when present.
 
-**Sources Monitored (30+):**
-1. **Blogs & News** (4) - Main blog, Alignment, Research, Interpretability
-2. **GitHub Repositories** (21+) - claude-code, skills, MCP, SDKs, cookbooks
-3. **Changelogs** (5) - Claude Code CHANGELOG, releases, docs notes
-4. **Documentation** (6) - Claude docs, API docs, MCP docs, spec, registry
-5. **Community** (1) - Discord server
+2. Confirm state files exist:
 
----
-
-### Step 2: Check YouTube Channels
-
-**Load channel configuration (merges base + user customizations):**
 ```bash
-bun ~/.config/opencode/skills/PAI/Tools/LoadSkillConfig.ts ~/.config/opencode/skills/pai-upgrade youtube-channels.json
-```
-
-**For each channel, check for new videos:**
-```bash
-yt-dlp --flat-playlist --dump-json "https://www.youtube.com/@channelhandle/videos" 2>/dev/null | head -5
-```
-
-**Compare against state:**
-```bash
+cat ~/.config/opencode/skills/pai-upgrade/State/last-check.json
 cat ~/.config/opencode/skills/pai-upgrade/State/youtube-videos.json
 ```
 
-**For new videos, extract transcripts:**
+### Step 2: Check Anthropic/Claude source feeds
+
+Run Anthropic/Claude updater:
+
 ```bash
-bun ~/.config/opencode/skills/PAI/Tools/GetTranscript.ts "<video-url>"
+bun ~/.config/opencode/skills/pai-upgrade/Tools/Anthropic.ts 14
 ```
 
-**Update state** with new video IDs (keep last 50 per channel).
+### Step 3: Check YouTube and other optional provider sources
 
----
+- Resolve current channel/source list from merged config.
+- For each source, fetch fresh metadata and deduplicate against state.
+- Pull transcript/summary only for newly discovered high-signal items.
 
-### Step 3: Combine Results
+### Step 4: Normalize and prioritize
 
-Present a unified report:
+- Merge findings into a single result set.
+- Tag each item with provider, source, confidence, and recency.
+- Apply learning-aware ranking with adjusted priority, score delta, and rationale.
+- Persist ranked recommendation history by default when not in `--dry-run` mode.
 
-```markdown
-# Upgrade Check Results
-**Date:** [timestamp]
+### Step 5: Produce upgrade check output
 
-## 🔥 HIGH PRIORITY
-[Must-review features/changes for PAI]
+Create a review draft with three priority bands: **High**, **Medium**, **Low**.
 
-## 📌 MEDIUM PRIORITY
-[Interesting updates to check]
+## Verify
 
-## 📝 LOW PRIORITY
-[FYI information]
+- Tool evidence from step commands must succeed and emit non-empty output.
+- The state files should include an updated `last_check`/`updated_at` marker after run.
+- Confirm duplicates are removed by checking at least one source-specific identifier appears once.
+- If `--force` is passed, verify run did not skip already-seen hashes.
 
-## 🎬 New Videos
-[List of new videos with transcripts and key insights]
+```bash
+test -s ~/.config/opencode/skills/pai-upgrade/State/last-check.json
+test -s ~/.config/opencode/skills/pai-upgrade/State/youtube-videos.json
 ```
 
----
+## Output
 
-### Step 4: Provide Recommendations
-
-Based on combined results, advise on:
-- What changed and why it matters for PAI
-- Which updates to review immediately
-- Specific actions to take (e.g., update skills, test new features)
-- Videos worth watching in full
-
----
-
-## State Tracking
-
-**Anthropic state:** `../State/last-check.json`
-- Last check timestamp
-- Content hashes for each source
-- Last seen commit SHAs, release versions, blog titles
-
-**YouTube state:** `../State/youtube-videos.json`
-- Last check timestamp per channel
-- Seen video IDs (prevents duplicate processing)
-
-State prevents duplicate reports - only NEW content is shown.
-
----
-
-## Source Configuration
-
-**Anthropic sources:** `sources.json` (base skill)
-- 30+ official Anthropic sources
-- Configured in skill, not customizable
-
-**YouTube channels:** Two-tier configuration
-- Base: `youtube-channels.json` (empty by default)
-- User: `~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/pai-upgrade/youtube-channels.json`
-
-Use the config loader to merge both automatically.
-
----
-
-## Adding YouTube Channels
-
-Edit your customization file:
-```json
-{
-  "_customization": {
-    "description": "Your personal YouTube channels",
-    "merge_strategy": "append"
-  },
-  "channels": [
-    {
-      "name": "Channel Name",
-      "channel_id": "@channelhandle",
-      "url": "https://www.youtube.com/@channelhandle",
-      "priority": "HIGH",
-      "description": "What this channel covers"
-    }
-  ]
-}
-```
-
----
-
-## Examples
-
-**Check all sources:**
-```
-User: "check for upgrades"
-→ Runs Anthropic tool
-→ Checks YouTube channels
-→ Combines results into prioritized report
-```
-
-**Check specific source type:**
-```
-User: "check Anthropic only"
-→ Runs only Anthropic tool
-→ Skips YouTube check
-```
-
-**Force full check:**
-```
-User: "force check all sources"
-→ Runs with --force flag
-→ Ignores state, checks everything
-```
-
+- A markdown report containing:
+  - `## High Priority` items with rationale
+  - `## Medium Priority` items
+  - `## Low Priority` items
+  - `## New Videos` (if applicable)
+- Clear note on what to review next and why it matters.

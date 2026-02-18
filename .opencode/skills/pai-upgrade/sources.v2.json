@@ -1,0 +1,249 @@
+{
+  "schema_version": 2,
+  "sources": [
+    {
+      "id": "blog-main-news",
+      "provider": "anthropic",
+      "category": "blog",
+      "name": "Main News",
+      "url": "https://www.anthropic.com/news",
+      "priority": "HIGH",
+      "type": "blog"
+    },
+    {
+      "id": "blog-alignment-science-blog",
+      "provider": "anthropic",
+      "category": "blog",
+      "name": "Alignment Science Blog",
+      "url": "https://alignment.anthropic.com/",
+      "priority": "MEDIUM",
+      "type": "blog"
+    },
+    {
+      "id": "blog-research-page",
+      "provider": "anthropic",
+      "category": "blog",
+      "name": "Research Page",
+      "url": "https://www.anthropic.com/research",
+      "priority": "MEDIUM",
+      "type": "blog"
+    },
+    {
+      "id": "blog-transformer-circuits",
+      "provider": "anthropic",
+      "category": "blog",
+      "name": "Transformer Circuits",
+      "url": "https://transformer-circuits.pub/",
+      "priority": "LOW",
+      "type": "blog"
+    },
+    {
+      "id": "github-anthropics-claude-code",
+      "provider": "anthropic",
+      "category": "github",
+      "name": "claude-code",
+      "owner": "anthropics",
+      "repo": "claude-code",
+      "priority": "HIGH",
+      "check_commits": true,
+      "check_releases": true,
+      "check_issues": false
+    },
+    {
+      "id": "github-anthropics-skills",
+      "provider": "anthropic",
+      "category": "github",
+      "name": "skills",
+      "owner": "anthropics",
+      "repo": "skills",
+      "priority": "HIGH",
+      "check_commits": true,
+      "check_releases": true,
+      "check_issues": false
+    },
+    {
+      "id": "github-modelcontextprotocol-modelcontextprotocol",
+      "provider": "anthropic",
+      "category": "github",
+      "name": "MCP Specification",
+      "owner": "modelcontextprotocol",
+      "repo": "modelcontextprotocol",
+      "priority": "HIGH",
+      "check_commits": true,
+      "check_releases": true,
+      "check_issues": false
+    },
+    {
+      "id": "github-modelcontextprotocol-docs",
+      "provider": "anthropic",
+      "category": "github",
+      "name": "MCP Docs",
+      "owner": "modelcontextprotocol",
+      "repo": "docs",
+      "priority": "MEDIUM",
+      "check_commits": true,
+      "check_releases": false,
+      "check_issues": false
+    },
+    {
+      "id": "github-anthropics-claude-cookbooks",
+      "provider": "anthropic",
+      "category": "github",
+      "name": "claude-cookbooks",
+      "owner": "anthropics",
+      "repo": "claude-cookbooks",
+      "priority": "MEDIUM",
+      "check_commits": true,
+      "check_releases": false,
+      "check_issues": false
+    },
+    {
+      "id": "github-anthropics-anthropic-sdk-python",
+      "provider": "anthropic",
+      "category": "github",
+      "name": "anthropic-sdk-python",
+      "owner": "anthropics",
+      "repo": "anthropic-sdk-python",
+      "priority": "LOW",
+      "check_commits": false,
+      "check_releases": true,
+      "check_issues": false
+    },
+    {
+      "id": "github-anthropics-anthropic-sdk-typescript",
+      "provider": "anthropic",
+      "category": "github",
+      "name": "anthropic-sdk-typescript",
+      "owner": "anthropics",
+      "repo": "anthropic-sdk-typescript",
+      "priority": "MEDIUM",
+      "check_commits": false,
+      "check_releases": true,
+      "check_issues": false
+    },
+    {
+      "id": "github-anthropics-courses",
+      "provider": "anthropic",
+      "category": "github",
+      "name": "courses",
+      "owner": "anthropics",
+      "repo": "courses",
+      "priority": "MEDIUM",
+      "check_commits": true,
+      "check_releases": false,
+      "check_issues": false
+    },
+    {
+      "id": "github-anthropics-claude-quickstarts",
+      "provider": "anthropic",
+      "category": "github",
+      "name": "claude-quickstarts",
+      "owner": "anthropics",
+      "repo": "claude-quickstarts",
+      "priority": "MEDIUM",
+      "check_commits": true,
+      "check_releases": false,
+      "check_issues": false
+    },
+    {
+      "id": "changelog-claude-code",
+      "provider": "anthropic",
+      "category": "changelog",
+      "name": "Claude Code CHANGELOG",
+      "url": "https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md",
+      "priority": "HIGH",
+      "type": "changelog"
+    },
+    {
+      "id": "changelog-claude-docs-release-notes",
+      "provider": "anthropic",
+      "category": "changelog",
+      "name": "Claude Docs Release Notes",
+      "url": "https://docs.claude.com/en/release-notes/overview",
+      "priority": "HIGH",
+      "type": "changelog"
+    },
+    {
+      "id": "changelog-api-release-notes",
+      "provider": "anthropic",
+      "category": "changelog",
+      "name": "API Release Notes",
+      "url": "https://docs.claude.com/en/release-notes/api",
+      "priority": "HIGH",
+      "type": "changelog"
+    },
+    {
+      "id": "changelog-mcp-changelog",
+      "provider": "anthropic",
+      "category": "changelog",
+      "name": "MCP Changelog",
+      "url": "https://modelcontextprotocol.io/specification/2025-06-18/changelog",
+      "priority": "HIGH",
+      "type": "changelog"
+    },
+    {
+      "id": "docs-claude-home",
+      "provider": "anthropic",
+      "category": "docs",
+      "name": "Claude Docs Home",
+      "url": "https://docs.claude.com",
+      "priority": "MEDIUM",
+      "type": "docs"
+    },
+    {
+      "id": "docs-anthropic-api",
+      "provider": "anthropic",
+      "category": "docs",
+      "name": "Anthropic API Docs",
+      "url": "https://docs.anthropic.com",
+      "priority": "MEDIUM",
+      "type": "docs"
+    },
+    {
+      "id": "docs-mcp-docs",
+      "provider": "anthropic",
+      "category": "docs",
+      "name": "MCP Docs",
+      "url": "https://modelcontextprotocol.io",
+      "priority": "HIGH",
+      "type": "docs"
+    },
+    {
+      "id": "docs-mcp-specification",
+      "provider": "anthropic",
+      "category": "docs",
+      "name": "MCP Specification",
+      "url": "https://spec.modelcontextprotocol.io",
+      "priority": "HIGH",
+      "type": "docs"
+    },
+    {
+      "id": "docs-mcp-registry",
+      "provider": "anthropic",
+      "category": "docs",
+      "name": "MCP Registry",
+      "url": "https://registry.modelcontextprotocol.io",
+      "priority": "MEDIUM",
+      "type": "docs"
+    },
+    {
+      "id": "docs-skills-documentation",
+      "provider": "anthropic",
+      "category": "docs",
+      "name": "Skills Documentation",
+      "url": "https://support.claude.com/en/articles/12512176-what-are-skills",
+      "priority": "HIGH",
+      "type": "docs"
+    },
+    {
+      "id": "community-claude-developers-discord",
+      "provider": "anthropic",
+      "category": "community",
+      "name": "Claude Developers Discord",
+      "url": "https://discord.com/invite/6PPFFzqPDZ",
+      "priority": "MEDIUM",
+      "type": "community",
+      "note": "Manual check required - no automated scraping"
+    }
+  ]
+}

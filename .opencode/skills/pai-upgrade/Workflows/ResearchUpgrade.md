@@ -1,219 +1,78 @@
-# Research Upgrade
+# ResearchUpgrade
 
-Deeply research a discovered upgrade opportunity to understand implementation details, best practices, and PAI integration approach.
+## Purpose
 
-**Trigger:** "research this upgrade", "deep dive on [feature]", "analyze release notes", "further research"
+Deeply validate one or more upgrade opportunities, map implementation impact, and produce prioritized recommendations.
 
----
+## Inputs
 
-## Overview
+- Feature/topic name(s) from `CheckForUpgrades` or user prompt.
+- Optional content snippets (release item text, changelog line, commit message).
+- Optional user constraints:
+  - target component (`skills`, `agent`, `workflows`, `tooling`)
+  - risk tolerance (`low`, `medium`, `high`)
+  - effort limit (days/weeks)
+- Source scope (default: existing Anthropic/Claude sources plus user-added sources).
+- Optional monitor artifact fields: `adjusted_priority`, `adjusted_score`, `ranking_rationale`, and `learning_context` summary.
 
-When CheckForUpgrades discovers something interesting, use this workflow to:
-1. Research the feature across multiple authoritative sources
-2. Understand implementation details and best practices
-3. Map to PAI architecture for integration opportunities
-4. Generate actionable implementation recommendations
+## Steps
 
----
+### Step 1: Define the research target
 
-## Process
+- Capture the exact feature name and expected outcome.
+- Record supporting context links and owner for traceability.
 
-### Step 1: Identify Research Target
+### Step 2: Parallel evidence collection
 
-Accept input in various forms:
-- Feature name from CheckForUpgrades results
-- Release notes content (from `/release-notes` command)
-- Blog post or documentation URL
-- YouTube video transcript
-- Changelog entry
+Research each feature across provider and community sources:
 
----
+1. GitHub source references (docs, commits, issues, discussions)
+2. Anthropic/Claude product/blog sources
+3. Official MCP and API docs where relevant
+4. Community implementation examples
 
-### Step 2: Launch Parallel Research
+Use multiple sub-searches so each evidence stream is independently attributable.
 
-**For each significant feature, research across sources:**
+### Step 3: Consolidate and score evidence
 
-Use BACKGROUNDDELEGATION to spawn parallel Intern agents:
+For each feature, collect:
 
-```markdown
-For feature: [Feature Name]
-
-Search these sources:
-1. GitHub: anthropics/claude-code
-   - README, CHANGELOG, docs/, examples/
-   - Commit messages mentioning the feature
-   - Issue discussions
-
-2. Anthropic Engineering Blog
-   - https://www.anthropic.com/news
-   - https://www.anthropic.com/research
-
-3. Claude Documentation
-   - https://docs.claude.com
-   - https://support.claude.com
-
-4. MCP Documentation (if relevant)
-   - https://modelcontextprotocol.io
-   - https://spec.modelcontextprotocol.io
-
-5. Community Resources
-   - GitHub Discussions
-   - Stack Overflow
-```
-
----
-
-### Step 3: Synthesize Research
-
-For each feature, compile:
-
-| Aspect | Details |
-|--------|---------|
-| **Official Documentation** | What Anthropic says about it |
-| **Implementation Details** | How it works under the hood |
-| **Use Cases** | Documented examples and patterns |
-| **Limitations** | Known constraints or caveats |
-| **Best Practices** | Recommended usage patterns |
-
----
-
-### Step 4: Map to PAI Architecture
-
-Analyze applicability to PAI components:
-
-| Component | Potential Impact |
-|-----------|-----------------|
-| Skills System | New skill capabilities, context forking |
-| Plugins System | New plugin types, triggers, agent-scoped plugins |
-| Agent System | New agent types, delegation patterns |
-| Workflows | New workflow possibilities |
-| Tools | New CLI tools or capabilities |
-| Configuration | Settings changes, deny lists |
-
----
-
-### Step 5: Generate Recommendations
-
-Use priority framework:
-- 🔥 **HIGH PRIORITY** - Immediate value, can implement today
-- 📌 **MEDIUM PRIORITY** - Good value, requires more work
-- 💡 **ASPIRATIONAL** - Future possibilities, research needed
-
-Each recommendation includes:
-- Feature being leveraged
-- Current PAI gap it fills
-- Implementation approach
-- Estimated effort
-- Dependencies
-
----
-
-### Step 6: Output Report
-
-```markdown
-# Upgrade Research: [Feature/Topic]
-**Research Date:** [date]
-
-## Executive Summary
-[2-3 sentences on findings and key opportunities]
-
-## Features Researched
-
-### [Feature Name]
-**Category:** [plugins/skills/agents/config/etc]
-**Official Docs:** [URL if found]
-
-**What It Does:**
-[Clear explanation from research]
-
-**Technical Details:**
-[Implementation specifics from GitHub/docs]
-
-**PAI Opportunity:**
-[How we can use this]
-
-**Implementation:**
-- [ ] [Step 1]
-- [ ] [Step 2]
-
----
-
-## Prioritized Upgrade Roadmap
-
-### 🔥 HIGH PRIORITY (This Week)
-1. [Feature] → [Implementation]
-
-### 📌 MEDIUM PRIORITY (This Month)
-1. [Feature] → [Implementation]
-
-### 💡 ASPIRATIONAL (Research Further)
-1. [Feature] → [Why interesting]
-
-## Research Sources
-- [URLs consulted]
-
-## Next Steps
-- [ ] [Specific action item]
-```
-
----
-
-## Research Agent Template
-
-When spawning research agents:
-
-```markdown
-Research the following Claude Code feature in depth:
-
-**Feature:** [Feature name]
-**Brief:** [What we know so far]
-
-Search these sources:
-1. GitHub: anthropics/claude-code - README, CHANGELOG, docs/, commits
-2. Anthropic blog: anthropic.com/news
-3. Claude docs: docs.claude.com
-4. MCP docs: modelcontextprotocol.io
-
-Find:
-- Official documentation or examples
+- What is this feature and why it exists
+- Official statement/source
 - Implementation details
-- Use cases and best practices
-- Limitations or caveats
-- Related features or dependencies
+- Constraints/limitations
+- Risks and compatibility concerns
 
-Return a structured summary with source URLs.
-```
+### Step 4: Map to PAI architecture
 
----
+Map each item against:
 
-## Examples
+- Skill behaviors and workflows
+- Agent orchestration
+- Tooling or config assumptions
+- Testing or validation surfaces
 
-**Deep dive on release notes:**
-```
-User: "analyze the latest Claude Code release"
-→ Run /release-notes to get official list
-→ Extract significant features
-→ Launch parallel research agents
-→ Compile findings into upgrade roadmap
-```
+### Step 5: Draft recommendations
 
-**Research specific feature:**
-```
-User: "research the new context forking feature"
-→ Spawn research agents for that feature
-→ Search GitHub, docs, blog
-→ Map to PAI skills architecture
-→ Output implementation recommendations
-```
+Apply priority framework:
 
----
+- **High**: immediate value, low-to-medium risk (or monitor ranking elevated priority)
+- **Medium**: moderate value, defined follow-up
+- **Aspirational**: useful but uncertain without additional validation
 
-## Integration
+## Verify
 
-**With Other Workflows:**
-- **CheckForUpgrades** - Discovers items to research
-- **FindSources** - Identifies new sources to monitor
+- Each recommendation must include at least one source link.
+- Confidence score and effort estimate present for every item.
+- For each feature, include explicit evidence that matches the conclusion.
+- If source coverage is weak, mark as `Needs additional validation` rather than recommending blindly.
 
-**With PAI:**
-- **BACKGROUNDDELEGATION** - Launch parallel research agents
-- **GIT** - Commit any implemented upgrades
+## Output
+
+Create a research memo with:
+
+- Executive summary
+- Per-feature findings with evidence table
+- Architecture mapping notes
+- Prioritized upgrade roadmap
+- Concrete next actions with owners and timeline
