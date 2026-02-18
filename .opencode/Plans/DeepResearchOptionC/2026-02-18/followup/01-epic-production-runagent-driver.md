@@ -5,6 +5,7 @@ Status: TODO
 ## Context links (source reviews)
 - Engineer: `../engineer-review-raw-2.md` (see “P0.7 blessed wave runner” + M2/M3 sections)
 - Architect: `../architect-review-raw-2.md` (see “No autonomous in-runtime agent driver” + readiness rubric)
+- Decision record: `./E1-decision-record.md`
 
 ## Repo + worktree
 - Repo root: `/Users/zuul/Projects/pai-opencode-graphviz`
@@ -131,8 +132,8 @@ Update this table as work proceeds.
 
 | Task | Status | Owner | PR/Commit | Evidence |
 |---|---|---|---|---|
-| E1-T0 Decision record | TODO |  |  |  |
-| E1-T1 Artifact contract | TODO |  |  |  |
+| E1-T0 Decision record | DONE | Marvin |  | `.opencode/Plans/DeepResearchOptionC/2026-02-18/followup/E1-decision-record.md` |
+| E1-T1 Artifact contract | DONE | Marvin |  | `.opencode/commands/deep-research.md` + `.opencode/skills/deep-research-option-c/Workflows/RunLiveWave1ToPivot.md` |
 | E1-T2 Implement driver | TODO |  |  |  |
 | E1-T3 Deterministic tests | TODO |  |  |  |
 | E1-T4 Architect PASS | TODO |  |  |  |
