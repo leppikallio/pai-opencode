@@ -17,6 +17,11 @@ import {
 } from "./utils";
 import { appendAuditJsonl, nowIso } from "./wave_tools_shared";
 import {
+  countUncitedNumericClaims,
+  extractCitationMentions,
+  hasHeading,
+  readValidatedCids,
+  requiredSynthesisHeadingsV1,
   resolveArtifactPath,
   resolveRunRootFromManifest,
 } from "./phase05_lib";
@@ -49,7 +54,9 @@ export const review_factory_run = tool({
       if (!manifestPath) return err("INVALID_ARGS", "manifest_path must be non-empty");
       if (!path.isAbsolute(manifestPath)) return err("INVALID_ARGS", "manifest_path must be absolute", { manifest_path: args.manifest_path });
       if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
-      if (mode !== "fixture") return err("INVALID_ARGS", "only fixture mode is supported", { mode });
+      if (mode !== "fixture" && mode !== "generate") {
+        return err("INVALID_ARGS", "mode must be fixture or generate", { mode });
+      }
 
       const manifestRaw = await readJson(manifestPath);
       const mErr = validateManifestV1(manifestRaw);
@@ -73,35 +80,104 @@ export const review_factory_run = tool({
       );
       const reviewDir = resolveArtifactPath(args.review_dir, runRoot, undefined, "review");
       const fixtureBundleDir = (args.fixture_bundle_dir ?? "").trim();
-      if (!fixtureBundleDir || !path.isAbsolute(fixtureBundleDir)) {
+      if (mode === "fixture" && (!fixtureBundleDir || !path.isAbsolute(fixtureBundleDir))) {
         return err("INVALID_ARGS", "fixture_bundle_dir must be absolute in fixture mode", {
           fixture_bundle_dir: args.fixture_bundle_dir ?? null,
         });
       }
 
-      await fs.promises.readFile(draftPath, "utf8");
+      const draftMarkdown = await fs.promises.readFile(draftPath, "utf8");
       await fs.promises.readFile(citationsPath, "utf8");
 
-      const fixtureBundlePath = path.join(fixtureBundleDir, "review-bundle.json");
-      const fixtureBundleRaw = await readJson(fixtureBundlePath);
-      if (!isPlainObject(fixtureBundleRaw)) {
-        return err("SCHEMA_VALIDATION_FAILED", "fixture review bundle must be object", {
-          fixture_bundle_path: fixtureBundlePath,
-        });
-      }
+      let decision: "PASS" | "CHANGES_REQUIRED";
+      let findings: unknown[];
+      let directives: unknown[];
 
-      const fixtureDoc = fixtureBundleRaw as Record<string, unknown>;
-      const decision = String(fixtureDoc.decision ?? "").trim();
-      if (decision !== "PASS" && decision !== "CHANGES_REQUIRED") {
-        return err("SCHEMA_VALIDATION_FAILED", "review bundle decision invalid", { decision });
-      }
+      if (mode === "fixture") {
+        const fixtureBundlePath = path.join(fixtureBundleDir, "review-bundle.json");
+        const fixtureBundleRaw = await readJson(fixtureBundlePath);
+        if (!isPlainObject(fixtureBundleRaw)) {
+          return err("SCHEMA_VALIDATION_FAILED", "fixture review bundle must be object", {
+            fixture_bundle_path: fixtureBundlePath,
+          });
+        }
 
-      const findings = Array.isArray(fixtureDoc.findings)
-        ? (fixtureDoc.findings as unknown[]).slice(0, 100)
-        : [];
-      const directives = Array.isArray(fixtureDoc.directives)
-        ? (fixtureDoc.directives as unknown[]).slice(0, 100)
-        : [];
+        const fixtureDoc = fixtureBundleRaw as Record<string, unknown>;
+        const fixtureDecision = String(fixtureDoc.decision ?? "").trim();
+        if (fixtureDecision !== "PASS" && fixtureDecision !== "CHANGES_REQUIRED") {
+          return err("SCHEMA_VALIDATION_FAILED", "review bundle decision invalid", { decision: fixtureDecision });
+        }
+
+        decision = fixtureDecision;
+        findings = Array.isArray(fixtureDoc.findings)
+          ? (fixtureDoc.findings as unknown[]).slice(0, 100)
+          : [];
+        directives = Array.isArray(fixtureDoc.directives)
+          ? (fixtureDoc.directives as unknown[]).slice(0, 100)
+          : [];
+      } else {
+        const requiredHeadings = requiredSynthesisHeadingsV1();
+        const missingHeadings = requiredHeadings.filter((heading) => !hasHeading(draftMarkdown, heading));
+        const cited = extractCitationMentions(draftMarkdown);
+        const validatedCids = await readValidatedCids(citationsPath);
+        const unknownCids = cited.filter((cid) => !validatedCids.has(cid));
+        const uncitedNumericClaims = countUncitedNumericClaims(draftMarkdown);
+
+        findings = [];
+        directives = [];
+
+        if (missingHeadings.length > 0) {
+          findings.push({
+            id: "missing_required_headings",
+            severity: "high",
+            message: `Missing required headings: ${missingHeadings.join(", ")}`,
+          });
+          directives.push({
+            id: "add_required_headings",
+            action: "Add all required synthesis headings",
+            headings: missingHeadings,
+          });
+        }
+
+        if (cited.length === 0) {
+          findings.push({
+            id: "missing_citations",
+            severity: "high",
+            message: "Draft must include citation syntax [@cid]",
+          });
+          directives.push({
+            id: "add_citations",
+            action: "Add at least one validated citation reference",
+          });
+        }
+
+        if (unknownCids.length > 0) {
+          findings.push({
+            id: "unknown_cids",
+            severity: "high",
+            message: `Unknown citation ids: ${unknownCids.join(", ")}`,
+          });
+          directives.push({
+            id: "replace_unknown_cids",
+            action: "Replace unknown citations with validated citation ids",
+            cids: unknownCids,
+          });
+        }
+
+        if (uncitedNumericClaims > 0) {
+          findings.push({
+            id: "uncited_numeric_claims",
+            severity: "high",
+            message: `Detected ${uncitedNumericClaims} uncited numeric claim(s)`,
+          });
+          directives.push({
+            id: "cite_numeric_claims",
+            action: "Add citations near numeric claims or remove unsupported numbers",
+          });
+        }
+
+        decision = findings.length === 0 ? "PASS" : "CHANGES_REQUIRED";
+      }
 
       const reviewBundle = {
         schema_version: "review_bundle.v1",

@@ -63,6 +63,80 @@ async function setup(base: string, runId: string) {
 }
 
 describe("deep_research_synthesis_write (entity)", () => {
+  test("writes generate-mode draft from generated summary pack", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_p05_synthesis_generate_001";
+        const initRaw = (await run_init.execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = String(init.manifest_path);
+        const runRoot = path.dirname(manifestPath);
+        const sourceDir = path.join(runRoot, "agent-output");
+        await fs.mkdir(sourceDir, { recursive: true });
+
+        await fs.writeFile(
+          path.join(runRoot, "perspectives.json"),
+          `${JSON.stringify({
+            schema_version: "perspectives.v1",
+            run_id: runId,
+            created_at: "2026-02-14T00:00:00Z",
+            perspectives: [
+              {
+                id: "p1",
+                title: "P1",
+                track: "standard",
+                agent_type: "ClaudeResearcher",
+                source_artifact: "agent-output/p1.md",
+                prompt_contract: { max_words: 300, max_sources: 10, tool_budget: { search_calls: 1 }, must_include_sections: ["Findings", "Sources", "Gaps"] },
+              },
+            ],
+          }, null, 2)}\n`,
+          "utf8",
+        );
+        await fs.writeFile(
+          path.join(runRoot, "citations", "citations.jsonl"),
+          `${JSON.stringify({ cid: "cid_alpha", status: "valid", normalized_url: "https://a.test" })}\n`,
+          "utf8",
+        );
+        await fs.writeFile(path.join(sourceDir, "p1.md"), "## Findings\nGenerated summary source [@cid_alpha]\n", "utf8");
+
+        const buildRaw = (await summary_pack_build.execute(
+          {
+            manifest_path: manifestPath,
+            mode: "generate",
+            reason: "test: generate summary pack for synthesis",
+          },
+          makeToolContext(),
+        )) as string;
+        const build = parseToolJson(buildRaw);
+        expect(build.ok).toBe(true);
+
+        const outRaw = (await synthesis_write.execute(
+          {
+            manifest_path: manifestPath,
+            mode: "generate",
+            reason: "test: synthesis generate",
+          },
+          makeToolContext(),
+        )) as string;
+        const out = parseToolJson(outRaw);
+        expect(out.ok).toBe(true);
+
+        const markdown = await fs.readFile(String(out.output_path), "utf8");
+        expect(markdown).toContain("## Summary");
+        expect(markdown).toContain("## Key Findings");
+        expect(markdown).toContain("## Evidence");
+        expect(markdown).toContain("## Caveats");
+        expect(markdown).toContain("[@cid_alpha]");
+      });
+    });
+  });
+
   test("writes fixture draft using bounded inputs only", async () => {
     await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {

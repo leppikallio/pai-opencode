@@ -6,6 +6,95 @@ import { review_factory_run, run_init } from "../../tools/deep_research.ts";
 import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 describe("deep_research_review_factory_run (entity)", () => {
+  test("generate mode returns PASS for bounded draft", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_p05_review_factory_generate_001";
+        const initRaw = (await run_init.execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = String(init.manifest_path);
+        const runRoot = path.dirname(manifestPath);
+
+        await fs.writeFile(
+          path.join(runRoot, "synthesis", "draft-synthesis.md"),
+          [
+            "## Summary",
+            "Bounded summary [@cid_a]",
+            "",
+            "## Key Findings",
+            "- Finding [@cid_a]",
+            "",
+            "## Evidence",
+            "- Evidence [@cid_a]",
+            "",
+            "## Caveats",
+            "- Caveat.",
+            "",
+          ].join("\n"),
+          "utf8",
+        );
+        await fs.writeFile(
+          path.join(runRoot, "citations", "citations.jsonl"),
+          `${JSON.stringify({ cid: "cid_a", status: "valid", normalized_url: "https://a.test" })}\n`,
+          "utf8",
+        );
+
+        const outRaw = (await review_factory_run.execute(
+          {
+            manifest_path: manifestPath,
+            mode: "generate",
+            reason: "test: review factory generate pass",
+          },
+          makeToolContext(),
+        )) as string;
+        const out = parseToolJson(outRaw);
+        expect(out.ok).toBe(true);
+        expect(String(out.decision)).toBe("PASS");
+      });
+    });
+  });
+
+  test("generate mode returns CHANGES_REQUIRED for malformed draft", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_p05_review_factory_generate_002";
+        const initRaw = (await run_init.execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = String(init.manifest_path);
+        const runRoot = path.dirname(manifestPath);
+
+        await fs.writeFile(path.join(runRoot, "synthesis", "draft-synthesis.md"), "## Summary\nNo citations\n", "utf8");
+        await fs.writeFile(
+          path.join(runRoot, "citations", "citations.jsonl"),
+          `${JSON.stringify({ cid: "cid_a", status: "valid", normalized_url: "https://a.test" })}\n`,
+          "utf8",
+        );
+
+        const outRaw = (await review_factory_run.execute(
+          {
+            manifest_path: manifestPath,
+            mode: "generate",
+            reason: "test: review factory generate changes",
+          },
+          makeToolContext(),
+        )) as string;
+        const out = parseToolJson(outRaw);
+        expect(out.ok).toBe(true);
+        expect(String(out.decision)).toBe("CHANGES_REQUIRED");
+      });
+    });
+  });
+
   test("fixture mode writes bounded review bundle", async () => {
     await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {

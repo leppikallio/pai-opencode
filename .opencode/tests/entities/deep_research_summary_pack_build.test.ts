@@ -40,6 +40,74 @@ function perspectivesDoc(runId: string) {
 }
 
 describe("deep_research_summary_pack_build (entity)", () => {
+  test("builds generate-mode summaries from deterministic agent outputs", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_p05_summary_pack_generate_001";
+        const initRaw = (await run_init.execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = String(init.manifest_path);
+        const runRoot = path.dirname(manifestPath);
+        const sourceDir = path.join(runRoot, "agent-output");
+        await fs.mkdir(sourceDir, { recursive: true });
+
+        await fs.writeFile(
+          path.join(runRoot, "perspectives.json"),
+          `${JSON.stringify({
+            ...perspectivesDoc(runId),
+            perspectives: [
+              {
+                ...perspectivesDoc(runId).perspectives[0],
+                source_artifact: "agent-output/p1.md",
+              },
+              {
+                ...perspectivesDoc(runId).perspectives[1],
+                source_artifact: "agent-output/p2.md",
+              },
+            ],
+          }, null, 2)}\n`,
+          "utf8",
+        );
+        await fs.writeFile(
+          path.join(runRoot, "citations", "citations.jsonl"),
+          `${[
+            JSON.stringify({ cid: "cid_alpha", status: "valid", normalized_url: "https://a.test" }),
+            JSON.stringify({ cid: "cid_beta", status: "paywalled", normalized_url: "https://b.test" }),
+          ].join("\n")}\n`,
+          "utf8",
+        );
+
+        await fs.writeFile(path.join(sourceDir, "p1.md"), "## Findings\nGenerated evidence [@cid_alpha]\n", "utf8");
+        await fs.writeFile(path.join(sourceDir, "p2.md"), "## Findings\nGenerated evidence [@cid_beta]\n", "utf8");
+
+        const outRaw = (await summary_pack_build.execute(
+          {
+            manifest_path: manifestPath,
+            mode: "generate",
+            reason: "test: generate summary pack",
+          },
+          makeToolContext(),
+        )) as string;
+        const out = parseToolJson(outRaw);
+
+        expect(out.ok).toBe(true);
+        expect(Number(out.summary_count)).toBe(2);
+
+        const summaryPackPath = String(out.summary_pack_path);
+        const pack = asRecord(JSON.parse(await fs.readFile(summaryPackPath, "utf8")), "summary_pack");
+        const summaries = pack.summaries;
+        expect(Array.isArray(summaries)).toBe(true);
+        if (!Array.isArray(summaries)) throw new Error("summaries must be an array");
+        expect(String(asRecord(summaries[0], "summary").source_artifact)).toContain("agent-output/");
+      });
+    });
+  });
+
   test("builds summary_pack.v1 with required envelope fields", async () => {
     await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
