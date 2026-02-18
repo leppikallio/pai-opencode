@@ -1,234 +1,64 @@
-# Find Sources
+# FindSources
 
-Discover and evaluate new sources to add to upgrade monitoring.
+## Purpose
 
-**Trigger:** "find upgrade sources", "find new sources", "discover channels", "expand monitoring"
+Find and evaluate new high-signal sources to expand monitoring coverage while keeping provider support configurable.
 
----
+## Inputs
 
-## Overview
+- Search domain or domain categories (YouTube, blogs, GitHub, newsletters, docs feeds).
+- Optional priority constraints (`high`, `medium`, `low` risk/effort).
+- Optional allowed providers list (default includes Anthropic/Claude sources).
+- Optional current source-state files for dedupe and drift checking.
 
-This workflow helps identify new sources worth monitoring for PAI-relevant updates:
-- YouTube channels creating relevant content
-- Blogs and newsletters covering AI development
-- GitHub repositories with useful patterns
-- Community resources and forums
+## Steps
 
----
+### Step 1: Define source criteria
 
-## Process
+- Set scope (`PAI`, `AI tooling`, `agent workflows`, `security`) and freshness threshold.
+- Choose source classes to evaluate (channels, repos, docs, news feeds).
 
-### Step 1: Define Search Criteria
+### Step 2: Discover candidates
 
-Clarify what type of sources to find:
+- Search web for candidate sources per class.
+- Capture URL, publisher, and content focus.
 
-| Category | Examples |
-|----------|----------|
-| **AI Development** | Claude tutorials, AI coding workflows |
-| **Agent Patterns** | Multi-agent systems, orchestration |
-| **Tool Building** | CLI tools, MCP servers, integrations |
-| **Security** | AI security, prompt injection, safety |
-| **Productivity** | Developer workflows, automation |
+### Step 3: Pre-screen candidates
 
----
+Discard low-quality or low-coverage candidates using:
 
-### Step 2: Search for YouTube Channels
+- consistency of publishing,
+- relevance to target architecture area,
+- signal quality,
+- duplication risk.
 
-Use web search to find relevant channels:
+### Step 4: Score and rank
 
-```
-Search: "Claude Code tutorial YouTube channel"
-Search: "AI agent development YouTube"
-Search: "MCP server tutorial YouTube"
-```
+Score 1–5 for:
 
-For each discovered channel, evaluate:
-- Content relevance to PAI infrastructure
-- Update frequency (active vs dormant)
-- Content quality and depth
-- Unique perspective or expertise
+- Relevance,
+- Update regularity,
+- Technical depth,
+- Compatibility with preferred providers,
+- Alignment with stack constraints.
 
----
+### Step 5: Prepare source updates
 
-### Step 3: Search for Blogs/Newsletters
+- Recommend **High/Medium/Low** additions.
+- For YouTube, propose user-layer customization updates only.
+- For other sources, create a monitored-source addition plan targeting `sources.v2.json` as the primary catalog.
 
-Look for written content sources:
+## Verify
 
-```
-Search: "Claude Code blog posts"
-Search: "AI development newsletter"
-Search: "LLM engineering blog"
-```
+- Confirm each recommended source has valid URL and rationale.
+- Verify duplicate check passes against current source catalog.
+- Verify no protected local paths were edited outside this WS scope.
 
-Evaluate each source for:
-- Relevance to PAI goals
-- Technical depth
-- Update frequency
-- Signal-to-noise ratio
+## Output
 
----
-
-### Step 4: Search for GitHub Repositories
-
-Find repositories with useful patterns:
-
-```
-Search: site:github.com "Claude Code" examples
-Search: site:github.com MCP server typescript
-Search: site:github.com AI agent framework
-```
-
-Look for:
-- Active maintenance
-- Good documentation
-- Patterns applicable to PAI
-- TypeScript preferred (stack alignment)
-
----
-
-### Step 5: Evaluate and Rank Sources
-
-For each potential source, score:
-
-| Criterion | Weight | Score (1-5) |
-|-----------|--------|-------------|
-| Relevance to PAI | 30% | |
-| Content Quality | 25% | |
-| Update Frequency | 20% | |
-| Unique Value | 15% | |
-| Stack Alignment | 10% | |
-
-**Priority Assignment:**
-- Score ≥ 4.0 → 🔥 HIGH - Add immediately
-- Score 3.0-3.9 → 📌 MEDIUM - Consider adding
-- Score < 3.0 → 💡 LOW - Monitor occasionally
-
----
-
-### Step 6: Output Recommendations
-
-```markdown
-# New Source Recommendations
-**Discovery Date:** [date]
-
-## 🔥 HIGH PRIORITY (Add Now)
-
-### [Source Name]
-**Type:** YouTube / Blog / GitHub / Other
-**URL:** [url]
-**Relevance:** [Why this matters for PAI]
-**Content Focus:** [What they cover]
-**Update Frequency:** [How often they post]
-
-**To Add:**
-```json
-{
-  "name": "[Source Name]",
-  "url": "[url]",
-  "priority": "HIGH",
-  "description": "[What this source covers]"
-}
-```
-
----
-
-## 📌 MEDIUM PRIORITY (Consider)
-
-[Similar format]
-
----
-
-## 💡 LOW PRIORITY (Optional)
-
-[Similar format]
-
----
-
-## How to Add Sources
-
-### For YouTube Channels:
-
-Optional: if you want to customize YouTube sources, create/update:
-`~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/pai-upgrade/youtube-channels.json`
-
-### For Other Sources:
-Currently, non-YouTube sources are monitored via the base `sources.json`.
-To request additions to base Anthropic monitoring, note them for next PAI release.
-```
-
----
-
-### Step 7: Offer to Add
-
-If user approves recommendations:
-
-```bash
-# Read current user config (optional)
-test -f ~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/pai-upgrade/youtube-channels.json \
-  && cat ~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/pai-upgrade/youtube-channels.json \
-  || echo "No user youtube-channels.json; using base skill config."
-
-# Add new channels (merge with existing)
-# Update the channels array with new entries
-```
-
----
-
-## Discovery Strategies
-
-### Follow the Experts
-- Find who Anthropic engineers follow/reference
-- Check who creates content cited in official docs
-- Look at conference speaker lists
-
-### Community Mining
-- Search Discord/Slack for recommended resources
-- Check Reddit threads for learning resources
-- Look at "awesome" lists on GitHub
-
-### Algorithm Surfing
-- Start from known good channels, explore recommendations
-- Check related channels on YouTube
-- Follow citation chains in blog posts
-
----
-
-## Examples
-
-**General discovery:**
-```
-User: "find new upgrade sources"
-→ Search for relevant YouTube channels
-→ Search for AI development blogs
-→ Evaluate and rank findings
-→ Output recommendations with add instructions
-```
-
-**Specific category:**
-```
-User: "find YouTube channels about MCP servers"
-→ Focused search on MCP content
-→ Evaluate MCP-specific channels
-→ Recommend best MCP resources
-```
-
-**Add recommended source:**
-```
-User: "add that channel"
-→ Read current user config
-→ Add new channel entry
-→ Confirm addition
-```
-
----
-
-## Integration
-
-**With Other Workflows:**
-- **CheckForUpgrades** - New sources feed into monitoring
-- **ResearchUpgrade** - Discovered sources can be researched
-
-**With USER Customization:**
-- Sources are added to USER directory, not base skill
-- Personal monitoring preferences stay private
-
+- Source discovery report with prioritized buckets:
+  - `HIGH` add now,
+  - `MEDIUM` evaluate,
+  - `LOW` keep for future review.
+- Exact JSON payload suggestions for user customization where applicable.
+- Short execution plan for onboarding top recommendations.
