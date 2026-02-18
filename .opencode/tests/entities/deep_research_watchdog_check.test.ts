@@ -21,7 +21,7 @@ describe("deep_research_watchdog_check (entity)", () => {
         // Force deterministic timeout: init timeout is 120s.
         const seeded = JSON.parse(await fs.readFile(manifestPath, "utf8"));
         seeded.stage.started_at = "2026-02-14T11:50:00.000Z";
-        await fs.writeFile(manifestPath, JSON.stringify(seeded, null, 2) + "\n", "utf8");
+        await fs.writeFile(manifestPath, `${JSON.stringify(seeded, null, 2)}\n`, "utf8");
 
         const outRaw = (await (watchdog_check as any).execute(
           {
@@ -57,6 +57,45 @@ describe("deep_research_watchdog_check (entity)", () => {
           message: "timeout after 600s",
           retryable: false,
         });
+      });
+    });
+  });
+
+  test("does not time out when manifest is paused", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_watchdog_paused_001";
+        const initRaw = (await (run_init as any).execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = (init as any).manifest_path as string;
+
+        // Force deterministic timeout if it were running, but pause should prevent timeout.
+        const seeded = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        seeded.status = "paused";
+        seeded.stage.started_at = "2026-02-14T11:50:00.000Z";
+        await fs.writeFile(manifestPath, `${JSON.stringify(seeded, null, 2)}\n`, "utf8");
+
+        const outRaw = (await (watchdog_check as any).execute(
+          {
+            manifest_path: manifestPath,
+            now_iso: "2026-02-14T12:00:00.000Z",
+            reason: "test: paused watchdog",
+          },
+          makeToolContext(),
+        )) as string;
+
+        const out = parseToolJson(outRaw);
+        expect(out.ok).toBe(true);
+        expect((out as any).timed_out).toBe(false);
+        expect((out as any).paused).toBe(true);
+
+        const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        expect(manifest.status).toBe("paused");
       });
     });
   });

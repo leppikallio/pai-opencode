@@ -336,6 +336,7 @@ export async function orchestrator_tick_post_summaries(
     ? (manifest.stage as Record<string, unknown>)
     : {};
   const from = String(stageObj.current ?? "").trim();
+  const status = String(manifest.status ?? "").trim();
   const artifacts = getManifestArtifacts(manifest);
   const runRoot = String(
     (artifacts ? getStringProp(artifacts, "root") : null) ?? path.dirname(manifestPath),
@@ -355,6 +356,13 @@ export async function orchestrator_tick_post_summaries(
   if (!from) {
     return fail("INVALID_STATE", "manifest.stage.current missing", {
       manifest_path: manifestPath,
+    });
+  }
+  if (status === "paused") {
+    return fail("PAUSED", "run is paused", {
+      manifest_path: manifestPath,
+      run_id: runId,
+      stage: from,
     });
   }
   if (!runRoot || !path.isAbsolute(runRoot)) {
