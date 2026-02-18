@@ -29,6 +29,7 @@ import {
   isCitationStatus,
   readFoundByLookup,
   redactSensitiveUrl,
+  resolveCitationsConfig,
   validateUrlMapV1,
 } from "./citations_validate_lib";
 
@@ -85,8 +86,6 @@ export const citations_validate = tool({
       }
       if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
 
-      const onlineDryRun = args.online_dry_run ?? false;
-
       let manifestRaw: unknown;
       try {
         manifestRaw = await readJson(manifestPath);
@@ -103,16 +102,39 @@ export const citations_validate = tool({
       const artifacts = getManifestArtifacts(manifest);
       const runRoot = String((artifacts ? getStringProp(artifacts, "root") : null) ?? path.dirname(manifestPath));
       const checkedAt = isNonEmptyString(manifest.updated_at) ? String(manifest.updated_at) : nowIso();
-      const query = isPlainObject(manifest.query) ? (manifest.query as Record<string, unknown>) : {};
-      const sensitivity = String(query.sensitivity ?? "normal").trim();
-      const mode: "offline" | "online" = sensitivity === "no_web" ? "offline" : "online";
+
+      const runConfigPath = path.join(runRoot, "run-config.json");
+      let runConfig: Record<string, unknown> | null = null;
+      try {
+        const runConfigRaw = await readJson(runConfigPath);
+        if (isPlainObject(runConfigRaw)) {
+          runConfig = runConfigRaw as Record<string, unknown>;
+        }
+      } catch (e) {
+        if (errorCode(e) !== "ENOENT") {
+          if (e instanceof SyntaxError) {
+            return err("INVALID_JSON", "run-config unreadable", { run_config_path: runConfigPath });
+          }
+          throw e;
+        }
+      }
+
+      const resolvedConfig = resolveCitationsConfig({
+        manifest,
+        runConfig,
+        env: process.env as Record<string, string | undefined>,
+        onlineDryRunArg: args.online_dry_run,
+      });
+      const mode = resolvedConfig.mode;
+      const validationMode: "offline" | "online" = mode === "offline" ? "offline" : "online";
+      const onlineDryRun = resolvedConfig.onlineDryRun;
+      const brightDataEndpoint = resolvedConfig.brightDataEndpoint;
+      const apifyEndpoint = resolvedConfig.apifyEndpoint;
 
       const urlMapPath = (args.url_map_path ?? "").trim() || path.join(runRoot, "citations", "url-map.json");
       const citationsPath = (args.citations_path ?? "").trim() || path.join(runRoot, "citations", "citations.jsonl");
       const offlineFixturesPath = (args.offline_fixtures_path ?? "").trim();
       const onlineFixturesPath = (args.online_fixtures_path ?? "").trim();
-      const brightDataEndpoint = String(process.env.PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT ?? "").trim();
-      const apifyEndpoint = String(process.env.PAI_DR_CITATIONS_APIFY_ENDPOINT ?? "").trim();
 
       if (!path.isAbsolute(urlMapPath)) return err("INVALID_ARGS", "url_map_path must be absolute", { url_map_path: args.url_map_path ?? null });
       if (!path.isAbsolute(citationsPath)) return err("INVALID_ARGS", "citations_path must be absolute", { citations_path: args.citations_path ?? null });
@@ -122,10 +144,10 @@ export const citations_validate = tool({
       if (onlineFixturesPath && !path.isAbsolute(onlineFixturesPath)) {
         return err("INVALID_ARGS", "online_fixtures_path must be absolute", { online_fixtures_path: args.online_fixtures_path });
       }
-      if (mode === "offline" && !offlineFixturesPath) {
+      if (validationMode === "offline" && !offlineFixturesPath) {
         return err("INVALID_ARGS", "offline_fixtures_path required in OFFLINE mode", {
           mode,
-          sensitivity,
+          mode_source: resolvedConfig.modeSource,
         });
       }
 
@@ -162,7 +184,7 @@ export const citations_validate = tool({
       const urlMapItems = Array.from(urlMapItemsByNormalized.values()).sort((a, b) => a.normalized_url.localeCompare(b.normalized_url));
 
       let fixtureLookup: OfflineFixtureLookup = emptyOfflineFixtureLookup();
-      if (mode === "offline") {
+      if (validationMode === "offline") {
         let fixtureRaw: unknown;
         try {
           fixtureRaw = await readJson(offlineFixturesPath);
@@ -181,7 +203,7 @@ export const citations_validate = tool({
       }
 
       let onlineFixtureLookup: OfflineFixtureLookup = emptyOfflineFixtureLookup();
-      if (mode === "online" && onlineFixturesPath) {
+      if (validationMode === "online" && onlineFixturesPath) {
         let onlineFixtureRaw: unknown;
         try {
           onlineFixtureRaw = await readJson(onlineFixturesPath);
@@ -206,7 +228,7 @@ export const citations_validate = tool({
       const onlineFixtureItems: Array<Record<string, unknown>> = [];
       const blockedUrlsItems: Array<Record<string, unknown>> = [];
       for (const item of urlMapItems) {
-        const fixture = mode === "offline" ? findFixtureForUrlMapItem(fixtureLookup, item) : null;
+        const fixture = validationMode === "offline" ? findFixtureForUrlMapItem(fixtureLookup, item) : null;
 
         let status: CitationStatus;
         let notes: string;
@@ -216,7 +238,7 @@ export const citations_validate = tool({
         let publisher: string | undefined;
         let evidenceSnippet: string | undefined;
 
-        if (mode === "offline") {
+        if (validationMode === "offline") {
           if (!fixture) {
             status = "invalid";
             notes = "offline fixture not found for normalized_url";
@@ -275,7 +297,7 @@ export const citations_validate = tool({
         if (evidenceSnippet) record.evidence_snippet = evidenceSnippet;
         records.push(record);
 
-        if (mode === "online") {
+        if (validationMode === "online") {
           const fixtureEntry: Record<string, unknown> = {
             normalized_url: item.normalized_url,
             url_original: redactedOriginal.value,
@@ -294,6 +316,7 @@ export const citations_validate = tool({
             blockedUrlsItems.push({
               normalized_url: item.normalized_url,
               cid: item.cid,
+              status,
               url: redactedUrl.value,
               notes,
               action: blockedUrlAction(notes),
@@ -324,14 +347,17 @@ export const citations_validate = tool({
       }
 
       let onlineFixturesOutputPath: string | null = null;
+      let onlineFixturesLatestPath: string | null = null;
       let blockedUrlsPath: string | null = null;
 
-      if (mode === "online") {
+      if (validationMode === "online") {
         const generatedAt = nowIso();
         const tsToken = toTimestampToken(generatedAt);
         const onlineFixturesOutputPathAbs = path.join(runRoot, "citations", `online-fixtures.${tsToken}.json`);
+        const onlineFixturesLatestPathAbs = path.join(runRoot, "citations", "online-fixtures.latest.json");
         const blockedUrlsPathAbs = path.join(runRoot, "citations", "blocked-urls.json");
         onlineFixturesOutputPath = onlineFixturesOutputPathAbs;
+        onlineFixturesLatestPath = onlineFixturesLatestPathAbs;
         blockedUrlsPath = blockedUrlsPathAbs;
 
         onlineFixtureItems.sort((a, b) => {
@@ -348,7 +374,29 @@ export const citations_validate = tool({
             generated_at: generatedAt,
             source_online_fixtures_path: onlineFixturesPath || null,
             online_dry_run: onlineDryRun,
+            effective_config: {
+              mode,
+              mode_source: resolvedConfig.modeSource,
+              online_dry_run: onlineDryRun,
+              online_dry_run_source: resolvedConfig.onlineDryRunSource,
+              endpoints: {
+                bright_data: brightDataEndpoint || null,
+                apify: apifyEndpoint || null,
+              },
+              endpoint_sources: {
+                bright_data: resolvedConfig.endpointSources.brightData,
+                apify: resolvedConfig.endpointSources.apify,
+              },
+              run_config_path: runConfig ? runConfigPath : null,
+            },
             items: onlineFixtureItems,
+          });
+          await atomicWriteJson(onlineFixturesLatestPathAbs, {
+            schema_version: "online_fixtures.latest.v1",
+            run_id: runId,
+            updated_at: generatedAt,
+            ts: tsToken,
+            path: onlineFixturesOutputPathAbs,
           });
           await atomicWriteJson(blockedUrlsPathAbs, {
             schema_version: "blocked_urls.v1",
@@ -369,11 +417,14 @@ export const citations_validate = tool({
         schema: "citations_validate.inputs.v1",
         run_id: runId,
         mode,
-        sensitivity,
+        mode_source: resolvedConfig.modeSource,
+        endpoint_sources: resolvedConfig.endpointSources,
+        bright_data_endpoint: brightDataEndpoint || null,
+        apify_endpoint: apifyEndpoint || null,
         url_map: urlMapItems,
-        fixture_digest: mode === "offline" ? fixtureLookup.fixtureDigest : null,
-        online_fixture_digest: mode === "online" ? onlineFixtureLookup.fixtureDigest : null,
-        online_dry_run: mode === "online" ? onlineDryRun : null,
+        fixture_digest: validationMode === "offline" ? fixtureLookup.fixtureDigest : null,
+        online_fixture_digest: validationMode === "online" ? onlineFixtureLookup.fixtureDigest : null,
+        online_dry_run: validationMode === "online" ? onlineDryRun : null,
       });
 
       try {
@@ -389,8 +440,9 @@ export const citations_validate = tool({
             validated: records.length,
             inputs_digest: inputsDigest,
             online_fixtures_path: onlineFixturesOutputPath,
+            online_fixtures_latest_path: onlineFixturesLatestPath,
             blocked_urls_path: blockedUrlsPath,
-            blocked_urls: mode === "online" ? blockedUrlsItems.length : 0,
+            blocked_urls: validationMode === "online" ? blockedUrlsItems.length : 0,
           },
         });
       } catch {
@@ -401,13 +453,24 @@ export const citations_validate = tool({
         run_id: runId,
         citations_path: citationsPath,
         mode,
-        online_dry_run: mode === "online" ? onlineDryRun : null,
+        mode_source: resolvedConfig.modeSource,
+        online_dry_run: validationMode === "online" ? onlineDryRun : null,
+        online_dry_run_source: validationMode === "online" ? resolvedConfig.onlineDryRunSource : null,
+        effective_endpoints: {
+          bright_data: brightDataEndpoint || null,
+          apify: apifyEndpoint || null,
+        },
+        endpoint_sources: {
+          bright_data: resolvedConfig.endpointSources.brightData,
+          apify: resolvedConfig.endpointSources.apify,
+        },
         validated: records.length,
         inputs_digest: inputsDigest,
         online_fixtures_path: onlineFixturesOutputPath,
-        online_fixtures_count: mode === "online" ? onlineFixtureItems.length : 0,
+        online_fixtures_latest_path: onlineFixturesLatestPath,
+        online_fixtures_count: validationMode === "online" ? onlineFixtureItems.length : 0,
         blocked_urls_path: blockedUrlsPath,
-        blocked_urls_count: mode === "online" ? blockedUrlsItems.length : 0,
+        blocked_urls_count: validationMode === "online" ? blockedUrlsItems.length : 0,
       });
     } catch (e) {
       if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "required file missing");

@@ -23,6 +23,8 @@ type DeepResearchFlagsV1 = {
   maxTotalSummaryKb: number;
   maxReviewIterations: number;
   citationValidationTier: "basic" | "standard" | "thorough";
+  citationsBrightDataEndpoint: string | null;
+  citationsApifyEndpoint: string | null;
   noWeb: boolean;
   runsRoot: string;
   source: {
@@ -134,6 +136,8 @@ export function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
   let maxTotalSummaryKb = 60;
   let maxReviewIterations = 4;
   let citationValidationTier: DeepResearchFlagsV1["citationValidationTier"] = "standard";
+  let citationsBrightDataEndpoint: string | null = null;
+  let citationsApifyEndpoint: string | null = null;
   let noWeb = false;
   let runsRoot = path.join(os.homedir(), ".config", "opencode", "research-runs");
 
@@ -188,6 +192,14 @@ export function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
     const e = parseEnum(flags["PAI_DR_CITATION_VALIDATION_TIER"], ["basic", "standard", "thorough"] as const);
     if (e) citationValidationTier = e;
   });
+  applySetting("PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT", (flags) => {
+    const endpoint = String(flags["PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT"] ?? "").trim();
+    citationsBrightDataEndpoint = endpoint || null;
+  });
+  applySetting("PAI_DR_CITATIONS_APIFY_ENDPOINT", (flags) => {
+    const endpoint = String(flags["PAI_DR_CITATIONS_APIFY_ENDPOINT"] ?? "").trim();
+    citationsApifyEndpoint = endpoint || null;
+  });
   applySetting("PAI_DR_NO_WEB", (flags) => {
     const b = parseBool(flags["PAI_DR_NO_WEB"]);
     if (b !== null) noWeb = b;
@@ -237,6 +249,14 @@ export function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
     const e = parseEnum(v, ["basic", "standard", "thorough"] as const);
     if (e) citationValidationTier = e;
   });
+  applyEnv("PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT", (v) => {
+    const endpoint = String(v ?? "").trim();
+    citationsBrightDataEndpoint = endpoint || null;
+  });
+  applyEnv("PAI_DR_CITATIONS_APIFY_ENDPOINT", (v) => {
+    const endpoint = String(v ?? "").trim();
+    citationsApifyEndpoint = endpoint || null;
+  });
   applyEnv("PAI_DR_NO_WEB", (v) => {
     const b = parseBool(v);
     if (b !== null) noWeb = b;
@@ -262,6 +282,8 @@ export function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
     maxTotalSummaryKb,
     maxReviewIterations,
     citationValidationTier,
+    citationsBrightDataEndpoint,
+    citationsApifyEndpoint,
     noWeb,
     runsRoot,
     source,

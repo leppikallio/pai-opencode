@@ -237,6 +237,150 @@ export type OnlineCitationResult = {
   evidence_snippet?: string;
 };
 
+type CitationMode = "offline" | "online" | "dry_run";
+
+export type CitationConfigSource =
+  | "manifest.query.sensitivity"
+  | "manifest.query.constraints.deep_research_flags"
+  | "run-config.effective.citations"
+  | "env"
+  | "unset"
+  | "arg.online_dry_run";
+
+export type ResolvedCitationsConfig = {
+  mode: CitationMode;
+  modeSource: CitationConfigSource;
+  onlineDryRun: boolean;
+  onlineDryRunSource: CitationConfigSource;
+  brightDataEndpoint: string;
+  apifyEndpoint: string;
+  endpointSources: {
+    brightData: CitationConfigSource;
+    apify: CitationConfigSource;
+  };
+};
+
+function asObject(value: unknown): Record<string, unknown> {
+  return isPlainObject(value) ? (value as Record<string, unknown>) : {};
+}
+
+function asNonEmptyString(value: unknown): string | null {
+  if (!isNonEmptyString(value)) return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function modeFromSensitivity(sensitivityRaw: string): CitationMode {
+  const sensitivity = sensitivityRaw.trim();
+  if (sensitivity === "no_web") return "offline";
+  if (sensitivity === "restricted") return "dry_run";
+  return "online";
+}
+
+function readModeFromRunConfig(runConfig: Record<string, unknown> | null): CitationMode | null {
+  if (!runConfig) return null;
+  const effective = asObject(runConfig.effective);
+  const citations = asObject(effective.citations);
+  const mode = asNonEmptyString(citations.mode);
+  if (!mode) return null;
+  if (mode === "offline" || mode === "online" || mode === "dry_run") return mode;
+  return null;
+}
+
+function readEndpointFromRunConfig(
+  runConfig: Record<string, unknown> | null,
+  key: "brightdata" | "apify",
+): string | null {
+  if (!runConfig) return null;
+  const effective = asObject(runConfig.effective);
+  const citations = asObject(effective.citations);
+  const endpoints = asObject(citations.endpoints);
+  return asNonEmptyString(endpoints[key]);
+}
+
+function readEndpointFromManifestFlags(
+  manifest: Record<string, unknown>,
+  key: "PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT" | "PAI_DR_CITATIONS_APIFY_ENDPOINT",
+): string | null {
+  const query = asObject(manifest.query);
+  const constraints = asObject(query.constraints);
+  const flags = asObject(constraints.deep_research_flags);
+  return asNonEmptyString(flags[key]);
+}
+
+function readEndpointFromEnv(env: Record<string, string | undefined>, key: string): string | null {
+  const raw = env[key];
+  if (typeof raw !== "string") return null;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function resolveCitationsConfig(args: {
+  manifest: Record<string, unknown>;
+  runConfig: Record<string, unknown> | null;
+  env?: Record<string, string | undefined>;
+  onlineDryRunArg?: boolean;
+}): ResolvedCitationsConfig {
+  const env = args.env ?? (process.env as Record<string, string | undefined>);
+  const query = asObject(args.manifest.query);
+  const sensitivity = asNonEmptyString(query.sensitivity);
+
+  const modeFromManifest = sensitivity ? modeFromSensitivity(sensitivity) : null;
+  const modeFromRunConfig = readModeFromRunConfig(args.runConfig);
+  const mode = modeFromManifest ?? modeFromRunConfig ?? "online";
+  const modeSource: CitationConfigSource = modeFromManifest
+    ? "manifest.query.sensitivity"
+    : modeFromRunConfig
+      ? "run-config.effective.citations"
+      : "unset";
+
+  const manifestBrightData = readEndpointFromManifestFlags(args.manifest, "PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT");
+  const runConfigBrightData = readEndpointFromRunConfig(args.runConfig, "brightdata");
+  const envBrightData = readEndpointFromEnv(env, "PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT");
+  const brightDataEndpoint = manifestBrightData ?? runConfigBrightData ?? envBrightData ?? "";
+  const brightDataSource: CitationConfigSource = manifestBrightData
+    ? "manifest.query.constraints.deep_research_flags"
+    : runConfigBrightData
+      ? "run-config.effective.citations"
+      : envBrightData
+        ? "env"
+        : "unset";
+
+  const manifestApify = readEndpointFromManifestFlags(args.manifest, "PAI_DR_CITATIONS_APIFY_ENDPOINT");
+  const runConfigApify = readEndpointFromRunConfig(args.runConfig, "apify");
+  const envApify = readEndpointFromEnv(env, "PAI_DR_CITATIONS_APIFY_ENDPOINT");
+  const apifyEndpoint = manifestApify ?? runConfigApify ?? envApify ?? "";
+  const apifySource: CitationConfigSource = manifestApify
+    ? "manifest.query.constraints.deep_research_flags"
+    : runConfigApify
+      ? "run-config.effective.citations"
+      : envApify
+        ? "env"
+        : "unset";
+
+  const onlineDryRun = mode === "offline"
+    ? false
+    : args.onlineDryRunArg ?? (mode === "dry_run");
+  const onlineDryRunSource: CitationConfigSource = mode === "offline"
+    ? "manifest.query.sensitivity"
+    : args.onlineDryRunArg === undefined
+      ? "run-config.effective.citations"
+      : "arg.online_dry_run";
+
+  return {
+    mode,
+    modeSource,
+    onlineDryRun,
+    onlineDryRunSource,
+    brightDataEndpoint,
+    apifyEndpoint,
+    endpointSources: {
+      brightData: brightDataSource,
+      apify: apifySource,
+    },
+  };
+}
+
 function classifyReachabilityStatus(httpStatus: number): CitationStatus | null {
   if (httpStatus >= 200 && httpStatus < 300) return "valid";
   if (httpStatus === 401 || httpStatus === 402 || httpStatus === 403 || httpStatus === 451) return "paywalled";
