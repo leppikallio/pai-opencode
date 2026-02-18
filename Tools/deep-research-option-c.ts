@@ -649,6 +649,17 @@ async function runInit(args: InitCliArgs): Promise<void> {
       throw new Error("wave1_plan returned invalid plan_path");
     }
     console.log(`wave1_plan_path: ${wave1PlanPath}`);
+
+    const stageAdvance = await callTool("stage_advance:init->wave1", stage_advance as unknown as ToolWithExecute, {
+      manifest_path: manifestPath,
+      gates_path: gatesPath,
+      requested_next: "wave1",
+      reason: "operator-cli init: deterministic init->wave1",
+    });
+
+    if (String(stageAdvance.from ?? "") !== "init" || String(stageAdvance.to ?? "") !== "wave1") {
+      throw new Error("stage_advance init->wave1 returned unexpected transition");
+    }
   }
 
   const manifest = await readJsonObject(manifestPath);

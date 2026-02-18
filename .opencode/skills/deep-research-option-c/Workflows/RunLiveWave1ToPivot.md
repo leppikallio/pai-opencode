@@ -30,8 +30,10 @@ bun "Tools/deep-research-option-c.ts" triage --manifest "<manifest_abs>"
 ## Validation Contract
 
 - [ ] `wave-1/wave1-plan.json` exists.
-- [ ] At least one `wave-1/<perspective>.md` output exists.
-- [ ] `manifest.stage.current` is `pivot` at stop.
+- [ ] Every perspective in `perspectives.json` has per-perspective ingestion (`wave-1/<perspective_id>.md` produced and ingested).
+- [ ] `wave-review.json` reports `decision=PASS` and `retry_directives=[]`.
+- [ ] `gates.json` has `gates.B.status=pass`.
+- [ ] `manifest.stage.current` advanced to `pivot`.
 
 ## Notes
 
