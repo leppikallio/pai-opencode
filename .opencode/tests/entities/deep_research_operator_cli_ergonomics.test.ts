@@ -57,6 +57,12 @@ describe("deep_research operator CLI ergonomics (entity)", () => {
 
         const runRoot = extractField(init1.stdout, "run_root");
         const perspectivesPath = path.join(runRoot, "perspectives.json");
+        const wave1PlanPath = path.join(runRoot, "wave-1", "wave1-plan.json");
+
+        const wave1PlanRaw1 = await fs.readFile(wave1PlanPath, "utf8");
+        const wave1Plan1 = JSON.parse(wave1PlanRaw1) as { generated_at?: string };
+        const generatedAt1 = String(wave1Plan1.generated_at ?? "");
+        expect(generatedAt1.length).toBeGreaterThan(0);
 
         const raw = JSON.parse(await fs.readFile(perspectivesPath, "utf8"));
         raw.perspectives[0].title = "SENTINEL";
@@ -66,12 +72,20 @@ describe("deep_research operator CLI ergonomics (entity)", () => {
         expect(init2.exit).toBe(0);
         expect(init2.stderr).not.toContain("ERROR:");
 
+        // Without --force, init must not overwrite the wave1 plan artifact.
+        const wave1PlanRaw2 = await fs.readFile(wave1PlanPath, "utf8");
+        expect(wave1PlanRaw2).toBe(wave1PlanRaw1);
+
         const after2 = JSON.parse(await fs.readFile(perspectivesPath, "utf8"));
         expect(after2.perspectives[0].title).toBe("SENTINEL");
 
         const init3 = await runCli(["init", "Q", "--run-id", runId, "--force"]);
         expect(init3.exit).toBe(0);
         expect(init3.stderr).not.toContain("ERROR:");
+
+        const wave1PlanRaw3 = await fs.readFile(wave1PlanPath, "utf8");
+        const wave1Plan3 = JSON.parse(wave1PlanRaw3) as { generated_at?: string };
+        expect(String(wave1Plan3.generated_at ?? "")).not.toBe(generatedAt1);
 
         const after3 = JSON.parse(await fs.readFile(perspectivesPath, "utf8"));
         expect(after3.perspectives[0].title).toBe("Default synthesis perspective");
