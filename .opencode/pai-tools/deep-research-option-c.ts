@@ -28,6 +28,9 @@ import {
   orchestrator_tick_live,
   orchestrator_tick_post_pivot,
   orchestrator_tick_post_summaries,
+  run_metrics_write,
+  telemetry_append,
+  tick_ledger_append,
   type OrchestratorLiveRunAgentInput,
   type OrchestratorLiveRunAgentResult,
   type OrchestratorTickFixtureResult,
@@ -40,7 +43,10 @@ import {
   watchdog_check,
   wave1_plan,
 } from "../tools/deep_research.ts";
-import { resolveDeepResearchFlagsV1 } from "../tools/deep_research/lifecycle_lib";
+import {
+  resolveDeepResearchFlagsV1,
+  sha256HexLowerUtf8,
+} from "../tools/deep_research/lifecycle_lib";
 
 type ToolEnvelope = Record<string, unknown> & { ok: boolean };
 type ToolWithExecute = {
@@ -95,6 +101,361 @@ type TriageBlockers = {
   failedChecks: Array<{ kind: string; name: string }>;
   allowed: boolean;
 };
+
+type TickResult =
+  | OrchestratorTickFixtureResult
+  | OrchestratorTickLiveResult
+  | OrchestratorTickPostPivotResult
+  | OrchestratorTickPostSummariesResult;
+
+type TickObservabilityContext = {
+  manifestPath: string;
+  gatesPath: string;
+  runId: string;
+  runRoot: string;
+  logsDirAbs: string;
+  telemetryPath: string;
+  stageBefore: string;
+  statusBefore: string;
+  stageAttempt: number;
+  tickIndex: number;
+  stageStartedDigest: string;
+  startedAtMs: number;
+};
+
+type TickOutcome = {
+  outcome: "succeeded" | "failed" | "timed_out" | "cancelled";
+  failureKind?: "timeout" | "tool_error" | "invalid_output" | "gate_failed" | "unknown";
+  retryable?: boolean;
+  message?: string;
+};
+
+const TICK_METRICS_INTERVAL = 1;
+
+function stableDigest(value: Record<string, unknown>): string {
+  return `sha256:${sha256HexLowerUtf8(JSON.stringify(value))}`;
+}
+
+function toolErrorDetails(error: unknown): { code: string; message: string } {
+  const text = String(error ?? "unknown error");
+  const match = /failed:\s+([^\s]+)\s+([^\{]+)(?:\{.*)?$/.exec(text);
+  if (!match) {
+    return { code: "TOOL_FAILED", message: text };
+  }
+  return { code: match[1] ?? "TOOL_FAILED", message: (match[2] ?? text).trim() };
+}
+
+function resultErrorDetails(result: TickResult): { code: string; message: string } | null {
+  if (result.ok) return null;
+  return {
+    code: String(result.error.code ?? "UNKNOWN"),
+    message: String(result.error.message ?? "tick failed"),
+  };
+}
+
+function safePositiveInt(value: unknown, fallback: number): number {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return fallback;
+  return Math.floor(num);
+}
+
+async function readJsonlRecords(filePath: string): Promise<Array<Record<string, unknown>>> {
+  let raw: string;
+  try {
+    raw = await fs.readFile(filePath, "utf8");
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "ENOENT") return [];
+    throw error;
+  }
+
+  return raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+}
+
+async function nextTickIndex(logsDirAbs: string): Promise<number> {
+  const ledgerPath = path.join(logsDirAbs, "ticks.jsonl");
+  const rows = await readJsonlRecords(ledgerPath);
+  let maxTick = 0;
+  for (const row of rows) {
+    const value = safePositiveInt(row.tick_index, 0);
+    if (value > maxTick) maxTick = value;
+  }
+  return maxTick + 1;
+}
+
+async function nextStageAttempt(telemetryPath: string, stageId: string): Promise<number> {
+  const rows = await readJsonlRecords(telemetryPath);
+  let count = 0;
+  for (const row of rows) {
+    if (String(row.event_type ?? "") !== "stage_started") continue;
+    if (String(row.stage_id ?? "") !== stageId) continue;
+    count += 1;
+  }
+  return count + 1;
+}
+
+async function appendTickLedgerBestEffort(args: {
+  manifestPath: string;
+  reason: string;
+  entry: Record<string, unknown>;
+}): Promise<string | null> {
+  try {
+    const envelope = await callTool("tick_ledger_append", tick_ledger_append as unknown as ToolWithExecute, {
+      manifest_path: args.manifestPath,
+      entry: args.entry,
+      reason: args.reason,
+    });
+    const ledgerPath = String(envelope.ledger_path ?? "").trim();
+    return ledgerPath || null;
+  } catch (error) {
+    console.log(`warn.tick_ledger: ${String(error)}`);
+    return null;
+  }
+}
+
+async function appendTelemetryBestEffort(args: {
+  manifestPath: string;
+  reason: string;
+  event: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    await callTool("telemetry_append", telemetry_append as unknown as ToolWithExecute, {
+      manifest_path: args.manifestPath,
+      event: args.event,
+      reason: args.reason,
+    });
+  } catch (error) {
+    console.log(`warn.telemetry_append: ${String(error)}`);
+  }
+}
+
+async function writeRunMetricsBestEffort(args: {
+  manifestPath: string;
+  reason: string;
+  tickIndex: number;
+  stageBefore: string;
+  stageAfter: string;
+}): Promise<string | null> {
+  const boundary = args.stageBefore !== args.stageAfter;
+  if (!boundary && args.tickIndex % TICK_METRICS_INTERVAL !== 0) return null;
+
+  try {
+    const envelope = await callTool("run_metrics_write", run_metrics_write as unknown as ToolWithExecute, {
+      manifest_path: args.manifestPath,
+      reason: args.reason,
+    });
+    const metricsPath = String(envelope.metrics_path ?? "").trim();
+    return metricsPath || null;
+  } catch (error) {
+    console.log(`warn.run_metrics_write: ${String(error)}`);
+    return null;
+  }
+}
+
+function computeTickOutcome(args: {
+  tickResult: TickResult;
+  stageBefore: string;
+  stageAfter: string;
+  statusAfter: string;
+  toolError: { code: string; message: string } | null;
+}): TickOutcome {
+  if (args.statusAfter === "cancelled") {
+    return {
+      outcome: "cancelled",
+      failureKind: "unknown",
+      retryable: false,
+      message: "run cancelled",
+    };
+  }
+
+  if (args.tickResult.ok) {
+    if (args.stageAfter !== args.stageBefore) {
+      return { outcome: "succeeded" };
+    }
+    return {
+      outcome: "failed",
+      failureKind: "invalid_output",
+      retryable: args.statusAfter === "running",
+      message: "stage did not advance",
+    };
+  }
+
+  const errorCodeUpper = String(args.toolError?.code ?? args.tickResult.error.code ?? "").toUpperCase();
+  if (errorCodeUpper.includes("TIMEOUT")) {
+    return {
+      outcome: "timed_out",
+      failureKind: "timeout",
+      retryable: false,
+      message: args.toolError?.message ?? args.tickResult.error.message,
+    };
+  }
+
+  return {
+    outcome: "failed",
+    failureKind: "tool_error",
+    retryable: false,
+    message: args.toolError?.message ?? args.tickResult.error.message,
+  };
+}
+
+async function beginTickObservability(args: {
+  manifestPath: string;
+  gatesPath: string;
+  reason: string;
+}): Promise<TickObservabilityContext> {
+  const manifest = await readJsonObject(args.manifestPath);
+  const summary = await summarizeManifest(manifest);
+  const logsDirAbs = await resolveLogsDirFromManifest(manifest);
+  const telemetryPath = path.join(logsDirAbs, "telemetry.jsonl");
+  const tickIndex = await nextTickIndex(logsDirAbs);
+  const stageAttempt = await nextStageAttempt(telemetryPath, summary.stageCurrent);
+  const manifestRevision = safePositiveInt(manifest.revision, 1);
+  const stageStartedDigest = stableDigest({
+    schema: "tick.stage_started.inputs.v1",
+    run_id: summary.runId,
+    stage: summary.stageCurrent,
+    tick_index: tickIndex,
+    stage_attempt: stageAttempt,
+    manifest_revision: manifestRevision,
+  });
+
+  const context: TickObservabilityContext = {
+    manifestPath: args.manifestPath,
+    gatesPath: args.gatesPath,
+    runId: summary.runId,
+    runRoot: summary.runRoot,
+    logsDirAbs,
+    telemetryPath,
+    stageBefore: summary.stageCurrent,
+    statusBefore: summary.status,
+    stageAttempt,
+    tickIndex,
+    stageStartedDigest,
+    startedAtMs: Date.now(),
+  };
+
+  await appendTickLedgerBestEffort({
+    manifestPath: args.manifestPath,
+    reason: `${args.reason} [tick_${tickIndex}_start]`,
+    entry: {
+      tick_index: tickIndex,
+      phase: "start",
+      stage_before: context.stageBefore,
+      stage_after: context.stageBefore,
+      status_before: context.statusBefore,
+      status_after: context.statusBefore,
+      result: { ok: true },
+      inputs_digest: stageStartedDigest,
+      artifacts: {
+        manifest_path: args.manifestPath,
+        gates_path: args.gatesPath,
+        telemetry_path: context.telemetryPath,
+      },
+    },
+  });
+
+  await appendTelemetryBestEffort({
+    manifestPath: args.manifestPath,
+    reason: `${args.reason} [tick_${tickIndex}_stage_started]`,
+    event: {
+      event_type: "stage_started",
+      stage_id: context.stageBefore,
+      stage_attempt: context.stageAttempt,
+      inputs_digest: context.stageStartedDigest,
+      message: `tick ${tickIndex} started`,
+    },
+  });
+
+  return context;
+}
+
+async function finalizeTickObservability(args: {
+  context: TickObservabilityContext;
+  tickResult: TickResult;
+  reason: string;
+  toolError: { code: string; message: string } | null;
+}): Promise<void> {
+  const manifestAfter = await readJsonObject(args.context.manifestPath);
+  const afterSummary = await summarizeManifest(manifestAfter);
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - args.context.startedAtMs) / 1000));
+  const tickError = args.toolError ?? resultErrorDetails(args.tickResult);
+  const outcome = computeTickOutcome({
+    tickResult: args.tickResult,
+    stageBefore: args.context.stageBefore,
+    stageAfter: afterSummary.stageCurrent,
+    statusAfter: afterSummary.status,
+    toolError: args.toolError,
+  });
+
+  await appendTelemetryBestEffort({
+    manifestPath: args.context.manifestPath,
+    reason: `${args.reason} [tick_${args.context.tickIndex}_stage_finished]`,
+    event: {
+      event_type: "stage_finished",
+      stage_id: args.context.stageBefore,
+      stage_attempt: args.context.stageAttempt,
+      outcome: outcome.outcome,
+      elapsed_s: elapsedSeconds,
+      ...(outcome.failureKind ? { failure_kind: outcome.failureKind } : {}),
+      ...(typeof outcome.retryable === "boolean" ? { retryable: outcome.retryable } : {}),
+      ...(outcome.message ? { message: outcome.message } : {}),
+    },
+  });
+
+  const shouldPlanRetry = outcome.outcome === "failed"
+    && outcome.retryable === true
+    && afterSummary.status === "running";
+
+  if (shouldPlanRetry) {
+    await appendTelemetryBestEffort({
+      manifestPath: args.context.manifestPath,
+      reason: `${args.reason} [tick_${args.context.tickIndex}_stage_retry_planned]`,
+      event: {
+        event_type: "stage_retry_planned",
+        stage_id: args.context.stageBefore,
+        from_attempt: args.context.stageAttempt,
+        to_attempt: args.context.stageAttempt + 1,
+        retry_index: args.context.stageAttempt,
+        change_summary: `tick ${args.context.tickIndex} did not advance stage; retry planned`,
+      },
+    });
+  }
+
+  const metricsPath = await writeRunMetricsBestEffort({
+    manifestPath: args.context.manifestPath,
+    reason: `${args.reason} [tick_${args.context.tickIndex}_metrics]`,
+    tickIndex: args.context.tickIndex,
+    stageBefore: args.context.stageBefore,
+    stageAfter: afterSummary.stageCurrent,
+  });
+
+  await appendTickLedgerBestEffort({
+    manifestPath: args.context.manifestPath,
+    reason: `${args.reason} [tick_${args.context.tickIndex}_finish]`,
+    entry: {
+      tick_index: args.context.tickIndex,
+      phase: "finish",
+      stage_before: args.context.stageBefore,
+      stage_after: afterSummary.stageCurrent,
+      status_before: args.context.statusBefore,
+      status_after: afterSummary.status,
+      result: tickError
+        ? { ok: false, error: { code: tickError.code, message: tickError.message } }
+        : { ok: true },
+      inputs_digest: args.tickResult.ok ? (args.tickResult.decision_inputs_digest ?? args.context.stageStartedDigest) : args.context.stageStartedDigest,
+      artifacts: {
+        manifest_path: args.context.manifestPath,
+        gates_path: args.context.gatesPath,
+        telemetry_path: args.context.telemetryPath,
+        ...(metricsPath ? { metrics_path: metricsPath } : {}),
+      },
+    },
+  });
+}
 
 function makeToolContext() {
   return {
@@ -163,7 +524,7 @@ function isManifestRelativePathSafe(value: string): boolean {
   const normalized = path.normalize(value);
   return normalized !== ".."
     && !normalized.startsWith(`..${path.sep}`)
-    && !normalized.split(path.sep).some((segment) => segment === "..");
+    && !normalized.split(path.sep).some((segment: string) => segment === "..");
 }
 
 async function safeResolveManifestPath(runRoot: string, rel: string, field: string): Promise<string> {
@@ -172,29 +533,11 @@ async function safeResolveManifestPath(runRoot: string, rel: string, field: stri
     throw new Error(`${field} must be a relative path without traversal`);
   }
 
-  const candidate = path.resolve(runRoot, relTrimmed);
-  const runRootReal = await fs.realpath(runRoot);
-
-  let parentPath = path.dirname(candidate);
-  try {
-    const parentReal = await fs.realpath(parentPath);
-    parentPath = parentReal;
-    const relFromRoot = path.relative(runRootReal, parentReal);
-    if (relFromRoot === "" || relFromRoot === ".") {
-      // keep candidate below runRoot when parent is root or direct child
-    } else if (relFromRoot.startsWith(`..${path.sep}`) || relFromRoot === "..") {
-      throw new Error(`${field} escapes runRoot`);
-    }
-  } catch (error) {
-    const code = (error as { code?: string }).code;
-    if (code !== "ENOENT") {
-      throw error;
-    }
-  }
-
-  const relFromRoot = path.relative(runRootReal, candidate);
+  const runRootAbs = path.resolve(runRoot);
+  const candidate = path.resolve(runRootAbs, relTrimmed);
+  const relFromRoot = path.relative(runRootAbs, candidate);
   if (relFromRoot === "" || relFromRoot === ".") {
-    return path.join(runRootReal, path.basename(candidate));
+    return path.join(runRootAbs, path.basename(candidate));
   }
   if (relFromRoot.startsWith(`..${path.sep}`) || relFromRoot === "..") {
     throw new Error(`${field} escapes runRoot`);
@@ -683,84 +1026,121 @@ async function runInit(args: InitCliArgs): Promise<void> {
   console.log(`run_config_path: ${runConfigPath}`);
 }
 
-async function runTick(args: TickCliArgs): Promise<void> {
-  ensureOptionCEnabledForCli();
-
+async function runOneOrchestratorTick(args: {
+  manifestPath: string;
+  gatesPath: string;
+  reason: string;
+  driver: "fixture" | "live";
+  stageHint?: string;
+  liveDriver?: ReturnType<typeof createOperatorInputDriver> | null;
+}): Promise<TickResult> {
   if (args.driver === "fixture") {
-    const fixtureResult = await orchestrator_tick_fixture({
-      manifest_path: args.manifest,
-      gates_path: args.gates,
+    return await orchestrator_tick_fixture({
+      manifest_path: args.manifestPath,
+      gates_path: args.gatesPath,
       reason: args.reason,
       fixture_driver: ({ stage, run_root }) => defaultFixtureDriver({ stage, run_root }),
       tool_context: makeToolContext(),
     });
+  }
 
-    if (!fixtureResult.ok) {
-      console.log(`tick.driver: fixture`);
-      console.log(`tick.ok: false`);
-      console.log(`tick.error.code: ${fixtureResult.error.code}`);
-      console.log(`tick.error.message: ${fixtureResult.error.message}`);
-      console.log(`tick.error.details: ${JSON.stringify(fixtureResult.error.details ?? {}, null, 2)}`);
-    } else {
-      console.log(`tick.driver: fixture`);
-      console.log(`tick.ok: true`);
-      console.log(`tick.from: ${fixtureResult.from}`);
-      console.log(`tick.to: ${fixtureResult.to}`);
-      console.log(`tick.wave_outputs_count: ${fixtureResult.wave_outputs_count}`);
-    }
-  } else {
-    const driver = createOperatorInputDriver();
+  const stage = args.stageHint ?? (await summarizeManifest(await readJsonObject(args.manifestPath))).stageCurrent;
+  if (stage === "init" || stage === "wave1") {
+    if (!args.liveDriver) throw new Error("internal: live driver missing");
+    return await orchestrator_tick_live({
+      manifest_path: args.manifestPath,
+      gates_path: args.gatesPath,
+      reason: args.reason,
+      drivers: { runAgent: args.liveDriver },
+      tool_context: makeToolContext(),
+    });
+  }
 
+  if (stage === "pivot" || stage === "citations") {
+    return await orchestrator_tick_post_pivot({
+      manifest_path: args.manifestPath,
+      gates_path: args.gatesPath,
+      reason: args.reason,
+      tool_context: makeToolContext(),
+    });
+  }
+
+  return await orchestrator_tick_post_summaries({
+    manifest_path: args.manifestPath,
+    gates_path: args.gatesPath,
+    reason: args.reason,
+    tool_context: makeToolContext(),
+  });
+}
+
+function printTickResult(driver: "fixture" | "live", result: TickResult): void {
+  console.log(`tick.driver: ${driver}`);
+  if (!result.ok) {
+    console.log("tick.ok: false");
+    console.log(`tick.error.code: ${result.error.code}`);
+    console.log(`tick.error.message: ${result.error.message}`);
+    console.log(`tick.error.details: ${JSON.stringify(result.error.details ?? {}, null, 2)}`);
+    return;
+  }
+
+  console.log("tick.ok: true");
+  console.log(`tick.from: ${String(result.from ?? "")}`);
+  console.log(`tick.to: ${String(result.to ?? "")}`);
+  if ("wave_outputs_count" in result && typeof result.wave_outputs_count === "number") {
+    console.log(`tick.wave_outputs_count: ${result.wave_outputs_count}`);
+  }
+}
+
+async function runTick(args: TickCliArgs): Promise<void> {
+  ensureOptionCEnabledForCli();
+
+  const liveDriver = args.driver === "live" ? createOperatorInputDriver() : null;
+  if (args.driver === "live") {
     await callTool("watchdog_check", watchdog_check as unknown as ToolWithExecute, {
       manifest_path: args.manifest,
       reason: `${args.reason} [pre_tick]`,
     });
+  }
 
-    const manifest = await readJsonObject(args.manifest);
-    const summary = await summarizeManifest(manifest);
-    const stage = summary.stageCurrent;
+  const context = await beginTickObservability({
+    manifestPath: args.manifest,
+    gatesPath: args.gates,
+    reason: args.reason,
+  });
 
-    let result: OrchestratorTickLiveResult | OrchestratorTickPostPivotResult | OrchestratorTickPostSummariesResult;
-    if (stage === "init" || stage === "wave1") {
-      result = await orchestrator_tick_live({
-        manifest_path: args.manifest,
-        gates_path: args.gates,
-        reason: args.reason,
-        drivers: { runAgent: driver },
-        tool_context: makeToolContext(),
-      });
-    } else if (stage === "pivot" || stage === "citations") {
-      result = await orchestrator_tick_post_pivot({
-        manifest_path: args.manifest,
-        gates_path: args.gates,
-        reason: args.reason,
-        tool_context: makeToolContext(),
-      });
-    } else {
-      result = await orchestrator_tick_post_summaries({
-        manifest_path: args.manifest,
-        gates_path: args.gates,
-        reason: args.reason,
-        tool_context: makeToolContext(),
-      });
-    }
+  let result: TickResult;
+  let toolFailure: { code: string; message: string } | null = null;
+  try {
+    result = await runOneOrchestratorTick({
+      manifestPath: args.manifest,
+      gatesPath: args.gates,
+      reason: args.reason,
+      driver: args.driver,
+      stageHint: context.stageBefore,
+      liveDriver,
+    });
+  } catch (error) {
+    toolFailure = toolErrorDetails(error);
+    result = {
+      ok: false,
+      error: {
+        code: toolFailure.code,
+        message: toolFailure.message,
+        details: {},
+      },
+    } as TickResult;
+  }
 
-    if (!result.ok) {
-      console.log(`tick.driver: live`);
-      console.log(`tick.ok: false`);
-      console.log(`tick.error.code: ${result.error.code}`);
-      console.log(`tick.error.message: ${result.error.message}`);
-      console.log(`tick.error.details: ${JSON.stringify(result.error.details ?? {}, null, 2)}`);
-    } else {
-      console.log(`tick.driver: live`);
-      console.log(`tick.ok: true`);
-      console.log(`tick.from: ${String(result.from ?? "")}`);
-      console.log(`tick.to: ${String(result.to ?? "")}`);
-      if ("wave_outputs_count" in result && typeof result.wave_outputs_count === "number") {
-        console.log(`tick.wave_outputs_count: ${result.wave_outputs_count}`);
-      }
-    }
+  await finalizeTickObservability({
+    context,
+    tickResult: result,
+    reason: args.reason,
+    toolError: toolFailure,
+  });
 
+  printTickResult(args.driver, result);
+
+  if (args.driver === "live") {
     await callTool("watchdog_check", watchdog_check as unknown as ToolWithExecute, {
       manifest_path: args.manifest,
       reason: `${args.reason} [post_tick]`,
@@ -939,48 +1319,42 @@ async function runRun(args: RunCliArgs): Promise<void> {
       return;
     }
 
-    let result:
-      | OrchestratorTickFixtureResult
-      | OrchestratorTickLiveResult
-      | OrchestratorTickPostPivotResult
-      | OrchestratorTickPostSummariesResult;
-    if (args.driver === "fixture") {
-      result = await orchestrator_tick_fixture({
-        manifest_path: args.manifest,
-        gates_path: args.gates,
-        reason: `${args.reason} [tick_${i}]`,
-        fixture_driver: ({ stage, run_root }) => defaultFixtureDriver({ stage, run_root }),
-        tool_context: makeToolContext(),
+    const tickReason = `${args.reason} [tick_${i}]`;
+    const context = await beginTickObservability({
+      manifestPath: args.manifest,
+      gatesPath: args.gates,
+      reason: tickReason,
+    });
+
+    let result: TickResult;
+    let toolFailure: { code: string; message: string } | null = null;
+    try {
+      result = await runOneOrchestratorTick({
+        manifestPath: args.manifest,
+        gatesPath: args.gates,
+        reason: tickReason,
+        driver: args.driver,
+        stageHint: summary.stageCurrent,
+        liveDriver,
       });
-    } else {
-      const stage = summary.stageCurrent;
-      if (stage === "init" || stage === "wave1") {
-        if (!liveDriver) {
-          throw new Error("internal: live driver missing");
-        }
-        result = await orchestrator_tick_live({
-          manifest_path: args.manifest,
-          gates_path: args.gates,
-          reason: `${args.reason} [tick_${i}]`,
-          drivers: { runAgent: liveDriver },
-          tool_context: makeToolContext(),
-        });
-      } else if (stage === "pivot" || stage === "citations") {
-        result = await orchestrator_tick_post_pivot({
-          manifest_path: args.manifest,
-          gates_path: args.gates,
-          reason: `${args.reason} [tick_${i}]`,
-          tool_context: makeToolContext(),
-        });
-      } else {
-        result = await orchestrator_tick_post_summaries({
-          manifest_path: args.manifest,
-          gates_path: args.gates,
-          reason: `${args.reason} [tick_${i}]`,
-          tool_context: makeToolContext(),
-        });
-      }
+    } catch (error) {
+      toolFailure = toolErrorDetails(error);
+      result = {
+        ok: false,
+        error: {
+          code: toolFailure.code,
+          message: toolFailure.message,
+          details: {},
+        },
+      } as TickResult;
     }
+
+    await finalizeTickObservability({
+      context,
+      tickResult: result,
+      reason: tickReason,
+      toolError: toolFailure,
+    });
 
     if (!result.ok) {
       console.log("run.ok: false");
