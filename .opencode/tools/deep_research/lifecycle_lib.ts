@@ -401,6 +401,15 @@ export function validateManifestV1(value: unknown): string | null {
     return errorWithPath("manifest.stage.current invalid", "$.stage.current");
   }
   if (!isNonEmptyString(v.stage.started_at)) return errorWithPath("manifest.stage.started_at missing", "$.stage.started_at");
+  if (v.stage.last_progress_at !== undefined) {
+    if (!isNonEmptyString(v.stage.last_progress_at)) {
+      return errorWithPath("manifest.stage.last_progress_at must be non-empty string", "$.stage.last_progress_at");
+    }
+    const lastProgressAt = new Date(v.stage.last_progress_at);
+    if (Number.isNaN(lastProgressAt.getTime())) {
+      return errorWithPath("manifest.stage.last_progress_at must be valid ISO timestamp", "$.stage.last_progress_at");
+    }
+  }
   if (!Array.isArray(v.stage.history)) return errorWithPath("manifest.stage.history must be array", "$.stage.history");
 
   if (!isPlainObject(v.limits)) return errorWithPath("manifest.limits missing", "$.limits");

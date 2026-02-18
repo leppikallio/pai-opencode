@@ -8,6 +8,7 @@ import {
   getManifestPaths,
   getStringProp,
   isPlainObject,
+  nowIso,
   parseJsonSafe,
   readJson,
   validateManifestV1,
@@ -21,6 +22,7 @@ import { review_factory_run } from "./review_factory_run";
 import { stage_advance } from "./stage_advance";
 import { summary_pack_build } from "./summary_pack_build";
 import { synthesis_write } from "./synthesis_write";
+import { manifest_write } from "./manifest_write";
 
 type ToolJsonOk = {
   ok: true;
@@ -454,6 +456,7 @@ export async function orchestrator_tick_post_summaries(
   const revisionControlTool = args.revision_control_tool ?? (revision_control as unknown as ToolWithExecute);
   const gatesWriteTool = args.gates_write_tool ?? (gates_write as unknown as ToolWithExecute);
   const stageAdvanceTool = args.stage_advance_tool ?? (stage_advance as unknown as ToolWithExecute);
+  const manifestWriteTool = manifest_write as unknown as ToolWithExecute;
 
   const requiredTools: Array<{ name: string; tool: ToolWithExecute }> = [
     { name: "SUMMARY_PACK_BUILD", tool: summaryPackBuildTool },
@@ -465,6 +468,7 @@ export async function orchestrator_tick_post_summaries(
     { name: "REVISION_CONTROL", tool: revisionControlTool },
     { name: "GATES_WRITE", tool: gatesWriteTool },
     { name: "STAGE_ADVANCE", tool: stageAdvanceTool },
+    { name: "MANIFEST_WRITE", tool: manifestWriteTool },
   ];
 
   for (const requiredTool of requiredTools) {
@@ -502,6 +506,50 @@ export async function orchestrator_tick_post_summaries(
     }
     manifestRevision = nextRevision;
     return null;
+  };
+
+  const markProgress = async (
+    checkpoint: string,
+  ): Promise<{ ok: true } | { ok: false; code: string; message: string; details: Record<string, unknown> }> => {
+    const progress = await executeToolJson({
+      name: "MANIFEST_WRITE",
+      tool: manifestWriteTool,
+      payload: {
+        manifest_path: manifestPath,
+        patch: {
+          stage: {
+            last_progress_at: nowIso(),
+          },
+        },
+        expected_revision: manifestRevision,
+        reason: `${reason} [progress:${checkpoint}]`,
+      },
+      tool_context: args.tool_context,
+    });
+
+    if (!progress.ok) {
+      return {
+        ok: false,
+        code: progress.code,
+        message: progress.message,
+        details: progress.details,
+      };
+    }
+
+    const nextRevision = Number(progress.new_revision ?? Number.NaN);
+    if (!Number.isFinite(nextRevision)) {
+      return {
+        ok: false,
+        code: "INVALID_STATE",
+        message: "manifest_write returned invalid new_revision",
+        details: {
+          new_revision: progress.new_revision ?? null,
+        },
+      };
+    }
+
+    manifestRevision = nextRevision;
+    return { ok: true };
   };
 
   const readGatesRevision = async (): Promise<
@@ -570,6 +618,14 @@ export async function orchestrator_tick_post_summaries(
     });
     if (!summaryPack.ok) {
       return fail(summaryPack.code, summaryPack.message, summaryPack.details);
+    }
+
+    const summariesProgress = await markProgress("summary_pack_built");
+    if (!summariesProgress.ok) {
+      return fail(summariesProgress.code, summariesProgress.message, {
+        ...summariesProgress.details,
+        checkpoint: "summary_pack_built",
+      });
     }
 
     const gateD = await executeToolJson({
@@ -682,6 +738,14 @@ export async function orchestrator_tick_post_summaries(
     });
     if (!writeSynthesis.ok) {
       return fail(writeSynthesis.code, writeSynthesis.message, writeSynthesis.details);
+    }
+
+    const synthesisProgress = await markProgress("synthesis_written");
+    if (!synthesisProgress.ok) {
+      return fail(synthesisProgress.code, synthesisProgress.message, {
+        ...synthesisProgress.details,
+        checkpoint: "synthesis_written",
+      });
     }
 
     const advanceToReview = await runStageAdvance("review");
@@ -823,6 +887,15 @@ export async function orchestrator_tick_post_summaries(
   }
 
   const revisionAction = nonEmptyString(revisionControlResult.action);
+
+  const reviewProgress = await markProgress(`review_iteration_completed:${reviewIteration}`);
+  if (!reviewProgress.ok) {
+    return fail(reviewProgress.code, reviewProgress.message, {
+      ...reviewProgress.details,
+      checkpoint: "review_iteration_completed",
+      review_iteration: reviewIteration,
+    });
+  }
 
   const advanceFromReview = await runStageAdvance();
   if (!advanceFromReview.ok) {
