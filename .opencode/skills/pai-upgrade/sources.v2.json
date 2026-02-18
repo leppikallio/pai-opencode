@@ -244,6 +244,57 @@
       "priority": "MEDIUM",
       "type": "community",
       "note": "Manual check required - no automated scraping"
+    },
+    {
+      "id": "github-danielmiessler-personal-ai-infrastructure",
+      "provider": "ecosystem",
+      "category": "github",
+      "name": "Personal AI Infrastructure",
+      "owner": "danielmiessler",
+      "repo": "Personal_AI_Infrastructure",
+      "priority": "HIGH",
+      "check_commits": true,
+      "check_releases": true,
+      "check_issues": false
+    },
+    {
+      "id": "github-anomalyco-opencode",
+      "provider": "ecosystem",
+      "category": "github",
+      "name": "OpenCode",
+      "owner": "anomalyco",
+      "repo": "opencode",
+      "priority": "HIGH",
+      "check_commits": true,
+      "check_releases": true,
+      "check_issues": false
+    },
+    {
+      "id": "blog-openai-engineering-news",
+      "provider": "openai",
+      "category": "blog",
+      "name": "OpenAI Engineering News",
+      "url": "https://openai.com/news/engineering/",
+      "priority": "HIGH",
+      "type": "blog"
+    },
+    {
+      "id": "blog-openai-security-news",
+      "provider": "openai",
+      "category": "blog",
+      "name": "OpenAI Security News",
+      "url": "https://openai.com/news/security/",
+      "priority": "HIGH",
+      "type": "blog"
+    },
+    {
+      "id": "blog-openai-product-releases",
+      "provider": "openai",
+      "category": "blog",
+      "name": "OpenAI Product Releases",
+      "url": "https://openai.com/news/product-releases/",
+      "priority": "HIGH",
+      "type": "blog"
     }
   ]
 }
