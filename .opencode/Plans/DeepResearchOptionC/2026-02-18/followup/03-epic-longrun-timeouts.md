@@ -1,23 +1,111 @@
 # Epic E3 — 1h+ long-run timeout semantics
 
-## Why
-Architect raw-2: default watchdog timeouts (5–10 minutes) will fail legitimate long live stages unless paused.
+Status: TODO
 
-## Outcomes
-Support long runs safely without accidental watchdog failure:
-- Mode-based timeouts (deep mode => longer), or
-- Progress-heartbeat semantics (timeout since last progress, not stage start).
+## Context links (source reviews)
+- Engineer: `../engineer-review-raw-2.md` (see long-run strategy + watchdog guidance)
+- Architect: `../architect-review-raw-2.md` (see “Stage watchdog defaults incompatible with 1h+ runs” + recommendations)
 
-## Deliverables
-- Policy + implementation:
-  - how timeouts are computed
-  - what counts as progress
-  - how orchestrators emit progress heartbeats
-- Update watchdog behavior accordingly.
+## Repo + worktree
+- Repo root: `/Users/zuul/Projects/pai-opencode-graphviz`
+- Epic worktree: `/private/tmp/pai-dr-epic-e3`
+- Epic branch: `ws/epic-e3-longrun-timeouts`
 
-## Tests / Verification
-- Entity test: does not time out if heartbeat advances.
-- Entity test: times out deterministically if no progress.
+## Target files
+- Timeout constants: `.opencode/tools/deep_research/lifecycle_lib.ts`
+- Watchdog enforcement: `.opencode/tools/deep_research/watchdog_check.ts`
+- Manifest writer: `.opencode/tools/deep_research/manifest_write.ts`
+- Orchestrators (to emit progress):
+  - `.opencode/tools/deep_research/orchestrator_tick_live.ts`
+  - `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts`
+  - `.opencode/tools/deep_research/orchestrator_tick_post_summaries.ts`
+
+## Outcome (what “done” means)
+Long-running live stages do not fail deterministically just because they take > 10 minutes.
+
+Two acceptable designs (choose one):
+1) **Mode-based timeouts**: manifest.mode=`deep` -> longer stage timeouts.
+2) **Progress heartbeat**: watchdog uses “time since last progress” rather than “time since stage start.”
+
+## Bite-sized tasks
+
+### E3-T0 — Choose timeout semantics + write policy note
+Create: `.opencode/Plans/DeepResearchOptionC/2026-02-18/followup/E3-timeout-policy.md`
+Include:
+- chosen design (mode-based vs heartbeat)
+- why
+- what fields are authoritative
+- how it preserves determinism
+
+Acceptance:
+- Policy doc exists and is linked from this epic.
+
+### E3-T1 — Implement chosen semantics
+
+If mode-based:
+- Extend `lifecycle_lib.ts` to compute stage timeouts using manifest.mode.
+- Ensure the chosen values are explicit (no “magic multipliers”).
+
+If heartbeat-based:
+- Add a new field to manifest stage (example):
+  - `manifest.stage.last_progress_at` (ISO)
+- Implement a deterministic progress update tool or use `manifest_write` patches from orchestrators.
+- Update `watchdog_check.ts` to:
+  - use `last_progress_at ?? stage.started_at` as the timer origin
+  - keep PAUSED behavior unchanged
+
+Acceptance:
+- Watchdog no longer fails a stage if progress is being emitted.
+
+### E3-T2 — Emit progress from orchestrators
+Goal: define “progress” points and emit them consistently.
+
+Minimum progress events (suggested):
+- after each wave output ingested (wave1/wave2)
+- after citations validated
+- after summary-pack built
+- after synthesis written
+- after review iteration completes
+
+Implementation notes:
+- Keep progress writes deterministic: writing a timestamp is fine, but don’t include it in any digest inputs.
+
+Acceptance:
+- A synthetic long stage in tests can keep watchdog satisfied.
+
+### E3-T3 — Tests
+Add entity tests:
+1) **Heartbeat prevents timeout**:
+   - seed a manifest with `stage.started_at` far in the past
+   - set `last_progress_at` recent
+   - `watchdog_check` should return `timed_out=false`
+2) **No progress still times out**:
+   - both timestamps old
+   - should `timed_out=true` and checkpoint written
+
+Acceptance:
+- `bun test ./.opencode/tests` passes.
+
+## Progress tracker
+
+| Task | Status | Owner | PR/Commit | Evidence |
+|---|---|---|---|---|
+| E3-T0 Policy doc | TODO |  |  |  |
+| E3-T1 Implementation | TODO |  |  |  |
+| E3-T2 Progress emission | TODO |  |  |  |
+| E3-T3 Tests | TODO |  |  |  |
+| Architect PASS | TODO |  |  |  |
+| QA PASS | TODO |  |  |  |
 
 ## Validator gates
-- Architect PASS, QA PASS.
+
+### Architect gate
+- Confirms determinism is preserved and stage digests aren’t polluted by timestamps.
+
+### QA gate
+Run in this worktree:
+```bash
+cd "/private/tmp/pai-dr-epic-e3"
+bun test ./.opencode/tests
+bun Tools/Precommit.ts
+```
