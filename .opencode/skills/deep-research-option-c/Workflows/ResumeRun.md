@@ -15,13 +15,13 @@ Resume a paused Option C run and restore watchdog timing semantics.
 bun "pai-tools/deep-research-option-c.ts" resume --manifest "<manifest_abs>" --reason "operator resume"
 ```
 
-2. Verify run can continue with normal tick flow.
+2. Verify a resume checkpoint was written (the CLI prints the checkpoint path) and the run can continue normally.
 
 ## Validation Contract
 
 - [ ] `manifest.status` is `running`.
 - [ ] `manifest.stage.started_at` is refreshed.
-- [ ] `logs/resume-checkpoint.md` exists and includes stage + reason.
+- [ ] A resume checkpoint exists (the CLI prints the checkpoint path) and includes stage + reason.
 
 ## Notes
 
