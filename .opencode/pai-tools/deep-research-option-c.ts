@@ -22,6 +22,7 @@ import {
 
 import {
   acquireRunLock,
+  fixture_bundle_capture,
   releaseRunLock,
   manifest_write,
   orchestrator_tick_fixture,
@@ -94,6 +95,13 @@ type TriageBlockers = {
   blockedGates: Array<{ gate: string; status: string | null }>;
   failedChecks: Array<{ kind: string; name: string }>;
   allowed: boolean;
+};
+
+type BlockedUrlsInspectSummary = {
+  artifactPath: string;
+  total: number;
+  byStatus: Array<{ status: string; count: number }>;
+  topActions: Array<{ action: string; count: number }>;
 };
 
 function makeToolContext() {
@@ -192,15 +200,23 @@ async function safeResolveManifestPath(runRoot: string, rel: string, field: stri
     }
   }
 
-  const relFromRoot = path.relative(runRootReal, candidate);
+  let candidateForCheck = path.resolve(parentPath, path.basename(candidate));
+  try {
+    candidateForCheck = await fs.realpath(candidateForCheck);
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code !== "ENOENT") throw error;
+  }
+
+  const relFromRoot = path.relative(runRootReal, candidateForCheck);
   if (relFromRoot === "" || relFromRoot === ".") {
-    return path.join(runRootReal, path.basename(candidate));
+    return path.join(runRootReal, path.basename(candidateForCheck));
   }
   if (relFromRoot.startsWith(`..${path.sep}`) || relFromRoot === "..") {
     throw new Error(`${field} escapes runRoot`);
   }
 
-  return candidate;
+  return candidateForCheck;
 }
 
 async function writeCheckpoint(args: {
@@ -417,6 +433,28 @@ function defaultPerspectivePayload(runId: string): Record<string, unknown> {
   };
 }
 
+function asNonEmptyString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function citationModeFromSensitivity(sensitivity: string): "offline" | "online" | "dry_run" {
+  if (sensitivity === "no_web") return "offline";
+  if (sensitivity === "restricted") return "dry_run";
+  return "online";
+}
+
+function readManifestDeepFlags(manifest: Record<string, unknown>): Record<string, unknown> {
+  const query = asObject(manifest.query);
+  const constraints = asObject(query.constraints);
+  return asObject(constraints.deep_research_flags);
+}
+
+function timestampTokenFromIso(iso: string): string {
+  return iso.replace(/[-:]/g, "").replace(/\..*Z$/, "Z").replace("T", "T");
+}
+
 async function writeRunConfig(args: {
   runRoot: string;
   runId: string;
@@ -428,6 +466,24 @@ async function writeRunConfig(args: {
   const limits = asObject(args.manifest.limits);
   const query = asObject(args.manifest.query);
   const effectiveSensitivity = String(query.sensitivity ?? "normal");
+  const deepFlags = readManifestDeepFlags(args.manifest);
+
+  const manifestBrightDataEndpoint = asNonEmptyString(deepFlags.PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT);
+  const manifestApifyEndpoint = asNonEmptyString(deepFlags.PAI_DR_CITATIONS_APIFY_ENDPOINT);
+  const effectiveBrightDataEndpoint = manifestBrightDataEndpoint ?? flags.citationsBrightDataEndpoint;
+  const effectiveApifyEndpoint = manifestApifyEndpoint ?? flags.citationsApifyEndpoint;
+  const citationMode = citationModeFromSensitivity(effectiveSensitivity);
+
+  const brightDataSource = manifestBrightDataEndpoint
+    ? "manifest"
+    : flags.citationsBrightDataEndpoint
+      ? "settings/env"
+      : "run-config";
+  const apifySource = manifestApifyEndpoint
+    ? "manifest"
+    : flags.citationsApifyEndpoint
+      ? "settings/env"
+      : "run-config";
 
   const runConfig = {
     schema_version: "run_config.v1",
@@ -447,6 +503,21 @@ async function writeRunConfig(args: {
         normalize: "deep_research_citations_normalize",
         validate: "deep_research_citations_validate",
         render_md: "deep_research_citations_render_md",
+      },
+      citations: {
+        mode: citationMode,
+        endpoints: {
+          brightdata: effectiveBrightDataEndpoint,
+          apify: effectiveApifyEndpoint,
+        },
+        source: {
+          mode: "manifest",
+          endpoints: {
+            brightdata: brightDataSource,
+            apify: apifySource,
+          },
+          authority: "run-config",
+        },
       },
       caps: {
         max_wave1_agents: Number(limits.max_wave1_agents ?? 0),
@@ -526,6 +597,48 @@ function parseGateStatuses(gatesDoc: Record<string, unknown>): GateStatusSummary
   }
 
   return out;
+}
+
+async function readBlockedUrlsInspectSummary(runRoot: string): Promise<BlockedUrlsInspectSummary | null> {
+  const blockedUrlsPath = path.join(runRoot, "citations", "blocked-urls.json");
+
+  let raw: Record<string, unknown>;
+  try {
+    raw = await readJsonObject(blockedUrlsPath);
+  } catch {
+    return null;
+  }
+
+  const items = Array.isArray(raw.items) ? raw.items : [];
+  const statusCounts = new Map<string, number>();
+  const actionCounts = new Map<string, number>();
+
+  for (const item of items) {
+    const obj = asObject(item);
+    const status = String(obj.status ?? "blocked").trim() || "blocked";
+    statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1);
+
+    const action = String(obj.action ?? "").trim();
+    if (action) {
+      actionCounts.set(action, (actionCounts.get(action) ?? 0) + 1);
+    }
+  }
+
+  const byStatus = Array.from(statusCounts.entries())
+    .map(([status, count]) => ({ status, count }))
+    .sort((a, b) => a.status.localeCompare(b.status));
+
+  const topActions = Array.from(actionCounts.entries())
+    .map(([action, count]) => ({ action, count }))
+    .sort((a, b) => b.count - a.count || a.action.localeCompare(b.action))
+    .slice(0, 5);
+
+  return {
+    artifactPath: blockedUrlsPath,
+    total: items.length,
+    byStatus,
+    topActions,
+  };
 }
 
 async function stageAdvanceDryRun(args: {
@@ -798,6 +911,7 @@ async function runInspect(manifestPath: string): Promise<void> {
   const summary = await summarizeManifest(manifest);
   const gatesDoc = await readJsonObject(summary.gatesPath);
   const gateStatuses = parseGateStatuses(gatesDoc);
+  const blockedUrlsSummary = await readBlockedUrlsInspectSummary(summary.runRoot);
   const dryRun = await stageAdvanceDryRun({
     manifestPath,
     gatesPath: summary.gatesPath,
@@ -817,6 +931,30 @@ async function runInspect(manifestPath: string): Promise<void> {
   console.log("gate_statuses:");
   for (const gate of gateStatuses) {
     console.log(`  - ${gate.id}: ${gate.status}${gate.checked_at ? ` @ ${gate.checked_at}` : ""}`);
+  }
+
+  if (blockedUrlsSummary) {
+    console.log("citations_blockers:");
+    console.log(`  artifact_path: ${blockedUrlsSummary.artifactPath}`);
+    console.log(`  total: ${blockedUrlsSummary.total}`);
+
+    console.log("  by_status:");
+    if (blockedUrlsSummary.byStatus.length === 0) {
+      console.log("    - none");
+    } else {
+      for (const row of blockedUrlsSummary.byStatus) {
+        console.log(`    - ${row.status}: ${row.count}`);
+      }
+    }
+
+    console.log("  next_steps:");
+    if (blockedUrlsSummary.topActions.length === 0) {
+      console.log("    - none");
+    } else {
+      for (const row of blockedUrlsSummary.topActions) {
+        console.log(`    - ${row.action} (count=${row.count})`);
+      }
+    }
   }
 
   console.log("blockers:");
@@ -1113,6 +1251,47 @@ async function runResume(args: PauseResumeCliArgs): Promise<void> {
   });
 }
 
+async function runCaptureFixtures(args: {
+  manifest: string;
+  outputDir?: string;
+  bundleId?: string;
+  reason: string;
+}): Promise<void> {
+  ensureOptionCEnabledForCli();
+
+  const manifest = await readJsonObject(args.manifest);
+  const summary = await summarizeManifest(manifest);
+  const runId = summary.runId;
+  const createdAt = nowIso();
+
+  const outputDir = args.outputDir
+    ? requireAbsolutePath(args.outputDir, "--output-dir")
+    : path.join(summary.runRoot, "fixtures");
+  const defaultBundleId = `${runId}_bundle_${timestampTokenFromIso(createdAt)}`;
+  const bundleId = String(args.bundleId ?? defaultBundleId).trim();
+  if (!bundleId) throw new Error("--bundle-id must be non-empty");
+
+  const capture = await callTool("fixture_bundle_capture", fixture_bundle_capture as unknown as ToolWithExecute, {
+    manifest_path: args.manifest,
+    output_dir: outputDir,
+    bundle_id: bundleId,
+    reason: args.reason,
+  });
+
+  printContract({
+    runId,
+    runRoot: summary.runRoot,
+    manifestPath: args.manifest,
+    gatesPath: summary.gatesPath,
+    stageCurrent: summary.stageCurrent,
+    status: summary.status,
+  });
+  console.log("capture_fixtures.ok: true");
+  console.log(`capture_fixtures.bundle_id: ${String(capture.bundle_id ?? bundleId)}`);
+  console.log(`capture_fixtures.bundle_root: ${String(capture.bundle_root ?? "")}`);
+  console.log("capture_fixtures.replay: deep_research_fixture_replay --bundle_root <bundle_root>");
+}
+
 const AbsolutePath: Type<string, string> = {
   async from(str) {
     return requireAbsolutePath(str, "path");
@@ -1243,6 +1422,25 @@ const resumeCmd = command({
   },
 });
 
+const captureFixturesCmd = command({
+  name: "capture-fixtures",
+  description: "Capture deterministic fixture bundle for replay",
+  args: {
+    manifest: option({ long: "manifest", type: AbsolutePath }),
+    outputDir: option({ long: "output-dir", type: optional(AbsolutePath) }),
+    bundleId: option({ long: "bundle-id", type: optional(string) }),
+    reason: option({ long: "reason", type: optional(string) }),
+  },
+  handler: async (args) => {
+    await runCaptureFixtures({
+      manifest: args.manifest,
+      outputDir: args.outputDir,
+      bundleId: args.bundleId,
+      reason: args.reason ?? "operator-cli capture-fixtures",
+    });
+  },
+});
+
 const app = subcommands({
   name: "deep-research-option-c",
   cmds: {
@@ -1254,6 +1452,7 @@ const app = subcommands({
     triage: triageCmd,
     pause: pauseCmd,
     resume: resumeCmd,
+    "capture-fixtures": captureFixturesCmd,
   },
 });
 

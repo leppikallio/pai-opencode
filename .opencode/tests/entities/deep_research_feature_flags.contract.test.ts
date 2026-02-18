@@ -18,6 +18,8 @@ const FLAG_ENV_KEYS = [
   "PAI_DR_MAX_TOTAL_SUMMARY_KB",
   "PAI_DR_MAX_REVIEW_ITERATIONS",
   "PAI_DR_CITATION_VALIDATION_TIER",
+  "PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT",
+  "PAI_DR_CITATIONS_APIFY_ENDPOINT",
   "PAI_DR_NO_WEB",
   "PAI_DR_RUNS_ROOT",
 ] as const;
@@ -32,6 +34,8 @@ function deterministicFlagEnv(overrides: Record<string, string | undefined> = {}
     PAI_DR_MAX_TOTAL_SUMMARY_KB: "60",
     PAI_DR_MAX_REVIEW_ITERATIONS: "4",
     PAI_DR_CITATION_VALIDATION_TIER: "standard",
+    PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT: "https://brightdata.example.invalid/citations",
+    PAI_DR_CITATIONS_APIFY_ENDPOINT: "https://apify.example.invalid/citations",
     PAI_DR_NO_WEB: "0",
     PAI_DR_RUNS_ROOT: path.join(os.tmpdir(), "dr-feature-flags-contract-runs"),
     ...overrides,
@@ -76,6 +80,16 @@ describe("deep_research_feature_flags contract (entity)", () => {
         specReader.citationValidationTier,
         "standard",
         "Flag invariant broke: PAI_DR_CITATION_VALIDATION_TIER should resolve to standard",
+      );
+      assert.equal(
+        specReader.citationsBrightDataEndpoint,
+        "https://brightdata.example.invalid/citations",
+        "Flag invariant broke: PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT should resolve deterministically",
+      );
+      assert.equal(
+        specReader.citationsApifyEndpoint,
+        "https://apify.example.invalid/citations",
+        "Flag invariant broke: PAI_DR_CITATIONS_APIFY_ENDPOINT should resolve deterministically",
       );
       assert.equal(specReader.noWeb, false, "Flag invariant broke: PAI_DR_NO_WEB should resolve false when set to 0");
       assert.deepEqual(

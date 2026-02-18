@@ -4,6 +4,7 @@ import * as path from "node:path";
 
 import { run_init } from "../../tools/deep_research.ts";
 import * as deepResearch from "../../tools/deep_research.ts";
+import { resolveCitationsConfig } from "../../tools/deep_research/citations_validate_lib";
 import { fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 const citations_validate = ((deepResearch as any).citations_validate ??
@@ -11,6 +12,82 @@ const citations_validate = ((deepResearch as any).citations_validate ??
 
 describe("deep_research_citations_validate (entity)", () => {
   const fixture = (...parts: string[]) => fixturePath("citations", "phase04", ...parts);
+
+  test("resolver precedence uses manifest -> run-config -> env", async () => {
+    const manifestWithExplicit = {
+      query: {
+        sensitivity: "normal",
+        constraints: {
+          deep_research_flags: {
+            PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT: "https://manifest.example/bright",
+            PAI_DR_CITATIONS_APIFY_ENDPOINT: "https://manifest.example/apify",
+          },
+        },
+      },
+    } as Record<string, unknown>;
+
+    const runConfig = {
+      effective: {
+        citations: {
+          mode: "dry_run",
+          endpoints: {
+            brightdata: "https://run-config.example/bright",
+            apify: "https://run-config.example/apify",
+          },
+        },
+      },
+    } as Record<string, unknown>;
+
+    const env = {
+      PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT: "https://env.example/bright",
+      PAI_DR_CITATIONS_APIFY_ENDPOINT: "https://env.example/apify",
+    };
+
+    const resolvedManifestFirst = resolveCitationsConfig({
+      manifest: manifestWithExplicit,
+      runConfig,
+      env,
+    });
+    expect(resolvedManifestFirst.brightDataEndpoint).toBe("https://manifest.example/bright");
+    expect(resolvedManifestFirst.apifyEndpoint).toBe("https://manifest.example/apify");
+    expect(resolvedManifestFirst.endpointSources.brightData).toBe("manifest.query.constraints.deep_research_flags");
+    expect(resolvedManifestFirst.endpointSources.apify).toBe("manifest.query.constraints.deep_research_flags");
+    expect(resolvedManifestFirst.mode).toBe("online");
+
+    const manifestWithoutEndpoint = {
+      query: {
+        sensitivity: "restricted",
+        constraints: {
+          deep_research_flags: {},
+        },
+      },
+    } as Record<string, unknown>;
+
+    const resolvedRunConfigSecond = resolveCitationsConfig({
+      manifest: manifestWithoutEndpoint,
+      runConfig,
+      env,
+    });
+    expect(resolvedRunConfigSecond.mode).toBe("dry_run");
+    expect(resolvedRunConfigSecond.onlineDryRun).toBe(true);
+    expect(resolvedRunConfigSecond.brightDataEndpoint).toBe("https://run-config.example/bright");
+    expect(resolvedRunConfigSecond.apifyEndpoint).toBe("https://run-config.example/apify");
+    expect(resolvedRunConfigSecond.endpointSources.brightData).toBe("run-config.effective.citations");
+    expect(resolvedRunConfigSecond.endpointSources.apify).toBe("run-config.effective.citations");
+
+    const resolvedEnvFallback = resolveCitationsConfig({
+      manifest: manifestWithoutEndpoint,
+      runConfig: null,
+      env,
+      onlineDryRunArg: false,
+    });
+    expect(resolvedEnvFallback.brightDataEndpoint).toBe("https://env.example/bright");
+    expect(resolvedEnvFallback.apifyEndpoint).toBe("https://env.example/apify");
+    expect(resolvedEnvFallback.endpointSources.brightData).toBe("env");
+    expect(resolvedEnvFallback.endpointSources.apify).toBe("env");
+    expect(resolvedEnvFallback.onlineDryRun).toBe(false);
+    expect(resolvedEnvFallback.onlineDryRunSource).toBe("arg.online_dry_run");
+  });
 
   const maybeTest = citations_validate ? test : test.skip;
 
@@ -219,9 +296,17 @@ describe("deep_research_citations_validate (entity)", () => {
           expect(onlineFixturesCapturePath).toContain(`${path.sep}citations${path.sep}online-fixtures.`);
           const onlineFixturesCapture = JSON.parse(await fs.readFile(onlineFixturesCapturePath, "utf8"));
           expect(onlineFixturesCapture.schema_version).toBe("online_fixtures.v1");
+          expect(onlineFixturesCapture.effective_config.mode).toBe("online");
+          expect(onlineFixturesCapture.effective_config.online_dry_run).toBe(false);
           expect(Array.isArray(onlineFixturesCapture.items)).toBe(true);
           expect(onlineFixturesCapture.items.length).toBe(1);
           expect(onlineFixturesCapture.items[0].status).toBe("valid");
+
+          const latestPointerPath = String((out as any).online_fixtures_latest_path ?? "");
+          expect(latestPointerPath).toContain(`${path.sep}citations${path.sep}online-fixtures.latest.json`);
+          const latestPointer = JSON.parse(await fs.readFile(latestPointerPath, "utf8"));
+          expect(latestPointer.schema_version).toBe("online_fixtures.latest.v1");
+          expect(latestPointer.path).toBe(onlineFixturesCapturePath);
 
           const blockedUrlsPath = String((out as any).blocked_urls_path ?? "");
           expect(blockedUrlsPath).toContain(`${path.sep}citations${path.sep}blocked-urls.json`);
