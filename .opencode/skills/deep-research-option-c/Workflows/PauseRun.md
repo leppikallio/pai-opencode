@@ -12,7 +12,7 @@ Safely pause a long-running Option C run.
 1. Pause:
 
 ```bash
-bun "Tools/deep-research-option-c.ts" pause --manifest "<manifest_abs>" --reason "operator pause"
+bun "pai-tools/deep-research-option-c.ts" pause --manifest "<manifest_abs>" --reason "operator pause"
 ```
 
 2. Confirm checkpoint artifact exists under run logs and includes restart guidance.

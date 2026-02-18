@@ -22,7 +22,7 @@ If args are invalid, print usage + what is wrong and stop.
 Use the Option C operator CLI as the implementation surface:
 
 ```bash
-bun "Tools/deep-research-option-c.ts" <command> [...flags]
+bun "pai-tools/deep-research-option-c.ts" <command> [...flags]
 ```
 
 ### Commands
@@ -95,9 +95,9 @@ Default minimal perspective payload (single perspective, id `p1`):
 ## A) plan mode (offline)
 
 1. Run:
-   - `bun "Tools/deep-research-option-c.ts" init "<query>" --sensitivity no_web`
+   - `bun "pai-tools/deep-research-option-c.ts" init "<query>" --sensitivity no_web`
 2. Optionally run:
-   - `bun "Tools/deep-research-option-c.ts" tick --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: plan tick" --driver fixture`
+   - `bun "pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: plan tick" --driver fixture`
 3. Print required final contract fields and stop.
 
 ---
@@ -105,11 +105,11 @@ Default minimal perspective payload (single perspective, id `p1`):
 ## B) fixture mode (offline)
 
 1. Run init:
-   - `bun "Tools/deep-research-option-c.ts" init "<query>" --sensitivity no_web`
+   - `bun "pai-tools/deep-research-option-c.ts" init "<query>" --sensitivity no_web`
 2. Loop tick:
-   - `bun "Tools/deep-research-option-c.ts" tick --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: fixture tick" --driver fixture`
+   - `bun "pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: fixture tick" --driver fixture`
 3. If blocked, run:
-   - `bun "Tools/deep-research-option-c.ts" triage --manifest "<manifest_path>"`
+   - `bun "pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_path>"`
 4. Print required final contract fields and stop.
 
 ---
@@ -117,9 +117,9 @@ Default minimal perspective payload (single perspective, id `p1`):
 ## C) live mode (WS1 live path)
 
 1. Run init:
-   - `bun "Tools/deep-research-option-c.ts" init "<query>"`
+   - `bun "pai-tools/deep-research-option-c.ts" init "<query>"`
 2. Run interactive live loop (operator-input driver):
-    - `bun "Tools/deep-research-option-c.ts" run --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: live run" --driver live`
+     - `bun "pai-tools/deep-research-option-c.ts" run --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: live run" --driver live`
    - The CLI will write:
      - `operator/prompts/<stage>/<perspective_id>.md`
      - `operator/drafts/<stage>/<perspective_id>.md`

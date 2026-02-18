@@ -12,7 +12,7 @@ Resume a paused Option C run and restore watchdog timing semantics.
 1. Resume:
 
 ```bash
-bun "Tools/deep-research-option-c.ts" resume --manifest "<manifest_abs>" --reason "operator resume"
+bun "pai-tools/deep-research-option-c.ts" resume --manifest "<manifest_abs>" --reason "operator resume"
 ```
 
 2. Verify run can continue with normal tick flow.
