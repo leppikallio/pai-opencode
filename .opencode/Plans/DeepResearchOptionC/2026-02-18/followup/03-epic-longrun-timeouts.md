@@ -1,6 +1,6 @@
 # Epic E3 — 1h+ long-run timeout semantics
 
-Status: TODO
+Status: DONE
 
 ## Context links (source reviews)
 - Engineer: `../engineer-review-raw-2.md` (see long-run strategy + watchdog guidance)
@@ -39,6 +39,7 @@ Include:
 
 Acceptance:
 - Policy doc exists and is linked from this epic.
+- Policy: `./E3-timeout-policy.md`
 
 ### E3-T1 — Implement chosen semantics
 
@@ -90,12 +91,12 @@ Acceptance:
 
 | Task | Status | Owner | PR/Commit | Evidence |
 |---|---|---|---|---|
-| E3-T0 Policy doc | TODO |  |  |  |
-| E3-T1 Implementation | TODO |  |  |  |
-| E3-T2 Progress emission | TODO |  |  |  |
-| E3-T3 Tests | TODO |  |  |  |
-| Architect PASS | TODO |  |  |  |
-| QA PASS | TODO |  |  |  |
+| E3-T0 Policy doc | DONE | Marvin | `96dfd5a` | `followup/E3-timeout-policy.md` |
+| E3-T1 Implementation | DONE | Marvin | `96dfd5a` | heartbeat watchdog + stage heartbeat schema/write support |
+| E3-T2 Progress emission | DONE | Marvin | `96dfd5a` | progress writes in live/post-pivot/post-summaries orchestrators |
+| E3-T3 Tests | DONE | Marvin | `96dfd5a` | watchdog heartbeat/no-progress tests + full `.opencode/tests` pass |
+| Architect PASS | DONE | Marvin | `d2dd71e` | Heartbeat timestamps are observability only (not digest inputs); stage transition logic remains deterministic. |
+| QA PASS | DONE | Marvin | `96dfd5a` | `bun test ./.opencode/tests`, `bun Tools/Precommit.ts` |
 
 ## Validator gates
 
