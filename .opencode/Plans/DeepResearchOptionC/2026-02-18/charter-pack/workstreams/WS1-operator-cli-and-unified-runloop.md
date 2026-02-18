@@ -15,7 +15,7 @@ This workstream is the foundation for running M2/M3 evidence runs repeatedly and
 
 1) Implement a single CLI entrypoint:
 
-- `Tools/deep-research-option-c.ts`
+- `.opencode/pai-tools/deep-research-option-c.ts`
 
 With commands:
 
@@ -34,7 +34,7 @@ With commands:
 
 ## Deliverables (files)
 
-- `Tools/deep-research-option-c.ts` (new)
+- `.opencode/pai-tools/deep-research-option-c.ts`
 - `Tools/lib/deep_research_option_c_cli/*` (optional helper modules, keep minimal)
 - `.opencode/commands/deep-research.md` updates:
   - remove env-var setup steps

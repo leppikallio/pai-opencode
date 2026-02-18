@@ -5,9 +5,9 @@ Date: 2026-02-18
 This directory contains **orchestration-ready planning artifacts** derived from (but not modifying) the authoritative deep reviews:
 
 - Architect review (rubric + risks + readiness criteria):
-  - `../architect-review-raw.md`
+  - `../architect-review-raw-2.md`
 - Engineer review (practical gaps + operator UX + acceptance criteria):
-  - `../engineer-review-raw.md`
+  - `../engineer-review-raw-2.md`
 
 ## Purpose
 

@@ -54,13 +54,13 @@ Run doc validation:
 
 | Task | Status | Owner | PR/Commit | Evidence |
 |---|---|---|---|---|
-| E8-T0 Drift inventory | TODO |  |  |  |
-| E8-T1 WS1 updates | TODO |  |  |  |
-| E8-T2 Readiness gates updates | TODO |  |  |  |
-| E8-T3 Workstream statuses | TODO |  |  |  |
-| E8-T4 Validation | TODO |  |  |  |
-| Architect PASS | TODO |  |  |  |
-| QA PASS | TODO |  |  |  |
+| E8-T0 Drift inventory | DONE | Marvin | `0a9e359` | `followup/E8-drift-inventory.md` |
+| E8-T1 WS1 updates | DONE | Marvin | `0a9e359` | `charter-pack/workstreams/WS1-operator-cli-and-unified-runloop.md` |
+| E8-T2 Readiness gates updates | DONE | Marvin | `0a9e359` | `charter-pack/01-readiness-gates.md` |
+| E8-T3 Workstream statuses | DONE | Marvin | `0a9e359` | `charter-pack/README.md` |
+| E8-T4 Validation | DONE | Marvin | `0a9e359` | Dry-run completed; installer ended with `Done.` and verification steps remained configured (`ScanBrokenRefs`, `ValidateSkillSystemDocs`) |
+| Architect PASS | DONE | Marvin | `a476588` | Charter pack updates remove drift without changing runtime invariants; readiness gates wording matches current stage machine. |
+| QA PASS | DONE | Marvin | `a476588` | `bun Tools/Install.ts --target "/Users/zuul/.config/opencode" --non-interactive --dry-run` completed and would run ScanBrokenRefs + ValidateSkillSystemDocs. |
 
 ## Validator gates
 
