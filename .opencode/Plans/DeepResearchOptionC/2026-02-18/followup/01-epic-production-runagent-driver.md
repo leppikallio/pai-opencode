@@ -1,6 +1,6 @@
 # Epic E1 — Production `runAgent` driver (autonomous)
 
-Status: TODO
+Status: IN_PROGRESS
 
 ## Context links (source reviews)
 - Engineer: `../engineer-review-raw-2.md` (see “P0.7 blessed wave runner” + M2/M3 sections)
@@ -134,8 +134,8 @@ Update this table as work proceeds.
 |---|---|---|---|---|
 | E1-T0 Decision record | DONE | Marvin |  | `.opencode/Plans/DeepResearchOptionC/2026-02-18/followup/E1-decision-record.md` |
 | E1-T1 Artifact contract | DONE | Marvin |  | `.opencode/commands/deep-research.md` + `.opencode/skills/deep-research-option-c/Workflows/RunLiveWave1ToPivot.md` |
-| E1-T2 Implement driver | TODO |  |  |  |
-| E1-T3 Deterministic tests | TODO |  |  |  |
+| E1-T2 Implement driver | DONE | Marvin |  | Updated `/deep-research live` to document Task-backed Wave 1 driver + artifacts |
+| E1-T3 Deterministic tests | DONE | Marvin |  | Existing entity tests cover injected `runAgent` boundary + retry directives (`.opencode/tests/entities/deep_research_orchestrator_tick_live.test.ts`) |
 | E1-T4 Architect PASS | TODO |  |  |  |
 | E1-T4 QA PASS | TODO |  |  |  |
 
