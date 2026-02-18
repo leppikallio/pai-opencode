@@ -120,15 +120,15 @@ Add entity tests under `.opencode/tests/entities/`:
 
 | Task | Status | Owner | PR/Commit | Evidence |
 |---|---|---|---|---|
-| E2-T0 Run-handle resolver | TODO |  |  |  |
-| E2-T1 Optional gates | TODO |  |  |  |
-| E2-T2 `--until` | TODO |  |  |  |
-| E2-T3 `cancel` | TODO |  |  |  |
-| E2-T4 Auto-triage | TODO |  |  |  |
-| E2-T5 Inspect enrich | TODO |  |  |  |
-| E2-T6 Tests | TODO |  |  |  |
-| Architect PASS | TODO |  |  |  |
-| QA PASS | TODO |  |  |  |
+| E2-T0 Run-handle resolver | DONE | Marvin |  | CLI now resolves `--run-id/--run-root/--manifest` via shared run-handle helper |
+| E2-T1 Optional gates | DONE | Marvin |  | `tick`/`run` accept omitted `--gates` and derive from manifest safely |
+| E2-T2 `--until` | DONE | Marvin |  | Added `run --until <stage>` boundary stop with contract output |
+| E2-T3 `cancel` | DONE | Marvin |  | Added `cancel` command, manifest status mutation, cancel checkpoint artifact |
+| E2-T4 Auto-triage | DONE | Marvin |  | `tick`/`run` failures now print compact auto-triage blocker summary |
+| E2-T5 Inspect enrich | DONE | Marvin |  | `inspect` now surfaces blocked URLs, retry directives, latest fixtures pointer |
+| E2-T6 Tests | DONE | Marvin | `231c35a`, `4a7c2d5`, `848edd3` | Entity tests added; full suite passes after `.opencode` deps install + env snapshot fix |
+| Architect PASS | TODO |  |  | Pending Architect validator pass |
+| QA PASS | DONE | Marvin | `848edd3` | `bun test ./.opencode/tests`: 152 pass, 3 skip, 0 fail; `bun Tools/Precommit.ts` PASS |
 
 ## Validator gates
 
