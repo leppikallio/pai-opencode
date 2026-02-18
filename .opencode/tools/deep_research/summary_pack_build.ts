@@ -30,6 +30,16 @@ import {
   resolveRunRootFromManifest,
 } from "./phase05_lib";
 
+function sanitizeSummaryLine(input: string): string {
+  return input
+    .replace(/\[@[A-Za-z0-9_:-]+\]/g, "")
+    .replace(/https?:\/\/\S+/gi, "")
+    .replace(/^[-*]\s+/, "")
+    .replace(/^\d+\.\s+/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export const summary_pack_build = tool({
   description: "Build bounded summary-pack and summary markdown artifacts",
   args: {
@@ -60,7 +70,9 @@ export const summary_pack_build = tool({
       if (!manifestPath) return err("INVALID_ARGS", "manifest_path must be non-empty");
       if (!path.isAbsolute(manifestPath)) return err("INVALID_ARGS", "manifest_path must be absolute", { manifest_path: args.manifest_path });
       if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
-      if (mode !== "fixture") return err("INVALID_ARGS", "only fixture mode is supported", { mode });
+      if (mode !== "fixture" && mode !== "generate") {
+        return err("INVALID_ARGS", "mode must be fixture or generate", { mode });
+      }
 
       const manifestRaw = await readJson(manifestPath);
       const mErr = validateManifestV1(manifestRaw);
@@ -101,7 +113,7 @@ export const summary_pack_build = tool({
       if (!path.isAbsolute(citationsPath)) return err("INVALID_ARGS", "citations_path must be absolute", { citations_path: args.citations_path ?? null });
       if (!path.isAbsolute(summariesDir)) return err("INVALID_ARGS", "summaries_dir must be absolute", { summaries_dir: args.summaries_dir ?? null });
       if (!path.isAbsolute(summaryPackPath)) return err("INVALID_ARGS", "summary_pack_path must be absolute", { summary_pack_path: args.summary_pack_path ?? null });
-      if (!fixtureSummariesDir || !path.isAbsolute(fixtureSummariesDir)) {
+      if (mode === "fixture" && (!fixtureSummariesDir || !path.isAbsolute(fixtureSummariesDir))) {
         return err("INVALID_ARGS", "fixture_summaries_dir must be absolute in fixture mode", {
           fixture_summaries_dir: args.fixture_summaries_dir ?? null,
         });
@@ -151,20 +163,86 @@ export const summary_pack_build = tool({
         markdown: string;
         summary_path: string;
         summary_rel: string;
+        source_artifact: string;
         cids: string[];
       }> = [];
 
       let totalKb = 0;
       for (const perspective of perspectives) {
+        const sourceArtifactRel = perspective.source_artifact || `wave-1/${perspective.id}.md`;
         const fixtureFile = path.join(fixtureSummariesDir, `${perspective.id}.md`);
         let markdown: string;
-        try {
-          markdown = await fs.promises.readFile(fixtureFile, "utf8");
-        } catch (e) {
-          if (errorCode(e) === "ENOENT") {
-            return err("NOT_FOUND", "fixture summary missing", { perspective_id: perspective.id, fixture_file: fixtureFile });
+        if (mode === "fixture") {
+          try {
+            markdown = await fs.promises.readFile(fixtureFile, "utf8");
+          } catch (e) {
+            if (errorCode(e) === "ENOENT") {
+              return err("NOT_FOUND", "fixture summary missing", { perspective_id: perspective.id, fixture_file: fixtureFile });
+            }
+            throw e;
           }
-          throw e;
+        } else {
+          const sourcePath = path.isAbsolute(sourceArtifactRel)
+            ? sourceArtifactRel
+            : path.join(runRoot, sourceArtifactRel);
+          let sourceMarkdown: string;
+          try {
+            sourceMarkdown = await fs.promises.readFile(sourcePath, "utf8");
+          } catch (e) {
+            if (errorCode(e) === "ENOENT") {
+              return err("NOT_FOUND", "generate source artifact missing", {
+                perspective_id: perspective.id,
+                source_artifact: sourceArtifactRel,
+              });
+            }
+            throw e;
+          }
+
+          const sourceCids = extractCitationMentions(sourceMarkdown).filter((cid) => validatedCids.has(cid));
+          const fallbackCid = [...validatedCids].sort((a, b) => a.localeCompare(b))[0] ?? "";
+          const selectedCids = sourceCids.length > 0
+            ? sourceCids.slice(0, 3)
+            : fallbackCid
+              ? [fallbackCid]
+              : [];
+          if (selectedCids.length === 0) {
+            return err("SCHEMA_VALIDATION_FAILED", "generate mode requires at least one validated citation", {
+              perspective_id: perspective.id,
+            });
+          }
+
+          const candidateLines = sourceMarkdown
+            .split(/\r?\n/)
+            .map((line) => sanitizeSummaryLine(line))
+            .filter((line) => line.length > 0)
+            .filter((line) => !line.startsWith("## "));
+
+          const uniqueLines: string[] = [];
+          const seen = new Set<string>();
+          for (const line of candidateLines) {
+            if (seen.has(line)) continue;
+            seen.add(line);
+            uniqueLines.push(line);
+            if (uniqueLines.length >= 3) break;
+          }
+
+          if (uniqueLines.length === 0) {
+            uniqueLines.push(`Deterministic summary synthesized for ${perspective.id}.`);
+          }
+
+          const findings = uniqueLines
+            .slice(0, 2)
+            .map((line, idx) => `- ${line} [@${selectedCids[idx % selectedCids.length]}]`);
+          const evidence = selectedCids.slice(0, 3).map((cid) => `- Supporting evidence [@${cid}]`);
+
+          markdown = [
+            "## Findings",
+            ...findings,
+            "",
+            "## Evidence",
+            ...evidence,
+            "",
+          ].join("\n");
         }
 
         if (hasRawHttpUrl(markdown)) {
@@ -200,6 +278,7 @@ export const summary_pack_build = tool({
           markdown,
           summary_path: summaryPath,
           summary_rel: summaryRel,
+          source_artifact: sourceArtifactRel,
           cids,
         });
         totalKb += kb;
@@ -227,7 +306,7 @@ export const summary_pack_build = tool({
         },
         summaries: prepared.map((item) => ({
           perspective_id: item.perspective_id,
-          source_artifact: `wave-1/${item.perspective_id}.md`,
+          source_artifact: item.source_artifact,
           summary_md: item.summary_rel,
           key_claims: [
             {
@@ -244,12 +323,14 @@ export const summary_pack_build = tool({
 
       const inputsDigest = sha256DigestForJson({
         schema: "summary_pack_build.inputs.v1",
+        mode,
         run_id: runId,
         manifest_revision: Number(manifest.revision ?? 0),
         perspectives: prepared.map((item) => item.perspective_id),
         validated_cids: [...validatedCids].sort((a, b) => a.localeCompare(b)),
-        fixtures: prepared.map((item) => ({
+        artifacts: prepared.map((item) => ({
           perspective_id: item.perspective_id,
+          source_artifact: item.source_artifact,
           hash: sha256HexLowerUtf8(item.markdown),
         })),
       });

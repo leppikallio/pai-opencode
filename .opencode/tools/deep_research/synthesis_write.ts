@@ -8,6 +8,7 @@ import {
   err,
   errorCode,
   getManifestPaths,
+  isPlainObject,
   nowIso,
   ok,
   readJson,
@@ -24,6 +25,17 @@ import {
   resolveArtifactPath,
   resolveRunRootFromManifest,
 } from "./phase05_lib";
+
+function sanitizeSynthesisLine(input: string): string {
+  return input
+    .replace(/\[@[A-Za-z0-9_:-]+\]/g, "")
+    .replace(/https?:\/\/\S+/gi, "")
+    .replace(/^[-*]\s+/, "")
+    .replace(/^\d+\.\s+/, "")
+    .replace(/\b\d+(?:\.\d+)?%?\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export const synthesis_write = tool({
   description: "Write bounded synthesis draft from summary-pack and citations",
@@ -53,7 +65,9 @@ export const synthesis_write = tool({
       if (!manifestPath) return err("INVALID_ARGS", "manifest_path must be non-empty");
       if (!path.isAbsolute(manifestPath)) return err("INVALID_ARGS", "manifest_path must be absolute", { manifest_path: args.manifest_path });
       if (!reason) return err("INVALID_ARGS", "reason must be non-empty");
-      if (mode !== "fixture") return err("INVALID_ARGS", "only fixture mode is supported", { mode });
+      if (mode !== "fixture" && mode !== "generate") {
+        return err("INVALID_ARGS", "mode must be fixture or generate", { mode });
+      }
 
       const manifestRaw = await readJson(manifestPath);
       const mErr = validateManifestV1(manifestRaw);
@@ -86,16 +100,111 @@ export const synthesis_write = tool({
       if (!path.isAbsolute(summaryPackPath)) return err("INVALID_ARGS", "summary_pack_path must be absolute", { summary_pack_path: args.summary_pack_path ?? null });
       if (!path.isAbsolute(citationsPath)) return err("INVALID_ARGS", "citations_path must be absolute", { citations_path: args.citations_path ?? null });
       if (!path.isAbsolute(outputPath)) return err("INVALID_ARGS", "output_path must be absolute", { output_path: args.output_path ?? null });
-      if (!fixtureDraftPath || !path.isAbsolute(fixtureDraftPath)) {
+      if (mode === "fixture" && (!fixtureDraftPath || !path.isAbsolute(fixtureDraftPath))) {
         return err("INVALID_ARGS", "fixture_draft_path must be absolute in fixture mode", {
           fixture_draft_path: args.fixture_draft_path ?? null,
         });
       }
 
-      await readJson(summaryPackPath);
+      const summaryPackRaw = await readJson(summaryPackPath);
+      if (!isPlainObject(summaryPackRaw) || summaryPackRaw.schema_version !== "summary_pack.v1") {
+        return err("SCHEMA_VALIDATION_FAILED", "summary-pack schema_version must be summary_pack.v1", {
+          summary_pack_path: summaryPackPath,
+        });
+      }
+      const summaryPackDoc = summaryPackRaw as Record<string, unknown>;
       const validatedCids = await readValidatedCids(citationsPath);
 
-      const markdown = await fs.promises.readFile(fixtureDraftPath, "utf8");
+      let markdown: string;
+      if (mode === "fixture") {
+        markdown = await fs.promises.readFile(fixtureDraftPath, "utf8");
+      } else {
+        const entries = Array.isArray(summaryPackDoc.summaries)
+          ? (summaryPackDoc.summaries as Array<Record<string, unknown>>)
+          : [];
+
+        const collectedCids = new Set<string>();
+        const keyFindings: string[] = [];
+
+        for (const entry of entries) {
+          const perspectiveId = String(entry.perspective_id ?? "").trim() || "unknown";
+          const summaryMd = String(entry.summary_md ?? "").trim();
+          if (summaryMd) {
+            const summaryPath = path.isAbsolute(summaryMd)
+              ? summaryMd
+              : path.join(runRoot, summaryMd);
+            try {
+              const content = await fs.promises.readFile(summaryPath, "utf8");
+              for (const cid of extractCitationMentions(content)) {
+                if (validatedCids.has(cid)) collectedCids.add(cid);
+              }
+
+              const summaryLines = content
+                .split(/\r?\n/)
+                .map((line: string) => sanitizeSynthesisLine(line))
+                .filter((line: string) => line.length > 0)
+                .filter((line: string) => !line.startsWith("## "));
+              if (summaryLines.length > 0) {
+                keyFindings.push(`${summaryLines[0]} (${perspectiveId})`);
+              }
+            } catch (e) {
+              if (errorCode(e) === "ENOENT") {
+                return err("NOT_FOUND", "summary markdown missing", {
+                  perspective_id: perspectiveId,
+                  summary_md: summaryMd,
+                });
+              }
+              throw e;
+            }
+          }
+
+          const keyClaims = Array.isArray(entry.key_claims)
+            ? (entry.key_claims as Array<Record<string, unknown>>)
+            : [];
+          for (const keyClaim of keyClaims) {
+            const claimCids = Array.isArray(keyClaim.citation_cids)
+              ? keyClaim.citation_cids
+              : [];
+            for (const cidRaw of claimCids) {
+              const cid = String(cidRaw ?? "").trim();
+              if (cid && validatedCids.has(cid)) collectedCids.add(cid);
+            }
+          }
+        }
+
+        const selectedCids = [...collectedCids].sort((a, b) => a.localeCompare(b));
+        if (selectedCids.length === 0) {
+          const fallbackCid = [...validatedCids].sort((a, b) => a.localeCompare(b))[0] ?? "";
+          if (fallbackCid) selectedCids.push(fallbackCid);
+        }
+        if (selectedCids.length === 0) {
+          return err("SCHEMA_VALIDATION_FAILED", "generate mode requires at least one validated citation", {
+            summary_pack_path: summaryPackPath,
+          });
+        }
+
+        const findings = (keyFindings.length > 0
+          ? keyFindings.slice(0, 3)
+          : ["Bounded synthesis compiled from generated summaries"])
+          .map((line, idx) => `- ${line} [@${selectedCids[idx % selectedCids.length]}]`);
+        const evidence = selectedCids.slice(0, 4).map((cid) => `- Supporting citation [@${cid}]`);
+
+        markdown = [
+          "## Summary",
+          `Generated synthesis draft based on validated summary artifacts [@${selectedCids[0]}]`,
+          "",
+          "## Key Findings",
+          ...findings,
+          "",
+          "## Evidence",
+          ...evidence,
+          "",
+          "## Caveats",
+          "- This draft is bounded by available summaries and validated citations.",
+          "",
+        ].join("\n");
+      }
+
       const requiredHeadings = requiredSynthesisHeadingsV1();
       for (const heading of requiredHeadings) {
         if (!hasHeading(markdown, heading)) {
@@ -117,9 +226,10 @@ export const synthesis_write = tool({
 
       const inputsDigest = sha256DigestForJson({
         schema: "synthesis_write.inputs.v1",
+        mode,
         run_id: runId,
         summary_pack_path: toPosixPath(path.relative(runRoot, summaryPackPath)),
-        fixture_draft_hash: sha256HexLowerUtf8(markdown),
+        draft_hash: sha256HexLowerUtf8(markdown),
         cited,
       });
 

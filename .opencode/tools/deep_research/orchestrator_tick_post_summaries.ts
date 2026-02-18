@@ -545,22 +545,27 @@ export async function orchestrator_tick_post_summaries(
 
   if (from === "summaries") {
     const fixtureSummariesDir = args.fixture_summaries_dir?.trim() ?? "";
-    if (!fixtureSummariesDir || !path.isAbsolute(fixtureSummariesDir)) {
+    const summaryMode: "fixture" | "generate" = fixtureSummariesDir ? "fixture" : "generate";
+    if (summaryMode === "fixture" && !path.isAbsolute(fixtureSummariesDir)) {
       return fail("INVALID_ARGS", "fixture_summaries_dir must be absolute in summaries stage", {
         fixture_summaries_dir: args.fixture_summaries_dir ?? null,
         from,
       });
     }
 
+    const summaryPayload: Record<string, unknown> = {
+      manifest_path: manifestPath,
+      mode: summaryMode,
+      reason,
+    };
+    if (summaryMode === "fixture") {
+      summaryPayload.fixture_summaries_dir = fixtureSummariesDir;
+    }
+
     const summaryPack = await executeToolJson({
       name: "SUMMARY_PACK_BUILD",
       tool: summaryPackBuildTool,
-      payload: {
-        manifest_path: manifestPath,
-        mode: "fixture",
-        fixture_summaries_dir: fixtureSummariesDir,
-        reason,
-      },
+      payload: summaryPayload,
       tool_context: args.tool_context,
     });
     if (!summaryPack.ok) {
@@ -651,23 +656,28 @@ export async function orchestrator_tick_post_summaries(
 
   if (from === "synthesis") {
     const fixtureDraftPath = args.fixture_draft_path?.trim() ?? "";
-    if (!fixtureDraftPath || !path.isAbsolute(fixtureDraftPath)) {
+    const synthesisMode: "fixture" | "generate" = fixtureDraftPath ? "fixture" : "generate";
+    if (synthesisMode === "fixture" && !path.isAbsolute(fixtureDraftPath)) {
       return fail("INVALID_ARGS", "fixture_draft_path must be absolute in synthesis stage", {
         fixture_draft_path: args.fixture_draft_path ?? null,
         from,
       });
     }
 
+    const synthesisPayload: Record<string, unknown> = {
+      manifest_path: manifestPath,
+      mode: synthesisMode,
+      output_path: finalSynthesisPath,
+      reason,
+    };
+    if (synthesisMode === "fixture") {
+      synthesisPayload.fixture_draft_path = fixtureDraftPath;
+    }
+
     const writeSynthesis = await executeToolJson({
       name: "SYNTHESIS_WRITE",
       tool: synthesisWriteTool,
-      payload: {
-        manifest_path: manifestPath,
-        mode: "fixture",
-        fixture_draft_path: fixtureDraftPath,
-        output_path: finalSynthesisPath,
-        reason,
-      },
+      payload: synthesisPayload,
       tool_context: args.tool_context,
     });
     if (!writeSynthesis.ok) {
@@ -701,7 +711,8 @@ export async function orchestrator_tick_post_summaries(
   }
 
   const fixtureBundleDir = args.fixture_bundle_dir?.trim() ?? "";
-  if (!fixtureBundleDir || !path.isAbsolute(fixtureBundleDir)) {
+  const reviewMode: "fixture" | "generate" = fixtureBundleDir ? "fixture" : "generate";
+  if (reviewMode === "fixture" && !path.isAbsolute(fixtureBundleDir)) {
     return fail("INVALID_ARGS", "fixture_bundle_dir must be absolute in review stage", {
       fixture_bundle_dir: args.fixture_bundle_dir ?? null,
       from,
@@ -716,8 +727,8 @@ export async function orchestrator_tick_post_summaries(
     payload: {
       manifest_path: manifestPath,
       draft_path: finalSynthesisPath,
-      mode: "fixture",
-      fixture_bundle_dir: fixtureBundleDir,
+      mode: reviewMode,
+      ...(reviewMode === "fixture" ? { fixture_bundle_dir: fixtureBundleDir } : {}),
       reason,
     },
     tool_context: args.tool_context,
