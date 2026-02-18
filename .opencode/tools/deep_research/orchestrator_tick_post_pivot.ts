@@ -1196,6 +1196,13 @@ export async function orchestrator_tick_post_pivot(
       stage: from,
     });
   }
+  if (status === "cancelled") {
+    return fail("CANCELLED", "run is cancelled", {
+      manifest_path: manifestPath,
+      run_id: runId,
+      stage: from,
+    });
+  }
   if (!runRoot || !path.isAbsolute(runRoot)) {
     return fail("INVALID_STATE", "manifest.artifacts.root invalid", {
       manifest_path: manifestPath,

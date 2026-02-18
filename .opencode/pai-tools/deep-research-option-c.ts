@@ -55,20 +55,32 @@ type InitCliArgs = {
   writePerspectives: boolean;
 };
 
-type TickCliArgs = {
-  manifest: string;
-  gates: string;
+type RunHandleCliArgs = {
+  runId?: string;
+  runRoot?: string;
+  manifest?: string;
+  gates?: string;
+};
+
+type TickCliArgs = RunHandleCliArgs & {
   reason: string;
   driver: "fixture" | "live";
 };
 
 type RunCliArgs = TickCliArgs & {
   maxTicks: number;
+  until?: string;
 };
 
-type PauseResumeCliArgs = {
-  manifest: string;
+type PauseResumeCliArgs = RunHandleCliArgs & {
   reason: string;
+};
+
+type RunHandleResolution = {
+  runRoot: string;
+  manifestPath: string;
+  gatesPath: string;
+  manifest: Record<string, unknown>;
 };
 
 type ManifestSummary = {
@@ -368,6 +380,85 @@ async function resolveGatesPathFromManifest(manifest: Record<string, unknown>): 
   return safeResolveManifestPath(runRoot, gatesRel, "manifest.artifacts.paths.gates_file");
 }
 
+function normalizeOptional(value: string | undefined): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function validateRunId(runId: string): void {
+  if (!runId) throw new Error("--run-id must be non-empty");
+  if (path.isAbsolute(runId)) throw new Error("--run-id must not be an absolute path");
+  if (runId === "." || runId === "..") throw new Error("--run-id must not be '.' or '..'");
+  if (runId.includes("/") || runId.includes("\\")) throw new Error("--run-id must not contain path separators");
+  if (runId.includes("..")) throw new Error("--run-id must not contain '..'");
+}
+
+function assertWithinRoot(rootAbs: string, candidateAbs: string, field: string): void {
+  const rel = path.relative(rootAbs, candidateAbs);
+  if (rel === "" || rel === ".") return;
+  if (rel.startsWith(`..${path.sep}`) || rel === ".." || path.isAbsolute(rel)) {
+    throw new Error(`${field} resolves outside runs root`);
+  }
+}
+
+async function resolveRunHandle(args: RunHandleCliArgs): Promise<RunHandleResolution> {
+  const manifestArg = normalizeOptional(args.manifest);
+  const runRootArg = normalizeOptional(args.runRoot);
+  const runIdArg = normalizeOptional(args.runId);
+
+  const selectors = [manifestArg, runRootArg, runIdArg].filter((value) => typeof value === "string").length;
+  if (selectors === 0) {
+    throw new Error("one of --manifest, --run-root, or --run-id is required");
+  }
+  if (selectors > 1) {
+    throw new Error("provide only one of --manifest, --run-root, or --run-id");
+  }
+
+  let manifestPath: string;
+  if (manifestArg) {
+    manifestPath = requireAbsolutePath(manifestArg, "--manifest");
+  } else if (runRootArg) {
+    const runRootAbs = requireAbsolutePath(runRootArg, "--run-root");
+    manifestPath = path.join(runRootAbs, "manifest.json");
+  } else {
+    validateRunId(runIdArg as string);
+    const flags = resolveDeepResearchFlagsV1();
+    const runsRoot = requireAbsolutePath(flags.runsRoot, "PAI_DR_RUNS_ROOT");
+    const runRootFromId = path.resolve(runsRoot, runIdArg as string);
+    assertWithinRoot(runsRoot, runRootFromId, "--run-id");
+    manifestPath = path.join(runRootFromId, "manifest.json");
+  }
+
+  const manifest = await readJsonObject(manifestPath);
+  const runRoot = resolveRunRoot(manifest);
+  const gatesDerived = await resolveGatesPathFromManifest(manifest);
+  const gatesArg = normalizeOptional(args.gates);
+  const gatesPath = gatesArg ? requireAbsolutePath(gatesArg, "--gates") : gatesDerived;
+
+  if (runRootArg) {
+    const expected = path.resolve(requireAbsolutePath(runRootArg, "--run-root"));
+    const actual = path.resolve(runRoot);
+    if (expected !== actual) {
+      throw new Error(`--run-root mismatch: manifest resolves root ${actual}`);
+    }
+  }
+
+  if (runIdArg) {
+    const manifestRunId = String(manifest.run_id ?? "").trim();
+    if (manifestRunId && manifestRunId !== runIdArg) {
+      throw new Error(`--run-id mismatch: manifest run_id is ${manifestRunId}`);
+    }
+  }
+
+  return {
+    runRoot,
+    manifestPath,
+    gatesPath,
+    manifest,
+  };
+}
+
 async function summarizeManifest(manifest: Record<string, unknown>): Promise<ManifestSummary> {
   const stage = asObject(manifest.stage);
   return {
@@ -616,6 +707,141 @@ function triageFromStageAdvanceResult(envelope: ToolEnvelope): TriageBlockers {
   };
 }
 
+function printBlockersSummary(triage: TriageBlockers): void {
+  console.log("blockers.summary:");
+  console.log(`  transition: ${triage.from || "?"} -> ${triage.to || "?"}`);
+
+  if (triage.allowed) {
+    console.log("  status: no transition blockers detected");
+    console.log("  remediation: inspect tick error details for non-stage failures");
+    return;
+  }
+
+  if (triage.errorCode || triage.errorMessage) {
+    console.log(`  error: ${triage.errorCode ?? "UNKNOWN"} ${triage.errorMessage ?? ""}`.trim());
+  }
+
+  if (triage.missingArtifacts.length > 0) {
+    console.log("  missing_artifacts:");
+    for (const item of triage.missingArtifacts) {
+      console.log(`    - ${item.name}${item.path ? ` (${item.path})` : ""}`);
+    }
+  }
+
+  if (triage.blockedGates.length > 0) {
+    console.log("  blocked_gates:");
+    for (const gate of triage.blockedGates) {
+      console.log(`    - ${gate.gate} (status=${gate.status ?? "unknown"})`);
+    }
+  }
+
+  if (triage.failedChecks.length > 0) {
+    console.log("  failed_checks:");
+    for (const check of triage.failedChecks) {
+      console.log(`    - ${check.kind}: ${check.name}`);
+    }
+  }
+
+  console.log("  remediation: run inspect for full guidance and produce required artifacts/gate passes");
+}
+
+async function printAutoTriage(args: { manifestPath: string; gatesPath: string; reason: string }): Promise<void> {
+  try {
+    const dryRun = await stageAdvanceDryRun({
+      manifestPath: args.manifestPath,
+      gatesPath: args.gatesPath,
+      reason: args.reason,
+    });
+    const triage = triageFromStageAdvanceResult(dryRun);
+    printBlockersSummary(triage);
+  } catch (error) {
+    console.log("blockers.summary:");
+    console.log(`  unavailable: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+async function readJsonIfExists(filePath: string): Promise<Record<string, unknown> | null> {
+  try {
+    return await readJsonObject(filePath);
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "ENOENT") return null;
+    throw error;
+  }
+}
+
+async function resolveLatestOnlineFixtures(runRoot: string): Promise<string | null> {
+  const latestPointerPath = await safeResolveManifestPath(
+    runRoot,
+    "citations/online-fixtures.latest.json",
+    "citations.online_fixtures.latest",
+  );
+  const latestPointer = await readJsonIfExists(latestPointerPath);
+  if (latestPointer) {
+    const candidateRaw = String(latestPointer.path ?? latestPointer.latest_path ?? "").trim();
+    if (candidateRaw) {
+      return await safeResolveManifestPath(runRoot, candidateRaw, "citations.online_fixtures.path");
+    }
+    return latestPointerPath;
+  }
+
+  const citationsDir = await safeResolveManifestPath(runRoot, "citations", "citations.dir");
+  let entries: string[] = [];
+  try {
+    entries = await fs.readdir(citationsDir);
+  } catch {
+    return null;
+  }
+  const candidates = entries
+    .filter((entry) => /^online-fixtures\.[^.]+\.json$/u.test(entry))
+    .sort();
+  if (candidates.length === 0) return null;
+  return path.join(citationsDir, candidates[candidates.length - 1]);
+}
+
+async function printInspectOperatorGuidance(runRoot: string): Promise<void> {
+  const blockedUrlsPath = await safeResolveManifestPath(runRoot, "citations/blocked-urls.json", "citations.blocked_urls");
+  const retryDirectivesPath = await safeResolveManifestPath(runRoot, "retry/retry-directives.json", "retry.retry_directives");
+
+  const blockedUrls = await readJsonIfExists(blockedUrlsPath);
+  const retryDirectives = await readJsonIfExists(retryDirectivesPath);
+  const latestOnlineFixturesPath = await resolveLatestOnlineFixtures(runRoot);
+
+  if (blockedUrls) {
+    const items = Array.isArray(blockedUrls.items) ? blockedUrls.items : [];
+    console.log("citations.blocked_urls:");
+    console.log(`  path: ${blockedUrlsPath}`);
+    console.log(`  count: ${items.length}`);
+    for (const raw of items.slice(0, 5)) {
+      const item = asObject(raw);
+      console.log(`  - ${String(item.url ?? item.normalized_url ?? "unknown")}`);
+      console.log(`    action: ${String(item.action ?? "review citation access path")}`);
+    }
+    if (items.length > 0) {
+      console.log("  next: replace blocked URLs or add acceptable sources, then re-run citations stage");
+    }
+  }
+
+  if (retryDirectives) {
+    const directives = Array.isArray(retryDirectives.retry_directives) ? retryDirectives.retry_directives : [];
+    const consumedAt = String(retryDirectives.consumed_at ?? "").trim();
+    console.log("retry.directives:");
+    console.log(`  path: ${retryDirectivesPath}`);
+    console.log(`  count: ${directives.length}`);
+    if (consumedAt) {
+      console.log(`  consumed_at: ${consumedAt}`);
+    } else if (directives.length > 0) {
+      console.log("  next: apply retry directives and run tick again");
+    }
+  }
+
+  if (latestOnlineFixturesPath) {
+    console.log("citations.online_fixtures_latest:");
+    console.log(`  path: ${latestOnlineFixturesPath}`);
+    console.log("  next: use this fixture for deterministic replay/debug");
+  }
+}
+
 async function runInit(args: InitCliArgs): Promise<void> {
   ensureOptionCEnabledForCli();
   const init = await callTool("run_init", run_init as unknown as ToolWithExecute, {
@@ -685,11 +911,12 @@ async function runInit(args: InitCliArgs): Promise<void> {
 
 async function runTick(args: TickCliArgs): Promise<void> {
   ensureOptionCEnabledForCli();
+  const runHandle = await resolveRunHandle(args);
 
   if (args.driver === "fixture") {
     const fixtureResult = await orchestrator_tick_fixture({
-      manifest_path: args.manifest,
-      gates_path: args.gates,
+      manifest_path: runHandle.manifestPath,
+      gates_path: runHandle.gatesPath,
       reason: args.reason,
       fixture_driver: ({ stage, run_root }) => defaultFixtureDriver({ stage, run_root }),
       tool_context: makeToolContext(),
@@ -701,6 +928,11 @@ async function runTick(args: TickCliArgs): Promise<void> {
       console.log(`tick.error.code: ${fixtureResult.error.code}`);
       console.log(`tick.error.message: ${fixtureResult.error.message}`);
       console.log(`tick.error.details: ${JSON.stringify(fixtureResult.error.details ?? {}, null, 2)}`);
+      await printAutoTriage({
+        manifestPath: runHandle.manifestPath,
+        gatesPath: runHandle.gatesPath,
+        reason: `operator-cli tick auto-triage: ${args.reason}`,
+      });
     } else {
       console.log(`tick.driver: fixture`);
       console.log(`tick.ok: true`);
@@ -712,34 +944,34 @@ async function runTick(args: TickCliArgs): Promise<void> {
     const driver = createOperatorInputDriver();
 
     await callTool("watchdog_check", watchdog_check as unknown as ToolWithExecute, {
-      manifest_path: args.manifest,
+      manifest_path: runHandle.manifestPath,
       reason: `${args.reason} [pre_tick]`,
     });
 
-    const manifest = await readJsonObject(args.manifest);
+    const manifest = await readJsonObject(runHandle.manifestPath);
     const summary = await summarizeManifest(manifest);
     const stage = summary.stageCurrent;
 
     let result: OrchestratorTickLiveResult | OrchestratorTickPostPivotResult | OrchestratorTickPostSummariesResult;
     if (stage === "init" || stage === "wave1") {
       result = await orchestrator_tick_live({
-        manifest_path: args.manifest,
-        gates_path: args.gates,
+        manifest_path: runHandle.manifestPath,
+        gates_path: runHandle.gatesPath,
         reason: args.reason,
         drivers: { runAgent: driver },
         tool_context: makeToolContext(),
       });
     } else if (stage === "pivot" || stage === "citations") {
       result = await orchestrator_tick_post_pivot({
-        manifest_path: args.manifest,
-        gates_path: args.gates,
+        manifest_path: runHandle.manifestPath,
+        gates_path: runHandle.gatesPath,
         reason: args.reason,
         tool_context: makeToolContext(),
       });
     } else {
       result = await orchestrator_tick_post_summaries({
-        manifest_path: args.manifest,
-        gates_path: args.gates,
+        manifest_path: runHandle.manifestPath,
+        gates_path: runHandle.gatesPath,
         reason: args.reason,
         tool_context: makeToolContext(),
       });
@@ -751,6 +983,11 @@ async function runTick(args: TickCliArgs): Promise<void> {
       console.log(`tick.error.code: ${result.error.code}`);
       console.log(`tick.error.message: ${result.error.message}`);
       console.log(`tick.error.details: ${JSON.stringify(result.error.details ?? {}, null, 2)}`);
+      await printAutoTriage({
+        manifestPath: runHandle.manifestPath,
+        gatesPath: runHandle.gatesPath,
+        reason: `operator-cli tick auto-triage: ${args.reason}`,
+      });
     } else {
       console.log(`tick.driver: live`);
       console.log(`tick.ok: true`);
@@ -762,44 +999,46 @@ async function runTick(args: TickCliArgs): Promise<void> {
     }
 
     await callTool("watchdog_check", watchdog_check as unknown as ToolWithExecute, {
-      manifest_path: args.manifest,
+      manifest_path: runHandle.manifestPath,
       reason: `${args.reason} [post_tick]`,
     });
   }
 
-  const manifest = await readJsonObject(args.manifest);
+  const manifest = await readJsonObject(runHandle.manifestPath);
   const summary = await summarizeManifest(manifest);
   printContract({
     runId: summary.runId,
     runRoot: summary.runRoot,
-    manifestPath: args.manifest,
+    manifestPath: runHandle.manifestPath,
     gatesPath: summary.gatesPath,
     stageCurrent: summary.stageCurrent,
     status: summary.status,
   });
 }
 
-async function runStatus(manifestPath: string): Promise<void> {
-  const manifest = await readJsonObject(manifestPath);
+async function runStatus(args: RunHandleCliArgs): Promise<void> {
+  const runHandle = await resolveRunHandle(args);
+  const manifest = await readJsonObject(runHandle.manifestPath);
   const summary = await summarizeManifest(manifest);
 
   printContract({
     runId: summary.runId,
     runRoot: summary.runRoot,
-    manifestPath,
+    manifestPath: runHandle.manifestPath,
     gatesPath: summary.gatesPath,
     stageCurrent: summary.stageCurrent,
     status: summary.status,
   });
 }
 
-async function runInspect(manifestPath: string): Promise<void> {
-  const manifest = await readJsonObject(manifestPath);
+async function runInspect(args: RunHandleCliArgs): Promise<void> {
+  const runHandle = await resolveRunHandle(args);
+  const manifest = await readJsonObject(runHandle.manifestPath);
   const summary = await summarizeManifest(manifest);
   const gatesDoc = await readJsonObject(summary.gatesPath);
   const gateStatuses = parseGateStatuses(gatesDoc);
   const dryRun = await stageAdvanceDryRun({
-    manifestPath,
+    manifestPath: runHandle.manifestPath,
     gatesPath: summary.gatesPath,
     reason: "operator-cli inspect: stage-advance dry-run",
   });
@@ -808,7 +1047,7 @@ async function runInspect(manifestPath: string): Promise<void> {
   printContract({
     runId: summary.runId,
     runRoot: summary.runRoot,
-    manifestPath,
+    manifestPath: runHandle.manifestPath,
     gatesPath: summary.gatesPath,
     stageCurrent: summary.stageCurrent,
     status: summary.status,
@@ -822,31 +1061,30 @@ async function runInspect(manifestPath: string): Promise<void> {
   console.log("blockers:");
   if (triage.allowed) {
     console.log(`  - none (next transition allowed: ${triage.from} -> ${triage.to})`);
-    return;
-  }
-
-  if (triage.missingArtifacts.length === 0 && triage.blockedGates.length === 0 && triage.failedChecks.length === 0) {
+  } else if (triage.missingArtifacts.length === 0 && triage.blockedGates.length === 0 && triage.failedChecks.length === 0) {
     console.log(`  - ${triage.errorCode ?? "UNKNOWN"}: ${triage.errorMessage ?? "Unknown blocker"}`);
-    return;
+  } else {
+    for (const item of triage.missingArtifacts) {
+      console.log(`  - missing artifact: ${item.name}${item.path ? ` (${item.path})` : ""}`);
+    }
+    for (const gate of triage.blockedGates) {
+      console.log(`  - blocked gate: ${gate.gate} (status=${gate.status ?? "unknown"})`);
+    }
+    for (const check of triage.failedChecks) {
+      console.log(`  - failed ${check.kind}: ${check.name}`);
+    }
   }
 
-  for (const item of triage.missingArtifacts) {
-    console.log(`  - missing artifact: ${item.name}${item.path ? ` (${item.path})` : ""}`);
-  }
-  for (const gate of triage.blockedGates) {
-    console.log(`  - blocked gate: ${gate.gate} (status=${gate.status ?? "unknown"})`);
-  }
-  for (const check of triage.failedChecks) {
-    console.log(`  - failed ${check.kind}: ${check.name}`);
-  }
+  await printInspectOperatorGuidance(summary.runRoot);
 }
 
-async function runTriage(manifestPath: string): Promise<void> {
-  const manifest = await readJsonObject(manifestPath);
+async function runTriage(args: RunHandleCliArgs): Promise<void> {
+  const runHandle = await resolveRunHandle(args);
+  const manifest = await readJsonObject(runHandle.manifestPath);
   const summary = await summarizeManifest(manifest);
 
   const dryRun = await stageAdvanceDryRun({
-    manifestPath,
+    manifestPath: runHandle.manifestPath,
     gatesPath: summary.gatesPath,
     reason: "operator-cli triage: stage-advance dry-run",
   });
@@ -855,7 +1093,7 @@ async function runTriage(manifestPath: string): Promise<void> {
   printContract({
     runId: summary.runId,
     runRoot: summary.runRoot,
-    manifestPath,
+    manifestPath: runHandle.manifestPath,
     gatesPath: summary.gatesPath,
     stageCurrent: summary.stageCurrent,
     status: summary.status,
@@ -905,12 +1143,13 @@ async function runTriage(manifestPath: string): Promise<void> {
 
 async function runRun(args: RunCliArgs): Promise<void> {
   ensureOptionCEnabledForCli();
+  const runHandle = await resolveRunHandle(args);
 
   const liveDriver = args.driver === "live" ? createOperatorInputDriver() : null;
 
   for (let i = 1; i <= args.maxTicks; i += 1) {
     const pre = (await callTool("watchdog_check", watchdog_check as unknown as ToolWithExecute, {
-      manifest_path: args.manifest,
+      manifest_path: runHandle.manifestPath,
       reason: `${args.reason} [pre_tick_${i}]`,
     })) as ToolEnvelope & { timed_out?: boolean; checkpoint_path?: string };
     if (pre.timed_out === true) {
@@ -921,8 +1160,35 @@ async function runRun(args: RunCliArgs): Promise<void> {
       return;
     }
 
-    const manifest = await readJsonObject(args.manifest);
+    const manifest = await readJsonObject(runHandle.manifestPath);
     const summary = await summarizeManifest(manifest);
+
+    if (summary.status === "completed" || summary.status === "failed" || summary.status === "cancelled") {
+      console.log("run.ok: true");
+      printContract({
+        runId: summary.runId,
+        runRoot: summary.runRoot,
+        manifestPath: runHandle.manifestPath,
+        gatesPath: summary.gatesPath,
+        stageCurrent: summary.stageCurrent,
+        status: summary.status,
+      });
+      return;
+    }
+
+    if (args.until && summary.stageCurrent === args.until) {
+      console.log("run.ok: true");
+      console.log(`run.until_reached: ${args.until}`);
+      printContract({
+        runId: summary.runId,
+        runRoot: summary.runRoot,
+        manifestPath: runHandle.manifestPath,
+        gatesPath: summary.gatesPath,
+        stageCurrent: summary.stageCurrent,
+        status: summary.status,
+      });
+      return;
+    }
 
     if (summary.status === "paused") {
       console.log("run.ok: false");
@@ -931,7 +1197,7 @@ async function runRun(args: RunCliArgs): Promise<void> {
       printContract({
         runId: summary.runId,
         runRoot: summary.runRoot,
-        manifestPath: args.manifest,
+        manifestPath: runHandle.manifestPath,
         gatesPath: summary.gatesPath,
         stageCurrent: summary.stageCurrent,
         status: summary.status,
@@ -946,8 +1212,8 @@ async function runRun(args: RunCliArgs): Promise<void> {
       | OrchestratorTickPostSummariesResult;
     if (args.driver === "fixture") {
       result = await orchestrator_tick_fixture({
-        manifest_path: args.manifest,
-        gates_path: args.gates,
+        manifest_path: runHandle.manifestPath,
+        gates_path: runHandle.gatesPath,
         reason: `${args.reason} [tick_${i}]`,
         fixture_driver: ({ stage, run_root }) => defaultFixtureDriver({ stage, run_root }),
         tool_context: makeToolContext(),
@@ -959,23 +1225,23 @@ async function runRun(args: RunCliArgs): Promise<void> {
           throw new Error("internal: live driver missing");
         }
         result = await orchestrator_tick_live({
-          manifest_path: args.manifest,
-          gates_path: args.gates,
+          manifest_path: runHandle.manifestPath,
+          gates_path: runHandle.gatesPath,
           reason: `${args.reason} [tick_${i}]`,
           drivers: { runAgent: liveDriver },
           tool_context: makeToolContext(),
         });
       } else if (stage === "pivot" || stage === "citations") {
         result = await orchestrator_tick_post_pivot({
-          manifest_path: args.manifest,
-          gates_path: args.gates,
+          manifest_path: runHandle.manifestPath,
+          gates_path: runHandle.gatesPath,
           reason: `${args.reason} [tick_${i}]`,
           tool_context: makeToolContext(),
         });
       } else {
         result = await orchestrator_tick_post_summaries({
-          manifest_path: args.manifest,
-          gates_path: args.gates,
+          manifest_path: runHandle.manifestPath,
+          gates_path: runHandle.gatesPath,
           reason: `${args.reason} [tick_${i}]`,
           tool_context: makeToolContext(),
         });
@@ -983,10 +1249,30 @@ async function runRun(args: RunCliArgs): Promise<void> {
     }
 
     if (!result.ok) {
+      if (result.error.code === "CANCELLED") {
+        const current = await readJsonObject(runHandle.manifestPath);
+        const currentSummary = await summarizeManifest(current);
+        console.log("run.ok: true");
+        printContract({
+          runId: currentSummary.runId,
+          runRoot: currentSummary.runRoot,
+          manifestPath: runHandle.manifestPath,
+          gatesPath: currentSummary.gatesPath,
+          stageCurrent: currentSummary.stageCurrent,
+          status: currentSummary.status,
+        });
+        return;
+      }
+
       console.log("run.ok: false");
       console.log(`run.error.code: ${result.error.code}`);
       console.log(`run.error.message: ${result.error.message}`);
       console.log(`run.error.details: ${JSON.stringify(result.error.details ?? {}, null, 2)}`);
+      await printAutoTriage({
+        manifestPath: runHandle.manifestPath,
+        gatesPath: runHandle.gatesPath,
+        reason: `operator-cli run auto-triage: ${args.reason}`,
+      });
       return;
     }
 
@@ -997,7 +1283,7 @@ async function runRun(args: RunCliArgs): Promise<void> {
     }
 
     const post = (await callTool("watchdog_check", watchdog_check as unknown as ToolWithExecute, {
-      manifest_path: args.manifest,
+      manifest_path: runHandle.manifestPath,
       reason: `${args.reason} [post_tick_${i}]`,
     })) as ToolEnvelope & { timed_out?: boolean; checkpoint_path?: string };
     if (post.timed_out === true) {
@@ -1008,14 +1294,28 @@ async function runRun(args: RunCliArgs): Promise<void> {
       return;
     }
 
-    const after = await readJsonObject(args.manifest);
+    const after = await readJsonObject(runHandle.manifestPath);
     const afterSummary = await summarizeManifest(after);
     if (afterSummary.status === "completed" || afterSummary.status === "failed" || afterSummary.status === "cancelled") {
       console.log("run.ok: true");
       printContract({
         runId: afterSummary.runId,
         runRoot: afterSummary.runRoot,
-        manifestPath: args.manifest,
+        manifestPath: runHandle.manifestPath,
+        gatesPath: afterSummary.gatesPath,
+        stageCurrent: afterSummary.stageCurrent,
+        status: afterSummary.status,
+      });
+      return;
+    }
+
+    if (args.until && afterSummary.stageCurrent === args.until) {
+      console.log("run.ok: true");
+      console.log(`run.until_reached: ${args.until}`);
+      printContract({
+        runId: afterSummary.runId,
+        runRoot: afterSummary.runRoot,
+        manifestPath: runHandle.manifestPath,
         gatesPath: afterSummary.gatesPath,
         stageCurrent: afterSummary.stageCurrent,
         status: afterSummary.status,
@@ -1036,8 +1336,9 @@ async function runRun(args: RunCliArgs): Promise<void> {
 
 async function runPause(args: PauseResumeCliArgs): Promise<void> {
   ensureOptionCEnabledForCli();
+  const runHandle = await resolveRunHandle(args);
 
-  const manifest = await readJsonObject(args.manifest);
+  const manifest = await readJsonObject(runHandle.manifestPath);
   const summary = await summarizeManifest(manifest);
   const logsDirAbs = await resolveLogsDirFromManifest(manifest);
   const manifestRevision = Number(manifest.revision ?? Number.NaN);
@@ -1048,7 +1349,7 @@ async function runPause(args: PauseResumeCliArgs): Promise<void> {
     reason: `operator-cli pause: ${args.reason}`,
     fn: async () => {
       await callTool("manifest_write", manifest_write as unknown as ToolWithExecute, {
-        manifest_path: args.manifest,
+        manifest_path: runHandle.manifestPath,
         patch: { status: "paused" },
         expected_revision: manifestRevision,
         reason: `operator-cli pause: ${args.reason}`,
@@ -1064,7 +1365,7 @@ async function runPause(args: PauseResumeCliArgs): Promise<void> {
           `- run_id: ${summary.runId}`,
           `- stage: ${summary.stageCurrent}`,
           `- reason: ${args.reason}`,
-          `- next_step: bun "pai-tools/deep-research-option-c.ts" resume --manifest "${args.manifest}" --reason "operator resume"`,
+          `- next_step: bun "pai-tools/deep-research-option-c.ts" resume --manifest "${runHandle.manifestPath}" --reason "operator resume"`,
         ].join("\n"),
       });
 
@@ -1076,8 +1377,9 @@ async function runPause(args: PauseResumeCliArgs): Promise<void> {
 
 async function runResume(args: PauseResumeCliArgs): Promise<void> {
   ensureOptionCEnabledForCli();
+  const runHandle = await resolveRunHandle(args);
 
-  const manifest = await readJsonObject(args.manifest);
+  const manifest = await readJsonObject(runHandle.manifestPath);
   const summary = await summarizeManifest(manifest);
   const logsDirAbs = await resolveLogsDirFromManifest(manifest);
   const manifestRevision = Number(manifest.revision ?? Number.NaN);
@@ -1088,7 +1390,7 @@ async function runResume(args: PauseResumeCliArgs): Promise<void> {
     reason: `operator-cli resume: ${args.reason}`,
     fn: async () => {
       await callTool("manifest_write", manifest_write as unknown as ToolWithExecute, {
-        manifest_path: args.manifest,
+        manifest_path: runHandle.manifestPath,
         patch: { status: "running", stage: { started_at: nowIso() } },
         expected_revision: manifestRevision,
         reason: `operator-cli resume: ${args.reason}`,
@@ -1109,6 +1411,53 @@ async function runResume(args: PauseResumeCliArgs): Promise<void> {
 
       console.log("resume.ok: true");
       console.log(`resume.checkpoint_path: ${checkpointPath}`);
+    },
+  });
+}
+
+async function runCancel(args: PauseResumeCliArgs): Promise<void> {
+  ensureOptionCEnabledForCli();
+  const runHandle = await resolveRunHandle(args);
+
+  const manifest = await readJsonObject(runHandle.manifestPath);
+  const summary = await summarizeManifest(manifest);
+  const logsDirAbs = await resolveLogsDirFromManifest(manifest);
+  const manifestRevision = Number(manifest.revision ?? Number.NaN);
+  if (!Number.isFinite(manifestRevision)) throw new Error("manifest.revision invalid");
+
+  if (summary.status === "cancelled") {
+    console.log("cancel.ok: true");
+    console.log("cancel.note: already cancelled");
+    return;
+  }
+
+  await withRunLock({
+    runRoot: summary.runRoot,
+    reason: `operator-cli cancel: ${args.reason}`,
+    fn: async () => {
+      await callTool("manifest_write", manifest_write as unknown as ToolWithExecute, {
+        manifest_path: runHandle.manifestPath,
+        patch: { status: "cancelled" },
+        expected_revision: manifestRevision,
+        reason: `operator-cli cancel: ${args.reason}`,
+      });
+
+      const checkpointPath = await writeCheckpoint({
+        logsDirAbs,
+        filename: "cancel-checkpoint.md",
+        content: [
+          "# Cancel Checkpoint",
+          "",
+          `- ts: ${nowIso()}`,
+          `- run_id: ${summary.runId}`,
+          `- stage: ${summary.stageCurrent}`,
+          `- reason: ${args.reason}`,
+          `- next_step: bun \"pai-tools/deep-research-option-c.ts\" status --manifest \"${runHandle.manifestPath}\"`,
+        ].join("\n"),
+      });
+
+      console.log("cancel.ok: true");
+      console.log(`cancel.checkpoint_path: ${checkpointPath}`);
     },
   });
 }
@@ -1140,17 +1489,23 @@ const initCmd = command({
   },
 });
 
+const runUntilStages = ["init", "wave1", "pivot", "wave2", "citations", "summaries", "synthesis", "review", "finalize"] as const;
+
 const tickCmd = command({
   name: "tick",
-  description: "Run exactly one orchestrator tick (driver-specific)",
+  description: "Run exactly one orchestrator tick (driver-specific, run-handle aware)",
   args: {
-    manifest: option({ long: "manifest", type: AbsolutePath }),
-    gates: option({ long: "gates", type: AbsolutePath }),
+    runId: option({ long: "run-id", type: optional(string) }),
+    runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
+    manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
+    gates: option({ long: "gates", type: optional(AbsolutePath) }),
     reason: option({ long: "reason", type: string }),
     driver: option({ long: "driver", type: oneOf(["fixture", "live"]) }),
   },
   handler: async (args) => {
     await runTick({
+      runId: args.runId,
+      runRoot: args.runRoot,
       manifest: args.manifest,
       gates: args.gates,
       reason: args.reason,
@@ -1161,33 +1516,45 @@ const tickCmd = command({
 
 const runCmd = command({
   name: "run",
-  description: "Run multiple ticks with watchdog enforcement",
+  description: "Run multiple ticks with watchdog enforcement and stage stops",
   args: {
-    manifest: option({ long: "manifest", type: AbsolutePath }),
-    gates: option({ long: "gates", type: AbsolutePath }),
+    runId: option({ long: "run-id", type: optional(string) }),
+    runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
+    manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
+    gates: option({ long: "gates", type: optional(AbsolutePath) }),
     reason: option({ long: "reason", type: string }),
     driver: option({ long: "driver", type: oneOf(["fixture", "live"]) }),
     maxTicks: option({ long: "max-ticks", type: optional(number) }),
+    until: option({ long: "until", type: optional(oneOf([...runUntilStages])) }),
   },
   handler: async (args) => {
     await runRun({
+      runId: args.runId,
+      runRoot: args.runRoot,
       manifest: args.manifest,
       gates: args.gates,
       reason: args.reason,
       driver: args.driver as RunCliArgs["driver"],
       maxTicks: args.maxTicks ?? 10,
+      until: args.until,
     });
   },
 });
 
 const statusCmd = command({
   name: "status",
-  description: "Print the run contract fields",
+  description: "Print the run contract fields (run-id-first)",
   args: {
-    manifest: option({ long: "manifest", type: AbsolutePath }),
+    runId: option({ long: "run-id", type: optional(string) }),
+    runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
+    manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
   },
   handler: async (args) => {
-    await runStatus(args.manifest);
+    await runStatus({
+      runId: args.runId,
+      runRoot: args.runRoot,
+      manifest: args.manifest,
+    });
   },
 });
 
@@ -1195,10 +1562,16 @@ const inspectCmd = command({
   name: "inspect",
   description: "Print gate status + next-stage blockers",
   args: {
-    manifest: option({ long: "manifest", type: AbsolutePath }),
+    runId: option({ long: "run-id", type: optional(string) }),
+    runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
+    manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
   },
   handler: async (args) => {
-    await runInspect(args.manifest);
+    await runInspect({
+      runId: args.runId,
+      runRoot: args.runRoot,
+      manifest: args.manifest,
+    });
   },
 });
 
@@ -1206,10 +1579,16 @@ const triageCmd = command({
   name: "triage",
   description: "Print a compact blocker summary from stage_advance dry-run",
   args: {
-    manifest: option({ long: "manifest", type: AbsolutePath }),
+    runId: option({ long: "run-id", type: optional(string) }),
+    runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
+    manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
   },
   handler: async (args) => {
-    await runTriage(args.manifest);
+    await runTriage({
+      runId: args.runId,
+      runRoot: args.runRoot,
+      manifest: args.manifest,
+    });
   },
 });
 
@@ -1217,11 +1596,15 @@ const pauseCmd = command({
   name: "pause",
   description: "Pause a run durably and write a checkpoint artifact",
   args: {
-    manifest: option({ long: "manifest", type: AbsolutePath }),
+    runId: option({ long: "run-id", type: optional(string) }),
+    runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
+    manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
     reason: option({ long: "reason", type: optional(string) }),
   },
   handler: async (args) => {
     await runPause({
+      runId: args.runId,
+      runRoot: args.runRoot,
       manifest: args.manifest,
       reason: args.reason ?? "operator-cli pause",
     });
@@ -1232,13 +1615,36 @@ const resumeCmd = command({
   name: "resume",
   description: "Resume a paused run and reset stage timer semantics",
   args: {
-    manifest: option({ long: "manifest", type: AbsolutePath }),
+    runId: option({ long: "run-id", type: optional(string) }),
+    runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
+    manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
     reason: option({ long: "reason", type: optional(string) }),
   },
   handler: async (args) => {
     await runResume({
+      runId: args.runId,
+      runRoot: args.runRoot,
       manifest: args.manifest,
       reason: args.reason ?? "operator-cli resume",
+    });
+  },
+});
+
+const cancelCmd = command({
+  name: "cancel",
+  description: "Cancel a run durably and write a cancel checkpoint",
+  args: {
+    runId: option({ long: "run-id", type: optional(string) }),
+    runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
+    manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
+    reason: option({ long: "reason", type: optional(string) }),
+  },
+  handler: async (args) => {
+    await runCancel({
+      runId: args.runId,
+      runRoot: args.runRoot,
+      manifest: args.manifest,
+      reason: args.reason ?? "operator-cli cancel",
     });
   },
 });
@@ -1254,6 +1660,7 @@ const app = subcommands({
     triage: triageCmd,
     pause: pauseCmd,
     resume: resumeCmd,
+    cancel: cancelCmd,
   },
 });
 
