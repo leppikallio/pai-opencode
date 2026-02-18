@@ -12,7 +12,7 @@ Create a deterministic run root, produce the Wave 1 plan artifact, and stop at `
 1. Initialize run:
 
 ```bash
-bun "Tools/deep-research-option-c.ts" init "<query>" --mode standard --sensitivity no_web
+bun "pai-tools/deep-research-option-c.ts" init "<query>" --mode standard --sensitivity no_web
 ```
 
 2. Confirm required artifacts under `run_root`:
