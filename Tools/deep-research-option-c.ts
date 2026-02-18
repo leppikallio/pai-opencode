@@ -3,13 +3,41 @@
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
+import { createInterface } from "node:readline/promises";
+
+import type { Type } from "cmd-ts";
+import {
+  boolean,
+  command,
+  flag,
+  number,
+  oneOf,
+  option,
+  optional,
+  positional,
+  run,
+  string,
+  subcommands,
+} from "cmd-ts";
 
 import {
+  acquireRunLock,
+  releaseRunLock,
+  manifest_write,
   orchestrator_tick_fixture,
   orchestrator_tick_live,
+  orchestrator_tick_post_pivot,
+  orchestrator_tick_post_summaries,
+  type OrchestratorLiveRunAgentInput,
+  type OrchestratorLiveRunAgentResult,
+  type OrchestratorTickFixtureResult,
+  type OrchestratorTickLiveResult,
+  type OrchestratorTickPostPivotResult,
+  type OrchestratorTickPostSummariesResult,
   perspectives_write,
   run_init,
   stage_advance,
+  watchdog_check,
 } from "../.opencode/tools/deep_research.ts";
 import { resolveDeepResearchFlagsV1 } from "../.opencode/tools/deep_research/lifecycle_lib";
 
@@ -31,6 +59,15 @@ type TickCliArgs = {
   gates: string;
   reason: string;
   driver: "fixture" | "live";
+};
+
+type RunCliArgs = TickCliArgs & {
+  maxTicks: number;
+};
+
+type PauseResumeCliArgs = {
+  manifest: string;
+  reason: string;
 };
 
 type ManifestSummary = {
@@ -57,20 +94,6 @@ type TriageBlockers = {
   failedChecks: Array<{ kind: string; name: string }>;
   allowed: boolean;
 };
-
-function usage(): string {
-  return [
-    "Option C operator CLI (WS1)",
-    "",
-    "Usage:",
-    "  bun Tools/deep-research-option-c.ts init \"<query>\" [--run-id <id>] [--sensitivity normal|restricted|no_web] [--mode quick|standard|deep] [--no-perspectives]",
-    "  bun Tools/deep-research-option-c.ts tick --manifest <abs> --gates <abs> --reason \"...\" --driver <fixture|live>",
-    "  bun Tools/deep-research-option-c.ts status --manifest <abs>",
-    "  bun Tools/deep-research-option-c.ts inspect --manifest <abs>",
-    "  bun Tools/deep-research-option-c.ts triage --manifest <abs>",
-    "  bun Tools/deep-research-option-c.ts --help",
-  ].join("\n");
-}
 
 function makeToolContext() {
   return {
@@ -179,108 +202,126 @@ async function safeResolveManifestPath(runRoot: string, rel: string, field: stri
   return candidate;
 }
 
-function parseInitArgs(argv: string[]): InitCliArgs {
-  if (argv.length === 0) throw new Error("init requires \"<query>\"");
+async function writeCheckpoint(args: {
+  logsDirAbs: string;
+  filename: string;
+  content: string;
+}): Promise<string> {
+  const outPath = path.join(args.logsDirAbs, args.filename);
+  await fs.mkdir(path.dirname(outPath), { recursive: true });
+  await fs.writeFile(outPath, `${args.content.trim()}\n`, "utf8");
+  return outPath;
+}
 
-  const query = argv[0]?.trim();
-  if (!query || query.startsWith("--")) {
-    throw new Error("init requires \"<query>\" as first positional argument");
+async function withRunLock<T>(args: { runRoot: string; reason: string; fn: () => Promise<T> }): Promise<T> {
+  const lock = await acquireRunLock({ run_root: args.runRoot, lease_seconds: 60, reason: args.reason });
+  if (!lock.ok) {
+    throw new Error(`run lock failed: ${lock.code} ${lock.message} ${JSON.stringify(lock.details ?? {})}`);
   }
 
-  const out: InitCliArgs = {
-    query,
-    sensitivity: "normal",
-    mode: "standard",
-    writePerspectives: true,
+  try {
+    return await args.fn();
+  } finally {
+    await releaseRunLock(lock.handle).catch(() => undefined);
+  }
+}
+
+function createOperatorInputDriver(): (
+  input: OrchestratorLiveRunAgentInput,
+) => Promise<OrchestratorLiveRunAgentResult> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const close = () => {
+    try {
+      rl.close();
+    } catch {
+      // best effort
+    }
   };
+  process.on("exit", close);
+  process.on("SIGINT", () => {
+    close();
+    process.exit(130);
+  });
 
-  for (let i = 1; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg === "--run-id") {
-      const value = argv[i + 1]?.trim();
-      if (!value) throw new Error("--run-id requires a value");
-      out.runId = value;
-      i += 1;
-      continue;
-    }
-    if (arg === "--sensitivity") {
-      const value = argv[i + 1]?.trim();
-      if (value !== "normal" && value !== "restricted" && value !== "no_web") {
-        throw new Error("--sensitivity must be one of: normal|restricted|no_web");
-      }
-      out.sensitivity = value;
-      i += 1;
-      continue;
-    }
-    if (arg === "--mode") {
-      const value = argv[i + 1]?.trim();
-      if (value !== "quick" && value !== "standard" && value !== "deep") {
-        throw new Error("--mode must be one of: quick|standard|deep");
-      }
-      out.mode = value;
-      i += 1;
-      continue;
-    }
-    if (arg === "--no-perspectives") {
-      out.writePerspectives = false;
-      continue;
-    }
-    throw new Error(`Unknown init argument: ${arg}`);
-  }
+  return async (input: OrchestratorLiveRunAgentInput): Promise<OrchestratorLiveRunAgentResult> => {
+    const runRoot = String(input.run_root ?? "").trim();
+    const stage = String(input.stage ?? "").trim();
+    const perspectiveId = String(input.perspective_id ?? "").trim();
+    const promptMd = String(input.prompt_md ?? "");
 
-  return out;
-}
+    const isSafeSegment = (value: string): boolean => /^[A-Za-z0-9_-]+$/.test(value);
 
-function parseTickArgs(argv: string[]): TickCliArgs {
-  const out: Partial<TickCliArgs> = {};
-
-  for (let i = 0; i < argv.length; i += 1) {
-    const arg = argv[i];
-    if (arg === "--manifest") {
-      const value = argv[i + 1]?.trim();
-      if (!value) throw new Error("--manifest requires a value");
-      out.manifest = requireAbsolutePath(value, "--manifest");
-      i += 1;
-      continue;
+    if (!runRoot || !path.isAbsolute(runRoot)) {
+      return { markdown: "", error: { code: "INVALID_ARGS", message: "run_root missing/invalid" } };
     }
-    if (arg === "--gates") {
-      const value = argv[i + 1]?.trim();
-      if (!value) throw new Error("--gates requires a value");
-      out.gates = requireAbsolutePath(value, "--gates");
-      i += 1;
-      continue;
+    if (!stage || !perspectiveId) {
+      return { markdown: "", error: { code: "INVALID_ARGS", message: "stage/perspective_id missing" } };
     }
-    if (arg === "--reason") {
-      const value = argv[i + 1]?.trim();
-      if (!value) throw new Error("--reason requires a value");
-      out.reason = value;
-      i += 1;
-      continue;
+    if (!isSafeSegment(stage)) {
+      return { markdown: "", error: { code: "INVALID_ARGS", message: "stage contains unsafe characters" } };
     }
-    if (arg === "--driver") {
-      const value = argv[i + 1]?.trim();
-      if (value !== "fixture" && value !== "live") {
-        throw new Error("--driver must be fixture|live");
-      }
-      out.driver = value;
-      i += 1;
-      continue;
+    if (!isSafeSegment(perspectiveId)) {
+      return { markdown: "", error: { code: "INVALID_ARGS", message: "perspective_id contains unsafe characters" } };
     }
-    throw new Error(`Unknown tick argument: ${arg}`);
-  }
+    if (!promptMd.trim()) {
+      return { markdown: "", error: { code: "INVALID_ARGS", message: "prompt_md missing" } };
+    }
 
-  if (!out.manifest || !out.gates || !out.reason || !out.driver) {
-    throw new Error("tick requires --manifest, --gates, --reason, and --driver");
-  }
+    let runRootReal = runRoot;
+    try {
+      runRootReal = await fs.realpath(runRoot);
+    } catch {
+      // keep as-is; downstream writes will fail with a useful error
+    }
 
-  return out as TickCliArgs;
-}
+    const promptPath = path.resolve(runRootReal, "operator", "prompts", stage, `${perspectiveId}.md`);
+    const draftPath = path.resolve(runRootReal, "operator", "drafts", stage, `${perspectiveId}.md`);
 
-function parseManifestOnlyArgs(argv: string[], command: "status" | "inspect" | "triage"): string {
-  if (argv.length !== 2 || argv[0] !== "--manifest") {
-    throw new Error(`${command} requires --manifest <abs>`);
-  }
-  return requireAbsolutePath(argv[1], "--manifest");
+    const contained = (absPath: string): boolean => {
+      const rel = path.relative(runRootReal, absPath);
+      return rel.length > 0 && !rel.startsWith("..") && !path.isAbsolute(rel);
+    };
+
+    if (!contained(promptPath) || !contained(draftPath)) {
+      return { markdown: "", error: { code: "PATH_TRAVERSAL", message: "operator paths escape run root" } };
+    }
+    await fs.mkdir(path.dirname(promptPath), { recursive: true });
+    await fs.mkdir(path.dirname(draftPath), { recursive: true });
+    await fs.writeFile(promptPath, `${promptMd.trim()}\n`, "utf8");
+
+    try {
+      await fs.access(draftPath);
+    } catch {
+      const template = [
+        "## Findings",
+        "",
+        "(Write your findings here.)",
+        "",
+        "## Sources",
+        "- ",
+        "",
+        "## Gaps",
+        "- ",
+        "",
+      ].join("\n");
+      await fs.writeFile(draftPath, `${template}\n`, "utf8");
+    }
+
+    console.log("\n--- Operator input required ---");
+    console.log(`stage: ${stage}`);
+    console.log(`perspective_id: ${perspectiveId}`);
+    console.log(`prompt_path: ${promptPath}`);
+    console.log(`draft_path: ${draftPath}`);
+    console.log("Edit the draft file (use the prompt as instructions), then press ENTER to continue.");
+
+    await rl.question("");
+
+    const draft = await fs.readFile(draftPath, "utf8");
+    if (!draft.trim()) {
+      return { markdown: "", error: { code: "RUN_AGENT_FAILED", message: "draft is empty" } };
+    }
+    return { markdown: draft };
+  };
 }
 
 function asObject(value: unknown): Record<string, unknown> {
@@ -304,6 +345,18 @@ function resolveRunRoot(manifest: Record<string, unknown>): string {
     throw new Error("manifest.artifacts.root is missing or invalid");
   }
   return root;
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+async function resolveLogsDirFromManifest(manifest: Record<string, unknown>): Promise<string> {
+  const runRoot = resolveRunRoot(manifest);
+  const artifacts = asObject(manifest.artifacts);
+  const pathsObj = asObject(artifacts.paths);
+  const logsRel = String(pathsObj.logs_dir ?? "logs").trim() || "logs";
+  return await safeResolveManifestPath(runRoot, logsRel, "manifest.artifacts.paths.logs_dir");
 }
 
 async function resolveGatesPathFromManifest(manifest: Record<string, unknown>): Promise<string> {
@@ -562,10 +615,8 @@ function triageFromStageAdvanceResult(envelope: ToolEnvelope): TriageBlockers {
   };
 }
 
-async function runInit(argv: string[]): Promise<void> {
+async function runInit(args: InitCliArgs): Promise<void> {
   ensureOptionCEnabledForCli();
-  const args = parseInitArgs(argv);
-
   const init = await callTool("run_init", run_init as unknown as ToolWithExecute, {
     query: args.query,
     mode: args.mode,
@@ -609,9 +660,8 @@ async function runInit(argv: string[]): Promise<void> {
   console.log(`run_config_path: ${runConfigPath}`);
 }
 
-async function runTick(argv: string[]): Promise<void> {
+async function runTick(args: TickCliArgs): Promise<void> {
   ensureOptionCEnabledForCli();
-  const args = parseTickArgs(argv);
 
   if (args.driver === "fixture") {
     const fixtureResult = await orchestrator_tick_fixture({
@@ -627,6 +677,7 @@ async function runTick(argv: string[]): Promise<void> {
       console.log(`tick.ok: false`);
       console.log(`tick.error.code: ${fixtureResult.error.code}`);
       console.log(`tick.error.message: ${fixtureResult.error.message}`);
+      console.log(`tick.error.details: ${JSON.stringify(fixtureResult.error.details ?? {}, null, 2)}`);
     } else {
       console.log(`tick.driver: fixture`);
       console.log(`tick.ok: true`);
@@ -635,34 +686,62 @@ async function runTick(argv: string[]): Promise<void> {
       console.log(`tick.wave_outputs_count: ${fixtureResult.wave_outputs_count}`);
     }
   } else {
-    const liveResult = await orchestrator_tick_live({
+    const driver = createOperatorInputDriver();
+
+    await callTool("watchdog_check", watchdog_check as unknown as ToolWithExecute, {
       manifest_path: args.manifest,
-      gates_path: args.gates,
-      reason: args.reason,
-      drivers: {
-        runAgent: async () => ({
-          markdown: "",
-          error: {
-            code: "NOT_IMPLEMENTED",
-            message: "WS1 intentionally omits generate-mode live runAgent execution",
-          },
-        }),
-      },
-      tool_context: makeToolContext(),
+      reason: `${args.reason} [pre_tick]`,
     });
 
-    if (!liveResult.ok) {
+    const manifest = await readJsonObject(args.manifest);
+    const summary = await summarizeManifest(manifest);
+    const stage = summary.stageCurrent;
+
+    let result: OrchestratorTickLiveResult | OrchestratorTickPostPivotResult | OrchestratorTickPostSummariesResult;
+    if (stage === "init" || stage === "wave1") {
+      result = await orchestrator_tick_live({
+        manifest_path: args.manifest,
+        gates_path: args.gates,
+        reason: args.reason,
+        drivers: { runAgent: driver },
+        tool_context: makeToolContext(),
+      });
+    } else if (stage === "pivot" || stage === "citations") {
+      result = await orchestrator_tick_post_pivot({
+        manifest_path: args.manifest,
+        gates_path: args.gates,
+        reason: args.reason,
+        tool_context: makeToolContext(),
+      });
+    } else {
+      result = await orchestrator_tick_post_summaries({
+        manifest_path: args.manifest,
+        gates_path: args.gates,
+        reason: args.reason,
+        tool_context: makeToolContext(),
+      });
+    }
+
+    if (!result.ok) {
       console.log(`tick.driver: live`);
       console.log(`tick.ok: false`);
-      console.log(`tick.error.code: ${liveResult.error.code}`);
-      console.log(`tick.error.message: ${liveResult.error.message}`);
+      console.log(`tick.error.code: ${result.error.code}`);
+      console.log(`tick.error.message: ${result.error.message}`);
+      console.log(`tick.error.details: ${JSON.stringify(result.error.details ?? {}, null, 2)}`);
     } else {
       console.log(`tick.driver: live`);
       console.log(`tick.ok: true`);
-      console.log(`tick.from: ${liveResult.from}`);
-      console.log(`tick.to: ${liveResult.to}`);
-      console.log(`tick.wave_outputs_count: ${liveResult.wave_outputs_count}`);
+      console.log(`tick.from: ${String(result.from ?? "")}`);
+      console.log(`tick.to: ${String(result.to ?? "")}`);
+      if ("wave_outputs_count" in result && typeof result.wave_outputs_count === "number") {
+        console.log(`tick.wave_outputs_count: ${result.wave_outputs_count}`);
+      }
     }
+
+    await callTool("watchdog_check", watchdog_check as unknown as ToolWithExecute, {
+      manifest_path: args.manifest,
+      reason: `${args.reason} [post_tick]`,
+    });
   }
 
   const manifest = await readJsonObject(args.manifest);
@@ -677,8 +756,7 @@ async function runTick(argv: string[]): Promise<void> {
   });
 }
 
-async function runStatus(argv: string[]): Promise<void> {
-  const manifestPath = parseManifestOnlyArgs(argv, "status");
+async function runStatus(manifestPath: string): Promise<void> {
   const manifest = await readJsonObject(manifestPath);
   const summary = await summarizeManifest(manifest);
 
@@ -692,8 +770,7 @@ async function runStatus(argv: string[]): Promise<void> {
   });
 }
 
-async function runInspect(argv: string[]): Promise<void> {
-  const manifestPath = parseManifestOnlyArgs(argv, "inspect");
+async function runInspect(manifestPath: string): Promise<void> {
   const manifest = await readJsonObject(manifestPath);
   const summary = await summarizeManifest(manifest);
   const gatesDoc = await readJsonObject(summary.gatesPath);
@@ -741,8 +818,7 @@ async function runInspect(argv: string[]): Promise<void> {
   }
 }
 
-async function runTriage(argv: string[]): Promise<void> {
-  const manifestPath = parseManifestOnlyArgs(argv, "triage");
+async function runTriage(manifestPath: string): Promise<void> {
   const manifest = await readJsonObject(manifestPath);
   const summary = await summarizeManifest(manifest);
 
@@ -804,43 +880,360 @@ async function runTriage(argv: string[]): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
-  const argv = process.argv.slice(2);
-  const command = argv[0];
+async function runRun(args: RunCliArgs): Promise<void> {
+  ensureOptionCEnabledForCli();
 
-  if (!command || command === "--help" || command === "-h") {
-    console.log(usage());
-    return;
+  const liveDriver = args.driver === "live" ? createOperatorInputDriver() : null;
+
+  for (let i = 1; i <= args.maxTicks; i += 1) {
+    const pre = (await callTool("watchdog_check", watchdog_check as unknown as ToolWithExecute, {
+      manifest_path: args.manifest,
+      reason: `${args.reason} [pre_tick_${i}]`,
+    })) as ToolEnvelope & { timed_out?: boolean; checkpoint_path?: string };
+    if (pre.timed_out === true) {
+      console.log("run.ok: false");
+      console.log("run.error.code: WATCHDOG_TIMEOUT");
+      console.log("run.error.message: stage timed out before tick execution");
+      console.log(`run.checkpoint_path: ${String(pre.checkpoint_path ?? "")}`);
+      return;
+    }
+
+    const manifest = await readJsonObject(args.manifest);
+    const summary = await summarizeManifest(manifest);
+
+    if (summary.status === "paused") {
+      console.log("run.ok: false");
+      console.log("run.error.code: PAUSED");
+      console.log("run.error.message: run is paused; resume first");
+      printContract({
+        runId: summary.runId,
+        runRoot: summary.runRoot,
+        manifestPath: args.manifest,
+        gatesPath: summary.gatesPath,
+        stageCurrent: summary.stageCurrent,
+        status: summary.status,
+      });
+      return;
+    }
+
+    let result:
+      | OrchestratorTickFixtureResult
+      | OrchestratorTickLiveResult
+      | OrchestratorTickPostPivotResult
+      | OrchestratorTickPostSummariesResult;
+    if (args.driver === "fixture") {
+      result = await orchestrator_tick_fixture({
+        manifest_path: args.manifest,
+        gates_path: args.gates,
+        reason: `${args.reason} [tick_${i}]`,
+        fixture_driver: ({ stage, run_root }) => defaultFixtureDriver({ stage, run_root }),
+        tool_context: makeToolContext(),
+      });
+    } else {
+      const stage = summary.stageCurrent;
+      if (stage === "init" || stage === "wave1") {
+        if (!liveDriver) {
+          throw new Error("internal: live driver missing");
+        }
+        result = await orchestrator_tick_live({
+          manifest_path: args.manifest,
+          gates_path: args.gates,
+          reason: `${args.reason} [tick_${i}]`,
+          drivers: { runAgent: liveDriver },
+          tool_context: makeToolContext(),
+        });
+      } else if (stage === "pivot" || stage === "citations") {
+        result = await orchestrator_tick_post_pivot({
+          manifest_path: args.manifest,
+          gates_path: args.gates,
+          reason: `${args.reason} [tick_${i}]`,
+          tool_context: makeToolContext(),
+        });
+      } else {
+        result = await orchestrator_tick_post_summaries({
+          manifest_path: args.manifest,
+          gates_path: args.gates,
+          reason: `${args.reason} [tick_${i}]`,
+          tool_context: makeToolContext(),
+        });
+      }
+    }
+
+    if (!result.ok) {
+      console.log("run.ok: false");
+      console.log(`run.error.code: ${result.error.code}`);
+      console.log(`run.error.message: ${result.error.message}`);
+      console.log(`run.error.details: ${JSON.stringify(result.error.details ?? {}, null, 2)}`);
+      return;
+    }
+
+    console.log(`run.tick_${i}.from: ${String(result.from ?? "")}`);
+    console.log(`run.tick_${i}.to: ${String(result.to ?? "")}`);
+    if ("wave_outputs_count" in result && typeof result.wave_outputs_count === "number") {
+      console.log(`run.tick_${i}.wave_outputs_count: ${result.wave_outputs_count}`);
+    }
+
+    const post = (await callTool("watchdog_check", watchdog_check as unknown as ToolWithExecute, {
+      manifest_path: args.manifest,
+      reason: `${args.reason} [post_tick_${i}]`,
+    })) as ToolEnvelope & { timed_out?: boolean; checkpoint_path?: string };
+    if (post.timed_out === true) {
+      console.log("run.ok: false");
+      console.log("run.error.code: WATCHDOG_TIMEOUT");
+      console.log("run.error.message: stage timed out after tick execution");
+      console.log(`run.checkpoint_path: ${String(post.checkpoint_path ?? "")}`);
+      return;
+    }
+
+    const after = await readJsonObject(args.manifest);
+    const afterSummary = await summarizeManifest(after);
+    if (afterSummary.status === "completed" || afterSummary.status === "failed" || afterSummary.status === "cancelled") {
+      console.log("run.ok: true");
+      printContract({
+        runId: afterSummary.runId,
+        runRoot: afterSummary.runRoot,
+        manifestPath: args.manifest,
+        gatesPath: afterSummary.gatesPath,
+        stageCurrent: afterSummary.stageCurrent,
+        status: afterSummary.status,
+      });
+      return;
+    }
+
+    if (String(result.to ?? "") === String(result.from ?? "")) {
+      console.log("run.note: stage did not advance");
+      return;
+    }
   }
 
-  const rest = argv.slice(1);
-
-  if (command === "init") {
-    await runInit(rest);
-    return;
-  }
-  if (command === "tick") {
-    await runTick(rest);
-    return;
-  }
-  if (command === "status") {
-    await runStatus(rest);
-    return;
-  }
-  if (command === "inspect") {
-    await runInspect(rest);
-    return;
-  }
-  if (command === "triage") {
-    await runTriage(rest);
-    return;
-  }
-
-  throw new Error(`Unknown command: ${command}`);
+  console.log("run.ok: false");
+  console.log("run.error.code: TICK_CAP_EXCEEDED");
+  console.log("run.error.message: max ticks reached before completion");
 }
 
-await main().catch((error) => {
+async function runPause(args: PauseResumeCliArgs): Promise<void> {
+  ensureOptionCEnabledForCli();
+
+  const manifest = await readJsonObject(args.manifest);
+  const summary = await summarizeManifest(manifest);
+  const logsDirAbs = await resolveLogsDirFromManifest(manifest);
+  const manifestRevision = Number(manifest.revision ?? Number.NaN);
+  if (!Number.isFinite(manifestRevision)) throw new Error("manifest.revision invalid");
+
+  await withRunLock({
+    runRoot: summary.runRoot,
+    reason: `operator-cli pause: ${args.reason}`,
+    fn: async () => {
+      await callTool("manifest_write", manifest_write as unknown as ToolWithExecute, {
+        manifest_path: args.manifest,
+        patch: { status: "paused" },
+        expected_revision: manifestRevision,
+        reason: `operator-cli pause: ${args.reason}`,
+      });
+
+      const checkpointPath = await writeCheckpoint({
+        logsDirAbs,
+        filename: "pause-checkpoint.md",
+        content: [
+          "# Pause Checkpoint",
+          "",
+          `- ts: ${nowIso()}`,
+          `- run_id: ${summary.runId}`,
+          `- stage: ${summary.stageCurrent}`,
+          `- reason: ${args.reason}`,
+        ].join("\n"),
+      });
+
+      console.log("pause.ok: true");
+      console.log(`pause.checkpoint_path: ${checkpointPath}`);
+    },
+  });
+}
+
+async function runResume(args: PauseResumeCliArgs): Promise<void> {
+  ensureOptionCEnabledForCli();
+
+  const manifest = await readJsonObject(args.manifest);
+  const summary = await summarizeManifest(manifest);
+  const logsDirAbs = await resolveLogsDirFromManifest(manifest);
+  const manifestRevision = Number(manifest.revision ?? Number.NaN);
+  if (!Number.isFinite(manifestRevision)) throw new Error("manifest.revision invalid");
+
+  await withRunLock({
+    runRoot: summary.runRoot,
+    reason: `operator-cli resume: ${args.reason}`,
+    fn: async () => {
+      await callTool("manifest_write", manifest_write as unknown as ToolWithExecute, {
+        manifest_path: args.manifest,
+        patch: { status: "running", stage: { started_at: nowIso() } },
+        expected_revision: manifestRevision,
+        reason: `operator-cli resume: ${args.reason}`,
+      });
+
+      const checkpointPath = await writeCheckpoint({
+        logsDirAbs,
+        filename: "resume-checkpoint.md",
+        content: [
+          "# Resume Checkpoint",
+          "",
+          `- ts: ${nowIso()}`,
+          `- run_id: ${summary.runId}`,
+          `- stage: ${summary.stageCurrent}`,
+          `- reason: ${args.reason}`,
+        ].join("\n"),
+      });
+
+      console.log("resume.ok: true");
+      console.log(`resume.checkpoint_path: ${checkpointPath}`);
+    },
+  });
+}
+
+const AbsolutePath: Type<string, string> = {
+  async from(str) {
+    return requireAbsolutePath(str, "path");
+  },
+};
+
+const initCmd = command({
+  name: "init",
+  description: "Initialize a new Option C run",
+  args: {
+    query: positional({ type: string, displayName: "query" }),
+    runId: option({ long: "run-id", type: optional(string) }),
+    sensitivity: option({ long: "sensitivity", type: optional(oneOf(["normal", "restricted", "no_web"])) }),
+    mode: option({ long: "mode", type: optional(oneOf(["quick", "standard", "deep"])) }),
+    noPerspectives: flag({ long: "no-perspectives", type: boolean }),
+  },
+  handler: async (args) => {
+    await runInit({
+      query: args.query,
+      runId: args.runId,
+      sensitivity: (args.sensitivity ?? "normal") as InitCliArgs["sensitivity"],
+      mode: (args.mode ?? "standard") as InitCliArgs["mode"],
+      writePerspectives: !args.noPerspectives,
+    });
+  },
+});
+
+const tickCmd = command({
+  name: "tick",
+  description: "Run exactly one orchestrator tick (driver-specific)",
+  args: {
+    manifest: option({ long: "manifest", type: AbsolutePath }),
+    gates: option({ long: "gates", type: AbsolutePath }),
+    reason: option({ long: "reason", type: string }),
+    driver: option({ long: "driver", type: oneOf(["fixture", "live"]) }),
+  },
+  handler: async (args) => {
+    await runTick({
+      manifest: args.manifest,
+      gates: args.gates,
+      reason: args.reason,
+      driver: args.driver as TickCliArgs["driver"],
+    });
+  },
+});
+
+const runCmd = command({
+  name: "run",
+  description: "Run multiple ticks with watchdog enforcement",
+  args: {
+    manifest: option({ long: "manifest", type: AbsolutePath }),
+    gates: option({ long: "gates", type: AbsolutePath }),
+    reason: option({ long: "reason", type: string }),
+    driver: option({ long: "driver", type: oneOf(["fixture", "live"]) }),
+    maxTicks: option({ long: "max-ticks", type: optional(number) }),
+  },
+  handler: async (args) => {
+    await runRun({
+      manifest: args.manifest,
+      gates: args.gates,
+      reason: args.reason,
+      driver: args.driver as RunCliArgs["driver"],
+      maxTicks: args.maxTicks ?? 10,
+    });
+  },
+});
+
+const statusCmd = command({
+  name: "status",
+  description: "Print the run contract fields",
+  args: {
+    manifest: option({ long: "manifest", type: AbsolutePath }),
+  },
+  handler: async (args) => {
+    await runStatus(args.manifest);
+  },
+});
+
+const inspectCmd = command({
+  name: "inspect",
+  description: "Print gate status + next-stage blockers",
+  args: {
+    manifest: option({ long: "manifest", type: AbsolutePath }),
+  },
+  handler: async (args) => {
+    await runInspect(args.manifest);
+  },
+});
+
+const triageCmd = command({
+  name: "triage",
+  description: "Print a compact blocker summary from stage_advance dry-run",
+  args: {
+    manifest: option({ long: "manifest", type: AbsolutePath }),
+  },
+  handler: async (args) => {
+    await runTriage(args.manifest);
+  },
+});
+
+const pauseCmd = command({
+  name: "pause",
+  description: "Pause a run durably and write a checkpoint artifact",
+  args: {
+    manifest: option({ long: "manifest", type: AbsolutePath }),
+    reason: option({ long: "reason", type: optional(string) }),
+  },
+  handler: async (args) => {
+    await runPause({
+      manifest: args.manifest,
+      reason: args.reason ?? "operator-cli pause",
+    });
+  },
+});
+
+const resumeCmd = command({
+  name: "resume",
+  description: "Resume a paused run and reset stage timer semantics",
+  args: {
+    manifest: option({ long: "manifest", type: AbsolutePath }),
+    reason: option({ long: "reason", type: optional(string) }),
+  },
+  handler: async (args) => {
+    await runResume({
+      manifest: args.manifest,
+      reason: args.reason ?? "operator-cli resume",
+    });
+  },
+});
+
+const app = subcommands({
+  name: "deep-research-option-c",
+  cmds: {
+    init: initCmd,
+    tick: tickCmd,
+    run: runCmd,
+    status: statusCmd,
+    inspect: inspectCmd,
+    triage: triageCmd,
+    pause: pauseCmd,
+    resume: resumeCmd,
+  },
+});
+
+run(app, process.argv.slice(2)).catch((error: unknown) => {
   console.error(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
-  console.error(usage());
   process.exit(1);
 });

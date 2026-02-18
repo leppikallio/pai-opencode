@@ -538,6 +538,90 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
     });
   });
 
+  test("consumes retry directives and reruns targeted outputs even when files already exist", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_orchestrator_tick_live_retry_consume_007";
+
+        const initRaw = (await (run_init as any).execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = String((init as any).manifest_path);
+        const gatesPath = String((init as any).gates_path);
+        const runRoot = path.dirname(manifestPath);
+        await writePerspectivesForRun(runRoot, runId);
+
+        const toWave1Raw = (await (stage_advance as any).execute(
+          {
+            manifest_path: manifestPath,
+            gates_path: gatesPath,
+            reason: "test: init -> wave1",
+            requested_next: "wave1",
+          },
+          makeToolContext(),
+        )) as string;
+        const toWave1 = parseToolJson(toWave1Raw);
+        expect(toWave1.ok).toBe(true);
+
+        await fs.mkdir(path.join(runRoot, "wave-1"), { recursive: true });
+        await fs.writeFile(path.join(runRoot, "wave-1", "p1.md"), invalidMarkdown("p1"), "utf8");
+        await fs.writeFile(path.join(runRoot, "wave-1", "p2.md"), invalidMarkdown("p2"), "utf8");
+        await fs.writeFile(path.join(runRoot, "wave-1", "p3.md"), invalidMarkdown("p3"), "utf8");
+
+        const first = await orchestrator_tick_live({
+          manifest_path: manifestPath,
+          gates_path: gatesPath,
+          reason: "test: retry consume first tick",
+          drivers: {
+            runAgent: async () => {
+              throw new Error("runAgent should be skipped when outputs already exist (initial) ");
+            },
+          },
+          stage_advance_tool: stage_advance as any,
+          tool_context: makeToolContext(),
+        });
+
+        expect(first.ok).toBe(false);
+        if (first.ok) return;
+        expect(first.error.code).toBe("RETRY_REQUIRED");
+        const retryPath = String(first.error.details.retry_directives_path ?? "");
+        expect(retryPath.endsWith(path.join("retry", "retry-directives.json"))).toBe(true);
+
+        const driverCalls: Array<Record<string, unknown>> = [];
+        const second = await orchestrator_tick_live({
+          manifest_path: manifestPath,
+          gates_path: gatesPath,
+          reason: "test: retry consume second tick",
+          drivers: {
+            runAgent: async (input: OrchestratorLiveRunAgentInput) => {
+              driverCalls.push(input as unknown as Record<string, unknown>);
+              return { markdown: validMarkdown(input.perspective_id) };
+            },
+          },
+          stage_advance_tool: stage_advance as any,
+          tool_context: makeToolContext(),
+        });
+
+        expect(second.ok).toBe(true);
+        if (!second.ok) return;
+        expect(second.from).toBe("wave1");
+        expect(second.to).toBe("pivot");
+        expect(driverCalls.length).toBe(3);
+
+        const retryArtifact = JSON.parse(await fs.readFile(retryPath, "utf8"));
+        expect(typeof retryArtifact.consumed_at).toBe("string");
+        expect(String(retryArtifact.consumed_at).length).toBeGreaterThan(10);
+
+        const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        expect(manifest.stage.current).toBe("pivot");
+      });
+    });
+  });
+
   test("returns typed cap exhaustion when retry cap for gate B is reached", async () => {
     await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
@@ -576,7 +660,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
         manifest.metrics = {
           ...(manifest.metrics ?? {}),
           retry_counts: {
-            ...((manifest.metrics ?? {}).retry_counts ?? {}),
+            ...(manifest.metrics?.retry_counts ?? {}),
             B: 2,
           },
         };

@@ -136,6 +136,7 @@ export async function orchestrator_tick_fixture(args: OrchestratorTickFixtureArg
   const manifestRevision = Number(manifest.revision ?? Number.NaN);
   const stageObj = isPlainObject(manifest.stage) ? (manifest.stage as Record<string, unknown>) : {};
   const from = String(stageObj.current ?? "").trim();
+  const status = String(manifest.status ?? "").trim();
   const artifacts = getManifestArtifacts(manifest);
   const runRoot = String((artifacts ? getStringProp(artifacts, "root") : null) ?? path.dirname(manifestPath));
 
@@ -147,6 +148,13 @@ export async function orchestrator_tick_fixture(args: OrchestratorTickFixtureArg
     });
   }
   if (!from) return fail("INVALID_STATE", "manifest.stage.current missing", { manifest_path: manifestPath });
+  if (status === "paused") {
+    return fail("PAUSED", "run is paused", {
+      manifest_path: manifestPath,
+      run_id: runId,
+      stage: from,
+    });
+  }
   if (!runRoot || !path.isAbsolute(runRoot)) {
     return fail("INVALID_STATE", "manifest.artifacts.root invalid", { manifest_path: manifestPath, root: runRoot });
   }

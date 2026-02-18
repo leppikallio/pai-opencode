@@ -81,6 +81,11 @@ export const watchdog_check = tool({
 
       const elapsed_s = Math.max(0, Math.floor((now.getTime() - startedAt.getTime()) / 1000));
 
+      const status = String((manifest as Record<string, unknown>).status ?? "").trim();
+      if (status === "paused") {
+        return ok({ timed_out: false, stage, elapsed_s, timeout_s, paused: true });
+      }
+
       if (elapsed_s <= timeout_s) {
         return ok({ timed_out: false, stage, elapsed_s, timeout_s });
       }

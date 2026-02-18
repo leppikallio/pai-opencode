@@ -453,6 +453,7 @@ export async function orchestrator_tick_live(
     ? (manifest.stage as Record<string, unknown>)
     : {};
   const from = String(stageObj.current ?? "").trim();
+  const status = String(manifest.status ?? "").trim();
   const artifacts = getManifestArtifacts(manifest);
   const runRoot = String(
     (artifacts ? getStringProp(artifacts, "root") : null) ?? path.dirname(manifestPath),
@@ -472,6 +473,13 @@ export async function orchestrator_tick_live(
   if (!from) {
     return fail("INVALID_STATE", "manifest.stage.current missing", {
       manifest_path: manifestPath,
+    });
+  }
+  if (status === "paused") {
+    return fail("PAUSED", "run is paused", {
+      manifest_path: manifestPath,
+      run_id: runId,
+      stage: from,
     });
   }
   if (!runRoot || !path.isAbsolute(runRoot)) {
@@ -768,9 +776,49 @@ export async function orchestrator_tick_live(
   const gateBRetryCount = getGateRetryCount(manifest, "B");
   const deferredValidationFailures: Array<Record<string, unknown>> = [];
 
+  const retryDirectivesResolved = await resolveContainedPath({
+    runRoot,
+    runRootReal,
+    input: "retry/retry-directives.json",
+    field: "retry.retry_directives_file",
+  });
+  if (!retryDirectivesResolved.ok) {
+    return fail("PATH_TRAVERSAL", retryDirectivesResolved.reason, retryDirectivesResolved.details);
+  }
+  const retryDirectivesPath = retryDirectivesResolved.absPath;
+
+  const activeRetryNotesByPerspective = new Map<string, string>();
+  if (await exists(retryDirectivesPath)) {
+    try {
+      const retryRaw = await readJson(retryDirectivesPath);
+      if (isPlainObject(retryRaw)) {
+        const consumedAt = nonEmptyString((retryRaw as Record<string, unknown>).consumed_at);
+        if (!consumedAt) {
+          const directivesRaw = (retryRaw as Record<string, unknown>).retry_directives;
+          if (Array.isArray(directivesRaw)) {
+            for (const directive of directivesRaw) {
+              if (!isPlainObject(directive)) continue;
+              const pid = nonEmptyString((directive as Record<string, unknown>).perspective_id);
+              if (!pid) continue;
+              const note = nonEmptyString((directive as Record<string, unknown>).change_note) ?? "";
+              activeRetryNotesByPerspective.set(pid, note);
+            }
+          }
+        }
+      }
+    } catch {
+      // best effort only
+    }
+  }
+
   for (const entry of plannedEntries) {
     const outputAlreadyExists = await exists(entry.outputMarkdownPath);
-    if (!outputAlreadyExists) {
+    const retryNote = activeRetryNotesByPerspective.get(entry.perspectiveId) ?? null;
+    if (!outputAlreadyExists || retryNote !== null) {
+      const effectivePromptMd = retryNote
+        ? `${entry.promptMd}\n\n## Retry Directive\n${retryNote}\n`
+        : entry.promptMd;
+
       let runAgentRaw: OrchestratorLiveRunAgentResult;
       try {
         runAgentRaw = await args.drivers.runAgent({
@@ -779,7 +827,7 @@ export async function orchestrator_tick_live(
           run_root: runRoot,
           perspective_id: entry.perspectiveId,
           agent_type: entry.agentType,
-          prompt_md: entry.promptMd,
+          prompt_md: effectivePromptMd,
           output_md: entry.outputMd,
         });
       } catch (e) {
@@ -808,7 +856,7 @@ export async function orchestrator_tick_live(
               perspective_id: entry.perspectiveId,
               markdown: normalizedRunAgent.markdown,
               agent_type: entry.agentType,
-              prompt_md: entry.promptMd,
+              prompt_md: effectivePromptMd,
             },
           ],
         },
@@ -853,7 +901,9 @@ export async function orchestrator_tick_live(
         perspectiveId: entry.perspectiveId,
         agentType: entry.agentType,
         outputMd: entry.outputMd,
-        promptMd: entry.promptMd,
+        promptMd: retryNote
+          ? `${entry.promptMd}\n\n## Retry Directive\n${retryNote}\n`
+          : entry.promptMd,
         retryCount: gateBRetryCount,
         createdAt: await outputCreatedAtIso(entry.outputMarkdownPath),
       });
@@ -947,23 +997,26 @@ export async function orchestrator_tick_live(
   }
 
   const retryDirectives = toRetryDirectives(reviewResult.retry_directives);
-  if (retryDirectives.length > 0) {
-    const retryDirectivesResolved = await resolveContainedPath({
-      runRoot,
-      runRootReal,
-      input: "retry/retry-directives.json",
-      field: "retry.retry_directives_file",
-    });
-    if (!retryDirectivesResolved.ok) {
-      return fail("PATH_TRAVERSAL", retryDirectivesResolved.reason, retryDirectivesResolved.details);
+  if (retryDirectives.length === 0 && activeRetryNotesByPerspective.size > 0) {
+    try {
+      const retryRaw = await readJson(retryDirectivesPath);
+      if (isPlainObject(retryRaw)) {
+        const retryDoc = retryRaw as Record<string, unknown>;
+        retryDoc.consumed_at = nowIso();
+        await fs.mkdir(path.dirname(retryDirectivesPath), { recursive: true });
+        await fs.writeFile(retryDirectivesPath, `${JSON.stringify(retryDoc, null, 2)}\n`, "utf8");
+      }
+    } catch {
+      // best effort only
     }
-
-    const retryDirectivesPath = retryDirectivesResolved.absPath;
+  }
+  if (retryDirectives.length > 0) {
     const retryArtifact = {
       schema_version: "wave1.retry_directives.v1",
       run_id: runId,
       stage: currentStage,
       generated_at: nowIso(),
+      consumed_at: null,
       retry_directives: retryDirectives,
       deferred_validation_failures: deferredValidationFailures,
     };

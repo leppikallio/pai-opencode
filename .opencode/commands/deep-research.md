@@ -29,15 +29,18 @@ bun "Tools/deep-research-option-c.ts" <command> [...flags]
 
 - `init "<query>" [--run-id <id>] [--sensitivity normal|restricted|no_web] [--mode quick|standard|deep] [--no-perspectives]`
 - `tick --manifest <abs> --gates <abs> --reason "..." --driver <fixture|live>`
+- `run --manifest <abs> --gates <abs> --reason "..." --driver <fixture|live> [--max-ticks <n>]`
 - `status --manifest <abs>`
 - `inspect --manifest <abs>`
 - `triage --manifest <abs>`
+- `pause --manifest <abs> [--reason "..."]`
+- `resume --manifest <abs> [--reason "..."]`
 
 ### Routing from `/deep-research <mode> ...`
 
 - `plan` -> run `init` (offline/no_web recommended)
 - `fixture` -> run `init`, then run repeated `tick --driver fixture` until terminal state or blocker
-- `live` -> run `init`, then run `tick --driver live`
+- `live` -> run `init`, then run `run --driver live` (operator-input driver)
 
 Use `inspect` and `triage` to explain blockers between ticks.
 
@@ -115,12 +118,15 @@ Default minimal perspective payload (single perspective, id `p1`):
 
 1. Run init:
    - `bun "Tools/deep-research-option-c.ts" init "<query>"`
-2. Run live tick:
-    - `bun "Tools/deep-research-option-c.ts" tick --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: live tick" --driver live`
-   - WS1 live currently supports deterministic stage progression through the live driver, but does not generate new research output yet.
+2. Run interactive live loop (operator-input driver):
+    - `bun "Tools/deep-research-option-c.ts" run --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: live run" --driver live`
+   - The CLI will write:
+     - `operator/prompts/<stage>/<perspective_id>.md`
+     - `operator/drafts/<stage>/<perspective_id>.md`
+   - Edit the draft and press ENTER to continue each step.
 3. If blocked, use:
-    - `inspect --manifest <abs>`
-    - `triage --manifest <abs>`
+     - `inspect --manifest <abs>`
+     - `triage --manifest <abs>`
 4. Print required final contract fields and stop.
 
 ---
