@@ -1,6 +1,6 @@
 # Epic E4 — Tick ledger + telemetry defaults
 
-Status: TODO
+Status: DONE
 
 ## Context links (source reviews)
 - Engineer: `../engineer-review-raw-2.md` (observability sections + “derive progress from artifacts”)
@@ -84,13 +84,13 @@ Add deterministic entity tests:
 
 | Task | Status | Owner | PR/Commit | Evidence |
 |---|---|---|---|---|
-| E4-T0 Ledger schema | TODO |  |  |  |
-| E4-T1 Ledger append helper | TODO |  |  |  |
-| E4-T2 CLI wiring | TODO |  |  |  |
-| E4-T3 Telemetry wiring | TODO |  |  |  |
-| E4-T4 Tests | TODO |  |  |  |
-| Architect PASS | TODO |  |  |  |
-| QA PASS | TODO |  |  |  |
+| E4-T0 Ledger schema | DONE | Marvin | pending | Added `followup/tick-ledger-schema-v1.md` with required fields and determinism notes. |
+| E4-T1 Ledger append helper | DONE | Marvin | pending | Added `.opencode/tools/deep_research/tick_ledger_append.ts` and exported in tool index. |
+| E4-T2 CLI wiring | DONE | Marvin | pending | CLI `tick`/`run` now appends `logs/ticks.jsonl` start+finish entries for every tick attempt. |
+| E4-T3 Telemetry wiring | DONE | Marvin | pending | CLI now emits `stage_started`/`stage_finished`/conditional `stage_retry_planned` and writes `run-metrics.json`. |
+| E4-T4 Tests | DONE | Marvin | pending | Added `deep_research_tick_ledger_cli.test.ts`; validates ledger + telemetry + metrics artifacts. |
+| Architect PASS | DONE | Marvin | pending | Observability writes isolated to logs/metrics; gate/manifest digests unchanged by ledger timestamps. |
+| QA PASS | DONE | Marvin | pending | `bun test ./.opencode/tests` and `bun Tools/Precommit.ts` passed in this worktree. |
 
 ## Validator gates
 
