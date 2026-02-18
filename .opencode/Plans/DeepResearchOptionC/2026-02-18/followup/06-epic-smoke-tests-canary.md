@@ -87,8 +87,8 @@ If E5 adds `capture-fixtures`, M3 runbook must include it.
 | E6-T2 M3 smoke self-seeding | DONE |  |  | `deep_research_live_finalize_smoke.test.ts` self-seeds + ticks to finalize |
 | E6-T3 Runbooks | DONE |  |  | `E6-runbook-m2-live-wave1-to-pivot.md`, `E6-runbook-m3-live-finalize.md` |
 | E6-T4 Fixture capture step | DONE |  |  | Included in M3 runbook with fallback |
-| Architect PASS | TODO |  |  |  |
-| QA PASS | TODO |  |  |  |
+| Architect PASS | DONE | Marvin | `01632d7` | Canary smoke tests and runbooks align with the stage machine + operator CLI; determinism boundaries unchanged. |
+| QA PASS | DONE | Marvin | `01632d7` | `bun test ./.opencode/tests`: 146 pass, 1 skip, 0 fail; `bun Tools/Precommit.ts`: PASS |
 
 ## Validator gates
 
