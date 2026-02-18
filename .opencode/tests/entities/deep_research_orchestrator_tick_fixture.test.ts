@@ -2,7 +2,13 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { orchestrator_tick_fixture, run_init, stage_advance } from "../../tools/deep_research.ts";
+import {
+  acquireRunLock,
+  orchestrator_tick_fixture,
+  releaseRunLock,
+  run_init,
+  stage_advance,
+} from "../../tools/deep_research.ts";
 import { fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 describe("deep_research_orchestrator_tick_fixture (entity)", () => {
@@ -100,6 +106,54 @@ describe("deep_research_orchestrator_tick_fixture (entity)", () => {
         expect(out.error.code).toBe("MISSING_ARTIFACT");
         expect(out.error.details.wave_outputs_count).toBe(1);
         expect(out.error.details.stage_advance_error_code).toBe("MISSING_ARTIFACT");
+      });
+    });
+  });
+
+  test("prevents concurrent tick execution when run lock is held", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_orchestrator_tick_003";
+
+        const initRaw = (await (run_init as any).execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = String((init as any).manifest_path);
+        const gatesPath = String((init as any).gates_path);
+        const runRoot = path.dirname(manifestPath);
+
+        const lock = await acquireRunLock({
+          run_root: runRoot,
+          lease_seconds: 120,
+          reason: "test: hold lock",
+        });
+        expect(lock.ok).toBe(true);
+        if (!lock.ok) return;
+
+        let fixtureDriverCalled = false;
+        const out = await orchestrator_tick_fixture({
+          manifest_path: manifestPath,
+          gates_path: gatesPath,
+          reason: "test: lock contention",
+          fixture_driver: async () => {
+            fixtureDriverCalled = true;
+            return { wave_outputs: [], requested_next: "wave1" };
+          },
+          stage_advance_tool: stage_advance as any,
+          tool_context: makeToolContext(),
+        });
+
+        const release = await releaseRunLock(lock.handle);
+        expect(release.ok).toBe(true);
+
+        expect(fixtureDriverCalled).toBe(false);
+        expect(out.ok).toBe(false);
+        if (out.ok) return;
+        expect(out.error.code).toBe("LOCK_HELD");
       });
     });
   });

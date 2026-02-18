@@ -1,6 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
+import { acquireRunLock, releaseRunLock, startRunLockHeartbeat } from "./run_lock";
 import {
   type ToolWithExecute,
   getManifestArtifacts,
@@ -330,6 +331,7 @@ export async function orchestrator_tick_post_summaries(
 
   const manifest = manifestRaw as Record<string, unknown>;
   const runId = String(manifest.run_id ?? "").trim();
+  let manifestRevision = Number(manifest.revision ?? Number.NaN);
   const stageObj = isPlainObject(manifest.stage)
     ? (manifest.stage as Record<string, unknown>)
     : {};
@@ -342,6 +344,12 @@ export async function orchestrator_tick_post_summaries(
   if (!runId) {
     return fail("INVALID_STATE", "manifest.run_id missing", {
       manifest_path: manifestPath,
+    });
+  }
+  if (!Number.isFinite(manifestRevision)) {
+    return fail("INVALID_STATE", "manifest.revision invalid", {
+      manifest_path: manifestPath,
+      revision: manifest.revision ?? null,
     });
   }
   if (!from) {
@@ -366,6 +374,23 @@ export async function orchestrator_tick_post_summaries(
       message: String(e),
     });
   }
+
+  const lockResult = await acquireRunLock({
+    run_root: runRoot,
+    lease_seconds: 120,
+    reason: `orchestrator_tick_post_summaries: ${reason}`,
+  });
+  if (!lockResult.ok) {
+    return fail(lockResult.code, lockResult.message, lockResult.details);
+  }
+  const runLockHandle = lockResult.handle;
+  const heartbeat = startRunLockHeartbeat({
+    handle: runLockHandle,
+    interval_ms: 30_000,
+    lease_seconds: 120,
+  });
+
+  try {
 
   const manifestContained = await resolveContainedAbsolutePath({
     runRoot,
@@ -446,6 +471,7 @@ export async function orchestrator_tick_post_summaries(
     const payload: Record<string, unknown> = {
       manifest_path: manifestPath,
       gates_path: gatesPath,
+      expected_manifest_revision: manifestRevision,
       reason,
     };
     if (requestedNext) payload.requested_next = requestedNext;
@@ -455,6 +481,58 @@ export async function orchestrator_tick_post_summaries(
       payload,
       tool_context: args.tool_context,
     });
+  };
+
+  const syncManifestRevision = (
+    stageAdvanceResult: ToolJsonOk,
+  ): OrchestratorTickPostSummariesFailure | null => {
+    const nextRevision = Number(stageAdvanceResult.manifest_revision ?? Number.NaN);
+    if (!Number.isFinite(nextRevision)) {
+      return fail("INVALID_STATE", "stage_advance returned invalid manifest_revision", {
+        manifest_revision: stageAdvanceResult.manifest_revision ?? null,
+      });
+    }
+    manifestRevision = nextRevision;
+    return null;
+  };
+
+  const readGatesRevision = async (): Promise<
+    { ok: true; revision: number }
+    | { ok: false; failure: OrchestratorTickPostSummariesFailure }
+  > => {
+    try {
+      const gatesDoc = await readJson(gatesPath);
+      if (!isPlainObject(gatesDoc)) {
+        return {
+          ok: false,
+          failure: fail("SCHEMA_VALIDATION_FAILED", "gates document must be object", {
+            gates_path: gatesPath,
+          }),
+        };
+      }
+      const revisionRaw = Number(gatesDoc.revision ?? Number.NaN);
+      if (!Number.isFinite(revisionRaw)) {
+        return {
+          ok: false,
+          failure: fail("INVALID_STATE", "gates.revision invalid", {
+            gates_path: gatesPath,
+            revision: (gatesDoc as Record<string, unknown>).revision ?? null,
+          }),
+        };
+      }
+      return {
+        ok: true,
+        revision: revisionRaw,
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        failure: fail("NOT_FOUND", "gates_path not found", {
+          gates_path: gatesPath,
+          message: String(e),
+        }),
+      };
+    }
   };
 
   if (from === "summaries") {
@@ -507,6 +585,9 @@ export async function orchestrator_tick_post_summaries(
 
     const gateDStatus = nonEmptyString(gateD.status);
 
+    const gateDRevision = await readGatesRevision();
+    if (!gateDRevision.ok) return gateDRevision.failure;
+
     const writeGateD = await executeToolJson({
       name: "GATES_WRITE",
       tool: gatesWriteTool,
@@ -514,6 +595,7 @@ export async function orchestrator_tick_post_summaries(
         gates_path: gatesPath,
         update: gateDUpdate,
         inputs_digest: gateDInputsDigest,
+        expected_revision: gateDRevision.revision,
         reason,
       },
       tool_context: args.tool_context,
@@ -530,6 +612,9 @@ export async function orchestrator_tick_post_summaries(
         requested_next: "synthesis",
       });
     }
+
+    const summariesRevisionSyncError = syncManifestRevision(advanceToSynthesis);
+    if (summariesRevisionSyncError) return summariesRevisionSyncError;
 
     return {
       ok: true,
@@ -589,6 +674,9 @@ export async function orchestrator_tick_post_summaries(
         requested_next: "review",
       });
     }
+
+    const synthesisRevisionSyncError = syncManifestRevision(advanceToReview);
+    if (synthesisRevisionSyncError) return synthesisRevisionSyncError;
 
     return {
       ok: true,
@@ -680,6 +768,9 @@ export async function orchestrator_tick_post_summaries(
 
   const gateEStatus = nonEmptyString(gateE.status);
 
+  const gateERevision = await readGatesRevision();
+  if (!gateERevision.ok) return gateERevision.failure;
+
   const writeGateE = await executeToolJson({
     name: "GATES_WRITE",
     tool: gatesWriteTool,
@@ -687,6 +778,7 @@ export async function orchestrator_tick_post_summaries(
       gates_path: gatesPath,
       update: gateEUpdate,
       inputs_digest: gateEInputsDigest,
+      expected_revision: gateERevision.revision,
       reason,
     },
     tool_context: args.tool_context,
@@ -721,6 +813,9 @@ export async function orchestrator_tick_post_summaries(
     });
   }
 
+  const reviewRevisionSyncError = syncManifestRevision(advanceFromReview);
+  if (reviewRevisionSyncError) return reviewRevisionSyncError;
+
   const to = String(advanceFromReview.to ?? "").trim();
   if (reviewDecision === "CHANGES_REQUIRED" && to === "finalize") {
     return fail("INVALID_STATE", "review decision CHANGES_REQUIRED cannot transition to finalize", {
@@ -742,4 +837,8 @@ export async function orchestrator_tick_post_summaries(
     review_iteration: reviewIteration,
     revision_action: revisionAction,
   };
+  } finally {
+    heartbeat.stop();
+    await releaseRunLock(runLockHandle).catch(() => undefined);
+  }
 }

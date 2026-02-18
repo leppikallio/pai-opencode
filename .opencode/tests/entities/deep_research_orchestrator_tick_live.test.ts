@@ -3,6 +3,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 import {
+  gates_write,
   type OrchestratorLiveRunAgentInput,
   orchestrator_tick_live,
   run_init,
@@ -357,6 +358,61 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
 
         const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
         expect(manifest.stage.current).toBe("pivot");
+      });
+    });
+  });
+
+  test("passes expected_revision to gates_write (mismatch path proves optimistic lock wiring)", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_orchestrator_tick_live_005";
+
+        const initRaw = (await (run_init as any).execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = String((init as any).manifest_path);
+        const gatesPath = String((init as any).gates_path);
+        const runRoot = path.dirname(manifestPath);
+        await writePerspectivesForRun(runRoot, runId);
+
+        const seenExpectedRevisions: number[] = [];
+        const gatesWriteProxy = {
+          execute: async (payload: Record<string, unknown>, toolContext: unknown) => {
+            const expectedRevision = Number(payload.expected_revision ?? Number.NaN);
+            if (Number.isFinite(expectedRevision)) seenExpectedRevisions.push(expectedRevision);
+
+            return (gates_write as any).execute(
+              {
+                ...payload,
+                expected_revision: Number(payload.expected_revision ?? 0) + 1,
+              },
+              toolContext,
+            );
+          },
+        } as any;
+
+        const out = await orchestrator_tick_live({
+          manifest_path: manifestPath,
+          gates_path: gatesPath,
+          reason: "test: optimistic lock mismatch",
+          drivers: {
+            runAgent: async (input: OrchestratorLiveRunAgentInput) => ({ markdown: validMarkdown(input.perspective_id) }),
+          },
+          gates_write_tool: gatesWriteProxy,
+          stage_advance_tool: stage_advance as any,
+          tool_context: makeToolContext(),
+        });
+
+        expect(seenExpectedRevisions.length).toBe(1);
+        expect(seenExpectedRevisions[0]).toBeGreaterThan(0);
+
+        expect(out.ok).toBe(false);
+        if (out.ok) return;
+        expect(out.error.code).toBe("REVISION_MISMATCH");
       });
     });
   });

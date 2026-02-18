@@ -1,10 +1,12 @@
 import * as path from "node:path";
 
-import { isPlainObject, readJson, validateManifestV1 } from "./lifecycle_lib";
+import { type ToolWithExecute, isPlainObject, readJson, validateManifestV1 } from "./lifecycle_lib";
 import {
   type OrchestratorLiveDrivers,
   orchestrator_tick_live,
 } from "./orchestrator_tick_live";
+import { executeWatchdogJson } from "./orchestrator_watchdog";
+import { watchdog_check } from "./watchdog_check";
 
 const DEFAULT_MAX_TICKS = 10;
 
@@ -14,6 +16,7 @@ export type OrchestratorRunLiveArgs = {
   reason: string;
   drivers: OrchestratorLiveDrivers;
   max_ticks?: number;
+  watchdog_check_tool?: ToolWithExecute;
   tool_context?: unknown;
 };
 
@@ -151,6 +154,19 @@ export async function orchestrator_run_live(
     });
   }
 
+  const watchdogTool = args.watchdog_check_tool ?? (watchdog_check as unknown as ToolWithExecute);
+  if (!watchdogTool || typeof watchdogTool.execute !== "function") {
+    return fail({
+      code: "INVALID_ARGS",
+      message: "watchdog_check_tool.execute missing",
+      run_id: null,
+      start_stage: null,
+      end_stage: null,
+      ticks_executed: 0,
+      decision_inputs_digest: null,
+    });
+  }
+
   let manifestRaw: unknown;
   try {
     manifestRaw = await readJson(manifestPath);
@@ -237,6 +253,52 @@ export async function orchestrator_run_live(
   let decisionInputsDigest: string | null = null;
 
   while (ticksExecuted < maxTicks) {
+    const preWatchdog = await executeWatchdogJson({
+      watchdogTool,
+      payload: {
+        manifest_path: manifestPath,
+        stage: currentStage,
+        reason: `${reason} [pre_tick_${ticksExecuted + 1}]`,
+      },
+      tool_context: args.tool_context,
+    });
+    if (!preWatchdog.ok) {
+      return fail({
+        code: preWatchdog.code,
+        message: preWatchdog.message,
+        details: {
+          ...preWatchdog.details,
+          phase: "pre_tick",
+          tick_index: ticksExecuted + 1,
+          stage: currentStage,
+        },
+        run_id: runId,
+        start_stage: startStage,
+        end_stage: currentStage,
+        ticks_executed: ticksExecuted,
+        decision_inputs_digest: decisionInputsDigest,
+      });
+    }
+    if (preWatchdog.timed_out) {
+      return fail({
+        code: "WATCHDOG_TIMEOUT",
+        message: "stage timed out before tick execution",
+        details: {
+          phase: "pre_tick",
+          tick_index: ticksExecuted + 1,
+          stage: preWatchdog.stage ?? currentStage,
+          elapsed_s: preWatchdog.elapsed_s ?? null,
+          timeout_s: preWatchdog.timeout_s ?? null,
+          checkpoint_path: preWatchdog.checkpoint_path ?? null,
+        },
+        run_id: runId,
+        start_stage: startStage,
+        end_stage: currentStage,
+        ticks_executed: ticksExecuted,
+        decision_inputs_digest: decisionInputsDigest,
+      });
+    }
+
     const tick = await orchestrator_tick_live({
       manifest_path: manifestPath,
       gates_path: gatesPath,
@@ -283,6 +345,52 @@ export async function orchestrator_run_live(
     currentStage = tick.to;
     if (typeof tick.decision_inputs_digest === "string" && tick.decision_inputs_digest.trim()) {
       decisionInputsDigest = tick.decision_inputs_digest;
+    }
+
+    const postWatchdog = await executeWatchdogJson({
+      watchdogTool,
+      payload: {
+        manifest_path: manifestPath,
+        stage: currentStage,
+        reason: `${reason} [post_tick_${ticksExecuted}]`,
+      },
+      tool_context: args.tool_context,
+    });
+    if (!postWatchdog.ok) {
+      return fail({
+        code: postWatchdog.code,
+        message: postWatchdog.message,
+        details: {
+          ...postWatchdog.details,
+          phase: "post_tick",
+          tick_index: ticksExecuted,
+          stage: currentStage,
+        },
+        run_id: runId,
+        start_stage: startStage,
+        end_stage: currentStage,
+        ticks_executed: ticksExecuted,
+        decision_inputs_digest: decisionInputsDigest,
+      });
+    }
+    if (postWatchdog.timed_out) {
+      return fail({
+        code: "WATCHDOG_TIMEOUT",
+        message: "stage timed out after tick execution",
+        details: {
+          phase: "post_tick",
+          tick_index: ticksExecuted,
+          stage: postWatchdog.stage ?? currentStage,
+          elapsed_s: postWatchdog.elapsed_s ?? null,
+          timeout_s: postWatchdog.timeout_s ?? null,
+          checkpoint_path: postWatchdog.checkpoint_path ?? null,
+        },
+        run_id: runId,
+        start_stage: startStage,
+        end_stage: currentStage,
+        ticks_executed: ticksExecuted,
+        decision_inputs_digest: decisionInputsDigest,
+      });
     }
 
     if (currentStage === "pivot") {

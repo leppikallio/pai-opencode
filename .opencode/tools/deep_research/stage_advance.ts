@@ -27,9 +27,10 @@ export const stage_advance = tool({
     manifest_path: tool.schema.string().describe("Absolute path to manifest.json"),
     gates_path: tool.schema.string().describe("Absolute path to gates.json"),
     requested_next: tool.schema.string().optional().describe("Optional target stage"),
+    expected_manifest_revision: tool.schema.number().optional().describe("Optional optimistic lock for manifest revision"),
     reason: tool.schema.string().describe("Audit reason"),
   },
-  async execute(args: { manifest_path: string; gates_path: string; requested_next?: string; reason: string }) {
+  async execute(args: { manifest_path: string; gates_path: string; requested_next?: string; expected_manifest_revision?: number; reason: string }) {
     try {
       const optionCEnabledRaw = process.env.PAI_DR_OPTION_C_ENABLED;
       if (optionCEnabledRaw !== undefined) {
@@ -55,6 +56,18 @@ export const stage_advance = tool({
 
       const manifest = manifestRaw as Record<string, unknown>;
       const gatesDoc = gatesRaw as Record<string, unknown>;
+      const manifestRevision = Number(manifest.revision ?? Number.NaN);
+      if (!Number.isFinite(manifestRevision)) {
+        return err("INVALID_STATE", "manifest.revision invalid", {
+          revision: manifest.revision ?? null,
+        });
+      }
+      if (typeof args.expected_manifest_revision === "number" && args.expected_manifest_revision !== manifestRevision) {
+        return err("REVISION_MISMATCH", "expected_manifest_revision mismatch", {
+          expected: args.expected_manifest_revision,
+          got: manifestRevision,
+        });
+      }
 
       const stageObj = isPlainObject(manifest.stage) ? (manifest.stage as Record<string, unknown>) : {};
       const from = String(stageObj.current ?? "");
@@ -535,6 +548,7 @@ export const stage_advance = tool({
       const writeRaw = (await (manifest_write as unknown as ToolWithExecute).execute({
         manifest_path: args.manifest_path,
         patch,
+        expected_revision: manifestRevision,
         reason: `stage_advance: ${args.reason}`,
       })) as string;
 
@@ -547,7 +561,24 @@ export const stage_advance = tool({
         });
       }
 
-      return ok({ from, to, decision });
+      if (!isPlainObject(writeObj.value)) {
+        return err("WRITE_FAILED", "manifest_write returned invalid response", {
+          from,
+          to,
+          write_error: writeObj.value,
+        });
+      }
+
+      const newRevision = Number((writeObj.value as Record<string, unknown>).new_revision ?? Number.NaN);
+      if (!Number.isFinite(newRevision)) {
+        return err("WRITE_FAILED", "manifest_write missing new_revision", {
+          from,
+          to,
+          write_error: writeObj.value,
+        });
+      }
+
+      return ok({ from, to, decision, manifest_revision: newRevision });
     } catch (e) {
       if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "manifest_path or gates_path not found");
       return err("WRITE_FAILED", "stage_advance failed", { message: String(e) });

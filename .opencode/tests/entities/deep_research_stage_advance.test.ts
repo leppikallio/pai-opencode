@@ -153,12 +153,14 @@ async function advance(
   gatesPath: string,
   reason: string,
   requested_next?: string,
+  expected_manifest_revision?: number,
 ) {
   const outRaw = (await (stage_advance as any).execute(
     {
       manifest_path: manifestPath,
       gates_path: gatesPath,
       requested_next,
+      expected_manifest_revision,
       reason,
     },
     makeToolContext(),
@@ -187,6 +189,23 @@ describe("deep_research_stage_advance (entity)", () => {
         inputs_digest: expect.any(String),
         gates_revision: expect.any(Number),
       });
+    });
+  });
+
+  test("returns REVISION_MISMATCH when expected_manifest_revision is stale", async () => {
+    await withOptionCRun("dr_test_stage_001b", async ({ manifestPath, gatesPath, runRoot }) => {
+      const p = fixturePath("runs", "p02-stage-advance-init", "perspectives.json");
+      await fs.copyFile(p, path.join(runRoot, "perspectives.json"));
+
+      const out = await advance(
+        manifestPath,
+        gatesPath,
+        "test: stale expected manifest revision",
+        "wave1",
+        999,
+      );
+      expect(out.ok).toBe(false);
+      expect(getErrorCode(out)).toBe("REVISION_MISMATCH");
     });
   });
 

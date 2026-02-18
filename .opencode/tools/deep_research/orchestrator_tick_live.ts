@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
 
+import { acquireRunLock, releaseRunLock, startRunLockHeartbeat } from "./run_lock";
 import {
   type ToolWithExecute,
   getManifestArtifacts,
@@ -376,6 +377,7 @@ export async function orchestrator_tick_live(
 
   const manifest = manifestRaw as Record<string, unknown>;
   const runId = String(manifest.run_id ?? "").trim();
+  let manifestRevision = Number(manifest.revision ?? Number.NaN);
   const stageObj = isPlainObject(manifest.stage)
     ? (manifest.stage as Record<string, unknown>)
     : {};
@@ -388,6 +390,12 @@ export async function orchestrator_tick_live(
   if (!runId) {
     return fail("INVALID_STATE", "manifest.run_id missing", {
       manifest_path: manifestPath,
+    });
+  }
+  if (!Number.isFinite(manifestRevision)) {
+    return fail("INVALID_STATE", "manifest.revision invalid", {
+      manifest_path: manifestPath,
+      revision: manifest.revision ?? null,
     });
   }
   if (!from) {
@@ -412,6 +420,23 @@ export async function orchestrator_tick_live(
       message: String(e),
     });
   }
+
+  const lockResult = await acquireRunLock({
+    run_root: runRoot,
+    lease_seconds: 120,
+    reason: `orchestrator_tick_live: ${reason}`,
+  });
+  if (!lockResult.ok) {
+    return fail(lockResult.code, lockResult.message, lockResult.details);
+  }
+  const runLockHandle = lockResult.handle;
+  const heartbeat = startRunLockHeartbeat({
+    handle: runLockHandle,
+    interval_ms: 30_000,
+    lease_seconds: 120,
+  });
+
+  try {
 
   const pathsObj = getManifestPaths(manifest);
   const perspectivesResolved = await resolveContainedPath({
@@ -476,13 +501,27 @@ export async function orchestrator_tick_live(
     name: "STAGE_ADVANCE",
     tool: stageAdvanceTool,
     payload: {
-      manifest_path: manifestPath,
-      gates_path: gatesPath,
-      requested_next: requestedNext,
-      reason,
-    },
-    tool_context: args.tool_context,
-  });
+        manifest_path: manifestPath,
+        gates_path: gatesPath,
+        requested_next: requestedNext,
+        expected_manifest_revision: manifestRevision,
+        reason,
+      },
+      tool_context: args.tool_context,
+    });
+
+  const syncManifestRevision = (
+    stageAdvanceResult: ToolJsonOk,
+  ): OrchestratorTickLiveFailure | null => {
+    const nextRevision = Number(stageAdvanceResult.manifest_revision ?? Number.NaN);
+    if (!Number.isFinite(nextRevision)) {
+      return fail("INVALID_STATE", "stage_advance returned invalid manifest_revision", {
+        manifest_revision: stageAdvanceResult.manifest_revision ?? null,
+      });
+    }
+    manifestRevision = nextRevision;
+    return null;
+  };
 
   let currentStage = from;
   if (currentStage === "init") {
@@ -494,6 +533,9 @@ export async function orchestrator_tick_live(
         requested_next: "wave1",
       });
     }
+
+    const revisionSyncError = syncManifestRevision(initAdvance);
+    if (revisionSyncError) return revisionSyncError;
 
     const to = String(initAdvance.to ?? "").trim();
     if (to !== "wave1") {
@@ -698,11 +740,28 @@ export async function orchestrator_tick_live(
   }
 
   let gateBAlreadyPass = false;
+  let gatesRevision: number | null = null;
   try {
     const gatesDoc = await readJson(gatesPath);
+    if (!isPlainObject(gatesDoc)) {
+      return fail("SCHEMA_VALIDATION_FAILED", "gates document must be object", {
+        gates_path: gatesPath,
+      });
+    }
+    const revisionRaw = Number(gatesDoc.revision ?? Number.NaN);
+    if (!Number.isFinite(revisionRaw)) {
+      return fail("INVALID_STATE", "gates.revision invalid", {
+        gates_path: gatesPath,
+        revision: (gatesDoc as Record<string, unknown>).revision ?? null,
+      });
+    }
+    gatesRevision = revisionRaw;
     gateBAlreadyPass = gateBPassInDoc(gatesDoc);
-  } catch {
-    gateBAlreadyPass = false;
+  } catch (e) {
+    return fail("NOT_FOUND", "gates_path not found", {
+      gates_path: gatesPath,
+      message: String(e),
+    });
   }
 
   if (!gateBAlreadyPass) {
@@ -738,6 +797,7 @@ export async function orchestrator_tick_live(
         gates_path: gatesPath,
         update: gateUpdate,
         inputs_digest: gateInputsDigest,
+        expected_revision: gatesRevision ?? undefined,
         reason,
       },
       tool_context: args.tool_context,
@@ -745,6 +805,14 @@ export async function orchestrator_tick_live(
     if (!gatesWriteResult.ok) {
       return fail(gatesWriteResult.code, gatesWriteResult.message, gatesWriteResult.details);
     }
+
+    const nextGatesRevision = Number(gatesWriteResult.new_revision ?? Number.NaN);
+    if (!Number.isFinite(nextGatesRevision)) {
+      return fail("INVALID_STATE", "gates_write returned invalid new_revision", {
+        new_revision: gatesWriteResult.new_revision ?? null,
+      });
+    }
+    gatesRevision = nextGatesRevision;
   }
 
   const finalAdvance = await runStageAdvance("pivot");
@@ -755,6 +823,9 @@ export async function orchestrator_tick_live(
       requested_next: "pivot",
     });
   }
+
+  const finalRevisionSyncError = syncManifestRevision(finalAdvance);
+  if (finalRevisionSyncError) return finalRevisionSyncError;
 
   const to = String(finalAdvance.to ?? "").trim();
   const decisionObj = isPlainObject(finalAdvance.decision)
@@ -774,4 +845,8 @@ export async function orchestrator_tick_live(
     wave_outputs_count: 1,
     decision_inputs_digest: decisionInputsDigest,
   };
+  } finally {
+    heartbeat.stop();
+    await releaseRunLock(runLockHandle).catch(() => undefined);
+  }
 }
