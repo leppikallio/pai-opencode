@@ -1,0 +1,58 @@
+digraph DeepResearchOptionC_Workstreams_2026_02_18 {
+  rankdir=LR;
+  splines=ortho;
+  node [shape=box, style="rounded", fontname="Helvetica"];
+  edge [fontname="Helvetica"];
+
+  T00 [label="T00 Governance & Specs\n(schemas, gates, rubrics)"];
+  T01 [label="T01 Platform Core\n(layout, tooling scaffolds)"];
+  T02 [label="T02 Orchestrator Engine\n(stage machine, CLI command)"];
+  T03 [label="T03 Agent Contracts & Waves\n(wave IO, validation, reviewers)"];
+  T04 [label="T04 Citation System\n(extract/normalize/validate/render)"];
+  T05 [label="T05 Summary Pack + Synthesis\n(review factory, bounded inputs)"];
+  T06 [label="T06 Observability + Quality\n(metrics, audits, regressions)"];
+  T07 [label="T07 Rollout + Hardening\n(flags, canary, recovery)"];
+
+  Manifest [label="Artifact: manifest.json\n(run root + stage state)", shape=note, style="rounded"];
+  Gates [label="Artifact: gates.json\n(hard/soft gate results)", shape=note, style="rounded"];
+  Citations [label="Artifact: citations.jsonl\n(validated citation pool)", shape=note, style="rounded"];
+  SummaryPack [label="Artifact: summary-pack.json\n(bounded summaries)", shape=note, style="rounded"];
+  Synthesis [label="Artifact: synthesis.md\n(final output)", shape=note, style="rounded"];
+  Metrics [label="Artifact: run-metrics.json\n(telemetry rollups)", shape=note, style="rounded"];
+  Fixtures [label="Artifact: fixture bundle\n(off-line replay)", shape=note, style="rounded"];
+
+  // Governance is the root constraint surface.
+  T00 -> T01;
+  T00 -> T02;
+  T00 -> T03;
+  T00 -> T04;
+  T00 -> T05;
+  T00 -> T06;
+  T00 -> T07;
+
+  // Core dependencies.
+  T01 -> T02;
+  T01 -> T04;
+  T01 -> T06;
+
+  // Orchestrator consumes contracts and tools.
+  T03 -> T02;
+  T04 -> T02;
+  T05 -> T02;
+
+  // Data-flow artifacts.
+  T02 -> Manifest;
+  T02 -> Gates;
+  T04 -> Citations;
+  T05 -> SummaryPack;
+  Citations -> Synthesis;
+  SummaryPack -> Synthesis;
+
+  // Quality and safety.
+  T06 -> Metrics;
+  T06 -> Fixtures;
+  T02 -> Metrics;
+  Fixtures -> T06;
+  T07 -> T02;
+  T07 -> T06;
+}
