@@ -184,8 +184,17 @@ async function safeResolveManifestPath(runRoot: string, rel: string, field: stri
     throw new Error(`${field} must be a relative path without traversal`);
   }
 
-  const candidate = path.resolve(runRoot, relTrimmed);
-  const runRootReal = await fs.realpath(runRoot);
+  // Normalize run root to a real path first so containment checks work on macOS
+  // where `/var` is a symlink to `/private/var`.
+  let runRootReal = runRoot;
+  try {
+    runRootReal = await fs.realpath(runRoot);
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code !== "ENOENT") throw error;
+  }
+
+  const candidate = path.resolve(runRootReal, relTrimmed);
 
   let parentPath = path.dirname(candidate);
   try {
@@ -876,15 +885,26 @@ async function runInit(args: InitCliArgs): Promise<void> {
     }
     console.log(`wave1_plan_path: ${wave1PlanPath}`);
 
-    const stageAdvance = await callTool("stage_advance:init->wave1", stage_advance as unknown as ToolWithExecute, {
-      manifest_path: manifestPath,
-      gates_path: gatesPath,
-      requested_next: "wave1",
-      reason: "operator-cli init: deterministic init->wave1",
-    });
+    // Resume-safe: if this run already exists and is already in wave1, do not attempt
+    // a redundant stage_advance to the current stage.
+    const preStageManifest = await readJsonObject(manifestPath);
+    const preStage = asObject(preStageManifest.stage);
+    const preCurrent = String(preStage.current ?? "").trim();
+    if (preCurrent === "init") {
+      const stageAdvance = await callTool(
+        "stage_advance:init->wave1",
+        stage_advance as unknown as ToolWithExecute,
+        {
+          manifest_path: manifestPath,
+          gates_path: gatesPath,
+          requested_next: "wave1",
+          reason: "operator-cli init: deterministic init->wave1",
+        },
+      );
 
-    if (String(stageAdvance.from ?? "") !== "init" || String(stageAdvance.to ?? "") !== "wave1") {
-      throw new Error("stage_advance init->wave1 returned unexpected transition");
+      if (String(stageAdvance.from ?? "") !== "init" || String(stageAdvance.to ?? "") !== "wave1") {
+        throw new Error("stage_advance init->wave1 returned unexpected transition");
+      }
     }
   }
 
@@ -902,7 +922,7 @@ async function runInit(args: InitCliArgs): Promise<void> {
     runId,
     runRoot,
     manifestPath,
-    gatesPath,
+    gatesPath: summary.gatesPath,
     stageCurrent: summary.stageCurrent,
     status: summary.status,
   });
