@@ -1,6 +1,6 @@
 # Epic E3 — 1h+ long-run timeout semantics
 
-Status: TODO
+Status: DONE
 
 ## Context links (source reviews)
 - Engineer: `../engineer-review-raw-2.md` (see long-run strategy + watchdog guidance)
@@ -39,6 +39,7 @@ Include:
 
 Acceptance:
 - Policy doc exists and is linked from this epic.
+- Policy: `./E3-timeout-policy.md`
 
 ### E3-T1 — Implement chosen semantics
 
@@ -90,12 +91,12 @@ Acceptance:
 
 | Task | Status | Owner | PR/Commit | Evidence |
 |---|---|---|---|---|
-| E3-T0 Policy doc | TODO |  |  |  |
-| E3-T1 Implementation | TODO |  |  |  |
-| E3-T2 Progress emission | TODO |  |  |  |
-| E3-T3 Tests | TODO |  |  |  |
+| E3-T0 Policy doc | DONE | Marvin | pending | `followup/E3-timeout-policy.md` |
+| E3-T1 Implementation | DONE | Marvin | pending | heartbeat watchdog + stage heartbeat schema/write support |
+| E3-T2 Progress emission | DONE | Marvin | pending | progress writes in live/post-pivot/post-summaries orchestrators |
+| E3-T3 Tests | DONE | Marvin | pending | watchdog heartbeat/no-progress tests + full `.opencode/tests` pass |
 | Architect PASS | TODO |  |  |  |
-| QA PASS | TODO |  |  |  |
+| QA PASS | DONE | Marvin | pending | `bun test ./.opencode/tests`, `bun Tools/Precommit.ts` |
 
 ## Validator gates
 

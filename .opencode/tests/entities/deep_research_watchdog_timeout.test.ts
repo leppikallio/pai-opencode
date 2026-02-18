@@ -62,6 +62,7 @@ describe("deep_research_watchdog_timeout (entity)", () => {
         const stage = (seededManifest.stage ?? {}) as Record<string, unknown>;
         stage.current = fixture.stage;
         stage.started_at = fixture.started_at;
+        stage.last_progress_at = fixture.started_at;
         seededManifest.stage = stage;
         await fs.writeFile(manifestPath, JSON.stringify(seededManifest, null, 2) + "\n", "utf8");
 

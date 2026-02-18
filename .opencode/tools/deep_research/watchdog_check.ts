@@ -79,15 +79,48 @@ export const watchdog_check = tool({
         return err("INVALID_STATE", "manifest.stage.started_at invalid", { started_at: startedAtRaw });
       }
 
-      const elapsed_s = Math.max(0, Math.floor((now.getTime() - startedAt.getTime()) / 1000));
+      const lastProgressRaw = String(stageObj3.last_progress_at ?? "").trim();
+      let lastProgressAt: Date | null = null;
+      if (lastProgressRaw) {
+        const parsed = new Date(lastProgressRaw);
+        if (Number.isNaN(parsed.getTime())) {
+          return err("INVALID_STATE", "manifest.stage.last_progress_at invalid", {
+            last_progress_at: lastProgressRaw,
+          });
+        }
+        lastProgressAt = parsed;
+      }
+
+      const timerOrigin =
+        lastProgressAt && lastProgressAt.getTime() > startedAt.getTime()
+          ? lastProgressAt
+          : startedAt;
+      const timerOriginField = timerOrigin === startedAt ? "stage.started_at" : "stage.last_progress_at";
+
+      const elapsed_s = Math.max(0, Math.floor((now.getTime() - timerOrigin.getTime()) / 1000));
 
       const status = String((manifest as Record<string, unknown>).status ?? "").trim();
       if (status === "paused") {
-        return ok({ timed_out: false, stage, elapsed_s, timeout_s, paused: true });
+        return ok({
+          timed_out: false,
+          stage,
+          elapsed_s,
+          timeout_s,
+          timer_origin: timerOrigin.toISOString(),
+          timer_origin_field: timerOriginField,
+          paused: true,
+        });
       }
 
       if (elapsed_s <= timeout_s) {
-        return ok({ timed_out: false, stage, elapsed_s, timeout_s });
+        return ok({
+          timed_out: false,
+          stage,
+          elapsed_s,
+          timeout_s,
+          timer_origin: timerOrigin.toISOString(),
+          timer_origin_field: timerOriginField,
+        });
       }
 
       const artifacts = getManifestArtifacts(manifest);
@@ -106,6 +139,10 @@ export const watchdog_check = tool({
         `- stage: ${stage}`,
         `- elapsed_seconds: ${elapsed_s}`,
         `- timeout_seconds: ${timeout_s}`,
+        `- timer_origin_field: ${timerOriginField}`,
+        `- timer_origin: ${timerOrigin.toISOString()}`,
+        `- stage_started_at: ${startedAt.toISOString()}`,
+        `- stage_last_progress_at: ${lastProgressAt ? lastProgressAt.toISOString() : "n/a"}`,
         "- last_known_subtask: unavailable (placeholder)",
         "- next_steps:",
         "  1. Inspect logs/audit.jsonl for recent events.",
@@ -149,6 +186,8 @@ export const watchdog_check = tool({
         stage,
         elapsed_s,
         timeout_s,
+        timer_origin: timerOrigin.toISOString(),
+        timer_origin_field: timerOriginField,
         checkpoint_path: checkpointPath,
         manifest_revision: Number((writeObj.value as Record<string, unknown>).new_revision ?? 0),
       });

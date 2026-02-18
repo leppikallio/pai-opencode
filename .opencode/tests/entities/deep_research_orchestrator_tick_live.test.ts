@@ -148,6 +148,8 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
 
         const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
         expect(manifest.stage.current).toBe("pivot");
+        expect(typeof manifest.stage.last_progress_at).toBe("string");
+        expect(manifest.revision).toBeGreaterThan(3);
       });
     });
   });

@@ -541,6 +541,7 @@ export const stage_advance = tool({
         stage: {
           current: to,
           started_at: ts,
+          last_progress_at: ts,
           history: [...history, historyEntry],
         },
       };
