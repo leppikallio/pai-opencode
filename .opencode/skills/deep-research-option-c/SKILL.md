@@ -7,7 +7,7 @@ description: DEPRECATED compatibility alias; use the canonical deep-research ski
 
 This skill is a **compatibility alias only**. New workflows and canonical behavior are in `deep-research`.
 
-- Canonical skill: `.opencode/skills/deep-research/SKILL.md`
+- Canonical skill: `skills/deep-research/SKILL.md`
 
 ---
 
@@ -21,7 +21,7 @@ This skill is a **compatibility alias only**. New workflows and canonical behavi
 # Deprecated shim kept for compatibility
 ### Pointers
 
-- Canonical workflows (merged): `.opencode/skills/deep-research/Workflows/`
-- CLI still lives at `.opencode/pai-tools/deep-research-option-c.ts`
+- Canonical workflows (merged): `skills/deep-research/Workflows/`
+- CLI still lives at `pai-tools/deep-research-option-c.ts`
 
 Use this shim only as an alias. For full contracts, workflows, and quality gates, use `deep-research`.

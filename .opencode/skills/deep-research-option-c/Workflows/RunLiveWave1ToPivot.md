@@ -4,7 +4,7 @@ This workflow is a **compatibility shim only**.
 
 Use the canonical workflow instead:
 
-- `.opencode/skills/deep-research/Workflows/RunLiveWave1ToPivot.md`
+- `skills/deep-research/Workflows/RunLiveWave1ToPivot.md`
 
 This file remains for installs that still reference:
 

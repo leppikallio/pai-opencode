@@ -7,7 +7,7 @@ description: DEPRECATED compatibility alias; use the canonical deep-research ski
 
 This skill is a **compatibility alias only**.
 
-- Canonical skill: `.opencode/skills/deep-research/SKILL.md`
+- Canonical skill: `skills/deep-research/SKILL.md`
 - Keep this file for installs that still reference `deep-research-production`.
 
 ### Compatibility scope
@@ -19,7 +19,7 @@ This skill is a **compatibility alias only**.
 
 The source-of-truth operator and production guidance now lives in:
 
-- `.opencode/skills/deep-research/SKILL.md`
-- `.opencode/skills/deep-research/Workflows/`
+- `skills/deep-research/SKILL.md`
+- `skills/deep-research/Workflows/`
 
 This file remains only for backward compatibility.
