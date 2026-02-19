@@ -218,6 +218,10 @@ const TICK_METRICS_INTERVAL = 1;
 const CLI_ARGV = process.argv.slice(2);
 const JSON_MODE_REQUESTED = CLI_ARGV.includes("--json");
 
+function nextStepCliInvocation(): string {
+  return 'bun "pai-tools/deep-research-option-c.ts"';
+}
+
 if (JSON_MODE_REQUESTED) {
   // Hard contract: in --json mode, reserve stdout for exactly one JSON object.
   // Any incidental console.log output is redirected to stderr.
@@ -847,15 +851,16 @@ function buildTaskDriverNextCommands(args: {
   stage: "wave1" | "wave2" | "summaries" | "synthesis";
   missing: TaskDriverMissingPerspective[];
 }): string[] {
+  const cli = nextStepCliInvocation();
   const agentResultCommands = args.missing.map((item) => {
     const inputPath = path.join(args.runRoot, "operator", "outputs", args.stage, `${item.perspectiveId}.md`);
-    return `bun ".opencode/pai-tools/deep-research-option-c.ts" agent-result --manifest "${args.manifestPath}" --stage ${args.stage} --perspective "${item.perspectiveId}" --input "${inputPath}" --agent-run-id "<AGENT_RUN_ID>" --reason "operator: task driver ingest ${args.stage}/${item.perspectiveId}"`;
+    return `${cli} agent-result --manifest "${args.manifestPath}" --stage ${args.stage} --perspective "${item.perspectiveId}" --input "${inputPath}" --agent-run-id "<AGENT_RUN_ID>" --reason "operator: task driver ingest ${args.stage}/${item.perspectiveId}"`;
   });
 
   return [
-    `bun ".opencode/pai-tools/deep-research-option-c.ts" inspect --manifest "${args.manifestPath}"`,
+    `${cli} inspect --manifest "${args.manifestPath}"`,
     ...agentResultCommands,
-    `bun ".opencode/pai-tools/deep-research-option-c.ts" tick --manifest "${args.manifestPath}" --driver task --reason "resume ${args.stage} after agent-result ingestion"`,
+    `${cli} tick --manifest "${args.manifestPath}" --driver task --reason "resume ${args.stage} after agent-result ingestion"`,
   ];
 }
 
@@ -1651,10 +1656,11 @@ function nextHaltCommands(args: {
   if (Array.isArray(args.nextCommandsOverride) && args.nextCommandsOverride.length > 0) {
     return args.nextCommandsOverride;
   }
+  const cli = nextStepCliInvocation();
   return [
-    `bun ".opencode/pai-tools/deep-research-option-c.ts" inspect --manifest "${args.manifestPath}"`,
-    `bun ".opencode/pai-tools/deep-research-option-c.ts" triage --manifest "${args.manifestPath}"`,
-    `bun ".opencode/pai-tools/deep-research-option-c.ts" tick --manifest "${args.manifestPath}" --driver fixture --reason "halt retry from ${args.stageCurrent} (halt_tick_${args.tickIndex})"`,
+    `${cli} inspect --manifest "${args.manifestPath}"`,
+    `${cli} triage --manifest "${args.manifestPath}"`,
+    `${cli} tick --manifest "${args.manifestPath}" --driver fixture --reason "halt retry from ${args.stageCurrent} (halt_tick_${args.tickIndex})"`,
   ];
 }
 
@@ -2891,7 +2897,7 @@ async function runPause(args: PauseResumeCliArgs): Promise<void> {
           `- run_id: ${summary.runId}`,
           `- stage: ${summary.stageCurrent}`,
           `- reason: ${args.reason}`,
-          `- next_step: bun ".opencode/pai-tools/deep-research-option-c.ts" resume --manifest "${runHandle.manifestPath}" --reason "operator resume"`,
+          `- next_step: ${nextStepCliInvocation()} resume --manifest "${runHandle.manifestPath}" --reason "operator resume"`,
         ].join("\n"),
       });
 
@@ -3029,7 +3035,7 @@ async function runCancel(args: PauseResumeCliArgs): Promise<void> {
           `- run_id: ${summary.runId}`,
           `- stage: ${summary.stageCurrent}`,
           `- reason: ${args.reason}`,
-          `- next_step: bun ".opencode/pai-tools/deep-research-option-c.ts" status --manifest "${runHandle.manifestPath}"`,
+          `- next_step: ${nextStepCliInvocation()} status --manifest "${runHandle.manifestPath}"`,
         ].join("\n"),
       });
 
