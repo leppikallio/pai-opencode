@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
@@ -8,6 +9,7 @@ import {
   orchestrator_tick_live,
   run_init,
   stage_advance,
+  wave1_plan,
 } from "../../tools/deep_research.ts";
 import {
   fixturePath,
@@ -42,6 +44,10 @@ function invalidMarkdown(label: string): string {
   ].join("\n");
 }
 
+function promptDigest(promptMd: string): string {
+  return `sha256:${createHash("sha256").update(promptMd, "utf8").digest("hex")}`;
+}
+
 async function writePerspectivesForRun(runRoot: string, runId: string): Promise<string> {
   const fixture = fixturePath("runs", "p03-wave1-plan-min", "perspectives.json");
   const raw = await fs.readFile(fixture, "utf8");
@@ -51,6 +57,62 @@ async function writePerspectivesForRun(runRoot: string, runId: string): Promise<
   const target = path.join(runRoot, "perspectives.json");
   await fs.writeFile(target, `${JSON.stringify(doc, null, 2)}\n`, "utf8");
   return target;
+}
+
+async function seedWave1OutputsWithMatchingPromptDigests(args: {
+  manifestPath: string;
+  runRoot: string;
+  markdownForPerspective: (perspectiveId: string) => string;
+}): Promise<void> {
+  const planRaw = (await (wave1_plan as any).execute(
+    {
+      manifest_path: args.manifestPath,
+      reason: "test: preseed wave1 plan",
+    },
+    makeToolContext(),
+  )) as string;
+  const planResult = parseToolJson(planRaw);
+  if (!planResult.ok) {
+    throw new Error(`failed to seed wave1 plan: ${JSON.stringify(planResult)}`);
+  }
+
+  const planPath = path.join(args.runRoot, "wave-1", "wave1-plan.json");
+  const planDoc = JSON.parse(await fs.readFile(planPath, "utf8")) as Record<string, unknown>;
+  const entries: Array<Record<string, unknown>> = Array.isArray(planDoc.entries)
+    ? (planDoc.entries as Array<Record<string, unknown>>)
+    : [];
+
+  for (const entry of entries) {
+    const perspectiveId = String(entry.perspective_id ?? "").trim();
+    const outputMd = String(entry.output_md ?? "").trim();
+    const promptMd = String(entry.prompt_md ?? "");
+    if (!perspectiveId || !outputMd || !promptMd) {
+      throw new Error(`invalid plan entry for seeding: ${JSON.stringify(entry)}`);
+    }
+
+    const outputPath = path.join(args.runRoot, outputMd);
+    await fs.mkdir(path.dirname(outputPath), { recursive: true });
+    await fs.writeFile(outputPath, args.markdownForPerspective(perspectiveId), "utf8");
+
+    const sidecarPath = outputMd.endsWith(".md")
+      ? path.join(args.runRoot, `${outputMd.slice(0, -3)}.meta.json`)
+      : path.join(args.runRoot, `${outputMd}.meta.json`);
+    await fs.writeFile(
+      sidecarPath,
+      `${JSON.stringify(
+        {
+          schema_version: "wave-output-meta.v1",
+          prompt_digest: promptDigest(promptMd),
+          agent_run_id: `seed:${perspectiveId}`,
+          ingested_at: "2026-02-16T10:00:00.000Z",
+          source_input_path: outputPath,
+        },
+        null,
+        2,
+      )}\n`,
+      "utf8",
+    );
+  }
 }
 
 describe("deep_research_orchestrator_tick_live (entity)", () => {
@@ -108,13 +170,13 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
         expect(out.wave_outputs_count).toBe(3);
 
         expect(driverCalls.length).toBe(3);
-        expect(driverCalls.map((call) => call.perspective_id)).toEqual(["p1", "p2", "p3"]);
+        expect(driverCalls.map((call) => call.perspective_id)).toEqual(["p3", "p1", "p2"]);
         expect(driverCalls[0]).toMatchObject({
           run_id: runId,
           stage: "wave1",
-          perspective_id: "p1",
-          agent_type: "ClaudeResearcher",
-          output_md: "wave-1/p1.md",
+          perspective_id: "p3",
+          agent_type: "GrokResearcher",
+          output_md: "wave-1/p3.md",
         });
 
         const p1Markdown = await fs.readFile(path.join(runRoot, "wave-1", "p1.md"), "utf8");
@@ -127,14 +189,17 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
         const p1Meta = JSON.parse(await fs.readFile(path.join(runRoot, "wave-1", "p1.meta.json"), "utf8"));
         const p2Meta = JSON.parse(await fs.readFile(path.join(runRoot, "wave-1", "p2.meta.json"), "utf8"));
         const p3Meta = JSON.parse(await fs.readFile(path.join(runRoot, "wave-1", "p3.meta.json"), "utf8"));
-        for (const sidecar of [p1Meta, p2Meta, p3Meta]) {
-          expect(typeof sidecar.perspective_id).toBe("string");
-          expect(typeof sidecar.agent_type).toBe("string");
-          expect(typeof sidecar.output_md).toBe("string");
+        for (const [perspectiveId, sidecar, outputPath] of [
+          ["p1", p1Meta, path.join(runRoot, "wave-1", "p1.md")],
+          ["p2", p2Meta, path.join(runRoot, "wave-1", "p2.md")],
+          ["p3", p3Meta, path.join(runRoot, "wave-1", "p3.md")],
+        ]) {
+          expect(sidecar.schema_version).toBe("wave-output-meta.v1");
           expect(typeof sidecar.prompt_digest).toBe("string");
           expect(sidecar.prompt_digest.startsWith("sha256:")).toBe(true);
-          expect(typeof sidecar.created_at).toBe("string");
-          expect(sidecar.retry_count).toBe(0);
+          expect(sidecar.agent_run_id).toBe(`live:${perspectiveId}:${sidecar.prompt_digest}:r0`);
+          expect(typeof sidecar.ingested_at).toBe("string");
+          expect(sidecar.source_input_path).toBe(outputPath);
         }
 
         const waveReview = JSON.parse(await fs.readFile(path.join(runRoot, "wave-review.json"), "utf8"));
@@ -327,6 +392,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
         const toWave1 = parseToolJson(toWave1Raw);
         expect(toWave1.ok).toBe(true);
 
+        const seededPrompt = "## Scope Contract\n- seeded";
         await fs.mkdir(path.join(runRoot, "wave-1"), { recursive: true });
         await fs.writeFile(
           path.join(runRoot, "wave-1", "wave1-plan.json"),
@@ -338,10 +404,22 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
               inputs_digest: "digest",
               entries: [
                 {
+                  perspective_id: "p3",
+                  agent_type: "GrokResearcher",
+                  output_md: "wave-1/p3.md",
+                  prompt_md: seededPrompt,
+                },
+                {
                   perspective_id: "p1",
                   agent_type: "ClaudeResearcher",
                   output_md: "wave-1/p1.md",
-                  prompt_md: "Prompt",
+                  prompt_md: seededPrompt,
+                },
+                {
+                  perspective_id: "p2",
+                  agent_type: "GeminiResearcher",
+                  output_md: "wave-1/p2.md",
+                  prompt_md: seededPrompt,
                 },
               ],
             },
@@ -351,18 +429,88 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
           "utf8",
         );
         await fs.writeFile(path.join(runRoot, "wave-1", "p1.md"), validMarkdown("p1"), "utf8");
+        await fs.writeFile(path.join(runRoot, "wave-1", "p2.md"), validMarkdown("p2"), "utf8");
+        await fs.writeFile(path.join(runRoot, "wave-1", "p3.md"), validMarkdown("p3"), "utf8");
+        await fs.writeFile(
+          path.join(runRoot, "wave-1", "p1.meta.json"),
+          `${JSON.stringify(
+            {
+              schema_version: "wave-output-meta.v1",
+              prompt_digest: promptDigest(seededPrompt),
+              agent_run_id: "agent-run-p1-seeded",
+              ingested_at: "2026-02-16T10:00:00.000Z",
+              source_input_path: path.join(runRoot, "wave-1", "p1.md"),
+              started_at: "2026-02-16T09:59:00.000Z",
+              finished_at: "2026-02-16T10:00:00.000Z",
+              model: "seed-model",
+            },
+            null,
+            2,
+          )}\n`,
+          "utf8",
+        );
+        await fs.writeFile(
+          path.join(runRoot, "wave-1", "p2.meta.json"),
+          `${JSON.stringify(
+            {
+              schema_version: "wave-output-meta.v1",
+              prompt_digest: promptDigest(seededPrompt),
+              agent_run_id: "agent-run-p2-seeded",
+              ingested_at: "2026-02-16T10:00:00.000Z",
+              source_input_path: path.join(runRoot, "wave-1", "p2.md"),
+              started_at: "2026-02-16T09:59:00.000Z",
+              finished_at: "2026-02-16T10:00:00.000Z",
+              model: "seed-model",
+            },
+            null,
+            2,
+          )}\n`,
+          "utf8",
+        );
+        await fs.writeFile(
+          path.join(runRoot, "wave-1", "p3.meta.json"),
+          `${JSON.stringify(
+            {
+              schema_version: "wave-output-meta.v1",
+              prompt_digest: promptDigest(seededPrompt),
+              agent_run_id: "agent-run-p3-seeded",
+              ingested_at: "2026-02-16T10:00:00.000Z",
+              source_input_path: path.join(runRoot, "wave-1", "p3.md"),
+              started_at: "2026-02-16T09:59:00.000Z",
+              finished_at: "2026-02-16T10:00:00.000Z",
+              model: "seed-model",
+            },
+            null,
+            2,
+          )}\n`,
+          "utf8",
+        );
         await fs.writeFile(
           path.join(runRoot, "wave-review.json"),
           `${JSON.stringify(
             {
               ok: true,
               pass: true,
-              validated: 1,
+              validated: 3,
               failed: 0,
               results: [
                 {
                   perspective_id: "p1",
                   markdown_path: path.join(runRoot, "wave-1", "p1.md"),
+                  pass: true,
+                  metrics: { words: 20, sources: 1, missing_sections: [] },
+                  failure: null,
+                },
+                {
+                  perspective_id: "p2",
+                  markdown_path: path.join(runRoot, "wave-1", "p2.md"),
+                  pass: true,
+                  metrics: { words: 20, sources: 1, missing_sections: [] },
+                  failure: null,
+                },
+                {
+                  perspective_id: "p3",
+                  markdown_path: path.join(runRoot, "wave-1", "p3.md"),
                   pass: true,
                   metrics: { words: 20, sources: 1, missing_sections: [] },
                   failure: null,
@@ -413,6 +561,176 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
 
         const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
         expect(manifest.stage.current).toBe("pivot");
+
+        const preservedMeta = JSON.parse(await fs.readFile(path.join(runRoot, "wave-1", "p1.meta.json"), "utf8"));
+        expect(preservedMeta.schema_version).toBe("wave-output-meta.v1");
+        expect(preservedMeta.prompt_digest).toBe(promptDigest(seededPrompt));
+        expect(preservedMeta.agent_run_id).toBe("agent-run-p1-seeded");
+        expect(preservedMeta.ingested_at).toBe("2026-02-16T10:00:00.000Z");
+        expect(preservedMeta.source_input_path).toBe(path.join(runRoot, "wave-1", "p1.md"));
+        expect(preservedMeta.started_at).toBe("2026-02-16T09:59:00.000Z");
+        expect(preservedMeta.finished_at).toBe("2026-02-16T10:00:00.000Z");
+        expect(preservedMeta.model).toBe("seed-model");
+      });
+    });
+  });
+
+  test("reruns only perspective whose prompt digest no longer matches sidecar", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_orchestrator_tick_live_prompt_digest_009";
+
+        const initRaw = (await (run_init as any).execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = String((init as any).manifest_path);
+        const gatesPath = String((init as any).gates_path);
+        const runRoot = path.dirname(manifestPath);
+        await writePerspectivesForRun(runRoot, runId);
+
+        const toWave1Raw = (await (stage_advance as any).execute(
+          {
+            manifest_path: manifestPath,
+            gates_path: gatesPath,
+            reason: "test: init -> wave1",
+            requested_next: "wave1",
+          },
+          makeToolContext(),
+        )) as string;
+        const toWave1 = parseToolJson(toWave1Raw);
+        expect(toWave1.ok).toBe(true);
+
+        const firstDriverCalls: Array<Record<string, unknown>> = [];
+        const firstTick = await orchestrator_tick_live({
+          manifest_path: manifestPath,
+          gates_path: gatesPath,
+          reason: "test: prompt digest first tick",
+          drivers: {
+            runAgent: async (input: OrchestratorLiveRunAgentInput) => {
+              firstDriverCalls.push(input as unknown as Record<string, unknown>);
+              return { markdown: validMarkdown(input.perspective_id) };
+            },
+          },
+          stage_advance_tool: stage_advance as any,
+          tool_context: makeToolContext(),
+        });
+
+        expect(firstTick.ok).toBe(true);
+        if (!firstTick.ok) return;
+        expect(firstDriverCalls.length).toBe(3);
+
+        const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        manifest.stage.current = "wave1";
+        await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
+        const planPath = path.join(runRoot, "wave-1", "wave1-plan.json");
+        const plan = JSON.parse(await fs.readFile(planPath, "utf8"));
+        const entries: Array<Record<string, unknown>> = Array.isArray(plan.entries)
+          ? (plan.entries as Array<Record<string, unknown>>)
+          : [];
+        const p2Entry = entries.find((entry) => entry.perspective_id === "p2");
+        if (!p2Entry || typeof p2Entry.prompt_md !== "string") {
+          throw new Error("expected p2 entry with prompt_md in wave1 plan");
+        }
+        const mutatedPrompt = `${p2Entry.prompt_md}\n- prompt changed for rerun`;
+        p2Entry.prompt_md = mutatedPrompt;
+        await fs.writeFile(planPath, `${JSON.stringify(plan, null, 2)}\n`, "utf8");
+
+        const secondDriverCalls: Array<Record<string, unknown>> = [];
+        const secondTick = await orchestrator_tick_live({
+          manifest_path: manifestPath,
+          gates_path: gatesPath,
+          reason: "test: prompt digest second tick",
+          drivers: {
+            runAgent: async (input: OrchestratorLiveRunAgentInput) => {
+              secondDriverCalls.push(input as unknown as Record<string, unknown>);
+              return { markdown: validMarkdown(input.perspective_id) };
+            },
+          },
+          stage_advance_tool: stage_advance as any,
+          tool_context: makeToolContext(),
+        });
+
+        expect(secondTick.ok).toBe(true);
+        if (!secondTick.ok) return;
+        expect(secondDriverCalls.map((call) => call.perspective_id)).toEqual(["p2"]);
+        expect(secondDriverCalls[0].prompt_md).toBe(mutatedPrompt);
+
+        const p2Meta = JSON.parse(await fs.readFile(path.join(runRoot, "wave-1", "p2.meta.json"), "utf8"));
+        expect(p2Meta.prompt_digest).toBe(promptDigest(mutatedPrompt));
+      });
+    });
+  });
+
+  test("fails Gate A when scope.json is missing and records typed reason in gates", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_orchestrator_tick_live_gate_a_missing_scope_008";
+
+        const initRaw = (await (run_init as any).execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = String((init as any).manifest_path);
+        const gatesPath = String((init as any).gates_path);
+        const runRoot = path.dirname(manifestPath);
+        await writePerspectivesForRun(runRoot, runId);
+
+        const toWave1Raw = (await (stage_advance as any).execute(
+          {
+            manifest_path: manifestPath,
+            gates_path: gatesPath,
+            reason: "test: init -> wave1",
+            requested_next: "wave1",
+          },
+          makeToolContext(),
+        )) as string;
+        const toWave1 = parseToolJson(toWave1Raw);
+        expect(toWave1.ok).toBe(true);
+
+        const planRaw = (await (wave1_plan as any).execute(
+          {
+            manifest_path: manifestPath,
+            reason: "test: preseed wave1 plan",
+          },
+          makeToolContext(),
+        )) as string;
+        const plan = parseToolJson(planRaw);
+        expect(plan.ok).toBe(true);
+
+        await fs.rm(path.join(runRoot, "operator", "scope.json"), { force: true });
+
+        let runAgentCalls = 0;
+        const out = await orchestrator_tick_live({
+          manifest_path: manifestPath,
+          gates_path: gatesPath,
+          reason: "test: gate A missing scope",
+          drivers: {
+            runAgent: async (input: OrchestratorLiveRunAgentInput) => {
+              runAgentCalls += 1;
+              return { markdown: validMarkdown(input.perspective_id) };
+            },
+          },
+          stage_advance_tool: stage_advance as any,
+          tool_context: makeToolContext(),
+        });
+
+        expect(out.ok).toBe(false);
+        if (out.ok) return;
+        expect(out.error.code).toBe("GATE_A_FAILED");
+        expect(out.error.details.reason).toBe("SCOPE_NOT_FOUND");
+        expect(runAgentCalls).toBe(0);
+
+        const gates = JSON.parse(await fs.readFile(gatesPath, "utf8"));
+        expect(gates.gates.A.status).toBe("fail");
+        expect(gates.gates.A.warnings).toContain("SCOPE_NOT_FOUND");
       });
     });
   });
@@ -501,10 +819,11 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
         const toWave1 = parseToolJson(toWave1Raw);
         expect(toWave1.ok).toBe(true);
 
-        await fs.mkdir(path.join(runRoot, "wave-1"), { recursive: true });
-        await fs.writeFile(path.join(runRoot, "wave-1", "p1.md"), invalidMarkdown("p1"), "utf8");
-        await fs.writeFile(path.join(runRoot, "wave-1", "p2.md"), invalidMarkdown("p2"), "utf8");
-        await fs.writeFile(path.join(runRoot, "wave-1", "p3.md"), invalidMarkdown("p3"), "utf8");
+        await seedWave1OutputsWithMatchingPromptDigests({
+          manifestPath,
+          runRoot,
+          markdownForPerspective: (perspectiveId) => invalidMarkdown(perspectiveId),
+        });
 
         const out = await orchestrator_tick_live({
           manifest_path: manifestPath,
@@ -569,10 +888,11 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
         const toWave1 = parseToolJson(toWave1Raw);
         expect(toWave1.ok).toBe(true);
 
-        await fs.mkdir(path.join(runRoot, "wave-1"), { recursive: true });
-        await fs.writeFile(path.join(runRoot, "wave-1", "p1.md"), invalidMarkdown("p1"), "utf8");
-        await fs.writeFile(path.join(runRoot, "wave-1", "p2.md"), invalidMarkdown("p2"), "utf8");
-        await fs.writeFile(path.join(runRoot, "wave-1", "p3.md"), invalidMarkdown("p3"), "utf8");
+        await seedWave1OutputsWithMatchingPromptDigests({
+          manifestPath,
+          runRoot,
+          markdownForPerspective: (perspectiveId) => invalidMarkdown(perspectiveId),
+        });
 
         const first = await orchestrator_tick_live({
           manifest_path: manifestPath,
@@ -653,10 +973,11 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
         const toWave1 = parseToolJson(toWave1Raw);
         expect(toWave1.ok).toBe(true);
 
-        await fs.mkdir(path.join(runRoot, "wave-1"), { recursive: true });
-        await fs.writeFile(path.join(runRoot, "wave-1", "p1.md"), invalidMarkdown("p1"), "utf8");
-        await fs.writeFile(path.join(runRoot, "wave-1", "p2.md"), invalidMarkdown("p2"), "utf8");
-        await fs.writeFile(path.join(runRoot, "wave-1", "p3.md"), invalidMarkdown("p3"), "utf8");
+        await seedWave1OutputsWithMatchingPromptDigests({
+          manifestPath,
+          runRoot,
+          markdownForPerspective: (perspectiveId) => invalidMarkdown(perspectiveId),
+        });
 
         const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
         manifest.metrics = {

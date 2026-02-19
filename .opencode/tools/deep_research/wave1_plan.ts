@@ -14,10 +14,13 @@ import {
   nowIso,
   ok,
   readJson,
+  renderScopeContractMd,
   sha256DigestForJson,
   validateManifestV1,
   validatePerspectivesV1,
+  validateScopeV1,
   isPlainObject,
+  type ScopeV1,
 } from "./wave_tools_shared";
 
 export const wave1_plan = tool({
@@ -96,22 +99,43 @@ export const wave1_plan = tool({
         });
       }
 
-      const sortedPerspectives = [...rawPerspectives].sort((a, b) => {
-        const aId = String(a.id ?? "");
-        const bId = String(b.id ?? "");
-        return aId.localeCompare(bId);
-      });
+      const orderedPerspectives = [...rawPerspectives];
 
       const queryObj = isPlainObject(manifest.query) ? (manifest.query as Record<string, unknown>) : {};
       const queryText = String(queryObj.text ?? "");
+
+      const scopePath = path.join(runRoot, "operator", "scope.json");
+      let scopeRaw: unknown;
+      try {
+        scopeRaw = await readJson(scopePath);
+      } catch (e) {
+        if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "scope_path not found", { scope_path: scopePath });
+        if (e instanceof SyntaxError) return err("INVALID_JSON", "scope_path contains invalid JSON", { scope_path: scopePath });
+        throw e;
+      }
+
+      const sErr = validateScopeV1(scopeRaw);
+      if (sErr) return sErr;
+
+      const scopeDoc = scopeRaw as ScopeV1;
+      if (scopeDoc.run_id !== runId) {
+        return err("INVALID_STATE", "manifest and scope run_id mismatch", {
+          manifest_run_id: runId,
+          scope_run_id: scopeDoc.run_id,
+          scope_path: scopePath,
+        });
+      }
+
+      const scopeContractMd = renderScopeContractMd(scopeDoc);
 
       const digestPayload = {
         schema: "wave1_plan.inputs.v1",
         run_id: runId,
         query_text: queryText,
+        scope_contract_md: scopeContractMd,
         max_wave1_agents: maxWave1Agents,
         wave1_dir: wave1Dir,
-        perspectives: sortedPerspectives.map((perspective) => {
+        perspectives: orderedPerspectives.map((perspective) => {
           const contract = (perspective.prompt_contract ?? {}) as Record<string, unknown>;
           return {
             id: String(perspective.id ?? ""),
@@ -126,7 +150,7 @@ export const wave1_plan = tool({
       };
       const inputsDigest = sha256DigestForJson(digestPayload);
 
-      const entries = sortedPerspectives.map((perspective) => {
+      const entries = orderedPerspectives.map((perspective) => {
         const perspectiveId = String(perspective.id ?? "");
         const contract = (perspective.prompt_contract ?? {}) as Record<string, unknown>;
         const maxWords = Number(contract.max_words ?? 0);
@@ -148,6 +172,7 @@ export const wave1_plan = tool({
             maxWords,
             maxSources,
             mustIncludeSections,
+            scopeContractMd,
           }),
         };
       });

@@ -50,14 +50,39 @@ describe("deep_research_wave1_plan (entity)", () => {
           expect(typeof plan.inputs_digest).toBe("string");
           expect(Array.isArray(plan.entries)).toBe(true);
           expect(plan.entries.length).toBe(3);
-          expect(plan.entries.map((p: any) => p.perspective_id)).toEqual(["p1", "p2", "p3"]);
-          expect(plan.entries.map((p: any) => p.output_md)).toEqual(["wave-1/p1.md", "wave-1/p2.md", "wave-1/p3.md"]);
+          expect(plan.entries.map((p: any) => p.perspective_id)).toEqual(["p3", "p1", "p2"]);
+          expect(plan.entries.map((p: any) => p.output_md)).toEqual(["wave-1/p3.md", "wave-1/p1.md", "wave-1/p2.md"]);
           expect(plan.entries[0]).toMatchObject({
-            perspective_id: "p1",
-            agent_type: "ClaudeResearcher",
-            output_md: "wave-1/p1.md",
+            perspective_id: "p3",
+            agent_type: "GrokResearcher",
+            output_md: "wave-1/p3.md",
           });
           expect(typeof plan.entries[0].prompt_md).toBe("string");
+
+          const promptMd = String(plan.entries[0].prompt_md ?? "");
+          expect(promptMd).toContain("## Scope Contract");
+          expect(promptMd).toContain("### Questions");
+          expect(promptMd).toContain("### Non-goals");
+          expect(promptMd).toContain("- Deliverable:");
+          expect(promptMd).toContain("- Time budget minutes:");
+          expect(promptMd).toContain("- Depth:");
+          expect(promptMd).toContain("- Citation posture:");
+
+          const scopeIndex = promptMd.indexOf("## Scope Contract");
+          const questionsIndex = promptMd.indexOf("### Questions");
+          const nonGoalsIndex = promptMd.indexOf("### Non-goals");
+          const deliverableIndex = promptMd.indexOf("- Deliverable:");
+          const timeBudgetIndex = promptMd.indexOf("- Time budget minutes:");
+          const depthIndex = promptMd.indexOf("- Depth:");
+          const citationPostureIndex = promptMd.indexOf("- Citation posture:");
+
+          expect(scopeIndex).toBeGreaterThanOrEqual(0);
+          expect(questionsIndex).toBeGreaterThan(scopeIndex);
+          expect(nonGoalsIndex).toBeGreaterThan(questionsIndex);
+          expect(deliverableIndex).toBeGreaterThan(nonGoalsIndex);
+          expect(timeBudgetIndex).toBeGreaterThan(deliverableIndex);
+          expect(depthIndex).toBeGreaterThan(timeBudgetIndex);
+          expect(citationPostureIndex).toBeGreaterThan(depthIndex);
         });
       },
     );

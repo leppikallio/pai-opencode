@@ -38,7 +38,8 @@ bun "pai-tools/deep-research-option-c.ts" <command> [...flags]
 ### Commands
 
 - `init "<query>" [--run-id <id>] [--sensitivity normal|restricted|no_web] [--mode quick|standard|deep] [--no-perspectives]`
-- `tick --manifest <abs> --gates <abs> --reason "..." --driver <fixture|live>`
+- `tick --manifest <abs> --gates <abs> --reason "..." --driver <fixture|live|task>`
+- `agent-result --manifest <abs> --stage wave1 --perspective <id> --input <abs_md> --agent-run-id <string> --reason <text> [--started-at <iso>] [--finished-at <iso>] [--model <string>]`
 - `run --manifest <abs> --gates <abs> --reason "..." --driver <fixture|live> [--max-ticks <n>]`
 - `status --manifest <abs>`
 - `inspect --manifest <abs>`
@@ -98,6 +99,7 @@ Default minimal perspective payload (single perspective, id `p1`):
 - Driver decides progression strategy:
   - `fixture`: deterministic fixture-style stage advancement.
   - `live`: live orchestrator path (WS1 core only).
+  - `task`: non-blocking wave1 prompt-out driver. Writes prompts, halts with `RUN_AGENT_REQUIRED`, then resumes after `agent-result` ingestion.
 - Use `triage` when a tick is blocked; it prints missing artifacts and blocked gates.
 
 ---
@@ -124,9 +126,9 @@ Default minimal perspective payload (single perspective, id `p1`):
 
 ---
 
-## C) live mode (autonomous task driver)
+## C) live mode (task driver loop)
 
-Goal: run Wave 1 autonomously (Option A) to reach `stage.current=pivot` without manual draft editing.
+Goal: run Wave 1 without manual draft editing using `tick --driver task` + `agent-result`.
 
 ### C1) Initialize
 
@@ -139,43 +141,54 @@ Capture the printed paths:
 - `gates_path`
 - `run_root`
 
-### C2) Generate Wave 1 outputs via Task-backed driver (Marvin)
+### C2) Prompt-out tick (non-blocking)
 
-Mechanics:
-1) Read the Wave 1 plan (`wave-1/wave1-plan.json`).
-2) For each planned perspective:
-   - write prompt input artifact: `operator/prompts/wave1/<perspective_id>.md`
-   - spawn one `functions.task` using the prompt (respect word/source budgets)
-   - write raw output artifact: `operator/outputs/wave1/<perspective_id>.md`
-   - write sidecar: `operator/outputs/wave1/<perspective_id>.meta.json`:
-     - `agent_run_id`
-     - `prompt_digest`
-     - `retry_directives_digest` (or null)
-     - `started_at`, `finished_at`
-   - copy the output into the orchestrator output path from the plan entry (usually `wave-1/<perspective_id>.md`)
+Run one task-driver tick:
 
-Notes:
-- Deterministic tools remain unchanged; this driver is the dynamic seam.
-- If retry directives exist (from a previous attempt), rerun only targeted perspectives and record a `retry_record(gate_id=B)`.
+```bash
+bun "pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_abs>" --driver task --reason "wave1 task tick"
+```
 
-### C3) Deterministic ingest + review + Gate B
+Behavior contract:
+- Writes prompt artifacts to `operator/prompts/wave1/<perspective_id>.md` for all missing perspectives.
+- Does **not** wait for input.
+- Halts with typed condition `RUN_AGENT_REQUIRED`.
+- Writes `operator/halt/latest.json` (`halt.v1`) with one `agent-result ...` skeleton command per missing perspective in `next_commands[]`.
 
-After outputs exist under `wave-1/`:
+### C3) Result-in per perspective
 
-- Validate and ingest:
-  - `deep_research_wave_output_validate` (per perspective)
-  - `deep_research_wave_output_ingest` (per wave)
-- Review:
-  - `deep_research_wave_review` -> writes `wave-review.json`
-- Gate B:
-  - `deep_research_gate_b_derive` -> patch
-  - `deep_research_gates_write` -> persist Gate B status
+For each missing perspective, ingest agent markdown using:
 
-### C4) Advance to pivot
+```bash
+bun "pai-tools/deep-research-option-c.ts" agent-result \
+  --manifest "<manifest_abs>" \
+  --stage wave1 \
+  --perspective "<id>" \
+  --input "<abs_markdown_file>" \
+  --agent-run-id "<run-id>" \
+  --reason "wave1 ingest <id>"
+```
 
-When Gate B is `pass` and no retry directive remains:
+`agent-result` writes canonical outputs:
+- `wave-1/<id>.md`
+- `wave-1/<id>.meta.json`
 
-- `deep_research_stage_advance` to `pivot`
+Sidecar contract (`wave-output-meta.v1`):
+- `prompt_digest` (from `wave-1/wave1-plan.json` prompt_md)
+- `agent_run_id`
+- `ingested_at`
+- `source_input_path`
+- optional: `started_at`, `finished_at`, `model`
+
+### C4) Resume tick after ingestion
+
+Re-run task tick:
+
+```bash
+bun "pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_abs>" --driver task --reason "wave1 resume"
+```
+
+When all missing perspectives are ingested, the deterministic wave pipeline proceeds and advances toward `pivot`.
 
 ### C5) If blocked
 
@@ -202,33 +215,35 @@ Edit the draft and press ENTER to continue each step.
 
 ### Live driver artifact contract (E1-T1, Option A target)
 
-For autonomous `runAgent` execution in `wave1`, the driver contract is:
+For task-driver loop execution in `wave1`, the operational contract is:
 
-- Prompt input artifact (required):
-  - `operator/prompts/<stage>/<perspective_id>.md`
-- Raw output artifact (required):
-  - `operator/outputs/<stage>/<perspective_id>.md`
-- Metadata sidecar (required):
-  - `operator/outputs/<stage>/<perspective_id>.meta.json`
+- Prompt output artifact (required):
+  - `operator/prompts/wave1/<perspective_id>.md`
+- Canonical ingested markdown (required):
+  - `wave-1/<perspective_id>.md`
+- Canonical metadata sidecar (required):
+  - `wave-1/<perspective_id>.meta.json`
 
 Required `meta.json` fields:
 
 ```json
 {
-  "agent_run_id": "<string>",
+  "schema_version": "wave-output-meta.v1",
   "prompt_digest": "sha256:<hex>",
-  "retry_directives_digest": "sha256:<hex>|null",
+  "agent_run_id": "<string>",
+  "ingested_at": "<iso-8601>",
+  "source_input_path": "<absolute-markdown-path>",
   "started_at": "<iso-8601>",
-  "finished_at": "<iso-8601>"
+  "finished_at": "<iso-8601>",
+  "model": "<optional-model-id>"
 }
 ```
 
 Rules:
 
-- `prompt_digest` MUST be computed from the exact prompt content written to disk.
-- `retry_directives_digest` MUST be `null` when no retry directive is active; otherwise digest the applied retry directives payload.
-- `started_at` and `finished_at` MUST be run-local timestamps for the perspective execution.
-- The markdown file is the raw driver output; ingestion/validation remains in deterministic tools.
+- `tick --driver task` MUST halt with `RUN_AGENT_REQUIRED` instead of waiting for manual input.
+- `next_commands[]` in halt artifact MUST include one `agent-result` skeleton per missing perspective.
+- `agent-result` MUST compute `prompt_digest` from the wave1 plan entry for that perspective.
 
 ---
 

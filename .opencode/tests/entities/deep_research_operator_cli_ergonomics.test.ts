@@ -28,6 +28,10 @@ async function runCli(args: string[]): Promise<{ exit: number; stdout: string; s
   return { exit, stdout, stderr };
 }
 
+function parseJsonStdout(stdout: string): Record<string, unknown> {
+  return JSON.parse(stdout) as Record<string, unknown>;
+}
+
 function extractField(stdout: string, field: string): string {
   const pattern = new RegExp(`^${field}:\\s*(.+)$`, "m");
   const match = stdout.match(pattern);
@@ -118,6 +122,51 @@ describe("deep_research operator CLI ergonomics (entity)", () => {
     });
   });
 
+  test("status/inspect/triage --json emit one parseable object with required keys", async () => {
+    await withTempDir(async (base) => {
+      await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_RUNS_ROOT: base }, async () => {
+        const runId = "dr_test_cli_json_001";
+        const { manifestPath } = await initRun(runId);
+
+        const commands: Array<{ cmd: string[]; expectsBlockers: boolean }> = [
+          { cmd: ["status", "--manifest", manifestPath, "--json"], expectsBlockers: false },
+          { cmd: ["inspect", "--manifest", manifestPath, "--json"], expectsBlockers: true },
+          { cmd: ["triage", "--manifest", manifestPath, "--json"], expectsBlockers: true },
+        ];
+
+        for (const entry of commands) {
+          const res = await runCli(entry.cmd);
+          expect(res.exit).toBe(0);
+          expect(res.stderr).not.toContain("ERROR:");
+
+          const payload = parseJsonStdout(res.stdout);
+          expect(payload.run_id).toBe(runId);
+          expect(typeof payload.run_root).toBe("string");
+          expect(payload.manifest_path).toBe(manifestPath);
+          expect(typeof payload.gates_path).toBe("string");
+          expect(typeof payload.stage_current).toBe("string");
+          expect(typeof payload.status).toBe("string");
+
+          const gateSummary = payload.gate_statuses_summary as Record<string, unknown>;
+          expect(gateSummary).toBeTruthy();
+          for (const gateId of ["A", "B", "C", "D", "E", "F"]) {
+            expect(gateSummary[gateId]).toBeTruthy();
+          }
+
+          if (entry.expectsBlockers) {
+            const blockers = payload.blockers_summary as {
+              missing_artifacts?: unknown;
+              blocked_gates?: unknown;
+            };
+            expect(blockers).toBeTruthy();
+            expect(Array.isArray(blockers.missing_artifacts)).toBe(true);
+            expect(Array.isArray(blockers.blocked_gates)).toBe(true);
+          }
+        }
+      });
+    });
+  });
+
   test("tick derives gates from manifest when --gates is omitted", async () => {
     await withTempDir(async (base) => {
       await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_RUNS_ROOT: base }, async () => {
@@ -128,6 +177,52 @@ describe("deep_research operator CLI ergonomics (entity)", () => {
         expect(res.exit).toBe(0);
         expect(res.stdout).toContain("tick.driver: fixture");
         expect(res.stdout).toContain(`gates_path: ${gatesPath}`);
+      });
+    });
+  });
+
+  test("rerun wave1 writes deterministic retry directive artifact", async () => {
+    await withTempDir(async (base) => {
+      await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_RUNS_ROOT: base }, async () => {
+        const runId = "dr_test_cli_rerun_wave1_001";
+        const { manifestPath } = await initRun(runId);
+        const runRoot = path.dirname(manifestPath);
+
+        const beforeManifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        const beforeStage = String(beforeManifest?.stage?.current ?? "");
+
+        const res = await runCli([
+          "rerun",
+          "wave1",
+          "--manifest",
+          manifestPath,
+          "--perspective",
+          "p2",
+          "--reason",
+          "manual rerun for p2",
+        ]);
+
+        expect(res.exit).toBe(0);
+        expect(res.stderr).not.toContain("ERROR:");
+
+        const retryPath = path.join(runRoot, "retry", "retry-directives.json");
+        const retryArtifact = JSON.parse(await fs.readFile(retryPath, "utf8"));
+
+        expect(retryArtifact.schema_version).toBe("wave1.retry_directives.v1");
+        expect(retryArtifact.run_id).toBe(runId);
+        expect(retryArtifact.stage).toBe("wave1");
+        expect(retryArtifact.consumed_at).toBeNull();
+        expect(Array.isArray(retryArtifact.retry_directives)).toBe(true);
+        expect(retryArtifact.retry_directives).toHaveLength(1);
+        expect(retryArtifact.retry_directives[0]).toMatchObject({
+          perspective_id: "p2",
+          action: "retry",
+          change_note: "manual rerun for p2",
+        });
+
+        const afterManifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+        const afterStage = String(afterManifest?.stage?.current ?? "");
+        expect(afterStage).toBe(beforeStage);
       });
     });
   });

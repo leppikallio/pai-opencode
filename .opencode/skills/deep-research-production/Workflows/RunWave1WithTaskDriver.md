@@ -1,46 +1,65 @@
 # Workflow: RunWave1WithTaskDriver
 
-Run Wave 1 autonomously with the Task-backed `runAgent` driver (E1 option A), then gate to pivot.
+Run Wave 1 with the non-manual task driver loop (`tick --driver task` + `agent-result`).
 
 ## Preconditions
 
-- Live driver is Task-backed (not operator-input/manual draft editing).
+- Task driver mode is enabled (`--driver task`).
 - `manifest.json`, `gates.json`, and the Wave 1 plan artifact exist under the run root.
 
 ## Inputs
 
 - `manifest_path` (absolute)
-- `gates_path` (absolute)
 - `reason`
 
 ## Steps
 
 1. Start from a valid run initialized for live execution.
 
-2. Execute one live tick with autonomous driver path:
+2. Execute one prompt-out tick:
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_abs>" --gates "<gates_abs>" --reason "wave1 live tick" --driver live
+bun "pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_abs>" --reason "wave1 task tick" --driver task
 ```
 
-3. For each planned perspective, ensure the driver wrote output markdown and metadata sidecar, then ingest via `wave_output_ingest` and validate via `wave_output_validate`.
+3. On halt (`RUN_AGENT_REQUIRED`), read prompts from:
+   - `operator/prompts/wave1/<perspective_id>.md`
 
-4. Run `wave_review` and inspect decision:
-   - If PASS/no directives: continue to Gate B derive + gates write.
-   - If retry directives exist: run bounded retry loop and record retry with `retry_record` (`gate_id=B`).
+4. For each missing perspective, ingest markdown via CLI:
 
-5. When Gate B is pass and no retry directive remains, stage advances to `pivot`.
+```bash
+bun "pai-tools/deep-research-option-c.ts" agent-result \
+  --manifest "<manifest_abs>" \
+  --stage wave1 \
+  --perspective "<id>" \
+  --input "<abs_markdown_file>" \
+  --agent-run-id "<agent_run_id>" \
+  --reason "wave1 ingest <id>" \
+  [--started-at "<iso>"] [--finished-at "<iso>"] [--model "<model>"]
+```
+
+5. Verify canonical artifacts after each ingest:
+   - `wave-1/<id>.md`
+   - `wave-1/<id>.meta.json` (`schema_version=wave-output-meta.v1`)
+
+6. Re-run tick until Wave 1 clears:
+
+```bash
+bun "pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_abs>" --reason "wave1 resume" --driver task
+```
+
+7. When all missing perspectives are ingested, deterministic review/Gate B flow proceeds and stage advances to `pivot`.
 
 ## Retry directive interpretation
 
-- Retry directives are stored in `retry-directives.json` under the Wave 1 artifact directory.
+- Retry directives are stored in `retry/retry-directives.json` under the run root.
 - `RETRY_REQUIRED` means Wave 1 must rerun affected perspectives before pivot.
 - `RETRY_CAP_EXHAUSTED` means escalation is required; do not force pivot.
 
 ## Validation contract
 
-- [ ] `wave1-plan.json` exists in the Wave 1 artifact directory and planned count matches produced outputs.
-- [ ] Every planned perspective output passes `wave_output_validate`.
-- [ ] `wave-review.json` exists in the Wave 1 artifact directory and includes all planned perspective IDs.
-- [ ] Any retry path records `retry_record` for Gate B.
-- [ ] On success, `gates.B.status=pass` and `manifest.stage.current=pivot`.
+- [ ] `tick --driver task` writes `operator/prompts/wave1/<id>.md` and halts with `RUN_AGENT_REQUIRED`.
+- [ ] `operator/halt/latest.json.error.code == RUN_AGENT_REQUIRED` and `next_commands[]` has one `agent-result` skeleton per missing perspective.
+- [ ] `agent-result` writes `wave-1/<id>.md` and `wave-1/<id>.meta.json`.
+- [ ] `wave-1/<id>.meta.json.prompt_digest` matches sha256 digest derived from `wave-1/wave1-plan.json` prompt_md.
+- [ ] Subsequent `tick --driver task` can continue deterministic Wave 1 progression toward `pivot`.
