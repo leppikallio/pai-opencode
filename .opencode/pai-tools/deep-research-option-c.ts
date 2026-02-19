@@ -49,6 +49,7 @@ import { createAgentResultCmd } from "./deep-research-option-c/cmd/agent-result"
 import { createInitCmd } from "./deep-research-option-c/cmd/init";
 import { createInspectCmd } from "./deep-research-option-c/cmd/inspect";
 import { createPauseCmd } from "./deep-research-option-c/cmd/pause";
+import { createResumeCmd } from "./deep-research-option-c/cmd/resume";
 import { createRunCmd } from "./deep-research-option-c/cmd/run";
 import { createStatusCmd } from "./deep-research-option-c/cmd/status";
 import { createTickCmd } from "./deep-research-option-c/cmd/tick";
@@ -3340,28 +3341,7 @@ const triageCmd = createTriageCmd({ AbsolutePath, runTriage });
 
 const pauseCmd = createPauseCmd({ AbsolutePath, runPause });
 
-const resumeCmd = command({
-  name: "resume",
-  description: "Resume a paused run and reset stage timer semantics",
-  args: {
-    runId: option({ long: "run-id", type: optional(string) }),
-    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
-    runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
-    manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
-    reason: option({ long: "reason", type: optional(string) }),
-    json: flag({ long: "json", type: boolean }),
-  },
-  handler: async (args) => {
-    await runResume({
-      runId: args.runId,
-      runsRoot: args.runsRoot,
-      runRoot: args.runRoot,
-      manifest: args.manifest,
-      reason: args.reason ?? "operator-cli resume",
-      json: args.json,
-    });
-  },
-});
+const resumeCmd = createResumeCmd({ AbsolutePath, runResume });
 
 const cancelCmd = command({
   name: "cancel",
