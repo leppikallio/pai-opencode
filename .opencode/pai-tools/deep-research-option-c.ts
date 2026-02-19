@@ -47,6 +47,7 @@ import {
 } from "../tools/deep_research/lifecycle_lib";
 import { createAgentResultCmd } from "./deep-research-option-c/cmd/agent-result";
 import { createInitCmd } from "./deep-research-option-c/cmd/init";
+import { createInspectCmd } from "./deep-research-option-c/cmd/inspect";
 import { createRunCmd } from "./deep-research-option-c/cmd/run";
 import { createStatusCmd } from "./deep-research-option-c/cmd/status";
 import { createTickCmd } from "./deep-research-option-c/cmd/tick";
@@ -3331,26 +3332,7 @@ const runCmd = createRunCmd({ AbsolutePath, runRun });
 
 const statusCmd = createStatusCmd({ AbsolutePath, runStatus });
 
-const inspectCmd = command({
-  name: "inspect",
-  description: "Print gate status + next-stage blockers",
-  args: {
-    runId: option({ long: "run-id", type: optional(string) }),
-    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
-    runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
-    manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
-    json: flag({ long: "json", type: boolean }),
-  },
-  handler: async (args) => {
-    await runInspect({
-      runId: args.runId,
-      runsRoot: args.runsRoot,
-      runRoot: args.runRoot,
-      manifest: args.manifest,
-      json: args.json,
-    });
-  },
-});
+const inspectCmd = createInspectCmd({ AbsolutePath, runInspect });
 
 const triageCmd = command({
   name: "triage",
