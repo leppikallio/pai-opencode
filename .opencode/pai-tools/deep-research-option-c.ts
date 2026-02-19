@@ -47,6 +47,7 @@ import {
   resolveDeepResearchFlagsV1,
   sha256HexLowerUtf8,
 } from "../tools/deep_research/lifecycle_lib";
+import { createAgentResultCmd } from "./deep-research-option-c/cmd/agent-result";
 import { createInitCmd } from "./deep-research-option-c/cmd/init";
 import { createTickCmd } from "./deep-research-option-c/cmd/tick";
 import { resolveRuntimeRootFromMainScript } from "./resolveRuntimeRootFromMainScript";
@@ -3326,36 +3327,7 @@ const runUntilStages = ["init", "wave1", "pivot", "wave2", "citations", "summari
 
 const tickCmd = createTickCmd({ AbsolutePath, runTick });
 
-const agentResultCmd = command({
-  name: "agent-result",
-  description: "Ingest a task-produced wave output into canonical wave artifacts",
-  args: {
-    manifest: option({ long: "manifest", type: AbsolutePath }),
-    stage: option({ long: "stage", type: oneOf(["wave1", "wave2", "summaries", "synthesis"]) }),
-    perspective: option({ long: "perspective", type: string }),
-    input: option({ long: "input", type: AbsolutePath }),
-    agentRunId: option({ long: "agent-run-id", type: string }),
-    reason: option({ long: "reason", type: string }),
-    startedAt: option({ long: "started-at", type: optional(string) }),
-    finishedAt: option({ long: "finished-at", type: optional(string) }),
-    model: option({ long: "model", type: optional(string) }),
-    json: flag({ long: "json", type: boolean }),
-  },
-  handler: async (args) => {
-    await runAgentResult({
-      manifest: args.manifest,
-      stage: args.stage as AgentResultCliArgs["stage"],
-      perspective: args.perspective,
-      input: args.input,
-      agentRunId: args.agentRunId,
-      reason: args.reason,
-      startedAt: args.startedAt,
-      finishedAt: args.finishedAt,
-      model: args.model,
-      json: args.json,
-    });
-  },
-});
+const agentResultCmd = createAgentResultCmd({ AbsolutePath, runAgentResult });
 
 const runCmd = command({
   name: "run",
