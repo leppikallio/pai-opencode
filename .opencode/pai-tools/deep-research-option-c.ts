@@ -48,6 +48,7 @@ import {
   sha256HexLowerUtf8,
 } from "../tools/deep_research/lifecycle_lib";
 import { createInitCmd } from "./deep-research-option-c/cmd/init";
+import { createTickCmd } from "./deep-research-option-c/cmd/tick";
 import { resolveRuntimeRootFromMainScript } from "./resolveRuntimeRootFromMainScript";
 
 type ToolEnvelope = Record<string, unknown> & { ok: boolean };
@@ -3323,32 +3324,7 @@ const initCmd = createInitCmd({ AbsolutePath, runInit });
 
 const runUntilStages = ["init", "wave1", "pivot", "wave2", "citations", "summaries", "synthesis", "review", "finalize"] as const;
 
-const tickCmd = command({
-  name: "tick",
-  description: "Run exactly one orchestrator tick (driver-specific, run-handle aware)",
-  args: {
-    runId: option({ long: "run-id", type: optional(string) }),
-    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
-    runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
-    manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
-    gates: option({ long: "gates", type: optional(AbsolutePath) }),
-    reason: option({ long: "reason", type: string }),
-    driver: option({ long: "driver", type: oneOf(["fixture", "live", "task"]) }),
-    json: flag({ long: "json", type: boolean }),
-  },
-  handler: async (args) => {
-    await runTick({
-      runId: args.runId,
-      runsRoot: args.runsRoot,
-      runRoot: args.runRoot,
-      manifest: args.manifest,
-      gates: args.gates,
-      reason: args.reason,
-      driver: args.driver as TickCliArgs["driver"],
-      json: args.json,
-    });
-  },
-});
+const tickCmd = createTickCmd({ AbsolutePath, runTick });
 
 const agentResultCmd = command({
   name: "agent-result",
