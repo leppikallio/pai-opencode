@@ -71,6 +71,9 @@ export async function withEnv<T>(
   updates: Record<string, string | undefined>,
   fn: () => Promise<T> | T,
 ): Promise<T> {
+  // Bun runs tests concurrently. Mutating process.env is process-global, so we
+  // must serialize environment edits to avoid cross-test races.
+  await acquireEnvMutex();
   const prev: Record<string, string | undefined> = {};
   for (const [k, v] of Object.entries(updates)) {
     prev[k] = process.env[k];
@@ -84,5 +87,24 @@ export async function withEnv<T>(
       if (v === undefined) delete process.env[k];
       else process.env[k] = v;
     }
+    releaseEnvMutex();
   }
+}
+
+let envMutex: Promise<void> = Promise.resolve();
+let envMutexRelease: (() => void) | null = null;
+
+async function acquireEnvMutex(): Promise<void> {
+  // Chain locks: next caller waits on current lock promise.
+  const waitOn = envMutex;
+  envMutex = new Promise<void>((resolve) => {
+    envMutexRelease = resolve;
+  });
+  await waitOn;
+}
+
+function releaseEnvMutex(): void {
+  const release = envMutexRelease;
+  envMutexRelease = null;
+  if (release) release();
 }
