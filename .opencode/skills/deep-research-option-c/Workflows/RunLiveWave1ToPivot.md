@@ -12,7 +12,7 @@ Run live Wave 1 collection and stop when the run reaches `stage.current=pivot`.
 1. Initialize run:
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" init "<query>" --mode standard --sensitivity normal
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" --mode standard --sensitivity normal
 ```
 
 2. Execute Wave 1 autonomously (Option A: Task-backed driver) until the run reaches `stage.current: pivot`.
@@ -28,7 +28,7 @@ Notes:
 3. If progress stalls, inspect blockers:
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_abs>"
+bun ".opencode/pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_abs>"
 ```
 
 ## Validation Contract
@@ -53,4 +53,4 @@ bun "pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_abs>"
 ## Notes
 
 - Keep operator notes in scratchpad only.
-- Use env vars only for explicit enablement (`PAI_DR_OPTION_C_ENABLED=1`). Pass other controls via CLI flags.
+- No env vars required; use CLI flags and run artifacts.

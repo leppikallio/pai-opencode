@@ -1,0 +1,386 @@
+<mxfile host="app.diagrams.net" modified="2026-02-19T00:00:00.000Z" agent="PAI" version="22.1.0">
+  <diagram id="flow" name="Research Process Flow">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="s0" value="INIT\nrun_init + scope + perspectives + wave1_plan\nstage_advance -> wave1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="40" width="320" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s1" value="WAVE 1\n(task driver loop)\nprompt-out -> agent-result -> validate/ingest\nwave_review + Gate B" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="60" y="160" width="320" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s2" value="PIVOT\npivot_decide -> stage_advance\nwave2_required?" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="60" y="310" width="320" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s3" value="WAVE 2 (if required)\nCURRENT: synthetic markdown per gap\ningest + validate; no runAgent seam" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="60" y="430" width="320" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s4" value="CITATIONS\nextract_urls -> normalize -> validate\nGate C" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="500" y="160" width="320" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s5" value="SUMMARIES\nsummary_pack_build (fixture|generate) + Gate D\n(generate mode is deterministic scaffold)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="500" y="280" width="320" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s6" value="SYNTHESIS\nsynthesis_write (fixture|generate)\n(generate mode is deterministic scaffold)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="500" y="410" width="320" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s7" value="REVIEW LOOP\nreview_factory_run + Gate E reports/eval\nrevision_control -> finalize or back to synthesis" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="500" y="530" width="320" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="s8" value="FINALIZE\nstage.current=finalize\nstatus=completed" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="500" y="670" width="320" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e01" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="s0" target="s1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e12" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="s1" target="s2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e23" value="if wave2_required" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="s2" target="s3"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e24" value="else" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="s2" target="s4"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e34" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="s3" target="s4"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="e45" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="s4" target="s5"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e56" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="s5" target="s6"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e67" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="s6" target="s7"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e78" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="s7" target="s8"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="loop" value="CHANGES_REQUIRED\n(back to synthesis)" style="endArrow=block;dashed=1;html=1;strokeWidth=2;" edge="1" parent="1" source="s7" target="s6"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="stage_v2" name="Stage Machine (Detailed)">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="st_title" value="Deep Research Option C — Stage Machine (stage_advance.ts)" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1520" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="st_init" value="init" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="80" y="90" width="260" height="60" as="geometry"/></mxCell>
+        <mxCell id="st_wave1" value="wave1\n(collect wave outputs)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="80" y="170" width="260" height="70" as="geometry"/></mxCell>
+        <mxCell id="st_pivot" value="pivot\n(pivot.json decision)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="80" y="260" width="260" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="st_pivot_dec" value="wave2_required?" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="150" y="360" width="120" height="80" as="geometry"/></mxCell>
+
+        <mxCell id="st_wave2" value="wave2\n(follow-up gaps)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffe4e6;strokeColor=#ef4444;" vertex="1" parent="1"><mxGeometry x="380" y="350" width="280" height="80" as="geometry"/></mxCell>
+
+        <mxCell id="st_citations" value="citations\n(URLs→citations.jsonl)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e9d5ff;strokeColor=#7c3aed;" vertex="1" parent="1"><mxGeometry x="80" y="470" width="260" height="70" as="geometry"/></mxCell>
+        <mxCell id="st_summaries" value="summaries\n(summary-pack.json)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;" vertex="1" parent="1"><mxGeometry x="80" y="560" width="260" height="70" as="geometry"/></mxCell>
+        <mxCell id="st_synthesis" value="synthesis\n(final-synthesis.md)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;" vertex="1" parent="1"><mxGeometry x="80" y="650" width="260" height="70" as="geometry"/></mxCell>
+        <mxCell id="st_review" value="review\n(review-bundle.json decision)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;" vertex="1" parent="1"><mxGeometry x="80" y="740" width="260" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="st_review_dec" value="PASS?" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="150" y="840" width="120" height="80" as="geometry"/></mxCell>
+
+        <mxCell id="st_finalize" value="finalize\n(status=completed)" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#16a34a;" vertex="1" parent="1"><mxGeometry x="380" y="840" width="280" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="st_guard" value="Guards (high-level)\ninit→wave1: perspectives.json exists\nwave1→pivot: wave-1 has files + wave-review.json + Gate B pass\npivot→wave2|citations: pivot.json exists + wave2_required boolean\nwave2→citations: wave-2 has files\ncitations→summaries: citations.jsonl + Gate C pass\nsummaries→synthesis: summary-pack.json + Gate D pass\nsynthesis→review: final-synthesis.md exists\nreview→finalize: review decision PASS + Gate E pass\nreview→synthesis: CHANGES_REQUIRED + review_iterations &lt; cap" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="720" y="120" width="820" height="300" as="geometry"/></mxCell>
+
+        <mxCell id="st_e01" value="[perspectives.json exists]" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="st_init" target="st_wave1"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="st_e12" value="[wave-1 has files]\n[wave-review.json exists]\n[Gate B pass]" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="st_wave1" target="st_pivot"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="st_e23" value="stage_advance (auto)" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="st_pivot" target="st_pivot_dec"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="st_e2d_yes" value="[pivot.decision.wave2_required==true]" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="st_pivot_dec" target="st_wave2"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="st_e2d_no" value="[pivot.decision.wave2_required==false]" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="st_pivot_dec" target="st_citations"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="st_e_wave2_cite" value="[wave-2 has files]" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="st_wave2" target="st_citations"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="st_e_cite_sum" value="[citations.jsonl exists]\n[Gate C pass]" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="st_citations" target="st_summaries"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="st_e_sum_syn" value="[summary-pack.json exists]\n[Gate D pass]" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="st_summaries" target="st_synthesis"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="st_e_syn_rev" value="[final-synthesis.md exists]" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="st_synthesis" target="st_review"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="st_e_rev_dec" value="stage_advance (auto)" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="st_review" target="st_review_dec"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="st_e_dec_final" value="PASS + [Gate E pass]" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="st_review_dec" target="st_finalize"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="st_e_dec_back" value="CHANGES_REQUIRED + under cap" style="endArrow=block;dashed=1;html=1;strokeWidth=2;" edge="1" parent="1" source="st_review_dec" target="st_synthesis"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="router_v2" name="CLI Tick Routing (Driver + Stage)">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="rt_title" value="Deep Research Option C — CLI tick routing (deep-research-option-c.ts)" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="40" y="20" width="1520" height="40" as="geometry"/></mxCell>
+
+        <mxCell id="rt_start" value="CLI command: tick/run" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#16a34a;" vertex="1" parent="1"><mxGeometry x="80" y="90" width="300" height="60" as="geometry"/></mxCell>
+        <mxCell id="rt_flag" value="ensureOptionCEnabledForCli()\n(feature flag via flags/settings/env)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#f59e0b;" vertex="1" parent="1"><mxGeometry x="80" y="170" width="300" height="70" as="geometry"/></mxCell>
+        <mxCell id="rt_handle" value="resolveRunHandle()\n(manifest_path, gates_path, run_root)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111827;" vertex="1" parent="1"><mxGeometry x="80" y="260" width="300" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="rt_driver_dec" value="driver == fixture?" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="150" y="350" width="160" height="90" as="geometry"/></mxCell>
+
+        <mxCell id="rt_watchdog" value="watchdog_check (pre_tick)\n(for live/task drivers)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="80" y="460" width="300" height="70" as="geometry"/></mxCell>
+        <mxCell id="rt_obs" value="beginTickObservability()\ntelemetry + ticks ledger + metrics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="80" y="550" width="300" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="rt_task_special" value="driver==task AND stageBefore==wave1\nmissing wave1 outputs?" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="150" y="640" width="160" height="90" as="geometry"/></mxCell>
+
+        <mxCell id="rt_promptout" value="collectTaskDriverMissingWave1Perspectives()\n- write operator/prompts/wave1/*.md\n- compute prompt_digest" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="420" y="620" width="360" height="90" as="geometry"/></mxCell>
+
+        <mxCell id="rt_halt" value="HALT: RUN_AGENT_REQUIRED\n(next_commands include agent-result + resume tick)\n(writes operator/halt/*.json on failure path)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe4e6;strokeColor=#ef4444;" vertex="1" parent="1"><mxGeometry x="820" y="620" width="360" height="90" as="geometry"/></mxCell>
+
+        <mxCell id="rt_agent_result" value="agent-result (CLI)\nIngest external markdown\n→ wave-1/&lt;id&gt;.md + &lt;id&gt;.meta.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="1220" y="620" width="320" height="90" as="geometry"/></mxCell>
+
+        <mxCell id="rt_run_tick" value="runOneOrchestratorTick()\n(select tick implementation by stage)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="80" y="760" width="300" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="rt_stage_route" value="stage routing (BUG noted)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0e7ff;strokeColor=#4338ca;" vertex="1" parent="1"><mxGeometry x="420" y="760" width="360" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="rt_live" value="if stage ∈ {init,wave1}\n→ orchestrator_tick_live" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="820" y="730" width="240" height="70" as="geometry"/></mxCell>
+        <mxCell id="rt_post_pivot" value="if stage ∈ {pivot,citations}\n→ orchestrator_tick_post_pivot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e9d5ff;strokeColor=#7c3aed;" vertex="1" parent="1"><mxGeometry x="820" y="820" width="240" height="70" as="geometry"/></mxCell>
+        <mxCell id="rt_post_sum" value="else → orchestrator_tick_post_summaries\n(BUG in live/task: stage=wave2 falls here)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#ef4444;" vertex="1" parent="1"><mxGeometry x="820" y="910" width="240" height="80" as="geometry"/></mxCell>
+
+        <mxCell id="rt_finalize_obs" value="finalizeTickObservability()\n(write telemetry + metrics)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="1120" y="790" width="260" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="rt_ok_dec" value="tickResult.ok?" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="1420" y="790" width="140" height="80" as="geometry"/></mxCell>
+
+        <mxCell id="rt_done" value="DONE\n(stage advanced or halted)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#16a34a;" vertex="1" parent="1"><mxGeometry x="1420" y="900" width="140" height="70" as="geometry"/></mxCell>
+        <mxCell id="rt_fail" value="handleTickFailureArtifacts()\n→ operator/halt/tick-####.json + latest.json\n(typed blockers + next commands)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe4e6;strokeColor=#ef4444;" vertex="1" parent="1"><mxGeometry x="1120" y="900" width="440" height="90" as="geometry"/></mxCell>
+
+        <mxCell id="rt_e01" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_start" target="rt_flag"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="rt_e12" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_flag" target="rt_handle"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="rt_e23" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_handle" target="rt_driver_dec"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="rt_e_driver_yes" value="yes" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_driver_dec" target="rt_run_tick"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="rt_e_driver_no" value="no (live/task)" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_driver_dec" target="rt_watchdog"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="rt_e_watch_obs" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_watchdog" target="rt_obs"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="rt_e_obs_task" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_obs" target="rt_task_special"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="rt_e_task_yes" value="yes" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_task_special" target="rt_promptout"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="rt_e_task_no" value="no" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_task_special" target="rt_run_tick"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="rt_e_prompt_halt" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_promptout" target="rt_halt"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="rt_e_halt_agent" value="external agent run" style="endArrow=block;dashed=1;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_halt" target="rt_agent_result"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="rt_e_agent_back" value="resume tick" style="endArrow=block;dashed=1;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_agent_result" target="rt_obs"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="rt_e_tick_route" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_run_tick" target="rt_stage_route"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="rt_e_route_live" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_stage_route" target="rt_live"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="rt_e_route_postpivot" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_stage_route" target="rt_post_pivot"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="rt_e_route_postsum" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_stage_route" target="rt_post_sum"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="rt_e_live_fin" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_live" target="rt_finalize_obs"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="rt_e_pp_fin" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_post_pivot" target="rt_finalize_obs"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="rt_e_ps_fin" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_post_sum" target="rt_finalize_obs"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="rt_e_fin_ok" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_finalize_obs" target="rt_ok_dec"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="rt_e_ok_yes" value="yes" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_ok_dec" target="rt_done"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="rt_e_ok_no" value="no" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="rt_ok_dec" target="rt_fail"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="wave1_v2" name="Wave 1 Internals (orchestrator_tick_live)">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="w1_title" value="Wave 1 Internals — orchestrator_tick_live.ts (as implemented)" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="40" y="20" width="1520" height="40" as="geometry"/></mxCell>
+
+        <mxCell id="w1_start" value="START (stage: init|wave1)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#16a34a;" vertex="1" parent="1"><mxGeometry x="80" y="90" width="280" height="60" as="geometry"/></mxCell>
+        <mxCell id="w1_lock" value="AcquireRunLock + heartbeat\nrun_lock.ts (lease_seconds=120)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="80" y="170" width="280" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="w1_plan_dec" value="wave-1/wave1-plan.json exists?" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="150" y="270" width="160" height="90" as="geometry"/></mxCell>
+        <mxCell id="w1_plan" value="WAVE1_PLAN\nwave1_plan.ts\n(writes wave-1/wave1-plan.json)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="380" y="270" width="300" height="90" as="geometry"/></mxCell>
+
+        <mxCell id="w1_gate_a" value="GATE_A_EVALUATE → GATES_WRITE\n(gates.A)\nGate A must PASS before wave1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="80" y="390" width="600" height="80" as="geometry"/></mxCell>
+        <mxCell id="w1_gate_a_dec" value="Gate A status == pass?" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="150" y="500" width="160" height="90" as="geometry"/></mxCell>
+        <mxCell id="w1_gate_a_fail" value="FAIL: GATE_A_FAILED\n(tick stops before wave1 execution)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe4e6;strokeColor=#ef4444;" vertex="1" parent="1"><mxGeometry x="380" y="510" width="300" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="w1_loop" value="For each planned entry (from wave1-plan.json)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111827;" vertex="1" parent="1"><mxGeometry x="80" y="620" width="600" height="50" as="geometry"/></mxCell>
+
+        <mxCell id="w1_digest_dec" value="Output digest matches?\n(output exists AND sidecar prompt_digest matches\nAND no retry note)" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="150" y="690" width="160" height="110" as="geometry"/></mxCell>
+        <mxCell id="w1_run_agent" value="drivers.runAgent(...)\n(agent_type + prompt_md)\nIf retry note exists: append ## Retry Directive" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ccfbf1;strokeColor=#14b8a6;" vertex="1" parent="1"><mxGeometry x="380" y="700" width="300" height="100" as="geometry"/></mxCell>
+
+        <mxCell id="w1_ingest" value="WAVE_OUTPUT_INGEST\nwave_output_ingest.ts\n(write wave-1/{id}.md)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="720" y="700" width="260" height="90" as="geometry"/></mxCell>
+        <mxCell id="w1_progress" value="MANIFEST_WRITE\n(stage.last_progress_at)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="1020" y="700" width="220" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="w1_validate" value="WAVE_OUTPUT_VALIDATE\nwave_output_validate.ts\n(contract: headings, max_words, sources)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="720" y="820" width="260" height="90" as="geometry"/></mxCell>
+        <mxCell id="w1_meta" value="Write output meta sidecar\nwave-1/{id}.meta.json\n(prompt_digest, retry_count, timestamps, agent metadata)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="1020" y="800" width="220" height="110" as="geometry"/></mxCell>
+
+        <mxCell id="w1_review" value="WAVE_REVIEW\nwave_review.ts\n(writes wave-review.json + retry directives list)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="80" y="820" width="600" height="70" as="geometry"/></mxCell>
+        <mxCell id="w1_gate_b" value="GATE_B_DERIVE → GATES_WRITE\n(gates.B)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="80" y="910" width="600" height="60" as="geometry"/></mxCell>
+
+        <mxCell id="w1_retry_dec" value="Retry directives emitted?" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="720" y="920" width="160" height="90" as="geometry"/></mxCell>
+
+        <mxCell id="w1_retry" value="Write retry/retry-directives.json\n+ RETRY_RECORD (gate=B)\nReturn RETRY_REQUIRED" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#f59e0b;" vertex="1" parent="1"><mxGeometry x="900" y="920" width="340" height="90" as="geometry"/></mxCell>
+
+        <mxCell id="w1_advance" value="STAGE_ADVANCE(pivot)\nstage_advance.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="80" y="990" width="280" height="60" as="geometry"/></mxCell>
+        <mxCell id="w1_done" value="DONE → stage=pivot" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#16a34a;" vertex="1" parent="1"><mxGeometry x="380" y="990" width="300" height="60" as="geometry"/></mxCell>
+
+        <!-- Artifacts (per-tool outputs) -->
+        <mxCell id="w1_art_manifest" value="manifest.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="1280" y="90" width="260" height="50" as="geometry"/></mxCell>
+        <mxCell id="w1_art_gates" value="gates.json\n(Gate A, Gate B)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="1280" y="160" width="260" height="60" as="geometry"/></mxCell>
+        <mxCell id="w1_art_plan" value="wave-1/wave1-plan.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="1280" y="240" width="260" height="50" as="geometry"/></mxCell>
+        <mxCell id="w1_art_wave" value="wave-1/{id}.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="1280" y="310" width="260" height="50" as="geometry"/></mxCell>
+        <mxCell id="w1_art_meta" value="wave-1/{id}.meta.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="1280" y="380" width="260" height="50" as="geometry"/></mxCell>
+        <mxCell id="w1_art_review" value="wave-review.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="1280" y="450" width="260" height="50" as="geometry"/></mxCell>
+        <mxCell id="w1_art_retry" value="retry/retry-directives.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="1280" y="520" width="260" height="50" as="geometry"/></mxCell>
+
+        <!-- Control flow edges -->
+        <mxCell id="w1_e01" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_start" target="w1_lock"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e12" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_lock" target="w1_plan_dec"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_plan_yes" value="no" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_plan_dec" target="w1_plan"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_plan_to_gate" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_plan" target="w1_gate_a"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_plan_skip" value="yes" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_plan_dec" target="w1_gate_a"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="w1_e_gate_to_dec" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_gate_a" target="w1_gate_a_dec"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_gate_fail" value="no" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_gate_a_dec" target="w1_gate_a_fail"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_gate_ok" value="yes" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_gate_a_dec" target="w1_loop"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="w1_e_loop_dec" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_loop" target="w1_digest_dec"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_digest_skip" value="yes" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_digest_dec" target="w1_validate"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_digest_run" value="no" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_digest_dec" target="w1_run_agent"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_agent_ingest" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_run_agent" target="w1_ingest"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_ingest_progress" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_ingest" target="w1_progress"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_progress_validate" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_progress" target="w1_validate"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_validate_meta" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_validate" target="w1_meta"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_meta_review" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_meta" target="w1_review"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="w1_e_review_gateb" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_review" target="w1_gate_b"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_gateb_retry" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_gate_b" target="w1_retry_dec"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_retry_yes" value="yes" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_retry_dec" target="w1_retry"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_retry_no" value="no" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_retry_dec" target="w1_advance"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_e_adv_done" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="w1_advance" target="w1_done"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Artifact edges (dashed) -->
+        <mxCell id="w1_a_manifest" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="w1_progress" target="w1_art_manifest"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_a_gates" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="w1_gate_a" target="w1_art_gates"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_a_gates2" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="w1_gate_b" target="w1_art_gates"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_a_plan" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="w1_plan" target="w1_art_plan"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_a_wave" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="w1_ingest" target="w1_art_wave"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_a_meta" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="w1_meta" target="w1_art_meta"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_a_review" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="w1_review" target="w1_art_review"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="w1_a_retry" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="w1_retry" target="w1_art_retry"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="citations_v2" name="Citations Ladder (Phase04)">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="c_title" value="Citations Ladder — orchestrator_tick_post_pivot.ts + citations_validate.ts (as implemented)" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="40" y="20" width="1520" height="40" as="geometry"/></mxCell>
+
+        <mxCell id="c_start" value="START (stage: citations)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#16a34a;" vertex="1" parent="1"><mxGeometry x="80" y="90" width="280" height="60" as="geometry"/></mxCell>
+        <mxCell id="c_lock" value="AcquireRunLock + heartbeat\nrun_lock.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="80" y="170" width="280" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="c_extract" value="CITATIONS_EXTRACT_URLS\n(citations_extract_urls.ts)\ninclude_wave2=true" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e9d5ff;strokeColor=#7c3aed;" vertex="1" parent="1"><mxGeometry x="80" y="270" width="420" height="80" as="geometry"/></mxCell>
+        <mxCell id="c_norm" value="CITATIONS_NORMALIZE\n(citations_normalize.ts)\nproduces url-map.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e9d5ff;strokeColor=#7c3aed;" vertex="1" parent="1"><mxGeometry x="80" y="370" width="420" height="80" as="geometry"/></mxCell>
+
+        <mxCell id="c_mode" value="manifest.query.sensitivity == no_web?" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="150" y="470" width="200" height="100" as="geometry"/></mxCell>
+
+        <mxCell id="c_offline_fx" value="OFFLINE path\nWrite deterministic offline fixtures\ncitations/offline-fixtures.orchestrator.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="400" y="470" width="360" height="90" as="geometry"/></mxCell>
+
+        <mxCell id="c_online_latest" value="ONLINE path\nIf citations/online-fixtures.latest.json exists\npass online_fixtures_path for replay" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="400" y="580" width="360" height="90" as="geometry"/></mxCell>
+
+        <mxCell id="c_validate" value="CITATIONS_VALIDATE\n(citations_validate.ts)\nConfig: mode from sensitivity or run-config\nEndpoints: manifest flags or run-config (no env)\nWrites citations.jsonl\nOnline only: online fixtures + blocked URLs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e9d5ff;strokeColor=#7c3aed;" vertex="1" parent="1"><mxGeometry x="80" y="600" width="680" height="140" as="geometry"/></mxCell>
+
+        <mxCell id="c_gatec" value="GATE_C_COMPUTE → GATES_WRITE\n(gates.C)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="80" y="760" width="680" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="c_advance" value="STAGE_ADVANCE(summaries)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="80" y="850" width="280" height="60" as="geometry"/></mxCell>
+        <mxCell id="c_done" value="DONE → stage=summaries" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#16a34a;" vertex="1" parent="1"><mxGeometry x="400" y="850" width="360" height="60" as="geometry"/></mxCell>
+
+        <!-- Citations artifacts -->
+        <mxCell id="c_art_ex" value="citations/extracted-urls.txt\n+ citations/found-by.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="820" y="270" width="320" height="70" as="geometry"/></mxCell>
+        <mxCell id="c_art_map" value="citations/url-map.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="820" y="360" width="320" height="50" as="geometry"/></mxCell>
+        <mxCell id="c_art_off" value="citations/offline-fixtures.orchestrator.json\n(offline only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="820" y="430" width="320" height="60" as="geometry"/></mxCell>
+        <mxCell id="c_art_jsonl" value="citations/citations.jsonl" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="820" y="510" width="320" height="50" as="geometry"/></mxCell>
+        <mxCell id="c_art_online" value="citations/online-fixtures.&lt;ts&gt;.json\ncitations/online-fixtures.latest.json\n(online only)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="820" y="580" width="320" height="70" as="geometry"/></mxCell>
+        <mxCell id="c_art_block" value="citations/blocked-urls.json\n+ blocked-urls.queue.md (if blocked)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="820" y="670" width="320" height="70" as="geometry"/></mxCell>
+
+        <!-- Control flow -->
+        <mxCell id="c_e01" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="c_start" target="c_lock"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c_e12" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="c_lock" target="c_extract"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c_e23" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="c_extract" target="c_norm"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c_e34" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="c_norm" target="c_mode"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c_e_mode_yes" value="yes (offline)" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="c_mode" target="c_offline_fx"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c_e_mode_no" value="no (online)" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="c_mode" target="c_online_latest"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c_e_off_to_val" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="c_offline_fx" target="c_validate"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c_e_on_to_val" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="c_online_latest" target="c_validate"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c_e_val_gate" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="c_validate" target="c_gatec"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c_e_gate_adv" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="c_gatec" target="c_advance"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c_e_adv_done" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="c_advance" target="c_done"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Artifact edges (dashed) -->
+        <mxCell id="c_a_ex" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="c_extract" target="c_art_ex"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c_a_map" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="c_norm" target="c_art_map"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c_a_off" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="c_offline_fx" target="c_art_off"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c_a_jsonl" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="c_validate" target="c_art_jsonl"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c_a_online" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="c_validate" target="c_art_online"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c_a_block" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="c_validate" target="c_art_block"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="review_v2" name="Summaries → Synthesis → Review Loop (Phase05/06)">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="r_title" value="Summaries → Synthesis → Review Loop — orchestrator_tick_post_summaries.ts (as implemented)" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="40" y="20" width="1520" height="40" as="geometry"/></mxCell>
+
+        <mxCell id="r_lock" value="AcquireRunLock + heartbeat\nrun_lock.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="80" y="90" width="280" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="r_s_hdr" value="When stage == summaries" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111827;" vertex="1" parent="1"><mxGeometry x="80" y="180" width="680" height="40" as="geometry"/></mxCell>
+        <mxCell id="r_summary" value="SUMMARY_PACK_BUILD\n(summary_pack_build.ts)\nmode: fixture|generate\n(writes summaries/summary-pack.json)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;" vertex="1" parent="1"><mxGeometry x="80" y="230" width="680" height="90" as="geometry"/></mxCell>
+        <mxCell id="r_gd" value="GATE_D_EVALUATE → GATES_WRITE\n(gates.D)\nthen STAGE_ADVANCE(synthesis)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="80" y="340" width="680" height="80" as="geometry"/></mxCell>
+
+        <mxCell id="r_sy_hdr" value="When stage == synthesis" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111827;" vertex="1" parent="1"><mxGeometry x="80" y="450" width="680" height="40" as="geometry"/></mxCell>
+        <mxCell id="r_synth" value="SYNTHESIS_WRITE\n(synthesis_write.ts)\nmode: fixture|generate\n(writes synthesis/final-synthesis.md)\nthen STAGE_ADVANCE(review)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;" vertex="1" parent="1"><mxGeometry x="80" y="500" width="680" height="100" as="geometry"/></mxCell>
+
+        <mxCell id="r_rv_hdr" value="When stage == review (review loop)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111827;" vertex="1" parent="1"><mxGeometry x="80" y="640" width="680" height="40" as="geometry"/></mxCell>
+        <mxCell id="r_review" value="REVIEW_FACTORY_RUN\n(review_factory_run.ts)\n(writes review/review-bundle.json)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;" vertex="1" parent="1"><mxGeometry x="80" y="690" width="680" height="80" as="geometry"/></mxCell>
+        <mxCell id="r_reports" value="GATE_E_REPORTS\n(gate_e_reports.ts)\n(writes reports/* evidence)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="80" y="790" width="330" height="80" as="geometry"/></mxCell>
+        <mxCell id="r_ge" value="GATE_E_EVALUATE → GATES_WRITE\n(gates.E)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="430" y="790" width="330" height="80" as="geometry"/></mxCell>
+        <mxCell id="r_revctl" value="REVISION_CONTROL\n(revision_control.ts)\n(action: finalize | back_to_synthesis)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1"><mxGeometry x="80" y="890" width="680" height="70" as="geometry"/></mxCell>
+        <mxCell id="r_adv_dec" value="STAGE_ADVANCE()\nreads review-bundle decision\nPASS → finalize (requires Gate E pass)\nCHANGES_REQUIRED → synthesis (under cap)" style="shape=rhombus;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1"><mxGeometry x="840" y="770" width="260" height="170" as="geometry"/></mxCell>
+        <mxCell id="r_finalize" value="finalize" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#16a34a;" vertex="1" parent="1"><mxGeometry x="1140" y="760" width="220" height="70" as="geometry"/></mxCell>
+        <mxCell id="r_back" value="back to synthesis" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#f59e0b;" vertex="1" parent="1"><mxGeometry x="1140" y="860" width="220" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="r_note" value="Guards enforced in stage_advance.ts\n- review decision PASS required for finalize\n- Gate E must be pass for finalize\n- max_review_iterations cap (review→synthesis transitions)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="840" y="640" width="520" height="110" as="geometry"/></mxCell>
+
+        <!-- Review artifacts -->
+        <mxCell id="r_art_summary" value="summaries/summary-pack.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="1280" y="180" width="280" height="50" as="geometry"/></mxCell>
+        <mxCell id="r_art_synth" value="synthesis/final-synthesis.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="1280" y="250" width="280" height="50" as="geometry"/></mxCell>
+        <mxCell id="r_art_bundle" value="review/review-bundle.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="1280" y="320" width="280" height="50" as="geometry"/></mxCell>
+        <mxCell id="r_art_reports" value="reports/gate-e-*.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="1280" y="390" width="280" height="50" as="geometry"/></mxCell>
+        <mxCell id="r_art_gates" value="gates.json\n(Gate D, Gate E)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1"><mxGeometry x="1280" y="460" width="280" height="60" as="geometry"/></mxCell>
+
+        <!-- Control flow -->
+        <mxCell id="r_e01" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="r_lock" target="r_s_hdr"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_e12" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="r_s_hdr" target="r_summary"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_e23" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="r_summary" target="r_gd"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_e34" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="r_gd" target="r_sy_hdr"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_e45" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="r_sy_hdr" target="r_synth"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_e56" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="r_synth" target="r_rv_hdr"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_e67" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="r_rv_hdr" target="r_review"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_e78" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="r_review" target="r_reports"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_e89" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="r_reports" target="r_ge"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_e9a" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="r_ge" target="r_revctl"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_eab" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="r_revctl" target="r_adv_dec"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_e_pass" value="PASS" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="r_adv_dec" target="r_finalize"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_e_changes" value="CHANGES_REQUIRED" style="endArrow=block;dashed=1;html=1;strokeWidth=2;" edge="1" parent="1" source="r_adv_dec" target="r_back"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <!-- Artifact edges (dashed) -->
+        <mxCell id="r_a_summary" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="r_summary" target="r_art_summary"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_a_synth" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="r_synth" target="r_art_synth"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_a_bundle" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="r_review" target="r_art_bundle"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_a_reports" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="r_reports" target="r_art_reports"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_a_gates" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="r_ge" target="r_art_gates"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="r_a_gates2" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="r_gd" target="r_art_gates"><mxGeometry relative="1" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

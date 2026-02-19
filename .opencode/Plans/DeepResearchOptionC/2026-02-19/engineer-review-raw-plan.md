@@ -108,20 +108,20 @@ Before implementing WS-B and beyond, the Architect must decide (and record in th
 | D-02 | Decision | Architect | DONE | See “Architect decision record” below |  | Gate A runs in `orchestrator_tick_live` pre-agent |
 | D-03 | Decision | Architect | DONE | See “Architect decision record” below |  | Halt artifacts `tick-####.json` + `latest.json` |
 | D-04 | Decision | Architect | DONE | See “Architect decision record” below |  | Prompts in `operator/prompts/wave1/`; outputs in `wave-1/` |
-| A1 | Task | Eng | DONE | `PAI_DR_OPTION_C_ENABLED=1 bun test ./.opencode/tests/entities/deep_research_run_init.test.ts` (pass) | `operator/scope.json` | Implemented in `.opencode/tools/deep_research/run_init.ts`; scope_path pointer only |
-| A2 | Task | Eng | DONE | `PAI_DR_OPTION_C_ENABLED=1 bun test ./.opencode/tests/entities/deep_research_wave1_plan.test.ts` (pass) | `wave1-plan.json` prompt_md has Scope Contract | Implemented in `.opencode/tools/deep_research/wave1_plan.ts` + `wave_tools_shared.ts` |
-| A3 | Task | Eng | DONE | `PAI_DR_OPTION_C_ENABLED=1 bun test ./.opencode/tests/entities/deep_research_gate_a_evaluate.test.ts` (pass) | `gates.A` computed | Tool: `.opencode/tools/deep_research/gate_a_evaluate.ts`; wired into `orchestrator_tick_live.ts` |
-| B1 | Task | Eng | DONE | `PAI_DR_OPTION_C_ENABLED=1 bun test ./.opencode/tests/entities/deep_research_orchestrator_tick_live.test.ts` (pass) | `wave-1/*.meta.json` digests enforced | Skip only when md+meta exist and digest matches current plan prompt |
+| A1 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_run_init.test.ts` (pass) | `operator/scope.json` | Implemented in `.opencode/tools/deep_research/run_init.ts`; scope_path pointer only |
+| A2 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_wave1_plan.test.ts` (pass) | `wave1-plan.json` prompt_md has Scope Contract | Implemented in `.opencode/tools/deep_research/wave1_plan.ts` + `wave_tools_shared.ts` |
+| A3 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_gate_a_evaluate.test.ts` (pass) | `gates.A` computed | Tool: `.opencode/tools/deep_research/gate_a_evaluate.ts`; wired into `orchestrator_tick_live.ts` |
+| B1 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_orchestrator_tick_live.test.ts` (pass) | `wave-1/*.meta.json` digests enforced | Skip only when md+meta exist and digest matches current plan prompt |
 | C1 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_operator_halt_artifacts.test.ts` (pass) | `operator/halt/latest.json` | CLI writes `halt.v1` on tick/run failure |
 | D1 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_operator_cli_ergonomics.test.ts` (pass) | `retry/retry-directives.json` | CLI `rerun wave1` writes one retry directive, consumed_at=null |
 | D2 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_operator_cli_task_driver.test.ts` (pass) | `operator/prompts/wave1/*.md` + `agent-result` | `tick --driver task` emits RUN_AGENT_REQUIRED + halt.v1 next_commands |
 | E1 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_orchestrator_tick_post_pivot_online_fixtures_latest.test.ts` (pass) | `citations/online-fixtures.latest.json` replay | Orchestrator passes `online_fixtures_path` when latest exists |
 | E2 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_citations_validate_blocked_queue.test.ts` (pass) | `citations/blocked-urls.queue.md` | Deterministic markdown queue emitted when blocked urls exist |
 | F1 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_operator_cli_ergonomics.test.ts` (pass) | `--json` outputs | `status|inspect|triage --json` emit single JSON object |
-| G1 | Task | Eng/QA | DONE | `PAI_DR_OPTION_C_ENABLED=1 bun test ./.opencode/tests` (174 pass, 1 skip, 0 fail) | test suite coverage | New tests for Gate A, halt artifacts, task driver, citations queue, fixtures replay |
+| G1 | Task | Eng/QA | DONE | `bun test ./.opencode/tests` (174 pass, 1 skip, 0 fail) | test suite coverage | New tests for Gate A, halt artifacts, task driver, citations queue, fixtures replay |
 | G2 | Task | QA | DONE | `bun test ./.opencode/tests/smoke/deep_research_citations_repro_canary.test.ts` (pass) | `online-fixtures.latest.json` replay | Canary asserts byte-identical `citations.jsonl` on replay |
 | ARCH | Gate | Architect | ARCH_APPROVED | Architect gate re-check: PASS after sidecar unification |  | Contracts D-01..D-04 consistent; meta sidecar clobbering prevented |
-| QA | Gate | QA | QA_APPROVED | `PAI_DR_OPTION_C_ENABLED=1 bun test ./.opencode/tests` (174 pass, 1 skip, 0 fail) |  | Smoke + entity coverage added; reproducibility canary is deterministic |
+| QA | Gate | QA | QA_APPROVED | `bun test ./.opencode/tests` (174 pass, 1 skip, 0 fail) |  | Smoke + entity coverage added; reproducibility canary is deterministic |
 
 ### Definition of “DONE” for the whole project
 

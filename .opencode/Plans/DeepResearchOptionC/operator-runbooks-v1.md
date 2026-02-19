@@ -24,17 +24,17 @@ Operator drill runbooks for **P07-08** covering:
 Run from repo root:
 
 ```bash
-export PAI_DR_OPTION_C_ENABLED=1
+# No env vars required; use CLI flags and run artifacts.
 ```
-Expected outcome: env var is set for this shell.
+Expected outcome: all runbooks use CLI flags/settings only.
 
 ```bash
-export PAI_DR_NO_WEB=1
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "operator baseline" --run-id "dr_operator_baseline" --sensitivity no_web
 ```
-Expected outcome: env var is set for this shell; no-web mode is active.
+Expected outcome: no-web mode is active for the initialized run.
 
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_feature_flags.contract.test.ts
+bun test .opencode/tests/entities/deep_research_feature_flags.contract.test.ts
 ```
 Expected outcome: exit code `0`; feature-flag behavior passes in offline mode.
 
@@ -43,7 +43,7 @@ Expected outcome: exit code `0`; feature-flag behavior passes in offline mode.
 ## Drill 1 — Pause/Resume (interrupted run continuity)
 
 ### Checklist
-- [ ] Baseline env set (`PAI_DR_OPTION_C_ENABLED=1`, `PAI_DR_NO_WEB=1`)
+- [ ] Baseline run configured (`--sensitivity no_web`, Option C default enabled)
 - [ ] Pause trigger executed during active long-running run
 - [ ] Resume trigger executed
 - [ ] Run continues without silent hang
@@ -52,7 +52,7 @@ Expected outcome: exit code `0`; feature-flag behavior passes in offline mode.
 
 ### Commands
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_watchdog_timeout.test.ts
+bun test .opencode/tests/entities/deep_research_watchdog_timeout.test.ts
 ```
 Expected outcome: exit code `0`; watchdog timeout behavior remains deterministic.
 
@@ -79,7 +79,7 @@ Expected outcome: Gate F references are present for checkpoint alignment.
 
 ### Commands
 ```bash
-PAI_DR_OPTION_C_ENABLED=0 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_feature_flags.contract.test.ts
+bun test .opencode/tests/entities/deep_research_feature_flags.contract.test.ts
 ```
 Expected outcome: exit code `0`; disabled-path behavior is accepted by contract tests.
 
@@ -106,7 +106,7 @@ Expected outcome: checkpoint references Phase 07 plan docs used for signoff.
 
 ### Commands
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_fallback_path.test.ts
+bun test .opencode/tests/entities/deep_research_fallback_path.test.ts
 ```
 Expected outcome: exit code `0`; fallback path executes and artifact retention behavior is confirmed.
 

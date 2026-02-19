@@ -10,7 +10,7 @@ Immediate rollback if any occurs:
 - Silent hang detected (timeout watchdog breached) in canary.
 
 ## Rollback mechanism
-- Master env flag `PAI_DR_OPTION_C_ENABLED=0` (or unset) disables Option C.
+- Master settings flag `deepResearch.flags.PAI_DR_OPTION_C_ENABLED=false` disables Option C (env unsupported).
 - Default route returns to existing standard research workflow.
 - While disabled, `deep_research_stage_advance` returns `DISABLED` for existing runs and prevents further stage transitions.
 - While disabled, existing runs perform no `manifest.json` or `gates.json` writes.

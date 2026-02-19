@@ -142,14 +142,14 @@ Fixtures directory is already structured for replay:
 There is also a deterministic fixture runner script:
 
 - `Tools/deep-research-option-c-fixture-run.ts`
-  - **Fact:** sets `process.env.PAI_DR_OPTION_C_ENABLED=1` and `PAI_DR_NO_WEB=1`.
+  - **Fact (historical):** previously set `PAI_DR_OPTION_C_ENABLED` and `PAI_DR_NO_WEB` via environment variables; env flags are now unsupported.
   - Drives a full path to `finalize` using fixture summaries/synthesis/reviews.
 
-### Flags/config: env today, but a settings-based path already exists
+### Flags/config: settings-only (env unsupported)
 
-- `.opencode/tools/deep_research/flags_v1.ts` reads flags from:
+- `.opencode/tools/deep_research/flags_v1.ts` (via `lifecycle_lib.ts`) reads flags from:
   - `.opencode/settings.json` under `settings.deepResearch.flags.*` **or** `settings.pai.deepResearch.flags.*`
-  - env vars override settings.
+  - Environment variables are intentionally unsupported for Option C flags.
 
 Default run root:
 
@@ -464,10 +464,10 @@ You already have precedents for typed wrappers:
 
 2) **Typed local CLI** (bun scripts) for determinism + CI:
 
-   - `bun Tools/deep-research-option-c.ts init --query "..." --mode standard --sensitivity no_web [--run-id ...]`
-   - `bun Tools/deep-research-option-c.ts resume --run-id <id> [--until summaries|finalize]`
-   - `bun Tools/deep-research-option-c.ts inspect --run-id <id>`
-   - `bun Tools/deep-research-option-c.ts capture-fixtures --run-id <id> --bundle-id <id> --out <abs>`
+   - `bun ".opencode/pai-tools/deep-research-option-c.ts" init --query "..." --mode standard --sensitivity no_web [--run-id ...]`
+   - `bun ".opencode/pai-tools/deep-research-option-c.ts" resume --run-id <id> [--until summaries|finalize]`
+   - `bun ".opencode/pai-tools/deep-research-option-c.ts" inspect --run-id <id>`
+   - `bun ".opencode/pai-tools/deep-research-option-c.ts" capture-fixtures --run-id <id> --bundle-id <id> --out <abs>`
 
 3) **Config without env vars**
 

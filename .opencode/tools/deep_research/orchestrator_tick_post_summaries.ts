@@ -11,6 +11,7 @@ import {
   nowIso,
   parseJsonSafe,
   readJson,
+  sha256HexLowerUtf8,
   validateManifestV1,
 } from "./lifecycle_lib";
 import { gate_d_evaluate } from "./gate_d_evaluate";
@@ -40,6 +41,7 @@ export type OrchestratorTickPostSummariesArgs = {
   manifest_path: string;
   gates_path: string;
   reason: string;
+  driver?: "fixture" | "live" | "task";
   fixture_summaries_dir?: string;
   fixture_draft_path?: string;
   fixture_bundle_dir?: string;
@@ -117,6 +119,23 @@ async function exists(filePath: string): Promise<boolean> {
   }
 }
 
+function normalizePromptDigest(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return null;
+  if (/^sha256:[a-f0-9]{64}$/u.test(trimmed)) return trimmed;
+  if (/^[a-f0-9]{64}$/u.test(trimmed)) return `sha256:${trimmed}`;
+  return null;
+}
+
+async function sidecarPromptDigestMatches(metaPath: string, expectedPromptDigest: string): Promise<boolean> {
+  if (!(await exists(metaPath))) return false;
+  const raw = await readJson(metaPath);
+  if (!isPlainObject(raw)) return false;
+  const normalized = normalizePromptDigest((raw as Record<string, unknown>).prompt_digest);
+  return normalized === expectedPromptDigest;
+}
+
 async function resolveContainedAbsolutePath(args: {
   runRoot: string;
   runRootReal: string;
@@ -125,20 +144,6 @@ async function resolveContainedAbsolutePath(args: {
 }): Promise<{ ok: true; absPath: string } | { ok: false; message: string; details: Record<string, unknown> }> {
   const trimmed = args.input.trim();
   const absPath = path.resolve(trimmed);
-  const runRootAbs = path.resolve(args.runRoot);
-
-  if (!isContainedWithin(runRootAbs, absPath)) {
-    return {
-      ok: false,
-      message: "path escapes run root",
-      details: {
-        field: args.field,
-        run_root: args.runRoot,
-        value: args.input,
-        resolved_path: absPath,
-      },
-    };
-  }
 
   let existingPath = absPath;
   while (!(await exists(existingPath))) {
@@ -295,6 +300,7 @@ export async function orchestrator_tick_post_summaries(
   const manifestPath = args.manifest_path.trim();
   const gatesPath = args.gates_path.trim();
   const reason = args.reason.trim();
+  const driver = args.driver ?? "fixture";
 
   if (!manifestPath || !path.isAbsolute(manifestPath)) {
     return fail("INVALID_ARGS", "manifest_path must be absolute", {
@@ -599,8 +605,98 @@ export async function orchestrator_tick_post_summaries(
   };
 
   if (from === "summaries") {
-    const fixtureSummariesDir = args.fixture_summaries_dir?.trim() ?? "";
-    const summaryMode: "fixture" | "generate" = fixtureSummariesDir ? "fixture" : "generate";
+    let fixtureSummariesDir = args.fixture_summaries_dir?.trim() ?? "";
+    let summaryMode: "fixture" | "generate" = fixtureSummariesDir ? "fixture" : "generate";
+
+    if (driver === "task") {
+      const pathsObj = getManifestPaths(manifest);
+      const summariesDirRel = nonEmptyString(pathsObj.summaries_dir) ?? "summaries";
+      const summariesDirAbs = path.join(runRoot, summariesDirRel);
+
+      const queryObj = isPlainObject(manifest.query)
+        ? (manifest.query as Record<string, unknown>)
+        : {};
+      const queryText = nonEmptyString(queryObj.text) ?? "";
+
+      const perspectivesRel = nonEmptyString(pathsObj.perspectives_file) ?? "perspectives.json";
+      const perspectivesAbs = path.join(runRoot, perspectivesRel);
+      const perspectivesRaw = await readJson(perspectivesAbs);
+      if (!isPlainObject(perspectivesRaw)) {
+        return fail("SCHEMA_VALIDATION_FAILED", "perspectives.json must be an object", {
+          perspectives_path: perspectivesAbs,
+        });
+      }
+
+      const doc = perspectivesRaw as Record<string, unknown>;
+      const perspectives = Array.isArray(doc.perspectives)
+        ? (doc.perspectives as Array<Record<string, unknown>>)
+        : [];
+      const ids = perspectives
+        .map((p) => (isPlainObject(p) ? String(p.id ?? "").trim() : ""))
+        .filter((id) => id.length > 0)
+        .sort((a, b) => a.localeCompare(b));
+      if (ids.length === 0) {
+        return fail("SCHEMA_VALIDATION_FAILED", "perspectives list is empty", {
+          perspectives_path: perspectivesAbs,
+        });
+      }
+
+      const missing: Array<{
+        perspective_id: string;
+        prompt_path: string;
+        output_path: string;
+        meta_path: string;
+        prompt_digest: string;
+      }> = [];
+
+      for (const perspectiveId of ids) {
+        const promptMd = [
+          "## Query",
+          queryText || "(missing)",
+          "",
+          "## Summary Target",
+          `- perspective_id: ${perspectiveId}`,
+          "",
+          "## Contract",
+          "- Write a concise summary for this perspective.",
+          "- MUST include citations using [@<cid>] that exist in citations/citations.jsonl.",
+          "- MUST NOT include raw URLs.",
+          "- Use headings: Findings, Evidence.",
+          "",
+        ].join("\n");
+
+        const promptDigest = `sha256:${sha256HexLowerUtf8(promptMd)}`;
+        const promptPath = path.join(runRoot, "operator", "prompts", "summaries", `${perspectiveId}.md`);
+        const outputPath = path.join(summariesDirAbs, `${perspectiveId}.md`);
+        const metaPath = path.join(summariesDirAbs, `${perspectiveId}.meta.json`);
+
+        const outputExists = await exists(outputPath);
+        const digestMatches = outputExists && await sidecarPromptDigestMatches(metaPath, promptDigest);
+        if (digestMatches) continue;
+
+        await fs.mkdir(path.dirname(promptPath), { recursive: true });
+        await fs.writeFile(promptPath, promptMd.endsWith("\n") ? promptMd : `${promptMd}\n`, "utf8");
+        missing.push({
+          perspective_id: perspectiveId,
+          prompt_path: promptPath,
+          output_path: outputPath,
+          meta_path: metaPath,
+          prompt_digest: promptDigest,
+        });
+      }
+
+      if (missing.length > 0) {
+        return fail("RUN_AGENT_REQUIRED", "Summaries require external agent results via agent-result", {
+          stage: "summaries",
+          missing_count: missing.length,
+          missing_perspectives: missing,
+        });
+      }
+
+      summaryMode = "fixture";
+      fixtureSummariesDir = summariesDirAbs;
+    }
+
     if (summaryMode === "fixture" && !path.isAbsolute(fixtureSummariesDir)) {
       return fail("INVALID_ARGS", "fixture_summaries_dir must be absolute in summaries stage", {
         fixture_summaries_dir: args.fixture_summaries_dir ?? null,
@@ -718,6 +814,91 @@ export async function orchestrator_tick_post_summaries(
   }
 
   if (from === "synthesis") {
+    if (driver === "task") {
+      const queryObj = isPlainObject(manifest.query)
+        ? (manifest.query as Record<string, unknown>)
+        : {};
+      const queryText = nonEmptyString(queryObj.text) ?? "";
+
+      const promptMd = [
+        "## Query",
+        queryText || "(missing)",
+        "",
+        "## Synthesis Target",
+        "- Write the final synthesis markdown for this run.",
+        "- Output path: synthesis/final-synthesis.md",
+        "",
+        "## Inputs",
+        "- summaries/summary-pack.json",
+        "- citations/citations.jsonl",
+        "",
+        "## Contract",
+        "- MUST include citations using [@<cid>] that exist in citations/citations.jsonl.",
+        "- MUST NOT include raw URLs.",
+        "- Use headings: Summary, Key Findings, Evidence, Caveats.",
+        "",
+      ].join("\n");
+
+      const promptDigest = `sha256:${sha256HexLowerUtf8(promptMd)}`;
+      const promptPath = path.join(runRoot, "operator", "prompts", "synthesis", "final-synthesis.md");
+      const outputPath = finalSynthesisPath;
+      const metaPath = path.join(path.dirname(finalSynthesisPath), "final-synthesis.meta.json");
+
+      const outputExists = await exists(outputPath);
+      const digestMatches = outputExists && await sidecarPromptDigestMatches(metaPath, promptDigest);
+      if (!digestMatches) {
+        await fs.mkdir(path.dirname(promptPath), { recursive: true });
+        await fs.writeFile(promptPath, promptMd.endsWith("\n") ? promptMd : `${promptMd}\n`, "utf8");
+
+        return fail("RUN_AGENT_REQUIRED", "Synthesis requires external agent results via agent-result", {
+          stage: "synthesis",
+          missing_count: 1,
+          missing_perspectives: [
+            {
+              perspective_id: "final-synthesis",
+              prompt_path: promptPath,
+              output_path: outputPath,
+              meta_path: metaPath,
+              prompt_digest: promptDigest,
+            },
+          ],
+        });
+      }
+
+      const synthesisProgress = await markProgress("synthesis_written");
+      if (!synthesisProgress.ok) {
+        return fail(synthesisProgress.code, synthesisProgress.message, {
+          ...synthesisProgress.details,
+          checkpoint: "synthesis_written",
+        });
+      }
+
+      const advanceToReview = await runStageAdvance("review");
+      if (!advanceToReview.ok) {
+        return fail(advanceToReview.code, advanceToReview.message, {
+          ...advanceToReview.details,
+          from,
+          requested_next: "review",
+        });
+      }
+
+      const synthesisRevisionSyncError = syncManifestRevision(advanceToReview);
+      if (synthesisRevisionSyncError) return synthesisRevisionSyncError;
+
+      return {
+        ok: true,
+        schema_version: "orchestrator_tick.post_summaries.v1",
+        run_id: runId,
+        from,
+        to: String(advanceToReview.to ?? "").trim(),
+        decision_inputs_digest: extractDecisionInputsDigest(advanceToReview),
+        gate_d_status: null,
+        gate_e_status: null,
+        review_iteration: null,
+        revision_action: null,
+      };
+    }
+
     const fixtureDraftPath = args.fixture_draft_path?.trim() ?? "";
     const synthesisMode: "fixture" | "generate" = fixtureDraftPath ? "fixture" : "generate";
     if (synthesisMode === "fixture" && !path.isAbsolute(fixtureDraftPath)) {

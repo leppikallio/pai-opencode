@@ -302,7 +302,7 @@ You asked: “single CLI that the LLM/operator can drive without env vars.” I 
 Create (recommendation) a single Bun CLI:
 
 ```
-bun Tools/deep-research-option-c.ts <command> [args]
+bun ".opencode/pai-tools/deep-research-option-c.ts" <command> [args]
 ```
 
 Command vocabulary should map 1:1 to lifecycle semantics and avoid “magic”.
@@ -314,12 +314,12 @@ NAME
   deep-research-option-c — operator CLI for Option C runs
 
 USAGE
-  bun Tools/deep-research-option-c.ts init "<query>" [--run-id <id>] [--mode quick|standard|deep] [--sensitivity normal|restricted|no_web]
-  bun Tools/deep-research-option-c.ts tick --manifest <abs> --gates <abs> --reason "<reason>" [--driver fixture|live]
-  bun Tools/deep-research-option-c.ts run  "<query>" [--run-id <id>] [--driver fixture|live] [--mode ...] [--sensitivity ...]
-  bun Tools/deep-research-option-c.ts status --manifest <abs>
-  bun Tools/deep-research-option-c.ts pause  --manifest <abs> --reason "<reason>"
-  bun Tools/deep-research-option-c.ts resume --manifest <abs> --reason "<reason>"
+  bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" [--run-id <id>] [--mode quick|standard|deep] [--sensitivity normal|restricted|no_web]
+  bun ".opencode/pai-tools/deep-research-option-c.ts" tick --manifest <abs> --gates <abs> --reason "<reason>" [--driver fixture|live]
+  bun ".opencode/pai-tools/deep-research-option-c.ts" run  "<query>" [--run-id <id>] [--driver fixture|live] [--mode ...] [--sensitivity ...]
+  bun ".opencode/pai-tools/deep-research-option-c.ts" status --manifest <abs>
+  bun ".opencode/pai-tools/deep-research-option-c.ts" pause  --manifest <abs> --reason "<reason>"
+  bun ".opencode/pai-tools/deep-research-option-c.ts" resume --manifest <abs> --reason "<reason>"
 
 COMMON FLAGS
   --runs-root <abs>              Override runs root (no env required)
@@ -662,7 +662,7 @@ Current status: PARTIAL (policy and redaction exist; live retrieval is not yet e
    - call `watchdog_check` at tick boundaries
    - ensure pause/resume semantics don’t trigger false timeouts
 
-9) **Deliver a single operator CLI** (`Tools/deep-research-option-c.ts`) and refactor the slash command doc to call it.
+9) **Deliver a single operator CLI** (`.opencode/pai-tools/deep-research-option-c.ts`) and refactor the slash command doc to call it.
 
 10) **Add a docs-vs-code drift test** that asserts the operator tool map matches `index.ts` exports (prevent repeat of the `wave_output_ingest` mismatch).
 

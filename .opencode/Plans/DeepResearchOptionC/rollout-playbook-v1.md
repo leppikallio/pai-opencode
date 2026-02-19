@@ -10,7 +10,7 @@ Authoritative Gate F pass criteria sources:
 - `PHASE-07-CHECKPOINT-GATE-F.md` → evidence mapping and command outcomes
 
 Default safety position:
-- Canary defaults to `PAI_DR_NO_WEB=1` unless explicitly enabled.
+- Canary defaults to `--sensitivity no_web` unless explicitly enabled.
 - No network-required steps are part of the default rollout path.
 
 Staged enablement model:
@@ -35,8 +35,8 @@ Expansion rules:
 ## Canary Steps
 
 1. **Initialize offline-first environment**
-   - Set `PAI_DR_OPTION_C_ENABLED=1`
-   - Set `PAI_DR_NO_WEB=1` (mandatory default)
+   - Option C is enabled by default (settings flag `deepResearch.flags.PAI_DR_OPTION_C_ENABLED=true`; env unsupported)
+   - Use `--sensitivity no_web` (mandatory default)
    - Keep canary scope to constrained query classes only
 
 2. **Run Gate F safety contracts**
@@ -53,7 +53,7 @@ Expansion rules:
 
 5. **Optional sandboxed web-enabled canary (explicit opt-in only)**
    - Allowed only in sandboxed environment with operator approval
-   - Must be reversible in one command (restore `PAI_DR_NO_WEB=1`)
+   - Must be reversible in one command (switch back to `--sensitivity no_web`)
 
 ## Rollback Triggers
 
@@ -61,15 +61,15 @@ Stop-the-line criteria and operator actions:
 
 | Trigger | Signal | Immediate operator action |
 |---|---|---|
-| Feature-flag contract failure | `bun test ...deep_research_feature_flags.contract.test.ts` exits non-zero | Set `PAI_DR_OPTION_C_ENABLED=0`; revert canary traffic to standard workflow; open incident log |
-| Fallback-path failure | `bun test ...deep_research_fallback_path.test.ts` exits non-zero | Disable Option C (`PAI_DR_OPTION_C_ENABLED=0`); force standard workflow path; preserve run artifacts for postmortem |
+| Feature-flag contract failure | `bun test ...deep_research_feature_flags.contract.test.ts` exits non-zero | Set `deepResearch.flags.PAI_DR_OPTION_C_ENABLED=false` in `.opencode/settings.json`; revert canary traffic to standard workflow; open incident log |
+| Fallback-path failure | `bun test ...deep_research_fallback_path.test.ts` exits non-zero | Disable Option C via settings (`deepResearch.flags.PAI_DR_OPTION_C_ENABLED=false`); force standard workflow path; preserve run artifacts for postmortem |
 | Watchdog timeout regression | `bun test ...deep_research_watchdog_timeout.test.ts` exits non-zero or timeout alerts fire | Pause canary expansion; keep offline mode; execute rollback checklist and investigate timeout root cause |
 | Hard-gate breach during canary | Any HARD gate marked failed in evidence review | Stop rollout progression; rollback to previous stable stage; require re-verification before retry |
-| Unapproved web exposure | `PAI_DR_NO_WEB` changed from `1` without sandbox approval | Immediately restore `PAI_DR_NO_WEB=1`; freeze stage promotion; file operator exception report |
+| Unapproved web exposure | run launched without `--sensitivity no_web` and no sandbox approval | Immediately restore `--sensitivity no_web`; freeze stage promotion; file operator exception report |
 
 Rollback baseline actions (always):
 1. Freeze rollout changes.
-2. Disable Option C (`PAI_DR_OPTION_C_ENABLED=0`).
+2. Disable Option C in settings (`deepResearch.flags.PAI_DR_OPTION_C_ENABLED=false`).
 3. Keep artifacts intact for diagnostics and Gate F evidence.
 4. Route all affected runs to standard research workflow.
 
@@ -79,7 +79,7 @@ Feature flags are defined in `spec-feature-flags-v1.md` (authoritative list):
 
 | Flag | Default | Rollout role |
 |---|---:|---|
-| `PAI_DR_OPTION_C_ENABLED` | `false` | Master enable/disable switch |
+| `PAI_DR_OPTION_C_ENABLED` | `true` | Master enable/disable switch |
 | `PAI_DR_MODE_DEFAULT` | `standard` | Default run mode for Option C |
 | `PAI_DR_MAX_WAVE1_AGENTS` | `6` | Wave 1 fan-out cap |
 | `PAI_DR_MAX_WAVE2_AGENTS` | `6` | Wave 2 fan-out cap |
@@ -87,7 +87,7 @@ Feature flags are defined in `spec-feature-flags-v1.md` (authoritative list):
 | `PAI_DR_MAX_TOTAL_SUMMARY_KB` | `60` | Summary-pack total cap |
 | `PAI_DR_MAX_REVIEW_ITERATIONS` | `4` | Synthesis reviewer loop cap |
 | `PAI_DR_CITATION_VALIDATION_TIER` | `standard` | Citation validation depth |
-| `PAI_DR_NO_WEB` | `false` (spec default), **`1` required for canary default** | Offline/no-web enforcement |
+| `PAI_DR_NO_WEB` | `false` (spec default), **`--sensitivity no_web` required for canary default** | Offline/no-web enforcement |
 | `PAI_DR_RUNS_ROOT` | `~/.config/opencode/research-runs` | Artifact root path |
 
 Gate F mapping reminder:
@@ -100,11 +100,10 @@ Run from repo root. Default path is offline-first and network-free.
 
 ### 1) Offline-first env setup (required)
 ```bash
-export PAI_DR_OPTION_C_ENABLED=1
-export PAI_DR_NO_WEB=1
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "Gate F canary" --run-id "dr_gatef_canary" --sensitivity no_web
 ```
 Expected outcome:
-- Environment is set for canary with Option C enabled and no-web enforced.
+- Run is initialized with Option C enabled and no-web enforced.
 
 ### 2) Feature flags contract test
 ```bash
@@ -139,7 +138,7 @@ Expected outcome:
 
 ### 6) Verify this playbook enforces no-web default
 ```bash
-rg -n "PAI_DR_NO_WEB=1|offline-first|No network-required steps" .opencode/Plans/DeepResearchOptionC/rollout-playbook-v1.md
+rg -n "--sensitivity no_web|offline-first|No network-required steps" .opencode/Plans/DeepResearchOptionC/rollout-playbook-v1.md
 ```
 Expected outcome:
 - Matches confirm default no-web posture and explicit offline-first guidance.

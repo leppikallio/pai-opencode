@@ -15,7 +15,7 @@ import {
   option,
   optional,
   positional,
-  run,
+  runSafely,
   string,
   subcommands,
 } from "cmd-ts";
@@ -57,14 +57,17 @@ type ToolWithExecute = {
 type InitCliArgs = {
   query: string;
   runId?: string;
+  runsRoot?: string;
   sensitivity: "normal" | "restricted" | "no_web";
   mode: "quick" | "standard" | "deep";
   writePerspectives: boolean;
   force: boolean;
+  json?: boolean;
 };
 
 type RunHandleCliArgs = {
   runId?: string;
+  runsRoot?: string;
   runRoot?: string;
   manifest?: string;
   gates?: string;
@@ -73,6 +76,7 @@ type RunHandleCliArgs = {
 type TickCliArgs = RunHandleCliArgs & {
   reason: string;
   driver: "fixture" | "live" | "task";
+  json?: boolean;
 };
 
 type RunCliArgs = TickCliArgs & {
@@ -82,6 +86,7 @@ type RunCliArgs = TickCliArgs & {
 
 type PauseResumeCliArgs = RunHandleCliArgs & {
   reason: string;
+  json?: boolean;
 };
 
 type RunStatusInspectTriageCliArgs = RunHandleCliArgs & {
@@ -96,7 +101,7 @@ type RerunWave1CliArgs = {
 
 type AgentResultCliArgs = {
   manifest: string;
-  stage: "wave1";
+  stage: "wave1" | "wave2" | "summaries" | "synthesis";
   perspective: string;
   input: string;
   agentRunId: string;
@@ -104,6 +109,7 @@ type AgentResultCliArgs = {
   startedAt?: string;
   finishedAt?: string;
   model?: string;
+  json?: boolean;
 };
 
 type TaskDriverMissingPerspective = {
@@ -209,6 +215,16 @@ type TickOutcome = {
 };
 
 const TICK_METRICS_INTERVAL = 1;
+const CLI_ARGV = process.argv.slice(2);
+const JSON_MODE_REQUESTED = CLI_ARGV.includes("--json");
+
+if (JSON_MODE_REQUESTED) {
+  // Hard contract: in --json mode, reserve stdout for exactly one JSON object.
+  // Any incidental console.log output is redirected to stderr.
+  console.log = (...args: unknown[]): void => {
+    console.error(...args);
+  };
+}
 
 function stableDigest(value: Record<string, unknown>): string {
   return `sha256:${sha256HexLowerUtf8(JSON.stringify(value))}`;
@@ -321,7 +337,7 @@ async function appendTickLedgerBestEffort(args: {
     const ledgerPath = String(envelope.ledger_path ?? "").trim();
     return ledgerPath || null;
   } catch (error) {
-    console.log(`warn.tick_ledger: ${String(error)}`);
+    console.error(`warn.tick_ledger: ${String(error)}`);
     return null;
   }
 }
@@ -338,7 +354,7 @@ async function appendTelemetryBestEffort(args: {
       reason: args.reason,
     });
   } catch (error) {
-    console.log(`warn.telemetry_append: ${String(error)}`);
+    console.error(`warn.telemetry_append: ${String(error)}`);
   }
 }
 
@@ -360,7 +376,7 @@ async function writeRunMetricsBestEffort(args: {
     const metricsPath = String(envelope.metrics_path ?? "").trim();
     return metricsPath || null;
   } catch (error) {
-    console.log(`warn.run_metrics_write: ${String(error)}`);
+    console.error(`warn.run_metrics_write: ${String(error)}`);
     return null;
   }
 }
@@ -614,7 +630,7 @@ function ensureOptionCEnabledForCli(): void {
   const flags = resolveDeepResearchFlagsV1();
   if (!flags.optionCEnabled) {
     throw new Error(
-      "Deep research Option C is disabled (set PAI_DR_OPTION_C_ENABLED=1 to enable for CLI operations)",
+      "Deep research Option C is disabled in current configuration",
     );
   }
 }
@@ -755,6 +771,29 @@ async function readWave1PlanEntries(runRoot: string): Promise<Array<{ perspectiv
   return out;
 }
 
+async function readWave2PlanEntries(runRoot: string): Promise<Array<{ perspectiveId: string; promptMd: string }>> {
+  const wave2PlanPath = path.join(runRoot, "wave-2", "wave2-plan.json");
+  const wave2Plan = await readJsonObject(wave2PlanPath);
+  const entries = Array.isArray(wave2Plan.entries)
+    ? (wave2Plan.entries as Array<unknown>)
+    : [];
+  const out: Array<{ perspectiveId: string; promptMd: string }> = [];
+
+  for (const entryRaw of entries) {
+    const entry = asObject(entryRaw);
+    const perspectiveId = String(entry.perspective_id ?? "").trim();
+    const promptMd = String(entry.prompt_md ?? "");
+    if (!perspectiveId || !promptMd.trim()) continue;
+    if (!isSafeSegment(perspectiveId)) continue;
+    out.push({ perspectiveId, promptMd });
+  }
+
+  if (out.length === 0) {
+    throw new Error(`wave2 plan has no valid entries (${wave2PlanPath})`);
+  }
+  return out;
+}
+
 async function sidecarPromptDigestMatches(metaPath: string, expectedPromptDigest: string): Promise<boolean> {
   const exists = await fileExists(metaPath);
   if (!exists) return false;
@@ -805,17 +844,18 @@ async function collectTaskDriverMissingWave1Perspectives(args: {
 function buildTaskDriverNextCommands(args: {
   manifestPath: string;
   runRoot: string;
+  stage: "wave1" | "wave2" | "summaries" | "synthesis";
   missing: TaskDriverMissingPerspective[];
 }): string[] {
   const agentResultCommands = args.missing.map((item) => {
-    const inputPath = path.join(args.runRoot, "operator", "outputs", "wave1", `${item.perspectiveId}.md`);
-    return `bun ".opencode/pai-tools/deep-research-option-c.ts" agent-result --manifest "${args.manifestPath}" --stage wave1 --perspective "${item.perspectiveId}" --input "${inputPath}" --agent-run-id "<AGENT_RUN_ID>" --reason "operator: task driver ingest ${item.perspectiveId}"`;
+    const inputPath = path.join(args.runRoot, "operator", "outputs", args.stage, `${item.perspectiveId}.md`);
+    return `bun ".opencode/pai-tools/deep-research-option-c.ts" agent-result --manifest "${args.manifestPath}" --stage ${args.stage} --perspective "${item.perspectiveId}" --input "${inputPath}" --agent-run-id "<AGENT_RUN_ID>" --reason "operator: task driver ingest ${args.stage}/${item.perspectiveId}"`;
   });
 
   return [
     `bun ".opencode/pai-tools/deep-research-option-c.ts" inspect --manifest "${args.manifestPath}"`,
     ...agentResultCommands,
-    `bun ".opencode/pai-tools/deep-research-option-c.ts" tick --manifest "${args.manifestPath}" --driver task --reason "resume wave1 after agent-result ingestion"`,
+    `bun ".opencode/pai-tools/deep-research-option-c.ts" tick --manifest "${args.manifestPath}" --driver task --reason "resume ${args.stage} after agent-result ingestion"`,
   ];
 }
 
@@ -1009,6 +1049,11 @@ function normalizeOptional(value: string | undefined): string | undefined {
   return trimmed.length > 0 ? trimmed : undefined;
 }
 
+function emitJson(payload: unknown): void {
+  // LLM/operator contract: JSON mode prints exactly one parseable object.
+  process.stdout.write(`${JSON.stringify(payload)}\n`);
+}
+
 function validateRunId(runId: string): void {
   if (!runId) throw new Error("--run-id must be non-empty");
   if (path.isAbsolute(runId)) throw new Error("--run-id must not be an absolute path");
@@ -1029,6 +1074,7 @@ async function resolveRunHandle(args: RunHandleCliArgs): Promise<RunHandleResolu
   const manifestArg = normalizeOptional(args.manifest);
   const runRootArg = normalizeOptional(args.runRoot);
   const runIdArg = normalizeOptional(args.runId);
+  const runsRootArg = normalizeOptional(args.runsRoot);
 
   const selectors = [manifestArg, runRootArg, runIdArg].filter((value) => typeof value === "string").length;
   if (selectors === 0) {
@@ -1046,8 +1092,10 @@ async function resolveRunHandle(args: RunHandleCliArgs): Promise<RunHandleResolu
     manifestPath = path.join(runRootAbs, "manifest.json");
   } else {
     validateRunId(runIdArg as string);
-    const flags = resolveDeepResearchFlagsV1();
-    const runsRoot = requireAbsolutePath(flags.runsRoot, "PAI_DR_RUNS_ROOT");
+    if (!runsRootArg) {
+      throw new Error("--runs-root is required when using --run-id");
+    }
+    const runsRoot = requireAbsolutePath(runsRootArg, "--runs-root");
     const runRootFromId = path.resolve(runsRoot, runIdArg as string);
     assertWithinRoot(runsRoot, runRootFromId, "--run-id");
     manifestPath = path.join(runRootFromId, "manifest.json");
@@ -1156,6 +1204,27 @@ function contractJson(args: {
   };
 }
 
+function emitContractCommandJson(args: {
+  command: "status" | "inspect" | "triage";
+  summary: ManifestSummary;
+  manifestPath: string;
+  gatesPath?: string;
+  gateStatusesSummary: Record<string, { status: string; checked_at: string | null }>;
+  extra?: Record<string, unknown>;
+}): void {
+  emitJson({
+    ok: true,
+    command: args.command,
+    ...contractJson({
+      summary: args.summary,
+      manifestPath: args.manifestPath,
+      gatesPath: args.gatesPath,
+      gateStatusesSummary: args.gateStatusesSummary,
+    }),
+    ...(args.extra ?? {}),
+  });
+}
+
 function blockersSummaryJson(triage: TriageBlockers): {
   missing_artifacts: Array<{ name: string; path: string | null }>;
   blocked_gates: Array<{ gate: string; status: string | null }>;
@@ -1231,19 +1300,19 @@ async function writeRunConfig(args: {
 
   const manifestBrightDataEndpoint = asNonEmptyString(deepFlags.PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT);
   const manifestApifyEndpoint = asNonEmptyString(deepFlags.PAI_DR_CITATIONS_APIFY_ENDPOINT);
-  const effectiveBrightDataEndpoint = manifestBrightDataEndpoint ?? flags.citationsBrightDataEndpoint;
-  const effectiveApifyEndpoint = manifestApifyEndpoint ?? flags.citationsApifyEndpoint;
+  const effectiveBrightDataEndpoint = (manifestBrightDataEndpoint ?? flags.citationsBrightDataEndpoint ?? "").trim();
+  const effectiveApifyEndpoint = (manifestApifyEndpoint ?? flags.citationsApifyEndpoint ?? "").trim();
   const citationMode = citationModeFromSensitivity(effectiveSensitivity);
 
   const brightDataSource = manifestBrightDataEndpoint
     ? "manifest"
     : flags.citationsBrightDataEndpoint
-      ? "settings/env"
+      ? "settings"
       : "run-config";
   const apifySource = manifestApifyEndpoint
     ? "manifest"
     : flags.citationsApifyEndpoint
-      ? "settings/env"
+      ? "settings"
       : "run-config";
 
   const runConfig = {
@@ -1732,7 +1801,8 @@ async function handleTickFailureArtifacts(args: {
   error: { code: string; message: string };
   triageReason: string;
   nextCommandsOverride?: string[];
-}): Promise<void> {
+  emitLogs?: boolean;
+}): Promise<{ tickPath: string; latestPath: string; tickIndex: number; triage: TriageBlockers | null }> {
   const halt = await writeHaltArtifactForFailure({
     runRoot: args.runRoot,
     runId: args.runId,
@@ -1744,13 +1814,17 @@ async function handleTickFailureArtifacts(args: {
     nextCommandsOverride: args.nextCommandsOverride,
   });
 
-  await printHaltArtifactSummary(halt);
-  await printAutoTriage({
-    manifestPath: args.manifestPath,
-    gatesPath: args.gatesPath,
-    reason: args.triageReason,
-    triage: halt.triage,
-  });
+  if (args.emitLogs !== false) {
+    await printHaltArtifactSummary(halt);
+    await printAutoTriage({
+      manifestPath: args.manifestPath,
+      gatesPath: args.gatesPath,
+      reason: args.triageReason,
+      triage: halt.triage,
+    });
+  }
+
+  return halt;
 }
 
 async function readJsonIfExists(filePath: string): Promise<Record<string, unknown> | null> {
@@ -1837,11 +1911,14 @@ async function printInspectOperatorGuidance(runRoot: string): Promise<void> {
 
 async function runInit(args: InitCliArgs): Promise<void> {
   ensureOptionCEnabledForCli();
+
+  const rootOverride = normalizeOptional(args.runsRoot);
   const init = await callTool("run_init", run_init as unknown as ToolWithExecute, {
     query: args.query,
     mode: args.mode,
     sensitivity: args.sensitivity,
     run_id: args.runId,
+    ...(rootOverride ? { root_override: requireAbsolutePath(rootOverride, "--runs-root") } : {}),
   });
 
   const runId = String(init.run_id ?? "").trim();
@@ -1850,6 +1927,9 @@ async function runInit(args: InitCliArgs): Promise<void> {
   const gatesPath = requireAbsolutePath(String(init.gates_path ?? ""), "run_init gates_path");
 
   const created = Boolean(init.created);
+  const notes: string[] = [];
+  let perspectivesPathOut: string | null = null;
+  let wave1PlanPathOut: string | null = null;
 
   if (!created) {
     // Defensive: when reusing an existing run_id, ensure the run root in the manifest
@@ -1877,6 +1957,7 @@ async function runInit(args: InitCliArgs): Promise<void> {
 
   if (args.writePerspectives) {
     const perspectivesPath = path.join(runRoot, "perspectives.json");
+    perspectivesPathOut = perspectivesPath;
     const perspectivesExists = await fs.stat(perspectivesPath).then(() => true).catch(() => false);
 
     if (!perspectivesExists || args.force || created) {
@@ -1888,9 +1969,15 @@ async function runInit(args: InitCliArgs): Promise<void> {
           : (args.force ? "operator-cli init: default perspectives (forced overwrite)" : "operator-cli init: default perspectives (missing file)"),
       });
     } else {
-      console.log("perspectives.note: existing perspectives preserved (use --force to overwrite)");
+      const message = "existing perspectives preserved (use --force to overwrite)";
+      notes.push(message);
+      if (!args.json) {
+        console.log(`perspectives.note: ${message}`);
+      }
     }
-    console.log(`perspectives_path: ${perspectivesPath}`);
+    if (!args.json) {
+      console.log(`perspectives_path: ${perspectivesPath}`);
+    }
 
     // wave1_plan writes a new artifact with a generated_at timestamp; only create it
     // when missing/new, or when forced.
@@ -1909,10 +1996,18 @@ async function runInit(args: InitCliArgs): Promise<void> {
       if (!produced || !path.isAbsolute(produced)) {
         throw new Error("wave1_plan returned invalid plan_path");
       }
-      console.log(`wave1_plan_path: ${produced}`);
+      wave1PlanPathOut = produced;
+      if (!args.json) {
+        console.log(`wave1_plan_path: ${produced}`);
+      }
     } else {
-      console.log(`wave1_plan_path: ${wave1PlanPath}`);
-      console.log("wave1_plan.note: existing plan preserved (use --force to overwrite)");
+      wave1PlanPathOut = wave1PlanPath;
+      const message = "existing plan preserved (use --force to overwrite)";
+      notes.push(message);
+      if (!args.json) {
+        console.log(`wave1_plan_path: ${wave1PlanPath}`);
+        console.log(`wave1_plan.note: ${message}`);
+      }
     }
 
     // Resume-safe: if this run is already in wave1, do not attempt a redundant stage_advance.
@@ -1949,6 +2044,24 @@ async function runInit(args: InitCliArgs): Promise<void> {
     gatesPath,
     manifest,
   });
+
+  if (args.json) {
+    emitJson({
+      ok: true,
+      command: "init",
+      run_id: runId,
+      run_root: runRoot,
+      manifest_path: manifestPath,
+      gates_path: summary.gatesPath,
+      stage_current: summary.stageCurrent,
+      status: summary.status,
+      run_config_path: runConfigPath,
+      perspectives_path: perspectivesPathOut,
+      wave1_plan_path: wave1PlanPathOut,
+      notes,
+    });
+    return;
+  }
 
   printContract({
     runId,
@@ -1991,11 +2104,12 @@ async function runOneOrchestratorTick(args: {
     });
   }
 
-  if (stage === "pivot" || stage === "citations") {
+  if (stage === "pivot" || stage === "wave2" || stage === "citations") {
     return await orchestrator_tick_post_pivot({
       manifest_path: args.manifestPath,
       gates_path: args.gatesPath,
       reason: args.reason,
+      driver: args.driver,
       tool_context: makeToolContext(),
     });
   }
@@ -2004,6 +2118,7 @@ async function runOneOrchestratorTick(args: {
     manifest_path: args.manifestPath,
     gates_path: args.gatesPath,
     reason: args.reason,
+    driver: args.driver,
     tool_context: makeToolContext(),
   });
 }
@@ -2059,6 +2174,7 @@ async function runTick(args: TickCliArgs): Promise<void> {
         haltNextCommandsOverride = buildTaskDriverNextCommands({
           manifestPath: runHandle.manifestPath,
           runRoot: context.runRoot,
+          stage: "wave1",
           missing,
         });
 
@@ -2100,6 +2216,50 @@ async function runTick(args: TickCliArgs): Promise<void> {
         liveDriver,
       });
     }
+
+    if (
+      args.driver === "task"
+      && !result.ok
+      && String(result.error?.code ?? "") === "RUN_AGENT_REQUIRED"
+    ) {
+      const details = (result.error?.details && typeof result.error.details === "object" && !Array.isArray(result.error.details))
+        ? (result.error.details as Record<string, unknown>)
+        : {};
+      const missingStage = String(details.stage ?? "");
+      if (missingStage === "wave2" || missingStage === "summaries" || missingStage === "synthesis") {
+        const missingRaw = Array.isArray(details.missing_perspectives)
+          ? (details.missing_perspectives as Array<unknown>)
+          : [];
+        const missing: TaskDriverMissingPerspective[] = [];
+        for (const itemRaw of missingRaw) {
+          if (!itemRaw || typeof itemRaw !== "object" || Array.isArray(itemRaw)) continue;
+          const item = itemRaw as Record<string, unknown>;
+          const perspectiveId = String(item.perspective_id ?? "").trim();
+          const promptPath = String(item.prompt_path ?? "").trim();
+          const outputPath = String(item.output_path ?? "").trim();
+          const metaPath = String(item.meta_path ?? "").trim();
+          const promptDigest = String(item.prompt_digest ?? "").trim();
+          if (!isSafeSegment(perspectiveId)) continue;
+          if (!promptPath || !outputPath || !metaPath || !promptDigest) continue;
+          missing.push({
+            perspectiveId,
+            promptPath,
+            outputPath,
+            metaPath,
+            promptDigest,
+          });
+        }
+
+        if (missing.length > 0) {
+          haltNextCommandsOverride = buildTaskDriverNextCommands({
+            manifestPath: runHandle.manifestPath,
+            runRoot: context.runRoot,
+            stage: missingStage as "wave2" | "summaries" | "synthesis",
+            missing,
+          });
+        }
+      }
+    }
   } catch (error) {
     toolFailure = toolErrorDetails(error);
     result = {
@@ -2119,14 +2279,18 @@ async function runTick(args: TickCliArgs): Promise<void> {
     toolError: toolFailure,
   });
 
-  printTickResult(args.driver, result);
+  if (!args.json) {
+    printTickResult(args.driver, result);
+  }
+
+  let haltArtifact: { tickPath: string; latestPath: string; tickIndex: number; triage: TriageBlockers | null } | null = null;
 
   if (!result.ok) {
     const tickError = resultErrorDetails(result) ?? {
       code: "UNKNOWN",
       message: "tick failed",
     };
-    await handleTickFailureArtifacts({
+    haltArtifact = await handleTickFailureArtifacts({
       runRoot: context.runRoot,
       runId: context.runId,
       stageCurrent: context.stageBefore,
@@ -2136,6 +2300,7 @@ async function runTick(args: TickCliArgs): Promise<void> {
       error: tickError,
       triageReason: `operator-cli tick auto-triage: ${args.reason}`,
       nextCommandsOverride: haltNextCommandsOverride,
+      emitLogs: !args.json,
     });
   }
 
@@ -2148,6 +2313,49 @@ async function runTick(args: TickCliArgs): Promise<void> {
 
   const manifest = await readJsonObject(runHandle.manifestPath);
   const summary = await summarizeManifest(manifest);
+
+  if (args.json) {
+    const tickPayload: Record<string, unknown> = result.ok
+      ? {
+        ok: true,
+        from: String(result.from ?? ""),
+        to: String(result.to ?? ""),
+      }
+      : {
+        ok: false,
+        error: {
+          code: String(result.error.code ?? "UNKNOWN"),
+          message: String(result.error.message ?? "tick failed"),
+          details: result.error.details ?? {},
+        },
+      };
+    if ("wave_outputs_count" in result && typeof result.wave_outputs_count === "number") {
+      tickPayload.wave_outputs_count = result.wave_outputs_count;
+    }
+
+    emitJson({
+      ok: result.ok,
+      command: "tick",
+      driver: args.driver,
+      tick: tickPayload,
+      run_id: summary.runId,
+      run_root: summary.runRoot,
+      manifest_path: runHandle.manifestPath,
+      gates_path: summary.gatesPath,
+      stage_current: summary.stageCurrent,
+      status: summary.status,
+      halt: haltArtifact
+        ? {
+          tick_index: haltArtifact.tickIndex,
+          tick_path: haltArtifact.tickPath,
+          latest_path: haltArtifact.latestPath,
+          blockers_summary: haltArtifact.triage ? blockersSummaryJson(haltArtifact.triage) : null,
+        }
+        : null,
+    });
+    return;
+  }
+
   printContract({
     runId: summary.runId,
     runRoot: summary.runRoot,
@@ -2165,11 +2373,12 @@ async function runStatus(args: RunStatusInspectTriageCliArgs): Promise<void> {
 
   if (args.json) {
     const gateStatusesSummary = await readGateStatusesSummary(summary.gatesPath);
-    console.log(JSON.stringify(contractJson({
+    emitContractCommandJson({
+      command: "status",
       summary,
       manifestPath: runHandle.manifestPath,
       gateStatusesSummary,
-    })));
+    });
     return;
   }
 
@@ -2198,15 +2407,15 @@ async function runInspect(args: RunStatusInspectTriageCliArgs): Promise<void> {
   const triage = triageFromStageAdvanceResult(dryRun);
 
   if (args.json) {
-    const payload = {
-      ...contractJson({
-        summary,
-        manifestPath: runHandle.manifestPath,
-        gateStatusesSummary: gateStatusesSummaryRecord(gateStatuses),
-      }),
-      blockers_summary: blockersSummaryJson(triage),
-    };
-    console.log(JSON.stringify(payload));
+    emitContractCommandJson({
+      command: "inspect",
+      summary,
+      manifestPath: runHandle.manifestPath,
+      gateStatusesSummary: gateStatusesSummaryRecord(gateStatuses),
+      extra: {
+        blockers_summary: blockersSummaryJson(triage),
+      },
+    });
     return;
   }
 
@@ -2282,15 +2491,15 @@ async function runTriage(args: RunStatusInspectTriageCliArgs): Promise<void> {
   const triage = triageFromStageAdvanceResult(dryRun);
 
   if (args.json) {
-    const payload = {
-      ...contractJson({
-        summary,
-        manifestPath: runHandle.manifestPath,
-        gateStatusesSummary,
-      }),
-      blockers_summary: blockersSummaryJson(triage),
-    };
-    console.log(JSON.stringify(payload));
+    emitContractCommandJson({
+      command: "triage",
+      summary,
+      manifestPath: runHandle.manifestPath,
+      gateStatusesSummary,
+      extra: {
+        blockers_summary: blockersSummaryJson(triage),
+      },
+    });
     return;
   }
 
@@ -2351,16 +2560,47 @@ async function runRun(args: RunCliArgs): Promise<void> {
 
   const liveDriver = args.driver === "live" ? createOperatorInputDriver() : null;
 
+  const emitRunJson = (summary: ManifestSummary, payload: Record<string, unknown>): void => {
+    emitJson({
+      command: "run",
+      run_id: summary.runId,
+      run_root: summary.runRoot,
+      manifest_path: runHandle.manifestPath,
+      gates_path: summary.gatesPath,
+      stage_current: summary.stageCurrent,
+      status: summary.status,
+      ...payload,
+    });
+  };
+
+  const log = (line: string): void => {
+    if (!args.json) {
+      console.log(line);
+    }
+  };
+
   for (let i = 1; i <= args.maxTicks; i += 1) {
     const pre = (await callTool("watchdog_check", watchdog_check as unknown as ToolWithExecute, {
       manifest_path: runHandle.manifestPath,
       reason: `${args.reason} [pre_tick_${i}]`,
     })) as ToolEnvelope & { timed_out?: boolean; checkpoint_path?: string };
     if (pre.timed_out === true) {
-      console.log("run.ok: false");
-      console.log("run.error.code: WATCHDOG_TIMEOUT");
-      console.log("run.error.message: stage timed out before tick execution");
-      console.log(`run.checkpoint_path: ${String(pre.checkpoint_path ?? "")}`);
+      const summary = await summarizeManifest(await readJsonObject(runHandle.manifestPath));
+      if (args.json) {
+        emitRunJson(summary, {
+          ok: false,
+          error: {
+            code: "WATCHDOG_TIMEOUT",
+            message: "stage timed out before tick execution",
+          },
+          checkpoint_path: String(pre.checkpoint_path ?? ""),
+        });
+      } else {
+        log("run.ok: false");
+        log("run.error.code: WATCHDOG_TIMEOUT");
+        log("run.error.message: stage timed out before tick execution");
+        log(`run.checkpoint_path: ${String(pre.checkpoint_path ?? "")}`);
+      }
       return;
     }
 
@@ -2368,44 +2608,62 @@ async function runRun(args: RunCliArgs): Promise<void> {
     const summary = await summarizeManifest(manifest);
 
     if (summary.status === "completed" || summary.status === "failed" || summary.status === "cancelled") {
-      console.log("run.ok: true");
-      printContract({
-        runId: summary.runId,
-        runRoot: summary.runRoot,
-        manifestPath: runHandle.manifestPath,
-        gatesPath: summary.gatesPath,
-        stageCurrent: summary.stageCurrent,
-        status: summary.status,
-      });
+      if (args.json) {
+        emitRunJson(summary, { ok: true, terminal: true });
+      } else {
+        log("run.ok: true");
+        printContract({
+          runId: summary.runId,
+          runRoot: summary.runRoot,
+          manifestPath: runHandle.manifestPath,
+          gatesPath: summary.gatesPath,
+          stageCurrent: summary.stageCurrent,
+          status: summary.status,
+        });
+      }
       return;
     }
 
     if (args.until && summary.stageCurrent === args.until) {
-      console.log("run.ok: true");
-      console.log(`run.until_reached: ${args.until}`);
-      printContract({
-        runId: summary.runId,
-        runRoot: summary.runRoot,
-        manifestPath: runHandle.manifestPath,
-        gatesPath: summary.gatesPath,
-        stageCurrent: summary.stageCurrent,
-        status: summary.status,
-      });
+      if (args.json) {
+        emitRunJson(summary, { ok: true, until_reached: args.until });
+      } else {
+        log("run.ok: true");
+        log(`run.until_reached: ${args.until}`);
+        printContract({
+          runId: summary.runId,
+          runRoot: summary.runRoot,
+          manifestPath: runHandle.manifestPath,
+          gatesPath: summary.gatesPath,
+          stageCurrent: summary.stageCurrent,
+          status: summary.status,
+        });
+      }
       return;
     }
 
     if (summary.status === "paused") {
-      console.log("run.ok: false");
-      console.log("run.error.code: PAUSED");
-      console.log("run.error.message: run is paused; resume first");
-      printContract({
-        runId: summary.runId,
-        runRoot: summary.runRoot,
-        manifestPath: runHandle.manifestPath,
-        gatesPath: summary.gatesPath,
-        stageCurrent: summary.stageCurrent,
-        status: summary.status,
-      });
+      if (args.json) {
+        emitRunJson(summary, {
+          ok: false,
+          error: {
+            code: "PAUSED",
+            message: "run is paused; resume first",
+          },
+        });
+      } else {
+        log("run.ok: false");
+        log("run.error.code: PAUSED");
+        log("run.error.message: run is paused; resume first");
+        printContract({
+          runId: summary.runId,
+          runRoot: summary.runRoot,
+          manifestPath: runHandle.manifestPath,
+          gatesPath: summary.gatesPath,
+          stageCurrent: summary.stageCurrent,
+          status: summary.status,
+        });
+      }
       return;
     }
 
@@ -2450,15 +2708,19 @@ async function runRun(args: RunCliArgs): Promise<void> {
       if (result.error.code === "CANCELLED") {
         const current = await readJsonObject(runHandle.manifestPath);
         const currentSummary = await summarizeManifest(current);
-        console.log("run.ok: true");
-        printContract({
-          runId: currentSummary.runId,
-          runRoot: currentSummary.runRoot,
-          manifestPath: runHandle.manifestPath,
-          gatesPath: currentSummary.gatesPath,
-          stageCurrent: currentSummary.stageCurrent,
-          status: currentSummary.status,
-        });
+        if (args.json) {
+          emitRunJson(currentSummary, { ok: true, cancelled: true });
+        } else {
+          log("run.ok: true");
+          printContract({
+            runId: currentSummary.runId,
+            runRoot: currentSummary.runRoot,
+            manifestPath: runHandle.manifestPath,
+            gatesPath: currentSummary.gatesPath,
+            stageCurrent: currentSummary.stageCurrent,
+            status: currentSummary.status,
+          });
+        }
         return;
       }
 
@@ -2466,7 +2728,7 @@ async function runRun(args: RunCliArgs): Promise<void> {
         code: "UNKNOWN",
         message: "tick failed",
       };
-      await handleTickFailureArtifacts({
+      const haltArtifact = await handleTickFailureArtifacts({
         runRoot: context.runRoot,
         runId: context.runId,
         stageCurrent: context.stageBefore,
@@ -2475,19 +2737,38 @@ async function runRun(args: RunCliArgs): Promise<void> {
         reason: `operator-cli run tick_${i} failure: ${args.reason}`,
         error: tickError,
         triageReason: `operator-cli run auto-triage: ${args.reason}`,
+        emitLogs: !args.json,
       });
 
-      console.log("run.ok: false");
-      console.log(`run.error.code: ${result.error.code}`);
-      console.log(`run.error.message: ${result.error.message}`);
-      console.log(`run.error.details: ${JSON.stringify(result.error.details ?? {}, null, 2)}`);
+      const currentSummary = await summarizeManifest(await readJsonObject(runHandle.manifestPath));
+      if (args.json) {
+        emitRunJson(currentSummary, {
+          ok: false,
+          error: {
+            code: result.error.code,
+            message: result.error.message,
+            details: result.error.details ?? {},
+          },
+          halt: {
+            tick_index: haltArtifact.tickIndex,
+            tick_path: haltArtifact.tickPath,
+            latest_path: haltArtifact.latestPath,
+            blockers_summary: haltArtifact.triage ? blockersSummaryJson(haltArtifact.triage) : null,
+          },
+        });
+      } else {
+        log("run.ok: false");
+        log(`run.error.code: ${result.error.code}`);
+        log(`run.error.message: ${result.error.message}`);
+        log(`run.error.details: ${JSON.stringify(result.error.details ?? {}, null, 2)}`);
+      }
       return;
     }
 
-    console.log(`run.tick_${i}.from: ${String(result.from ?? "")}`);
-    console.log(`run.tick_${i}.to: ${String(result.to ?? "")}`);
+    log(`run.tick_${i}.from: ${String(result.from ?? "")}`);
+    log(`run.tick_${i}.to: ${String(result.to ?? "")}`);
     if ("wave_outputs_count" in result && typeof result.wave_outputs_count === "number") {
-      console.log(`run.tick_${i}.wave_outputs_count: ${result.wave_outputs_count}`);
+      log(`run.tick_${i}.wave_outputs_count: ${result.wave_outputs_count}`);
     }
 
     const post = (await callTool("watchdog_check", watchdog_check as unknown as ToolWithExecute, {
@@ -2495,51 +2776,87 @@ async function runRun(args: RunCliArgs): Promise<void> {
       reason: `${args.reason} [post_tick_${i}]`,
     })) as ToolEnvelope & { timed_out?: boolean; checkpoint_path?: string };
     if (post.timed_out === true) {
-      console.log("run.ok: false");
-      console.log("run.error.code: WATCHDOG_TIMEOUT");
-      console.log("run.error.message: stage timed out after tick execution");
-      console.log(`run.checkpoint_path: ${String(post.checkpoint_path ?? "")}`);
+      const currentSummary = await summarizeManifest(await readJsonObject(runHandle.manifestPath));
+      if (args.json) {
+        emitRunJson(currentSummary, {
+          ok: false,
+          error: {
+            code: "WATCHDOG_TIMEOUT",
+            message: "stage timed out after tick execution",
+          },
+          checkpoint_path: String(post.checkpoint_path ?? ""),
+        });
+      } else {
+        log("run.ok: false");
+        log("run.error.code: WATCHDOG_TIMEOUT");
+        log("run.error.message: stage timed out after tick execution");
+        log(`run.checkpoint_path: ${String(post.checkpoint_path ?? "")}`);
+      }
       return;
     }
 
     const after = await readJsonObject(runHandle.manifestPath);
     const afterSummary = await summarizeManifest(after);
     if (afterSummary.status === "completed" || afterSummary.status === "failed" || afterSummary.status === "cancelled") {
-      console.log("run.ok: true");
-      printContract({
-        runId: afterSummary.runId,
-        runRoot: afterSummary.runRoot,
-        manifestPath: runHandle.manifestPath,
-        gatesPath: afterSummary.gatesPath,
-        stageCurrent: afterSummary.stageCurrent,
-        status: afterSummary.status,
-      });
+      if (args.json) {
+        emitRunJson(afterSummary, { ok: true, terminal: true, ticks_executed: i });
+      } else {
+        log("run.ok: true");
+        printContract({
+          runId: afterSummary.runId,
+          runRoot: afterSummary.runRoot,
+          manifestPath: runHandle.manifestPath,
+          gatesPath: afterSummary.gatesPath,
+          stageCurrent: afterSummary.stageCurrent,
+          status: afterSummary.status,
+        });
+      }
       return;
     }
 
     if (args.until && afterSummary.stageCurrent === args.until) {
-      console.log("run.ok: true");
-      console.log(`run.until_reached: ${args.until}`);
-      printContract({
-        runId: afterSummary.runId,
-        runRoot: afterSummary.runRoot,
-        manifestPath: runHandle.manifestPath,
-        gatesPath: afterSummary.gatesPath,
-        stageCurrent: afterSummary.stageCurrent,
-        status: afterSummary.status,
-      });
+      if (args.json) {
+        emitRunJson(afterSummary, { ok: true, until_reached: args.until, ticks_executed: i });
+      } else {
+        log("run.ok: true");
+        log(`run.until_reached: ${args.until}`);
+        printContract({
+          runId: afterSummary.runId,
+          runRoot: afterSummary.runRoot,
+          manifestPath: runHandle.manifestPath,
+          gatesPath: afterSummary.gatesPath,
+          stageCurrent: afterSummary.stageCurrent,
+          status: afterSummary.status,
+        });
+      }
       return;
     }
 
     if (String(result.to ?? "") === String(result.from ?? "")) {
-      console.log("run.note: stage did not advance");
+      if (args.json) {
+        emitRunJson(afterSummary, { ok: false, note: "stage did not advance", ticks_executed: i });
+      } else {
+        log("run.note: stage did not advance");
+      }
       return;
     }
   }
 
-  console.log("run.ok: false");
-  console.log("run.error.code: TICK_CAP_EXCEEDED");
-  console.log("run.error.message: max ticks reached before completion");
+  const summary = await summarizeManifest(await readJsonObject(runHandle.manifestPath));
+  if (args.json) {
+    emitRunJson(summary, {
+      ok: false,
+      error: {
+        code: "TICK_CAP_EXCEEDED",
+        message: "max ticks reached before completion",
+      },
+    });
+    return;
+  }
+
+  log("run.ok: false");
+  log("run.error.code: TICK_CAP_EXCEEDED");
+  log("run.error.message: max ticks reached before completion");
 }
 
 async function runPause(args: PauseResumeCliArgs): Promise<void> {
@@ -2551,6 +2868,7 @@ async function runPause(args: PauseResumeCliArgs): Promise<void> {
   const logsDirAbs = await resolveLogsDirFromManifest(manifest);
   const manifestRevision = Number(manifest.revision ?? Number.NaN);
   if (!Number.isFinite(manifestRevision)) throw new Error("manifest.revision invalid");
+  let checkpointPath = "";
 
   await withRunLock({
     runRoot: summary.runRoot,
@@ -2563,7 +2881,7 @@ async function runPause(args: PauseResumeCliArgs): Promise<void> {
         reason: `operator-cli pause: ${args.reason}`,
       });
 
-      const checkpointPath = await writeCheckpoint({
+      checkpointPath = await writeCheckpoint({
         logsDirAbs,
         filename: "pause-checkpoint.md",
         content: [
@@ -2573,14 +2891,31 @@ async function runPause(args: PauseResumeCliArgs): Promise<void> {
           `- run_id: ${summary.runId}`,
           `- stage: ${summary.stageCurrent}`,
           `- reason: ${args.reason}`,
-          `- next_step: bun "pai-tools/deep-research-option-c.ts" resume --manifest "${runHandle.manifestPath}" --reason "operator resume"`,
+          `- next_step: bun ".opencode/pai-tools/deep-research-option-c.ts" resume --manifest "${runHandle.manifestPath}" --reason "operator resume"`,
         ].join("\n"),
       });
 
-      console.log("pause.ok: true");
-      console.log(`pause.checkpoint_path: ${checkpointPath}`);
+      if (!args.json) {
+        console.log("pause.ok: true");
+        console.log(`pause.checkpoint_path: ${checkpointPath}`);
+      }
     },
   });
+
+  if (args.json) {
+    const currentSummary = await summarizeManifest(await readJsonObject(runHandle.manifestPath));
+    emitJson({
+      ok: true,
+      command: "pause",
+      checkpoint_path: checkpointPath,
+      run_id: currentSummary.runId,
+      run_root: currentSummary.runRoot,
+      manifest_path: runHandle.manifestPath,
+      gates_path: currentSummary.gatesPath,
+      stage_current: currentSummary.stageCurrent,
+      status: currentSummary.status,
+    });
+  }
 }
 
 async function runResume(args: PauseResumeCliArgs): Promise<void> {
@@ -2592,6 +2927,7 @@ async function runResume(args: PauseResumeCliArgs): Promise<void> {
   const logsDirAbs = await resolveLogsDirFromManifest(manifest);
   const manifestRevision = Number(manifest.revision ?? Number.NaN);
   if (!Number.isFinite(manifestRevision)) throw new Error("manifest.revision invalid");
+  let checkpointPath = "";
 
   await withRunLock({
     runRoot: summary.runRoot,
@@ -2604,7 +2940,7 @@ async function runResume(args: PauseResumeCliArgs): Promise<void> {
         reason: `operator-cli resume: ${args.reason}`,
       });
 
-      const checkpointPath = await writeCheckpoint({
+      checkpointPath = await writeCheckpoint({
         logsDirAbs,
         filename: "resume-checkpoint.md",
         content: [
@@ -2617,10 +2953,27 @@ async function runResume(args: PauseResumeCliArgs): Promise<void> {
         ].join("\n"),
       });
 
-      console.log("resume.ok: true");
-      console.log(`resume.checkpoint_path: ${checkpointPath}`);
+      if (!args.json) {
+        console.log("resume.ok: true");
+        console.log(`resume.checkpoint_path: ${checkpointPath}`);
+      }
     },
   });
+
+  if (args.json) {
+    const currentSummary = await summarizeManifest(await readJsonObject(runHandle.manifestPath));
+    emitJson({
+      ok: true,
+      command: "resume",
+      checkpoint_path: checkpointPath,
+      run_id: currentSummary.runId,
+      run_root: currentSummary.runRoot,
+      manifest_path: runHandle.manifestPath,
+      gates_path: currentSummary.gatesPath,
+      stage_current: currentSummary.stageCurrent,
+      status: currentSummary.status,
+    });
+  }
 }
 
 async function runCancel(args: PauseResumeCliArgs): Promise<void> {
@@ -2634,10 +2987,26 @@ async function runCancel(args: PauseResumeCliArgs): Promise<void> {
   if (!Number.isFinite(manifestRevision)) throw new Error("manifest.revision invalid");
 
   if (summary.status === "cancelled") {
-    console.log("cancel.ok: true");
-    console.log("cancel.note: already cancelled");
+    if (args.json) {
+      emitJson({
+        ok: true,
+        command: "cancel",
+        note: "already cancelled",
+        run_id: summary.runId,
+        run_root: summary.runRoot,
+        manifest_path: runHandle.manifestPath,
+        gates_path: summary.gatesPath,
+        stage_current: summary.stageCurrent,
+        status: summary.status,
+      });
+    } else {
+      console.log("cancel.ok: true");
+      console.log("cancel.note: already cancelled");
+    }
     return;
   }
+
+  let checkpointPath = "";
 
   await withRunLock({
     runRoot: summary.runRoot,
@@ -2650,7 +3019,7 @@ async function runCancel(args: PauseResumeCliArgs): Promise<void> {
         reason: `operator-cli cancel: ${args.reason}`,
       });
 
-      const checkpointPath = await writeCheckpoint({
+      checkpointPath = await writeCheckpoint({
         logsDirAbs,
         filename: "cancel-checkpoint.md",
         content: [
@@ -2660,14 +3029,31 @@ async function runCancel(args: PauseResumeCliArgs): Promise<void> {
           `- run_id: ${summary.runId}`,
           `- stage: ${summary.stageCurrent}`,
           `- reason: ${args.reason}`,
-          `- next_step: bun \"pai-tools/deep-research-option-c.ts\" status --manifest \"${runHandle.manifestPath}\"`,
+          `- next_step: bun \".opencode/pai-tools/deep-research-option-c.ts\" status --manifest \"${runHandle.manifestPath}\"`,
         ].join("\n"),
       });
 
-      console.log("cancel.ok: true");
-      console.log(`cancel.checkpoint_path: ${checkpointPath}`);
+      if (!args.json) {
+        console.log("cancel.ok: true");
+        console.log(`cancel.checkpoint_path: ${checkpointPath}`);
+      }
     },
   });
+
+  if (args.json) {
+    const currentSummary = await summarizeManifest(await readJsonObject(runHandle.manifestPath));
+    emitJson({
+      ok: true,
+      command: "cancel",
+      checkpoint_path: checkpointPath,
+      run_id: currentSummary.runId,
+      run_root: currentSummary.runRoot,
+      manifest_path: runHandle.manifestPath,
+      gates_path: currentSummary.gatesPath,
+      stage_current: currentSummary.stageCurrent,
+      status: currentSummary.status,
+    });
+  }
 }
 
 async function runCaptureFixtures(args: {
@@ -2675,6 +3061,7 @@ async function runCaptureFixtures(args: {
   outputDir?: string;
   bundleId?: string;
   reason: string;
+  json?: boolean;
 }): Promise<void> {
   ensureOptionCEnabledForCli();
 
@@ -2696,6 +3083,23 @@ async function runCaptureFixtures(args: {
     bundle_id: bundleId,
     reason: args.reason,
   });
+
+  if (args.json) {
+    emitJson({
+      ok: true,
+      command: "capture-fixtures",
+      run_id: runId,
+      run_root: summary.runRoot,
+      manifest_path: args.manifest,
+      gates_path: summary.gatesPath,
+      stage_current: summary.stageCurrent,
+      status: summary.status,
+      bundle_id: String(capture.bundle_id ?? bundleId),
+      bundle_root: String(capture.bundle_root ?? ""),
+      replay_command: "deep_research_fixture_replay --bundle_root <bundle_root>",
+    });
+    return;
+  }
 
   printContract({
     runId,
@@ -2781,8 +3185,8 @@ async function runAgentResult(args: AgentResultCliArgs): Promise<void> {
   const agentRunId = args.agentRunId.trim();
   const reason = args.reason.trim();
 
-  if (stage !== "wave1") {
-    throw new Error("--stage must be wave1");
+  if (stage !== "wave1" && stage !== "wave2" && stage !== "summaries" && stage !== "synthesis") {
+    throw new Error("--stage must be wave1|wave2|summaries|synthesis");
   }
   if (!isSafeSegment(perspectiveId)) {
     throw new Error("--perspective must contain only letters, numbers, underscores, or dashes");
@@ -2802,18 +3206,43 @@ async function runAgentResult(args: AgentResultCliArgs): Promise<void> {
   const manifest = await readJsonObject(manifestPath);
   const summary = await summarizeManifest(manifest);
   const runRoot = summary.runRoot;
-  const planEntries = await readWave1PlanEntries(runRoot);
-  const planEntry = planEntries.find((entry) => entry.perspectiveId === perspectiveId);
-  if (!planEntry) {
-    throw new Error(`perspective ${perspectiveId} not found in wave1 plan`);
+  let promptMd: string;
+  let promptDigest: string;
+  let outputPath: string;
+  let metaPath: string;
+
+  if (stage === "wave1" || stage === "wave2") {
+    const planEntries = stage === "wave1"
+      ? await readWave1PlanEntries(runRoot)
+      : await readWave2PlanEntries(runRoot);
+    const planEntry = planEntries.find((entry) => entry.perspectiveId === perspectiveId);
+    if (!planEntry) {
+      throw new Error(`perspective ${perspectiveId} not found in ${stage} plan`);
+    }
+    promptMd = planEntry.promptMd;
+    promptDigest = promptDigestFromPromptMarkdown(promptMd);
+    const waveDir = stage === "wave1" ? "wave-1" : "wave-2";
+    outputPath = path.join(runRoot, waveDir, `${perspectiveId}.md`);
+    metaPath = path.join(runRoot, waveDir, `${perspectiveId}.meta.json`);
+  } else if (stage === "summaries") {
+    const promptPath = path.join(runRoot, "operator", "prompts", "summaries", `${perspectiveId}.md`);
+    promptMd = await fs.readFile(promptPath, "utf8");
+    if (!promptMd.trim()) throw new Error(`summary prompt missing/empty: ${promptPath}`);
+    promptDigest = promptDigestFromPromptMarkdown(promptMd);
+    outputPath = path.join(runRoot, "summaries", `${perspectiveId}.md`);
+    metaPath = path.join(runRoot, "summaries", `${perspectiveId}.meta.json`);
+  } else {
+    // synthesis
+    const promptPath = path.join(runRoot, "operator", "prompts", "synthesis", "final-synthesis.md");
+    promptMd = await fs.readFile(promptPath, "utf8");
+    if (!promptMd.trim()) throw new Error(`synthesis prompt missing/empty: ${promptPath}`);
+    promptDigest = promptDigestFromPromptMarkdown(promptMd);
+    outputPath = path.join(runRoot, "synthesis", "final-synthesis.md");
+    metaPath = path.join(runRoot, "synthesis", "final-synthesis.meta.json");
   }
 
-  const promptDigest = promptDigestFromPromptMarkdown(planEntry.promptMd);
-  const outputPath = path.join(runRoot, "wave-1", `${perspectiveId}.md`);
-  const metaPath = path.join(runRoot, "wave-1", `${perspectiveId}.meta.json`);
-
-  assertWithinRoot(runRoot, outputPath, "wave-1 output");
-  assertWithinRoot(runRoot, metaPath, "wave-1 meta sidecar");
+  assertWithinRoot(runRoot, outputPath, `${stage} output`);
+  assertWithinRoot(runRoot, metaPath, `${stage} meta sidecar`);
 
   const startedAt = normalizeOptional(args.startedAt);
   const finishedAt = normalizeOptional(args.finishedAt);
@@ -2840,6 +3269,25 @@ async function runAgentResult(args: AgentResultCliArgs): Promise<void> {
       await fs.writeFile(metaPath, `${JSON.stringify(sidecar, null, 2)}\n`, "utf8");
     },
   });
+
+  if (args.json) {
+    emitJson({
+      ok: true,
+      command: "agent-result",
+      run_id: summary.runId,
+      run_root: runRoot,
+      manifest_path: manifestPath,
+      gates_path: summary.gatesPath,
+      stage_current: summary.stageCurrent,
+      status: summary.status,
+      stage,
+      perspective_id: perspectiveId,
+      output_path: outputPath,
+      meta_path: metaPath,
+      prompt_digest: promptDigest,
+    });
+    return;
+  }
 
   printContract({
     runId: summary.runId,
@@ -2869,19 +3317,23 @@ const initCmd = command({
   args: {
     query: positional({ type: string, displayName: "query" }),
     runId: option({ long: "run-id", type: optional(string) }),
+    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
     sensitivity: option({ long: "sensitivity", type: optional(oneOf(["normal", "restricted", "no_web"])) }),
     mode: option({ long: "mode", type: optional(oneOf(["quick", "standard", "deep"])) }),
     noPerspectives: flag({ long: "no-perspectives", type: boolean }),
     force: flag({ long: "force", type: boolean }),
+    json: flag({ long: "json", type: boolean }),
   },
   handler: async (args) => {
     await runInit({
       query: args.query,
       runId: args.runId,
+      runsRoot: args.runsRoot,
       sensitivity: (args.sensitivity ?? "normal") as InitCliArgs["sensitivity"],
       mode: (args.mode ?? "standard") as InitCliArgs["mode"],
       writePerspectives: !args.noPerspectives,
       force: args.force,
+      json: args.json,
     });
   },
 });
@@ -2893,20 +3345,24 @@ const tickCmd = command({
   description: "Run exactly one orchestrator tick (driver-specific, run-handle aware)",
   args: {
     runId: option({ long: "run-id", type: optional(string) }),
+    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
     runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
     manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
     gates: option({ long: "gates", type: optional(AbsolutePath) }),
     reason: option({ long: "reason", type: string }),
     driver: option({ long: "driver", type: oneOf(["fixture", "live", "task"]) }),
+    json: flag({ long: "json", type: boolean }),
   },
   handler: async (args) => {
     await runTick({
       runId: args.runId,
+      runsRoot: args.runsRoot,
       runRoot: args.runRoot,
       manifest: args.manifest,
       gates: args.gates,
       reason: args.reason,
       driver: args.driver as TickCliArgs["driver"],
+      json: args.json,
     });
   },
 });
@@ -2916,7 +3372,7 @@ const agentResultCmd = command({
   description: "Ingest a task-produced wave output into canonical wave artifacts",
   args: {
     manifest: option({ long: "manifest", type: AbsolutePath }),
-    stage: option({ long: "stage", type: oneOf(["wave1"]) }),
+    stage: option({ long: "stage", type: oneOf(["wave1", "wave2", "summaries", "synthesis"]) }),
     perspective: option({ long: "perspective", type: string }),
     input: option({ long: "input", type: AbsolutePath }),
     agentRunId: option({ long: "agent-run-id", type: string }),
@@ -2924,6 +3380,7 @@ const agentResultCmd = command({
     startedAt: option({ long: "started-at", type: optional(string) }),
     finishedAt: option({ long: "finished-at", type: optional(string) }),
     model: option({ long: "model", type: optional(string) }),
+    json: flag({ long: "json", type: boolean }),
   },
   handler: async (args) => {
     await runAgentResult({
@@ -2936,6 +3393,7 @@ const agentResultCmd = command({
       startedAt: args.startedAt,
       finishedAt: args.finishedAt,
       model: args.model,
+      json: args.json,
     });
   },
 });
@@ -2945,6 +3403,7 @@ const runCmd = command({
   description: "Run multiple ticks with watchdog enforcement and stage stops",
   args: {
     runId: option({ long: "run-id", type: optional(string) }),
+    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
     runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
     manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
     gates: option({ long: "gates", type: optional(AbsolutePath) }),
@@ -2952,10 +3411,12 @@ const runCmd = command({
     driver: option({ long: "driver", type: oneOf(["fixture", "live"]) }),
     maxTicks: option({ long: "max-ticks", type: optional(number) }),
     until: option({ long: "until", type: optional(oneOf([...runUntilStages])) }),
+    json: flag({ long: "json", type: boolean }),
   },
   handler: async (args) => {
     await runRun({
       runId: args.runId,
+      runsRoot: args.runsRoot,
       runRoot: args.runRoot,
       manifest: args.manifest,
       gates: args.gates,
@@ -2963,6 +3424,7 @@ const runCmd = command({
       driver: args.driver as RunCliArgs["driver"],
       maxTicks: args.maxTicks ?? 10,
       until: args.until,
+      json: args.json,
     });
   },
 });
@@ -2972,6 +3434,7 @@ const statusCmd = command({
   description: "Print the run contract fields (run-id-first)",
   args: {
     runId: option({ long: "run-id", type: optional(string) }),
+    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
     runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
     manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
     json: flag({ long: "json", type: boolean }),
@@ -2979,6 +3442,7 @@ const statusCmd = command({
   handler: async (args) => {
     await runStatus({
       runId: args.runId,
+      runsRoot: args.runsRoot,
       runRoot: args.runRoot,
       manifest: args.manifest,
       json: args.json,
@@ -2991,6 +3455,7 @@ const inspectCmd = command({
   description: "Print gate status + next-stage blockers",
   args: {
     runId: option({ long: "run-id", type: optional(string) }),
+    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
     runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
     manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
     json: flag({ long: "json", type: boolean }),
@@ -2998,6 +3463,7 @@ const inspectCmd = command({
   handler: async (args) => {
     await runInspect({
       runId: args.runId,
+      runsRoot: args.runsRoot,
       runRoot: args.runRoot,
       manifest: args.manifest,
       json: args.json,
@@ -3010,6 +3476,7 @@ const triageCmd = command({
   description: "Print a compact blocker summary from stage_advance dry-run",
   args: {
     runId: option({ long: "run-id", type: optional(string) }),
+    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
     runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
     manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
     json: flag({ long: "json", type: boolean }),
@@ -3017,6 +3484,7 @@ const triageCmd = command({
   handler: async (args) => {
     await runTriage({
       runId: args.runId,
+      runsRoot: args.runsRoot,
       runRoot: args.runRoot,
       manifest: args.manifest,
       json: args.json,
@@ -3029,16 +3497,20 @@ const pauseCmd = command({
   description: "Pause a run durably and write a checkpoint artifact",
   args: {
     runId: option({ long: "run-id", type: optional(string) }),
+    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
     runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
     manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
     reason: option({ long: "reason", type: optional(string) }),
+    json: flag({ long: "json", type: boolean }),
   },
   handler: async (args) => {
     await runPause({
       runId: args.runId,
+      runsRoot: args.runsRoot,
       runRoot: args.runRoot,
       manifest: args.manifest,
       reason: args.reason ?? "operator-cli pause",
+      json: args.json,
     });
   },
 });
@@ -3048,16 +3520,20 @@ const resumeCmd = command({
   description: "Resume a paused run and reset stage timer semantics",
   args: {
     runId: option({ long: "run-id", type: optional(string) }),
+    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
     runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
     manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
     reason: option({ long: "reason", type: optional(string) }),
+    json: flag({ long: "json", type: boolean }),
   },
   handler: async (args) => {
     await runResume({
       runId: args.runId,
+      runsRoot: args.runsRoot,
       runRoot: args.runRoot,
       manifest: args.manifest,
       reason: args.reason ?? "operator-cli resume",
+      json: args.json,
     });
   },
 });
@@ -3067,16 +3543,20 @@ const cancelCmd = command({
   description: "Cancel a run durably and write a cancel checkpoint",
   args: {
     runId: option({ long: "run-id", type: optional(string) }),
+    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
     runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
     manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
     reason: option({ long: "reason", type: optional(string) }),
+    json: flag({ long: "json", type: boolean }),
   },
   handler: async (args) => {
     await runCancel({
       runId: args.runId,
+      runsRoot: args.runsRoot,
       runRoot: args.runRoot,
       manifest: args.manifest,
       reason: args.reason ?? "operator-cli cancel",
+      json: args.json,
     });
   },
 });
@@ -3089,6 +3569,7 @@ const captureFixturesCmd = command({
     outputDir: option({ long: "output-dir", type: optional(AbsolutePath) }),
     bundleId: option({ long: "bundle-id", type: optional(string) }),
     reason: option({ long: "reason", type: optional(string) }),
+    json: flag({ long: "json", type: boolean }),
   },
   handler: async (args) => {
     await runCaptureFixtures({
@@ -3096,6 +3577,7 @@ const captureFixturesCmd = command({
       outputDir: args.outputDir,
       bundleId: args.bundleId,
       reason: args.reason ?? "operator-cli capture-fixtures",
+      json: args.json,
     });
   },
 });
@@ -3142,7 +3624,44 @@ const app = subcommands({
   },
 });
 
-run(app, process.argv.slice(2)).catch((error: unknown) => {
-  console.error(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
-  process.exit(1);
-});
+runSafely(app, CLI_ARGV)
+  .then((result) => {
+    if (result._tag === "ok") return;
+
+    const command = typeof CLI_ARGV[0] === "string" && CLI_ARGV[0].trim().length > 0 ? CLI_ARGV[0] : "unknown";
+    if (JSON_MODE_REQUESTED) {
+      emitJson({
+        ok: false,
+        command,
+        error: {
+          code: "CLI_PARSE_ERROR",
+          message: result.error.config.message,
+        },
+      });
+      process.exit(result.error.config.exitCode);
+      return;
+    }
+
+    result.error.run();
+  })
+  .catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    const errorCode = typeof error === "object" && error !== null && typeof (error as { code?: unknown }).code === "string"
+      ? String((error as { code?: string }).code)
+      : "CLI_ERROR";
+
+    if (JSON_MODE_REQUESTED) {
+      emitJson({
+        ok: false,
+        command: typeof CLI_ARGV[0] === "string" && CLI_ARGV[0].trim().length > 0 ? CLI_ARGV[0] : "unknown",
+        error: {
+          code: errorCode,
+          message,
+        },
+      });
+    } else {
+      console.error(`ERROR: ${message}`);
+    }
+
+    process.exit(1);
+  });

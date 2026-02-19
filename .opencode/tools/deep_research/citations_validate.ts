@@ -203,7 +203,6 @@ export const citations_validate = tool({
       const resolvedConfig = resolveCitationsConfig({
         manifest,
         runConfig,
-        env: process.env as Record<string, string | undefined>,
         onlineDryRunArg: args.online_dry_run,
       });
       const mode = resolvedConfig.mode;

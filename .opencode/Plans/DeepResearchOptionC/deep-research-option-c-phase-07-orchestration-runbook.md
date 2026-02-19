@@ -53,8 +53,8 @@ Wave 4 (post-phase cleanup)
 
 Default env for all commands:
 ```bash
-export PAI_DR_OPTION_C_ENABLED=1
-export PAI_DR_NO_WEB=1
+# No env vars required; use CLI flags and run artifacts.
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "phase07 gate" --run-id "dr_phase07_gate" --sensitivity no_web
 ```
 
 Run in this order:
@@ -86,7 +86,7 @@ bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
 
 Expected result for steps 1–5:
 - Exit code `0`
-- No network required (`PAI_DR_NO_WEB=1`)
+- No network required (`--sensitivity no_web`)
 - Failures block Gate F signoff until corrected
 
 ## Gate F completion handoff

@@ -20,19 +20,14 @@ bun test ./.opencode/tests/smoke/deep_research_live_wave1_smoke.test.ts
 
 ### 0) Preconditions
 
-- Export feature flags (explicit enable is required):
-
-```bash
-export PAI_DR_OPTION_C_ENABLED=1
-export PAI_DR_NO_WEB=1
-export PAI_DR_RUNS_ROOT="/tmp/pai-dr-runs"
-```
+- No env vars required; use CLI flags and run artifacts.
+- Use `--sensitivity no_web` and `--runs-root /tmp/pai-dr-runs` in CLI commands.
 
 ### 1) Init
 
 ```bash
 RUN_ID="m2_$(date +%Y%m%d_%H%M%S)"
-bun ".opencode/pai-tools/deep-research-option-c.ts" init "M2 canary" --run-id "$RUN_ID"
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "M2 canary" --run-id "$RUN_ID" --runs-root "/tmp/pai-dr-runs" --sensitivity no_web
 ```
 
 Capture from output:

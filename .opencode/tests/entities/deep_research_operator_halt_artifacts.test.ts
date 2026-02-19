@@ -2,10 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import {
-  withEnv,
-  withTempDir,
-} from "../helpers/dr-harness";
+import { withTempDir } from "../helpers/dr-harness";
 
 const repoRoot = path.basename(process.cwd()) === ".opencode"
   ? path.resolve(process.cwd(), "..")
@@ -33,8 +30,8 @@ function extractField(stdout: string, field: string): string {
   return match[1].trim();
 }
 
-async function initRun(runId: string): Promise<{ manifestPath: string; runRoot: string }> {
-  const initRes = await runCli(["init", "Q", "--run-id", runId]);
+async function initRun(runId: string, runsRoot: string): Promise<{ manifestPath: string; runRoot: string }> {
+  const initRes = await runCli(["init", "Q", "--run-id", runId, "--runs-root", runsRoot]);
   expect(initRes.exit).toBe(0);
   expect(initRes.stderr.trim()).toBe("");
   return {
@@ -56,10 +53,9 @@ async function readHaltLatest(runRoot: string): Promise<Record<string, unknown>>
 describe("deep_research operator CLI halt artifacts (entity)", () => {
   test("tick failure writes halt/latest and increments deterministic tick index", async () => {
     await withTempDir(async (base) => {
-      await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_RUNS_ROOT: base }, async () => {
-        const runId = "dr_test_cli_halt_tick_001";
-        const { manifestPath, runRoot } = await initRun(runId);
-        await forceDeterministicTickFailure(runRoot);
+      const runId = "dr_test_cli_halt_tick_001";
+      const { manifestPath, runRoot } = await initRun(runId, base);
+      await forceDeterministicTickFailure(runRoot);
 
         const tick1 = await runCli([
           "tick",
@@ -98,18 +94,16 @@ describe("deep_research operator CLI halt artifacts (entity)", () => {
         const tick0002Exists = await fs.stat(path.join(haltDir, "tick-0002.json")).then(() => true).catch(() => false);
         expect(tick0002Exists).toBe(true);
 
-        const latest2 = await readHaltLatest(runRoot);
-        expect(Number(latest2.tick_index ?? 0)).toBe(2);
-      });
+      const latest2 = await readHaltLatest(runRoot);
+      expect(Number(latest2.tick_index ?? 0)).toBe(2);
     });
   });
 
   test("run loop tick failure writes halt/latest artifact", async () => {
     await withTempDir(async (base) => {
-      await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_RUNS_ROOT: base }, async () => {
-        const runId = "dr_test_cli_halt_run_001";
-        const { manifestPath, runRoot } = await initRun(runId);
-        await forceDeterministicTickFailure(runRoot);
+      const runId = "dr_test_cli_halt_run_001";
+      const { manifestPath, runRoot } = await initRun(runId, base);
+      await forceDeterministicTickFailure(runRoot);
 
         const runRes = await runCli([
           "run",
@@ -132,9 +126,8 @@ describe("deep_research operator CLI halt artifacts (entity)", () => {
 
         const latest = await readHaltLatest(runRoot);
         expect(String(latest.schema_version ?? "")).toBe("halt.v1");
-        const nextCommands = Array.isArray(latest.next_commands) ? latest.next_commands : [];
-        expect(nextCommands.length).toBeGreaterThan(0);
-      });
+      const nextCommands = Array.isArray(latest.next_commands) ? latest.next_commands : [];
+      expect(nextCommands.length).toBeGreaterThan(0);
     });
   });
 });

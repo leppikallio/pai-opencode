@@ -112,7 +112,7 @@ Notes:
   - `bun test .opencode/tests/entities/deep_research_manifest_write.test.ts`
 
 CI:
-- `PAI_DR_OPTION_C_ENABLED=1 bun test .opencode/tests`
+- `bun test .opencode/tests`
 
 Optional:
 - Run only deep research entity tests:
@@ -191,7 +191,6 @@ function parseOk(json: string) {
 }
 
 test("deep_research_run_init writes manifest/gates", async () => {
-  process.env.PAI_DR_OPTION_C_ENABLED = "1";
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "dr-test-"));
   const out = parseOk(
     await run_init.execute(
@@ -205,7 +204,6 @@ test("deep_research_run_init writes manifest/gates", async () => {
 });
 
 test("deep_research_manifest_write bumps revision and audits", async () => {
-  process.env.PAI_DR_OPTION_C_ENABLED = "1";
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "dr-test-"));
   const init = parseOk(
     await run_init.execute(

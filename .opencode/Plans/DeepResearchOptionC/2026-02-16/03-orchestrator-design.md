@@ -429,7 +429,7 @@ This section is a concrete “what the orchestrator does” walkthrough, using t
 Goal: One real operator run reaches `pivot` with wave outputs + review + Gate B recorded.
 
 **Prereqs**
-- `PAI_DR_OPTION_C_ENABLED=1`
+- Option C enabled via integration settings (default: `deepResearch.flags.PAI_DR_OPTION_C_ENABLED=true`; env unsupported)
 - Run root exists with `manifest.json` + `gates.json`.
 
 **Wave1 stage handler (high-level sequence)**
@@ -545,13 +545,13 @@ bun install
 bun test ./.opencode/tests
 ```
 
-### 9.2 Operator-critical environment flags
+### 9.2 Operator-critical settings flags
 
-From `07-bootstrap-and-operator-commands.md`:
+From `07-bootstrap-and-operator-commands.md` (note: env flags are not supported; these are settings keys):
 
-- `PAI_DR_OPTION_C_ENABLED=1` (master enable)
-- `PAI_DR_NO_WEB=1` (force no-web)
-- `PAI_DR_LIVE_TESTS=1` (allow live smoke tests; proposed)
+- `PAI_DR_OPTION_C_ENABLED` (master enable/disable)
+- `PAI_DR_NO_WEB` (force no-web; CLI default for canary should use `--sensitivity no_web`)
+- `PAI_DR_LIVE_TESTS` (allow live smoke tests; proposed)
 
 ### 9.3 Operator steps (slash command surface)
 

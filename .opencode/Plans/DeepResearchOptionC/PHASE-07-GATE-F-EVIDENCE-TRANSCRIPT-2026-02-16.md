@@ -9,7 +9,7 @@ All commands were run from repo root: `/Users/zuul/Projects/pai-opencode-graphvi
 Command:
 
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
+bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
 ```
 
 Output:
@@ -27,7 +27,7 @@ Ran 4 tests across 1 file. [88.00ms]
 Command:
 
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_path.test.ts
+bun test ./.opencode/tests/entities/deep_research_fallback_path.test.ts
 ```
 
 Output:
@@ -46,7 +46,7 @@ Ran 3 tests across 1 file. [62.00ms]
 Command:
 
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
+bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
 ```
 
 Output:
@@ -65,7 +65,7 @@ Ran 1 test across 1 file. [65.00ms]
 Command:
 
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
+bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
 ```
 
 Output:
@@ -131,8 +131,8 @@ Output:
 .opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-orchestration-runbook.md:79:bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
 .opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-orchestration-runbook.md:84:bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts ./.opencode/tests/entities/deep_research_fallback_path.test.ts ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
 .opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-orchestration-runbook.md:113:bun test ./.opencode/tests
-.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md:60:PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
-.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md:61:PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_path.test.ts
-.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md:62:PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
-.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md:63:PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
+.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md:60:bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
+.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md:61:bun test ./.opencode/tests/entities/deep_research_fallback_path.test.ts
+.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md:62:bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
+.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-07-rollout-hardening.md:63:bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
 ```

@@ -8,8 +8,9 @@ Define the feature flags (config surface) for Option C in the **integration laye
 - Flags must be readable by tools/plugins/commands.
 
 ## Proposed config sources (priority order)
-1. Environment variables (fast, safe for rollout)
-2. PAI/OpenCode settings.json in the integration layer (deployed into runtime)
+1. PAI/OpenCode settings.json in the integration layer (deployed into runtime)
+
+Environment variables are **not** a supported configuration surface for Option C flags.
 
 Evidence that settings.json exists in integration layer:
 - `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/settings.json`
@@ -20,7 +21,7 @@ Prefix: `PAI_DR_` (Deep Research)
 ## Flags (v1)
 | Flag | Type | Default | Purpose |
 |---|---|---:|---|
-| `PAI_DR_OPTION_C_ENABLED` | bool | false | master enable/disable |
+| `PAI_DR_OPTION_C_ENABLED` | bool | true | master enable/disable |
 | `PAI_DR_MODE_DEFAULT` | enum | standard | `quick|standard|deep` |
 | `PAI_DR_MAX_WAVE1_AGENTS` | int | 6 | fan-out cap |
 | `PAI_DR_MAX_WAVE2_AGENTS` | int | 6 | fan-out cap |
@@ -35,6 +36,7 @@ Prefix: `PAI_DR_` (Deep Research)
 1. Flags must be recorded into `manifest.json` at run start (for reproducibility).
 2. Changing flags mid-run must not invalidate resume; the manifest’s stored values win.
 3. `PAI_DR_RUNS_ROOT` controls the default `artifacts.root` used by `deep_research_run_init` when `root_override` is not provided.
+4. `source.env` must remain empty in normal operation (no env reads).
 
 ## Acceptance criteria
 - Flags can disable the whole subsystem safely.

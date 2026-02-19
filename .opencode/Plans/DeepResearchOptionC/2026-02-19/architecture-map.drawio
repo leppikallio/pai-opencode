@@ -1,0 +1,193 @@
+<mxfile host="app.diagrams.net" modified="2026-02-19T00:00:00.000Z" agent="PAI" version="22.1.0">
+  <diagram id="arch" name="Architecture Map">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="op" value="Operator (Marvin / LLM)\nOpenCode chat" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="40" y="40" width="220" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cmd" value="/deep-research command doc\n(.opencode/commands/deep-research.md)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="320" y="40" width="320" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cli" value="Operator CLI (single surface)\n.opencode/pai-tools/deep-research-option-c.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="700" y="40" width="320" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tools" value="Deep Research Tools\n(.opencode/tools/deep_research/*)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+          <mxGeometry x="320" y="170" width="700" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="runroot" value="Run Root (artifacts)\nmanifest.json, gates.json, scope.json\nwave-1/, wave-2/, citations/, summaries/, synthesis/, review/, logs/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="320" y="330" width="700" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="external" value="External Web Validation\nBrightData / Apify / Direct Fetch\n(online citations ladder)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="320" y="500" width="330" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="fixtures" value="Fixture Bundles\n(capture + replay)\nfixtures/ + tests/fixtures" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="690" y="500" width="330" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" value="drives" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="op" target="cmd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="invokes" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="cmd" target="cli">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="calls" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="cli" target="tools">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="reads/writes" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="tools" target="runroot">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="may validate" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="tools" target="external">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="capture/replay" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="tools" target="fixtures">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+
+  <diagram id="arch_v2" name="Architecture Map (Detailed)">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1000" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="Deep Research Option C — Architecture (as implemented)" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;strokeColor=none;fillColor=none;fontSize=20;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1520" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="op2" value="Operator (Marvin / LLM)\nOpenCode chat" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1">
+          <mxGeometry x="40" y="90" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cmd2" value="/deep-research command doc\n.opencode/commands/deep-research.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="40" y="180" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="issues2" value="KNOWN ISSUES (validated)\n1) wave2 markdown is synthetic (example.com)\n   orchestrator_tick_post_pivot.ts buildWave2Markdown\n2) CLI live/task tick routes stage=wave2 incorrectly\n   deep-research-option-c.ts runOneOrchestratorTick" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#f59e0b;" vertex="1" parent="1">
+          <mxGeometry x="40" y="270" width="240" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cli2" value="Operator CLI (single surface)\n.opencode/pai-tools/deep-research-option-c.ts\ncommands: init | tick | run | agent-result | inspect | triage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#16a34a;" vertex="1" parent="1">
+          <mxGeometry x="320" y="120" width="260" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cfg2" value="Config / flags resolution\nflags_v1.ts + settings/env\n(optionCEnabled, runsRoot, defaults)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#f59e0b;" vertex="1" parent="1">
+          <mxGeometry x="320" y="250" width="260" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="index2" value="Tool surface index\n.opencode/tools/deep_research/index.ts\n(exports all tools below)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0e7ff;strokeColor=#4338ca;" vertex="1" parent="1">
+          <mxGeometry x="620" y="90" width="300" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="orch2" value="Orchestrators (ticks + run loops)\norchestrator_tick_live.ts\norchestrator_tick_post_pivot.ts\norchestrator_tick_post_summaries.ts\norchestrator_tick_fixture.ts\norchestrator_run_*.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#2563eb;" vertex="1" parent="1">
+          <mxGeometry x="620" y="190" width="300" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="stage2" value="Stage machine + guards\nstage_advance.ts\nstages: init→wave1→pivot→(wave2|citations)→summaries→synthesis→review→finalize\nblocks on missing artifacts / gates" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0e7ff;strokeColor=#4338ca;" vertex="1" parent="1">
+          <mxGeometry x="620" y="350" width="300" height="130" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ops2" value="Ops / safety / determinism tools\nrun_lock.ts, watchdog_check.ts\nmanifest_write.ts, gates_write.ts\nretry_record.ts, fallback_offer.ts\ntelemetry_append.ts, tick_ledger_append.ts, run_metrics_write.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1">
+          <mxGeometry x="620" y="500" width="300" height="190" as="geometry" />
+        </mxCell>
+
+        <mxCell id="wave1" value="Wave 1 tools (data-plane seam)\nperspectives_write.ts → wave1_plan.ts\nrunAgent seam (drivers.runAgent)\nwave_output_ingest.ts + wave_output_validate.ts\nwave_review.ts → gate_b_derive.ts\nGate A: gate_a_evaluate.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;" vertex="1" parent="1">
+          <mxGeometry x="960" y="90" width="320" height="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pivot2" value="Pivot + Wave 2 tools\npivot_decide.ts → pivot.json\nwave2 plan + ingest/validate\nNOTE: wave2 markdown currently synthetic (example.com)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe4e6;strokeColor=#ef4444;" vertex="1" parent="1">
+          <mxGeometry x="960" y="280" width="320" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="cite2" value="Citations pipeline + Gate C\ncitations_extract_urls.ts → extracted-urls.txt\ncitations_normalize.ts → url-map.json\ncitations_validate.ts (+ citations_validate_lib.ts)\n→ citations.jsonl (+ online fixtures / blocked URLs)\ngate_c_compute.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e9d5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
+          <mxGeometry x="960" y="420" width="320" height="170" as="geometry" />
+        </mxCell>
+
+        <mxCell id="phase56" value="Summaries / Synthesis / Review (Phase05/06)\nsummary_pack_build.ts → gate_d_evaluate.ts\nsynthesis_write.ts\nreview_factory_run.ts\ngate_e_reports.ts + gate_e_evaluate.ts\nrevision_control.ts (PASS vs CHANGES_REQUIRED loop)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ede9fe;strokeColor=#7c3aed;" vertex="1" parent="1">
+          <mxGeometry x="960" y="610" width="320" height="200" as="geometry" />
+        </mxCell>
+
+        <mxCell id="fx2" value="Fixtures / regression / audit\nfixture_bundle_capture.ts + fixture_replay.ts\ndry_run_seed.ts + fixture_run_seed.ts\nregression_run.ts + quality_audit.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1">
+          <mxGeometry x="960" y="830" width="320" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="root2" value="Run Root (artifact store)\nmanifest.json + gates.json\noperator/ (scope, prompts, outputs, halt)\nwave-1/, wave-2/\ncitations/, summaries/, synthesis/, review/\nreports/, logs/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111827;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="150" width="240" height="250" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ext2" value="External systems\nOnline citations validation ladder\n(BrightData / Apify / direct fetch)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#7c3aed;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="420" width="240" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="legend2" value="Legend\nBlue: control-plane (orchestration/stages)\nPurple: citations + external\nGray: persisted artifacts + ops tools\nRed/orange: known gaps / failures" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6b7280;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="530" width="240" height="140" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ae1" value="reads" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="op2" target="cmd2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae2" value="invokes" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="cmd2" target="cli2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae3" value="resolves" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="cli2" target="cfg2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae4" value="imports" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="cli2" target="index2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae5" value="calls" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="cli2" target="orch2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae6" value="drives" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="orch2" target="stage2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae7" value="uses" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="orch2" target="ops2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae8" value="wave1" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="orch2" target="wave1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae9" value="pivot/wave2/citations" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="orch2" target="pivot2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae10" value="citations" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="orch2" target="cite2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae11" value="phase05/06" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="orch2" target="phase56">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae12" value="read/write" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="ops2" target="root2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae13" value="artifacts" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="wave1" target="root2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae14" value="artifacts" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="pivot2" target="root2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae15" value="artifacts" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="cite2" target="root2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae16" value="artifacts" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="phase56" target="root2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae17" value="validate online" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="cite2" target="ext2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae18" value="capture/replay" style="endArrow=block;dashed=1;html=1;strokeWidth=2;" edge="1" parent="1" source="fx2" target="root2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

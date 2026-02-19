@@ -9,7 +9,7 @@
   - `.opencode/Plans/DeepResearchOptionC/spec-tool-deep-research-gates-write-v1.md`
 
 ## Required checks
-1) DISABLED by default unless `PAI_DR_OPTION_C_ENABLED=1`
+1) Option C enablement is settings-backed (default enabled; disable via `deepResearch.flags.PAI_DR_OPTION_C_ENABLED=false`)
 2) `run_init` creates skeleton and writes `manifest.json` + `gates.json`
 3) `manifest_write` bumps revision and enforces `expected_revision` mismatch
 4) `manifest_write` rejects invalid status
@@ -18,9 +18,9 @@
 
 ## Observations (evidence excerpts)
 
-### 1) DISABLED by default
+### 1) Disable behavior
 ```json
-{"ok":false,"error":{"code":"DISABLED","message":"Deep research Option C is disabled","details":{"hint":"Set PAI_DR_OPTION_C_ENABLED=1 to enable."}}}
+{"ok":false,"error":{"code":"DISABLED","message":"Deep research Option C is disabled","details":{"hint":"Set deepResearch.flags.PAI_DR_OPTION_C_ENABLED=true in .opencode/settings.json to enable."}}}
 ```
 
 ### 2) Enabled init creates artifacts

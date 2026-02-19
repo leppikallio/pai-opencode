@@ -190,8 +190,8 @@ These are the *exact* procedures the runbook will include (copy/paste).
 ### Procedure P1 — Initialize a run root (offline-first)
 1) Set environment:
 ```bash
-export PAI_DR_OPTION_C_ENABLED=1
-export PAI_DR_NO_WEB=1
+# No env vars required; use CLI flags and run artifacts.
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "P1 canary" --run-id "dr_canary_001" --sensitivity no_web
 ```
 
 2) Tool call:

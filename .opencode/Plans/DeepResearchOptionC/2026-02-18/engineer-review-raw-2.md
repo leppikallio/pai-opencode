@@ -50,7 +50,7 @@ Smallest “pleasantness” critical path (in order):
 
 1) **Slash command doc contract**: `.opencode/commands/deep-research.md`
    - Defines `/deep-research <mode> "<query>" ...` with modes `plan | fixture | live`.
-   - Routes to the CLI `bun "pai-tools/deep-research-option-c.ts" ...`.
+   - Routes to the CLI `bun ".opencode/pai-tools/deep-research-option-c.ts" ...`.
 
 2) **Typed CLI exists** (cmd-ts), with subcommands and strict typing:
    - `.opencode/pai-tools/deep-research-option-c.ts`

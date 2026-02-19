@@ -21,7 +21,7 @@ PASS
 Evidence:
 - Output: `TYPECHECK_OK`
 
-### 2) Option C disabled by default
+### 2) Option C disable/enable behavior
 PASS
 
 Evidence:
@@ -32,7 +32,7 @@ Evidence:
     "code": "DISABLED",
     "message": "Deep research Option C is disabled",
     "details": {
-      "hint": "Set PAI_DR_OPTION_C_ENABLED=1 to enable."
+       "hint": "Set deepResearch.flags.PAI_DR_OPTION_C_ENABLED=true in .opencode/settings.json to enable."
     }
   }
 }

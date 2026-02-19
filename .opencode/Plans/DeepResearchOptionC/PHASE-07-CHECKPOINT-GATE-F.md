@@ -32,7 +32,7 @@ Gate F reviewer source:
 
 ## QA checklist (offline-first default)
 
-- [x] Use offline-first env defaults: `PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1`
+- [x] Use offline-first run posture (`--sensitivity no_web`) for deterministic checks
 - [x] Run Gate F feature-flag contract test and confirm pass
 - [x] Run Gate F fallback-path test and confirm pass
 - [x] Run Gate F fallback-offer hard-gate test and confirm pass
@@ -46,7 +46,7 @@ All commands are copy/paste-ready from repo root.
 
 ### 1) Feature flags contract test (Gate F)
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
+bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
 ```
 Expected outcome:
 - Exit code `0`
@@ -54,7 +54,7 @@ Expected outcome:
 
 ### 2) Fallback path test (Gate F)
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_path.test.ts
+bun test ./.opencode/tests/entities/deep_research_fallback_path.test.ts
 ```
 Expected outcome:
 - Exit code `0`
@@ -62,7 +62,7 @@ Expected outcome:
 
 ### 3) Fallback offer hard-gate test (P07-05)
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
+bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
 ```
 Expected outcome:
 - Exit code `0`
@@ -70,7 +70,7 @@ Expected outcome:
 
 ### 4) Watchdog timeout test (Phase 07 operational readiness)
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
+bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
 ```
 Expected outcome:
 - Exit code `0`

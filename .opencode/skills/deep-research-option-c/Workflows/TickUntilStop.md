@@ -20,13 +20,13 @@ Resume-safe loop that dispatches by current manifest stage until progress stops.
 1. Loop one tick at a time:
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_abs>" --gates "<gates_abs>" --reason "loop tick" --driver <fixture|live>
+bun ".opencode/pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_abs>" --gates "<gates_abs>" --reason "loop tick" --driver <fixture|live>
 ```
 
 2. After each tick, run triage when blocked:
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_abs>"
+bun ".opencode/pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_abs>"
 ```
 
 3. Stop when terminal status reached or a typed blocker is emitted (the CLI prints the blocker artifact path when present).

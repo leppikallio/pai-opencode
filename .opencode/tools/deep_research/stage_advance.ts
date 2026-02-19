@@ -32,20 +32,6 @@ export const stage_advance = tool({
   },
   async execute(args: { manifest_path: string; gates_path: string; requested_next?: string; expected_manifest_revision?: number; reason: string }) {
     try {
-      const optionCEnabledRaw = process.env.PAI_DR_OPTION_C_ENABLED;
-      if (optionCEnabledRaw !== undefined) {
-        const normalizedOptionCEnabled = optionCEnabledRaw.trim().toLowerCase();
-        const optionCExplicitlyDisabled =
-          normalizedOptionCEnabled === "" || normalizedOptionCEnabled === "0" || normalizedOptionCEnabled === "false";
-
-        if (optionCExplicitlyDisabled) {
-          return err("DISABLED", "Option C is disabled", {
-            env: { PAI_DR_OPTION_C_ENABLED: optionCEnabledRaw },
-            instruction: "Run the standard workflow instead of Option C stage advance.",
-          });
-        }
-      }
-
       const manifestRaw = await readJson(args.manifest_path);
       const gatesRaw = await readJson(args.gates_path);
 
@@ -66,6 +52,20 @@ export const stage_advance = tool({
         return err("REVISION_MISMATCH", "expected_manifest_revision mismatch", {
           expected: args.expected_manifest_revision,
           got: manifestRevision,
+        });
+      }
+
+      const query = isPlainObject(manifest.query) ? (manifest.query as Record<string, unknown>) : null;
+      const constraints = query && isPlainObject(query.constraints)
+        ? (query.constraints as Record<string, unknown>)
+        : null;
+      const optionC = constraints && isPlainObject(constraints.option_c)
+        ? (constraints.option_c as Record<string, unknown>)
+        : null;
+      if (optionC?.enabled === false) {
+        return err("DISABLED", "Option C is disabled", {
+          constraint_path: "manifest.query.constraints.option_c.enabled",
+          instruction: "No env vars required; use CLI flags and run artifacts.",
         });
       }
 

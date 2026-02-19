@@ -11,7 +11,7 @@
    - Effective operator config emitted by CLI init.
    - `effective.citations.mode` resolves from `manifest.query.sensitivity`.
    - `effective.citations.endpoints` persists endpoint values needed for online ladder runs.
-   - `effective.citations.source` records audit source (`manifest`, `settings/env`, or `run-config`).
+   - `effective.citations.source` records audit source (`manifest`, `settings`, or `run-config`).
 
 ## Resolution order for citations runtime config
 
@@ -19,17 +19,17 @@ For endpoint values (`brightdata`, `apify`):
 
 1. Manifest flags (`manifest.query.constraints.deep_research_flags`)
 2. `run-config.json` (`effective.citations.endpoints`)
-3. Environment (`PAI_DR_CITATIONS_*`) as explicit override fallback
+   - Includes values materialized at init from settings-backed defaults/caps.
 
 For mode:
 
 1. Manifest sensitivity (`no_web -> offline`, `restricted -> dry_run`, `normal -> online`)
 2. `run-config.json` fallback only if manifest sensitivity is absent
 
-## Env usage policy
+## Env field usage policy
 
-- Env vars are allowed as explicit override only.
-- After init, run artifacts (manifest + run-config) are the source of truth.
+- Env var names may appear only as historical field names in settings/artifact snapshots.
+- Post-init resolution must read run artifacts (manifest + run-config), not process environment.
 
 ## Citations endpoint resolution in practice
 

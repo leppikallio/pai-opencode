@@ -34,7 +34,7 @@ export function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
   const source: DeepResearchFlagsV1["source"] = { env: [], settings: [] };
 
   // Defaults (spec-feature-flags-v1)
-  let optionCEnabled = false;
+  let optionCEnabled = true;
   let modeDefault: RunMode = "standard";
   let maxWave1Agents = 6;
   let maxWave2Agents = 6;
@@ -119,62 +119,8 @@ export function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
     if (p) runsRoot = p;
   });
 
-  // Env overrides settings.
-  const applyEnv = (key: string, apply: (v: string) => void) => {
-    const v = process.env[key];
-    if (typeof v !== "string") return;
-    apply(v);
-    source.env.push(key);
-  };
-
-  applyEnv("PAI_DR_OPTION_C_ENABLED", (v) => {
-    const b = parseBool(v);
-    if (b !== null) optionCEnabled = b;
-  });
-  applyEnv("PAI_DR_MODE_DEFAULT", (v) => {
-    const e = parseEnum(v, ["quick", "standard", "deep"] as const);
-    if (e) modeDefault = e;
-  });
-  applyEnv("PAI_DR_MAX_WAVE1_AGENTS", (v) => {
-    const n = parseIntSafe(v);
-    if (n !== null) maxWave1Agents = n;
-  });
-  applyEnv("PAI_DR_MAX_WAVE2_AGENTS", (v) => {
-    const n = parseIntSafe(v);
-    if (n !== null) maxWave2Agents = n;
-  });
-  applyEnv("PAI_DR_MAX_SUMMARY_KB", (v) => {
-    const n = parseIntSafe(v);
-    if (n !== null) maxSummaryKb = n;
-  });
-  applyEnv("PAI_DR_MAX_TOTAL_SUMMARY_KB", (v) => {
-    const n = parseIntSafe(v);
-    if (n !== null) maxTotalSummaryKb = n;
-  });
-  applyEnv("PAI_DR_MAX_REVIEW_ITERATIONS", (v) => {
-    const n = parseIntSafe(v);
-    if (n !== null) maxReviewIterations = n;
-  });
-  applyEnv("PAI_DR_CITATION_VALIDATION_TIER", (v) => {
-    const e = parseEnum(v, ["basic", "standard", "thorough"] as const);
-    if (e) citationValidationTier = e;
-  });
-  applyEnv("PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT", (v) => {
-    const endpoint = String(v ?? "").trim();
-    citationsBrightDataEndpoint = endpoint || null;
-  });
-  applyEnv("PAI_DR_CITATIONS_APIFY_ENDPOINT", (v) => {
-    const endpoint = String(v ?? "").trim();
-    citationsApifyEndpoint = endpoint || null;
-  });
-  applyEnv("PAI_DR_NO_WEB", (v) => {
-    const b = parseBool(v);
-    if (b !== null) noWeb = b;
-  });
-  applyEnv("PAI_DR_RUNS_ROOT", (v) => {
-    const p = parseAbsolutePathSetting(v);
-    if (p) runsRoot = p;
-  });
+  // Env inputs are intentionally unsupported for Option C flags.
+  // Effective values come from defaults + integration-layer settings.json only.
 
   // Basic sanity caps (avoid nonsense values).
   const clampInt = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));

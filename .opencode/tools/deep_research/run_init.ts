@@ -110,7 +110,7 @@ export const run_init = tool({
     const flags = resolveDeepResearchFlagsV1();
     if (!flags.optionCEnabled) {
       return err("DISABLED", "Deep research Option C is disabled", {
-        hint: "Set PAI_DR_OPTION_C_ENABLED=1 to enable.",
+        hint: "Enable in settings.json (deepResearch.flags.PAI_DR_OPTION_C_ENABLED=true).",
       });
     }
 
@@ -239,6 +239,9 @@ export const run_init = tool({
           text: args.query,
           constraints: {
             scope_path: SCOPE_PATH_RELATIVE,
+            option_c: {
+              enabled: true,
+            },
             deep_research_flags: {
               PAI_DR_OPTION_C_ENABLED: flags.optionCEnabled,
               PAI_DR_MODE_DEFAULT: flags.modeDefault,

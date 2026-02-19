@@ -21,32 +21,28 @@ bun test ./.opencode/tests/smoke/deep_research_live_finalize_smoke.test.ts
 
 ### 0) Preconditions
 
-At minimum (explicit enable is required):
+At minimum:
 
 ```bash
-export PAI_DR_OPTION_C_ENABLED=1
-export PAI_DR_RUNS_ROOT="/tmp/pai-dr-runs"
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "M3 preflight" --run-id "m3_preflight" --runs-root "/tmp/pai-dr-runs" --sensitivity no_web
 ```
 
 For offline-only scaffolding (recommended until online ladder is ready):
 
-```bash
-export PAI_DR_NO_WEB=1
-```
+- Use `--sensitivity no_web` in CLI commands.
 
 For true online M3 (citations ladder):
 
-```bash
-export PAI_DR_NO_WEB=0
-export PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT="<your brightdata citations endpoint>"
-export PAI_DR_CITATIONS_APIFY_ENDPOINT="<your apify citations endpoint>"
-```
+- Set these keys in `.opencode/settings.json` under `deepResearch.flags`:
+  - `PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT`
+  - `PAI_DR_CITATIONS_APIFY_ENDPOINT`
+- Use `--sensitivity normal` in CLI commands.
 
 ### 1) Init
 
 ```bash
 RUN_ID="m3_$(date +%Y%m%d_%H%M%S)"
-bun ".opencode/pai-tools/deep-research-option-c.ts" init "M3 canary" --run-id "$RUN_ID"
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "M3 canary" --run-id "$RUN_ID" --runs-root "/tmp/pai-dr-runs" --sensitivity no_web
 ```
 
 Capture from output:

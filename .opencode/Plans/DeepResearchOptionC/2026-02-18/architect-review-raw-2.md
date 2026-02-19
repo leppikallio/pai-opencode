@@ -46,7 +46,7 @@ This is a pedantic, pragmatic, end-to-end architecture review of the **current**
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │ Operator surface (what Marvin/operator drives)                               │
 │  - Slash command doc: .opencode/commands/deep-research.md                    │
-│      -> delegates to CLI: bun "pai-tools/deep-research-option-c.ts" ...      │
+│      -> delegates to CLI: bun ".opencode/pai-tools/deep-research-option-c.ts" ...      │
 │        (Evidence: .opencode/commands/deep-research.md:20-46)                 │
 │  - Operator CLI (single entrypoint):                                         │
 │      .opencode/pai-tools/deep-research-option-c.ts                           │
@@ -235,8 +235,8 @@ So the *pipeline plumbing* is largely there.
    - The CLI currently relies on watchdog + printed contract fields, but does not emit structured telemetry per tick.
 
 6) **Planning artifacts are now drifted relative to implementation**
-   - The charter pack workstreams still reference a `Tools/deep-research-option-c.ts` CLI deliverable, while the implemented operator CLI lives in `.opencode/pai-tools/deep-research-option-c.ts`.
-   - Evidence: charter WS1 expects `Tools/deep-research-option-c.ts`: `.opencode/Plans/DeepResearchOptionC/2026-02-18/charter-pack/workstreams/WS1-operator-cli-and-unified-runloop.md:16-23`.
+   - The charter pack workstreams still reference a `.opencode/pai-tools/deep-research-option-c.ts` CLI deliverable, while the implemented operator CLI lives in `.opencode/pai-tools/deep-research-option-c.ts`.
+   - Evidence: charter WS1 expects `.opencode/pai-tools/deep-research-option-c.ts`: `.opencode/Plans/DeepResearchOptionC/2026-02-18/charter-pack/workstreams/WS1-operator-cli-and-unified-runloop.md:16-23`.
    - Readiness gates still mention “not only entries[0]” (now satisfied), but the doc should be refreshed to avoid “false gap” confusion: `.opencode/Plans/DeepResearchOptionC/2026-02-18/charter-pack/01-readiness-gates.md:50-57`.
 
 ---
@@ -348,7 +348,7 @@ However, “no env vars” is currently a **UX property** (the CLI sets/relies o
 Canonical invocation (as already documented):
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" <command> [...flags]
+bun ".opencode/pai-tools/deep-research-option-c.ts" <command> [...flags]
 ```
 
 Command name (internal): `deep-research-option-c` (already present as cmd-ts app name: `.opencode/pai-tools/deep-research-option-c.ts:1246-1258`).
@@ -362,7 +362,7 @@ I recommend treating this as the only supported entrypoint; the root-level `Tool
 **Current** (matches command doc):
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" init "<query>" \
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" \
   [--run-id <id>] \
   [--sensitivity normal|restricted|no_web] \
   [--mode quick|standard|deep] \
@@ -378,7 +378,7 @@ Evidence: `.opencode/commands/deep-research.md:30-38` and CLI args `.opencode/pa
 **Current:**
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" tick \
+bun ".opencode/pai-tools/deep-research-option-c.ts" tick \
   --manifest <abs> --gates <abs> \
   --reason "..." \
   --driver fixture|live
@@ -393,7 +393,7 @@ Evidence: `.opencode/pai-tools/deep-research-option-c.ts:1143-1160`.
 **Current:**
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" run \
+bun ".opencode/pai-tools/deep-research-option-c.ts" run \
   --manifest <abs> --gates <abs> \
   --reason "..." \
   --driver fixture|live \
@@ -409,7 +409,7 @@ Key property: watchdog enforced per tick boundary: `.opencode/pai-tools/deep-res
 #### `status`
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" status --manifest <abs>
+bun ".opencode/pai-tools/deep-research-option-c.ts" status --manifest <abs>
 ```
 
 Evidence: `.opencode/pai-tools/deep-research-option-c.ts:1183-1192`.
@@ -622,7 +622,7 @@ This is a pass/fail checklist for **“ready for real research runs”** (not ju
 ### Gate A — Tool wiring & schema invariants
 
 - [ ] `run_init` succeeds without requiring the operator to set env vars manually (CLI provides this UX).
-  - Evidence target: `bun "pai-tools/deep-research-option-c.ts" init "Q"` prints contract + run-config.
+  - Evidence target: `bun ".opencode/pai-tools/deep-research-option-c.ts" init "Q"` prints contract + run-config.
   - Code anchor: enablement check in `run_init`: `.opencode/tools/deep_research/run_init.ts:52-57` and CLI bootstrap: `.opencode/pai-tools/deep-research-option-c.ts:144-149`.
 - [ ] After every tick, `manifest.json` and `gates.json` validate as v1.
   - Code anchor: schema validation is used in multiple entrypoints (e.g., stage_advance validates both manifest + gates: `.opencode/tools/deep_research/stage_advance.ts:49-55`).

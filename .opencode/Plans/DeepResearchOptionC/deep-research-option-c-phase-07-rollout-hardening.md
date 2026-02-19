@@ -54,13 +54,13 @@ Deliver production-safe rollout with feature flags, canary controls, and fallbac
 
 ## Verification commands (inline)
 
-Run from repo root (offline-first default):
+Run from repo root:
 
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_path.test.ts
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
+bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
+bun test ./.opencode/tests/entities/deep_research_fallback_path.test.ts
+bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
+bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
 ```
 
 Expected:

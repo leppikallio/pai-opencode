@@ -6,9 +6,9 @@ Source: `../architect-review-raw-2.md`
 ## Drift items captured
 
 1. **CLI location drift**
-   - Charter docs referenced `Tools/deep-research-option-c.ts`.
-   - Implementation reality uses `pai-tools/deep-research-option-c.ts` via:
-     - `bun "pai-tools/deep-research-option-c.ts" ...`
+   - Charter docs referenced `.opencode/pai-tools/deep-research-option-c.ts`.
+   - Implementation reality uses `.opencode/pai-tools/deep-research-option-c.ts` via:
+     - `bun ".opencode/pai-tools/deep-research-option-c.ts" ...`
 
 2. **Workstream/track completion drift**
    - Charter pack lacked a concise DONE/PARTIAL/MISSING snapshot for WS/T tracks.
@@ -20,6 +20,6 @@ Source: `../architect-review-raw-2.md`
 
 ## Resolution in E8
 
-- WS1 references updated to canonical `pai-tools/...` invocation.
+- WS1 references updated to canonical `.opencode/pai-tools/...` invocation.
 - Gate B wording updated to remove stale `entries[0]` framing.
 - Charter pack README now includes WS/T status snapshot with brief evidence pointers.

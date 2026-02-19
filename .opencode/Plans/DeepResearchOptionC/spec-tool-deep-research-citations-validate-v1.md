@@ -19,11 +19,16 @@ ONLINE mode is optional and uses strict URL safety rules plus a progressive esca
 | `reason` | string | ✅ | audit |
 
 ## Mode selection
-- OFFLINE mode is active when `PAI_DR_NO_WEB=1`.
-- ONLINE mode is active only when `PAI_DR_NO_WEB=0`.
+- Mode selection is resolved from run artifacts, not process environment.
+- Primary source: `run-config.json` (`effective.citations.mode`).
+- Fallback source: `manifest.query.sensitivity` mapping:
+  - `no_web` -> `offline`
+  - `restricted` -> `online` (restricted ladder/caps)
+  - `normal` -> `online`
 
 Thoroughness is controlled by:
-- `PAI_DR_CITATION_VALIDATION_TIER=basic|standard|thorough`.
+- `run-config.json` (`effective.citations.validation_tier=basic|standard|thorough`).
+- If absent, use init-captured defaults from manifest/settings snapshots.
 
 ## Status semantics (v1)
 Allowed statuses:

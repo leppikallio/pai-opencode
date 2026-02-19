@@ -13,10 +13,10 @@ Phase 01 — Platform core scaffolding (Option C) in the integration layer only.
   - `deep_research_manifest_write`
   - `deep_research_gates_write`
   - `deep_research_stage_advance` (stub; Phase 02)
-- Added feature-flag support (env + optional integration settings) and persisted resolved flags into `manifest.json`.
+- Added feature-flag support (integration settings only; env unsupported) and persisted resolved flags into `manifest.json`.
 - Added run ledger append (`runs-ledger.jsonl`) at the shared run root.
 - Updated command `.opencode/commands/deep-research.md` to:
-  - respect the master enable flag (`PAI_DR_OPTION_C_ENABLED=1`)
+  - respect the master enable flag (settings key: `deepResearch.flags.PAI_DR_OPTION_C_ENABLED`, default `true`)
   - write progress via `todowrite` (`DR: init`)
 - Updated Phase 01 specs to match actual tool/command wiring:
   - `spec-install-layout-v1.md`

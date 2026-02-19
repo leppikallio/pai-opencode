@@ -60,7 +60,7 @@ Each finding MUST include:
    - Lexicographic key order at every object level.
    - Arrays preserve the deterministic ordering rules above.
 4. No web:
-   - MUST be safe under `PAI_DR_NO_WEB=1`.
+   - MUST be safe under no-web mode (`--sensitivity no_web` / settings flag `deepResearch.flags.PAI_DR_NO_WEB=true`).
 
 ## Example output (JSON)
 ```json

@@ -43,4 +43,4 @@ Instrument Deep Research Option C runs end-to-end and ship an **offline-first**,
 
 ## Notes
 - Artifact root for Phase 06 outputs: `~/.config/opencode/research-runs/<run_id>/...`
-- OFFLINE tests should run with `PAI_DR_NO_WEB=1`.
+- OFFLINE tests should run in no-web mode (`--sensitivity no_web` / `sensitivity: "no_web"`).

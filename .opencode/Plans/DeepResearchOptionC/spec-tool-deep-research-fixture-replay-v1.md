@@ -70,7 +70,7 @@ On expected failures:
 ```
 
 ## Determinism rules
-1. **No web**: MUST be safe under `PAI_DR_NO_WEB=1`.
+1. **No web**: MUST be safe under no-web mode (`--sensitivity no_web` / settings flag `deepResearch.flags.PAI_DR_NO_WEB=true`).
 2. Canonical path set: all bundle-relative paths are compared using `/` separators.
 3. JSON canonicalization:
    - When recomputing reports, serialize JSON with **lexicographic key order** at every object level.

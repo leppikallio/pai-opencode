@@ -25,7 +25,7 @@ Charter pack reflects implementation reality so it stops generating “false gap
 
 ### E8-T0 — Inventory drift items
 From architect raw-2, capture drift items in a short list:
-- CLI location: `pai-tools/deep-research-option-c.ts` vs `Tools/...`
+- CLI location: `.opencode/pai-tools/deep-research-option-c.ts`
 - workstream statuses (DONE vs PARTIAL vs MISSING)
 - readiness gate text that refers to already-fixed gaps
 
@@ -35,7 +35,7 @@ Create: `.opencode/Plans/DeepResearchOptionC/2026-02-18/followup/E8-drift-invent
 Update:
 - `charter-pack/workstreams/WS1-operator-cli-and-unified-runloop.md`
 So it points to the canonical runtime invocation:
-- `bun "pai-tools/deep-research-option-c.ts" ...`
+- `bun ".opencode/pai-tools/deep-research-option-c.ts" ...`
 
 ### E8-T2 — Update readiness gates wording
 Update:

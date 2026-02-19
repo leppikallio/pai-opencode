@@ -122,7 +122,7 @@ A valid `fixture_bundle.v1` MUST be capturable and replayable under **no-network
 - `bundle.json.no_web` MUST be `true`.
 
 Operational note:
-- Offline replay is expected to run with environment `PAI_DR_NO_WEB=1`.
+- Offline replay is expected to run in no-web mode (`--sensitivity no_web` / settings flag `deepResearch.flags.PAI_DR_NO_WEB=true`).
 
 ## Minimal example bundle layout (tree)
 ```text

@@ -11,5 +11,5 @@ Run:
 
 ```bash
 cd .opencode
-PAI_DR_OPTION_C_ENABLED=1 bun test tests
+bun test tests
 ```

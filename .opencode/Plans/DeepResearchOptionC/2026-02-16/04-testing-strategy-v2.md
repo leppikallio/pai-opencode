@@ -143,7 +143,7 @@ For Option C milestones, smoke tests are split into:
 
 ### D1 — No network / no agents in deterministic suites
 For **T0–T5 offline** tests:
-- MUST set `PAI_DR_NO_WEB=1` where relevant
+- MUST run in no-web mode where relevant (`--sensitivity no_web` / `sensitivity: "no_web"`); env flags are unsupported
 - MUST NOT spawn agent Tasks
 - MUST NOT call web tools
 - MUST rely only on fixtures and deterministic calculators/validators
@@ -243,9 +243,9 @@ Directories:
 - `.opencode/tests/regression/**`
 - `.opencode/tests/smoke/**` (to be added)
 
-Env gating:
-- offline suites: `PAI_DR_NO_WEB=1`
-- live suites: `PAI_DR_LIVE_TESTS=1` (proposed; required)
+Execution gating:
+- offline suites: `--sensitivity no_web` / `sensitivity: "no_web"`
+- live suites: `PAI_DR_LIVE_TESTS` (settings key; proposed; required)
 
 ---
 

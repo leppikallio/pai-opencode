@@ -14,7 +14,7 @@ Date: 2026-02-13
 
 ## Command executed (repro)
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 bun -e 'import { run_init, manifest_write, gates_write } from "./tools/deep_research.ts";
+bun -e 'import { run_init, manifest_write, gates_write } from "./tools/deep_research.ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 

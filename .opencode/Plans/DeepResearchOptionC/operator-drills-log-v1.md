@@ -14,7 +14,7 @@ Canonical run roots for all drills:
 Prereqs (copy/paste):
 
 ```bash
-export PAI_DR_OPTION_C_ENABLED=1
+# No env vars required; use CLI flags and run artifacts.
 mkdir -p "$HOME/.config/opencode/research-runs"
 ```
 
@@ -82,8 +82,8 @@ SEC2 scan results (credential-bearing URL/token patterns):
 ```bash
 RUN_ID="operator-drill1-20260216"
 RUN_ROOT="$HOME/.config/opencode/research-runs/$RUN_ID"
-export PAI_DR_OPTION_C_ENABLED=1
-export PAI_DR_NO_WEB=1
+# No env vars required; use CLI flags and run artifacts.
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "Operator drill 1 pause/resume" --run-id "$RUN_ID" --sensitivity no_web
 date -u
 ```
 
@@ -102,7 +102,7 @@ Tool call (OpenCode):
 ```
 
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_manifest_write.test.ts
+bun test ./.opencode/tests/entities/deep_research_manifest_write.test.ts
 ```
 
 ### Expected vs Actual
@@ -111,7 +111,7 @@ PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/de
 - **Actual:**
 
 ```text
-$ PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_manifest_write.test.ts
+$ bun test ./.opencode/tests/entities/deep_research_manifest_write.test.ts
 bun test v1.3.2 (b131639c)
 
  3 pass
@@ -153,8 +153,8 @@ Paste SEC2 results:
 ```bash
 RUN_ID="operator-drill2-20260216"
 RUN_ROOT="$HOME/.config/opencode/research-runs/$RUN_ID"
-export PAI_DR_OPTION_C_ENABLED=1
-export PAI_DR_NO_WEB=1
+# No env vars required; use CLI flags and run artifacts.
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "Operator drill 2 emergency-disable rollback" --run-id "$RUN_ID" --sensitivity no_web
 date -u
 ```
 
@@ -173,11 +173,11 @@ Tool call (OpenCode):
 ```
 
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
+bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
 ```
 
 ```bash
-PAI_DR_OPTION_C_ENABLED=0 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_stage_advance_emergency_disable.test.ts
+bun test ./.opencode/tests/entities/deep_research_stage_advance_emergency_disable.test.ts
 ```
 
 ### Expected vs Actual
@@ -186,14 +186,14 @@ PAI_DR_OPTION_C_ENABLED=0 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/de
 - **Actual:**
 
 ```text
-$ PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
+$ bun test ./.opencode/tests/entities/deep_research_feature_flags.contract.test.ts
 bun test v1.3.2 (b131639c)
 
  4 pass
  0 fail
 Ran 4 tests across 1 file. [63.00ms]
 
-$ PAI_DR_OPTION_C_ENABLED=0 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_stage_advance_emergency_disable.test.ts
+$ bun test ./.opencode/tests/entities/deep_research_stage_advance_emergency_disable.test.ts
 bun test v1.3.2 (b131639c)
 
  1 pass
@@ -237,8 +237,8 @@ RUN_ID="operator-drill5-case-minimal-20260216"
 RUN_ROOT="$HOME/.config/opencode/research-runs/$RUN_ID"
 FIXTURE_DIR="$PWD/.opencode/tests/fixtures/dry-run/case-minimal"
 BUNDLE_ROOT="$HOME/.config/opencode/research-runs/fixture-bundles"
-export PAI_DR_OPTION_C_ENABLED=1
-export PAI_DR_NO_WEB=1
+# No env vars required; use CLI flags and run artifacts.
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "Operator drill 5 deterministic seed" --run-id "$RUN_ID" --sensitivity no_web
 date -u
 ```
 
@@ -431,8 +431,8 @@ citations/.gitkeep (0 bytes)
 ```bash
 RUN_ID="operator-drill3-20260216"
 RUN_ROOT="$HOME/.config/opencode/research-runs/$RUN_ID"
-export PAI_DR_OPTION_C_ENABLED=1
-export PAI_DR_NO_WEB=1
+# No env vars required; use CLI flags and run artifacts.
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "Operator drill 3 hard-gate fallback" --run-id "$RUN_ID" --sensitivity no_web
 date -u
 ```
 
@@ -451,7 +451,7 @@ Tool call (OpenCode):
 ```
 
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
+bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
 ```
 
 ### Expected vs Actual
@@ -460,7 +460,7 @@ PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/de
 - **Actual:**
 
 ```text
-$ PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
+$ bun test ./.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts
 bun test v1.3.2 (b131639c)
 
  1 pass
@@ -502,8 +502,8 @@ Paste SEC2 results:
 ```bash
 RUN_ID="operator-drill4-20260216"
 RUN_ROOT="$HOME/.config/opencode/research-runs/$RUN_ID"
-export PAI_DR_OPTION_C_ENABLED=1
-export PAI_DR_NO_WEB=1
+# No env vars required; use CLI flags and run artifacts.
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "Operator drill 4 watchdog timeout" --run-id "$RUN_ID" --sensitivity no_web
 date -u
 ```
 
@@ -522,7 +522,7 @@ Tool call (OpenCode):
 ```
 
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
+bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
 ```
 
 ### Expected vs Actual
@@ -531,7 +531,7 @@ PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/de
 - **Actual:**
 
 ```text
-$ PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
+$ bun test ./.opencode/tests/entities/deep_research_watchdog_timeout.test.ts
 bun test v1.3.2 (b131639c)
 
  1 pass

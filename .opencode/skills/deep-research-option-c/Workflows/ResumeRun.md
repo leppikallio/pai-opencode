@@ -12,7 +12,7 @@ Resume a paused Option C run and restore watchdog timing semantics.
 1. Resume:
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" resume --manifest "<manifest_abs>" --reason "operator resume"
+bun ".opencode/pai-tools/deep-research-option-c.ts" resume --manifest "<manifest_abs>" --reason "operator resume"
 ```
 
 2. Verify a resume checkpoint was written (the CLI prints the checkpoint path) and the run can continue normally.

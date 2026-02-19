@@ -56,8 +56,8 @@ This shifts failures from “late wave1 retries” to “early plan correction,�
 ### Operator surfaces (doc + CLI)
 
 - `/deep-research` operator doc routes to the Option C CLI:
-  - `.opencode/commands/deep-research.md` (routes `plan|fixture|live` → `bun "pai-tools/deep-research-option-c.ts" ...`).
-  - It explicitly requires enablement via env var: `export PAI_DR_OPTION_C_ENABLED=1` (lines 8–16).
+  - `.opencode/commands/deep-research.md` (routes `plan|fixture|live` → `bun ".opencode/pai-tools/deep-research-option-c.ts" ...`).
+  - No env vars required; use CLI flags and run artifacts.
 
 - The primary CLI implementation is:
   - `.opencode/pai-tools/deep-research-option-c.ts`
@@ -254,7 +254,7 @@ Concrete proposal (two-layer approach):
      - Read `<run_root>/wave-1/wave1-plan.json`
      - For each entry, spawn the configured agent type (e.g., `ClaudeResearcher`) via `functions.task`.
      - Write raw outputs to the **exact orchestrator output path** (e.g., `wave-1/<pid>.md`) and write a `*.meta.json` sidecar compatible with the orchestrator.
-     - Then run `bun "pai-tools/deep-research-option-c.ts" tick --driver fixture` (or call deterministic tools directly) to ingest/review/gate.
+     - Then run `bun ".opencode/pai-tools/deep-research-option-c.ts" tick --driver fixture` (or call deterministic tools directly) to ingest/review/gate.
 
 2) **CLI helper mode** (next, in-repo implementation):
    - Add a `--driver task` to `.opencode/pai-tools/deep-research-option-c.ts` that does **not** spawn tasks (since the CLI can’t call `functions.task`), but:

@@ -83,7 +83,7 @@ Smoke:
 
 Single-command / CI-friendly definition of “runnable”:
 1. Create a temp root (don’t rely on `/Users/zuul/.config/opencode/...` in CI).
-2. Set `PAI_DR_OPTION_C_ENABLED=1` and `PAI_DR_NO_WEB=1`.
+2. Ensure Option C is enabled via settings (default) and run offline (`--sensitivity no_web` / fixtures). Env flags are unsupported.
 3. Run the deterministic tool chain with a fixture driver that writes required artifacts.
 4. Repeatedly call `stage_advance` until `finalize` or a hard gate blocks.
 5. Assert: finalize reached, gates reflect mode, audit trail complete, non-zero on failure.

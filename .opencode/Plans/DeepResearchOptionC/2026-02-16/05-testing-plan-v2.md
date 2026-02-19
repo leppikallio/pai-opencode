@@ -138,8 +138,8 @@ This must drive `init → pivot` using a fixture driver (no agents) and assert:
 - **MUST ADD**: `.opencode/tests/smoke/deep_research_live_wave1_smoke.test.ts`
 
 Gated by:
-- `PAI_DR_OPTION_C_ENABLED=1`
-- `PAI_DR_LIVE_TESTS=1`
+- `PAI_DR_OPTION_C_ENABLED` enabled (settings key; env unsupported)
+- `PAI_DR_LIVE_TESTS` enabled (settings key; proposed)
 
 Must assert:
 - stage reaches `pivot`
@@ -153,8 +153,8 @@ Must assert:
 - **MUST ADD**: `.opencode/tests/smoke/deep_research_live_finalize_smoke.test.ts`
 
 Gated by:
-- `PAI_DR_OPTION_C_ENABLED=1`
-- `PAI_DR_LIVE_TESTS=1`
+- `PAI_DR_OPTION_C_ENABLED` enabled (settings key; env unsupported)
+- `PAI_DR_LIVE_TESTS` enabled (settings key; proposed)
 
 Must assert:
 - `manifest.stage.current === "finalize"`

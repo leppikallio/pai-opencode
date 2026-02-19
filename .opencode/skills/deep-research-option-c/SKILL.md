@@ -12,7 +12,7 @@ Use this skill to run Option C reliably from planning through finalize using the
 ## Primary Surface
 
 - Command: `/deep-research` (installed command doc in the OpenCode runtime)
-- CLI: `bun "pai-tools/deep-research-option-c.ts" <command> [...flags]` (run from the OpenCode runtime root)
+- CLI: `bun ".opencode/pai-tools/deep-research-option-c.ts" <command> [...flags]` (run from the OpenCode runtime root)
 
 ## No-env-var Guidance (required)
 
@@ -47,9 +47,9 @@ Use this skill to run Option C reliably from planning through finalize using the
 ## Quick CLI Usage
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" init "<query>" --mode standard --sensitivity normal
-bun "pai-tools/deep-research-option-c.ts" tick --manifest "<abs>" --gates "<abs>" --reason "operator tick" --driver fixture
-bun "pai-tools/deep-research-option-c.ts" run --manifest "<abs>" --gates "<abs>" --reason "operator run" --driver live --max-ticks 10
-bun "pai-tools/deep-research-option-c.ts" pause --manifest "<abs>" --reason "operator pause"
-bun "pai-tools/deep-research-option-c.ts" resume --manifest "<abs>" --reason "operator resume"
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" --mode standard --sensitivity normal
+bun ".opencode/pai-tools/deep-research-option-c.ts" tick --manifest "<abs>" --gates "<abs>" --reason "operator tick" --driver fixture
+bun ".opencode/pai-tools/deep-research-option-c.ts" run --manifest "<abs>" --gates "<abs>" --reason "operator run" --driver live --max-ticks 10
+bun ".opencode/pai-tools/deep-research-option-c.ts" pause --manifest "<abs>" --reason "operator pause"
+bun ".opencode/pai-tools/deep-research-option-c.ts" resume --manifest "<abs>" --reason "operator resume"
 ```

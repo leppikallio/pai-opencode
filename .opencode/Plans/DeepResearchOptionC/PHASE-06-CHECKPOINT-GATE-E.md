@@ -76,7 +76,7 @@ Tool spec (authoritative contract):
 
 Replay command (run from repo root; offline-safe):
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun -e '
+bun -e '
 import { deep_research_fixture_replay } from "./.opencode/tools/deep_research.ts";
 
 const ctx = {
@@ -125,7 +125,7 @@ Expected success (key fields):
 
 Alternative evidence (entity test that exercises the same replay path, offline):
 ```bash
-PAI_DR_OPTION_C_ENABLED=1 PAI_DR_NO_WEB=1 bun test .opencode/tests/entities/deep_research_fixture_replay.test.ts
+bun test .opencode/tests/entities/deep_research_fixture_replay.test.ts
 ```
 
 ## Signoff

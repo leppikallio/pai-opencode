@@ -155,9 +155,6 @@ async function main(): Promise<void> {
     return;
   }
 
-  process.env.PAI_DR_OPTION_C_ENABLED = "1";
-  process.env.PAI_DR_NO_WEB = "1";
-
   const runIdRequested = args.runId ?? defaultRunId();
 
   const toolsDir = path.dirname(fileURLToPath(import.meta.url));
