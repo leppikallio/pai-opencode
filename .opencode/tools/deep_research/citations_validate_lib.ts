@@ -243,7 +243,6 @@ export type CitationConfigSource =
   | "manifest.query.sensitivity"
   | "manifest.query.constraints.deep_research_flags"
   | "run-config.effective.citations"
-  | "env"
   | "unset"
   | "arg.online_dry_run";
 
@@ -308,20 +307,11 @@ function readEndpointFromManifestFlags(
   return asNonEmptyString(flags[key]);
 }
 
-function readEndpointFromEnv(env: Record<string, string | undefined>, key: string): string | null {
-  const raw = env[key];
-  if (typeof raw !== "string") return null;
-  const trimmed = raw.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
 export function resolveCitationsConfig(args: {
   manifest: Record<string, unknown>;
   runConfig: Record<string, unknown> | null;
-  env?: Record<string, string | undefined>;
   onlineDryRunArg?: boolean;
 }): ResolvedCitationsConfig {
-  const env = args.env ?? (process.env as Record<string, string | undefined>);
   const query = asObject(args.manifest.query);
   const sensitivity = asNonEmptyString(query.sensitivity);
 
@@ -336,27 +326,21 @@ export function resolveCitationsConfig(args: {
 
   const manifestBrightData = readEndpointFromManifestFlags(args.manifest, "PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT");
   const runConfigBrightData = readEndpointFromRunConfig(args.runConfig, "brightdata");
-  const envBrightData = readEndpointFromEnv(env, "PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT");
-  const brightDataEndpoint = manifestBrightData ?? runConfigBrightData ?? envBrightData ?? "";
+  const brightDataEndpoint = manifestBrightData ?? runConfigBrightData ?? "";
   const brightDataSource: CitationConfigSource = manifestBrightData
     ? "manifest.query.constraints.deep_research_flags"
     : runConfigBrightData
       ? "run-config.effective.citations"
-      : envBrightData
-        ? "env"
-        : "unset";
+      : "unset";
 
   const manifestApify = readEndpointFromManifestFlags(args.manifest, "PAI_DR_CITATIONS_APIFY_ENDPOINT");
   const runConfigApify = readEndpointFromRunConfig(args.runConfig, "apify");
-  const envApify = readEndpointFromEnv(env, "PAI_DR_CITATIONS_APIFY_ENDPOINT");
-  const apifyEndpoint = manifestApify ?? runConfigApify ?? envApify ?? "";
+  const apifyEndpoint = manifestApify ?? runConfigApify ?? "";
   const apifySource: CitationConfigSource = manifestApify
     ? "manifest.query.constraints.deep_research_flags"
     : runConfigApify
       ? "run-config.effective.citations"
-      : envApify
-        ? "env"
-        : "unset";
+      : "unset";
 
   const onlineDryRun = mode === "offline"
     ? false

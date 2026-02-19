@@ -7,22 +7,17 @@ You are the `/deep-research` operator.
 
 ## Safety / enablement
 
-Option C is **disabled by default**. Before running any Option C tools or the operator CLI, you must explicitly enable it:
-
-```bash
-export PAI_DR_OPTION_C_ENABLED=1
-```
-
-(Other controls may still be passed via CLI flags; avoid hidden env overrides except this explicit enable.)
+No env vars required; use CLI flags and run artifacts.
 
 ## Operator surface contract
 
 Command shape:
-`/deep-research <mode> "<query>" [--run_id <id>] [--sensitivity normal|restricted|no_web]`
+`/deep-research <mode> "<query>" [--run-id <id> --runs-root <abs>] [--sensitivity normal|restricted|no_web]`
 
 - `<mode>` is required and must be one of: `plan`, `fixture`, `live`.
 - `"<query>"` is required.
-- `--run_id` optional.
+- `--run-id` optional.
+- When `--run-id` is provided, `--runs-root <absolute-path>` is required.
 - `--sensitivity` optional; default `normal`.
 
 If args are invalid, print usage + what is wrong and stop.
@@ -32,7 +27,7 @@ If args are invalid, print usage + what is wrong and stop.
 Use the Option C operator CLI as the implementation surface:
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" <command> [...flags]
+bun ".opencode/pai-tools/deep-research-option-c.ts" <command> [...flags]
 ```
 
 ### Commands
@@ -107,9 +102,9 @@ Default minimal perspective payload (single perspective, id `p1`):
 ## A) plan mode (offline)
 
 1. Run:
-   - `bun "pai-tools/deep-research-option-c.ts" init "<query>" --sensitivity no_web`
+   - `bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" --sensitivity no_web`
 2. Optionally run:
-   - `bun "pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: plan tick" --driver fixture`
+   - `bun ".opencode/pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: plan tick" --driver fixture`
 3. Print required final contract fields and stop.
 
 ---
@@ -117,11 +112,11 @@ Default minimal perspective payload (single perspective, id `p1`):
 ## B) fixture mode (offline)
 
 1. Run init:
-   - `bun "pai-tools/deep-research-option-c.ts" init "<query>" --sensitivity no_web`
+   - `bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" --sensitivity no_web`
 2. Loop tick:
-   - `bun "pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: fixture tick" --driver fixture`
+   - `bun ".opencode/pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: fixture tick" --driver fixture`
 3. If blocked, run:
-   - `bun "pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_path>"`
+   - `bun ".opencode/pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_path>"`
 4. Print required final contract fields and stop.
 
 ---
@@ -133,7 +128,7 @@ Goal: run Wave 1 without manual draft editing using `tick --driver task` + `agen
 ### C1) Initialize
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" init "<query>" [--run-id <id>]
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" [--run-id <id>]
 ```
 
 Capture the printed paths:
@@ -146,7 +141,7 @@ Capture the printed paths:
 Run one task-driver tick:
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_abs>" --driver task --reason "wave1 task tick"
+bun ".opencode/pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_abs>" --driver task --reason "wave1 task tick"
 ```
 
 Behavior contract:
@@ -160,7 +155,7 @@ Behavior contract:
 For each missing perspective, ingest agent markdown using:
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" agent-result \
+bun ".opencode/pai-tools/deep-research-option-c.ts" agent-result \
   --manifest "<manifest_abs>" \
   --stage wave1 \
   --perspective "<id>" \
@@ -185,7 +180,7 @@ Sidecar contract (`wave-output-meta.v1`):
 Re-run task tick:
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_abs>" --driver task --reason "wave1 resume"
+bun ".opencode/pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_abs>" --driver task --reason "wave1 resume"
 ```
 
 When all missing perspectives are ingested, the deterministic wave pipeline proceeds and advances toward `pivot`.
@@ -195,8 +190,8 @@ When all missing perspectives are ingested, the deterministic wave pipeline proc
 Use the CLI to inspect blockers at any time:
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" inspect --manifest "<manifest_path>"
-bun "pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_path>"
+bun ".opencode/pai-tools/deep-research-option-c.ts" inspect --manifest "<manifest_path>"
+bun ".opencode/pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_path>"
 ```
 
 ### C6) Manual fallback (operator-input driver)
@@ -204,7 +199,7 @@ bun "pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_path>"
 If you explicitly want manual editing instead of Task-backed autonomy:
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" run --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: live run" --driver live
+bun ".opencode/pai-tools/deep-research-option-c.ts" run --manifest "<manifest_path>" --gates "<gates_path>" --reason "operator: live run" --driver live
 ```
 
 The CLI will write:

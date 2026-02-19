@@ -65,6 +65,7 @@ export type OrchestratorTickPostPivotArgs = {
   manifest_path: string;
   gates_path: string;
   reason: string;
+  driver?: "fixture" | "live" | "task";
   stage_advance_tool?: ToolWithExecute;
   pivot_decide_tool?: ToolWithExecute;
   wave_output_ingest_tool?: ToolWithExecute;
@@ -676,18 +677,21 @@ function buildWave2PromptMd(args: {
   ].join("\n");
 }
 
-function buildWave2Markdown(args: { gap: PivotGap }): string {
-  return [
-    "## Findings",
-    `Wave 2 follow-up for ${args.gap.gap_id}: ${args.gap.text}`,
-    "",
-    "## Sources",
-    `- https://example.com/wave2/${encodeURIComponent(args.gap.gap_id)}`,
-    "",
-    "## Gaps",
-    "No additional unresolved gaps identified for this follow-up.",
-    "",
-  ].join("\n");
+function normalizePromptDigest(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return null;
+  if (/^sha256:[a-f0-9]{64}$/u.test(trimmed)) return trimmed;
+  if (/^[a-f0-9]{64}$/u.test(trimmed)) return `sha256:${trimmed}`;
+  return null;
+}
+
+async function sidecarPromptDigestMatches(metaPath: string, expectedPromptDigest: string): Promise<boolean> {
+  if (!(await exists(metaPath))) return false;
+  const raw = await readJson(metaPath);
+  if (!isPlainObject(raw)) return false;
+  const normalized = normalizePromptDigest((raw as Record<string, unknown>).prompt_digest);
+  return normalized === expectedPromptDigest;
 }
 
 async function readPerspectiveAgentTypes(
@@ -887,6 +891,7 @@ async function executeWave2Stage(args: {
   runId: string;
   runRoot: string;
   runRootReal: string;
+  driver: "fixture" | "live" | "task";
   manifest: Record<string, unknown>;
   perspectivesPath: string;
   wave2DirPath: string;
@@ -1003,37 +1008,64 @@ async function executeWave2Stage(args: {
   const perspectivesWrite = await writeJsonFile(wave2PerspectivesResolved.absPath, wave2PerspectivesDoc);
   if (!perspectivesWrite.ok) return perspectivesWrite;
 
-  const outputsForIngest = planResult.plan.entries.map((entry) => ({
-    perspective_id: entry.perspective_id,
-    markdown: buildWave2Markdown({
-      gap: {
-        gap_id: entry.gap_id,
-        priority: entry.priority,
-        text: entry.text,
-        from_perspective_id: entry.source_perspective_id,
-      },
-    }),
-    agent_type: entry.agent_type,
-    prompt_md: entry.prompt_md,
-  }));
+  const missing: Array<{
+    perspective_id: string;
+    prompt_path: string;
+    output_path: string;
+    meta_path: string;
+    prompt_digest: string;
+  }> = [];
 
-  const ingest = await executeToolJson({
-    name: "WAVE_OUTPUT_INGEST",
-    tool: args.waveOutputIngestTool,
-    payload: {
-      manifest_path: args.manifestPath,
-      perspectives_path: wave2PerspectivesResolved.absPath,
-      wave: "wave2",
-      outputs: outputsForIngest,
-    },
-    tool_context: args.tool_context,
-  });
-  if (!ingest.ok) {
+  for (const entry of planResult.plan.entries) {
+    const promptDigest = `sha256:${sha256HexLowerUtf8(entry.prompt_md)}`;
+    const outputPath = path.join(args.runRoot, entry.output_md);
+    const metaPath = path.join(path.dirname(outputPath), `${entry.perspective_id}.meta.json`);
+    const promptPath = path.join(args.runRoot, "operator", "prompts", "wave2", `${entry.perspective_id}.md`);
+
+    if (args.driver === "task") {
+      try {
+        await fs.mkdir(path.dirname(promptPath), { recursive: true });
+        const promptOut = entry.prompt_md.trim().length === 0
+          ? `${buildWave2PromptMd({ queryText, gap: { gap_id: entry.gap_id, priority: entry.priority, text: entry.text, from_perspective_id: entry.source_perspective_id } })}\n`
+          : (entry.prompt_md.endsWith("\n") ? entry.prompt_md : `${entry.prompt_md}\n`);
+        await fs.writeFile(promptPath, promptOut, "utf8");
+      } catch (e) {
+        return {
+          ok: false,
+          code: "WRITE_FAILED",
+          message: "failed to write wave2 prompt",
+          details: { prompt_path: promptPath, message: String(e) },
+        };
+      }
+    }
+
+    const outputExists = await exists(outputPath);
+    const digestMatches = outputExists && await sidecarPromptDigestMatches(metaPath, promptDigest);
+    if (digestMatches) continue;
+
+    missing.push({
+      perspective_id: entry.perspective_id,
+      prompt_path: promptPath,
+      output_path: outputPath,
+      meta_path: metaPath,
+      prompt_digest: promptDigest,
+    });
+  }
+
+  if (missing.length > 0) {
+    const code = args.driver === "task" ? "RUN_AGENT_REQUIRED" : "MISSING_ARTIFACT";
+    const message = args.driver === "task"
+      ? "Wave 2 requires external agent results via agent-result"
+      : "Wave 2 artifacts missing";
     return {
       ok: false,
-      code: ingest.code,
-      message: ingest.message,
-      details: ingest.details,
+      code,
+      message,
+      details: {
+        stage: "wave2",
+        missing_count: missing.length,
+        missing_perspectives: missing,
+      },
     };
   }
 
@@ -1074,9 +1106,9 @@ async function executeWave2Stage(args: {
           markdown_path: markdownResolved.absPath,
         },
       };
-    }
+  }
 
-    if (args.markProgress) {
+  if (args.markProgress) {
       const progress = await args.markProgress(`wave2_output_ingested:${entry.perspective_id}`);
       if (!progress.ok) {
         return {
@@ -1179,6 +1211,7 @@ export async function orchestrator_tick_post_pivot(
   const manifestPath = args.manifest_path.trim();
   const gatesPath = args.gates_path.trim();
   const reason = args.reason.trim();
+  const driver = args.driver ?? "fixture";
 
   if (!manifestPath || !path.isAbsolute(manifestPath)) {
     return fail("INVALID_ARGS", "manifest_path must be absolute", {
@@ -1591,6 +1624,7 @@ export async function orchestrator_tick_post_pivot(
       runId,
       runRoot,
       runRootReal,
+      driver,
       manifest,
       perspectivesPath,
       wave2DirPath,

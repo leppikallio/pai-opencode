@@ -13,7 +13,7 @@ const citations_validate = ((deepResearch as any).citations_validate ??
 describe("deep_research_citations_validate (entity)", () => {
   const fixture = (...parts: string[]) => fixturePath("citations", "phase04", ...parts);
 
-  test("resolver precedence uses manifest -> run-config -> env", async () => {
+  test("resolver precedence uses manifest -> run-config -> unset (no env)", async () => {
     const manifestWithExplicit = {
       query: {
         sensitivity: "normal",
@@ -38,15 +38,9 @@ describe("deep_research_citations_validate (entity)", () => {
       },
     } as Record<string, unknown>;
 
-    const env = {
-      PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT: "https://env.example/bright",
-      PAI_DR_CITATIONS_APIFY_ENDPOINT: "https://env.example/apify",
-    };
-
     const resolvedManifestFirst = resolveCitationsConfig({
       manifest: manifestWithExplicit,
       runConfig,
-      env,
     });
     expect(resolvedManifestFirst.brightDataEndpoint).toBe("https://manifest.example/bright");
     expect(resolvedManifestFirst.apifyEndpoint).toBe("https://manifest.example/apify");
@@ -66,7 +60,6 @@ describe("deep_research_citations_validate (entity)", () => {
     const resolvedRunConfigSecond = resolveCitationsConfig({
       manifest: manifestWithoutEndpoint,
       runConfig,
-      env,
     });
     expect(resolvedRunConfigSecond.mode).toBe("dry_run");
     expect(resolvedRunConfigSecond.onlineDryRun).toBe(true);
@@ -78,25 +71,24 @@ describe("deep_research_citations_validate (entity)", () => {
     const resolvedEnvFallback = resolveCitationsConfig({
       manifest: manifestWithoutEndpoint,
       runConfig: null,
-      env,
       onlineDryRunArg: false,
     });
-    expect(resolvedEnvFallback.brightDataEndpoint).toBe("https://env.example/bright");
-    expect(resolvedEnvFallback.apifyEndpoint).toBe("https://env.example/apify");
-    expect(resolvedEnvFallback.endpointSources.brightData).toBe("env");
-    expect(resolvedEnvFallback.endpointSources.apify).toBe("env");
+    expect(resolvedEnvFallback.brightDataEndpoint).toBe("");
+    expect(resolvedEnvFallback.apifyEndpoint).toBe("");
+    expect(resolvedEnvFallback.endpointSources.brightData).toBe("unset");
+    expect(resolvedEnvFallback.endpointSources.apify).toBe("unset");
     expect(resolvedEnvFallback.onlineDryRun).toBe(false);
     expect(resolvedEnvFallback.onlineDryRunSource).toBe("arg.online_dry_run");
   });
 
   const maybeTest = citations_validate ? test : test.skip;
 
-  maybeTest("runs in OFFLINE fixture mode when PAI_DR_NO_WEB=1", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+  maybeTest("runs in OFFLINE fixture mode when sensitivity=no_web", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p04_validate_001";
         const initRaw = (await (run_init as any).execute(
-          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          { query: "Q", mode: "standard", sensitivity: "no_web", run_id: runId, root_override: base },
           makeToolContext(),
         )) as string;
         const init = parseToolJson(initRaw);
@@ -141,11 +133,11 @@ describe("deep_research_citations_validate (entity)", () => {
   });
 
   maybeTest("requires offline_fixtures_path in OFFLINE mode", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p04_validate_002";
         const initRaw = (await (run_init as any).execute(
-          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          { query: "Q", mode: "standard", sensitivity: "no_web", run_id: runId, root_override: base },
           makeToolContext(),
         )) as string;
         const init = parseToolJson(initRaw);

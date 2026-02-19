@@ -10,7 +10,6 @@ describe("deep_research_wave1_plan (entity)", () => {
     await withEnv(
       {
         PAI_DR_OPTION_C_ENABLED: "1",
-        PAI_DR_MAX_WAVE1_AGENTS: "3",
       },
       async () => {
         await withTempDir(async (base) => {
@@ -92,7 +91,6 @@ describe("deep_research_wave1_plan (entity)", () => {
     await withEnv(
       {
         PAI_DR_OPTION_C_ENABLED: "1",
-        PAI_DR_MAX_WAVE1_AGENTS: "2",
       },
       async () => {
         await withTempDir(async (base) => {
@@ -106,6 +104,13 @@ describe("deep_research_wave1_plan (entity)", () => {
 
           const manifestPath = (init as any).manifest_path as string;
           const runRoot = path.dirname(manifestPath);
+
+          const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+          manifest.limits = {
+            ...(manifest.limits ?? {}),
+            max_wave1_agents: 1,
+          };
+          await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 
           const p = fixturePath("runs", "p03-wave1-plan-min", "perspectives.json");
           const content = await fs.readFile(p, "utf8");
@@ -124,7 +129,7 @@ describe("deep_research_wave1_plan (entity)", () => {
 
           expect(out.ok).toBe(false);
           expect((out as any).error.code).toBe("WAVE_CAP_EXCEEDED");
-          expect((out as any).error.details.cap).toBe(2);
+          expect((out as any).error.details.cap).toBe(1);
           expect((out as any).error.details.count).toBe(3);
         });
       },

@@ -1,12 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { createHash } from "node:crypto";
 
-import {
-  fixturePath,
-  withTempDir,
-} from "../helpers/dr-harness";
+import { withTempDir } from "../helpers/dr-harness";
 
 const repoRoot = path.basename(process.cwd()) === ".opencode"
   ? path.resolve(process.cwd(), "..")
@@ -34,37 +30,61 @@ function extractField(stdout: string, field: string): string {
   return match[1].trim();
 }
 
-function sha256Hex(value: string): string {
-  return createHash("sha256").update(value, "utf8").digest("hex");
-}
-
-describe("deep_research operator CLI task driver (entity)", () => {
-  test("tick --driver task prompt-outs and agent-result ingests canonical wave outputs", async () => {
+describe("deep_research operator CLI wave2 task driver (entity)", () => {
+  test("tick --driver task prompt-outs wave2 gaps and agent-result ingests wave2 outputs", async () => {
     await withTempDir(async (base) => {
-      const runId = "dr_test_cli_task_driver_001";
+      const runId = "dr_test_cli_wave2_task_driver_001";
       const initRes = await runCli(["init", "Q", "--run-id", runId, "--runs-root", base]);
       expect(initRes.exit).toBe(0);
 
       const manifestPath = extractField(initRes.stdout, "manifest_path");
       const runRoot = extractField(initRes.stdout, "run_root");
 
-      await fs.stat(path.join(runRoot, "operator", "scope.json"));
-      await fs.stat(path.join(runRoot, "perspectives.json"));
-      await fs.stat(path.join(runRoot, "wave-1", "wave1-plan.json"));
+      // Seed pivot decision + force stage to wave2 (test isolation; no wave1 required here).
+      const pivotPath = path.join(runRoot, "pivot.json");
+      await fs.writeFile(
+        pivotPath,
+        `${JSON.stringify(
+          {
+            schema_version: "pivot.v1",
+            run_id: runId,
+            created_at: new Date().toISOString(),
+            decision: {
+              wave2_required: true,
+              wave2_gap_ids: ["gap_alpha"],
+            },
+            gaps: [
+              {
+                gap_id: "gap_alpha",
+                priority: "P1",
+                text: "Need one follow-up source for the main claim.",
+                from_perspective_id: "p1",
+              },
+            ],
+          },
+          null,
+          2,
+        )}\n`,
+        "utf8",
+      );
+
+      const manifestRaw = JSON.parse(await fs.readFile(manifestPath, "utf8")) as any;
+      manifestRaw.stage = { ...(manifestRaw.stage ?? {}), current: "wave2" };
+      await fs.writeFile(manifestPath, `${JSON.stringify(manifestRaw, null, 2)}\n`, "utf8");
 
       const tickRes = await runCli([
         "tick",
         "--manifest",
         manifestPath,
         "--reason",
-        "test task driver prompt-out",
+        "test wave2 task driver prompt-out",
         "--driver",
         "task",
       ]);
       expect(tickRes.exit).toBe(0);
       expect(`${tickRes.stdout}\n${tickRes.stderr}`).toContain("RUN_AGENT_REQUIRED");
 
-      const promptPath = path.join(runRoot, "operator", "prompts", "wave1", "p1.md");
+      const promptPath = path.join(runRoot, "operator", "prompts", "wave2", "gap_alpha.md");
       await fs.stat(promptPath);
 
       const haltLatestPath = path.join(runRoot, "operator", "halt", "latest.json");
@@ -73,42 +93,44 @@ describe("deep_research operator CLI task driver (entity)", () => {
       expect(String(haltLatest.schema_version ?? "")).toBe("halt.v1");
       expect(String(haltError.code ?? "")).toBe("RUN_AGENT_REQUIRED");
       const nextCommands = Array.isArray(haltLatest.next_commands) ? haltLatest.next_commands : [];
-      expect(nextCommands.some((item) => String(item).includes("agent-result") && String(item).includes("--perspective \"p1\""))).toBe(true);
+      expect(nextCommands.some((item) => String(item).includes("agent-result") && String(item).includes("--stage wave2") && String(item).includes("--perspective \"gap_alpha\""))).toBe(true);
 
-      const inputMarkdownPath = fixturePath("wave-output", "valid.md");
+      const inputMarkdownPath = path.join(repoRoot, ".opencode", "tests", "fixtures", "wave-output", "valid-no-example.md");
       const agentRes = await runCli([
         "agent-result",
         "--manifest",
         manifestPath,
         "--stage",
-        "wave1",
+        "wave2",
         "--perspective",
-        "p1",
+        "gap_alpha",
         "--input",
         inputMarkdownPath,
         "--agent-run-id",
-        "agent-run-p1-001",
+        "agent-run-gap-alpha-001",
         "--reason",
-        "test ingest p1",
+        "test ingest wave2 gap_alpha",
       ]);
       expect(agentRes.exit).toBe(0);
 
-      const outputPath = path.join(runRoot, "wave-1", "p1.md");
+      const outputPath = path.join(runRoot, "wave-2", "gap_alpha.md");
       const outputMarkdown = await fs.readFile(outputPath, "utf8");
       expect(outputMarkdown).toContain("## Findings");
+      expect(outputMarkdown).toContain("## Sources");
 
-      const planPath = path.join(runRoot, "wave-1", "wave1-plan.json");
-      const plan = JSON.parse(await fs.readFile(planPath, "utf8")) as { entries?: Array<Record<string, unknown>> };
-      const planEntry = (plan.entries ?? []).find((entry) => String(entry.perspective_id ?? "") === "p1");
-      expect(planEntry).toBeDefined();
-      const expectedPromptDigest = `sha256:${sha256Hex(String(planEntry?.prompt_md ?? ""))}`;
+      const tickResume = await runCli([
+        "tick",
+        "--manifest",
+        manifestPath,
+        "--reason",
+        "resume wave2 after agent-result",
+        "--driver",
+        "task",
+      ]);
+      expect(tickResume.exit).toBe(0);
 
-      const metaPath = path.join(runRoot, "wave-1", "p1.meta.json");
-      const meta = JSON.parse(await fs.readFile(metaPath, "utf8")) as Record<string, unknown>;
-      expect(String(meta.schema_version ?? "")).toBe("wave-output-meta.v1");
-      expect(String(meta.prompt_digest ?? "")).toBe(expectedPromptDigest);
-      expect(String(meta.agent_run_id ?? "")).toBe("agent-run-p1-001");
-      expect(String(meta.source_input_path ?? "")).toBe(inputMarkdownPath);
+      const manifestAfter = JSON.parse(await fs.readFile(manifestPath, "utf8")) as any;
+      expect(String(manifestAfter.stage?.current ?? "")).toBe("citations");
     });
   });
 });

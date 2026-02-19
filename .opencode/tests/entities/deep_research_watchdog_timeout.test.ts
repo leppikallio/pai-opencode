@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 import { run_init, watchdog_check } from "../../tools/deep_research.ts";
-import { fixturePath, makeToolContext, parseToolJson, withEnv } from "../helpers/dr-harness";
+import { fixturePath, makeToolContext, parseToolJson } from "../helpers/dr-harness";
 
 type TimeoutFixture = {
   run_id: string;
@@ -36,72 +36,70 @@ async function withDeterministicTempDir<T>(name: string, fn: (dir: string) => Pr
 
 describe("deep_research_watchdog_timeout (entity)", () => {
   test("simulates timeout fixture and writes manifest failure + checkpoint", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
-      const fixture = JSON.parse(
-        await fs.readFile(fixturePath("runs", "p06-watchdog-timeout", "timeout-event.json"), "utf8"),
-      ) as TimeoutFixture;
+    const fixture = JSON.parse(
+      await fs.readFile(fixturePath("runs", "p06-watchdog-timeout", "timeout-event.json"), "utf8"),
+    ) as TimeoutFixture;
 
-      await withDeterministicTempDir("watchdog-timeout", async (base) => {
-        const initRaw = (await (run_init as any).execute(
-          {
-            query: fixture.query,
-            mode: fixture.mode,
-            sensitivity: fixture.sensitivity,
-            run_id: fixture.run_id,
-            root_override: base,
-          },
-          makeToolContext(),
-        )) as string;
-        const init = parseToolJson(initRaw);
-        expect(init.ok).toBe(true);
+    await withDeterministicTempDir("watchdog-timeout", async (base) => {
+      const initRaw = (await (run_init as any).execute(
+        {
+          query: fixture.query,
+          mode: fixture.mode,
+          sensitivity: fixture.sensitivity,
+          run_id: fixture.run_id,
+          root_override: base,
+        },
+        makeToolContext(),
+      )) as string;
+      const init = parseToolJson(initRaw);
+      expect(init.ok).toBe(true);
 
-        const manifestPath = String((init as any).manifest_path ?? "");
-        expect(manifestPath.length).toBeGreaterThan(0);
+      const manifestPath = String((init as any).manifest_path ?? "");
+      expect(manifestPath.length).toBeGreaterThan(0);
 
-        const seededManifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as Record<string, unknown>;
-        const stage = (seededManifest.stage ?? {}) as Record<string, unknown>;
-        stage.current = fixture.stage;
-        stage.started_at = fixture.started_at;
-        stage.last_progress_at = fixture.started_at;
-        seededManifest.stage = stage;
-        await fs.writeFile(manifestPath, JSON.stringify(seededManifest, null, 2) + "\n", "utf8");
+      const seededManifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as Record<string, unknown>;
+      const stage = (seededManifest.stage ?? {}) as Record<string, unknown>;
+      stage.current = fixture.stage;
+      stage.started_at = fixture.started_at;
+      stage.last_progress_at = fixture.started_at;
+      seededManifest.stage = stage;
+      await fs.writeFile(manifestPath, JSON.stringify(seededManifest, null, 2) + "\n", "utf8");
 
-        const timeoutRaw = (await (watchdog_check as any).execute(
-          {
-            manifest_path: manifestPath,
-            stage: fixture.stage,
-            now_iso: fixture.now_iso,
-            reason: fixture.reason,
-          },
-          makeToolContext(),
-        )) as string;
-        const timeoutOut = parseToolJson(timeoutRaw);
+      const timeoutRaw = (await (watchdog_check as any).execute(
+        {
+          manifest_path: manifestPath,
+          stage: fixture.stage,
+          now_iso: fixture.now_iso,
+          reason: fixture.reason,
+        },
+        makeToolContext(),
+      )) as string;
+      const timeoutOut = parseToolJson(timeoutRaw);
 
-        expect(timeoutOut.ok).toBe(true);
-        expect((timeoutOut as any).timed_out).toBe(true);
-        expect((timeoutOut as any).stage).toBe(fixture.stage);
-        expect((timeoutOut as any).elapsed_s).toBe(fixture.expected.elapsed_s);
-        expect((timeoutOut as any).timeout_s).toBe(fixture.expected.timeout_s);
+      expect(timeoutOut.ok).toBe(true);
+      expect((timeoutOut as any).timed_out).toBe(true);
+      expect((timeoutOut as any).stage).toBe(fixture.stage);
+      expect((timeoutOut as any).elapsed_s).toBe(fixture.expected.elapsed_s);
+      expect((timeoutOut as any).timeout_s).toBe(fixture.expected.timeout_s);
 
-        const timeoutCheckpointPath = String((timeoutOut as any).checkpoint_path ?? "");
-        expect(path.basename(timeoutCheckpointPath)).toBe("timeout-checkpoint.md");
-        const checkpointText = await fs.readFile(timeoutCheckpointPath, "utf8");
+      const timeoutCheckpointPath = String((timeoutOut as any).checkpoint_path ?? "");
+      expect(path.basename(timeoutCheckpointPath)).toBe("timeout-checkpoint.md");
+      const checkpointText = await fs.readFile(timeoutCheckpointPath, "utf8");
 
-        for (const requiredField of fixture.expected.checkpoint_required_fields) {
-          expect(checkpointText).toContain(requiredField);
-        }
+      for (const requiredField of fixture.expected.checkpoint_required_fields) {
+        expect(checkpointText).toContain(requiredField);
+      }
 
-        const manifestAfter = JSON.parse(await fs.readFile(manifestPath, "utf8")) as Record<string, unknown>;
-        expect(String(manifestAfter.status)).toBe("failed");
+      const manifestAfter = JSON.parse(await fs.readFile(manifestPath, "utf8")) as Record<string, unknown>;
+      expect(String(manifestAfter.status)).toBe("failed");
 
-        const failures = Array.isArray(manifestAfter.failures) ? manifestAfter.failures : [];
-        expect(failures.length).toBeGreaterThan(0);
+      const failures = Array.isArray(manifestAfter.failures) ? manifestAfter.failures : [];
+      expect(failures.length).toBeGreaterThan(0);
 
-        const latestFailure = failures[failures.length - 1] as Record<string, unknown>;
-        expect(String(latestFailure.kind)).toBe("timeout");
-        expect(String(latestFailure.stage)).toBe(fixture.stage);
-        expect(String(latestFailure.message)).toContain(fixture.expected.message_includes);
-      });
+      const latestFailure = failures[failures.length - 1] as Record<string, unknown>;
+      expect(String(latestFailure.kind)).toBe("timeout");
+      expect(String(latestFailure.stage)).toBe(fixture.stage);
+      expect(String(latestFailure.message)).toContain(fixture.expected.message_includes);
     });
   });
 });

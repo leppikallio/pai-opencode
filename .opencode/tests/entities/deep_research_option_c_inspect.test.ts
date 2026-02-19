@@ -14,7 +14,7 @@ describe("deep-research-option-c inspect (entity)", () => {
       cmd: ["bun", cliPath, "capture-fixtures", "--help"],
       stdout: "pipe",
       stderr: "pipe",
-      env: { ...process.env, PAI_DR_OPTION_C_ENABLED: "1" },
+      env: { ...process.env },
     });
 
     const stdout = await new Response(proc.stdout).text();
@@ -35,6 +35,8 @@ describe("deep-research-option-c inspect (entity)", () => {
           cliPath,
           "init",
           "Q",
+          "--runs-root",
+          runsRoot,
           "--run-id",
           runId,
           "--mode",
@@ -45,13 +47,7 @@ describe("deep-research-option-c inspect (entity)", () => {
         ],
         stdout: "pipe",
         stderr: "pipe",
-        env: {
-          ...process.env,
-          PAI_DR_OPTION_C_ENABLED: "1",
-          PAI_DR_RUNS_ROOT: runsRoot,
-          PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT: "https://brightdata.example.invalid/citations",
-          PAI_DR_CITATIONS_APIFY_ENDPOINT: "https://apify.example.invalid/citations",
-        },
+        env: { ...process.env },
       });
 
       const stderr = await new Response(proc.stderr).text();
@@ -63,8 +59,8 @@ describe("deep-research-option-c inspect (entity)", () => {
       const runConfig = JSON.parse(await fs.readFile(runConfigPath, "utf8"));
 
       expect(runConfig.effective.citations.mode).toBe("dry_run");
-      expect(runConfig.effective.citations.endpoints.brightdata).toBe("https://brightdata.example.invalid/citations");
-      expect(runConfig.effective.citations.endpoints.apify).toBe("https://apify.example.invalid/citations");
+      expect(runConfig.effective.citations.endpoints.brightdata).toBe("");
+      expect(runConfig.effective.citations.endpoints.apify).toBe("");
       expect(runConfig.effective.citations.source.mode).toBe("manifest");
       expect(runConfig.effective.citations.source.authority).toBe("run-config");
     });
@@ -104,7 +100,7 @@ describe("deep-research-option-c inspect (entity)", () => {
           cmd: ["bun", cliPath, "inspect", "--manifest", manifestPath],
           stdout: "pipe",
           stderr: "pipe",
-          env: { ...process.env, PAI_DR_OPTION_C_ENABLED: "1" },
+          env: { ...process.env },
         });
 
         const stdout = await new Response(proc.stdout).text();

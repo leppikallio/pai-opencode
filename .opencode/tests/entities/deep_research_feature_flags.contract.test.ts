@@ -7,9 +7,9 @@ import * as path from "node:path";
 import { run_init } from "../../tools/deep_research.ts";
 import { resolveDeepResearchFlagsV1 as resolveFlagsFromSpecReader } from "../../tools/deep_research/flags_v1";
 import { resolveDeepResearchFlagsV1 as resolveFlagsFromLifecycle } from "../../tools/deep_research/lifecycle_lib";
-import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
+import { makeToolContext, parseToolJson, withTempDir } from "../helpers/dr-harness";
 
-const FLAG_ENV_KEYS = [
+const FLAG_SETTINGS_KEYS = [
   "PAI_DR_OPTION_C_ENABLED",
   "PAI_DR_MODE_DEFAULT",
   "PAI_DR_MAX_WAVE1_AGENTS",
@@ -24,42 +24,58 @@ const FLAG_ENV_KEYS = [
   "PAI_DR_RUNS_ROOT",
 ] as const;
 
-function deterministicFlagEnv(overrides: Record<string, string | undefined> = {}): Record<string, string | undefined> {
+function opencodeRootFromCwd(): string {
+  return path.basename(process.cwd()) === ".opencode"
+    ? process.cwd()
+    : path.resolve(process.cwd(), ".opencode");
+}
+
+const SETTINGS_PATH = path.join(opencodeRootFromCwd(), "settings.json");
+
+function deterministicFlagSettings(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    PAI_DR_OPTION_C_ENABLED: "1",
+    PAI_DR_OPTION_C_ENABLED: true,
     PAI_DR_MODE_DEFAULT: "standard",
-    PAI_DR_MAX_WAVE1_AGENTS: "6",
-    PAI_DR_MAX_WAVE2_AGENTS: "6",
-    PAI_DR_MAX_SUMMARY_KB: "5",
-    PAI_DR_MAX_TOTAL_SUMMARY_KB: "60",
-    PAI_DR_MAX_REVIEW_ITERATIONS: "4",
+    PAI_DR_MAX_WAVE1_AGENTS: 6,
+    PAI_DR_MAX_WAVE2_AGENTS: 6,
+    PAI_DR_MAX_SUMMARY_KB: 5,
+    PAI_DR_MAX_TOTAL_SUMMARY_KB: 60,
+    PAI_DR_MAX_REVIEW_ITERATIONS: 4,
     PAI_DR_CITATION_VALIDATION_TIER: "standard",
-    PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT: "https://brightdata.example.invalid/citations",
-    PAI_DR_CITATIONS_APIFY_ENDPOINT: "https://apify.example.invalid/citations",
-    PAI_DR_NO_WEB: "0",
+    PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT: "",
+    PAI_DR_CITATIONS_APIFY_ENDPOINT: "",
+    PAI_DR_NO_WEB: false,
     PAI_DR_RUNS_ROOT: path.join(os.tmpdir(), "dr-feature-flags-contract-runs"),
     ...overrides,
   };
 }
 
-async function withDeterministicFlagsEnv<T>(
-  overrides: Record<string, string | undefined>,
+async function withDeterministicFlagsSettings<T>(
+  overrides: Record<string, unknown>,
   fn: () => Promise<T>,
 ): Promise<T> {
-  const updates: Record<string, string | undefined> = deterministicFlagEnv(overrides);
+  const originalRaw = await fs.readFile(SETTINGS_PATH, "utf8");
+  const original = JSON.parse(originalRaw) as Record<string, unknown>;
+  const next = { ...original } as Record<string, unknown>;
 
-  // Explicitly set every known env input so tests stay deterministic
-  // even when parent shell has extra Option C env values.
-  for (const key of FLAG_ENV_KEYS) {
-    if (!(key in updates)) updates[key] = undefined;
+  const deepResearch = typeof next.deepResearch === "object" && next.deepResearch && !Array.isArray(next.deepResearch)
+    ? { ...(next.deepResearch as Record<string, unknown>) }
+    : {};
+
+  deepResearch.flags = deterministicFlagSettings(overrides);
+  next.deepResearch = deepResearch;
+
+  await fs.writeFile(SETTINGS_PATH, `${JSON.stringify(next, null, 2)}\n`, "utf8");
+  try {
+    return await fn();
+  } finally {
+    await fs.writeFile(SETTINGS_PATH, originalRaw, "utf8");
   }
-
-  return withEnv(updates, fn);
 }
 
 describe("deep_research_feature_flags contract (entity)", () => {
   test("spec surface is deterministic and identical across both flag readers", async () => {
-    await withDeterministicFlagsEnv({}, async () => {
+    await withDeterministicFlagsSettings({}, async () => {
       const specReader = resolveFlagsFromSpecReader();
       const lifecycleReader = resolveFlagsFromLifecycle();
 
@@ -81,33 +97,26 @@ describe("deep_research_feature_flags contract (entity)", () => {
         "standard",
         "Flag invariant broke: PAI_DR_CITATION_VALIDATION_TIER should resolve to standard",
       );
-      assert.equal(
-        specReader.citationsBrightDataEndpoint,
-        "https://brightdata.example.invalid/citations",
-        "Flag invariant broke: PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT should resolve deterministically",
-      );
-      assert.equal(
-        specReader.citationsApifyEndpoint,
-        "https://apify.example.invalid/citations",
-        "Flag invariant broke: PAI_DR_CITATIONS_APIFY_ENDPOINT should resolve deterministically",
-      );
-      assert.equal(specReader.noWeb, false, "Flag invariant broke: PAI_DR_NO_WEB should resolve false when set to 0");
+      assert.equal(specReader.citationsBrightDataEndpoint, null);
+      assert.equal(specReader.citationsApifyEndpoint, null);
+      assert.equal(specReader.noWeb, false, "Flag invariant broke: PAI_DR_NO_WEB should resolve false when configured false");
       assert.deepEqual(
-        specReader.source.env,
-        [...FLAG_ENV_KEYS],
-        "Flag invariant broke: source.env should list all explicit env keys in canonical order",
+        specReader.source.settings,
+        [...FLAG_SETTINGS_KEYS],
+        "Flag invariant broke: source.settings should list all explicit settings keys in canonical order",
       );
+      assert.deepEqual(specReader.source.env, [], "Flag invariant broke: source.env must remain empty when env reads are disabled");
     });
   });
 
   test("safety clamps prevent runaway canary fan-out and invalid bounds", async () => {
-    await withDeterministicFlagsEnv(
+    await withDeterministicFlagsSettings(
       {
-        PAI_DR_MAX_WAVE1_AGENTS: "0",
-        PAI_DR_MAX_WAVE2_AGENTS: "999",
-        PAI_DR_MAX_SUMMARY_KB: "0",
-        PAI_DR_MAX_TOTAL_SUMMARY_KB: "999999",
-        PAI_DR_MAX_REVIEW_ITERATIONS: "-7",
+        PAI_DR_MAX_WAVE1_AGENTS: 0,
+        PAI_DR_MAX_WAVE2_AGENTS: 999,
+        PAI_DR_MAX_SUMMARY_KB: 0,
+        PAI_DR_MAX_TOTAL_SUMMARY_KB: 999999,
+        PAI_DR_MAX_REVIEW_ITERATIONS: -7,
       },
       async () => {
         const flags = resolveFlagsFromSpecReader();
@@ -129,37 +138,14 @@ describe("deep_research_feature_flags contract (entity)", () => {
     );
   });
 
-  test("master disable switch blocks Option C immediately", async () => {
-    await withDeterministicFlagsEnv(
-      {
-        PAI_DR_OPTION_C_ENABLED: "0",
-      },
-      async () => {
-        const outRaw = (await (run_init as any).execute(
-          {
-            query: "Q",
-            mode: "standard",
-            sensitivity: "normal",
-            run_id: "dr_test_flags_disabled_001",
-            root_override: "/tmp",
-          },
-          makeToolContext(),
-        )) as string;
-
-        const out = parseToolJson(outRaw);
-        assert.equal(out.ok, false, "Flag invariant broke: run_init must fail when master enable flag is off");
-        assert.equal((out as any).error.code, "DISABLED", "Flag invariant broke: disabled path must return DISABLED error code");
-      },
-    );
-  });
+  // Note: env-based global enable/disable is intentionally not part of the contract.
 
   test("offline-first safety: PAI_DR_NO_WEB forces no_web sensitivity and preserves canary caps in manifest", async () => {
-    await withDeterministicFlagsEnv(
+    await withDeterministicFlagsSettings(
       {
-        PAI_DR_OPTION_C_ENABLED: "1",
-        PAI_DR_NO_WEB: "1",
-        PAI_DR_MAX_WAVE1_AGENTS: "2",
-        PAI_DR_MAX_WAVE2_AGENTS: "2",
+        PAI_DR_NO_WEB: true,
+        PAI_DR_MAX_WAVE1_AGENTS: 2,
+        PAI_DR_MAX_WAVE2_AGENTS: 2,
       },
       async () => {
         await withTempDir(async (base) => {
@@ -176,7 +162,7 @@ describe("deep_research_feature_flags contract (entity)", () => {
           )) as string;
           const out = parseToolJson(outRaw);
 
-          assert.equal(out.ok, true, "Flag invariant broke: run_init should succeed when Option C is enabled");
+          assert.equal(out.ok, true, "Flag invariant broke: run_init should succeed by default");
 
           const manifestPath = (out as any).manifest_path as string;
           const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));

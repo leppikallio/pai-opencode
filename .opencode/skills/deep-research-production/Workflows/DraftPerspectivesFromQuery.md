@@ -44,7 +44,7 @@ Minimum baseline:
 1. Initialize run and capture contract fields:
 
 ```bash
-bun "pai-tools/deep-research-option-c.ts" init "<query>" --mode standard --sensitivity normal
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" --mode standard --sensitivity normal
 ```
 
 2. Draft perspective entries in scratchpad, then write the final artifact to run root:
