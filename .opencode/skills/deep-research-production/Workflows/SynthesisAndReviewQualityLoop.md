@@ -4,7 +4,7 @@ This workflow is a **compatibility shim only**.
 
 Use the canonical workflow instead:
 
-- `.opencode/skills/deep-research/Workflows/SynthesisAndReviewQualityLoop.md`
+- `skills/deep-research/Workflows/SynthesisAndReviewQualityLoop.md`
 
 This file remains for installs that still reference:
 

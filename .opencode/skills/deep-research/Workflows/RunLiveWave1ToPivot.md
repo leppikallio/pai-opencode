@@ -19,7 +19,7 @@ bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" --mode standa
 
 Use the task-driver loop documented in:
 
-- `.opencode/skills/deep-research/Workflows/RunWave1WithTaskDriver.md`
+- `skills/deep-research/Workflows/RunWave1WithTaskDriver.md`
 
 Notes:
 - The CLI `--driver live` path is **operator-input/manual** by default.

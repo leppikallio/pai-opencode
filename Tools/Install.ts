@@ -71,6 +71,12 @@ const MANDATORY_SKILLS: string[] = [
   "first-principles",
 ];
 
+// Auto-include canonical skills when compatibility aliases are selected.
+const SKILL_DEPENDENCIES: Record<string, string[]> = {
+  "deep-research-option-c": ["deep-research"],
+  "deep-research-production": ["deep-research"],
+};
+
 type Options = {
   targetDir: string;
   sourceDir: string;
@@ -220,6 +226,32 @@ function normalizeSelectedSkills(args: { rawSkills: string[]; availableSkills: s
   return out;
 }
 
+function applySelectedSkillDependencies(args: { selectedSkills: string[]; availableSkills: string[] }): string[] {
+  const byLower = new Map(args.availableSkills.map((s) => [s.toLowerCase(), s]));
+  const out = [...args.selectedSkills];
+  const selectedLower = new Set(out.map((s) => s.toLowerCase()));
+
+  for (const [requiredByRaw, dependencySkillsRaw] of Object.entries(SKILL_DEPENDENCIES)) {
+    const requiredBy = byLower.get(requiredByRaw.toLowerCase());
+    if (!requiredBy || !selectedLower.has(requiredBy.toLowerCase())) continue;
+
+    for (const dependencyRaw of dependencySkillsRaw) {
+      const dependency = byLower.get(dependencyRaw.toLowerCase());
+      if (!dependency) {
+        console.log(`[warn] skill dependency missing in source: ${dependencyRaw} (required by ${requiredBy})`);
+        continue;
+      }
+
+      if (selectedLower.has(dependency.toLowerCase())) continue;
+      out.push(dependency);
+      selectedLower.add(dependency.toLowerCase());
+      console.log(`[write] skill dependency: auto-selected ${dependency} (required by ${requiredBy})`);
+    }
+  }
+
+  return out;
+}
+
 function resolveMandatorySkills(availableSkills: string[]): string[] {
   const byLower = new Map(availableSkills.map((s) => [s.toLowerCase(), s]));
   const resolved: string[] = [];
@@ -359,6 +391,7 @@ async function resolveSkillSelectionPlan(args: {
   for (const mandatory of mandatorySkills) {
     if (!selectedSkills.includes(mandatory)) selectedSkills.push(mandatory);
   }
+  selectedSkills = applySelectedSkillDependencies({ selectedSkills, availableSkills });
 
   const canPrompt = !args.nonInteractive && process.stdin.isTTY && process.stdout.isTTY;
   if (canPrompt) {
@@ -376,6 +409,7 @@ async function resolveSkillSelectionPlan(args: {
   for (const mandatory of mandatorySkills) {
     if (!selectedSkills.includes(mandatory)) selectedSkills.push(mandatory);
   }
+  selectedSkills = applySelectedSkillDependencies({ selectedSkills, availableSkills });
   selectedSkills.sort((a, b) => a.localeCompare(b));
 
   console.log(

@@ -52,7 +52,7 @@ bun ".opencode/pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_a
 
 ## Retry directive interpretation
 
-- Retry directives are stored in `retry/retry-directives.json` under the run root.
+- Retry directives are stored in the run-root `retry-directives.json` artifact.
 - `RETRY_REQUIRED` means Wave 1 must rerun affected perspectives before pivot.
 - `RETRY_CAP_EXHAUSTED` means escalation is required; do not force pivot.
 
@@ -61,5 +61,5 @@ bun ".opencode/pai-tools/deep-research-option-c.ts" tick --manifest "<manifest_a
 - [ ] `tick --driver task` writes `operator/prompts/wave1/<id>.md` and halts with `RUN_AGENT_REQUIRED`.
 - [ ] `operator/halt/latest.json.error.code == RUN_AGENT_REQUIRED` and `next_commands[]` has one `agent-result` skeleton per missing perspective.
 - [ ] `agent-result` writes `wave-1/<id>.md` and `wave-1/<id>.meta.json`.
-- [ ] `wave-1/<id>.meta.json.prompt_digest` matches sha256 digest derived from `wave-1/wave1-plan.json` prompt_md.
+- [ ] `wave-1/<id>.meta.json.prompt_digest` matches sha256 digest derived from the run-root Wave 1 plan artifact prompt_md.
 - [ ] Subsequent `tick --driver task` can continue deterministic Wave 1 progression toward `pivot`.

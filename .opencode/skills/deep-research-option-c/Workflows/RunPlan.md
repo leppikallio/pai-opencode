@@ -4,7 +4,7 @@ This workflow is a **compatibility shim only**.
 
 Use the canonical workflow instead:
 
-- `.opencode/skills/deep-research/Workflows/RunPlan.md`
+- `skills/deep-research/Workflows/RunPlan.md`
 
 This file remains for installs that still reference:
 
