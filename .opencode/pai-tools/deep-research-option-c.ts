@@ -7,10 +7,7 @@ import { createInterface } from "node:readline/promises";
 
 import type { Type } from "cmd-ts";
 import {
-  command,
-  option,
   runSafely,
-  string,
   subcommands,
 } from "cmd-ts";
 
@@ -49,6 +46,7 @@ import { createInitCmd } from "./deep-research-option-c/cmd/init";
 import { createInspectCmd } from "./deep-research-option-c/cmd/inspect";
 import { createPauseCmd } from "./deep-research-option-c/cmd/pause";
 import { createResumeCmd } from "./deep-research-option-c/cmd/resume";
+import { createRerunCmd } from "./deep-research-option-c/cmd/rerun";
 import { createRunCmd } from "./deep-research-option-c/cmd/run";
 import { createStatusCmd } from "./deep-research-option-c/cmd/status";
 import { createTickCmd } from "./deep-research-option-c/cmd/tick";
@@ -3346,29 +3344,7 @@ const cancelCmd = createCancelCmd({ AbsolutePath, runCancel });
 
 const captureFixturesCmd = createCaptureFixturesCmd({ AbsolutePath, runCaptureFixtures });
 
-const rerunWave1Cmd = command({
-  name: "wave1",
-  description: "Write/overwrite wave1 retry directives for one perspective",
-  args: {
-    manifest: option({ long: "manifest", type: AbsolutePath }),
-    perspective: option({ long: "perspective", type: string }),
-    reason: option({ long: "reason", type: string }),
-  },
-  handler: async (args) => {
-    await runRerunWave1({
-      manifest: args.manifest,
-      perspective: args.perspective,
-      reason: args.reason,
-    });
-  },
-});
-
-const rerunCmd = subcommands({
-  name: "rerun",
-  cmds: {
-    wave1: rerunWave1Cmd,
-  },
-});
+const rerunCmd = createRerunCmd({ AbsolutePath, runRerunWave1 });
 
 const app = subcommands({
   name: "deep-research-option-c",
