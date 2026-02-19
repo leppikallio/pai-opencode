@@ -73,6 +73,7 @@ describe("deep_research operator CLI task driver (entity)", () => {
       expect(String(haltLatest.schema_version ?? "")).toBe("halt.v1");
       expect(String(haltError.code ?? "")).toBe("RUN_AGENT_REQUIRED");
       const nextCommands = Array.isArray(haltLatest.next_commands) ? haltLatest.next_commands : [];
+      expect(nextCommands.some((item) => String(item).startsWith('bun "pai-tools/deep-research-option-c.ts"'))).toBe(true);
       expect(nextCommands.some((item) => String(item).includes("agent-result") && String(item).includes("--perspective \"p1\""))).toBe(true);
 
       const inputMarkdownPath = fixturePath("wave-output", "valid.md");
