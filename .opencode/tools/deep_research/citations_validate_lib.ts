@@ -751,6 +751,9 @@ export async function readFoundByLookup(foundByPath: string): Promise<Map<string
       agent_type: "unknown",
       artifact_path: perspectiveId ? `${waveRaw || `wave-${wave}`}/${perspectiveId}.md` : `${waveRaw || `wave-${wave}`}/unknown.md`,
     };
+    if (isNonEmptyString(item.source_line)) {
+      entry.source_line = item.source_line.trim();
+    }
     const list = out.get(urlOriginal) ?? [];
     list.push(entry);
     out.set(urlOriginal, list);

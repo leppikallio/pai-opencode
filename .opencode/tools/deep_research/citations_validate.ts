@@ -57,6 +57,87 @@ function blockedUrlAction(notes: string): string {
   return "Investigate URL manually and add deterministic online fixture if needed.";
 }
 
+function nonEmptyString(value: unknown): string | null {
+  if (!isNonEmptyString(value)) return null;
+  return value.trim();
+}
+
+function formatBlockedUrlsQueueMarkdown(args: {
+  generatedAt: string;
+  items: Array<Record<string, unknown>>;
+}): string {
+  const items = [...args.items].sort((a, b) => {
+    const byNormalized = String(a.normalized_url ?? "").localeCompare(String(b.normalized_url ?? ""));
+    if (byNormalized !== 0) return byNormalized;
+    return String(a.url ?? "").localeCompare(String(b.url ?? ""));
+  });
+
+  const lines: string[] = [
+    "# Blocked URLs Queue",
+    `generated_at: ${args.generatedAt}`,
+    `blocked_count: ${items.length}`,
+    "",
+  ];
+
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i];
+    const url = nonEmptyString(item.url) ?? nonEmptyString(item.normalized_url) ?? "unknown";
+    const normalizedUrl = nonEmptyString(item.normalized_url);
+    const reason = nonEmptyString(item.notes) ?? "blocked";
+    const action = nonEmptyString(item.action)
+      ?? "Investigate URL manually and add deterministic online fixture if needed.";
+
+    lines.push(`## ${i + 1}. ${url}`);
+    if (normalizedUrl) lines.push(`- normalized_url: ${normalizedUrl}`);
+    lines.push(`- reason: ${reason}`);
+    lines.push(`- recommended_action: ${action}`);
+
+    const foundByRaw = Array.isArray(item.found_by) ? item.found_by : [];
+    const foundBy = foundByRaw
+      .filter((entry): entry is Record<string, unknown> => isPlainObject(entry))
+      .sort((a, b) => {
+        const byFile = String(a.artifact_path ?? "").localeCompare(String(b.artifact_path ?? ""));
+        if (byFile !== 0) return byFile;
+        const byPerspective = String(a.perspective_id ?? "").localeCompare(String(b.perspective_id ?? ""));
+        if (byPerspective !== 0) return byPerspective;
+        return String(a.source_line ?? "").localeCompare(String(b.source_line ?? ""));
+      });
+
+    if (foundBy.length > 0) {
+      lines.push("- found_by:");
+      for (const entry of foundBy) {
+        const file = nonEmptyString(entry.artifact_path);
+        const line = nonEmptyString(entry.source_line);
+        const perspective = nonEmptyString(entry.perspective_id);
+        const wave = typeof entry.wave === "number" && Number.isFinite(entry.wave)
+          ? String(Math.trunc(entry.wave))
+          : nonEmptyString(entry.wave);
+
+        if (file) {
+          lines.push(`  - file: ${file}`);
+          if (line) lines.push(`    line: ${line}`);
+          if (perspective) lines.push(`    perspective: ${perspective}`);
+          if (wave) lines.push(`    wave: ${wave}`);
+          continue;
+        }
+
+        if (line || perspective || wave) {
+          const parts = [
+            line ? `line: ${line}` : null,
+            perspective ? `perspective: ${perspective}` : null,
+            wave ? `wave: ${wave}` : null,
+          ].filter((part): part is string => part !== null);
+          if (parts.length > 0) lines.push(`  - ${parts.join(", ")}`);
+        }
+      }
+    }
+
+    lines.push("");
+  }
+
+  return `${lines.join("\n").trimEnd()}\n`;
+}
+
 export const citations_validate = tool({
   description: "Validate normalized URLs into citations.jsonl records",
   args: {
@@ -349,6 +430,7 @@ export const citations_validate = tool({
       let onlineFixturesOutputPath: string | null = null;
       let onlineFixturesLatestPath: string | null = null;
       let blockedUrlsPath: string | null = null;
+      let blockedUrlsQueuePath: string | null = null;
 
       if (validationMode === "online") {
         const generatedAt = nowIso();
@@ -356,9 +438,11 @@ export const citations_validate = tool({
         const onlineFixturesOutputPathAbs = path.join(runRoot, "citations", `online-fixtures.${tsToken}.json`);
         const onlineFixturesLatestPathAbs = path.join(runRoot, "citations", "online-fixtures.latest.json");
         const blockedUrlsPathAbs = path.join(runRoot, "citations", "blocked-urls.json");
+        const blockedUrlsQueuePathAbs = path.join(runRoot, "citations", "blocked-urls.queue.md");
         onlineFixturesOutputPath = onlineFixturesOutputPathAbs;
         onlineFixturesLatestPath = onlineFixturesLatestPathAbs;
         blockedUrlsPath = blockedUrlsPathAbs;
+        blockedUrlsQueuePath = blockedUrlsQueuePathAbs;
 
         onlineFixtureItems.sort((a, b) => {
           const byNormalized = String(a.normalized_url ?? "").localeCompare(String(b.normalized_url ?? ""));
@@ -404,10 +488,19 @@ export const citations_validate = tool({
             generated_at: generatedAt,
             items: blockedUrlsItems,
           });
+          if (blockedUrlsItems.length > 0) {
+            await atomicWriteText(
+              blockedUrlsQueuePathAbs,
+              formatBlockedUrlsQueueMarkdown({ generatedAt, items: blockedUrlsItems }),
+            );
+          } else {
+            blockedUrlsQueuePath = null;
+          }
         } catch (e) {
           return err("WRITE_FAILED", "cannot persist online citation artifacts", {
             online_fixtures_path: onlineFixturesOutputPath,
             blocked_urls_path: blockedUrlsPath,
+            blocked_urls_queue_path: blockedUrlsQueuePath,
             message: String(e),
           });
         }
@@ -442,6 +535,7 @@ export const citations_validate = tool({
             online_fixtures_path: onlineFixturesOutputPath,
             online_fixtures_latest_path: onlineFixturesLatestPath,
             blocked_urls_path: blockedUrlsPath,
+            blocked_urls_queue_path: blockedUrlsQueuePath,
             blocked_urls: validationMode === "online" ? blockedUrlsItems.length : 0,
           },
         });
@@ -470,6 +564,7 @@ export const citations_validate = tool({
         online_fixtures_latest_path: onlineFixturesLatestPath,
         online_fixtures_count: validationMode === "online" ? onlineFixtureItems.length : 0,
         blocked_urls_path: blockedUrlsPath,
+        blocked_urls_queue_path: blockedUrlsQueuePath,
         blocked_urls_count: validationMode === "online" ? blockedUrlsItems.length : 0,
       });
     } catch (e) {

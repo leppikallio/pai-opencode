@@ -140,6 +140,48 @@ async function exists(filePath: string): Promise<boolean> {
   }
 }
 
+async function resolveLatestOnlineFixturesPath(args: {
+  runRoot: string;
+  runRootReal: string;
+}): Promise<string | null> {
+  const latestPointerPath = path.join(args.runRoot, "citations", "online-fixtures.latest.json");
+  if (!(await exists(latestPointerPath))) {
+    return null;
+  }
+
+  let latestPointerRaw: unknown;
+  try {
+    latestPointerRaw = await readJson(latestPointerPath);
+  } catch {
+    return null;
+  }
+
+  if (!isPlainObject(latestPointerRaw)) {
+    return null;
+  }
+
+  const fixturePathRaw = nonEmptyString(latestPointerRaw.path);
+  if (!fixturePathRaw) {
+    return null;
+  }
+
+  const fixtureResolved = await resolveContainedPath({
+    runRoot: args.runRoot,
+    runRootReal: args.runRootReal,
+    input: fixturePathRaw,
+    field: "citations.online_fixtures_latest.path",
+  });
+  if (!fixtureResolved.ok) {
+    return null;
+  }
+
+  if (!(await exists(fixtureResolved.absPath))) {
+    return null;
+  }
+
+  return fixtureResolved.absPath;
+}
+
 async function resolveContainedPath(args: {
   runRoot: string;
   runRootReal: string;
@@ -1650,6 +1692,14 @@ export async function orchestrator_tick_post_pivot(
       return fail(fixturesResult.code, fixturesResult.message, fixturesResult.details);
     }
     citationsValidatePayload.offline_fixtures_path = offlineFixturesPath;
+  } else {
+    const latestOnlineFixturesPath = await resolveLatestOnlineFixturesPath({
+      runRoot,
+      runRootReal,
+    });
+    if (latestOnlineFixturesPath) {
+      citationsValidatePayload.online_fixtures_path = latestOnlineFixturesPath;
+    }
   }
 
   const validate = await executeToolJson({

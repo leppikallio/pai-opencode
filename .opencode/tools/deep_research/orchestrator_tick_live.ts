@@ -14,6 +14,7 @@ import {
   sha256HexLowerUtf8,
   validateManifestV1,
 } from "./lifecycle_lib";
+import { gate_a_evaluate } from "./gate_a_evaluate";
 import { gate_b_derive } from "./gate_b_derive";
 import { gates_write } from "./gates_write";
 import { retry_record } from "./retry_record";
@@ -51,6 +52,7 @@ export type OrchestratorLiveRunAgentResult = {
   agent_run_id?: string;
   started_at?: string;
   finished_at?: string;
+  model?: string;
   error?: {
     code: string;
     message: string;
@@ -72,6 +74,7 @@ export type OrchestratorTickLiveArgs = {
   wave_output_ingest_tool?: ToolWithExecute;
   wave_output_validate_tool?: ToolWithExecute;
   wave_review_tool?: ToolWithExecute;
+  gate_a_evaluate_tool?: ToolWithExecute;
   gate_b_derive_tool?: ToolWithExecute;
   gates_write_tool?: ToolWithExecute;
   retry_record_tool?: ToolWithExecute;
@@ -121,6 +124,15 @@ function nonEmptyString(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizePromptDigest(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return null;
+  if (/^sha256:[a-f0-9]{64}$/u.test(trimmed)) return trimmed;
+  if (/^[a-f0-9]{64}$/u.test(trimmed)) return `sha256:${trimmed}`;
+  return null;
 }
 
 function isContainedWithin(baseDir: string, targetPath: string): boolean {
@@ -293,7 +305,16 @@ async function executeToolJson(args: {
 
 function normalizeRunAgentResult(
   value: unknown,
-): { ok: true; markdown: string } | { ok: false; code: string; message: string } {
+):
+  | {
+      ok: true;
+      markdown: string;
+      agentRunId: string | null;
+      startedAt: string | null;
+      finishedAt: string | null;
+      model: string | null;
+    }
+  | { ok: false; code: string; message: string } {
   if (!isPlainObject(value)) {
     return {
       ok: false,
@@ -325,6 +346,10 @@ function normalizeRunAgentResult(
   return {
     ok: true,
     markdown,
+    agentRunId: nonEmptyString(value.agent_run_id),
+    startedAt: nonEmptyString(value.started_at),
+    finishedAt: nonEmptyString(value.finished_at),
+    model: nonEmptyString(value.model),
   };
 }
 
@@ -384,22 +409,93 @@ async function outputCreatedAtIso(outputMarkdownPath: string): Promise<string> {
 async function writeOutputMetadataSidecar(args: {
   sidecarPath: string;
   perspectiveId: string;
-  agentType: string;
-  outputMd: string;
+  outputMarkdownPath: string;
   promptMd: string;
   retryCount: number;
   createdAt: string;
+  runAgentResult: {
+    agentRunId: string | null;
+    startedAt: string | null;
+    finishedAt: string | null;
+    model: string | null;
+  } | null;
 }): Promise<void> {
+  const promptDigest = `sha256:${sha256HexLowerUtf8(args.promptMd)}`;
+
+  let existingMeta: Record<string, unknown> | null = null;
+  if (await exists(args.sidecarPath)) {
+    try {
+      const existingRaw = await readJson(args.sidecarPath);
+      if (isPlainObject(existingRaw)) {
+        existingMeta = existingRaw as Record<string, unknown>;
+      }
+    } catch {
+      existingMeta = null;
+    }
+  }
+
+  const hasUnifiedSchema =
+    nonEmptyString(existingMeta?.schema_version) === "wave-output-meta.v1";
+
+  const preservedAgentRunId = hasUnifiedSchema
+    ? nonEmptyString(existingMeta?.agent_run_id)
+    : null;
+  const preservedIngestedAt = hasUnifiedSchema
+    ? nonEmptyString(existingMeta?.ingested_at)
+    : null;
+  const preservedSourceInputPath = hasUnifiedSchema
+    ? nonEmptyString(existingMeta?.source_input_path)
+    : null;
+  const preservedStartedAt = hasUnifiedSchema
+    ? nonEmptyString(existingMeta?.started_at)
+    : null;
+  const preservedFinishedAt = hasUnifiedSchema
+    ? nonEmptyString(existingMeta?.finished_at)
+    : null;
+  const preservedModel = hasUnifiedSchema
+    ? nonEmptyString(existingMeta?.model)
+    : null;
+
+  const fallbackAgentRunId = `live:${args.perspectiveId}:${promptDigest}:r${args.retryCount}`;
+  const agentRunId = preservedAgentRunId
+    ?? args.runAgentResult?.agentRunId
+    ?? fallbackAgentRunId;
+  const ingestedAt = preservedIngestedAt ?? args.createdAt;
+  const sourceInputPath = preservedSourceInputPath ?? args.outputMarkdownPath;
+  const startedAt = preservedStartedAt ?? args.runAgentResult?.startedAt ?? null;
+  const finishedAt = preservedFinishedAt ?? args.runAgentResult?.finishedAt ?? null;
+  const model = preservedModel ?? args.runAgentResult?.model ?? null;
+
   const payload = {
-    perspective_id: args.perspectiveId,
-    agent_type: args.agentType,
-    output_md: args.outputMd,
-    prompt_digest: `sha256:${sha256HexLowerUtf8(args.promptMd)}`,
-    created_at: args.createdAt,
-    retry_count: args.retryCount,
+    schema_version: "wave-output-meta.v1",
+    prompt_digest: promptDigest,
+    agent_run_id: agentRunId,
+    ingested_at: ingestedAt,
+    source_input_path: sourceInputPath,
+    ...(startedAt ? { started_at: startedAt } : {}),
+    ...(finishedAt ? { finished_at: finishedAt } : {}),
+    ...(model ? { model } : {}),
   };
   await fs.mkdir(path.dirname(args.sidecarPath), { recursive: true });
   await fs.writeFile(args.sidecarPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+}
+
+async function sidecarPromptDigestMatches(args: {
+  sidecarPath: string;
+  expectedPromptDigest: string;
+}): Promise<boolean> {
+  if (!(await exists(args.sidecarPath))) return false;
+
+  let sidecarRaw: unknown;
+  try {
+    sidecarRaw = await readJson(args.sidecarPath);
+  } catch {
+    return false;
+  }
+
+  if (!isPlainObject(sidecarRaw)) return false;
+  const promptDigest = normalizePromptDigest((sidecarRaw as Record<string, unknown>).prompt_digest);
+  return promptDigest === normalizePromptDigest(args.expectedPromptDigest);
 }
 
 export async function orchestrator_tick_live(
@@ -563,6 +659,7 @@ export async function orchestrator_tick_live(
   const waveOutputIngestTool = args.wave_output_ingest_tool ?? (wave_output_ingest as unknown as ToolWithExecute);
   const waveOutputValidateTool = args.wave_output_validate_tool ?? (wave_output_validate as unknown as ToolWithExecute);
   const waveReviewTool = args.wave_review_tool ?? (wave_review as unknown as ToolWithExecute);
+  const gateAEvaluateTool = args.gate_a_evaluate_tool ?? (gate_a_evaluate as unknown as ToolWithExecute);
   const gateBDeriveTool = args.gate_b_derive_tool ?? (gate_b_derive as unknown as ToolWithExecute);
   const gatesWriteTool = args.gates_write_tool ?? (gates_write as unknown as ToolWithExecute);
   const retryRecordTool = args.retry_record_tool ?? (retry_record as unknown as ToolWithExecute);
@@ -574,6 +671,7 @@ export async function orchestrator_tick_live(
     { name: "WAVE_OUTPUT_INGEST", tool: waveOutputIngestTool },
     { name: "WAVE_OUTPUT_VALIDATE", tool: waveOutputValidateTool },
     { name: "WAVE_REVIEW", tool: waveReviewTool },
+    { name: "GATE_A_EVALUATE", tool: gateAEvaluateTool },
     { name: "GATE_B_DERIVE", tool: gateBDeriveTool },
     { name: "GATES_WRITE", tool: gatesWriteTool },
     { name: "RETRY_RECORD", tool: retryRecordTool },
@@ -643,6 +741,45 @@ export async function orchestrator_tick_live(
     }
     manifestRevision = nextRevision;
     return null;
+  };
+
+  const readGatesRevision = async (): Promise<
+    { ok: true; revision: number }
+    | { ok: false; failure: OrchestratorTickLiveFailure }
+  > => {
+    try {
+      const gatesDoc = await readJson(gatesPath);
+      if (!isPlainObject(gatesDoc)) {
+        return {
+          ok: false,
+          failure: fail("SCHEMA_VALIDATION_FAILED", "gates document must be object", {
+            gates_path: gatesPath,
+          }),
+        };
+      }
+      const revisionRaw = Number(gatesDoc.revision ?? Number.NaN);
+      if (!Number.isFinite(revisionRaw)) {
+        return {
+          ok: false,
+          failure: fail("INVALID_STATE", "gates.revision invalid", {
+            gates_path: gatesPath,
+            revision: (gatesDoc as Record<string, unknown>).revision ?? null,
+          }),
+        };
+      }
+      return {
+        ok: true,
+        revision: revisionRaw,
+      };
+    } catch (e) {
+      return {
+        ok: false,
+        failure: fail("NOT_FOUND", "gates_path not found", {
+          gates_path: gatesPath,
+          message: String(e),
+        }),
+      };
+    }
   };
 
   let currentStage = from;
@@ -718,6 +855,69 @@ export async function orchestrator_tick_live(
         plan_path: returnedPlanPath,
       });
     }
+  }
+
+  const gateAEvaluateResult = await executeToolJson({
+    name: "GATE_A_EVALUATE",
+    tool: gateAEvaluateTool,
+    payload: {
+      manifest_path: manifestPath,
+      reason,
+    },
+    tool_context: args.tool_context,
+  });
+  if (!gateAEvaluateResult.ok) {
+    return fail(gateAEvaluateResult.code, gateAEvaluateResult.message, gateAEvaluateResult.details);
+  }
+
+  const gateAUpdate = isPlainObject(gateAEvaluateResult.update)
+    ? (gateAEvaluateResult.update as Record<string, unknown>)
+    : null;
+  const gateAInputsDigest = nonEmptyString(gateAEvaluateResult.inputs_digest);
+  if (!gateAUpdate || !gateAInputsDigest) {
+    return fail("INVALID_STATE", "gate_a_evaluate returned incomplete gate patch", {
+      update: gateAEvaluateResult.update ?? null,
+      inputs_digest: gateAEvaluateResult.inputs_digest ?? null,
+    });
+  }
+
+  const gateARevision = await readGatesRevision();
+  if (!gateARevision.ok) return gateARevision.failure;
+
+  const writeGateA = await executeToolJson({
+    name: "GATES_WRITE",
+    tool: gatesWriteTool,
+    payload: {
+      gates_path: gatesPath,
+      update: gateAUpdate,
+      inputs_digest: gateAInputsDigest,
+      expected_revision: gateARevision.revision,
+      reason,
+    },
+    tool_context: args.tool_context,
+  });
+  if (!writeGateA.ok) {
+    return fail(writeGateA.code, writeGateA.message, writeGateA.details);
+  }
+
+  const gateAStatus = nonEmptyString(gateAEvaluateResult.status);
+  if (gateAStatus !== "pass") {
+    const gateAWarnings = Array.isArray(gateAEvaluateResult.warnings)
+      ? (gateAEvaluateResult.warnings as unknown[])
+        .map((value) => nonEmptyString(value))
+        .filter((value): value is string => value !== null)
+      : [];
+
+    return fail("GATE_A_FAILED", "Gate A failed before wave1 execution", {
+      gate_id: "A",
+      reason: gateAWarnings[0] ?? "GATE_A_CHECK_FAILED",
+      warnings: gateAWarnings,
+      notes: nonEmptyString(gateAEvaluateResult.notes) ?? null,
+      metrics: isPlainObject(gateAEvaluateResult.metrics)
+        ? (gateAEvaluateResult.metrics as Record<string, unknown>)
+        : {},
+      wave1_plan_path: planPath,
+    });
   }
 
   let planRaw: unknown;
@@ -853,9 +1053,23 @@ export async function orchestrator_tick_live(
   }
 
   for (const entry of plannedEntries) {
+    const expectedPromptDigest = `sha256:${sha256HexLowerUtf8(entry.promptMd)}`;
     const outputAlreadyExists = await exists(entry.outputMarkdownPath);
     const retryNote = activeRetryNotesByPerspective.get(entry.perspectiveId) ?? null;
-    if (!outputAlreadyExists || retryNote !== null) {
+    let runAgentResultMetadata: {
+      agentRunId: string | null;
+      startedAt: string | null;
+      finishedAt: string | null;
+      model: string | null;
+    } | null = null;
+    const hasMatchingPromptDigest =
+      retryNote === null &&
+      outputAlreadyExists &&
+      (await sidecarPromptDigestMatches({
+        sidecarPath: entry.sidecarPath,
+        expectedPromptDigest,
+      }));
+    if (!hasMatchingPromptDigest) {
       const effectivePromptMd = retryNote
         ? `${entry.promptMd}\n\n## Retry Directive\n${retryNote}\n`
         : entry.promptMd;
@@ -884,6 +1098,13 @@ export async function orchestrator_tick_live(
           perspective_id: entry.perspectiveId,
         });
       }
+
+      runAgentResultMetadata = {
+        agentRunId: normalizedRunAgent.agentRunId,
+        startedAt: normalizedRunAgent.startedAt,
+        finishedAt: normalizedRunAgent.finishedAt,
+        model: normalizedRunAgent.model,
+      };
 
       const ingestResult = await executeToolJson({
         name: "WAVE_OUTPUT_INGEST",
@@ -921,6 +1142,7 @@ export async function orchestrator_tick_live(
 
       const progressRevisionError = syncProgressRevision(progressResult);
       if (progressRevisionError) return progressRevisionError;
+
     }
 
     const validateResult = await executeToolJson({
@@ -952,13 +1174,11 @@ export async function orchestrator_tick_live(
       await writeOutputMetadataSidecar({
         sidecarPath: entry.sidecarPath,
         perspectiveId: entry.perspectiveId,
-        agentType: entry.agentType,
-        outputMd: entry.outputMd,
-        promptMd: retryNote
-          ? `${entry.promptMd}\n\n## Retry Directive\n${retryNote}\n`
-          : entry.promptMd,
+        outputMarkdownPath: entry.outputMarkdownPath,
+        promptMd: entry.promptMd,
         retryCount: gateBRetryCount,
         createdAt: await outputCreatedAtIso(entry.outputMarkdownPath),
+        runAgentResult: runAgentResultMetadata,
       });
     } catch (e) {
       return fail("WRITE_FAILED", "failed to persist wave output metadata sidecar", {
@@ -1010,28 +1230,8 @@ export async function orchestrator_tick_live(
     });
   }
 
-  let gatesRevision: number | null = null;
-  try {
-    const gatesDoc = await readJson(gatesPath);
-    if (!isPlainObject(gatesDoc)) {
-      return fail("SCHEMA_VALIDATION_FAILED", "gates document must be object", {
-        gates_path: gatesPath,
-      });
-    }
-    const revisionRaw = Number(gatesDoc.revision ?? Number.NaN);
-    if (!Number.isFinite(revisionRaw)) {
-      return fail("INVALID_STATE", "gates.revision invalid", {
-        gates_path: gatesPath,
-        revision: (gatesDoc as Record<string, unknown>).revision ?? null,
-      });
-    }
-    gatesRevision = revisionRaw;
-  } catch (e) {
-    return fail("NOT_FOUND", "gates_path not found", {
-      gates_path: gatesPath,
-      message: String(e),
-    });
-  }
+  const gateBRevision = await readGatesRevision();
+  if (!gateBRevision.ok) return gateBRevision.failure;
 
   const gatesWriteResult = await executeToolJson({
     name: "GATES_WRITE",
@@ -1040,7 +1240,7 @@ export async function orchestrator_tick_live(
       gates_path: gatesPath,
       update: gateUpdate,
       inputs_digest: gateInputsDigest,
-      expected_revision: gatesRevision ?? undefined,
+      expected_revision: gateBRevision.revision,
       reason,
     },
     tool_context: args.tool_context,

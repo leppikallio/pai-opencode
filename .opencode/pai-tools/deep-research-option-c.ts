@@ -72,7 +72,7 @@ type RunHandleCliArgs = {
 
 type TickCliArgs = RunHandleCliArgs & {
   reason: string;
-  driver: "fixture" | "live";
+  driver: "fixture" | "live" | "task";
 };
 
 type RunCliArgs = TickCliArgs & {
@@ -82,6 +82,36 @@ type RunCliArgs = TickCliArgs & {
 
 type PauseResumeCliArgs = RunHandleCliArgs & {
   reason: string;
+};
+
+type RunStatusInspectTriageCliArgs = RunHandleCliArgs & {
+  json: boolean;
+};
+
+type RerunWave1CliArgs = {
+  manifest: string;
+  perspective: string;
+  reason: string;
+};
+
+type AgentResultCliArgs = {
+  manifest: string;
+  stage: "wave1";
+  perspective: string;
+  input: string;
+  agentRunId: string;
+  reason: string;
+  startedAt?: string;
+  finishedAt?: string;
+  model?: string;
+};
+
+type TaskDriverMissingPerspective = {
+  perspectiveId: string;
+  promptPath: string;
+  outputPath: string;
+  metaPath: string;
+  promptDigest: string;
 };
 
 type RunHandleResolution = {
@@ -114,6 +144,33 @@ type TriageBlockers = {
   blockedGates: Array<{ gate: string; status: string | null }>;
   failedChecks: Array<{ kind: string; name: string }>;
   allowed: boolean;
+};
+
+type HaltRelatedPaths = {
+  manifest_path: string;
+  gates_path: string;
+  retry_directives_path?: string;
+  blocked_urls_path?: string;
+  online_fixtures_latest_path?: string;
+};
+
+type HaltArtifactV1 = {
+  schema_version: "halt.v1";
+  created_at: string;
+  run_id: string;
+  run_root: string;
+  tick_index: number;
+  stage_current: string;
+  blocked_transition: { from: string; to: string };
+  error: { code: string; message: string };
+  blockers: {
+    missing_artifacts: Array<{ name: string; path?: string }>;
+    blocked_gates: Array<{ gate: string; status?: string }>;
+    failed_checks: Array<{ kind: string; name: string }>;
+  };
+  related_paths: HaltRelatedPaths;
+  next_commands: string[];
+  notes: string;
 };
 
 type BlockedUrlsInspectSummary = {
@@ -206,6 +263,37 @@ async function nextTickIndex(logsDirAbs: string): Promise<number> {
     if (value > maxTick) maxTick = value;
   }
   return maxTick + 1;
+}
+
+async function nextHaltTickIndex(haltDir: string): Promise<number> {
+  let entries: string[];
+  try {
+    entries = await fs.readdir(haltDir);
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "ENOENT") return 1;
+    throw error;
+  }
+
+  let maxTick = 0;
+  for (const entry of entries) {
+    const match = /^tick-(\d+)\.json$/u.exec(entry);
+    if (!match) continue;
+    const value = safePositiveInt(match[1], 0);
+    if (value > maxTick) maxTick = value;
+  }
+  return maxTick + 1;
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "ENOENT") return false;
+    throw error;
+  }
 }
 
 async function nextStageAttempt(telemetryPath: string, stageId: string): Promise<number> {
@@ -627,6 +715,155 @@ async function withRunLock<T>(args: { runRoot: string; reason: string; fn: () =>
   }
 }
 
+function isSafeSegment(value: string): boolean {
+  return /^[A-Za-z0-9_-]+$/.test(value);
+}
+
+function promptDigestFromPromptMarkdown(promptMd: string): string {
+  return `sha256:${sha256HexLowerUtf8(promptMd)}`;
+}
+
+function normalizePromptDigest(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim().toLowerCase();
+  if (!trimmed) return null;
+  if (/^sha256:[a-f0-9]{64}$/u.test(trimmed)) return trimmed;
+  if (/^[a-f0-9]{64}$/u.test(trimmed)) return `sha256:${trimmed}`;
+  return null;
+}
+
+async function readWave1PlanEntries(runRoot: string): Promise<Array<{ perspectiveId: string; promptMd: string }>> {
+  const wave1PlanPath = path.join(runRoot, "wave-1", "wave1-plan.json");
+  const wave1Plan = await readJsonObject(wave1PlanPath);
+  const entries = Array.isArray(wave1Plan.entries)
+    ? (wave1Plan.entries as Array<unknown>)
+    : [];
+  const out: Array<{ perspectiveId: string; promptMd: string }> = [];
+
+  for (const entryRaw of entries) {
+    const entry = asObject(entryRaw);
+    const perspectiveId = String(entry.perspective_id ?? "").trim();
+    const promptMd = String(entry.prompt_md ?? "");
+    if (!perspectiveId || !promptMd.trim()) continue;
+    if (!isSafeSegment(perspectiveId)) continue;
+    out.push({ perspectiveId, promptMd });
+  }
+
+  if (out.length === 0) {
+    throw new Error(`wave1 plan has no valid entries (${wave1PlanPath})`);
+  }
+  return out;
+}
+
+async function sidecarPromptDigestMatches(metaPath: string, expectedPromptDigest: string): Promise<boolean> {
+  const exists = await fileExists(metaPath);
+  if (!exists) return false;
+
+  let metaRaw: Record<string, unknown>;
+  try {
+    metaRaw = await readJsonObject(metaPath);
+  } catch {
+    return false;
+  }
+  const normalized = normalizePromptDigest(metaRaw.prompt_digest);
+  return normalized === expectedPromptDigest;
+}
+
+async function collectTaskDriverMissingWave1Perspectives(args: {
+  runRoot: string;
+}): Promise<TaskDriverMissingPerspective[]> {
+  const planEntries = await readWave1PlanEntries(args.runRoot);
+  const missing: TaskDriverMissingPerspective[] = [];
+
+  for (const entry of planEntries) {
+    const outputPath = path.join(args.runRoot, "wave-1", `${entry.perspectiveId}.md`);
+    const metaPath = path.join(args.runRoot, "wave-1", `${entry.perspectiveId}.meta.json`);
+    const promptPath = path.join(args.runRoot, "operator", "prompts", "wave1", `${entry.perspectiveId}.md`);
+    const promptDigest = promptDigestFromPromptMarkdown(entry.promptMd);
+
+    const outputExists = await fileExists(outputPath);
+    const digestMatches = outputExists
+      && await sidecarPromptDigestMatches(metaPath, promptDigest);
+
+    if (digestMatches) continue;
+
+    await fs.mkdir(path.dirname(promptPath), { recursive: true });
+    await fs.writeFile(promptPath, `${entry.promptMd.trim()}\n`, "utf8");
+
+    missing.push({
+      perspectiveId: entry.perspectiveId,
+      promptPath,
+      outputPath,
+      metaPath,
+      promptDigest,
+    });
+  }
+
+  return missing;
+}
+
+function buildTaskDriverNextCommands(args: {
+  manifestPath: string;
+  runRoot: string;
+  missing: TaskDriverMissingPerspective[];
+}): string[] {
+  const agentResultCommands = args.missing.map((item) => {
+    const inputPath = path.join(args.runRoot, "operator", "outputs", "wave1", `${item.perspectiveId}.md`);
+    return `bun ".opencode/pai-tools/deep-research-option-c.ts" agent-result --manifest "${args.manifestPath}" --stage wave1 --perspective "${item.perspectiveId}" --input "${inputPath}" --agent-run-id "<AGENT_RUN_ID>" --reason "operator: task driver ingest ${item.perspectiveId}"`;
+  });
+
+  return [
+    `bun ".opencode/pai-tools/deep-research-option-c.ts" inspect --manifest "${args.manifestPath}"`,
+    ...agentResultCommands,
+    `bun ".opencode/pai-tools/deep-research-option-c.ts" tick --manifest "${args.manifestPath}" --driver task --reason "resume wave1 after agent-result ingestion"`,
+  ];
+}
+
+function createTaskPromptOutDriver(): (
+  input: OrchestratorLiveRunAgentInput,
+) => Promise<OrchestratorLiveRunAgentResult> {
+  return async (input: OrchestratorLiveRunAgentInput): Promise<OrchestratorLiveRunAgentResult> => {
+    const runRoot = String(input.run_root ?? "").trim();
+    const stage = String(input.stage ?? "").trim();
+    const perspectiveId = String(input.perspective_id ?? "").trim();
+    const promptMd = String(input.prompt_md ?? "");
+
+    if (!runRoot || !path.isAbsolute(runRoot)) {
+      return { markdown: "", error: { code: "INVALID_ARGS", message: "run_root missing/invalid" } };
+    }
+    if (!stage || !perspectiveId || !isSafeSegment(stage) || !isSafeSegment(perspectiveId)) {
+      return { markdown: "", error: { code: "INVALID_ARGS", message: "stage/perspective_id missing or invalid" } };
+    }
+    if (!promptMd.trim()) {
+      return { markdown: "", error: { code: "INVALID_ARGS", message: "prompt_md missing" } };
+    }
+
+    let runRootReal = runRoot;
+    try {
+      runRootReal = await fs.realpath(runRoot);
+    } catch {
+      // keep original root for downstream errors
+    }
+
+    const promptPath = path.resolve(runRootReal, "operator", "prompts", stage, `${perspectiveId}.md`);
+    const rel = path.relative(runRootReal, promptPath);
+    if (!rel || rel.startsWith("..") || path.isAbsolute(rel)) {
+      return { markdown: "", error: { code: "PATH_TRAVERSAL", message: "prompt path escapes run root" } };
+    }
+
+    await fs.mkdir(path.dirname(promptPath), { recursive: true });
+    await fs.writeFile(promptPath, `${promptMd.trim()}\n`, "utf8");
+
+    return {
+      markdown: "",
+      error: {
+        code: "RUN_AGENT_REQUIRED",
+        message: `agent-result required for ${stage}/${perspectiveId}`,
+      },
+    };
+  };
+}
+
 function createOperatorInputDriver(): (
   input: OrchestratorLiveRunAgentInput,
 ) => Promise<OrchestratorLiveRunAgentResult> {
@@ -649,8 +886,6 @@ function createOperatorInputDriver(): (
     const stage = String(input.stage ?? "").trim();
     const perspectiveId = String(input.perspective_id ?? "").trim();
     const promptMd = String(input.prompt_md ?? "");
-
-    const isSafeSegment = (value: string): boolean => /^[A-Za-z0-9_-]+$/.test(value);
 
     if (!runRoot || !path.isAbsolute(runRoot)) {
       return { markdown: "", error: { code: "INVALID_ARGS", message: "run_root missing/invalid" } };
@@ -872,6 +1107,69 @@ function printContract(args: {
   console.log(`gates_path: ${args.gatesPath}`);
   console.log(`stage.current: ${args.stageCurrent}`);
   console.log(`status: ${args.status}`);
+}
+
+type CliContractJson = {
+  run_id: string;
+  run_root: string;
+  manifest_path: string;
+  gates_path: string | null;
+  stage_current: string;
+  status: string;
+  gate_statuses_summary: Record<string, { status: string; checked_at: string | null }>;
+};
+
+function gateStatusesSummaryRecord(gateStatuses: GateStatusSummary[]): Record<string, { status: string; checked_at: string | null }> {
+  const out: Record<string, { status: string; checked_at: string | null }> = {};
+  for (const gate of gateStatuses) {
+    out[gate.id] = {
+      status: gate.status,
+      checked_at: gate.checked_at,
+    };
+  }
+  return out;
+}
+
+async function readGateStatusesSummary(gatesPath: string): Promise<Record<string, { status: string; checked_at: string | null }>> {
+  try {
+    const gatesDoc = await readJsonObject(gatesPath);
+    return gateStatusesSummaryRecord(parseGateStatuses(gatesDoc));
+  } catch {
+    return {};
+  }
+}
+
+function contractJson(args: {
+  summary: ManifestSummary;
+  manifestPath: string;
+  gatesPath?: string;
+  gateStatusesSummary: Record<string, { status: string; checked_at: string | null }>;
+}): CliContractJson {
+  return {
+    run_id: args.summary.runId,
+    run_root: args.summary.runRoot,
+    manifest_path: args.manifestPath,
+    gates_path: args.gatesPath ?? args.summary.gatesPath ?? null,
+    stage_current: args.summary.stageCurrent,
+    status: args.summary.status,
+    gate_statuses_summary: args.gateStatusesSummary,
+  };
+}
+
+function blockersSummaryJson(triage: TriageBlockers): {
+  missing_artifacts: Array<{ name: string; path: string | null }>;
+  blocked_gates: Array<{ gate: string; status: string | null }>;
+} {
+  return {
+    missing_artifacts: triage.missingArtifacts.map((item) => ({
+      name: item.name,
+      path: item.path,
+    })),
+    blocked_gates: triage.blockedGates.map((item) => ({
+      gate: item.gate,
+      status: item.status,
+    })),
+  };
 }
 
 function defaultPerspectivePayload(runId: string): Record<string, unknown> {
@@ -1230,19 +1528,229 @@ function printBlockersSummary(triage: TriageBlockers): void {
   console.log("  remediation: run inspect for full guidance and produce required artifacts/gate passes");
 }
 
-async function printAutoTriage(args: { manifestPath: string; gatesPath: string; reason: string }): Promise<void> {
+async function computeTriageBlockers(args: {
+  manifestPath: string;
+  gatesPath: string;
+  reason: string;
+}): Promise<TriageBlockers | null> {
   try {
     const dryRun = await stageAdvanceDryRun({
       manifestPath: args.manifestPath,
       gatesPath: args.gatesPath,
       reason: args.reason,
     });
-    const triage = triageFromStageAdvanceResult(dryRun);
-    printBlockersSummary(triage);
-  } catch (error) {
-    console.log("blockers.summary:");
-    console.log(`  unavailable: ${error instanceof Error ? error.message : String(error)}`);
+    return triageFromStageAdvanceResult(dryRun);
+  } catch {
+    return null;
   }
+}
+
+async function resolveHaltRelatedPaths(args: {
+  runRoot: string;
+  manifestPath: string;
+  gatesPath: string;
+}): Promise<HaltRelatedPaths> {
+  const related: HaltRelatedPaths = {
+    manifest_path: args.manifestPath,
+    gates_path: args.gatesPath,
+  };
+
+  const retryDirectivesPath = await safeResolveManifestPath(args.runRoot, "retry/retry-directives.json", "retry.retry_directives");
+  if (await fileExists(retryDirectivesPath)) {
+    related.retry_directives_path = retryDirectivesPath;
+  }
+
+  const blockedUrlsPath = await safeResolveManifestPath(args.runRoot, "citations/blocked-urls.json", "citations.blocked_urls");
+  if (await fileExists(blockedUrlsPath)) {
+    related.blocked_urls_path = blockedUrlsPath;
+  }
+
+  const latestOnlineFixturesPath = await resolveLatestOnlineFixtures(args.runRoot);
+  if (latestOnlineFixturesPath) {
+    related.online_fixtures_latest_path = latestOnlineFixturesPath;
+  }
+
+  return related;
+}
+
+function nextHaltCommands(args: {
+  manifestPath: string;
+  stageCurrent: string;
+  tickIndex: number;
+  nextCommandsOverride?: string[];
+}): string[] {
+  if (Array.isArray(args.nextCommandsOverride) && args.nextCommandsOverride.length > 0) {
+    return args.nextCommandsOverride;
+  }
+  return [
+    `bun ".opencode/pai-tools/deep-research-option-c.ts" inspect --manifest "${args.manifestPath}"`,
+    `bun ".opencode/pai-tools/deep-research-option-c.ts" triage --manifest "${args.manifestPath}"`,
+    `bun ".opencode/pai-tools/deep-research-option-c.ts" tick --manifest "${args.manifestPath}" --driver fixture --reason "halt retry from ${args.stageCurrent} (halt_tick_${args.tickIndex})"`,
+  ];
+}
+
+async function writeHaltArtifact(args: {
+  runRoot: string;
+  runId: string;
+  manifestPath: string;
+  gatesPath: string;
+  stageCurrent: string;
+  reason: string;
+  error: { code: string; message: string };
+  triage: TriageBlockers | null;
+  nextCommandsOverride?: string[];
+}): Promise<{ tickPath: string; latestPath: string; tickIndex: number }> {
+  const haltDir = path.join(args.runRoot, "operator", "halt");
+  await fs.mkdir(haltDir, { recursive: true });
+
+  const tickIndex = await nextHaltTickIndex(haltDir);
+  const padded = String(tickIndex).padStart(4, "0");
+  const tickPath = path.join(haltDir, `tick-${padded}.json`);
+  const latestPath = path.join(haltDir, "latest.json");
+  const relatedPaths = await resolveHaltRelatedPaths({
+    runRoot: args.runRoot,
+    manifestPath: args.manifestPath,
+    gatesPath: args.gatesPath,
+  });
+
+  const triage = args.triage;
+  const artifact: HaltArtifactV1 = {
+    schema_version: "halt.v1",
+    created_at: nowIso(),
+    run_id: args.runId,
+    run_root: args.runRoot,
+    tick_index: tickIndex,
+    stage_current: args.stageCurrent,
+    blocked_transition: {
+      from: triage?.from || args.stageCurrent,
+      to: triage?.to || args.stageCurrent,
+    },
+    error: {
+      code: args.error.code,
+      message: args.error.message,
+    },
+    blockers: {
+      missing_artifacts: (triage?.missingArtifacts ?? []).map((item) => ({
+        name: item.name,
+        ...(item.path ? { path: item.path } : {}),
+      })),
+      blocked_gates: (triage?.blockedGates ?? []).map((item) => ({
+        gate: item.gate,
+        ...(item.status ? { status: item.status } : {}),
+      })),
+      failed_checks: (triage?.failedChecks ?? []).map((item) => ({
+        kind: item.kind,
+        name: item.name,
+      })),
+    },
+    related_paths: relatedPaths,
+    next_commands: nextHaltCommands({
+      manifestPath: args.manifestPath,
+      stageCurrent: args.stageCurrent,
+      tickIndex,
+      nextCommandsOverride: args.nextCommandsOverride,
+    }),
+    notes: `Tick failure captured by operator CLI (${args.reason})`,
+  };
+
+  const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
+  await fs.writeFile(tickPath, serialized, "utf8");
+  await fs.writeFile(latestPath, serialized, "utf8");
+
+  return { tickPath, latestPath, tickIndex };
+}
+
+async function writeHaltArtifactForFailure(args: {
+  runRoot: string;
+  runId: string;
+  stageCurrent: string;
+  manifestPath: string;
+  gatesPath: string;
+  reason: string;
+  error: { code: string; message: string };
+  nextCommandsOverride?: string[];
+}): Promise<{ tickPath: string; latestPath: string; tickIndex: number; triage: TriageBlockers | null }> {
+  const triage = await computeTriageBlockers({
+    manifestPath: args.manifestPath,
+    gatesPath: args.gatesPath,
+    reason: `${args.reason} [halt_triage]`,
+  });
+
+  const halt = await writeHaltArtifact({
+    runRoot: args.runRoot,
+    runId: args.runId,
+    manifestPath: args.manifestPath,
+    gatesPath: args.gatesPath,
+    stageCurrent: args.stageCurrent,
+    reason: args.reason,
+    error: args.error,
+    triage,
+    nextCommandsOverride: args.nextCommandsOverride,
+  });
+
+  return { ...halt, triage };
+}
+
+async function printAutoTriage(args: {
+  manifestPath: string;
+  gatesPath: string;
+  reason: string;
+  triage?: TriageBlockers | null;
+}): Promise<void> {
+  const triage = args.triage ?? await computeTriageBlockers({
+    manifestPath: args.manifestPath,
+    gatesPath: args.gatesPath,
+    reason: args.reason,
+  });
+
+  if (triage) {
+    printBlockersSummary(triage);
+    return;
+  }
+
+  console.log("blockers.summary:");
+  console.log("  unavailable: stage_advance dry-run failed");
+}
+
+async function printHaltArtifactSummary(args: {
+  tickPath: string;
+  latestPath: string;
+  tickIndex: number;
+}): Promise<void> {
+  console.log(`halt.tick_index: ${args.tickIndex}`);
+  console.log(`halt.path: ${args.tickPath}`);
+  console.log(`halt.latest_path: ${args.latestPath}`);
+}
+
+async function handleTickFailureArtifacts(args: {
+  runRoot: string;
+  runId: string;
+  stageCurrent: string;
+  manifestPath: string;
+  gatesPath: string;
+  reason: string;
+  error: { code: string; message: string };
+  triageReason: string;
+  nextCommandsOverride?: string[];
+}): Promise<void> {
+  const halt = await writeHaltArtifactForFailure({
+    runRoot: args.runRoot,
+    runId: args.runId,
+    stageCurrent: args.stageCurrent,
+    manifestPath: args.manifestPath,
+    gatesPath: args.gatesPath,
+    reason: args.reason,
+    error: args.error,
+    nextCommandsOverride: args.nextCommandsOverride,
+  });
+
+  await printHaltArtifactSummary(halt);
+  await printAutoTriage({
+    manifestPath: args.manifestPath,
+    gatesPath: args.gatesPath,
+    reason: args.triageReason,
+    triage: halt.triage,
+  });
 }
 
 async function readJsonIfExists(filePath: string): Promise<Record<string, unknown> | null> {
@@ -1457,7 +1965,7 @@ async function runOneOrchestratorTick(args: {
   manifestPath: string;
   gatesPath: string;
   reason: string;
-  driver: "fixture" | "live";
+  driver: "fixture" | "live" | "task";
   stageHint?: string;
   liveDriver?: ReturnType<typeof createOperatorInputDriver> | null;
 }): Promise<TickResult> {
@@ -1500,7 +2008,7 @@ async function runOneOrchestratorTick(args: {
   });
 }
 
-function printTickResult(driver: "fixture" | "live", result: TickResult): void {
+function printTickResult(driver: "fixture" | "live" | "task", result: TickResult): void {
   console.log(`tick.driver: ${driver}`);
   if (!result.ok) {
     console.log("tick.ok: false");
@@ -1522,8 +2030,10 @@ async function runTick(args: TickCliArgs): Promise<void> {
   ensureOptionCEnabledForCli();
   const runHandle = await resolveRunHandle(args);
 
-  const liveDriver = args.driver === "live" ? createOperatorInputDriver() : null;
-  if (args.driver === "live") {
+  const liveDriver = args.driver === "fixture"
+    ? null
+    : (args.driver === "live" ? createOperatorInputDriver() : createTaskPromptOutDriver());
+  if (args.driver === "live" || args.driver === "task") {
     await callTool("watchdog_check", watchdog_check as unknown as ToolWithExecute, {
       manifest_path: runHandle.manifestPath,
       reason: `${args.reason} [pre_tick]`,
@@ -1538,15 +2048,58 @@ async function runTick(args: TickCliArgs): Promise<void> {
 
   let result: TickResult;
   let toolFailure: { code: string; message: string } | null = null;
+  let haltNextCommandsOverride: string[] | undefined;
   try {
-    result = await runOneOrchestratorTick({
-      manifestPath: runHandle.manifestPath,
-      gatesPath: runHandle.gatesPath,
-      reason: args.reason,
-      driver: args.driver,
-      stageHint: context.stageBefore,
-      liveDriver,
-    });
+    if (args.driver === "task" && context.stageBefore === "wave1") {
+      const missing = await collectTaskDriverMissingWave1Perspectives({
+        runRoot: context.runRoot,
+      });
+
+      if (missing.length > 0) {
+        haltNextCommandsOverride = buildTaskDriverNextCommands({
+          manifestPath: runHandle.manifestPath,
+          runRoot: context.runRoot,
+          missing,
+        });
+
+        result = {
+          ok: false,
+          error: {
+            code: "RUN_AGENT_REQUIRED",
+            message: "Wave 1 requires external agent results via agent-result",
+            details: {
+              stage: "wave1",
+              missing_count: missing.length,
+              missing_perspectives: missing.map((item) => ({
+                perspective_id: item.perspectiveId,
+                prompt_path: item.promptPath,
+                output_path: item.outputPath,
+                meta_path: item.metaPath,
+                prompt_digest: item.promptDigest,
+              })),
+            },
+          },
+        } as TickResult;
+      } else {
+        result = await runOneOrchestratorTick({
+          manifestPath: runHandle.manifestPath,
+          gatesPath: runHandle.gatesPath,
+          reason: args.reason,
+          driver: args.driver,
+          stageHint: context.stageBefore,
+          liveDriver,
+        });
+      }
+    } else {
+      result = await runOneOrchestratorTick({
+        manifestPath: runHandle.manifestPath,
+        gatesPath: runHandle.gatesPath,
+        reason: args.reason,
+        driver: args.driver,
+        stageHint: context.stageBefore,
+        liveDriver,
+      });
+    }
   } catch (error) {
     toolFailure = toolErrorDetails(error);
     result = {
@@ -1569,14 +2122,24 @@ async function runTick(args: TickCliArgs): Promise<void> {
   printTickResult(args.driver, result);
 
   if (!result.ok) {
-    await printAutoTriage({
+    const tickError = resultErrorDetails(result) ?? {
+      code: "UNKNOWN",
+      message: "tick failed",
+    };
+    await handleTickFailureArtifacts({
+      runRoot: context.runRoot,
+      runId: context.runId,
+      stageCurrent: context.stageBefore,
       manifestPath: runHandle.manifestPath,
       gatesPath: runHandle.gatesPath,
-      reason: `operator-cli tick auto-triage: ${args.reason}`,
+      reason: `operator-cli tick failure: ${args.reason}`,
+      error: tickError,
+      triageReason: `operator-cli tick auto-triage: ${args.reason}`,
+      nextCommandsOverride: haltNextCommandsOverride,
     });
   }
 
-  if (args.driver === "live") {
+  if (args.driver === "live" || args.driver === "task") {
     await callTool("watchdog_check", watchdog_check as unknown as ToolWithExecute, {
       manifest_path: runHandle.manifestPath,
       reason: `${args.reason} [post_tick]`,
@@ -1595,10 +2158,20 @@ async function runTick(args: TickCliArgs): Promise<void> {
   });
 }
 
-async function runStatus(args: RunHandleCliArgs): Promise<void> {
+async function runStatus(args: RunStatusInspectTriageCliArgs): Promise<void> {
   const runHandle = await resolveRunHandle(args);
   const manifest = await readJsonObject(runHandle.manifestPath);
   const summary = await summarizeManifest(manifest);
+
+  if (args.json) {
+    const gateStatusesSummary = await readGateStatusesSummary(summary.gatesPath);
+    console.log(JSON.stringify(contractJson({
+      summary,
+      manifestPath: runHandle.manifestPath,
+      gateStatusesSummary,
+    })));
+    return;
+  }
 
   printContract({
     runId: summary.runId,
@@ -1610,7 +2183,7 @@ async function runStatus(args: RunHandleCliArgs): Promise<void> {
   });
 }
 
-async function runInspect(args: RunHandleCliArgs): Promise<void> {
+async function runInspect(args: RunStatusInspectTriageCliArgs): Promise<void> {
   const runHandle = await resolveRunHandle(args);
   const manifest = await readJsonObject(runHandle.manifestPath);
   const summary = await summarizeManifest(manifest);
@@ -1623,6 +2196,19 @@ async function runInspect(args: RunHandleCliArgs): Promise<void> {
     reason: "operator-cli inspect: stage-advance dry-run",
   });
   const triage = triageFromStageAdvanceResult(dryRun);
+
+  if (args.json) {
+    const payload = {
+      ...contractJson({
+        summary,
+        manifestPath: runHandle.manifestPath,
+        gateStatusesSummary: gateStatusesSummaryRecord(gateStatuses),
+      }),
+      blockers_summary: blockersSummaryJson(triage),
+    };
+    console.log(JSON.stringify(payload));
+    return;
+  }
 
   printContract({
     runId: summary.runId,
@@ -1682,10 +2268,11 @@ async function runInspect(args: RunHandleCliArgs): Promise<void> {
   await printInspectOperatorGuidance(summary.runRoot);
 }
 
-async function runTriage(args: RunHandleCliArgs): Promise<void> {
+async function runTriage(args: RunStatusInspectTriageCliArgs): Promise<void> {
   const runHandle = await resolveRunHandle(args);
   const manifest = await readJsonObject(runHandle.manifestPath);
   const summary = await summarizeManifest(manifest);
+  const gateStatusesSummary = await readGateStatusesSummary(summary.gatesPath);
 
   const dryRun = await stageAdvanceDryRun({
     manifestPath: runHandle.manifestPath,
@@ -1693,6 +2280,19 @@ async function runTriage(args: RunHandleCliArgs): Promise<void> {
     reason: "operator-cli triage: stage-advance dry-run",
   });
   const triage = triageFromStageAdvanceResult(dryRun);
+
+  if (args.json) {
+    const payload = {
+      ...contractJson({
+        summary,
+        manifestPath: runHandle.manifestPath,
+        gateStatusesSummary,
+      }),
+      blockers_summary: blockersSummaryJson(triage),
+    };
+    console.log(JSON.stringify(payload));
+    return;
+  }
 
   printContract({
     runId: summary.runId,
@@ -1862,15 +2462,25 @@ async function runRun(args: RunCliArgs): Promise<void> {
         return;
       }
 
+      const tickError = resultErrorDetails(result) ?? {
+        code: "UNKNOWN",
+        message: "tick failed",
+      };
+      await handleTickFailureArtifacts({
+        runRoot: context.runRoot,
+        runId: context.runId,
+        stageCurrent: context.stageBefore,
+        manifestPath: runHandle.manifestPath,
+        gatesPath: runHandle.gatesPath,
+        reason: `operator-cli run tick_${i} failure: ${args.reason}`,
+        error: tickError,
+        triageReason: `operator-cli run auto-triage: ${args.reason}`,
+      });
+
       console.log("run.ok: false");
       console.log(`run.error.code: ${result.error.code}`);
       console.log(`run.error.message: ${result.error.message}`);
       console.log(`run.error.details: ${JSON.stringify(result.error.details ?? {}, null, 2)}`);
-      await printAutoTriage({
-        manifestPath: runHandle.manifestPath,
-        gatesPath: runHandle.gatesPath,
-        reason: `operator-cli run auto-triage: ${args.reason}`,
-      });
       return;
     }
 
@@ -2101,6 +2711,152 @@ async function runCaptureFixtures(args: {
   console.log("capture_fixtures.replay: deep_research_fixture_replay --bundle_root <bundle_root>");
 }
 
+async function runRerunWave1(args: RerunWave1CliArgs): Promise<void> {
+  ensureOptionCEnabledForCli();
+
+  const manifestPath = requireAbsolutePath(args.manifest, "--manifest");
+  const perspective = args.perspective.trim();
+  const reason = args.reason.trim();
+
+  if (!/^[A-Za-z0-9_-]+$/.test(perspective)) {
+    throw new Error("--perspective must contain only letters, numbers, underscores, or dashes");
+  }
+  if (!reason) {
+    throw new Error("--reason must be non-empty");
+  }
+
+  const manifest = await readJsonObject(manifestPath);
+  const summary = await summarizeManifest(manifest);
+  const retryDirectivesPath = await safeResolveManifestPath(
+    summary.runRoot,
+    "retry/retry-directives.json",
+    "retry.retry_directives_file",
+  );
+
+  const retryArtifact = {
+    schema_version: "wave1.retry_directives.v1",
+    run_id: summary.runId,
+    stage: "wave1",
+    generated_at: nowIso(),
+    consumed_at: null,
+    retry_directives: [
+      {
+        perspective_id: perspective,
+        action: "retry",
+        change_note: reason,
+      },
+    ],
+    deferred_validation_failures: [],
+  };
+
+  await withRunLock({
+    runRoot: summary.runRoot,
+    reason: `operator-cli rerun wave1: ${reason}`,
+    fn: async () => {
+      await fs.mkdir(path.dirname(retryDirectivesPath), { recursive: true });
+      await fs.writeFile(retryDirectivesPath, `${JSON.stringify(retryArtifact, null, 2)}\n`, "utf8");
+    },
+  });
+
+  printContract({
+    runId: summary.runId,
+    runRoot: summary.runRoot,
+    manifestPath,
+    gatesPath: summary.gatesPath,
+    stageCurrent: summary.stageCurrent,
+    status: summary.status,
+  });
+  console.log("rerun.wave1.ok: true");
+  console.log(`rerun.wave1.retry_directives_path: ${retryDirectivesPath}`);
+  console.log(`rerun.wave1.perspective_id: ${perspective}`);
+}
+
+async function runAgentResult(args: AgentResultCliArgs): Promise<void> {
+  ensureOptionCEnabledForCli();
+
+  const manifestPath = requireAbsolutePath(args.manifest, "--manifest");
+  const inputPath = requireAbsolutePath(args.input, "--input");
+  const stage = args.stage;
+  const perspectiveId = args.perspective.trim();
+  const agentRunId = args.agentRunId.trim();
+  const reason = args.reason.trim();
+
+  if (stage !== "wave1") {
+    throw new Error("--stage must be wave1");
+  }
+  if (!isSafeSegment(perspectiveId)) {
+    throw new Error("--perspective must contain only letters, numbers, underscores, or dashes");
+  }
+  if (!agentRunId) {
+    throw new Error("--agent-run-id must be non-empty");
+  }
+  if (!reason) {
+    throw new Error("--reason must be non-empty");
+  }
+
+  const sourceMarkdown = await fs.readFile(inputPath, "utf8");
+  if (!sourceMarkdown.trim()) {
+    throw new Error("--input markdown is empty");
+  }
+
+  const manifest = await readJsonObject(manifestPath);
+  const summary = await summarizeManifest(manifest);
+  const runRoot = summary.runRoot;
+  const planEntries = await readWave1PlanEntries(runRoot);
+  const planEntry = planEntries.find((entry) => entry.perspectiveId === perspectiveId);
+  if (!planEntry) {
+    throw new Error(`perspective ${perspectiveId} not found in wave1 plan`);
+  }
+
+  const promptDigest = promptDigestFromPromptMarkdown(planEntry.promptMd);
+  const outputPath = path.join(runRoot, "wave-1", `${perspectiveId}.md`);
+  const metaPath = path.join(runRoot, "wave-1", `${perspectiveId}.meta.json`);
+
+  assertWithinRoot(runRoot, outputPath, "wave-1 output");
+  assertWithinRoot(runRoot, metaPath, "wave-1 meta sidecar");
+
+  const startedAt = normalizeOptional(args.startedAt);
+  const finishedAt = normalizeOptional(args.finishedAt);
+  const model = normalizeOptional(args.model);
+  const ingestedAt = nowIso();
+
+  const sidecar = {
+    schema_version: "wave-output-meta.v1",
+    prompt_digest: promptDigest,
+    agent_run_id: agentRunId,
+    ingested_at: ingestedAt,
+    source_input_path: inputPath,
+    ...(startedAt ? { started_at: startedAt } : {}),
+    ...(finishedAt ? { finished_at: finishedAt } : {}),
+    ...(model ? { model } : {}),
+  };
+
+  await withRunLock({
+    runRoot,
+    reason: `operator-cli agent-result: ${reason}`,
+    fn: async () => {
+      await fs.mkdir(path.dirname(outputPath), { recursive: true });
+      await fs.writeFile(outputPath, `${sourceMarkdown.trim()}\n`, "utf8");
+      await fs.writeFile(metaPath, `${JSON.stringify(sidecar, null, 2)}\n`, "utf8");
+    },
+  });
+
+  printContract({
+    runId: summary.runId,
+    runRoot,
+    manifestPath,
+    gatesPath: summary.gatesPath,
+    stageCurrent: summary.stageCurrent,
+    status: summary.status,
+  });
+  console.log("agent_result.ok: true");
+  console.log(`agent_result.stage: ${stage}`);
+  console.log(`agent_result.perspective_id: ${perspectiveId}`);
+  console.log(`agent_result.output_path: ${outputPath}`);
+  console.log(`agent_result.meta_path: ${metaPath}`);
+  console.log(`agent_result.prompt_digest: ${promptDigest}`);
+}
+
 const AbsolutePath: Type<string, string> = {
   async from(str) {
     return requireAbsolutePath(str, "path");
@@ -2141,7 +2897,7 @@ const tickCmd = command({
     manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
     gates: option({ long: "gates", type: optional(AbsolutePath) }),
     reason: option({ long: "reason", type: string }),
-    driver: option({ long: "driver", type: oneOf(["fixture", "live"]) }),
+    driver: option({ long: "driver", type: oneOf(["fixture", "live", "task"]) }),
   },
   handler: async (args) => {
     await runTick({
@@ -2151,6 +2907,35 @@ const tickCmd = command({
       gates: args.gates,
       reason: args.reason,
       driver: args.driver as TickCliArgs["driver"],
+    });
+  },
+});
+
+const agentResultCmd = command({
+  name: "agent-result",
+  description: "Ingest a task-produced wave output into canonical wave artifacts",
+  args: {
+    manifest: option({ long: "manifest", type: AbsolutePath }),
+    stage: option({ long: "stage", type: oneOf(["wave1"]) }),
+    perspective: option({ long: "perspective", type: string }),
+    input: option({ long: "input", type: AbsolutePath }),
+    agentRunId: option({ long: "agent-run-id", type: string }),
+    reason: option({ long: "reason", type: string }),
+    startedAt: option({ long: "started-at", type: optional(string) }),
+    finishedAt: option({ long: "finished-at", type: optional(string) }),
+    model: option({ long: "model", type: optional(string) }),
+  },
+  handler: async (args) => {
+    await runAgentResult({
+      manifest: args.manifest,
+      stage: args.stage as AgentResultCliArgs["stage"],
+      perspective: args.perspective,
+      input: args.input,
+      agentRunId: args.agentRunId,
+      reason: args.reason,
+      startedAt: args.startedAt,
+      finishedAt: args.finishedAt,
+      model: args.model,
     });
   },
 });
@@ -2189,12 +2974,14 @@ const statusCmd = command({
     runId: option({ long: "run-id", type: optional(string) }),
     runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
     manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
+    json: flag({ long: "json", type: boolean }),
   },
   handler: async (args) => {
     await runStatus({
       runId: args.runId,
       runRoot: args.runRoot,
       manifest: args.manifest,
+      json: args.json,
     });
   },
 });
@@ -2206,12 +2993,14 @@ const inspectCmd = command({
     runId: option({ long: "run-id", type: optional(string) }),
     runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
     manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
+    json: flag({ long: "json", type: boolean }),
   },
   handler: async (args) => {
     await runInspect({
       runId: args.runId,
       runRoot: args.runRoot,
       manifest: args.manifest,
+      json: args.json,
     });
   },
 });
@@ -2223,12 +3012,14 @@ const triageCmd = command({
     runId: option({ long: "run-id", type: optional(string) }),
     runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
     manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
+    json: flag({ long: "json", type: boolean }),
   },
   handler: async (args) => {
     await runTriage({
       runId: args.runId,
       runRoot: args.runRoot,
       manifest: args.manifest,
+      json: args.json,
     });
   },
 });
@@ -2309,11 +3100,36 @@ const captureFixturesCmd = command({
   },
 });
 
+const rerunWave1Cmd = command({
+  name: "wave1",
+  description: "Write/overwrite wave1 retry directives for one perspective",
+  args: {
+    manifest: option({ long: "manifest", type: AbsolutePath }),
+    perspective: option({ long: "perspective", type: string }),
+    reason: option({ long: "reason", type: string }),
+  },
+  handler: async (args) => {
+    await runRerunWave1({
+      manifest: args.manifest,
+      perspective: args.perspective,
+      reason: args.reason,
+    });
+  },
+});
+
+const rerunCmd = subcommands({
+  name: "rerun",
+  cmds: {
+    wave1: rerunWave1Cmd,
+  },
+});
+
 const app = subcommands({
   name: "deep-research-option-c",
   cmds: {
     init: initCmd,
     tick: tickCmd,
+    "agent-result": agentResultCmd,
     run: runCmd,
     status: statusCmd,
     inspect: inspectCmd,
@@ -2322,6 +3138,7 @@ const app = subcommands({
     resume: resumeCmd,
     cancel: cancelCmd,
     "capture-fixtures": captureFixturesCmd,
+    rerun: rerunCmd,
   },
 });
 

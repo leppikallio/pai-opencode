@@ -17,6 +17,64 @@ import {
   validateManifestV1,
 } from "./lifecycle_lib";
 
+const SCOPE_PATH_RELATIVE = "operator/scope.json";
+
+type ScopeV1 = {
+  schema_version: "scope.v1";
+  run_id: string;
+  updated_at: string;
+  questions: string[];
+  non_goals: string[];
+  deliverable: string;
+  time_budget_minutes: number;
+  depth: RunMode;
+  citation_posture: "follow_manifest";
+  notes?: string;
+  assumptions?: string[];
+};
+
+function defaultTimeBudgetMinutes(mode: RunMode): number {
+  if (mode === "quick") return 15;
+  if (mode === "deep") return 120;
+  return 45;
+}
+
+function validateScopeV1(value: ScopeV1): string | null {
+  if (value.schema_version !== "scope.v1") return "scope.schema_version must be scope.v1";
+  if (typeof value.run_id !== "string" || value.run_id.trim().length === 0) return "scope.run_id missing";
+  if (typeof value.updated_at !== "string" || Number.isNaN(new Date(value.updated_at).getTime())) {
+    return "scope.updated_at must be a valid ISO timestamp";
+  }
+  if (!Array.isArray(value.questions) || value.questions.length < 1) return "scope.questions must be string[] with at least one item";
+  if (!value.questions.every((q) => typeof q === "string" && q.trim().length > 0)) {
+    return "scope.questions items must be non-empty strings";
+  }
+  if (!Array.isArray(value.non_goals) || !value.non_goals.every((n) => typeof n === "string")) {
+    return "scope.non_goals must be string[]";
+  }
+  if (typeof value.deliverable !== "string" || value.deliverable.trim().length === 0) {
+    return "scope.deliverable must be non-empty string";
+  }
+  if (!Number.isInteger(value.time_budget_minutes) || value.time_budget_minutes < 1) {
+    return "scope.time_budget_minutes must be integer >= 1";
+  }
+  if (!["quick", "standard", "deep"].includes(value.depth)) {
+    return "scope.depth must be quick|standard|deep";
+  }
+  if (value.citation_posture !== "follow_manifest") {
+    return "scope.citation_posture must be follow_manifest";
+  }
+  if (value.notes !== undefined && typeof value.notes !== "string") {
+    return "scope.notes must be string when provided";
+  }
+  if (value.assumptions !== undefined) {
+    if (!Array.isArray(value.assumptions) || !value.assumptions.every((n) => typeof n === "string")) {
+      return "scope.assumptions must be string[] when provided";
+    }
+  }
+  return null;
+}
+
 function isPathWithin(baseDir: string, targetPath: string): boolean {
   const rel = path.relative(baseDir, targetPath);
   return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
@@ -96,6 +154,7 @@ export const run_init = tool({
     }
     const manifestPath = path.join(root, "manifest.json");
     const gatesPath = path.join(root, "gates.json");
+    const scopePath = path.join(root, "operator", "scope.json");
     const ledgerPath = path.join(baseResolved, "runs-ledger.jsonl");
 
     try {
@@ -120,6 +179,8 @@ export const run_init = tool({
             summaries_dir: "summaries",
             synthesis_dir: "synthesis",
             logs_dir: "logs",
+            operator_dir: "operator",
+            scope_file: SCOPE_PATH_RELATIVE,
           },
         });
       }
@@ -129,7 +190,7 @@ export const run_init = tool({
 
     try {
       await ensureDir(root);
-      const dirs = ["wave-1", "wave-2", "citations", "summaries", "synthesis", "logs"];
+      const dirs = ["wave-1", "wave-2", "citations", "summaries", "synthesis", "logs", "operator"];
       for (const d of dirs) await ensureDir(path.join(root, d));
 
       let ledgerWritten = false;
@@ -152,6 +213,22 @@ export const run_init = tool({
       }
 
       const ts = nowIso();
+      const scope: ScopeV1 = {
+        schema_version: "scope.v1",
+        run_id: runId,
+        updated_at: ts,
+        questions: [args.query],
+        non_goals: [],
+        deliverable: "Produce a deterministic synthesis grounded in run artifacts.",
+        time_budget_minutes: defaultTimeBudgetMinutes(requestedMode),
+        depth: requestedMode,
+        citation_posture: "follow_manifest",
+      };
+      const scopeErr = validateScopeV1(scope);
+      if (scopeErr) {
+        return err("SCHEMA_VALIDATION_FAILED", scopeErr, { path: "$.scope" });
+      }
+
       const manifest = {
         schema_version: "manifest.v1",
         run_id: runId,
@@ -161,6 +238,7 @@ export const run_init = tool({
         query: {
           text: args.query,
           constraints: {
+            scope_path: SCOPE_PATH_RELATIVE,
             deep_research_flags: {
               PAI_DR_OPTION_C_ENABLED: flags.optionCEnabled,
               PAI_DR_MODE_DEFAULT: flags.modeDefault,
@@ -231,6 +309,7 @@ export const run_init = tool({
       const vgErr = validateGatesV1(gates);
       if (vgErr) return vgErr;
 
+      await atomicWriteJson(scopePath, scope);
       await atomicWriteJson(manifestPath, manifest);
       await atomicWriteJson(gatesPath, gates);
 
@@ -248,6 +327,8 @@ export const run_init = tool({
           summaries_dir: "summaries",
           synthesis_dir: "synthesis",
           logs_dir: "logs",
+          operator_dir: "operator",
+          scope_file: SCOPE_PATH_RELATIVE,
         },
       });
     } catch (e) {

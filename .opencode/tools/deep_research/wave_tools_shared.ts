@@ -6,6 +6,20 @@ import { ensureDir } from "../../plugins/lib/paths";
 
 export type JsonObject = Record<string, unknown>;
 
+export type ScopeV1 = {
+  schema_version: "scope.v1";
+  run_id: string;
+  updated_at: string;
+  questions: string[];
+  non_goals: string[];
+  deliverable: string;
+  time_budget_minutes: number;
+  depth: "quick" | "standard" | "deep";
+  citation_posture: "follow_manifest";
+  notes?: string;
+  assumptions?: string[];
+};
+
 export type ToolWithExecute = {
   execute: (...args: unknown[]) => unknown | Promise<unknown>;
 };
@@ -263,6 +277,105 @@ export function validatePerspectivesV1(value: unknown): string | null {
   return null;
 }
 
+export function validateScopeV1(value: unknown): string | null {
+  if (!isPlainObject(value)) return errorWithPath("scope must be an object", "$");
+  const v = value;
+
+  if (v.schema_version !== "scope.v1") {
+    return errorWithPath("scope.schema_version must be scope.v1", "$.schema_version");
+  }
+  if (!isNonEmptyString(v.run_id)) return errorWithPath("scope.run_id missing", "$.run_id");
+  if (!isNonEmptyString(v.updated_at) || Number.isNaN(new Date(v.updated_at).getTime())) {
+    return errorWithPath("scope.updated_at must be valid ISO timestamp", "$.updated_at");
+  }
+
+  if (!Array.isArray(v.questions) || v.questions.length < 1) {
+    return errorWithPath("scope.questions must be non-empty string array", "$.questions");
+  }
+  for (let i = 0; i < v.questions.length; i++) {
+    if (!isNonEmptyString(v.questions[i])) {
+      return errorWithPath("scope.questions entries must be non-empty strings", `$.questions[${i}]`);
+    }
+  }
+
+  if (!Array.isArray(v.non_goals)) {
+    return errorWithPath("scope.non_goals must be string[]", "$.non_goals");
+  }
+  for (let i = 0; i < v.non_goals.length; i++) {
+    if (typeof v.non_goals[i] !== "string") {
+      return errorWithPath("scope.non_goals entries must be strings", `$.non_goals[${i}]`);
+    }
+  }
+
+  if (!isNonEmptyString(v.deliverable)) {
+    return errorWithPath("scope.deliverable must be non-empty string", "$.deliverable");
+  }
+  if (!isInteger(v.time_budget_minutes) || v.time_budget_minutes < 1) {
+    return errorWithPath("scope.time_budget_minutes must be integer >= 1", "$.time_budget_minutes");
+  }
+  if (!isNonEmptyString(v.depth) || !assertEnum(v.depth, ["quick", "standard", "deep"])) {
+    return errorWithPath("scope.depth must be quick|standard|deep", "$.depth");
+  }
+  if (v.citation_posture !== "follow_manifest") {
+    return errorWithPath("scope.citation_posture must be follow_manifest", "$.citation_posture");
+  }
+
+  if (v.notes !== undefined && typeof v.notes !== "string") {
+    return errorWithPath("scope.notes must be string when provided", "$.notes");
+  }
+  if (v.assumptions !== undefined) {
+    if (!Array.isArray(v.assumptions)) {
+      return errorWithPath("scope.assumptions must be string[] when provided", "$.assumptions");
+    }
+    for (let i = 0; i < v.assumptions.length; i++) {
+      if (typeof v.assumptions[i] !== "string") {
+        return errorWithPath("scope.assumptions entries must be strings", `$.assumptions[${i}]`);
+      }
+    }
+  }
+
+  return null;
+}
+
+function normalizeScopeText(value: string): string {
+  return normalizeWhitespace(value);
+}
+
+function normalizeScopeList(value: string[]): string[] {
+  return value
+    .map((entry) => normalizeScopeText(String(entry ?? "")))
+    .filter((entry) => entry.length > 0);
+}
+
+export function renderScopeContractMd(scope: ScopeV1): string {
+  const questions = normalizeScopeList(scope.questions);
+  const nonGoals = normalizeScopeList(scope.non_goals);
+  const assumptions = normalizeScopeList(scope.assumptions ?? []);
+  const notes = typeof scope.notes === "string" ? normalizeScopeText(scope.notes) : "";
+
+  const lines: string[] = [
+    "### Questions",
+    ...(questions.length > 0 ? questions.map((value) => `- ${value}`) : ["- (none)"]),
+    "",
+    "### Non-goals",
+    ...(nonGoals.length > 0 ? nonGoals.map((value) => `- ${value}`) : ["- (none)"]),
+    "",
+    `- Deliverable: ${normalizeScopeText(scope.deliverable)}`,
+    `- Time budget minutes: ${scope.time_budget_minutes}`,
+    `- Depth: ${scope.depth}`,
+    `- Citation posture: ${scope.citation_posture}`,
+  ];
+
+  if (notes.length > 0) lines.push(`- Notes: ${notes}`);
+
+  if (assumptions.length > 0) {
+    lines.push("- Assumptions:");
+    lines.push(...assumptions.map((value) => `  - ${value}`));
+  }
+
+  return lines.join("\n");
+}
+
 function escapeRegex(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -472,6 +585,7 @@ export function buildWave1PromptMd(args: {
   maxWords: number;
   maxSources: number;
   mustIncludeSections: string[];
+  scopeContractMd: string;
 }): string {
   return [
     "# Wave 1 Perspective Plan",
@@ -488,6 +602,9 @@ export function buildWave1PromptMd(args: {
     `- Max words: ${args.maxWords}`,
     `- Max sources: ${args.maxSources}`,
     `- Required sections: ${args.mustIncludeSections.join(", ")}`,
+    "",
+    "## Scope Contract",
+    args.scopeContractMd,
     "",
     "Produce markdown that satisfies the prompt contract exactly.",
   ].join("\n");
