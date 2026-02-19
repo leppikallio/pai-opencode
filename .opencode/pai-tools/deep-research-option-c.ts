@@ -46,6 +46,7 @@ import {
   sha256HexLowerUtf8,
 } from "../tools/deep_research/lifecycle_lib";
 import { createAgentResultCmd } from "./deep-research-option-c/cmd/agent-result";
+import { createCancelCmd } from "./deep-research-option-c/cmd/cancel";
 import { createInitCmd } from "./deep-research-option-c/cmd/init";
 import { createInspectCmd } from "./deep-research-option-c/cmd/inspect";
 import { createPauseCmd } from "./deep-research-option-c/cmd/pause";
@@ -3343,28 +3344,7 @@ const pauseCmd = createPauseCmd({ AbsolutePath, runPause });
 
 const resumeCmd = createResumeCmd({ AbsolutePath, runResume });
 
-const cancelCmd = command({
-  name: "cancel",
-  description: "Cancel a run durably and write a cancel checkpoint",
-  args: {
-    runId: option({ long: "run-id", type: optional(string) }),
-    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
-    runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
-    manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
-    reason: option({ long: "reason", type: optional(string) }),
-    json: flag({ long: "json", type: boolean }),
-  },
-  handler: async (args) => {
-    await runCancel({
-      runId: args.runId,
-      runsRoot: args.runsRoot,
-      runRoot: args.runRoot,
-      manifest: args.manifest,
-      reason: args.reason ?? "operator-cli cancel",
-      json: args.json,
-    });
-  },
-});
+const cancelCmd = createCancelCmd({ AbsolutePath, runCancel });
 
 const captureFixturesCmd = command({
   name: "capture-fixtures",
