@@ -141,7 +141,6 @@ export const run_metrics_write = tool({
         if (eventType === "watchdog_timeout") {
           stageTimeoutsTotal += 1;
           timeoutsByStageId[stageId] += 1;
-          continue;
         }
       }
 

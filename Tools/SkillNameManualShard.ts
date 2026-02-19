@@ -6,7 +6,6 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 
 type QueueEntry = {
   id: string;

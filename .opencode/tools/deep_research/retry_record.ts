@@ -2,8 +2,8 @@ import { tool } from "@opencode-ai/plugin";
 
 import {
   GATE_RETRY_CAPS_V1,
-  GateId,
-  ToolWithExecute,
+  type GateId,
+  type ToolWithExecute,
   err,
   errorCode,
   isInteger,

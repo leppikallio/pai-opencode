@@ -100,7 +100,7 @@ describe("deep_research_citations_validate (entity)", () => {
 
         const urlMap = JSON.parse(await fs.readFile(fixture("validate", "url-map.json"), "utf8"));
         urlMap.run_id = runId;
-        await fs.writeFile(urlMapPath, JSON.stringify(urlMap, null, 2) + "\n", "utf8");
+        await fs.writeFile(urlMapPath, `${JSON.stringify(urlMap, null, 2)}\n`, "utf8");
 
         const outRaw = (await (citations_validate as any).execute(
           {
@@ -175,7 +175,7 @@ describe("deep_research_citations_validate (entity)", () => {
 
         await fs.writeFile(
           urlMapPath,
-          JSON.stringify(
+          `${JSON.stringify(
             {
               schema_version: "url_map.v1",
               run_id: runId,
@@ -187,7 +187,7 @@ describe("deep_research_citations_validate (entity)", () => {
             },
             null,
             2,
-          ) + "\n",
+          )}\n`,
           "utf8",
         );
 
@@ -235,7 +235,7 @@ describe("deep_research_citations_validate (entity)", () => {
 
         await fs.writeFile(
           urlMapPath,
-          JSON.stringify(
+          `${JSON.stringify(
             {
               schema_version: "url_map.v1",
               run_id: runId,
@@ -247,7 +247,7 @@ describe("deep_research_citations_validate (entity)", () => {
             },
             null,
             2,
-          ) + "\n",
+          )}\n`,
           "utf8",
         );
 
@@ -352,7 +352,7 @@ describe("deep_research_citations_validate (entity)", () => {
         const urlMapPath = path.join(runRoot, "citations", "url-map.json");
         await fs.writeFile(
           urlMapPath,
-          JSON.stringify(
+          `${JSON.stringify(
             {
               schema_version: "url_map.v1",
               run_id: runId,
@@ -364,7 +364,7 @@ describe("deep_research_citations_validate (entity)", () => {
             },
             null,
             2,
-          ) + "\n",
+          )}\n`,
           "utf8",
         );
 

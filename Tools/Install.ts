@@ -427,7 +427,8 @@ function isSkillDirChanged(args: { sourceDir: string; targetDir: string; skillRe
   // Compare only files present in source; ignore dest-only unmanaged files.
   const stack: string[] = [args.sourceDir];
   while (stack.length) {
-    const base = stack.pop()!;
+    const base = stack.pop();
+    if (!base) break;
     const entries = fs.readdirSync(base, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
 
     for (const e of entries) {
@@ -516,7 +517,8 @@ function computeSkillDirectoryHash(skillDir: string): string {
   const stack: string[] = [skillDir];
 
   while (stack.length) {
-    const current = stack.pop()!;
+    const current = stack.pop();
+    if (!current) break;
     const entries = fs.readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
     for (const e of entries) {
       if (e.name === "__pycache__" || e.name === ".git" || e.name === ".DS_Store" || e.name === "node_modules") {
@@ -789,7 +791,7 @@ function maybeRunSkillsSecurityGate(args: {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pai-skills-gate-"));
   listFilePath = path.join(tmpDir, "scan-skills.txt");
   const rows = toScan.map((rel) => path.join(sourceSkillsDir, rel));
-  fs.writeFileSync(listFilePath, rows.join("\n") + "\n", "utf8");
+  fs.writeFileSync(listFilePath, `${rows.join("\n")}\n`, "utf8");
 
   const cmd = `uv run python "${toolPath}" --mode list --skill-list-file "${listFilePath}" --gate-profile ${args.profile}`;
 

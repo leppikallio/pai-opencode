@@ -232,7 +232,7 @@ function stableDigest(value: Record<string, unknown>): string {
 
 function toolErrorDetails(error: unknown): { code: string; message: string } {
   const text = String(error ?? "unknown error");
-  const match = /failed:\s+([^\s]+)\s+([^\{]+)(?:\{.*)?$/.exec(text);
+  const match = /failed:\s+([^\s]+)\s+([^{]+)(?:\{.*)?$/.exec(text);
   if (!match) {
     return { code: "TOOL_FAILED", message: text };
   }
@@ -3029,7 +3029,7 @@ async function runCancel(args: PauseResumeCliArgs): Promise<void> {
           `- run_id: ${summary.runId}`,
           `- stage: ${summary.stageCurrent}`,
           `- reason: ${args.reason}`,
-          `- next_step: bun \".opencode/pai-tools/deep-research-option-c.ts\" status --manifest \"${runHandle.manifestPath}\"`,
+          `- next_step: bun ".opencode/pai-tools/deep-research-option-c.ts" status --manifest "${runHandle.manifestPath}"`,
         ].join("\n"),
       });
 

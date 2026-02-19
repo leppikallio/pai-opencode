@@ -5,8 +5,8 @@ import * as path from "node:path";
 import { ensureDir } from "../../plugins/lib/paths";
 
 import {
-  RunMode,
-  Sensitivity,
+  type RunMode,
+  type Sensitivity,
   atomicWriteJson,
   err,
   nowIso,

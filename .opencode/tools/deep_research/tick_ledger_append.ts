@@ -182,8 +182,8 @@ export const tick_ledger_append = tool({
             kind: "tick_ledger_append",
             run_id: runId,
             reason,
-            tick_index: entry["tick_index"] ?? null,
-            phase: entry["phase"] ?? null,
+            tick_index: entry.tick_index ?? null,
+            phase: entry.phase ?? null,
             ledger_path: toPosixPath(path.relative(runRoot, ledgerPath)),
           },
         });
@@ -193,8 +193,8 @@ export const tick_ledger_append = tool({
 
       return ok({
         ledger_path: ledgerPath,
-        tick_index: entry["tick_index"] ?? null,
-        phase: entry["phase"] ?? null,
+        tick_index: entry.tick_index ?? null,
+        phase: entry.phase ?? null,
       });
     } catch (e) {
       if (errorCode(e) === "ENOENT") return err("NOT_FOUND", "manifest_path not found");

@@ -116,7 +116,7 @@ describe("deep_research citations phase04 (entity)", () => {
         const fixturesPath = path.join(root, "citations", "offline-fixtures.json");
         await fs.writeFile(
           fixturesPath,
-          JSON.stringify(
+          `${JSON.stringify(
             {
               items: [
                 {
@@ -140,7 +140,7 @@ describe("deep_research citations phase04 (entity)", () => {
             },
             null,
             2,
-          ) + "\n",
+          )}\n`,
           "utf8",
         );
 
