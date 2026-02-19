@@ -17,7 +17,7 @@ bun "pai-tools/deep-research-option-c.ts" init "<query>" --mode standard --sensi
 
 2. Execute Wave 1 autonomously (Option A: Task-backed driver) until the run reaches `stage.current: pivot`.
 
-Preferred operator surface: `/deep-research live "<query>"` (see `.opencode/commands/deep-research.md`).
+Preferred operator surface: `/deep-research live "<query>"` (see `../../../commands/deep-research.md`).
 
 If you must use the CLI directly, do NOT use the operator-input driver loop. Instead, use the deterministic tools + Task spawning described in the command doc, then advance stage.
 
