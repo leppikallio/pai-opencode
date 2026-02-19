@@ -17,6 +17,7 @@
  */
 
 import { tool, type Plugin, type Hooks } from "@opencode-ai/plugin";
+import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
@@ -57,10 +58,6 @@ import {
   setKittyTabState,
   type KittyTabState,
 } from "./handlers/kitty-tabs";
-import {
-  runMonitor,
-  type MonitorOptions,
-} from "../skills/pai-upgrade/Tools/MonitorSources";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -581,7 +578,9 @@ export const PaiUnified: Plugin = async (ctx) => {
 
   const ENABLE_PAI_UPGRADE_SESSION_TRIGGER = (() => {
     const raw = (process.env.PAI_UPGRADE_SESSION_TRIGGER ?? "").trim().toLowerCase();
-    if (!raw) return true;
+    // Default OFF: startup must remain fast and non-blocking.
+    // Enable explicitly with: PAI_UPGRADE_SESSION_TRIGGER=1
+    if (!raw) return false;
     return !["0", "false", "no", "off"].includes(raw);
   })();
 
@@ -713,35 +712,75 @@ export const PaiUnified: Plugin = async (ctx) => {
 
     paiUpgradeSessionTriggerLastAttemptAt = nowMs;
 
-    const options: MonitorOptions = {
-      days: PAI_UPGRADE_SESSION_TRIGGER_DAYS,
-      force: false,
-      provider: PAI_UPGRADE_SESSION_TRIGGER_PROVIDER,
-      dryRun: false,
-      format: "json",
-      persistHistory: true,
-    };
-
     const task = (async () => {
-      const timed = await withWallClockTimeout(
-        runMonitor(options),
-        PAI_UPGRADE_SESSION_TRIGGER_TIMEOUT_MS,
-        "pai-upgrade-session-trigger"
+      const runtime = getPaiRuntimeInfo();
+      const scriptPath = path.join(
+        runtime.paiDir,
+        "skills",
+        "pai-upgrade",
+        "Tools",
+        "MonitorSources.ts"
       );
 
-      if (!timed.ok) {
-        fileLog(
-          `[pai-upgrade] Session trigger timed out (${timed.timeoutMs}ms)`,
-          "warn"
-        );
-        return;
+      // Run the monitor out-of-process to avoid:
+      // - import-time crashes (e.g. Bun-only globals like import.meta.dir)
+      // - console.* output corrupting the OpenCode TUI
+      const args = [
+        scriptPath,
+        "--days",
+        String(PAI_UPGRADE_SESSION_TRIGGER_DAYS),
+        "--provider",
+        String(PAI_UPGRADE_SESSION_TRIGGER_PROVIDER),
+        "--format",
+        "json",
+      ];
+
+      fileLog(`[pai-upgrade] Session trigger spawn: bun ${args.join(" ")}`, "debug");
+
+      const child = spawn("bun", args, {
+        stdio: "ignore",
+        windowsHide: true,
+      });
+
+      // Ensure this never blocks process shutdown.
+      try {
+        child.unref();
+      } catch {
+        // ignore
       }
 
-      const result = timed.value;
-      fileLog(
-        `[pai-upgrade] Session trigger complete updates=${result.summary.total} critical=${result.summary.critical} provider=${result.summary.provider}`,
-        "info"
+      const timeoutMs = PAI_UPGRADE_SESSION_TRIGGER_TIMEOUT_MS;
+      const timeout = setTimeout(() => {
+        try {
+          child.kill("SIGKILL");
+        } catch {
+          // ignore
+        }
+      }, timeoutMs);
+      try {
+        (timeout as unknown as { unref?: () => void }).unref?.();
+      } catch {
+        // ignore
+      }
+
+      const exit = await new Promise<{ code: number | null; signal: string | null }>(
+        (resolve) => {
+          child.once("exit", (code, signal) => resolve({ code, signal }));
+          child.once("error", () => resolve({ code: -1, signal: null }));
+        }
       );
+      clearTimeout(timeout);
+
+      if (exit.code === 0) {
+        fileLog(`[pai-upgrade] Session trigger complete (exit 0)`, "info");
+      } else if (exit.code === -1) {
+        fileLog(`[pai-upgrade] Session trigger failed to spawn bun`, "warn");
+      } else {
+        fileLog(
+          `[pai-upgrade] Session trigger exit code=${String(exit.code)} signal=${String(exit.signal)}`,
+          "warn"
+        );
+      }
     })()
       .catch((error) => {
         fileLogError("[pai-upgrade] Session trigger failed", error);
