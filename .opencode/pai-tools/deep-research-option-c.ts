@@ -7,11 +7,8 @@ import { createInterface } from "node:readline/promises";
 
 import type { Type } from "cmd-ts";
 import {
-  boolean,
   command,
-  flag,
   option,
-  optional,
   runSafely,
   string,
   subcommands,
@@ -47,6 +44,7 @@ import {
 } from "../tools/deep_research/lifecycle_lib";
 import { createAgentResultCmd } from "./deep-research-option-c/cmd/agent-result";
 import { createCancelCmd } from "./deep-research-option-c/cmd/cancel";
+import { createCaptureFixturesCmd } from "./deep-research-option-c/cmd/capture-fixtures";
 import { createInitCmd } from "./deep-research-option-c/cmd/init";
 import { createInspectCmd } from "./deep-research-option-c/cmd/inspect";
 import { createPauseCmd } from "./deep-research-option-c/cmd/pause";
@@ -3346,26 +3344,7 @@ const resumeCmd = createResumeCmd({ AbsolutePath, runResume });
 
 const cancelCmd = createCancelCmd({ AbsolutePath, runCancel });
 
-const captureFixturesCmd = command({
-  name: "capture-fixtures",
-  description: "Capture deterministic fixture bundle for replay",
-  args: {
-    manifest: option({ long: "manifest", type: AbsolutePath }),
-    outputDir: option({ long: "output-dir", type: optional(AbsolutePath) }),
-    bundleId: option({ long: "bundle-id", type: optional(string) }),
-    reason: option({ long: "reason", type: optional(string) }),
-    json: flag({ long: "json", type: boolean }),
-  },
-  handler: async (args) => {
-    await runCaptureFixtures({
-      manifest: args.manifest,
-      outputDir: args.outputDir,
-      bundleId: args.bundleId,
-      reason: args.reason ?? "operator-cli capture-fixtures",
-      json: args.json,
-    });
-  },
-});
+const captureFixturesCmd = createCaptureFixturesCmd({ AbsolutePath, runCaptureFixtures });
 
 const rerunWave1Cmd = command({
   name: "wave1",
