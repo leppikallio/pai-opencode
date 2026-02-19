@@ -48,6 +48,7 @@ import {
 import { createAgentResultCmd } from "./deep-research-option-c/cmd/agent-result";
 import { createInitCmd } from "./deep-research-option-c/cmd/init";
 import { createInspectCmd } from "./deep-research-option-c/cmd/inspect";
+import { createPauseCmd } from "./deep-research-option-c/cmd/pause";
 import { createRunCmd } from "./deep-research-option-c/cmd/run";
 import { createStatusCmd } from "./deep-research-option-c/cmd/status";
 import { createTickCmd } from "./deep-research-option-c/cmd/tick";
@@ -3337,28 +3338,7 @@ const inspectCmd = createInspectCmd({ AbsolutePath, runInspect });
 
 const triageCmd = createTriageCmd({ AbsolutePath, runTriage });
 
-const pauseCmd = command({
-  name: "pause",
-  description: "Pause a run durably and write a checkpoint artifact",
-  args: {
-    runId: option({ long: "run-id", type: optional(string) }),
-    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
-    runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
-    manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
-    reason: option({ long: "reason", type: optional(string) }),
-    json: flag({ long: "json", type: boolean }),
-  },
-  handler: async (args) => {
-    await runPause({
-      runId: args.runId,
-      runsRoot: args.runsRoot,
-      runRoot: args.runRoot,
-      manifest: args.manifest,
-      reason: args.reason ?? "operator-cli pause",
-      json: args.json,
-    });
-  },
-});
+const pauseCmd = createPauseCmd({ AbsolutePath, runPause });
 
 const resumeCmd = command({
   name: "resume",
