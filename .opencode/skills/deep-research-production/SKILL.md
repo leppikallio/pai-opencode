@@ -1,42 +1,25 @@
 ---
 name: deep-research-production
-description: Production playbook for Option C deep research runs, with operator contracts for wave execution, citations policy, and synthesis quality loops.
+description: DEPRECATED compatibility alias; use the canonical deep-research skill.
 ---
 
-# Deep Research Production Skill
+## DEPRECATED
 
-## Purpose
+This skill is a **compatibility alias only**.
 
-Use this skill as the production operations layer for Option C: perspective authoring, autonomous wave execution policy, citations ladder policy, and synthesis/review quality loops.
+- Canonical skill: `.opencode/skills/deep-research/SKILL.md`
+- Keep this file for installs that still reference `deep-research-production`.
 
-## When to use this vs `deep-research-option-c`
+### Compatibility scope
 
-- Use `deep-research-option-c` for CLI mechanics (`init`, `tick`, `run`, `status`, `inspect`, `triage`).
-- Use `deep-research-production` for production operator behavior and quality contracts.
-- Typical pairing: `deep-research-option-c` runs stages, `deep-research-production` defines how outputs must be produced and validated.
+- It is intentionally retained as a pointer only.
+- The canonical skill contains the merged CLI and production workflow contracts.
 
-## No-env-var guidance (required)
+# Deprecated shim for `deep-research`
 
-- Treat run artifacts as configuration truth (`manifest.json`, `gates.json`, `run-config.json`, wave artifacts).
-- Pass run controls explicitly via CLI flags and tool inputs.
-- Do not depend on ambient env vars for core run behavior.
+The source-of-truth operator and production guidance now lives in:
 
-## Scratchpad policy (required)
+- `.opencode/skills/deep-research/SKILL.md`
+- `.opencode/skills/deep-research/Workflows/`
 
-- Keep temporary notes/drafts in the active scratchpad only.
-- Do not write temporary operator notes into the repository.
-- Write outside scratchpad only when a workflow requires run-root artifacts.
-
-## Workflows
-
-- `Workflows/DraftPerspectivesFromQuery.md`
-- `Workflows/RunWave1WithTaskDriver.md`
-- `Workflows/OnlineCitationsLadderPolicy.md`
-- `Workflows/SynthesisAndReviewQualityLoop.md`
-
-## Cross-workflow validation contracts
-
-- [ ] Wave outputs pass `wave_output_validate` and are represented in `wave-review.json`.
-- [ ] Any retry is recorded with `retry_record` and writes a typed retry directives artifact.
-- [ ] Citations used by synthesis resolve to the validated CID pool.
-- [ ] Gate D and Gate E artifacts exist before calling final readiness PASS.
+This file remains only for backward compatibility.

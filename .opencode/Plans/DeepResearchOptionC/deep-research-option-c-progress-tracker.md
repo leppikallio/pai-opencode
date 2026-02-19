@@ -73,7 +73,7 @@ Session loss / compaction safe recovery:
 ## Next 3 Actions
 1. Run **P07-11**: remove remaining explicit TypeScript `any` outside `.opencode/tests/**` in one cleanup commit (after Gate F signoff).
 2. Decide whether to strengthen Phase 07 operational proof by capturing at least one drill with real run-root artifacts (optional; not required for Gate F as written).
-3. Keep the Option C orchestration entrypoint constraint visible: `.opencode/commands/deep-research.md` currently stops after init.
+3. Keep the Option C orchestration entrypoint constraint visible: the canonical operator surface is `.opencode/skills/deep-research/SKILL.md` + the CLI.
 
 ## Pause/Resume Protocol
 Before pausing, update:

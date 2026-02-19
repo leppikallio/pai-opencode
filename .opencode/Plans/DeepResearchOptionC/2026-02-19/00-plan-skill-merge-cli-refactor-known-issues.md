@@ -1,10 +1,12 @@
 # Deep Research Option C — 2026-02-19 Plan
 
-Scope: **Plan only** (no implementation until explicit approval).
+Scope: **Plan + status** (this file is kept in sync with repo reality).
+
+Note: **Epic 3 (known-issues fixes) is already implemented** in this repo; remaining work is Epic 1–2 and Epic 4.
 
 This plan targets **exactly** the three requested outcomes:
 
-1) **Deprecate `/deep-research` slashcommand** and move operator logic into a **single unified skill** (merging the two existing deep-research skills).
+1) **Remove `/deep-research` slashcommand docs** and move operator logic into a **single unified skill** (merging the two existing deep-research skills).
 2) **Refactor the operator CLI** so each module is ~500 lines (meaningful splits).
 3) **Fix known issues immediately** (Wave2 synthetic markdown + stage routing bug).
 
@@ -12,17 +14,23 @@ Repo root: `/Users/zuul/Projects/pai-opencode-graphviz`
 
 ## Current reality (evidence)
 
-- Slashcommand doc: `.opencode/commands/deep-research.md`
-- Operator CLI (bloated): `.opencode/pai-tools/deep-research-option-c.ts` (**3571 lines**)
+- Slashcommand docs: removed (`.opencode/commands/deep-research*.md` no longer present)
+- Operator CLI (bloated): `.opencode/pai-tools/deep-research-option-c.ts` (**3667 lines**)
 - Deep research tools surface: `.opencode/tools/deep_research/index.ts`
 - Two skills (must be merged):
   - `.opencode/skills/deep-research-option-c/`
   - `.opencode/skills/deep-research-production/`
-- Validated known issues (from `architecture-map.drawio` in this directory):
-  1) Wave2 markdown is synthetic (example.com)
-     - `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts` → `buildWave2Markdown`
-  2) CLI live/task tick routes `stage=wave2` incorrectly
-     - `.opencode/pai-tools/deep-research-option-c.ts` → `runOneOrchestratorTick`
+- Previously validated known issues (now resolved):
+  1) Wave2 markdown was synthetic (example.com)
+     - Resolved by task-driver seam + ingestion contract.
+     - Evidence: `.opencode/tests/entities/deep_research_operator_cli_wave2_task_driver.test.ts`
+  2) CLI tick routing for `stage=wave2` was incorrect
+     - Resolved by correct stage routing + regression coverage.
+     - Evidence: `.opencode/tests/entities/deep_research_orchestrator_pivot_wave2_required.test.ts`
+
+Additional seams already implemented (beyond original known-issues scope):
+- Summaries task-driver: `.opencode/tests/entities/deep_research_operator_cli_summaries_task_driver.test.ts`
+- Synthesis task-driver: `.opencode/tests/entities/deep_research_operator_cli_synthesis_task_driver.test.ts`
 
 ---
 
@@ -30,11 +38,11 @@ Repo root: `/Users/zuul/Projects/pai-opencode-graphviz`
 
 ### Global ISC
 
-- [ ] **Slashcommand deprecated; unified skill provides full logic now**
-- [ ] **Deep research skills merged into single canonical skill**
+- [x] **Slashcommand deprecated; unified skill provides full logic now**
+- [x] **Deep research skills merged into single canonical skill**
 - [ ] **Operator CLI refactored into modules under 500 lines**
-- [ ] **Wave2 prompts real; no synthetic example.com markdown remains**
-- [ ] **CLI tick routes wave2 stage to post-pivot correctly**
+- [x] **Wave2 prompts real; no synthetic example.com markdown remains**
+- [x] **CLI tick routes wave2 stage to post-pivot correctly**
 - [ ] **Architect and QA gates pass before completion always**
 - [ ] **Test suite passes after refactor and fixes implemented**
 
@@ -77,21 +85,22 @@ Statuses: `TODO | IN_PROGRESS | DONE | ARCH_PASS | QA_PASS | BLOCKED(<reason>)`
 
 | ID | Item | Owner | Status | Evidence (command/output/path) | Notes |
 |---|---|---|---|---|---|
-| E1 | Deprecate `/deep-research` slashcommand | Eng | TODO |  | Keep stub for compatibility; logic moves into skill |
-| E2 | Merge skills into one canonical skill | Eng/Writer | TODO |  | New `deep-research` skill + deprecation stubs |
-| E3 | Fix: wave2 stage routed incorrectly | Eng | TODO |  | `runOneOrchestratorTick` routing + regression test |
-| E4 | Fix: wave2 synthetic markdown (example.com) | Eng | TODO |  | Remove synthetic generation; require prompt-out + ingestion |
+| E1 | Remove `/deep-research` slashcommand docs | Eng | DONE | `.opencode/commands/` is empty | Slashcommand surface removed |
+| E2 | Merge skills into one canonical skill | Eng/Writer | DONE | `.opencode/skills/deep-research/` + stubbed legacy skills | Canonical skill is operator source-of-truth |
+| E3 | Fix: wave2 stage routed incorrectly | Eng | DONE | `.opencode/tests/entities/deep_research_orchestrator_pivot_wave2_required.test.ts` | Covered by entity tests |
+| E4 | Fix: wave2 synthetic markdown (example.com) | Eng | DONE | `.opencode/tests/entities/deep_research_operator_cli_wave2_task_driver.test.ts` | Task-driver seam + ingestion |
+| E4b | Add: summaries+synthesis task-driver seams | Eng | DONE | `.opencode/tests/entities/deep_research_operator_cli_{summaries,synthesis}_task_driver.test.ts` | Extra hardening beyond initial bug list |
 | E5 | Refactor CLI into ~500-line modules | Eng | TODO |  | No behavior change except E3/E4; tests must stay green |
 | G-ARCH | Architect gate | Architect | TODO |  | PASS required before QA gate |
 | G-QA | QA gate | QATester | TODO |  | PASS required before completion |
 
 ---
 
-## EPIC 1 — Deprecate `/deep-research` slashcommand; skills replace logic
+## EPIC 1 — Remove `/deep-research` slashcommand docs; skills replace logic
 
 ### Goal
 
-- `/deep-research` becomes a **deprecation stub** (kept for backwards compatibility), and the **unified skill** becomes the operator surface.
+- `/deep-research` command docs are removed, and the **unified skill** becomes the operator surface.
 
 ### Design decision (Architect) — required early
 
@@ -103,40 +112,35 @@ Rationale:
 
 ### Tasks
 
-#### E1-T1 — Move the operator contract out of the command doc
+#### E1-T1 — Ensure operator contract lives in the canonical skill
 
 **Builder changes**
-- Create canonical operator contract docs inside the canonical skill:
-  - “Operator surface contract” (moved from `.opencode/commands/deep-research.md`)
-  - “No-env-var contract”
-  - “Modes mapping” (plan/fixture/live)
+- Ensure the canonical operator surface contract is present inside the canonical skill:
+  - `.opencode/skills/deep-research/SKILL.md`
+  - and/or `.opencode/skills/deep-research/Workflows/*`
 
 **Validation contract**
-- `rg -n "Operator surface contract" .opencode/skills/deep-research -S` finds the canonical section.
-- `.opencode/commands/deep-research.md` no longer contains operational instructions beyond deprecation notice.
+- `rg -n "Operator surface contract|plan \(offline-first\)|Required final print contract" .opencode/skills/deep-research -S` finds the canonical guidance.
 
-#### E1-T2 — Deprecate `.opencode/commands/deep-research.md` (keep stub)
+#### E1-T2 — Remove `.opencode/commands/deep-research*.md` (slashcommand surface)
 
 **Builder changes**
-- Add a top-level, unmissable deprecation notice:
-  - “DEPRECATED: use skill `deep-research` (canonical).”
-- Replace most operational text with:
-  - where to find the canonical workflows
-  - the canonical CLI entrypoint (still valid)
-  - a minimal “last resort” reference, if needed
+- Delete `.opencode/commands/deep-research.md` and `.opencode/commands/deep-research-status.md`.
 
 **Validation contract**
-- `rg -n "DEPRECATED" .opencode/commands/deep-research.md -n` returns exactly one clear notice.
-- Docs still point to the correct CLI path: `.opencode/pai-tools/deep-research-option-c.ts`.
+- `test ! -f .opencode/commands/deep-research.md`
+- `test ! -f .opencode/commands/deep-research-status.md`
 
-#### E1-T3 — Update/verify `deep-research-status` behavior
+#### E1-T3 — Update references that pointed at deleted slashcommand docs
 
 **Builder changes**
-- Confirm `.opencode/commands/deep-research-status.md` remains correct.
-- If the progress tracker location changes, update the pointer.
+- Replace references to `.opencode/commands/deep-research*.md` with:
+  - `.opencode/skills/deep-research/SKILL.md` (canonical)
+  - `.opencode/Plans/DeepResearchOptionC/deep-research-option-c-progress-tracker.md` (progress tracker)
 
 **Validation contract**
-- `rg -n "deep-research-option-c-progress-tracker" .opencode/commands/deep-research-status.md -n` points to the canonical tracker.
+- `rg -n "commands/deep-research(\.md|-status\.md)" .opencode/skills .opencode/commands -S` returns **0 matches**.
+- (Optional hygiene) Historical plans may still reference the removed docs; avoid updating history unless needed.
 
 ---
 
@@ -215,6 +219,8 @@ Architect confirms:
 
 #### E3-T1 — Fix `runOneOrchestratorTick` stage routing
 
+Status: **DONE** (see progress tracker E3).
+
 **Builder changes**
 - In `.opencode/pai-tools/deep-research-option-c.ts`, update `runOneOrchestratorTick` so:
   - `stage ∈ { pivot, wave2, citations }` routes to `orchestrator_tick_post_pivot`
@@ -228,6 +234,8 @@ Architect confirms:
 ### Issue B — Wave2 markdown is synthetic (example.com)
 
 #### E4-T1 — Remove synthetic Wave2 markdown generation
+
+Status: **DONE** (see progress tracker E4).
 
 **Builder changes**
 - In `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts`, stop producing placeholder Wave2 outputs by default.
