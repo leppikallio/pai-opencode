@@ -9,11 +9,11 @@
           <mxGeometry x="40" y="40" width="220" height="80" as="geometry" />
         </mxCell>
 
-        <mxCell id="cmd" value="/deep-research command doc\n(.opencode/commands/deep-research.md)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+        <mxCell id="cmd" value="Canonical operator surface\ndeep-research skill\n.opencode/skills/deep-research/SKILL.md\n(runtime: skills/deep-research/SKILL.md)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
           <mxGeometry x="320" y="40" width="320" height="80" as="geometry" />
         </mxCell>
 
-        <mxCell id="cli" value="Operator CLI (single surface)\n.opencode/pai-tools/deep-research-option-c.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+        <mxCell id="cli" value="Operator CLI (canonical)\nRuntime: pai-tools/deep-research-option-c.ts\nSource: .opencode/pai-tools/deep-research-option-c.ts\nSplit: pai-tools/deep-research-option-c/cmd/*.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
           <mxGeometry x="700" y="40" width="320" height="80" as="geometry" />
         </mxCell>
 
@@ -21,7 +21,7 @@
           <mxGeometry x="320" y="170" width="700" height="110" as="geometry" />
         </mxCell>
 
-        <mxCell id="runroot" value="Run Root (artifacts)\nmanifest.json, gates.json, scope.json\nwave-1/, wave-2/, citations/, summaries/, synthesis/, review/, logs/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+        <mxCell id="runroot" value="Run Root (artifacts)\nmanifest.json, gates.json, run-config.json\noperator/ (prompts, drafts, outputs, halt)\nwave-1/, wave-2/, citations/, summaries/, synthesis/, review/, reports/, logs/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
           <mxGeometry x="320" y="330" width="700" height="120" as="geometry" />
         </mxCell>
 
@@ -69,20 +69,28 @@
           <mxGeometry x="40" y="90" width="240" height="70" as="geometry" />
         </mxCell>
 
-        <mxCell id="cmd2" value="/deep-research command doc\n.opencode/commands/deep-research.md" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+        <mxCell id="cmd2" value="Legacy slashcommand docs (removed)\n(opencode: /deep-research*)\n(removed from repo; do not use)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1">
           <mxGeometry x="40" y="180" width="240" height="70" as="geometry" />
         </mxCell>
 
-        <mxCell id="issues2" value="KNOWN ISSUES (validated)\n1) wave2 markdown is synthetic (example.com)\n   orchestrator_tick_post_pivot.ts buildWave2Markdown\n2) CLI live/task tick routes stage=wave2 incorrectly\n   deep-research-option-c.ts runOneOrchestratorTick" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#f59e0b;" vertex="1" parent="1">
+        <mxCell id="issues2" value="Closed gaps (implemented + tested)\n1) Wave2 task-driver seam (no synthetic markdown)\n2) Summaries task-driver seam\n3) Synthesis task-driver seam\n4) Tick routing fixed\n5) next_commands runtime-safe invocation\n6) tool context root from script path\n7) Install: compatibility skills auto-select canonical deep-research" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#16a34a;" vertex="1" parent="1">
           <mxGeometry x="40" y="270" width="240" height="140" as="geometry" />
         </mxCell>
 
-        <mxCell id="cli2" value="Operator CLI (single surface)\n.opencode/pai-tools/deep-research-option-c.ts\ncommands: init | tick | run | agent-result | inspect | triage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#16a34a;" vertex="1" parent="1">
+        <mxCell id="cli2" value="Operator CLI (canonical)\nRuntime: pai-tools/deep-research-option-c.ts\nSource: .opencode/pai-tools/deep-research-option-c.ts\nSplit: pai-tools/deep-research-option-c/cmd/*.ts\ncommands: init | tick | run | agent-result | status | inspect | triage | pause | resume | cancel | capture-fixtures | rerun" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#16a34a;" vertex="1" parent="1">
           <mxGeometry x="320" y="120" width="260" height="110" as="geometry" />
         </mxCell>
 
-        <mxCell id="cfg2" value="Config / flags resolution\nflags_v1.ts + settings/env\n(optionCEnabled, runsRoot, defaults)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#f59e0b;" vertex="1" parent="1">
+        <mxCell id="cfg2" value="Config / flags resolution\nflags_v1.ts + OpenCode settings + defaults\n(no-env operator contract)\n(optionCEnabled, runsRoot, driver defaults)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#f59e0b;" vertex="1" parent="1">
           <mxGeometry x="320" y="250" width="260" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="runconf2" value="Run config (generated per run)\nrun-config.json\ncitations.mode: offline | dry_run | online\nendpoints: brightdata/apify\nsources: manifest flags → settings → run-config" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="320" y="350" width="260" height="130" as="geometry" />
+        </mxCell>
+
+        <mxCell id="drivers2" value="Driver modes\nfixture: deterministic replay (fixtures)\nlive: operator edits draft + returns markdown\ntask: prompt-out → RUN_AGENT_REQUIRED + agent-result\n(applies to wave1/wave2/summaries/synthesis)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#16a34a;" vertex="1" parent="1">
+          <mxGeometry x="320" y="500" width="260" height="120" as="geometry" />
         </mxCell>
 
         <mxCell id="index2" value="Tool surface index\n.opencode/tools/deep_research/index.ts\n(exports all tools below)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0e7ff;strokeColor=#4338ca;" vertex="1" parent="1">
@@ -93,11 +101,11 @@
           <mxGeometry x="620" y="190" width="300" height="140" as="geometry" />
         </mxCell>
 
-        <mxCell id="stage2" value="Stage machine + guards\nstage_advance.ts\nstages: init→wave1→pivot→(wave2|citations)→summaries→synthesis→review→finalize\nblocks on missing artifacts / gates" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0e7ff;strokeColor=#4338ca;" vertex="1" parent="1">
+        <mxCell id="stage2" value="Stage machine + guards\nstage_advance.ts\nstages: init→wave1→pivot→(wave2|citations)→summaries→synthesis→review→finalize\nstatus: running | paused | cancelled | completed\nblocks on missing artifacts / gates (Gate E blocks finalize; Gate F reserved)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0e7ff;strokeColor=#4338ca;" vertex="1" parent="1">
           <mxGeometry x="620" y="350" width="300" height="130" as="geometry" />
         </mxCell>
 
-        <mxCell id="ops2" value="Ops / safety / determinism tools\nrun_lock.ts, watchdog_check.ts\nmanifest_write.ts, gates_write.ts\nretry_record.ts, fallback_offer.ts\ntelemetry_append.ts, tick_ledger_append.ts, run_metrics_write.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1">
+        <mxCell id="ops2" value="Ops / safety / determinism tools\nrun_lock.ts (+ heartbeat), watchdog_check.ts\norchestrator_watchdog.ts, run_lifecycle.ts\nmanifest_write.ts, gates_write.ts\nretry_record.ts, fallback_offer.ts\ntelemetry_append.ts, tick_ledger_append.ts, run_metrics_write.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1">
           <mxGeometry x="620" y="500" width="300" height="190" as="geometry" />
         </mxCell>
 
@@ -105,11 +113,11 @@
           <mxGeometry x="960" y="90" width="320" height="170" as="geometry" />
         </mxCell>
 
-        <mxCell id="pivot2" value="Pivot + Wave 2 tools\npivot_decide.ts → pivot.json\nwave2 plan + ingest/validate\nNOTE: wave2 markdown currently synthetic (example.com)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe4e6;strokeColor=#ef4444;" vertex="1" parent="1">
+        <mxCell id="pivot2" value="Pivot + Wave 2 tools\npivot_decide.ts → pivot.json\nwave2-plan.json + wave2-perspectives.json\nTask-driver seam:\n- operator/prompts/wave2/*.md\n- agent-result → wave-2/*.md + meta\n- wave_output_validate + meta digest match" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dbeafe;strokeColor=#2563eb;" vertex="1" parent="1">
           <mxGeometry x="960" y="280" width="320" height="120" as="geometry" />
         </mxCell>
 
-        <mxCell id="cite2" value="Citations pipeline + Gate C\ncitations_extract_urls.ts → extracted-urls.txt\ncitations_normalize.ts → url-map.json\ncitations_validate.ts (+ citations_validate_lib.ts)\n→ citations.jsonl (+ online fixtures / blocked URLs)\ngate_c_compute.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e9d5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
+        <mxCell id="cite2" value="Citations pipeline + Gate C\ncitations_extract_urls.ts → extracted-urls.txt\ncitations_normalize.ts → url-map.json\ncitations_validate.ts (+ citations_validate_lib.ts)\nmode: offline | dry_run | online (from sensitivity / run-config)\n→ citations.jsonl (+ fixtures + blocked-urls.json + queue.md)\ncitations_render_md.ts (validated-citations.md)\ngate_c_compute.ts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e9d5ff;strokeColor=#7c3aed;" vertex="1" parent="1">
           <mxGeometry x="960" y="420" width="320" height="170" as="geometry" />
         </mxCell>
 
@@ -121,7 +129,7 @@
           <mxGeometry x="960" y="830" width="320" height="90" as="geometry" />
         </mxCell>
 
-        <mxCell id="root2" value="Run Root (artifact store)\nmanifest.json + gates.json\noperator/ (scope, prompts, outputs, halt)\nwave-1/, wave-2/\ncitations/, summaries/, synthesis/, review/\nreports/, logs/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111827;" vertex="1" parent="1">
+        <mxCell id="root2" value="Run Root (artifact store)\nmanifest.json + gates.json + run-config.json\noperator/ (scope, prompts, drafts, outputs, halt)\nwave-1/, wave-2/, retry/\ncitations/, summaries/, synthesis/, review/\nreports/, logs/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111827;" vertex="1" parent="1">
           <mxGeometry x="1320" y="150" width="240" height="250" as="geometry" />
         </mxCell>
 
@@ -129,17 +137,69 @@
           <mxGeometry x="1320" y="420" width="240" height="90" as="geometry" />
         </mxCell>
 
-        <mxCell id="legend2" value="Legend\nBlue: control-plane (orchestration/stages)\nPurple: citations + external\nGray: persisted artifacts + ops tools\nRed/orange: known gaps / failures" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6b7280;" vertex="1" parent="1">
+        <mxCell id="legend2" value="Legend\nBlue: control-plane (orchestration/stages + task-driver seams)\nPurple: citations + external\nGray: persisted artifacts + ops tools\nGreen: implemented/verified\nRed/orange: historical gaps (should be none in current map)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6b7280;" vertex="1" parent="1">
           <mxGeometry x="1320" y="530" width="240" height="140" as="geometry" />
         </mxCell>
 
-        <mxCell id="ae1" value="reads" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="op2" target="cmd2">
+        <!-- Canonical docs + deployment (added for ongoing alignment) -->
+        <mxCell id="skill2" value="Canonical skill surface\n.opencode/skills/deep-research/SKILL.md\n(runtime: skills/deep-research/SKILL.md)\nWorkflows: RunWave1WithTaskDriver, RunFixtureToFinalize, TickUntilStop, …" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="320" y="360" width="260" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="stubs2" value="Compatibility skills (aliases)\nskills/deep-research-option-c\nskills/deep-research-production\n(shims point to canonical paths)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3f4f6;strokeColor=#6b7280;" vertex="1" parent="1">
+          <mxGeometry x="320" y="490" width="260" height="90" as="geometry" />
+        </mxCell>
+
+        <mxCell id="repo2" value="Repo source tree\n&lt;repo&gt;/.opencode/\n(pai-tools/, tools/, skills/, tests/)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111827;" vertex="1" parent="1">
+          <mxGeometry x="40" y="430" width="240" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="install2" value="Deployment\nbun Tools/Install.ts --target ~/.config/opencode\nCopies: pai-tools/ + skills/ + tools/ …\nGates: ScanBrokenRefs + ValidateSkillSystemDocs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111827;" vertex="1" parent="1">
+          <mxGeometry x="40" y="520" width="240" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="runtime2" value="Runtime\n~/.config/opencode/\nCLI: pai-tools/deep-research-option-c.ts\nSkills: skills/deep-research/*\n(primary execution context)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#111827;" vertex="1" parent="1">
+          <mxGeometry x="40" y="650" width="240" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ae1" value="legacy (removed)" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="op2" target="cmd2">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="ae2" value="invokes" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="cmd2" target="cli2">
+        <mxCell id="ae2" value="legacy (removed)" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="cmd2" target="cli2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="ae1b" value="reads" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="op2" target="skill2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae2b" value="runs" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="skill2" target="cli2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae2c" value="aliases" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="stubs2" target="skill2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae_deploy_1" value="source" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="repo2" target="install2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae_deploy_2" value="installs" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="install2" target="runtime2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae_deploy_3" value="runs from" style="endArrow=block;dashed=1;html=1;strokeWidth=2;strokeColor=#6b7280;" edge="1" parent="1" source="op2" target="runtime2">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="ae3" value="resolves" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="cli2" target="cfg2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae3b" value="writes" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="cli2" target="runconf2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae3c" value="selects" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="cli2" target="drivers2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae3d" value="configures" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="runconf2" target="cite2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="ae3e" value="runAgent" style="endArrow=block;dashed=1;html=1;strokeWidth=2;" edge="1" parent="1" source="drivers2" target="orch2">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="ae4" value="imports" style="endArrow=block;html=1;strokeWidth=2;" edge="1" parent="1" source="cli2" target="index2">
