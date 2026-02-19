@@ -1,56 +1,13 @@
-# RunLiveWave1ToPivot Workflow
+# RunLiveWave1ToPivot Workflow (DEPRECATED)
 
-Run live Wave 1 collection and stop when the run reaches `stage.current=pivot`.
+This workflow is a **compatibility shim only**.
 
-## Inputs
+Use the canonical workflow instead:
 
-- Query string
-- Optional: `--run-id`
+- `.opencode/skills/deep-research/Workflows/RunLiveWave1ToPivot.md`
 
-## Steps
+This file remains for installs that still reference:
 
-1. Initialize run:
+- `deep-research-option-c`
 
-```bash
-bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" --mode standard --sensitivity normal
-```
-
-2. Execute Wave 1 autonomously (Option A: Task-backed driver) until the run reaches `stage.current: pivot`.
-
-Preferred operator surface: `/deep-research live "<query>"` (see `../../../commands/deep-research.md`).
-
-If you must use the CLI directly, do NOT use the operator-input driver loop. Instead, use the deterministic tools + Task spawning described in the command doc, then advance stage.
-
-Notes:
-- The CLI `--driver live` path is **operator-input/manual** by default.
-- The autonomous Option A driver is executed by me (Marvin) using `functions.task` and deterministic deep-research tools.
-
-3. If progress stalls, inspect blockers:
-
-```bash
-bun ".opencode/pai-tools/deep-research-option-c.ts" triage --manifest "<manifest_abs>"
-```
-
-## Validation Contract
-
-- [ ] The printed `wave1_plan_path` exists.
-- [ ] Every planned perspective has an ingested wave output artifact (paths are inside `run_root` and produced by the CLI).
-- [ ] A wave review artifact exists and reports `decision=PASS` with no retry directives.
-- [ ] The printed `gates_path` has `gates.B.status=pass`.
-- [ ] `manifest.stage.current` advanced to `pivot`.
-
-## Per-perspective artifact contract (autonomous Option A target)
-
-- [ ] `operator/prompts/<stage>/<perspective_id>.md` exists.
-- [ ] `operator/outputs/<stage>/<perspective_id>.md` exists.
-- [ ] `operator/outputs/<stage>/<perspective_id>.meta.json` exists and includes:
-  - `agent_run_id`
-  - `prompt_digest`
-  - `retry_directives_digest` (`null` when no retry)
-  - `started_at`
-  - `finished_at`
-
-## Notes
-
-- Keep operator notes in scratchpad only.
-- No env vars required; use CLI flags and run artifacts.
+Do not use this document as source-of-truth for operator contracts.

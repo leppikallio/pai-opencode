@@ -1,29 +1,13 @@
-# ResumeRun Workflow
+# ResumeRun Workflow (DEPRECATED)
 
-Resume a paused Option C run and restore watchdog timing semantics.
+This workflow is a **compatibility shim only**.
 
-## Inputs
+Use the canonical workflow instead:
 
-- `manifest` absolute path
-- Optional resume reason
+- `.opencode/skills/deep-research/Workflows/ResumeRun.md`
 
-## Steps
+This file remains for installs that still reference:
 
-1. Resume:
+- `deep-research-option-c`
 
-```bash
-bun ".opencode/pai-tools/deep-research-option-c.ts" resume --manifest "<manifest_abs>" --reason "operator resume"
-```
-
-2. Verify a resume checkpoint was written (the CLI prints the checkpoint path) and the run can continue normally.
-
-## Validation Contract
-
-- [ ] `manifest.status` is `running`.
-- [ ] `manifest.stage.started_at` is refreshed.
-- [ ] A resume checkpoint exists (the CLI prints the checkpoint path) and includes stage + reason.
-
-## Notes
-
-- Keep temporary investigation notes in scratchpad only.
-- No manual env var setup is required.
+Do not use this document as source-of-truth for operator contracts.

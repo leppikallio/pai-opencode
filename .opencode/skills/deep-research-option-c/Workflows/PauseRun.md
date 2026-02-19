@@ -1,29 +1,13 @@
-# PauseRun Workflow
+# PauseRun Workflow (DEPRECATED)
 
-Safely pause a long-running Option C run.
+This workflow is a **compatibility shim only**.
 
-## Inputs
+Use the canonical workflow instead:
 
-- `manifest` absolute path
-- Optional pause reason
+- `.opencode/skills/deep-research/Workflows/PauseRun.md`
 
-## Steps
+This file remains for installs that still reference:
 
-1. Pause:
+- `deep-research-option-c`
 
-```bash
-bun ".opencode/pai-tools/deep-research-option-c.ts" pause --manifest "<manifest_abs>" --reason "operator pause"
-```
-
-2. Confirm a pause checkpoint was written (the CLI prints the checkpoint path) and includes restart guidance.
-
-## Validation Contract
-
-- [ ] `manifest.status` is `paused`.
-- [ ] A pause checkpoint exists (the CLI prints the checkpoint path).
-- [ ] Checkpoint includes stage, reason, and `next_step` resume guidance.
-
-## Notes
-
-- Do not create temporary pause notes in repo; use scratchpad.
-- No env var setup required.
+Do not use this document as source-of-truth for operator contracts.
