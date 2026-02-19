@@ -51,6 +51,7 @@ import { createInspectCmd } from "./deep-research-option-c/cmd/inspect";
 import { createRunCmd } from "./deep-research-option-c/cmd/run";
 import { createStatusCmd } from "./deep-research-option-c/cmd/status";
 import { createTickCmd } from "./deep-research-option-c/cmd/tick";
+import { createTriageCmd } from "./deep-research-option-c/cmd/triage";
 import { resolveRuntimeRootFromMainScript } from "./resolveRuntimeRootFromMainScript";
 
 type ToolEnvelope = Record<string, unknown> & { ok: boolean };
@@ -3334,26 +3335,7 @@ const statusCmd = createStatusCmd({ AbsolutePath, runStatus });
 
 const inspectCmd = createInspectCmd({ AbsolutePath, runInspect });
 
-const triageCmd = command({
-  name: "triage",
-  description: "Print a compact blocker summary from stage_advance dry-run",
-  args: {
-    runId: option({ long: "run-id", type: optional(string) }),
-    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
-    runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
-    manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
-    json: flag({ long: "json", type: boolean }),
-  },
-  handler: async (args) => {
-    await runTriage({
-      runId: args.runId,
-      runsRoot: args.runsRoot,
-      runRoot: args.runRoot,
-      manifest: args.manifest,
-      json: args.json,
-    });
-  },
-});
+const triageCmd = createTriageCmd({ AbsolutePath, runTriage });
 
 const pauseCmd = command({
   name: "pause",
