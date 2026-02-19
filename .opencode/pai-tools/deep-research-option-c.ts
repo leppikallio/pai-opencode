@@ -10,8 +10,6 @@ import {
   boolean,
   command,
   flag,
-  number,
-  oneOf,
   option,
   optional,
   runSafely,
@@ -49,6 +47,7 @@ import {
 } from "../tools/deep_research/lifecycle_lib";
 import { createAgentResultCmd } from "./deep-research-option-c/cmd/agent-result";
 import { createInitCmd } from "./deep-research-option-c/cmd/init";
+import { createRunCmd } from "./deep-research-option-c/cmd/run";
 import { createTickCmd } from "./deep-research-option-c/cmd/tick";
 import { resolveRuntimeRootFromMainScript } from "./resolveRuntimeRootFromMainScript";
 
@@ -3323,42 +3322,11 @@ const AbsolutePath: Type<string, string> = {
 
 const initCmd = createInitCmd({ AbsolutePath, runInit });
 
-const runUntilStages = ["init", "wave1", "pivot", "wave2", "citations", "summaries", "synthesis", "review", "finalize"] as const;
-
 const tickCmd = createTickCmd({ AbsolutePath, runTick });
 
 const agentResultCmd = createAgentResultCmd({ AbsolutePath, runAgentResult });
 
-const runCmd = command({
-  name: "run",
-  description: "Run multiple ticks with watchdog enforcement and stage stops",
-  args: {
-    runId: option({ long: "run-id", type: optional(string) }),
-    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
-    runRoot: option({ long: "run-root", type: optional(AbsolutePath) }),
-    manifest: option({ long: "manifest", type: optional(AbsolutePath) }),
-    gates: option({ long: "gates", type: optional(AbsolutePath) }),
-    reason: option({ long: "reason", type: string }),
-    driver: option({ long: "driver", type: oneOf(["fixture", "live"]) }),
-    maxTicks: option({ long: "max-ticks", type: optional(number) }),
-    until: option({ long: "until", type: optional(oneOf([...runUntilStages])) }),
-    json: flag({ long: "json", type: boolean }),
-  },
-  handler: async (args) => {
-    await runRun({
-      runId: args.runId,
-      runsRoot: args.runsRoot,
-      runRoot: args.runRoot,
-      manifest: args.manifest,
-      gates: args.gates,
-      reason: args.reason,
-      driver: args.driver as RunCliArgs["driver"],
-      maxTicks: args.maxTicks ?? 10,
-      until: args.until,
-      json: args.json,
-    });
-  },
-});
+const runCmd = createRunCmd({ AbsolutePath, runRun });
 
 const statusCmd = command({
   name: "status",
