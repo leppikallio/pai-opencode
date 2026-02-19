@@ -30,7 +30,7 @@ describe("deep_research_citations_validate blocked queue (entity)", () => {
 
         await fs.writeFile(
           urlMapPath,
-          JSON.stringify(
+          `${JSON.stringify(
             {
               schema_version: "url_map.v1",
               run_id: runId,
@@ -49,13 +49,13 @@ describe("deep_research_citations_validate blocked queue (entity)", () => {
             },
             null,
             2,
-          ) + "\n",
+          )}\n`,
           "utf8",
         );
 
         await fs.writeFile(
           foundByPath,
-          JSON.stringify(
+          `${JSON.stringify(
             {
               schema_version: "found_by.v1",
               run_id: runId,
@@ -78,7 +78,7 @@ describe("deep_research_citations_validate blocked queue (entity)", () => {
             },
             null,
             2,
-          ) + "\n",
+          )}\n`,
           "utf8",
         );
 

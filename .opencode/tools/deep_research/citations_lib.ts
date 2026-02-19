@@ -291,7 +291,7 @@ export async function listMarkdownFilesRecursive(dir: string): Promise<string[]>
 }
 
 export function extractHttpUrlsFromLine(line: string): string[] {
-  const matches = line.match(/https?:\/\/[^\s<>()\[\]"'`]+/g) ?? [];
+  const matches = line.match(/https?:\/\/[^\s<>()[\]"'`]+/g) ?? [];
   const out: string[] = [];
   const seen = new Set<string>();
   for (const raw of matches) {

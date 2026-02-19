@@ -116,7 +116,7 @@ describe("deep_research_wave1_plan (entity)", () => {
           const content = await fs.readFile(p, "utf8");
           const patched = JSON.parse(content);
           patched.run_id = runId;
-          await fs.writeFile(path.join(runRoot, "perspectives.json"), JSON.stringify(patched, null, 2) + "\n", "utf8");
+          await fs.writeFile(path.join(runRoot, "perspectives.json"), `${JSON.stringify(patched, null, 2)}\n`, "utf8");
 
           const outRaw = (await (wave1_plan as any).execute(
             {

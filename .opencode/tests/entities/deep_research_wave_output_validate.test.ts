@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import * as path from "node:path";
 
 import { wave_output_validate } from "../../tools/deep_research.ts";
 import { fixturePath, makeToolContext, parseToolJson } from "../helpers/dr-harness";

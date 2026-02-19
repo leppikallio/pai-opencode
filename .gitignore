@@ -26,6 +26,9 @@ session-ses_*.md
 # macOS metadata
 .DS_Store
 
+# draw.io temp files
+**/.$*.drawio.dtmp
+
 # Local backup artifacts (never commit)
 .opencode/BACKUPS/
 Components_backup/

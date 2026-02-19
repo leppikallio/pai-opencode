@@ -93,7 +93,7 @@ function repoRootFromThisFile(): string {
   return path.resolve(path.join(here, ".."));
 }
 
-function toPosix(rel: string): string {
+function _toPosix(rel: string): string {
   return rel.split(path.sep).join("/");
 }
 
