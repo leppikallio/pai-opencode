@@ -14,7 +14,6 @@ import {
   oneOf,
   option,
   optional,
-  positional,
   runSafely,
   string,
   subcommands,
@@ -48,6 +47,7 @@ import {
   resolveDeepResearchFlagsV1,
   sha256HexLowerUtf8,
 } from "../tools/deep_research/lifecycle_lib";
+import { createInitCmd } from "./deep-research-option-c/cmd/init";
 import { resolveRuntimeRootFromMainScript } from "./resolveRuntimeRootFromMainScript";
 
 type ToolEnvelope = Record<string, unknown> & { ok: boolean };
@@ -3319,32 +3319,7 @@ const AbsolutePath: Type<string, string> = {
   },
 };
 
-const initCmd = command({
-  name: "init",
-  description: "Initialize a new Option C run",
-  args: {
-    query: positional({ type: string, displayName: "query" }),
-    runId: option({ long: "run-id", type: optional(string) }),
-    runsRoot: option({ long: "runs-root", type: optional(AbsolutePath) }),
-    sensitivity: option({ long: "sensitivity", type: optional(oneOf(["normal", "restricted", "no_web"])) }),
-    mode: option({ long: "mode", type: optional(oneOf(["quick", "standard", "deep"])) }),
-    noPerspectives: flag({ long: "no-perspectives", type: boolean }),
-    force: flag({ long: "force", type: boolean }),
-    json: flag({ long: "json", type: boolean }),
-  },
-  handler: async (args) => {
-    await runInit({
-      query: args.query,
-      runId: args.runId,
-      runsRoot: args.runsRoot,
-      sensitivity: (args.sensitivity ?? "normal") as InitCliArgs["sensitivity"],
-      mode: (args.mode ?? "standard") as InitCliArgs["mode"],
-      writePerspectives: !args.noPerspectives,
-      force: args.force,
-      json: args.json,
-    });
-  },
-});
+const initCmd = createInitCmd({ AbsolutePath, runInit });
 
 const runUntilStages = ["init", "wave1", "pivot", "wave2", "citations", "summaries", "synthesis", "review", "finalize"] as const;
 
