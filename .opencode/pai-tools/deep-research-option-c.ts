@@ -48,6 +48,7 @@ import {
   resolveDeepResearchFlagsV1,
   sha256HexLowerUtf8,
 } from "../tools/deep_research/lifecycle_lib";
+import { resolveRuntimeRootFromMainScript } from "./resolveRuntimeRootFromMainScript";
 
 type ToolEnvelope = Record<string, unknown> & { ok: boolean };
 type ToolWithExecute = {
@@ -217,6 +218,7 @@ type TickOutcome = {
 const TICK_METRICS_INTERVAL = 1;
 const CLI_ARGV = process.argv.slice(2);
 const JSON_MODE_REQUESTED = CLI_ARGV.includes("--json");
+const TOOL_CONTEXT_RUNTIME_ROOT = resolveRuntimeRootFromMainScript(import.meta.url);
 
 function nextStepCliInvocation(): string {
   return 'bun "pai-tools/deep-research-option-c.ts"';
@@ -590,8 +592,8 @@ function makeToolContext() {
     sessionID: "ses_option_c_cli",
     messageID: "msg_option_c_cli",
     agent: "deep-research-option-c-cli",
-    directory: process.cwd(),
-    worktree: process.cwd(),
+    directory: TOOL_CONTEXT_RUNTIME_ROOT,
+    worktree: TOOL_CONTEXT_RUNTIME_ROOT,
     abort: new AbortController().signal,
     metadata(..._args: unknown[]) {},
     ask: async (..._args: unknown[]) => {},
