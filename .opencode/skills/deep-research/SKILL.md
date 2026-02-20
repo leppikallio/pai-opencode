@@ -15,6 +15,95 @@ This is the canonical operator skill for Option C deep research. It is the sourc
 - CLI: `bun ".opencode/pai-tools/deep-research-option-c.ts" <command> [...flags]`
 - Run artifacts (manifest, gates, stage artifacts) are the source of truth; do not rely on ambient env vars.
 
+## Perspective Drafting (task-driver seam)
+
+Use this when you want **agent-authored perspectives** instead of the default `init`-generated `perspectives.json`.
+
+### Why/when to run `init --no-perspectives`
+
+Run `init` with `--no-perspectives` when:
+
+1) You need the **perspectives stage** (`stage.current=perspectives`) and the `perspectives-draft` task-driver seam.
+2) You want to **halt**, let an external agent produce a JSON payload, then ingest it deterministically.
+3) You want `perspectives-draft` to **promote** `perspectives.json`, **regenerate** the Wave 1 plan, and **stage-advance** to `wave1`.
+
+If you do **not** pass `--no-perspectives`, `init` may write `perspectives.json`, generate the Wave 1 plan, and advance directly to `stage.current=wave1` (skipping the perspectives drafting seam).
+
+### Canonical happy path (end-to-end)
+
+> Canonical workflow doc: `Workflows/DraftPerspectivesFromQuery.md`
+
+1) Init without perspectives:
+
+```bash
+bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" \
+  --mode standard \
+  --sensitivity normal \
+  --no-perspectives
+```
+
+2) Advance into the perspectives stage:
+
+```bash
+bun ".opencode/pai-tools/deep-research-option-c.ts" stage-advance \
+  --manifest "<manifest_abs>" \
+  --gates "<gates_abs>" \
+  --requested-next perspectives \
+  --reason "enter perspectives drafting"
+```
+
+3) Prompt-out + HALT (task driver):
+
+```bash
+bun ".opencode/pai-tools/deep-research-option-c.ts" perspectives-draft \
+  --manifest "<manifest_abs>" \
+  --reason "draft perspectives" \
+  --driver task
+```
+
+4) Create a JSON output file matching **exactly** `perspectives-draft-output.v1`:
+
+- Prompt: `operator/prompts/perspectives/primary.md`
+- Write agent output JSON to: `operator/outputs/perspectives/primary.raw.json`
+
+5) Ingest the JSON output:
+
+```bash
+bun ".opencode/pai-tools/deep-research-option-c.ts" agent-result \
+  --manifest "<manifest_abs>" \
+  --stage perspectives \
+  --perspective "primary" \
+  --input "<run_root>/operator/outputs/perspectives/primary.raw.json" \
+  --agent-run-id "<agent_run_id>" \
+  --reason "ingest perspectives primary"
+```
+
+6) Rerun `perspectives-draft` to auto-promote + regenerate Wave 1 plan + stage-advance to Wave 1:
+
+```bash
+bun ".opencode/pai-tools/deep-research-option-c.ts" perspectives-draft \
+  --manifest "<manifest_abs>" \
+  --reason "approve perspectives draft" \
+  --driver task
+```
+
+7) Continue with Wave 1 task-driver loop:
+
+- `Workflows/RunWave1WithTaskDriver.md`
+
+### New/important artifacts
+
+- `operator/state/perspectives-state.json`
+- `operator/config/perspectives-policy.json`
+- `operator/drafts/perspectives.draft.json`
+
+### Staleness guard (Wave 1)
+
+If `wave1` execution fails fast with `WAVE1_PLAN_STALE`, it means the Wave 1 plan’s perspectives digest no longer matches `perspectives.json`.
+
+- Fix: **regenerate the Wave 1 plan** by re-running the perspectives drafting/promotion flow (see `Workflows/DraftPerspectivesFromQuery.md`).
+- Note: `stage-advance` only moves forward; if you’re already in `stage.current=wave1`, recovery is typically a **fresh run** + re-draft perspectives.
+
 ### Operator surface contract (modes)
 
 This skill is the operator surface. Legacy slashcommand docs are removed.

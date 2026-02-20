@@ -15,6 +15,9 @@ Create a deterministic run root, produce the Wave 1 plan artifact, and stop at `
 bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" --mode standard --sensitivity no_web
 ```
 
+> This workflow assumes you **do not** pass `--no-perspectives`.
+> If you want the perspectives drafting seam (`perspectives-draft`), use `init --no-perspectives` and follow `Workflows/DraftPerspectivesFromQuery.md`.
+
 2. Confirm required artifacts using the printed contract fields:
    - `manifest_path`
    - `gates_path`
@@ -22,7 +25,7 @@ bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" --mode standa
    - `perspectives_path` (printed)
    - `wave1_plan_path` (printed)
 
-The `init` command now performs this deterministic sequence:
+When perspectives are written (i.e., `init` without `--no-perspectives`), the CLI performs this deterministic sequence:
 
 1. `run_init`
 2. `perspectives_write`
@@ -37,7 +40,8 @@ No environment variables are required for this transition.
 - [ ] The printed `gates_path` exists and parses as JSON object.
 - [ ] The printed `perspectives_path` exists.
 - [ ] The printed `wave1_plan_path` points to an existing file and its JSON contains `inputs_digest`.
-- [ ] `manifest.stage.current` equals `wave1` after `init`.
+- [ ] The Wave 1 plan JSON includes `perspectives_digest`.
+- [ ] `manifest.stage.current` equals `wave1` after `init` (only when not using `--no-perspectives`).
 
 ## Notes
 
