@@ -1,7 +1,6 @@
 #!/usr/bin/env bun
 
 import * as fs from "node:fs/promises";
-import * as os from "node:os";
 import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
 
@@ -50,6 +49,19 @@ import { createStatusCmd } from "./deep-research-option-c/cmd/status";
 import { createTickCmd } from "./deep-research-option-c/cmd/tick";
 import { createTriageCmd } from "./deep-research-option-c/cmd/triage";
 import {
+  blockersSummaryJson,
+  readBlockedUrlsInspectSummary,
+  stageAdvanceDryRun,
+  triageFromStageAdvanceResult,
+  type TriageBlockers,
+} from "./deep-research-option-c/triage/blockers";
+import {
+  handleTickFailureArtifacts,
+  printHaltArtifactSummary,
+  resolveLatestOnlineFixtures,
+  writeHaltArtifactForFailure,
+} from "./deep-research-option-c/triage/halt-artifacts";
+import {
   configureStdoutForJsonMode,
   emitJson,
   getCliArgv,
@@ -94,7 +106,6 @@ import {
 import { makeToolContext } from "./deep-research-option-c/runtime/tool-context";
 import {
   callTool,
-  parseToolEnvelope,
   type ToolEnvelope,
   type ToolWithExecute,
 } from "./deep-research-option-c/runtime/tool-envelope";
@@ -256,51 +267,6 @@ type PerspectivesPolicyArtifactV1 = {
   };
 };
 
-type TriageBlockers = {
-  from: string;
-  to: string;
-  errorCode: string | null;
-  errorMessage: string | null;
-  missingArtifacts: Array<{ name: string; path: string | null }>;
-  blockedGates: Array<{ gate: string; status: string | null }>;
-  failedChecks: Array<{ kind: string; name: string }>;
-  allowed: boolean;
-};
-
-type HaltRelatedPaths = {
-  manifest_path: string;
-  gates_path: string;
-  retry_directives_path?: string;
-  blocked_urls_path?: string;
-  online_fixtures_latest_path?: string;
-};
-
-type HaltArtifactV1 = {
-  schema_version: "halt.v1";
-  created_at: string;
-  run_id: string;
-  run_root: string;
-  tick_index: number;
-  stage_current: string;
-  blocked_transition: { from: string; to: string };
-  error: { code: string; message: string; details?: Record<string, unknown> };
-  blockers: {
-    missing_artifacts: Array<{ name: string; path?: string }>;
-    blocked_gates: Array<{ gate: string; status?: string }>;
-    failed_checks: Array<{ kind: string; name: string }>;
-  };
-  related_paths: HaltRelatedPaths;
-  next_commands: string[];
-  notes: string;
-};
-
-type BlockedUrlsInspectSummary = {
-  artifactPath: string;
-  total: number;
-  byStatus: Array<{ status: string; count: number }>;
-  topActions: Array<{ action: string; count: number }>;
-};
-
 type TickResult =
   | OrchestratorTickFixtureResult
   | OrchestratorTickLiveResult
@@ -318,27 +284,6 @@ configureStdoutForJsonMode(JSON_MODE_REQUESTED);
 
 function stableDigest(value: Record<string, unknown>): string {
   return `sha256:${sha256HexLowerUtf8(JSON.stringify(value))}`;
-}
-
-async function nextHaltTickIndex(haltDir: string): Promise<number> {
-  let entries: string[];
-  try {
-    entries = await fs.readdir(haltDir);
-  } catch (error) {
-    const code = (error as { code?: string }).code;
-    if (code === "ENOENT") return 1;
-    throw error;
-  }
-
-  let maxTick = 0;
-  for (const entry of entries) {
-    const match = /^tick-(\d+)\.json$/u.exec(entry);
-    if (!match) continue;
-    const value = Number(match[1]);
-    if (!Number.isFinite(value) || value <= 0) continue;
-    if (value > maxTick) maxTick = value;
-  }
-  return maxTick + 1;
 }
 
 async function fileExists(filePath: string): Promise<boolean> {
@@ -1324,22 +1269,6 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
-function blockersSummaryJson(triage: TriageBlockers): {
-  missing_artifacts: Array<{ name: string; path: string | null }>;
-  blocked_gates: Array<{ gate: string; status: string | null }>;
-} {
-  return {
-    missing_artifacts: triage.missingArtifacts.map((item) => ({
-      name: item.name,
-      path: item.path,
-    })),
-    blocked_gates: triage.blockedGates.map((item) => ({
-      gate: item.gate,
-      status: item.status,
-    })),
-  };
-}
-
 function defaultPerspectivePayload(runId: string): Record<string, unknown> {
   return {
     schema_version: "perspectives.v1",
@@ -1518,406 +1447,6 @@ async function defaultFixtureDriver(args: {
   return { wave_outputs: [] };
 }
 
-async function readBlockedUrlsInspectSummary(runRoot: string): Promise<BlockedUrlsInspectSummary | null> {
-  const blockedUrlsPath = path.join(runRoot, "citations", "blocked-urls.json");
-
-  let raw: Record<string, unknown>;
-  try {
-    raw = await readJsonObject(blockedUrlsPath);
-  } catch {
-    return null;
-  }
-
-  const items = Array.isArray(raw.items) ? raw.items : [];
-  const statusCounts = new Map<string, number>();
-  const actionCounts = new Map<string, number>();
-
-  for (const item of items) {
-    const obj = asObject(item);
-    const status = String(obj.status ?? "blocked").trim() || "blocked";
-    statusCounts.set(status, (statusCounts.get(status) ?? 0) + 1);
-
-    const action = String(obj.action ?? "").trim();
-    if (action) {
-      actionCounts.set(action, (actionCounts.get(action) ?? 0) + 1);
-    }
-  }
-
-  const byStatus = Array.from(statusCounts.entries())
-    .map(([status, count]) => ({ status, count }))
-    .sort((a, b) => a.status.localeCompare(b.status));
-
-  const topActions = Array.from(actionCounts.entries())
-    .map(([action, count]) => ({ action, count }))
-    .sort((a, b) => b.count - a.count || a.action.localeCompare(b.action))
-    .slice(0, 5);
-
-  return {
-    artifactPath: blockedUrlsPath,
-    total: items.length,
-    byStatus,
-    topActions,
-  };
-}
-
-async function stageAdvanceDryRun(args: {
-  manifestPath: string;
-  gatesPath: string;
-  reason: string;
-}): Promise<ToolEnvelope> {
-  const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "dr-stage-advance-"));
-  const tempManifest = path.join(tempDir, "manifest.json");
-  const tempGates = path.join(tempDir, "gates.json");
-
-  try {
-    await fs.copyFile(args.manifestPath, tempManifest);
-    await fs.copyFile(args.gatesPath, tempGates);
-    const raw = await (stage_advance as unknown as ToolWithExecute).execute(
-      {
-        manifest_path: tempManifest,
-        gates_path: tempGates,
-        reason: args.reason,
-      },
-      makeToolContext(),
-    );
-    return parseToolEnvelope("stage_advance", raw);
-  } finally {
-    await fs.rm(tempDir, { recursive: true, force: true });
-  }
-}
-
-function triageFromStageAdvanceResult(envelope: ToolEnvelope): TriageBlockers {
-  const error = asObject(envelope.error);
-  const errorDetails = asObject(error.details);
-  const decision = asObject(errorDetails.decision);
-  const evaluated = Array.isArray(decision.evaluated)
-    ? (decision.evaluated as Array<Record<string, unknown>>)
-    : [];
-
-  const missingArtifacts: Array<{ name: string; path: string | null }> = [];
-  const blockedGates: Array<{ gate: string; status: string | null }> = [];
-  const failedChecks: Array<{ kind: string; name: string }> = [];
-
-  for (const item of evaluated) {
-    if (item.ok === true) continue;
-    const kind = String(item.kind ?? "unknown");
-    const name = String(item.name ?? "unknown");
-    const details = asObject(item.details);
-
-    if (kind === "artifact") {
-      missingArtifacts.push({
-        name,
-        path: details.path == null ? null : String(details.path),
-      });
-      continue;
-    }
-
-    if (kind === "gate") {
-      blockedGates.push({
-        gate: String(details.gate ?? name),
-        status: details.status == null ? null : String(details.status),
-      });
-      continue;
-    }
-
-    failedChecks.push({ kind, name });
-  }
-
-  if (envelope.ok === true) {
-    return {
-      from: String(envelope.from ?? ""),
-      to: String(envelope.to ?? ""),
-      errorCode: null,
-      errorMessage: null,
-      missingArtifacts,
-      blockedGates,
-      failedChecks,
-      allowed: true,
-    };
-  }
-
-  return {
-    from: String(errorDetails.from ?? ""),
-    to: String(errorDetails.to ?? ""),
-    errorCode: error.code == null ? null : String(error.code),
-    errorMessage: error.message == null ? null : String(error.message),
-    missingArtifacts,
-    blockedGates,
-    failedChecks,
-    allowed: false,
-  };
-}
-
-function printBlockersSummary(triage: TriageBlockers): void {
-  console.log("blockers.summary:");
-  console.log(`  transition: ${triage.from || "?"} -> ${triage.to || "?"}`);
-
-  if (triage.allowed) {
-    console.log("  status: no transition blockers detected");
-    console.log("  remediation: inspect tick error details for non-stage failures");
-    return;
-  }
-
-  if (triage.errorCode || triage.errorMessage) {
-    console.log(`  error: ${triage.errorCode ?? "UNKNOWN"} ${triage.errorMessage ?? ""}`.trim());
-  }
-
-  if (triage.missingArtifacts.length > 0) {
-    console.log("  missing_artifacts:");
-    for (const item of triage.missingArtifacts) {
-      console.log(`    - ${item.name}${item.path ? ` (${item.path})` : ""}`);
-    }
-  }
-
-  if (triage.blockedGates.length > 0) {
-    console.log("  blocked_gates:");
-    for (const gate of triage.blockedGates) {
-      console.log(`    - ${gate.gate} (status=${gate.status ?? "unknown"})`);
-    }
-  }
-
-  if (triage.failedChecks.length > 0) {
-    console.log("  failed_checks:");
-    for (const check of triage.failedChecks) {
-      console.log(`    - ${check.kind}: ${check.name}`);
-    }
-  }
-
-  console.log("  remediation: run inspect for full guidance and produce required artifacts/gate passes");
-}
-
-async function computeTriageBlockers(args: {
-  manifestPath: string;
-  gatesPath: string;
-  reason: string;
-}): Promise<TriageBlockers | null> {
-  try {
-    const dryRun = await stageAdvanceDryRun({
-      manifestPath: args.manifestPath,
-      gatesPath: args.gatesPath,
-      reason: args.reason,
-    });
-    return triageFromStageAdvanceResult(dryRun);
-  } catch {
-    return null;
-  }
-}
-
-async function resolveHaltRelatedPaths(args: {
-  runRoot: string;
-  manifestPath: string;
-  gatesPath: string;
-}): Promise<HaltRelatedPaths> {
-  const related: HaltRelatedPaths = {
-    manifest_path: args.manifestPath,
-    gates_path: args.gatesPath,
-  };
-
-  const retryDirectivesPath = await safeResolveManifestPath(args.runRoot, "retry/retry-directives.json", "retry.retry_directives");
-  if (await fileExists(retryDirectivesPath)) {
-    related.retry_directives_path = retryDirectivesPath;
-  }
-
-  const blockedUrlsPath = await safeResolveManifestPath(args.runRoot, "citations/blocked-urls.json", "citations.blocked_urls");
-  if (await fileExists(blockedUrlsPath)) {
-    related.blocked_urls_path = blockedUrlsPath;
-  }
-
-  const latestOnlineFixturesPath = await resolveLatestOnlineFixtures(args.runRoot);
-  if (latestOnlineFixturesPath) {
-    related.online_fixtures_latest_path = latestOnlineFixturesPath;
-  }
-
-  return related;
-}
-
-function nextHaltCommands(args: {
-  manifestPath: string;
-  stageCurrent: string;
-  tickIndex: number;
-  nextCommandsOverride?: string[];
-}): string[] {
-  if (Array.isArray(args.nextCommandsOverride) && args.nextCommandsOverride.length > 0) {
-    return args.nextCommandsOverride;
-  }
-  const cli = nextStepCliInvocation();
-  return [
-    `${cli} inspect --manifest "${args.manifestPath}"`,
-    `${cli} triage --manifest "${args.manifestPath}"`,
-    `${cli} tick --manifest "${args.manifestPath}" --driver fixture --reason "halt retry from ${args.stageCurrent} (halt_tick_${args.tickIndex})"`,
-  ];
-}
-
-async function writeHaltArtifact(args: {
-  runRoot: string;
-  runId: string;
-  manifestPath: string;
-  gatesPath: string;
-  stageCurrent: string;
-  reason: string;
-  error: { code: string; message: string; details?: Record<string, unknown> };
-  triage: TriageBlockers | null;
-  nextCommandsOverride?: string[];
-}): Promise<{ tickPath: string; latestPath: string; tickIndex: number }> {
-  const haltDir = path.join(args.runRoot, "operator", "halt");
-  await fs.mkdir(haltDir, { recursive: true });
-
-  const tickIndex = await nextHaltTickIndex(haltDir);
-  const padded = String(tickIndex).padStart(4, "0");
-  const tickPath = path.join(haltDir, `tick-${padded}.json`);
-  const latestPath = path.join(haltDir, "latest.json");
-  const relatedPaths = await resolveHaltRelatedPaths({
-    runRoot: args.runRoot,
-    manifestPath: args.manifestPath,
-    gatesPath: args.gatesPath,
-  });
-
-  const triage = args.triage;
-  const artifact: HaltArtifactV1 = {
-    schema_version: "halt.v1",
-    created_at: nowIso(),
-    run_id: args.runId,
-    run_root: args.runRoot,
-    tick_index: tickIndex,
-    stage_current: args.stageCurrent,
-    blocked_transition: {
-      from: triage?.from || args.stageCurrent,
-      to: triage?.to || args.stageCurrent,
-    },
-    error: {
-      code: args.error.code,
-      message: args.error.message,
-      ...(args.error.details ? { details: args.error.details } : {}),
-    },
-    blockers: {
-      missing_artifacts: (triage?.missingArtifacts ?? []).map((item) => ({
-        name: item.name,
-        ...(item.path ? { path: item.path } : {}),
-      })),
-      blocked_gates: (triage?.blockedGates ?? []).map((item) => ({
-        gate: item.gate,
-        ...(item.status ? { status: item.status } : {}),
-      })),
-      failed_checks: (triage?.failedChecks ?? []).map((item) => ({
-        kind: item.kind,
-        name: item.name,
-      })),
-    },
-    related_paths: relatedPaths,
-    next_commands: nextHaltCommands({
-      manifestPath: args.manifestPath,
-      stageCurrent: args.stageCurrent,
-      tickIndex,
-      nextCommandsOverride: args.nextCommandsOverride,
-    }),
-    notes: `Tick failure captured by operator CLI (${args.reason})`,
-  };
-
-  const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
-  await fs.writeFile(tickPath, serialized, "utf8");
-  await fs.writeFile(latestPath, serialized, "utf8");
-
-  return { tickPath, latestPath, tickIndex };
-}
-
-async function writeHaltArtifactForFailure(args: {
-  runRoot: string;
-  runId: string;
-  stageCurrent: string;
-  manifestPath: string;
-  gatesPath: string;
-  reason: string;
-  error: { code: string; message: string; details?: Record<string, unknown> };
-  nextCommandsOverride?: string[];
-}): Promise<{ tickPath: string; latestPath: string; tickIndex: number; triage: TriageBlockers | null }> {
-  const triage = await computeTriageBlockers({
-    manifestPath: args.manifestPath,
-    gatesPath: args.gatesPath,
-    reason: `${args.reason} [halt_triage]`,
-  });
-
-  const halt = await writeHaltArtifact({
-    runRoot: args.runRoot,
-    runId: args.runId,
-    manifestPath: args.manifestPath,
-    gatesPath: args.gatesPath,
-    stageCurrent: args.stageCurrent,
-    reason: args.reason,
-    error: args.error,
-    triage,
-    nextCommandsOverride: args.nextCommandsOverride,
-  });
-
-  return { ...halt, triage };
-}
-
-async function printAutoTriage(args: {
-  manifestPath: string;
-  gatesPath: string;
-  reason: string;
-  triage?: TriageBlockers | null;
-}): Promise<void> {
-  const triage = args.triage ?? await computeTriageBlockers({
-    manifestPath: args.manifestPath,
-    gatesPath: args.gatesPath,
-    reason: args.reason,
-  });
-
-  if (triage) {
-    printBlockersSummary(triage);
-    return;
-  }
-
-  console.log("blockers.summary:");
-  console.log("  unavailable: stage_advance dry-run failed");
-}
-
-async function printHaltArtifactSummary(args: {
-  tickPath: string;
-  latestPath: string;
-  tickIndex: number;
-}): Promise<void> {
-  console.log(`halt.tick_index: ${args.tickIndex}`);
-  console.log(`halt.path: ${args.tickPath}`);
-  console.log(`halt.latest_path: ${args.latestPath}`);
-}
-
-async function handleTickFailureArtifacts(args: {
-  runRoot: string;
-  runId: string;
-  stageCurrent: string;
-  manifestPath: string;
-  gatesPath: string;
-  reason: string;
-  error: { code: string; message: string; details?: Record<string, unknown> };
-  triageReason: string;
-  nextCommandsOverride?: string[];
-  emitLogs?: boolean;
-}): Promise<{ tickPath: string; latestPath: string; tickIndex: number; triage: TriageBlockers | null }> {
-  const halt = await writeHaltArtifactForFailure({
-    runRoot: args.runRoot,
-    runId: args.runId,
-    stageCurrent: args.stageCurrent,
-    manifestPath: args.manifestPath,
-    gatesPath: args.gatesPath,
-    reason: args.reason,
-    error: args.error,
-    nextCommandsOverride: args.nextCommandsOverride,
-  });
-
-  if (args.emitLogs !== false) {
-    await printHaltArtifactSummary(halt);
-    await printAutoTriage({
-      manifestPath: args.manifestPath,
-      gatesPath: args.gatesPath,
-      reason: args.triageReason,
-      triage: halt.triage,
-    });
-  }
-
-  return halt;
-}
-
 async function readJsonIfExists(filePath: string): Promise<Record<string, unknown> | null> {
   try {
     return await readJsonObject(filePath);
@@ -1926,35 +1455,6 @@ async function readJsonIfExists(filePath: string): Promise<Record<string, unknow
     if (code === "ENOENT") return null;
     throw error;
   }
-}
-
-async function resolveLatestOnlineFixtures(runRoot: string): Promise<string | null> {
-  const latestPointerPath = await safeResolveManifestPath(
-    runRoot,
-    "citations/online-fixtures.latest.json",
-    "citations.online_fixtures.latest",
-  );
-  const latestPointer = await readJsonIfExists(latestPointerPath);
-  if (latestPointer) {
-    const candidateRaw = String(latestPointer.path ?? latestPointer.latest_path ?? "").trim();
-    if (candidateRaw) {
-      return await safeResolveManifestPath(runRoot, candidateRaw, "citations.online_fixtures.path");
-    }
-    return latestPointerPath;
-  }
-
-  const citationsDir = await safeResolveManifestPath(runRoot, "citations", "citations.dir");
-  let entries: string[] = [];
-  try {
-    entries = await fs.readdir(citationsDir);
-  } catch {
-    return null;
-  }
-  const candidates = entries
-    .filter((entry) => /^online-fixtures\.[^.]+\.json$/u.test(entry))
-    .sort();
-  if (candidates.length === 0) return null;
-  return path.join(citationsDir, candidates[candidates.length - 1]);
 }
 
 async function printInspectOperatorGuidance(runRoot: string): Promise<void> {
@@ -2426,6 +1926,7 @@ async function runTick(args: TickCliArgs): Promise<void> {
       reason: `operator-cli tick failure: ${args.reason}`,
       error: tickError,
       triageReason: `operator-cli tick auto-triage: ${args.reason}`,
+      nextStepCliInvocation,
       nextCommandsOverride: haltNextCommandsOverride,
       emitLogs: !args.json,
     });
@@ -2600,6 +2101,7 @@ async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Promise<voi
             draft_digest: draftBuild.draftDigest,
           },
         },
+        nextStepCliInvocation,
         nextCommandsOverride: [
           `${nextStepCliInvocation()} inspect --manifest "${runHandle.manifestPath}"`,
           `# Edit draft then rerun perspectives-draft: ${draftPath}`,
@@ -2779,6 +2281,7 @@ async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Promise<voi
       message: errorMessage,
       details: errorDetails,
     },
+    nextStepCliInvocation,
     nextCommandsOverride: nextCommands,
   });
 
@@ -3248,6 +2751,7 @@ async function runRun(args: RunCliArgs): Promise<void> {
         reason: `operator-cli run tick_${i} failure: ${args.reason}`,
         error: tickError,
         triageReason: `operator-cli run auto-triage: ${args.reason}`,
+        nextStepCliInvocation,
         emitLogs: !args.json,
       });
 
