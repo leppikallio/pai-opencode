@@ -221,9 +221,9 @@ Statuses: `TODO | IN_PROGRESS | DONE | ARCH_PASS | QA_PASS | BLOCKED(<reason>)`
 | T07 | Extract observability (tick ledger/telemetry/metrics) | DONE | 4300 → 3991 | yes | commit e133ba56 (tick-observability.ts=291 LOC) |
 | T08 | Extract triage + halt artifacts | DONE | 3991 → 3495 | yes | commit 392dd3a (halt-artifacts.ts=335 LOC) |
 | T09 | Extract perspectives subsystem helpers | DONE | 3495 → 3078 | yes | commit 0e317e8 (schema.ts=261 LOC) |
-| T10 | Extract handler: status | TODO |  |  | move+delete `runStatus` |
-| T11 | Extract handler: inspect | TODO |  |  | move+delete `runInspect` |
-| T12 | Extract handler: triage | TODO |  |  | move+delete `runTriage` |
+| T10 | Extract handler: status | DONE | 3078 → 2828 | yes | wave commit adbde82 (handlers/status.ts) |
+| T11 | Extract handler: inspect | DONE | 3078 → 2828 | yes | wave commit adbde82 (handlers/inspect.ts) |
+| T12 | Extract handler: triage | DONE | 3078 → 2828 | yes | wave commit adbde82 (handlers/triage.ts) |
 | T13 | Extract handler: pause | TODO |  |  | move+delete `runPause` |
 | T14 | Extract handler: resume | TODO |  |  | move+delete `runResume` |
 | T15 | Extract handler: cancel | TODO |  |  | move+delete `runCancel` |
