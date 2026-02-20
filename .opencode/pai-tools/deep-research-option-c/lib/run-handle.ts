@@ -4,7 +4,6 @@ import {
   acquireRunLock,
   releaseRunLock,
 } from "../../../tools/deep_research.ts";
-import { emitJson } from "../cli/json-mode";
 import {
   assertWithinRoot,
   normalizeOptional,
@@ -240,25 +239,4 @@ export function contractJson(args: {
     status: args.summary.status,
     gate_statuses_summary: args.gateStatusesSummary,
   };
-}
-
-export function emitContractCommandJson(args: {
-  command: "status" | "inspect" | "triage";
-  summary: ManifestSummary;
-  manifestPath: string;
-  gatesPath?: string;
-  gateStatusesSummary: Record<string, { status: string; checked_at: string | null }>;
-  extra?: Record<string, unknown>;
-}): void {
-  emitJson({
-    ok: true,
-    command: args.command,
-    ...contractJson({
-      summary: args.summary,
-      manifestPath: args.manifestPath,
-      gatesPath: args.gatesPath,
-      gateStatusesSummary: args.gateStatusesSummary,
-    }),
-    ...(args.extra ?? {}),
-  });
 }

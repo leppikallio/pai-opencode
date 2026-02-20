@@ -58,6 +58,7 @@ import {
   getCliArgv,
   isJsonModeRequested,
 } from "./deep-research-option-c/cli/json-mode";
+import { emitContractCommandJson } from "./deep-research-option-c/cli/contract-json";
 import {
   assertWithinRoot,
   isSafeSegment,
@@ -71,7 +72,6 @@ import {
   readJsonObject,
 } from "./deep-research-option-c/lib/io-json";
 import {
-  emitContractCommandJson,
   gateStatusesSummaryRecord,
   parseGateStatuses,
   printContract,
