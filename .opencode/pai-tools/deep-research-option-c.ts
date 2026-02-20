@@ -4513,7 +4513,7 @@ async function runAgentResult(args: AgentResultCliArgs): Promise<void> {
   const ingestedAt = nowIso();
 
   const sidecar = {
-    schema_version: "wave-output-meta.v1",
+    schema_version: stage === "perspectives" ? "agent-result-meta.v1" : "wave-output-meta.v1",
     prompt_digest: promptDigest,
     agent_run_id: agentRunId,
     ingested_at: ingestedAt,

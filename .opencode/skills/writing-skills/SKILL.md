@@ -259,7 +259,7 @@ You: Searching...
 
 **Verification:**
 ```bash
-wc -w skills/path/SKILL.md
+wc -w skills/<skill-name>/SKILL.md
 # getting-started workflows: aim for <150 each
 # Other frequently-loaded: aim for <200 total
 ```

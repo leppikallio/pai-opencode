@@ -112,7 +112,7 @@ On the happy path, this will:
 
 7) Continue with Wave 1:
 
-- `Workflows/RunWave1WithTaskDriver.md`
+- RunWave1WithTaskDriver.md
 
 ## Artifacts (new/important)
 
@@ -127,11 +127,11 @@ If Wave 1 fails with `WAVE1_PLAN_STALE`, regenerate the Wave 1 plan by re-runnin
 ## Validation contract
 
 - [ ] `stage-advance --requested-next perspectives` succeeds and `manifest.stage.current == perspectives`.
-- [ ] `perspectives-draft --driver task` writes `operator/prompts/perspectives/primary.md` and halts with `RUN_AGENT_REQUIRED`.
+- [ ] `perspectives-draft --driver task` writes `<run_root>/operator/prompts/perspectives/primary.md` and halts with `RUN_AGENT_REQUIRED`.
 - [ ] `primary.raw.json` parses as JSON and `schema_version == perspectives-draft-output.v1`.
 - [ ] `agent-result --stage perspectives` writes:
-  - `operator/outputs/perspectives/primary.raw.json`
-  - `operator/outputs/perspectives/primary.json`
-  - `operator/outputs/perspectives/primary.meta.json` with `schema_version == agent-result-meta.v1`
+  - `<run_root>/operator/outputs/perspectives/primary.raw.json`
+  - `<run_root>/operator/outputs/perspectives/primary.json`
+  - `<run_root>/operator/outputs/perspectives/primary.meta.json` with `schema_version == agent-result-meta.v1`
 - [ ] Second `perspectives-draft` run writes `perspectives.json` with `schema_version == perspectives.v1`.
 - [ ] After promotion, Wave 1 plan exists (printed by CLI) and `manifest.stage.current == wave1`.
