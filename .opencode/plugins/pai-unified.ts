@@ -54,6 +54,10 @@ import {
 import { createWorkSession } from "./handlers/work-tracker";
 import { getPaiRuntimeInfo } from "./lib/pai-runtime";
 import {
+  loadSuperpowersBootstrap,
+  SUPERPOWERS_BOOTSTRAP_MARKER,
+} from "./handlers/superpowers-bootstrap";
+import {
   isKittyTabsEnabled,
   setKittyTabState,
   type KittyTabState,
@@ -170,6 +174,12 @@ export const PaiUnified: Plugin = async (ctx) => {
       algorithm: number;
     }
   >();
+
+  function maybeInjectSuperpowersBootstrap(system: string[]) {
+    if (system.some((s) => s.includes(SUPERPOWERS_BOOTSTRAP_MARKER))) return;
+    const bootstrap = loadSuperpowersBootstrap();
+    if (bootstrap) system.push(bootstrap);
+  }
 
   type SessionKind = "primary" | "subagent" | "internal" | "unknown";
 
@@ -1721,6 +1731,10 @@ export const PaiUnified: Plugin = async (ctx) => {
             })
           );
 
+          if (kind === "primary") {
+            maybeInjectSuperpowersBootstrap(output.system);
+          }
+
           await maybeDumpLlmInput({
             sessionId,
             kind: "system",
@@ -1751,6 +1765,10 @@ export const PaiUnified: Plugin = async (ctx) => {
             "- Only write outside ScratchpadDir when explicitly instructed with an exact destination path.",
           ].join("\n")
         );
+
+        if (kind === "primary") {
+          maybeInjectSuperpowersBootstrap(output.system);
+        }
 
         if (sessionId) {
           await maybeDumpLlmInput({
