@@ -1,6 +1,6 @@
 ---
 name: superpowers
-description: Superpowers third-party process skills integration. USE WHEN you want Superpowers workflows available inside PAI/OpenCode.
+description: Superpowers third-party process skills integration. USE WHEN you want Superpowers workflows available inside PAI/OpenCode OR update the vendored Superpowers skills.
 ---
 
 # Superpowers (PAI Adapter)
@@ -11,6 +11,12 @@ This PAI installation includes the **obra/superpowers** skill library (vendored 
 
 - The Superpowers skills are installed as **first-class OpenCode skills** (same names as upstream).
 - A small **bootstrap** is auto-injected by the PAI plugin so these skills are discoverable without manual setup.
+
+## Workflow Routing
+
+| Workflow | Trigger | File |
+|---|---|---|
+| **UpdateFromUpstream** | update/upgrade superpowers | `Workflows/UpdateFromUpstream.md` |
 
 ## Important: PAI format still wins
 
@@ -48,3 +54,7 @@ Load a specific skill when it applies (or ask me to load it):
 
 - `functions.skill({ name: "brainstorming" })`
 - `functions.skill({ name: "systematic-debugging" })`
+
+## Updating Superpowers
+
+Use: `Workflows/UpdateFromUpstream.md`.
