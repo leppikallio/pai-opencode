@@ -435,7 +435,7 @@ Status values: `TODO | IN_PROGRESS | BLOCKED | DONE`
 |---:|---|---|---|---|
 | M0 | Decisions frozen (Section 0) | DONE | Marvin | This section present in plan |
 | M1 | Add manifest stage `perspectives` end-to-end | DONE | Eng | 35afff1; bun test entities: 172 pass/1 skip/0 fail; bun test .opencode/tests: 182 pass/1 skip/0 fail |
-| M2 | CLI: `perspectives-draft` command (prompt-out + HALT) | IN_PROGRESS | Eng | Started 2026-02-20 |
+| M2 | CLI: `perspectives-draft` command (prompt-out + HALT) | DONE | Eng | d4e4975; entity test passes; bun test entities: 173 pass/1 skip/0 fail; bun test .opencode/tests: 183 pass/1 skip/0 fail |
 | G-STAGE | Mini-gate: stage+CLI preconditions align | TODO | QA | stage precondition entity tests; clear error codes |
 | M3 | CLI: `agent-result --stage perspectives` ingest | TODO | Eng | entity test: writes outputs + meta + digest match |
 | M4 | Artifacts: `operator/state/perspectives-state.json` lifecycle | TODO | Eng | entity test: deterministic transitions |
