@@ -220,7 +220,7 @@ Statuses: `TODO | IN_PROGRESS | DONE | ARCH_PASS | QA_PASS | BLOCKED(<reason>)`
 | T06 | Extract fs/json/jsonl/time/digest helpers | IN_PROGRESS |  |  | io-json.ts created; moved readJsonObject + readJsonlRecords; remaining per task text |
 | T07 | Extract observability (tick ledger/telemetry/metrics) | DONE | 4300 → 3991 | yes | commit e133ba56 (tick-observability.ts=291 LOC) |
 | T08 | Extract triage + halt artifacts | DONE | 3991 → 3495 | yes | commit 392dd3a (halt-artifacts.ts=335 LOC) |
-| T09 | Extract perspectives subsystem helpers | TODO |  |  | `normalizePerspectivesDraftOutputV1` |
+| T09 | Extract perspectives subsystem helpers | DONE | 3495 → 3078 | yes | commit 0e317e8 (schema.ts=261 LOC) |
 | T10 | Extract handler: status | TODO |  |  | move+delete `runStatus` |
 | T11 | Extract handler: inspect | TODO |  |  | move+delete `runInspect` |
 | T12 | Extract handler: triage | TODO |  |  | move+delete `runTriage` |
