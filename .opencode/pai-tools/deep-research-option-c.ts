@@ -142,6 +142,18 @@ type TaskDriverMissingPerspective = {
   promptDigest: string;
 };
 
+type PerspectivesDraftStatus = "awaiting_agent_results" | "merging";
+
+type PerspectivesDraftStateArtifactV1 = {
+  schema_version: "perspectives-draft-state.v1";
+  run_id: string;
+  status: PerspectivesDraftStatus;
+  policy_path: string | null;
+  inputs_digest: string;
+  draft_digest: null;
+  promoted_digest: null;
+};
+
 type RunHandleResolution = {
   runRoot: string;
   manifestPath: string;
@@ -1110,6 +1122,75 @@ async function writeTaskDriverPerspectiveDraftPrompt(args: {
     outputPath,
     metaPath,
     promptDigest,
+  };
+}
+
+async function writeJsonFileIfChanged(filePath: string, payload: Record<string, unknown>): Promise<boolean> {
+  const serialized = `${JSON.stringify(payload, null, 2)}\n`;
+  try {
+    const existing = await fs.readFile(filePath, "utf8");
+    if (existing === serialized) return false;
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code !== "ENOENT") throw error;
+  }
+
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, serialized, "utf8");
+  return true;
+}
+
+async function resolvePerspectivesDraftStatus(args: {
+  runId: string;
+  perspective: TaskDriverMissingPerspective;
+}): Promise<{
+  status: PerspectivesDraftStatus;
+  outputExists: boolean;
+  metaPromptDigest: string | null;
+  promptDigestMatches: boolean;
+  normalizedOutputValid: boolean;
+  normalizedOutputErrorCode: string | null;
+  normalizedOutputErrorMessage: string | null;
+}> {
+  const outputExists = await fileExists(args.perspective.outputPath);
+  const metaPromptDigest = await readPromptDigestFromMeta(args.perspective.metaPath);
+  const promptDigestMatches = metaPromptDigest === args.perspective.promptDigest;
+
+  let normalizedOutputValid = false;
+  let normalizedOutputErrorCode: string | null = null;
+  let normalizedOutputErrorMessage: string | null = null;
+
+  if (outputExists) {
+    try {
+      const output = await readJsonObject(args.perspective.outputPath);
+      normalizePerspectivesDraftOutputV1({
+        value: output,
+        expectedRunId: args.runId,
+      });
+      normalizedOutputValid = true;
+    } catch (error) {
+      normalizedOutputValid = false;
+      normalizedOutputErrorCode = typeof error === "object"
+          && error !== null
+          && typeof (error as { code?: unknown }).code === "string"
+        ? String((error as { code?: string }).code)
+        : "PERSPECTIVES_OUTPUT_INVALID";
+      normalizedOutputErrorMessage = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  const status: PerspectivesDraftStatus = outputExists && promptDigestMatches && normalizedOutputValid
+    ? "merging"
+    : "awaiting_agent_results";
+
+  return {
+    status,
+    outputExists,
+    metaPromptDigest,
+    promptDigestMatches,
+    normalizedOutputValid,
+    normalizedOutputErrorCode,
+    normalizedOutputErrorMessage,
   };
 }
 
@@ -2771,19 +2852,90 @@ async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Promise<voi
     queryText,
   });
 
+  const statusResolution = await resolvePerspectivesDraftStatus({
+    runId: summary.runId,
+    perspective: missingPerspective,
+  });
+
+  const statePath = path.join(summary.runRoot, "operator", "state", "perspectives-state.json");
+  const stateInputsDigest = stableDigest({
+    schema: "perspectives-draft-state.inputs.v1",
+    run_id: summary.runId,
+    perspective_id: missingPerspective.perspectiveId,
+    prompt_digest: missingPerspective.promptDigest,
+    output_exists: statusResolution.outputExists,
+    meta_prompt_digest: statusResolution.metaPromptDigest,
+    prompt_digest_matches: statusResolution.promptDigestMatches,
+    normalized_output_valid: statusResolution.normalizedOutputValid,
+  });
+  const stateArtifact: PerspectivesDraftStateArtifactV1 = {
+    schema_version: "perspectives-draft-state.v1",
+    run_id: summary.runId,
+    status: statusResolution.status,
+    policy_path: null,
+    inputs_digest: stateInputsDigest,
+    draft_digest: null,
+    promoted_digest: null,
+  };
+  await writeJsonFileIfChanged(statePath, stateArtifact);
+
+  const errorCode = statusResolution.status === "merging"
+    ? "PERSPECTIVES_MERGE_REQUIRED"
+    : "RUN_AGENT_REQUIRED";
+  const errorMessage = statusResolution.status === "merging"
+    ? "Perspectives outputs are ingested and validated; merge/promotion is required"
+    : "Perspectives drafting requires external agent results via task driver";
+
   const errorDetails: Record<string, unknown> = {
     stage: "perspectives",
-    missing_count: 1,
-    missing_perspectives: [
-      {
-        perspective_id: missingPerspective.perspectiveId,
-        prompt_path: missingPerspective.promptPath,
-        output_path: missingPerspective.outputPath,
-        meta_path: missingPerspective.metaPath,
-        prompt_digest: missingPerspective.promptDigest,
-      },
-    ],
+    status: statusResolution.status,
+    state_path: statePath,
+    prompt_path: missingPerspective.promptPath,
+    output_path: missingPerspective.outputPath,
+    meta_path: missingPerspective.metaPath,
+    prompt_digest: missingPerspective.promptDigest,
+    checks: {
+      output_exists: statusResolution.outputExists,
+      meta_prompt_digest: statusResolution.metaPromptDigest,
+      prompt_digest_matches: statusResolution.promptDigestMatches,
+      normalized_output_valid: statusResolution.normalizedOutputValid,
+    },
+    ...(statusResolution.normalizedOutputErrorCode
+      ? {
+        normalized_output_error: {
+          code: statusResolution.normalizedOutputErrorCode,
+          message: statusResolution.normalizedOutputErrorMessage,
+        },
+      }
+      : {}),
+    ...(statusResolution.status === "awaiting_agent_results"
+      ? {
+        missing_count: 1,
+        missing_perspectives: [
+          {
+            perspective_id: missingPerspective.perspectiveId,
+            prompt_path: missingPerspective.promptPath,
+            output_path: missingPerspective.outputPath,
+            meta_path: missingPerspective.metaPath,
+            prompt_digest: missingPerspective.promptDigest,
+          },
+        ],
+      }
+      : {
+        merge_required: true,
+      }),
   };
+
+  const nextCommands = statusResolution.status === "merging"
+    ? [
+      `${nextStepCliInvocation()} inspect --manifest "${runHandle.manifestPath}"`,
+      `${nextStepCliInvocation()} stage-advance --manifest "${runHandle.manifestPath}" --requested-next wave1 --reason "perspectives finalized after task-driver ingestion"`,
+    ]
+    : [
+      `${nextStepCliInvocation()} inspect --manifest "${runHandle.manifestPath}"`,
+      `${nextStepCliInvocation()} agent-result --manifest "${runHandle.manifestPath}" --stage perspectives --perspective "${missingPerspective.perspectiveId}" --input "${path.join(summary.runRoot, "operator", "outputs", "perspectives", `${missingPerspective.perspectiveId}.raw.json`)}" --agent-run-id "<AGENT_RUN_ID>" --reason "operator: ingest perspectives/${missingPerspective.perspectiveId}"`,
+      `${nextStepCliInvocation()} stage-advance --manifest "${runHandle.manifestPath}" --requested-next wave1 --reason "perspectives finalized (requires perspectives.json promotion)"`,
+    ];
 
   const halt = await writeHaltArtifactForFailure({
     runRoot: summary.runRoot,
@@ -2793,15 +2945,11 @@ async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Promise<voi
     gatesPath: summary.gatesPath,
     reason: `operator-cli perspectives-draft: ${args.reason}`,
     error: {
-      code: "RUN_AGENT_REQUIRED",
-      message: "Perspectives drafting requires external agent results via task driver",
+      code: errorCode,
+      message: errorMessage,
       details: errorDetails,
     },
-    nextCommandsOverride: [
-      `${nextStepCliInvocation()} inspect --manifest "${runHandle.manifestPath}"`,
-      `${nextStepCliInvocation()} agent-result --manifest "${runHandle.manifestPath}" --stage perspectives --perspective "${missingPerspective.perspectiveId}" --input "${path.join(summary.runRoot, "operator", "outputs", "perspectives", `${missingPerspective.perspectiveId}.raw.json`)}" --agent-run-id "<AGENT_RUN_ID>" --reason "operator: ingest perspectives/${missingPerspective.perspectiveId}"`,
-      `${nextStepCliInvocation()} stage-advance --manifest "${runHandle.manifestPath}" --requested-next wave1 --reason "perspectives finalized (requires perspectives.json promotion)"`,
-    ],
+    nextCommandsOverride: nextCommands,
   });
 
   if (args.json) {
@@ -2816,11 +2964,12 @@ async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Promise<voi
       stage_current: summary.stageCurrent,
       status: summary.status,
       error: {
-        code: "RUN_AGENT_REQUIRED",
-        message: "Perspectives drafting requires external agent results via task driver",
+        code: errorCode,
+        message: errorMessage,
         details: errorDetails,
       },
       prompt_path: missingPerspective.promptPath,
+      state_path: statePath,
       halt: {
         tick_index: halt.tickIndex,
         tick_path: halt.tickPath,
@@ -2839,8 +2988,10 @@ async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Promise<voi
     status: summary.status,
   });
   console.log("perspectives_draft.ok: false");
-  console.log("perspectives_draft.error.code: RUN_AGENT_REQUIRED");
-  console.log("perspectives_draft.error.message: Perspectives drafting requires external agent results via task driver");
+  console.log(`perspectives_draft.error.code: ${errorCode}`);
+  console.log(`perspectives_draft.error.message: ${errorMessage}`);
+  console.log(`perspectives_draft.status: ${statusResolution.status}`);
+  console.log(`perspectives_draft.state_path: ${statePath}`);
   console.log(`perspectives_draft.prompt_path: ${missingPerspective.promptPath}`);
   console.log(`perspectives_draft.prompt_digest: ${missingPerspective.promptDigest}`);
   await printHaltArtifactSummary(halt);
