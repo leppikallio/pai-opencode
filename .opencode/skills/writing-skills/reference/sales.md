@@ -1,6 +1,6 @@
 # Reference: sales.md (example)
 
-Example “sales reference” file used by `writing-skills/anthropic-best-practices.md`.
+Example “sales reference” file used by `anthropic-best-practices.md` in the parent folder.
 
 Use this pattern in real skills for sales-specific guidance:
 
