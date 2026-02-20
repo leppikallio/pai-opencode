@@ -9,7 +9,9 @@ import { parseIscResponse } from "./isc-parser";
 import { classifyFormatHint } from "./format-reminder";
 import { detectRating } from "./rating-capture";
 
-export type EnforcementMode = "MINIMAL" | "FULL";
+export type EnforcementMode = "MINIMAL" | "FULL" | "BRAINSTORM";
+
+export const BRAINSTORM_MODE_MARKER = "BRAINSTORMING MODE";
 
 export type ValidationDetails = {
   ok: boolean;
@@ -37,6 +39,13 @@ export function detectEnforcementMode(opts: {
   toolUsed: boolean;
   assistantText: string;
 }): EnforcementMode {
+  // If the assistant appears to be producing Brainstorming Mode output, honor it even if tools were used.
+  // This enables interactive brainstorming while still passing the format gate.
+  const looksLikeBrainstorm =
+    opts.assistantText.includes(BRAINSTORM_MODE_MARKER) ||
+    /^❓\s*Next question:/m.test(opts.assistantText) ||
+    /^Next question:/m.test(opts.assistantText);
+  if (looksLikeBrainstorm) return "BRAINSTORM";
   if (opts.toolUsed) return "FULL";
   if (!isPureSocialUserText(opts.userText)) return "FULL";
   // If the assistant output is already long/complex, prefer FULL wrapper.
@@ -62,6 +71,29 @@ export function validateMinimalFormat(text: string): boolean {
   const hasRateLine = /⭐\s*RATE\s*\(1-10\):/m.test(text);
   // Summary is recommended but not mandatory.
   return startsWithRobot && hasVoiceLine && !hasRateLine;
+}
+
+export function validateBrainstormFormat(text: string): {
+  ok: boolean;
+  reasons: string[];
+} {
+  const reasons: string[] = [];
+  const startsWithRobot = text.trimStart().startsWith("🤖");
+  const hasVoiceLine = /^🗣️\s*[^:\n]{1,40}:/m.test(text);
+  const hasRateLine = /⭐\s*RATE\s*\(1-10\):/m.test(text);
+  const hasMarker = text.includes(BRAINSTORM_MODE_MARKER);
+  // In brainstorming, require exactly one explicit next-question marker.
+  // (We keep this mechanical and tolerant; the skill enforces the intent.)
+  const questionMarkers = text.match(/^(?:❓\s*|\*\*?Next question\*\*?:\s*|Next question:\s*)/gim);
+  const questionCount = questionMarkers ? questionMarkers.length : 0;
+
+  if (!startsWithRobot) reasons.push("missing_robot_first_token");
+  if (!hasVoiceLine) reasons.push("missing_voice_line");
+  if (hasRateLine) reasons.push("forbidden_rate_prompt");
+  if (!hasMarker) reasons.push("missing_brainstorm_marker");
+  if (questionCount !== 1) reasons.push("missing_or_multiple_next_question");
+
+  return { ok: reasons.length === 0, reasons };
 }
 
 export function validateFullFormatDetailed(text: string): {
@@ -96,8 +128,30 @@ export function validateOutput(text: string, mode: EnforcementMode): ValidationD
     const ok = validateMinimalFormat(text);
     return { ok, mode, reasons: ok ? [] : ["missing_minimal_markers"] };
   }
+  if (mode === "BRAINSTORM") {
+    const details = validateBrainstormFormat(text);
+    return { ok: details.ok, mode, reasons: details.reasons };
+  }
   const details = validateFullFormatDetailed(text);
   return { ok: details.ok, mode, reasons: details.reasons, criteriaCount: details.criteriaCount };
+}
+
+export function buildFallbackBrainstormWrapper(opts: {
+  task: string;
+  assistantText: string;
+}): string {
+  // Keep this short: brainstorming should not turn into a wall of text.
+  // We preserve the original content only as a clipped hint.
+  const original = opts.assistantText.trim();
+  const clipped = original.length > 200 ? `${original.slice(0, 200)}…` : original;
+
+  return [
+    "🤖 PAI ALGORITHM (BRAINSTORMING MODE) ═════════════",
+    `🎯 Goal: ${opts.task}`,
+    `❓ Next question: What single detail should we clarify next?`,
+    clipped ? `📌 Context: ${clipped}` : "📌 Context: (none)",
+    "🗣️ Marvin: I can keep brainstorming, but I need one concrete detail next.",
+  ].join("\n");
 }
 
 export function buildFallbackFullWrapper(opts: {
