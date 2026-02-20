@@ -94,6 +94,45 @@ function toSingleLine(input: string): string {
     .trim();
 }
 
+function stripYamlInlineQuotes(input: string): { value: string; changed: boolean } {
+  const s = input.trim();
+  if (s.length < 2) return { value: input, changed: false };
+
+  const q = s[0];
+  if ((q !== '"' && q !== "'") || s[s.length - 1] !== q) {
+    return { value: input, changed: false };
+  }
+
+  // Best-effort YAML scalar unquoting.
+  // We only need enough correctness to safely normalize into a single-line description.
+  if (q === '"') {
+    // YAML double quotes are close-enough to JSON for the common cases we see.
+    try {
+      const parsed = JSON.parse(s);
+      if (typeof parsed === "string") return { value: parsed, changed: true };
+    } catch {
+      // Fall through.
+    }
+    const inner = s.slice(1, -1)
+      .replace(/\\n/g, "\n")
+      .replace(/\\t/g, "\t")
+      .replace(/\\r/g, "\r")
+      .replace(/\\\\/g, "\\")
+      .replace(/\\\"/g, '"');
+    return { value: inner, changed: true };
+  }
+
+  // YAML single quotes escape by doubling: '' -> '
+  const inner = s.slice(1, -1).replace(/''/g, "'");
+  return { value: inner, changed: true };
+}
+
+function yamlQuoteInline(value: string): string {
+  // Use JSON escaping so the output is always a valid YAML double-quoted scalar.
+  // (YAML is a superset of JSON string escaping for these characters.)
+  return JSON.stringify(value);
+}
+
 function parseArgs(argv: string[]): Args {
   const args: Args = {
     force: false,
@@ -405,6 +444,10 @@ function normalizeDescriptionYaml(yaml: string, skillName: string): { yaml: stri
       desc = toSingleLine(block.join("\n"));
       changed = true;
     } else {
+      const unquoted = stripYamlInlineQuotes(desc);
+      if (unquoted.changed) changed = true;
+      desc = unquoted.value;
+
       const normalized = toSingleLine(desc);
       if (normalized !== desc) {
         desc = normalized;
@@ -431,7 +474,7 @@ function normalizeDescriptionYaml(yaml: string, skillName: string): { yaml: stri
       changed = true;
     }
 
-    out.push(`description: ${desc}`);
+    out.push(`description: ${yamlQuoteInline(desc)}`);
   }
 
   if (!sawName) {
@@ -440,7 +483,7 @@ function normalizeDescriptionYaml(yaml: string, skillName: string): { yaml: stri
   }
 
   if (!sawDescription) {
-    out.push(`description: ${skillName} skill. USE WHEN you need to use this skill.`);
+    out.push(`description: ${yamlQuoteInline(`${skillName} skill. USE WHEN you need to use this skill.`)}`);
     changed = true;
   }
 
