@@ -66,12 +66,13 @@ import {
   throwWithCodeAndDetails,
   toolErrorDetails,
 } from "./deep-research-option-c/cli/errors";
-import { resolveRuntimeRootFromMainScript } from "./resolveRuntimeRootFromMainScript";
-
-type ToolEnvelope = Record<string, unknown> & { ok: boolean };
-type ToolWithExecute = {
-  execute: (args: Record<string, unknown>, context?: unknown) => Promise<unknown>;
-};
+import { makeToolContext } from "./deep-research-option-c/runtime/tool-context";
+import {
+  callTool,
+  parseToolEnvelope,
+  type ToolEnvelope,
+  type ToolWithExecute,
+} from "./deep-research-option-c/runtime/tool-envelope";
 
 type InitCliArgs = {
   query: string;
@@ -327,7 +328,6 @@ type TickOutcome = {
 const TICK_METRICS_INTERVAL = 1;
 const CLI_ARGV = getCliArgv();
 const JSON_MODE_REQUESTED = isJsonModeRequested(CLI_ARGV);
-const TOOL_CONTEXT_RUNTIME_ROOT = resolveRuntimeRootFromMainScript(import.meta.url);
 
 function nextStepCliInvocation(): string {
   return 'bun "pai-tools/deep-research-option-c.ts"';
@@ -673,51 +673,6 @@ async function finalizeTickObservability(args: {
     },
   });
 }
-function makeToolContext() {
-  return {
-    sessionID: "ses_option_c_cli",
-    messageID: "msg_option_c_cli",
-    agent: "deep-research-option-c-cli",
-    directory: TOOL_CONTEXT_RUNTIME_ROOT,
-    worktree: TOOL_CONTEXT_RUNTIME_ROOT,
-    abort: new AbortController().signal,
-    metadata(..._args: unknown[]) {},
-    ask: async (..._args: unknown[]) => {},
-  };
-}
-
-function parseToolEnvelope(name: string, raw: unknown): ToolEnvelope {
-  if (typeof raw !== "string") {
-    throw new Error(`${name} returned non-string response`);
-  }
-  const parsed = JSON.parse(raw) as ToolEnvelope;
-  if (!parsed || typeof parsed !== "object" || typeof parsed.ok !== "boolean") {
-    throw new Error(`${name} returned invalid JSON envelope`);
-  }
-  return parsed;
-}
-
-function toolErrorMessage(name: string, envelope: ToolEnvelope): string {
-  const errorRaw = envelope.error;
-  if (!errorRaw || typeof errorRaw !== "object") {
-    return `${name} failed`;
-  }
-  const error = errorRaw as Record<string, unknown>;
-  const code = String(error.code ?? "UNKNOWN");
-  const message = String(error.message ?? "Unknown failure");
-  const details = JSON.stringify(error.details ?? {});
-  return `${name} failed: ${code} ${message} ${details}`;
-}
-
-async function callTool(name: string, tool: ToolWithExecute, args: Record<string, unknown>): Promise<ToolEnvelope> {
-  const raw = await tool.execute(args, makeToolContext());
-  const envelope = parseToolEnvelope(name, raw);
-  if (!envelope.ok) {
-    throw new Error(toolErrorMessage(name, envelope));
-  }
-  return envelope;
-}
-
 function ensureOptionCEnabledForCli(): void {
   const flags = resolveDeepResearchFlagsV1();
   if (!flags.optionCEnabled) {
