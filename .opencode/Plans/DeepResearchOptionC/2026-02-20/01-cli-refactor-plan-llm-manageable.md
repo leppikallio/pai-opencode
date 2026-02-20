@@ -233,10 +233,10 @@ Statuses: `TODO | IN_PROGRESS | DONE | ARCH_PASS | QA_PASS | BLOCKED(<reason>)`
 | T19 | Extract handler: init | DONE | 2426 → 1217 | yes | wave commit e5b8136 (handlers/init.ts=337 LOC) |
 | T20 | Extract handler: perspectives-draft | DONE | 2426 → 1217 | yes | wave commit e5b8136 (handlers/perspectives-draft.ts=724 LOC) |
 | T21 | Extract handler: agent-result | DONE | 2426 → 1217 | yes | wave commit e5b8136 (handlers/agent-result.ts=344 LOC) |
-| T22 | Extract tick internals (runOneOrchestratorTick) | TODO |  |  | move+delete `runOneOrchestratorTick` |
-| T23 | Extract handler: tick | TODO |  |  | move+delete `runTick` |
-| T24 | Extract handler: run | TODO |  |  | move+delete `runRun` |
-| T25 | Final wiring-only entrypoint (≤250 LOC) | TODO |  |  | monolith becomes imports + cmd wiring |
+| T22 | Extract tick internals (runOneOrchestratorTick) | DONE | 1217 → 174 | yes | wave commit 729e91d (handlers/tick-internals.ts=90 LOC) |
+| T23 | Extract handler: tick | DONE | 1217 → 174 | yes | wave commit 729e91d (handlers/tick.ts=512 LOC) |
+| T24 | Extract handler: run | DONE | 1217 → 174 | yes | wave commit 729e91d (handlers/run.ts=367 LOC) |
+| T25 | Final wiring-only entrypoint (≤250 LOC) | DONE |  |  | monolith now 174 LOC (wiring-only) |
 | G-ARCH | Architect gate (PASS required) | TODO |  |  | module map + invariants reviewed |
 | G-QA | QA gate (PASS required) | TODO |  |  | Tier 2 + Tier 3 PASS evidence |
 
