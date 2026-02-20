@@ -224,12 +224,12 @@ Statuses: `TODO | IN_PROGRESS | DONE | ARCH_PASS | QA_PASS | BLOCKED(<reason>)`
 | T10 | Extract handler: status | DONE | 3078 → 2828 | yes | wave commit adbde82 (handlers/status.ts) |
 | T11 | Extract handler: inspect | DONE | 3078 → 2828 | yes | wave commit adbde82 (handlers/inspect.ts) |
 | T12 | Extract handler: triage | DONE | 3078 → 2828 | yes | wave commit adbde82 (handlers/triage.ts) |
-| T13 | Extract handler: pause | TODO |  |  | move+delete `runPause` |
-| T14 | Extract handler: resume | TODO |  |  | move+delete `runResume` |
-| T15 | Extract handler: cancel | TODO |  |  | move+delete `runCancel` |
-| T16 | Extract handler: stage-advance | TODO |  |  | move+delete `runStageAdvance` |
-| T17 | Extract handler: capture-fixtures | TODO |  |  | move+delete `runCaptureFixtures` |
-| T18 | Extract handler: rerun | TODO |  |  | move+delete `runRerunWave1` |
+| T13 | Extract handler: pause | DONE | 2828 → 2426 | yes | wave commit 1d5e88e (handlers/pause.ts) |
+| T14 | Extract handler: resume | DONE | 2828 → 2426 | yes | wave commit 1d5e88e (handlers/resume.ts) |
+| T15 | Extract handler: cancel | DONE | 2828 → 2426 | yes | wave commit 1d5e88e (handlers/cancel.ts) |
+| T16 | Extract handler: stage-advance | DONE | 2828 → 2426 | yes | wave commit 1d5e88e (handlers/stage-advance.ts) |
+| T17 | Extract handler: capture-fixtures | DONE | 2828 → 2426 | yes | wave commit 1d5e88e (handlers/capture-fixtures.ts) |
+| T18 | Extract handler: rerun | DONE | 2828 → 2426 | yes | wave commit 1d5e88e (handlers/rerun.ts) |
 | T19 | Extract handler: init | TODO |  |  | move+delete `runInit` |
 | T20 | Extract handler: perspectives-draft | TODO |  |  | move+delete `runPerspectivesDraft` |
 | T21 | Extract handler: agent-result | TODO |  |  | move+delete `runAgentResult` |
