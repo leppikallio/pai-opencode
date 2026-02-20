@@ -217,7 +217,7 @@ Statuses: `TODO | IN_PROGRESS | DONE | ARCH_PASS | QA_PASS | BLOCKED(<reason>)`
 | T03 | Extract tool runtime (envelope/context/callTool) | DONE | 4687 → 4642 | yes | commit a9a37f5 |
 | T04 | Extract run-handle resolution | DONE | 4552 → 4300 | yes | wave commits af90363 + 2d548c6 (run-handle.ts=264 LOC) |
 | T05 | Extract paths + manifest safety helpers | DONE | 4642 → 4552 | yes | commit 8b20932 (paths.ts is 101 LOC) |
-| T06 | Extract fs/json/jsonl/time/digest helpers | IN_PROGRESS |  |  | io-json.ts created; moved readJsonObject + readJsonlRecords; remaining per task text |
+| T06 | Extract fs/json/jsonl/time/digest helpers | IN_PROGRESS |  |  | digest.ts created; moved stableDigest + prompt digests; fs-utils/time done earlier |
 | T07 | Extract observability (tick ledger/telemetry/metrics) | DONE | 4300 → 3991 | yes | commit e133ba56 (tick-observability.ts=291 LOC) |
 | T08 | Extract triage + halt artifacts | DONE | 3991 → 3495 | yes | commit 392dd3a (halt-artifacts.ts=335 LOC) |
 | T09 | Extract perspectives subsystem helpers | DONE | 3495 → 3078 | yes | commit 0e317e8 (schema.ts=261 LOC) |
@@ -230,9 +230,9 @@ Statuses: `TODO | IN_PROGRESS | DONE | ARCH_PASS | QA_PASS | BLOCKED(<reason>)`
 | T16 | Extract handler: stage-advance | DONE | 2828 → 2426 | yes | wave commit 1d5e88e (handlers/stage-advance.ts) |
 | T17 | Extract handler: capture-fixtures | DONE | 2828 → 2426 | yes | wave commit 1d5e88e (handlers/capture-fixtures.ts) |
 | T18 | Extract handler: rerun | DONE | 2828 → 2426 | yes | wave commit 1d5e88e (handlers/rerun.ts) |
-| T19 | Extract handler: init | TODO |  |  | move+delete `runInit` |
-| T20 | Extract handler: perspectives-draft | TODO |  |  | move+delete `runPerspectivesDraft` |
-| T21 | Extract handler: agent-result | TODO |  |  | move+delete `runAgentResult` |
+| T19 | Extract handler: init | DONE | 2426 → 1217 | yes | wave commit e5b8136 (handlers/init.ts=337 LOC) |
+| T20 | Extract handler: perspectives-draft | DONE | 2426 → 1217 | yes | wave commit e5b8136 (handlers/perspectives-draft.ts=724 LOC) |
+| T21 | Extract handler: agent-result | DONE | 2426 → 1217 | yes | wave commit e5b8136 (handlers/agent-result.ts=344 LOC) |
 | T22 | Extract tick internals (runOneOrchestratorTick) | TODO |  |  | move+delete `runOneOrchestratorTick` |
 | T23 | Extract handler: tick | TODO |  |  | move+delete `runTick` |
 | T24 | Extract handler: run | TODO |  |  | move+delete `runRun` |
