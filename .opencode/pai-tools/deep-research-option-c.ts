@@ -183,6 +183,12 @@ type PerspectivesV1Payload = {
       };
       must_include_sections: string[];
     };
+    platform_requirements: Array<{ name: string; reason: string }>;
+    tool_policy: {
+      primary: string[];
+      secondary: string[];
+      forbidden: string[];
+    };
   }>;
 };
 
@@ -1209,6 +1215,61 @@ function normalizeWhitespace(value: string): string {
   return value.trim().replace(/\s+/gu, " ");
 }
 
+function normalizePlatformRequirementEntry(requirement: { name: string; reason: string }): { name: string; reason: string } {
+  return {
+    name: normalizeWhitespace(requirement.name),
+    reason: normalizeWhitespace(requirement.reason),
+  };
+}
+
+function stableSortPlatformRequirements(requirements: Array<{ name: string; reason: string }>): Array<{ name: string; reason: string }> {
+  const deduped = new Map<string, { name: string; reason: string }>();
+
+  for (const requirement of requirements) {
+    const normalized = normalizePlatformRequirementEntry(requirement);
+    if (!normalized.name || !normalized.reason) continue;
+    const key = `${normalized.name}\u0000${normalized.reason}`;
+    if (!deduped.has(key)) {
+      deduped.set(key, normalized);
+    }
+  }
+
+  return Array.from(deduped.values()).sort((a, b) => {
+    const nameCmp = a.name.localeCompare(b.name);
+    if (nameCmp !== 0) return nameCmp;
+    return a.reason.localeCompare(b.reason);
+  });
+}
+
+function stableSortToolPolicyList(values: string[]): string[] {
+  return Array.from(new Set(values
+    .map((value) => normalizeWhitespace(value))
+    .filter((value) => value.length > 0))).sort((a, b) => a.localeCompare(b));
+}
+
+function normalizeToolPolicyValue(value: { primary: string[]; secondary: string[]; forbidden: string[] }): {
+  primary: string[];
+  secondary: string[];
+  forbidden: string[];
+} {
+  return {
+    primary: stableSortToolPolicyList(value.primary),
+    secondary: stableSortToolPolicyList(value.secondary),
+    forbidden: stableSortToolPolicyList(value.forbidden),
+  };
+}
+
+function mergeToolPolicyValues(
+  current: { primary: string[]; secondary: string[]; forbidden: string[] },
+  incoming: { primary: string[]; secondary: string[]; forbidden: string[] },
+): { primary: string[]; secondary: string[]; forbidden: string[] } {
+  return {
+    primary: stableSortToolPolicyList([...current.primary, ...incoming.primary]),
+    secondary: stableSortToolPolicyList([...current.secondary, ...incoming.secondary]),
+    forbidden: stableSortToolPolicyList([...current.forbidden, ...incoming.forbidden]),
+  };
+}
+
 function trackWeight(track: string): number {
   if (track === "standard") return 0;
   if (track === "independent") return 1;
@@ -1281,6 +1342,12 @@ async function buildPerspectivesDraftFromOutputs(args: {
     track: "standard" | "independent" | "contrarian";
     recommended_agent_type: string;
     domain: string;
+    platform_requirements: Array<{ name: string; reason: string }>;
+    tool_policy: {
+      primary: string[];
+      secondary: string[];
+      forbidden: string[];
+    };
     flags: { human_review_required: boolean };
   }>();
 
@@ -1288,14 +1355,29 @@ async function buildPerspectivesDraftFromOutputs(args: {
     const title = normalizeWhitespace(candidate.title);
     const questions = candidate.questions.map((q) => normalizeWhitespace(q));
     const key = sha256HexLowerUtf8(`${candidate.track}\n${title}\n${questions.join("\n")}`);
+    const candidatePlatformRequirements = stableSortPlatformRequirements(candidate.platform_requirements);
+    const candidateToolPolicy = normalizeToolPolicyValue(candidate.tool_policy);
     keys.push(key);
-    if (dedupedByKey.has(key)) continue;
+    const existing = dedupedByKey.get(key);
+    if (existing) {
+      existing.platform_requirements = stableSortPlatformRequirements([
+        ...existing.platform_requirements,
+        ...candidatePlatformRequirements,
+      ]);
+      existing.tool_policy = mergeToolPolicyValues(existing.tool_policy, candidateToolPolicy);
+      existing.flags.human_review_required = existing.flags.human_review_required
+        || Boolean(candidate.flags?.human_review_required);
+      continue;
+    }
+
     dedupedByKey.set(key, {
       title,
       questions,
       track: candidate.track,
       recommended_agent_type: candidate.recommended_agent_type,
       domain: candidate.domain,
+      platform_requirements: candidatePlatformRequirements,
+      tool_policy: candidateToolPolicy,
       flags: { human_review_required: Boolean(candidate.flags?.human_review_required) },
     });
   }
@@ -1321,6 +1403,8 @@ async function buildPerspectivesDraftFromOutputs(args: {
       track: item.track,
       agent_type: item.recommended_agent_type,
       prompt_contract: contract,
+      platform_requirements: item.platform_requirements,
+      tool_policy: item.tool_policy,
     })),
   };
 
@@ -1981,6 +2065,12 @@ function defaultPerspectivePayload(runId: string): Record<string, unknown> {
           max_sources: 12,
           tool_budget: { search_calls: 4, fetch_calls: 6 },
           must_include_sections: ["Findings", "Sources", "Gaps"],
+        },
+        platform_requirements: [],
+        tool_policy: {
+          primary: [],
+          secondary: [],
+          forbidden: [],
         },
       },
     ],

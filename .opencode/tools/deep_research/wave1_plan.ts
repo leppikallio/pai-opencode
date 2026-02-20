@@ -23,6 +23,56 @@ import {
   type ScopeV1,
 } from "./wave_tools_shared";
 
+type PlatformRequirement = { name: string; reason: string };
+type ToolPolicy = { primary: string[]; secondary: string[]; forbidden: string[] };
+
+function stableSortUniqueStrings(values: string[]): string[] {
+  return Array.from(new Set(values.filter((value) => value.length > 0))).sort((a, b) => a.localeCompare(b));
+}
+
+function normalizePlatformRequirements(value: unknown): PlatformRequirement[] {
+  if (!Array.isArray(value)) return [];
+
+  const deduped = new Map<string, PlatformRequirement>();
+  for (const item of value) {
+    if (!isPlainObject(item)) continue;
+    const name = String(item.name ?? "").trim();
+    const reason = String(item.reason ?? "").trim();
+    if (!name || !reason) continue;
+    const key = `${name}\u0000${reason}`;
+    if (!deduped.has(key)) {
+      deduped.set(key, { name, reason });
+    }
+  }
+
+  return Array.from(deduped.values()).sort((a, b) => {
+    const nameCmp = a.name.localeCompare(b.name);
+    if (nameCmp !== 0) return nameCmp;
+    return a.reason.localeCompare(b.reason);
+  });
+}
+
+function normalizeToolPolicyList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return stableSortUniqueStrings(value.map((entry) => String(entry ?? "").trim()));
+}
+
+function normalizeToolPolicy(value: unknown): ToolPolicy {
+  if (!isPlainObject(value)) {
+    return {
+      primary: [],
+      secondary: [],
+      forbidden: [],
+    };
+  }
+
+  return {
+    primary: normalizeToolPolicyList(value.primary),
+    secondary: normalizeToolPolicyList(value.secondary),
+    forbidden: normalizeToolPolicyList(value.forbidden),
+  };
+}
+
 export const wave1_plan = tool({
   description: "Build deterministic Wave 1 plan artifact from perspectives.v1",
   args: {
@@ -137,6 +187,8 @@ export const wave1_plan = tool({
         wave1_dir: wave1Dir,
         perspectives: orderedPerspectives.map((perspective) => {
           const contract = (perspective.prompt_contract ?? {}) as Record<string, unknown>;
+          const platformRequirements = normalizePlatformRequirements(perspective.platform_requirements);
+          const toolPolicy = normalizeToolPolicy(perspective.tool_policy);
           return {
             id: String(perspective.id ?? ""),
             agent_type: String(perspective.agent_type ?? ""),
@@ -145,6 +197,8 @@ export const wave1_plan = tool({
             must_include_sections: Array.isArray(contract.must_include_sections)
               ? contract.must_include_sections.map((value) => String(value ?? "").trim()).filter((value) => value.length > 0)
               : [],
+            platform_requirements: platformRequirements,
+            tool_policy: toolPolicy,
           };
         }),
       };
@@ -159,6 +213,8 @@ export const wave1_plan = tool({
         const mustIncludeSections = Array.isArray(contract.must_include_sections)
           ? contract.must_include_sections.map((value) => String(value ?? "").trim()).filter((value) => value.length > 0)
           : [];
+        const platformRequirements = normalizePlatformRequirements(perspective.platform_requirements);
+        const toolPolicy = normalizeToolPolicy(perspective.tool_policy);
 
         return {
           perspective_id: perspectiveId,
@@ -174,6 +230,8 @@ export const wave1_plan = tool({
             maxSources,
             mustIncludeSections,
             scopeContractMd,
+            platformRequirements,
+            toolPolicy,
           }),
         };
       });

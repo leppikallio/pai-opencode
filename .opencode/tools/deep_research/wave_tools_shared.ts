@@ -586,7 +586,26 @@ export function buildWave1PromptMd(args: {
   maxSources: number;
   mustIncludeSections: string[];
   scopeContractMd: string;
+  platformRequirements: Array<{ name: string; reason: string }>;
+  toolPolicy: {
+    primary: string[];
+    secondary: string[];
+    forbidden: string[];
+  };
 }): string {
+  const platformRequirementLines = args.platformRequirements.length > 0
+    ? args.platformRequirements.map((requirement) => `- ${requirement.name}: ${requirement.reason}`)
+    : ["- none"];
+  const primaryToolLines = args.toolPolicy.primary.length > 0
+    ? args.toolPolicy.primary.map((tool) => `- ${tool}`)
+    : ["- none"];
+  const secondaryToolLines = args.toolPolicy.secondary.length > 0
+    ? args.toolPolicy.secondary.map((tool) => `- ${tool}`)
+    : ["- none"];
+  const forbiddenToolLines = args.toolPolicy.forbidden.length > 0
+    ? args.toolPolicy.forbidden.map((tool) => `- ${tool}`)
+    : ["- none"];
+
   return [
     "# Wave 1 Perspective Plan",
     "",
@@ -605,6 +624,19 @@ export function buildWave1PromptMd(args: {
     "",
     "## Scope Contract",
     args.scopeContractMd,
+    "",
+    "## Platform Requirements",
+    ...platformRequirementLines,
+    "",
+    "## Tool Policy",
+    "### Primary",
+    ...primaryToolLines,
+    "",
+    "### Secondary",
+    ...secondaryToolLines,
+    "",
+    "### Forbidden",
+    ...forbiddenToolLines,
     "",
     "Produce markdown that satisfies the prompt contract exactly.",
   ].join("\n");

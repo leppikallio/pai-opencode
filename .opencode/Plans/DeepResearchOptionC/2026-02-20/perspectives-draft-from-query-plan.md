@@ -442,7 +442,7 @@ Status values: `TODO | IN_PROGRESS | BLOCKED | DONE`
 | M5 | Artifacts: `operator/config/perspectives-policy.json` (defaults + overrides) | DONE | Eng | (uncommitted) 2026-02-20; default policy persisted + referenced by state; bun test entities: 178 pass/1 skip/0 fail |
 | M6 | Merge + promote: `perspectives.json` + `wave1_plan` regen | DONE | Eng | (uncommitted) 2026-02-20; auto-promote path + entity coverage; bun test entities: 178 pass/1 skip/0 fail |
 | M7 | Mechanical staleness: `perspectives_digest` in wave1-plan + fail-fast mismatch | DONE | Eng | (uncommitted) 2026-02-20; WAVE1_PLAN_STALE enforced; bun test entities: 178 pass/1 skip/0 fail |
-| M8 | Wave1 prompts include platform + tool policy blocks | TODO | Eng | snapshot test of prompt_md |
+| M8 | Wave1 prompts include platform + tool policy blocks | DONE | Eng | (uncommitted) 2026-02-20; deep_research_wave1_plan.test.ts asserts blocks; bun test entities: 179 pass/1 skip/0 fail |
 | M9 | Skill UX: update deep-research SKILL.md + workflows | TODO | Writer/Eng | manual review + link checks |
 | G-ARCH | Architect PASS (implementation) | TODO | Architect | review report |
 | G-QA | QA PASS (tests + runtime install + runtime smoke) | TODO | QA | test outputs + install output |

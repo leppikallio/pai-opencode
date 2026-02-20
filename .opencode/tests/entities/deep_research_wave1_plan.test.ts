@@ -60,6 +60,11 @@ describe("deep_research_wave1_plan (entity)", () => {
 
           const promptMd = String(plan.entries[0].prompt_md ?? "");
           expect(promptMd).toContain("## Scope Contract");
+          expect(promptMd).toContain("## Platform Requirements");
+          expect(promptMd).toContain("## Tool Policy");
+          expect(promptMd).toContain("### Primary");
+          expect(promptMd).toContain("### Secondary");
+          expect(promptMd).toContain("### Forbidden");
           expect(promptMd).toContain("### Questions");
           expect(promptMd).toContain("### Non-goals");
           expect(promptMd).toContain("- Deliverable:");
