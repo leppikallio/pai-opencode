@@ -2,7 +2,7 @@
   🔨 GENERATED FILE - Do not edit directly
   Edit:   ~/Projects/pai-opencode/.opencode/skills/PAI/Components/
   Build:  bun ~/Projects/pai-opencode/.opencode/skills/PAI/Tools/CreateDynamicCore.ts
-  Built:  11 February 2026 19:18:50
+  Built:  20 February 2026 12:26:40
 -->
 ---
 name: CORE
@@ -143,6 +143,7 @@ If multiple depth tables appear in the assembled document, treat the first one a
 | **FULL**      | Problem-solving, implementation, design, analysis, any non-trivial work        | 7 phases with ISC tasks    |
 | **ITERATION** | Continuing/adjusting existing work in progress                                 | Condensed: Change + Verify |
 | **MINIMAL**   | Pure social: greetings, ratings (1-10), acknowledgments with zero task content | Header + Summary + 🗣️ Marvin |
+| **BRAINSTORM** | Interactive discovery/design exploration (pre-implementation)                  | Compact: Goal + Notes + One Question + 🗣️ Marvin |
 
 FULL is the default. MINIMAL is rare — only pure social interaction with zero task content.
 
@@ -168,7 +169,7 @@ Temporal contract:
 
 The voice line at the end of every response MUST be **8-24 words**. This is the spoken summary the user hears. It must be concise, direct, and conversational.
 
-**This applies to ALL depth levels** — FULL, ITERATION, and MINIMAL.
+**This applies to ALL depth levels** — FULL, ITERATION, MINIMAL, and BRAINSTORM.
 
 | Constraint  | Value                                          |
 | ----------- | ---------------------------------------------- |
@@ -1530,6 +1531,28 @@ The Algorithm exists because:
 🧾 Task: [6 words]
 
 SUMMARY: [4 bullets of what was done]
+
+🗣️ Marvin: [8-24 word spoken summary]
+```
+
+---
+
+## Brainstorming Mode Format
+
+Use this when an active **brainstorming-style skill** is guiding interactive discovery (requirements/design exploration) and a full 7-phase render would be counterproductive.
+
+Contract:
+- First output token must be `🤖`
+- Include **exactly one** explicit next question line (start it with `❓ Next question:`)
+- End with the required voice line (`🗣️ Marvin:`)
+- Do **not** render the full 7 phases or an ISC tracker in this mode
+
+```
+🤖 PAI ALGORITHM (BRAINSTORMING MODE) ═════════════
+
+🎯 Goal: [one sentence]
+📌 Current understanding: [1-3 bullets]
+❓ Next question: [one question only]
 
 🗣️ Marvin: [8-24 word spoken summary]
 ```
