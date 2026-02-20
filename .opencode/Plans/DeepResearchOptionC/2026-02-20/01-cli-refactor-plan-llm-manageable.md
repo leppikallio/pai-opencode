@@ -197,7 +197,7 @@ Statuses: `TODO | IN_PROGRESS | DONE | ARCH_PASS | QA_PASS | BLOCKED(<reason>)`
 | T00 | Create worktree + baseline snapshot | DONE | 4716 → 4716 | yes | worktree + bun install + Tier 1 green |
 | T01 | Extract JSON mode + emitJson | DONE | 4716 → 4711 | yes | commit a36a0fb |
 | T02 | Extract CLI errors helpers | DONE | 4711 → 4687 | yes | commit d51b067 |
-| T03 | Extract tool runtime (envelope/context/callTool) | TODO |  |  | `ToolEnvelope`, `callTool` |
+| T03 | Extract tool runtime (envelope/context/callTool) | DONE | 4687 → 4642 | yes | commit a9a37f5 |
 | T04 | Extract run-handle resolution | TODO |  |  | `resolveRunHandle`, `withRunLock` |
 | T05 | Extract paths + manifest safety helpers | TODO |  |  | `requireAbsolutePath`, `safeResolveManifestPath` |
 | T06 | Extract fs/json/jsonl/time/digest helpers | TODO |  |  | `readJsonObject`, `readJsonlRecords`, `stableDigest` |
