@@ -438,7 +438,7 @@ Status values: `TODO | IN_PROGRESS | BLOCKED | DONE`
 | M2 | CLI: `perspectives-draft` command (prompt-out + HALT) | DONE | Eng | d4e4975; entity test passes; bun test entities: 173 pass/1 skip/0 fail; bun test .opencode/tests: 183 pass/1 skip/0 fail |
 | G-STAGE | Mini-gate: stage+CLI preconditions align | DONE | QA | e2f09d8; added entity precondition test; bun test entities: 175 pass/1 skip/0 fail |
 | M3 | CLI: `agent-result --stage perspectives` ingest | DONE | Eng | (uncommitted) 2026-02-20; supports raw+normalized artifacts + raw-path input; bun test entities: 177 pass/1 skip/0 fail |
-| M4 | Artifacts: `operator/state/perspectives-state.json` lifecycle | TODO | Eng | entity test: deterministic transitions |
+| M4 | Artifacts: `operator/state/perspectives-state.json` lifecycle | DONE | Eng | (uncommitted) 2026-02-20; state transitions covered; bun test entities: 178 pass/1 skip/0 fail |
 | M5 | Artifacts: `operator/config/perspectives-policy.json` (defaults + overrides) | TODO | Eng | entity test: policy persisted + read |
 | M6 | Merge + promote: `perspectives.json` + `wave1_plan` regen | TODO | Eng | entity test: perspectives_write + wave1_plan |
 | M7 | Mechanical staleness: `perspectives_digest` in wave1-plan + fail-fast mismatch | TODO | Eng | entity test: stale plan fails |
