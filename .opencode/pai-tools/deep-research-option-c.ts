@@ -45,6 +45,7 @@ import { createCaptureFixturesCmd } from "./deep-research-option-c/cmd/capture-f
 import { createInitCmd } from "./deep-research-option-c/cmd/init";
 import { createInspectCmd } from "./deep-research-option-c/cmd/inspect";
 import { createPauseCmd } from "./deep-research-option-c/cmd/pause";
+import { createPerspectivesDraftCmd } from "./deep-research-option-c/cmd/perspectives-draft";
 import { createResumeCmd } from "./deep-research-option-c/cmd/resume";
 import { createRerunCmd } from "./deep-research-option-c/cmd/rerun";
 import { createRunCmd } from "./deep-research-option-c/cmd/run";
@@ -103,6 +104,13 @@ type StageAdvanceCliArgs = {
   gates?: string;
   requestedNext?: string;
   reason: string;
+  json: boolean;
+};
+
+type PerspectivesDraftCliArgs = {
+  manifest: string;
+  reason: string;
+  driver: "task";
   json: boolean;
 };
 
@@ -181,7 +189,7 @@ type HaltArtifactV1 = {
   tick_index: number;
   stage_current: string;
   blocked_transition: { from: string; to: string };
-  error: { code: string; message: string };
+  error: { code: string; message: string; details?: Record<string, unknown> };
   blockers: {
     missing_artifacts: Array<{ name: string; path?: string }>;
     blocked_gates: Array<{ gate: string; status?: string }>;
@@ -764,6 +772,55 @@ function normalizePromptDigest(value: unknown): string | null {
   if (/^sha256:[a-f0-9]{64}$/u.test(trimmed)) return trimmed;
   if (/^[a-f0-9]{64}$/u.test(trimmed)) return `sha256:${trimmed}`;
   return null;
+}
+
+function buildPerspectivesDraftPromptMarkdown(args: {
+  runId: string;
+  queryText: string;
+}): string {
+  const query = args.queryText.trim() || "(query missing)";
+  return [
+    "# Perspectives Draft Request",
+    "",
+    `Run ID: ${args.runId}`,
+    "Stage: perspectives",
+    "",
+    "## Query",
+    query,
+    "",
+    "## Output Contract",
+    "- Draft one or more perspectives for this run.",
+    "- Keep perspectives mutually distinct and actionable.",
+    "- Return markdown only (no synthetic final promotion).",
+  ].join("\n");
+}
+
+async function writeTaskDriverPerspectiveDraftPrompt(args: {
+  runRoot: string;
+  runId: string;
+  queryText: string;
+}): Promise<TaskDriverMissingPerspective> {
+  const perspectiveId = "primary";
+  const promptPath = path.join(args.runRoot, "operator", "prompts", "perspectives", `${perspectiveId}.md`);
+  const outputPath = path.join(args.runRoot, "operator", "outputs", "perspectives", `${perspectiveId}.md`);
+  const metaPath = path.join(args.runRoot, "operator", "outputs", "perspectives", `${perspectiveId}.meta.json`);
+
+  const promptMd = buildPerspectivesDraftPromptMarkdown({
+    runId: args.runId,
+    queryText: args.queryText,
+  });
+  const promptDigest = promptDigestFromPromptMarkdown(promptMd);
+
+  await fs.mkdir(path.dirname(promptPath), { recursive: true });
+  await fs.writeFile(promptPath, `${promptMd.trim()}\n`, "utf8");
+
+  return {
+    perspectiveId,
+    promptPath,
+    outputPath,
+    metaPath,
+    promptDigest,
+  };
 }
 
 async function readWave1PlanEntries(runRoot: string): Promise<Array<{ perspectiveId: string; promptMd: string }>> {
@@ -1685,7 +1742,7 @@ async function writeHaltArtifact(args: {
   gatesPath: string;
   stageCurrent: string;
   reason: string;
-  error: { code: string; message: string };
+  error: { code: string; message: string; details?: Record<string, unknown> };
   triage: TriageBlockers | null;
   nextCommandsOverride?: string[];
 }): Promise<{ tickPath: string; latestPath: string; tickIndex: number }> {
@@ -1717,6 +1774,7 @@ async function writeHaltArtifact(args: {
     error: {
       code: args.error.code,
       message: args.error.message,
+      ...(args.error.details ? { details: args.error.details } : {}),
     },
     blockers: {
       missing_artifacts: (triage?.missingArtifacts ?? []).map((item) => ({
@@ -1756,7 +1814,7 @@ async function writeHaltArtifactForFailure(args: {
   manifestPath: string;
   gatesPath: string;
   reason: string;
-  error: { code: string; message: string };
+  error: { code: string; message: string; details?: Record<string, unknown> };
   nextCommandsOverride?: string[];
 }): Promise<{ tickPath: string; latestPath: string; tickIndex: number; triage: TriageBlockers | null }> {
   const triage = await computeTriageBlockers({
@@ -1818,7 +1876,7 @@ async function handleTickFailureArtifacts(args: {
   manifestPath: string;
   gatesPath: string;
   reason: string;
-  error: { code: string; message: string };
+  error: { code: string; message: string; details?: Record<string, unknown> };
   triageReason: string;
   nextCommandsOverride?: string[];
   emitLogs?: boolean;
@@ -2397,6 +2455,101 @@ async function runTick(args: TickCliArgs): Promise<void> {
     stageCurrent: summary.stageCurrent,
     status: summary.status,
   });
+}
+
+async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Promise<void> {
+  ensureOptionCEnabledForCli();
+  if (args.driver !== "task") {
+    throw new Error(`perspectives-draft currently supports --driver task only (found ${args.driver})`);
+  }
+  const runHandle = await resolveRunHandle({ manifest: args.manifest });
+  const summary = await summarizeManifest(runHandle.manifest);
+
+  if (summary.stageCurrent !== "perspectives") {
+    throw new Error(`perspectives-draft requires stage.current=perspectives (found ${summary.stageCurrent})`);
+  }
+
+  const query = asObject(runHandle.manifest.query);
+  const queryText = String(query.text ?? "");
+
+  const missingPerspective = await writeTaskDriverPerspectiveDraftPrompt({
+    runRoot: summary.runRoot,
+    runId: summary.runId,
+    queryText,
+  });
+
+  const errorDetails: Record<string, unknown> = {
+    stage: "perspectives",
+    missing_count: 1,
+    missing_perspectives: [
+      {
+        perspective_id: missingPerspective.perspectiveId,
+        prompt_path: missingPerspective.promptPath,
+        output_path: missingPerspective.outputPath,
+        meta_path: missingPerspective.metaPath,
+        prompt_digest: missingPerspective.promptDigest,
+      },
+    ],
+  };
+
+  const halt = await writeHaltArtifactForFailure({
+    runRoot: summary.runRoot,
+    runId: summary.runId,
+    stageCurrent: summary.stageCurrent,
+    manifestPath: runHandle.manifestPath,
+    gatesPath: summary.gatesPath,
+    reason: `operator-cli perspectives-draft: ${args.reason}`,
+    error: {
+      code: "RUN_AGENT_REQUIRED",
+      message: "Perspectives drafting requires external agent results via task driver",
+      details: errorDetails,
+    },
+    nextCommandsOverride: [
+      `${nextStepCliInvocation()} inspect --manifest "${runHandle.manifestPath}"`,
+      `${nextStepCliInvocation()} stage-advance --manifest "${runHandle.manifestPath}" --requested-next wave1 --reason "perspectives finalized"`,
+    ],
+  });
+
+  if (args.json) {
+    emitJson({
+      ok: false,
+      command: "perspectives-draft",
+      driver: args.driver,
+      run_id: summary.runId,
+      run_root: summary.runRoot,
+      manifest_path: runHandle.manifestPath,
+      gates_path: summary.gatesPath,
+      stage_current: summary.stageCurrent,
+      status: summary.status,
+      error: {
+        code: "RUN_AGENT_REQUIRED",
+        message: "Perspectives drafting requires external agent results via task driver",
+        details: errorDetails,
+      },
+      prompt_path: missingPerspective.promptPath,
+      halt: {
+        tick_index: halt.tickIndex,
+        tick_path: halt.tickPath,
+        latest_path: halt.latestPath,
+      },
+    });
+    return;
+  }
+
+  printContract({
+    runId: summary.runId,
+    runRoot: summary.runRoot,
+    manifestPath: runHandle.manifestPath,
+    gatesPath: summary.gatesPath,
+    stageCurrent: summary.stageCurrent,
+    status: summary.status,
+  });
+  console.log("perspectives_draft.ok: false");
+  console.log("perspectives_draft.error.code: RUN_AGENT_REQUIRED");
+  console.log("perspectives_draft.error.message: Perspectives drafting requires external agent results via task driver");
+  console.log(`perspectives_draft.prompt_path: ${missingPerspective.promptPath}`);
+  console.log(`perspectives_draft.prompt_digest: ${missingPerspective.promptDigest}`);
+  await printHaltArtifactSummary(halt);
 }
 
 async function runStageAdvance(args: StageAdvanceCliArgs): Promise<void> {
@@ -3404,6 +3557,8 @@ const runCmd = createRunCmd({ AbsolutePath, runRun });
 
 const stageAdvanceCmd = createStageAdvanceCmd({ AbsolutePath, runStageAdvance });
 
+const perspectivesDraftCmd = createPerspectivesDraftCmd({ AbsolutePath, runPerspectivesDraft });
+
 const statusCmd = createStatusCmd({ AbsolutePath, runStatus });
 
 const inspectCmd = createInspectCmd({ AbsolutePath, runInspect });
@@ -3428,6 +3583,7 @@ const app = subcommands({
     "agent-result": agentResultCmd,
     run: runCmd,
     "stage-advance": stageAdvanceCmd,
+    "perspectives-draft": perspectivesDraftCmd,
     status: statusCmd,
     inspect: inspectCmd,
     triage: triageCmd,
