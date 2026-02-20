@@ -1,0 +1,55 @@
+import { PERSPECTIVES_DRAFT_SCHEMA_VERSION } from "./schema";
+
+export function buildPerspectivesDraftPromptMarkdown(args: {
+  runId: string;
+  queryText: string;
+}): string {
+  const query = args.queryText.trim() || "(query missing)";
+  return [
+    "# Perspectives Draft Request",
+    "",
+    `Run ID: ${args.runId}`,
+    "Stage: perspectives",
+    "",
+    "## Query",
+    query,
+    "",
+    "## Output Contract",
+    `Return a single JSON object (no surrounding markdown) matching schema \`${PERSPECTIVES_DRAFT_SCHEMA_VERSION}\`.`,
+    "",
+    "Required shape:",
+    "```json",
+    "{",
+    `  \"schema_version\": \"${PERSPECTIVES_DRAFT_SCHEMA_VERSION}\",`,
+    "  \"run_id\": \"<run_id>\",",
+    "  \"source\": { \"agent_type\": \"<agent_type>\", \"label\": \"<label>\" },",
+    "  \"candidates\": [",
+    "    {",
+    "      \"title\": \"...\",",
+    "      \"questions\": [\"...\"],",
+    "      \"track\": \"standard|independent|contrarian\",",
+    "      \"recommended_agent_type\": \"...\",",
+    "      \"domain\": \"social_media|academic|technical|multimodal|security|news|unknown\",",
+    "      \"confidence\": 0,",
+    "      \"rationale\": \"...\",",
+    "      \"platform_requirements\": [{ \"name\": \"...\", \"reason\": \"...\" }],",
+    "      \"tool_policy\": {",
+    "        \"primary\": [\"...\"],",
+    "        \"secondary\": [\"...\"],",
+    "        \"forbidden\": [\"...\"]",
+    "      },",
+    "      \"flags\": {",
+    "        \"human_review_required\": false,",
+    "        \"missing_platform_requirements\": false,",
+    "        \"missing_tool_policy\": false",
+    "      }",
+    "    }",
+    "  ]",
+    "}",
+    "```",
+    "",
+    "Constraints:",
+    "- confidence MUST be an integer 0..100",
+    "- candidates must be mutually distinct and actionable",
+  ].join("\n");
+}
