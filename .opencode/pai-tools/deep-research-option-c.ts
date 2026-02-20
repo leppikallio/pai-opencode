@@ -39,6 +39,7 @@ import {
   resolveDeepResearchFlagsV1,
   sha256HexLowerUtf8,
 } from "../tools/deep_research/lifecycle_lib";
+import { sha256DigestForJson } from "../tools/deep_research/wave_tools_shared";
 import { createAgentResultCmd } from "./deep-research-option-c/cmd/agent-result";
 import { createCancelCmd } from "./deep-research-option-c/cmd/cancel";
 import { createCaptureFixturesCmd } from "./deep-research-option-c/cmd/capture-fixtures";
@@ -854,6 +855,13 @@ function throwWithCode(code: string, message: string): never {
   throw error;
 }
 
+function throwWithCodeAndDetails(code: string, message: string, details: Record<string, unknown>): never {
+  const error = new Error(message) as Error & { code?: string; details?: Record<string, unknown> };
+  error.code = code;
+  error.details = details;
+  throw error;
+}
+
 function requireNonEmptyStringAt(value: unknown, fieldPath: string): string {
   const out = asNonEmptyString(value);
   if (!out) {
@@ -1425,9 +1433,32 @@ async function resolvePerspectivesDraftStatus(args: {
   };
 }
 
-async function readWave1PlanEntries(runRoot: string): Promise<Array<{ perspectiveId: string; promptMd: string }>> {
-  const wave1PlanPath = path.join(runRoot, "wave-1", "wave1-plan.json");
+async function readWave1PlanEntries(args: {
+  runRoot: string;
+  manifest: Record<string, unknown>;
+}): Promise<Array<{ perspectiveId: string; promptMd: string }>> {
+  const wave1PlanPath = path.join(args.runRoot, "wave-1", "wave1-plan.json");
   const wave1Plan = await readJsonObject(wave1PlanPath);
+
+  const perspectivesPath = await resolvePerspectivesPathFromManifest(args.manifest);
+  const perspectivesDoc = await readJsonObject(perspectivesPath);
+  const expectedDigest = sha256DigestForJson(perspectivesDoc);
+  const actualDigest = typeof wave1Plan.perspectives_digest === "string"
+    ? wave1Plan.perspectives_digest.trim()
+    : "";
+  if (!actualDigest || actualDigest !== expectedDigest) {
+    throwWithCodeAndDetails(
+      "WAVE1_PLAN_STALE",
+      "WAVE1_PLAN_STALE: wave1 plan perspectives digest mismatch",
+      {
+        plan_path: wave1PlanPath,
+        perspectives_path: perspectivesPath,
+        expected_digest: expectedDigest,
+        actual_digest: actualDigest || null,
+      },
+    );
+  }
+
   const entries = Array.isArray(wave1Plan.entries)
     ? (wave1Plan.entries as Array<unknown>)
     : [];
@@ -1490,8 +1521,12 @@ async function readPromptDigestFromMeta(metaPath: string): Promise<string | null
 
 async function collectTaskDriverMissingWave1Perspectives(args: {
   runRoot: string;
+  manifest: Record<string, unknown>;
 }): Promise<TaskDriverMissingPerspective[]> {
-  const planEntries = await readWave1PlanEntries(args.runRoot);
+  const planEntries = await readWave1PlanEntries({
+    runRoot: args.runRoot,
+    manifest: args.manifest,
+  });
   const missing: TaskDriverMissingPerspective[] = [];
 
   for (const entry of planEntries) {
@@ -1722,6 +1757,14 @@ async function resolveGatesPathFromManifest(manifest: Record<string, unknown>): 
   const pathsObj = asObject(artifacts.paths);
   const gatesRel = String(pathsObj.gates_file ?? "gates.json").trim() || "gates.json";
   return safeResolveManifestPath(runRoot, gatesRel, "manifest.artifacts.paths.gates_file");
+}
+
+async function resolvePerspectivesPathFromManifest(manifest: Record<string, unknown>): Promise<string> {
+  const runRoot = resolveRunRoot(manifest);
+  const artifacts = asObject(manifest.artifacts);
+  const pathsObj = asObject(artifacts.paths);
+  const perspectivesRel = String(pathsObj.perspectives_file ?? "perspectives.json").trim() || "perspectives.json";
+  return safeResolveManifestPath(runRoot, perspectivesRel, "manifest.artifacts.paths.perspectives_file");
 }
 
 function normalizeOptional(value: string | undefined): string | undefined {
@@ -2864,6 +2907,7 @@ async function runTick(args: TickCliArgs): Promise<void> {
     if (args.driver === "task" && context.stageBefore === "wave1") {
       const missing = await collectTaskDriverMissingWave1Perspectives({
         runRoot: context.runRoot,
+        manifest: runHandle.manifest,
       });
 
       if (missing.length > 0) {
@@ -2957,15 +3001,37 @@ async function runTick(args: TickCliArgs): Promise<void> {
       }
     }
   } catch (error) {
-    toolFailure = toolErrorDetails(error);
-    result = {
-      ok: false,
-      error: {
-        code: toolFailure.code,
-        message: toolFailure.message,
-        details: {},
-      },
-    } as TickResult;
+    const codedError = error as { code?: unknown; details?: unknown; message?: unknown };
+    if (typeof codedError?.code === "string") {
+      toolFailure = {
+        code: codedError.code,
+        message: error instanceof Error
+          ? error.message
+          : String(codedError.message ?? error),
+      };
+      const details = codedError.details && typeof codedError.details === "object" && !Array.isArray(codedError.details)
+        ? (codedError.details as Record<string, unknown>)
+        : {};
+      result = {
+        ok: false,
+        error: {
+          code: toolFailure.code,
+          message: toolFailure.message,
+          details,
+        },
+      } as TickResult;
+      // keep original control-flow for telemetry + halt artifact handling below.
+    } else {
+      toolFailure = toolErrorDetails(error);
+      result = {
+        ok: false,
+        error: {
+          code: toolFailure.code,
+          message: toolFailure.message,
+          details: {},
+        },
+      } as TickResult;
+    }
   }
 
   await finalizeTickObservability({
@@ -4317,7 +4383,7 @@ async function runAgentResult(args: AgentResultCliArgs): Promise<void> {
     metaPath = path.join(runRoot, "operator", "outputs", "perspectives", `${perspectiveId}.meta.json`);
   } else if (stage === "wave1" || stage === "wave2") {
     const planEntries = stage === "wave1"
-      ? await readWave1PlanEntries(runRoot)
+      ? await readWave1PlanEntries({ runRoot, manifest })
       : await readWave2PlanEntries(runRoot);
     const planEntry = planEntries.find((entry) => entry.perspectiveId === perspectiveId);
     if (!planEntry) {

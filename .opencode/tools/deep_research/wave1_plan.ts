@@ -149,6 +149,7 @@ export const wave1_plan = tool({
         }),
       };
       const inputsDigest = sha256DigestForJson(digestPayload);
+      const perspectivesDigest = sha256DigestForJson(perspectivesDoc);
 
       const entries = orderedPerspectives.map((perspective) => {
         const perspectiveId = String(perspective.id ?? "");
@@ -183,6 +184,7 @@ export const wave1_plan = tool({
         run_id: runId,
         generated_at: generatedAt,
         inputs_digest: inputsDigest,
+        perspectives_digest: perspectivesDigest,
         entries,
       };
 
