@@ -32,6 +32,7 @@ import {
 import { createHistoryCapture } from "./handlers/history-capture";
 import { runImplicitSentimentSelftest } from "./handlers/sentiment-capture";
 import {
+  buildFallbackBrainstormWrapper,
   buildFallbackFullWrapper,
   buildFallbackMinimalWrapper,
   detectEnforcementMode,
@@ -856,7 +857,7 @@ export const PaiUnified: Plugin = async (ctx) => {
   // Validation and fallback wrappers live in handlers/enforcement-gate.ts
 
   async function rewriteToFormat(opts: {
-    mode: "MINIMAL" | "FULL";
+    mode: EnforcementMode;
     userText: string;
     assistantText: string;
   }): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
@@ -920,25 +921,38 @@ export const PaiUnified: Plugin = async (ctx) => {
               "Do not add extra lines.",
               "Do not mention rewriting.",
             ].join("\n")
-          : [
-              "You rewrite assistant output into the required PAI FULL algorithm format (upstream v2.5 style).",
-              "Requirements:",
-              "- FIRST output token must be 🤖.",
-              "- Include a header line: 🤖 Entering the PAI ALGORITHM...",
-              "- Include all 7 phases with upstream headings:",
-              "  ━━━ 👁️ OBSERVE ━━━ 1/7",
-              "  ━━━ 🧠 THINK ━━━ 2/7",
-              "  ━━━ 📋 PLAN ━━━ 3/7",
-              "  ━━━ 🔨 BUILD ━━━ 4/7",
-              "  ━━━ ⚡ EXECUTE ━━━ 5/7",
-              "  ━━━ ✅ VERIFY ━━━ 6/7",
-              "  ━━━ 📚 LEARN ━━━ 7/7",
-              "- Include an 'ISC Tasks:' section (no manual ISC tables required).",
-              "- Must include a 🗣️ Marvin: voice line (max 16 words).",
-              "- Must NOT include ⭐ RATE prompts.",
-              "- Preserve original meaning; do not invent tool results.",
-              "- No meta commentary, no apologies.",
-            ].join("\n");
+          : opts.mode === "BRAINSTORM"
+            ? [
+                "You rewrite assistant output into the required PAI Brainstorming Mode format.",
+                "Requirements:",
+                "- FIRST output token must be 🤖.",
+                "- First line MUST contain: 🤖 PAI ALGORITHM (BRAINSTORMING MODE)",
+                "- Include exactly ONE next-question line that starts with: ❓ Next question:",
+                "- Keep it compact: 4–8 lines total.",
+                "- Must include a 🗣️ Marvin: voice line (max 16 words).",
+                "- Must NOT include ⭐ RATE prompts.",
+                "- Preserve original meaning; do not invent tool results.",
+                "- No phased 7-step Algorithm sections in this mode.",
+              ].join("\n")
+            : [
+                "You rewrite assistant output into the required PAI FULL algorithm format (upstream v2.5 style).",
+                "Requirements:",
+                "- FIRST output token must be 🤖.",
+                "- Include a header line: 🤖 Entering the PAI ALGORITHM...",
+                "- Include all 7 phases with upstream headings:",
+                "  ━━━ 👁️ OBSERVE ━━━ 1/7",
+                "  ━━━ 🧠 THINK ━━━ 2/7",
+                "  ━━━ 📋 PLAN ━━━ 3/7",
+                "  ━━━ 🔨 BUILD ━━━ 4/7",
+                "  ━━━ ⚡ EXECUTE ━━━ 5/7",
+                "  ━━━ ✅ VERIFY ━━━ 6/7",
+                "  ━━━ 📚 LEARN ━━━ 7/7",
+                "- Include an 'ISC Tasks:' section (no manual ISC tables required).",
+                "- Must include a 🗣️ Marvin: voice line (max 16 words).",
+                "- Must NOT include ⭐ RATE prompts.",
+                "- Preserve original meaning; do not invent tool results.",
+                "- No meta commentary, no apologies.",
+              ].join("\n");
 
       const userPrompt = [
         "USER_MESSAGE:",
@@ -998,6 +1012,11 @@ export const PaiUnified: Plugin = async (ctx) => {
       userText: "(selftest)",
       assistantText: "hello world",
     };
+    const brainstormInput = {
+      mode: "BRAINSTORM" as const,
+      userText: "(selftest)",
+      assistantText: "help me think through this idea",
+    };
     const fullInput = {
       mode: "FULL" as const,
       userText: "(selftest)",
@@ -1028,6 +1047,7 @@ export const PaiUnified: Plugin = async (ctx) => {
     ].join("\n");
 
     const minimal = await rewriteToFormat(minimalInput);
+    const brainstorm = await rewriteToFormat(brainstormInput);
     const full = await rewriteToFormat(fullInput);
     const missingCriteriaCheck = validateOutput(fullMissingCriteria, "FULL");
 
@@ -1035,10 +1055,12 @@ export const PaiUnified: Plugin = async (ctx) => {
       ts: startedAt,
       ok: {
         minimal: minimal.ok,
+        brainstorm: brainstorm.ok,
         full: full.ok,
       },
       validated: {
         minimal: minimal.ok ? validateOutput(minimal.text, "MINIMAL").ok : false,
+        brainstorm: brainstorm.ok ? validateOutput(brainstorm.text, "BRAINSTORM").ok : false,
         full: full.ok ? validateOutput(full.text, "FULL").ok : false,
       },
       iscGate: {
@@ -1048,6 +1070,7 @@ export const PaiUnified: Plugin = async (ctx) => {
       },
       error: {
         minimal: minimal.ok ? null : minimal.error,
+        brainstorm: brainstorm.ok ? null : brainstorm.error,
         full: full.ok ? null : full.error,
       },
     });
@@ -2098,17 +2121,22 @@ export const PaiUnified: Plugin = async (ctx) => {
 
         const key = `${sessionId}:${input.messageID}:${input.partID}:${mode}`;
         if (rewriteAttemptedByPart.has(key)) {
-          const fallback =
-            mode === "FULL"
-              ? buildFallbackFullWrapper({
-                  task: "Enforce required response contract",
-                  userText,
-                  assistantText: text,
-                })
-              : buildFallbackMinimalWrapper({
-                  task: "Enforce required response contract",
-                  assistantText: text,
-                });
+           const fallback =
+             mode === "FULL"
+               ? buildFallbackFullWrapper({
+                   task: "Enforce required response contract",
+                   userText,
+                   assistantText: text,
+                 })
+               : mode === "BRAINSTORM"
+                 ? buildFallbackBrainstormWrapper({
+                     task: "Continue interactive brainstorming",
+                     assistantText: text,
+                   })
+                 : buildFallbackMinimalWrapper({
+                     task: "Enforce required response contract",
+                     assistantText: text,
+                   });
           output.text = fallback;
           await appendFormatGateEvidence(sessionId, {
             event: "wrapped",
@@ -2157,17 +2185,22 @@ export const PaiUnified: Plugin = async (ctx) => {
             partID: input.partID,
             error: rewritten.error.slice(0, 500),
           });
-          const fallback =
-            mode === "FULL"
-              ? buildFallbackFullWrapper({
-                  task: "Enforce required response contract",
-                  userText,
-                  assistantText: text,
-                })
-              : buildFallbackMinimalWrapper({
-                  task: "Enforce required response contract",
-                  assistantText: text,
-                });
+           const fallback =
+             mode === "FULL"
+               ? buildFallbackFullWrapper({
+                   task: "Enforce required response contract",
+                   userText,
+                   assistantText: text,
+                 })
+               : mode === "BRAINSTORM"
+                 ? buildFallbackBrainstormWrapper({
+                     task: "Continue interactive brainstorming",
+                     assistantText: text,
+                   })
+                 : buildFallbackMinimalWrapper({
+                     task: "Enforce required response contract",
+                     assistantText: text,
+                   });
           output.text = fallback;
           await appendFormatGateEvidence(sessionId, {
             event: "wrapped",
@@ -2192,17 +2225,22 @@ export const PaiUnified: Plugin = async (ctx) => {
             error: "rewritten output did not validate",
             reasons: details2.reasons,
           });
-          const fallback =
-            mode === "FULL"
-              ? buildFallbackFullWrapper({
-                  task: "Enforce required response contract",
-                  userText,
-                  assistantText: text,
-                })
-              : buildFallbackMinimalWrapper({
-                  task: "Enforce required response contract",
-                  assistantText: text,
-                });
+           const fallback =
+             mode === "FULL"
+               ? buildFallbackFullWrapper({
+                   task: "Enforce required response contract",
+                   userText,
+                   assistantText: text,
+                 })
+               : mode === "BRAINSTORM"
+                 ? buildFallbackBrainstormWrapper({
+                     task: "Continue interactive brainstorming",
+                     assistantText: text,
+                   })
+                 : buildFallbackMinimalWrapper({
+                     task: "Enforce required response contract",
+                     assistantText: text,
+                   });
           output.text = fallback;
           await appendFormatGateEvidence(sessionId, {
             event: "wrapped",
