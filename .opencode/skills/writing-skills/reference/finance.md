@@ -1,6 +1,6 @@
 # Reference: finance.md (example)
 
-Example “finance reference” file used by `writing-skills/anthropic-best-practices.md`.
+Example “finance reference” file used by `anthropic-best-practices.md` in the parent folder.
 
 Use this pattern in real skills when you have finance-specific concepts that shouldn't bloat `SKILL.md`:
 
