@@ -48,17 +48,16 @@ import { createStageAdvanceCmd } from "./deep-research-option-c/cmd/stage-advanc
 import { createStatusCmd } from "./deep-research-option-c/cmd/status";
 import { createTickCmd } from "./deep-research-option-c/cmd/tick";
 import { createTriageCmd } from "./deep-research-option-c/cmd/triage";
+import { runInspect } from "./deep-research-option-c/handlers/inspect";
+import { runStatus } from "./deep-research-option-c/handlers/status";
+import { runTriage } from "./deep-research-option-c/handlers/triage";
 import {
   blockersSummaryJson,
-  readBlockedUrlsInspectSummary,
-  stageAdvanceDryRun,
-  triageFromStageAdvanceResult,
   type TriageBlockers,
 } from "./deep-research-option-c/triage/blockers";
 import {
   handleTickFailureArtifacts,
   printHaltArtifactSummary,
-  resolveLatestOnlineFixtures,
   writeHaltArtifactForFailure,
 } from "./deep-research-option-c/triage/halt-artifacts";
 import {
@@ -67,7 +66,6 @@ import {
   getCliArgv,
   isJsonModeRequested,
 } from "./deep-research-option-c/cli/json-mode";
-import { emitContractCommandJson } from "./deep-research-option-c/cli/contract-json";
 import {
   assertWithinRoot,
   isSafeSegment,
@@ -80,10 +78,7 @@ import {
   readJsonObject,
 } from "./deep-research-option-c/lib/io-json";
 import {
-  gateStatusesSummaryRecord,
-  parseGateStatuses,
   printContract,
-  readGateStatusesSummary,
   resolveGatesPathFromManifest,
   resolveLogsDirFromManifest,
   resolvePerspectivesPathFromManifest,
@@ -153,10 +148,6 @@ type RunCliArgs = TickCliArgs & {
 type PauseResumeCliArgs = RunHandleCliArgs & {
   reason: string;
   json?: boolean;
-};
-
-type RunStatusInspectTriageCliArgs = RunHandleCliArgs & {
-  json: boolean;
 };
 
 type StageAdvanceCliArgs = {
@@ -1028,59 +1019,6 @@ async function defaultFixtureDriver(args: {
     return { wave_outputs: [], requested_next: "review" };
   }
   return { wave_outputs: [] };
-}
-
-async function readJsonIfExists(filePath: string): Promise<Record<string, unknown> | null> {
-  try {
-    return await readJsonObject(filePath);
-  } catch (error) {
-    const code = (error as { code?: string }).code;
-    if (code === "ENOENT") return null;
-    throw error;
-  }
-}
-
-async function printInspectOperatorGuidance(runRoot: string): Promise<void> {
-  const blockedUrlsPath = await safeResolveManifestPath(runRoot, "citations/blocked-urls.json", "citations.blocked_urls");
-  const retryDirectivesPath = await safeResolveManifestPath(runRoot, "retry/retry-directives.json", "retry.retry_directives");
-
-  const blockedUrls = await readJsonIfExists(blockedUrlsPath);
-  const retryDirectives = await readJsonIfExists(retryDirectivesPath);
-  const latestOnlineFixturesPath = await resolveLatestOnlineFixtures(runRoot);
-
-  if (blockedUrls) {
-    const items = Array.isArray(blockedUrls.items) ? blockedUrls.items : [];
-    console.log("citations.blocked_urls:");
-    console.log(`  path: ${blockedUrlsPath}`);
-    console.log(`  count: ${items.length}`);
-    for (const raw of items.slice(0, 5)) {
-      const item = asObject(raw);
-      console.log(`  - ${String(item.url ?? item.normalized_url ?? "unknown")}`);
-      console.log(`    action: ${String(item.action ?? "review citation access path")}`);
-    }
-    if (items.length > 0) {
-      console.log("  next: replace blocked URLs or add acceptable sources, then re-run citations stage");
-    }
-  }
-
-  if (retryDirectives) {
-    const directives = Array.isArray(retryDirectives.retry_directives) ? retryDirectives.retry_directives : [];
-    const consumedAt = String(retryDirectives.consumed_at ?? "").trim();
-    console.log("retry.directives:");
-    console.log(`  path: ${retryDirectivesPath}`);
-    console.log(`  count: ${directives.length}`);
-    if (consumedAt) {
-      console.log(`  consumed_at: ${consumedAt}`);
-    } else if (directives.length > 0) {
-      console.log("  next: apply retry directives and run tick again");
-    }
-  }
-
-  if (latestOnlineFixturesPath) {
-    console.log("citations.online_fixtures_latest:");
-    console.log(`  path: ${latestOnlineFixturesPath}`);
-    console.log("  next: use this fixture for deterministic replay/debug");
-  }
 }
 
 async function runInit(args: InitCliArgs): Promise<void> {
@@ -1961,194 +1899,6 @@ async function runStageAdvance(args: StageAdvanceCliArgs): Promise<void> {
   console.log(`stage_advance.from: ${String(stageAdvance.from ?? "")}`);
   console.log(`stage_advance.to: ${String(stageAdvance.to ?? "")}`);
   console.log(`stage_advance.manifest_revision: ${String(stageAdvance.manifest_revision ?? "")}`);
-}
-
-async function runStatus(args: RunStatusInspectTriageCliArgs): Promise<void> {
-  const runHandle = await resolveRunHandle(args);
-  const manifest = await readJsonObject(runHandle.manifestPath);
-  const summary = await summarizeManifest(manifest);
-
-  if (args.json) {
-    const gateStatusesSummary = await readGateStatusesSummary(summary.gatesPath);
-    emitContractCommandJson({
-      command: "status",
-      summary,
-      manifestPath: runHandle.manifestPath,
-      gateStatusesSummary,
-    });
-    return;
-  }
-
-  printContract({
-    runId: summary.runId,
-    runRoot: summary.runRoot,
-    manifestPath: runHandle.manifestPath,
-    gatesPath: summary.gatesPath,
-    stageCurrent: summary.stageCurrent,
-    status: summary.status,
-  });
-}
-
-async function runInspect(args: RunStatusInspectTriageCliArgs): Promise<void> {
-  const runHandle = await resolveRunHandle(args);
-  const manifest = await readJsonObject(runHandle.manifestPath);
-  const summary = await summarizeManifest(manifest);
-  const gatesDoc = await readJsonObject(summary.gatesPath);
-  const gateStatuses = parseGateStatuses(gatesDoc);
-  const blockedUrlsSummary = await readBlockedUrlsInspectSummary(summary.runRoot);
-  const dryRun = await stageAdvanceDryRun({
-    manifestPath: runHandle.manifestPath,
-    gatesPath: summary.gatesPath,
-    reason: "operator-cli inspect: stage-advance dry-run",
-  });
-  const triage = triageFromStageAdvanceResult(dryRun);
-
-  if (args.json) {
-    emitContractCommandJson({
-      command: "inspect",
-      summary,
-      manifestPath: runHandle.manifestPath,
-      gateStatusesSummary: gateStatusesSummaryRecord(gateStatuses),
-      extra: {
-        blockers_summary: blockersSummaryJson(triage),
-      },
-    });
-    return;
-  }
-
-  printContract({
-    runId: summary.runId,
-    runRoot: summary.runRoot,
-    manifestPath: runHandle.manifestPath,
-    gatesPath: summary.gatesPath,
-    stageCurrent: summary.stageCurrent,
-    status: summary.status,
-  });
-
-  console.log("gate_statuses:");
-  for (const gate of gateStatuses) {
-    console.log(`  - ${gate.id}: ${gate.status}${gate.checked_at ? ` @ ${gate.checked_at}` : ""}`);
-  }
-
-  if (blockedUrlsSummary) {
-    console.log("citations_blockers:");
-    console.log(`  artifact_path: ${blockedUrlsSummary.artifactPath}`);
-    console.log(`  total: ${blockedUrlsSummary.total}`);
-
-    console.log("  by_status:");
-    if (blockedUrlsSummary.byStatus.length === 0) {
-      console.log("    - none");
-    } else {
-      for (const row of blockedUrlsSummary.byStatus) {
-        console.log(`    - ${row.status}: ${row.count}`);
-      }
-    }
-
-    console.log("  next_steps:");
-    if (blockedUrlsSummary.topActions.length === 0) {
-      console.log("    - none");
-    } else {
-      for (const row of blockedUrlsSummary.topActions) {
-        console.log(`    - ${row.action} (count=${row.count})`);
-      }
-    }
-  }
-
-  console.log("blockers:");
-  if (triage.allowed) {
-    console.log(`  - none (next transition allowed: ${triage.from} -> ${triage.to})`);
-  } else if (triage.missingArtifacts.length === 0 && triage.blockedGates.length === 0 && triage.failedChecks.length === 0) {
-    console.log(`  - ${triage.errorCode ?? "UNKNOWN"}: ${triage.errorMessage ?? "Unknown blocker"}`);
-  } else {
-    for (const item of triage.missingArtifacts) {
-      console.log(`  - missing artifact: ${item.name}${item.path ? ` (${item.path})` : ""}`);
-    }
-    for (const gate of triage.blockedGates) {
-      console.log(`  - blocked gate: ${gate.gate} (status=${gate.status ?? "unknown"})`);
-    }
-    for (const check of triage.failedChecks) {
-      console.log(`  - failed ${check.kind}: ${check.name}`);
-    }
-  }
-
-  await printInspectOperatorGuidance(summary.runRoot);
-}
-
-async function runTriage(args: RunStatusInspectTriageCliArgs): Promise<void> {
-  const runHandle = await resolveRunHandle(args);
-  const manifest = await readJsonObject(runHandle.manifestPath);
-  const summary = await summarizeManifest(manifest);
-  const gateStatusesSummary = await readGateStatusesSummary(summary.gatesPath);
-
-  const dryRun = await stageAdvanceDryRun({
-    manifestPath: runHandle.manifestPath,
-    gatesPath: summary.gatesPath,
-    reason: "operator-cli triage: stage-advance dry-run",
-  });
-  const triage = triageFromStageAdvanceResult(dryRun);
-
-  if (args.json) {
-    emitContractCommandJson({
-      command: "triage",
-      summary,
-      manifestPath: runHandle.manifestPath,
-      gateStatusesSummary,
-      extra: {
-        blockers_summary: blockersSummaryJson(triage),
-      },
-    });
-    return;
-  }
-
-  printContract({
-    runId: summary.runId,
-    runRoot: summary.runRoot,
-    manifestPath: runHandle.manifestPath,
-    gatesPath: summary.gatesPath,
-    stageCurrent: summary.stageCurrent,
-    status: summary.status,
-  });
-
-  console.log("triage:");
-  console.log(`  allowed: ${triage.allowed}`);
-  console.log(`  from: ${triage.from}`);
-  console.log(`  to: ${triage.to}`);
-  if (triage.errorCode) console.log(`  error.code: ${triage.errorCode}`);
-  if (triage.errorMessage) console.log(`  error.message: ${triage.errorMessage}`);
-
-  if (triage.missingArtifacts.length === 0 && triage.blockedGates.length === 0 && triage.failedChecks.length === 0) {
-    console.log("  missing_artifacts: none");
-    console.log("  blocked_gates: none");
-    console.log("  failed_checks: none");
-    return;
-  }
-
-  console.log("  missing_artifacts:");
-  if (triage.missingArtifacts.length === 0) {
-    console.log("    - none");
-  } else {
-    for (const item of triage.missingArtifacts) {
-      console.log(`    - ${item.name}${item.path ? ` (${item.path})` : ""}`);
-    }
-  }
-
-  console.log("  blocked_gates:");
-  if (triage.blockedGates.length === 0) {
-    console.log("    - none");
-  } else {
-    for (const gate of triage.blockedGates) {
-      console.log(`    - ${gate.gate} (status=${gate.status ?? "unknown"})`);
-    }
-  }
-
-  console.log("  failed_checks:");
-  if (triage.failedChecks.length === 0) {
-    console.log("    - none");
-  } else {
-    for (const check of triage.failedChecks) {
-      console.log(`    - ${check.kind}: ${check.name}`);
-    }
-  }
 }
 
 async function runRun(args: RunCliArgs): Promise<void> {
