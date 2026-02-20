@@ -272,6 +272,18 @@ wc -l .opencode/pai-tools/deep-research-option-c.ts
 Expected:
 - prints 4716 (or update tracker if it differs)
 
+**Step 2.1: Ensure dependencies are installed in this worktree**
+
+Reason: new worktrees do **not** share `.opencode/node_modules`, so entity tests can fail with missing modules.
+
+Run:
+```bash
+test -d .opencode/node_modules || (cd .opencode && bun install)
+```
+
+Expected:
+- `.opencode/node_modules/` exists
+
 **Step 3: Run Tier 1 once (baseline green)**
 
 Run Tier 1 commands (see section 2).
