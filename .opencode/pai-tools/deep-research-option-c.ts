@@ -60,6 +60,12 @@ import {
   getCliArgv,
   isJsonModeRequested,
 } from "./deep-research-option-c/cli/json-mode";
+import {
+  resultErrorDetails,
+  throwWithCode,
+  throwWithCodeAndDetails,
+  toolErrorDetails,
+} from "./deep-research-option-c/cli/errors";
 import { resolveRuntimeRootFromMainScript } from "./resolveRuntimeRootFromMainScript";
 
 type ToolEnvelope = Record<string, unknown> & { ok: boolean };
@@ -331,23 +337,6 @@ configureStdoutForJsonMode(JSON_MODE_REQUESTED);
 
 function stableDigest(value: Record<string, unknown>): string {
   return `sha256:${sha256HexLowerUtf8(JSON.stringify(value))}`;
-}
-
-function toolErrorDetails(error: unknown): { code: string; message: string } {
-  const text = String(error ?? "unknown error");
-  const match = /failed:\s+([^\s]+)\s+([^{]+)(?:\{.*)?$/.exec(text);
-  if (!match) {
-    return { code: "TOOL_FAILED", message: text };
-  }
-  return { code: match[1] ?? "TOOL_FAILED", message: (match[2] ?? text).trim() };
-}
-
-function resultErrorDetails(result: TickResult): { code: string; message: string } | null {
-  if (result.ok) return null;
-  return {
-    code: String(result.error.code ?? "UNKNOWN"),
-    message: String(result.error.message ?? "tick failed"),
-  };
 }
 
 function safePositiveInt(value: unknown, fallback: number): number {
@@ -854,19 +843,6 @@ function normalizePromptDigest(value: unknown): string | null {
 const PERSPECTIVES_DRAFT_SCHEMA_VERSION = "perspectives-draft-output.v1" as const;
 const PERSPECTIVE_TRACKS = ["standard", "independent", "contrarian"] as const;
 const PERSPECTIVE_DOMAINS = ["social_media", "academic", "technical", "multimodal", "security", "news", "unknown"] as const;
-
-function throwWithCode(code: string, message: string): never {
-  const error = new Error(message) as Error & { code?: string };
-  error.code = code;
-  throw error;
-}
-
-function throwWithCodeAndDetails(code: string, message: string, details: Record<string, unknown>): never {
-  const error = new Error(message) as Error & { code?: string; details?: Record<string, unknown> };
-  error.code = code;
-  error.details = details;
-  throw error;
-}
 
 function requireNonEmptyStringAt(value: unknown, fieldPath: string): string {
   const out = asNonEmptyString(value);
