@@ -13,3 +13,20 @@ export async function readJsonObject(filePath: string): Promise<Record<string, u
   }
   return parsed as Record<string, unknown>;
 }
+
+export async function readJsonlRecords(filePath: string): Promise<Array<Record<string, unknown>>> {
+  let raw: string;
+  try {
+    raw = await fs.readFile(filePath, "utf8");
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "ENOENT") return [];
+    throw error;
+  }
+
+  return raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+}

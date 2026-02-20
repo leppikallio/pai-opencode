@@ -67,6 +67,7 @@ import {
 } from "./deep-research-option-c/lib/paths";
 import {
   asObject,
+  readJsonlRecords,
   readJsonObject,
 } from "./deep-research-option-c/lib/io-json";
 import {
@@ -346,23 +347,6 @@ function safePositiveInt(value: unknown, fallback: number): number {
   const num = Number(value);
   if (!Number.isFinite(num) || num <= 0) return fallback;
   return Math.floor(num);
-}
-
-async function readJsonlRecords(filePath: string): Promise<Array<Record<string, unknown>>> {
-  let raw: string;
-  try {
-    raw = await fs.readFile(filePath, "utf8");
-  } catch (error) {
-    const code = (error as { code?: string }).code;
-    if (code === "ENOENT") return [];
-    throw error;
-  }
-
-  return raw
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
 async function nextTickIndex(logsDirAbs: string): Promise<number> {
