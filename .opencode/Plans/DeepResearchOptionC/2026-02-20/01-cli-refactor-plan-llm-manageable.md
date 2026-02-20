@@ -1,164 +1,632 @@
-# Deep Research Option C — CLI Refactor Plan (LLM-manageable)
+# Deep Research Option C CLI Refactor Implementation Plan (LLM-manageable)
 
-Date: 2026-02-20
+> **REQUIRED WORKFLOW (recommended):** use `using-git-worktrees` + `subagent-driven-development` to implement task-by-task.
+> 
+> Alternate workflow (separate session): use `executing-plans`.
 
-This document is an **appendix** to the authoritative program plan:
+**Goal:** Reduce the CLI monolith to **≤ 250 LOC wiring-only**, by extracting real logic into meaningful modules (~≤ 500 LOC each), while preserving CLI behavior and ensuring runtime install works.
 
-- `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/Plans/DeepResearchOptionC/2026-02-19/00-plan-skill-merge-cli-refactor-known-issues.md`
+**Architecture:** Keep the public entrypoint file path stable (`pai-tools/deep-research-option-c.ts`). Extract subsystems first (json/errors/tool-runtime/paths/io/observability/triage/perspectives/run-handle), then extract each command handler (move+delete; no shims). Validate continuously with Tier 0/1 tests and require Architect + QA PASS gates at the end.
 
-It captures a **step-by-step** refactor sequence designed to keep files small enough that an LLM can edit safely.
+**Tech Stack:** TypeScript (ESNext), Bun, `cmd-ts`, Node `fs/path`, PAI runtime installer `Tools/Install.ts`.
 
-## Current reality (verified)
+---
 
-- Monolith entrypoint: `.opencode/pai-tools/deep-research-option-c.ts` is ~4.2k lines.
-  - Evidence command: `wc -l .opencode/pai-tools/deep-research-option-c.ts`
-- Command wrappers exist (thin `cmd-ts` parsing): `.opencode/pai-tools/deep-research-option-c/cmd/*.ts`
-  - These call into `runX(...)` implementations still located in the monolith.
-- Two high-signal regressions pass (as of 2026-02-20):
-  - `bun test ./.opencode/tests/entities/deep_research_operator_cli_wave2_task_driver.test.ts`
-  - `bun test ./.opencode/tests/entities/deep_research_orchestrator_pivot_wave2_required.test.ts`
+## 0) Context (what you are refactoring)
 
-## Goals (non-negotiable)
+### What the CLI is
 
-1) **LLM-manageable files**: target **≤ 500 lines per module**.
-2) Preserve the **same CLI interface** (command names, flags, `--json` contract).
-3) Keep behavior unchanged except where known-issues already required fixes.
-4) Minimize merge conflict risk with ongoing work: extract incrementally.
-5) No empty/stub files to satisfy checks: every new file must contain real migrated logic immediately.
+- Source entrypoint (repo):
+  - `.opencode/pai-tools/deep-research-option-c.ts`
+- Installed entrypoint (runtime):
+  - `~/.config/opencode/pai-tools/deep-research-option-c.ts`
+- Install path mapping (from `Tools/Install.ts`):
+  - `.opencode/pai-tools/**` → `<target>/pai-tools/**`
 
-## Target module structure (proposed)
+### Current baseline (validated)
 
-> Target: `deep-research-option-c.ts` ends up ~150–250 LOC (wiring only).
+- Monolith size (measured 2026-02-20):
+  ```bash
+  wc -l .opencode/pai-tools/deep-research-option-c.ts
+  # => 4716 .opencode/pai-tools/deep-research-option-c.ts
+  ```
+
+### Non-negotiables (read before touching code)
+
+1) **Remove mass from the monolith** (NOT just new wrappers): every completed task must reduce monolith LOC.
+2) Keep CLI surface compatible:
+   - command names, flags, help output, and `--json` contract.
+3) Keep runtime-safe composition:
+   - all new modules under `pai-tools/deep-research-option-c/**`
+   - **relative imports only** (no repo-root assumptions)
+   - do not hardcode `.opencode/...` in runtime outputs
+4) No behavior changes except already-approved known-issue fixes.
+
+---
+
+## 1) How this plan is executed (controller + subagents)
+
+### You (controller/orchestrator) responsibilities
+
+- Execute tasks **sequentially** (this refactor touches the same files; do not parallelize implementers).
+- For each task:
+  1) Dispatch implementer subagent with ONLY the task text + any needed context.
+  2) Require implementer to run the task’s validation commands and paste outputs.
+  3) Dispatch spec reviewer then code quality reviewer (per `subagent-driven-development` skill).
+  4) Update the tracker table (below) + TodoWrite.
+
+### About “subagent-driven-development”
+
+- It is explicitly defined here:
+  - `/Users/zuul/.config/opencode/skills/subagent-driven-development/SKILL.md`
+- `executing-plans` is a different workflow (separate session checkpoints):
+  - `/Users/zuul/.config/opencode/skills/executing-plans/SKILL.md`
+
+---
+
+## 2) Validation (run these exactly)
+
+### Tier 0 (always run after each task)
+
+```bash
+bun .opencode/pai-tools/deep-research-option-c.ts --help
+bun .opencode/pai-tools/deep-research-option-c.ts status --help
+```
+
+Expected:
+- exit code 0
+
+### Tier 1 (run after each task)
+
+```bash
+bun test ./.opencode/tests/entities/deep_research_operator_cli_ergonomics.test.ts
+bun test ./.opencode/tests/entities/deep_research_operator_cli_wave2_task_driver.test.ts
+bun test ./.opencode/tests/entities/deep_research_orchestrator_pivot_wave2_required.test.ts
+```
+
+Expected:
+- all PASS
+
+### Tier 2 (QA gate)
+
+```bash
+bun test ./.opencode/tests/entities
+```
+
+Expected:
+- all PASS
+
+### Tier 3 (runtime install smoke; QA gate)
+
+```bash
+rm -rf "/tmp/pai-opencode-runtime-smoke" || true
+bun Tools/Install.ts --target "/tmp/pai-opencode-runtime-smoke" --non-interactive --skills "deep-research-option-c" --no-verify
+bun "/tmp/pai-opencode-runtime-smoke/pai-tools/deep-research-option-c.ts" --help
+bun "/tmp/pai-opencode-runtime-smoke/pai-tools/deep-research-option-c.ts" status --help
+```
+
+Expected:
+- install succeeds
+- help commands exit 0 (no module-resolution failures)
+
+---
+
+## 3) Mechanical anti-shim checks (run after each task)
+
+### A) Monolith LOC must decrease
+
+```bash
+wc -l .opencode/pai-tools/deep-research-option-c.ts
+```
+
+Expected:
+- smaller than before this task started
+
+### B) No module imports the monolith
+
+```bash
+rg -n "\.{2}/deep-research-option-c" .opencode/pai-tools/deep-research-option-c -S
+```
+
+Expected:
+- 0 matches
+
+### C) The moved symbol’s *definition* is gone from the monolith (per task)
+
+Template (example for `runStatus`):
+
+```bash
+rg -n "^async function runStatus\\b|^function runStatus\\b" .opencode/pai-tools/deep-research-option-c.ts
+```
+
+Expected:
+- 0 matches
+
+Note: use `^async function` / `^function` anchors so calls/usages do not false-positive.
+
+---
+
+## 4) Tracker (controller updates this)
+
+Statuses: `TODO | IN_PROGRESS | DONE | ARCH_PASS | QA_PASS | BLOCKED(<reason>)`
+
+| ID | Task | Status | Monolith LOC (before → after) | Tier 1 PASS? | Notes |
+|---|---|---|---:|---|---|
+| T00 | Create worktree + baseline snapshot | TODO | 4716 → 4716 | N/A | capture initial outputs |
+| T01 | Extract JSON mode + emitJson | TODO |  |  | `JSON_MODE_REQUESTED`, `emitJson` |
+| T02 | Extract CLI errors helpers | TODO |  |  | `throwWithCode*`, `toolErrorDetails` |
+| T03 | Extract tool runtime (envelope/context/callTool) | TODO |  |  | `ToolEnvelope`, `callTool` |
+| T04 | Extract run-handle resolution | TODO |  |  | `resolveRunHandle`, `withRunLock` |
+| T05 | Extract paths + manifest safety helpers | TODO |  |  | `requireAbsolutePath`, `safeResolveManifestPath` |
+| T06 | Extract fs/json/jsonl/time/digest helpers | TODO |  |  | `readJsonObject`, `readJsonlRecords`, `stableDigest` |
+| T07 | Extract observability (tick ledger/telemetry/metrics) | TODO |  |  | `beginTickObservability` |
+| T08 | Extract triage + halt artifacts | TODO |  |  | `writeHaltArtifact*`, `handleTickFailureArtifacts` |
+| T09 | Extract perspectives subsystem helpers | TODO |  |  | `normalizePerspectivesDraftOutputV1` |
+| T10 | Extract handler: status | TODO |  |  | move+delete `runStatus` |
+| T11 | Extract handler: inspect | TODO |  |  | move+delete `runInspect` |
+| T12 | Extract handler: triage | TODO |  |  | move+delete `runTriage` |
+| T13 | Extract handler: pause | TODO |  |  | move+delete `runPause` |
+| T14 | Extract handler: resume | TODO |  |  | move+delete `runResume` |
+| T15 | Extract handler: cancel | TODO |  |  | move+delete `runCancel` |
+| T16 | Extract handler: stage-advance | TODO |  |  | move+delete `runStageAdvance` |
+| T17 | Extract handler: capture-fixtures | TODO |  |  | move+delete `runCaptureFixtures` |
+| T18 | Extract handler: rerun | TODO |  |  | move+delete `runRerunWave1` |
+| T19 | Extract handler: init | TODO |  |  | move+delete `runInit` |
+| T20 | Extract handler: perspectives-draft | TODO |  |  | move+delete `runPerspectivesDraft` |
+| T21 | Extract handler: agent-result | TODO |  |  | move+delete `runAgentResult` |
+| T22 | Extract tick internals (runOneOrchestratorTick) | TODO |  |  | move+delete `runOneOrchestratorTick` |
+| T23 | Extract handler: tick | TODO |  |  | move+delete `runTick` |
+| T24 | Extract handler: run | TODO |  |  | move+delete `runRun` |
+| T25 | Final wiring-only entrypoint (≤250 LOC) | TODO |  |  | monolith becomes imports + cmd wiring |
+| G-ARCH | Architect gate (PASS required) | TODO |  |  | module map + invariants reviewed |
+| G-QA | QA gate (PASS required) | TODO |  |  | Tier 2 + Tier 3 PASS evidence |
+
+---
+
+## 4.1) Commit policy (recommended)
+
+After each code-changing task (T01–T25) passes Tier 1 and the tracker row is updated:
+
+```bash
+git status
+git add -A
+git commit -m "refactor(cli): TXX <short description>"
+```
+
+Guidelines:
+- One commit per task keeps rollbacks easy.
+- Do not bundle multiple task IDs into one commit.
+- If a task is purely documentation/tracker updates, skip the commit.
+
+## 5) Target module structure (what to create)
+
+All new files live under:
+
+- `.opencode/pai-tools/deep-research-option-c/**`
+
+Proposed structure (OK to adjust if Architect approves, but keep intent):
 
 ```
 .opencode/pai-tools/
-  deep-research-option-c.ts                          (~200) Entrypoint wiring only
+  deep-research-option-c.ts                  (final: ≤250 LOC wiring only)
 
   deep-research-option-c/
-    cmd/                                             (exists) cmd-ts arg parsing only
-      *.ts
-
     cli/
-      json-mode.ts                                   (~120) --json policy, emitJson(), stdout/stderr rules
-      app.ts                                         (~200) subcommands wiring + DI, exports createApp()
-      errors.ts                                      (~150) top-level error mapping and runSafely policy
-
+      json-mode.ts
+      errors.ts
     runtime/
-      tool-context.ts                                (~120) makeToolContext(); ToolWithExecute type
-      tool-envelope.ts                               (~250) ToolEnvelope parsing + callTool() wrapper
-
+      tool-context.ts
+      tool-envelope.ts
     lib/
-      paths.ts                                       (~250) absolute paths, run-id validation, safe joins
-      io-json.ts                                     (~200) readJsonObject(), readJsonIfExists()
-      io-jsonl.ts                                    (~120) JSONL readers (ENOENT-safe)
-      fs-utils.ts                                    (~220) fileExists(), writeCheckpoint(), small fs wrappers
-      time.ts                                        (~80) nowIso(), timestamp tokens
-      digest.ts                                      (~120) stable digest helpers
-
+      run-handle.ts
+      paths.ts
+      fs-utils.ts
+      io-json.ts
+      io-jsonl.ts
+      time.ts
+      digest.ts
     observability/
-      tick-observability.ts                          (~450) tick ledger, telemetry, run metrics
-      tick-outcome.ts                                (~150) compute/format tick outcomes
-
+      tick-observability.ts
+      tick-outcome.ts
     triage/
-      stage-advance-dry-run.ts                        (~120) preconditions and dry-run helpers
-      blockers.ts                                    (~220) triage blockers + summary formatting
-      halt-artifacts.ts                              (~450) halt artifact writers + next commands helpers
-
-    drivers/
-      fixture-driver.ts                              (~150) fixture driver glue
-      operator-input-driver.ts                        (~220) live driver glue
-      task-driver.ts                                 (~450) prompt-out driver glue (wave1/wave2/summaries/synthesis)
-
+      blockers.ts
+      halt-artifacts.ts
     perspectives/
-      schema.ts                                      (~450) normalizePerspectivesDraftOutputV1() + helpers
-      prompt.ts                                      (~120) prompt markdown builders
-      policy.ts                                      (~200) default policy artifacts
-      state.ts                                       (~250) state resolution helpers
-
-    handlers/                                        (one file per subcommand; each ≤ 500 LOC)
-      status.ts
-      inspect.ts
-      triage.ts
-      stage-advance.ts
-      pause.ts
-      resume.ts
-      cancel.ts
-      capture-fixtures.ts
-      rerun.ts
-      init.ts
-      perspectives-draft.ts
-      agent-result.ts
-      tick.ts
-      run.ts
+      schema.ts
+      prompt.ts
+      policy.ts
+      state.ts
+    handlers/
+      *.ts
 ```
 
-## Migration sequence (incremental, wrapper-first)
+---
 
-**Rule of thumb:** Move stable cross-cutting helpers first (reduces churn), then subsystems, then command handlers.
+## 6) Tasks (bite-sized, subagent executable)
 
-### Step 0 — Lock invariants (before moving much code)
+Each task below is designed to be executed by a smaller LLM.
 
-Validation contract (run before/after every extraction wave):
-- `bun .opencode/pai-tools/deep-research-option-c.ts --help` exits 0.
-- `bun .opencode/pai-tools/deep-research-option-c.ts status --help` exits 0.
-- Any `--json` invocation prints **exactly one JSON object** on stdout (no logs).
+### Task T00: Create worktree + baseline snapshot
 
-### Steps 1–6 — Extract global helpers and subsystems
+**Files:** none
 
-1) `cli/json-mode.ts` (JSON mode and `emitJson`)
-2) `runtime/tool-envelope.ts` + `runtime/tool-context.ts` (`callTool`, envelopes)
-3) `lib/paths.ts` (absolute path rules + safe joins)
-4) `lib/io-json.ts`, `lib/io-jsonl.ts`, `lib/time.ts`, `lib/digest.ts`
-5) `observability/*` (tick ledger + telemetry + metrics)
-6) `triage/*` (halt artifacts + blockers)
+**Step 1: Create isolated worktree**
 
-Validation contract after each step:
-- run the two high-signal regressions:
-  - `bun test ./.opencode/tests/entities/deep_research_operator_cli_wave2_task_driver.test.ts`
-  - `bun test ./.opencode/tests/entities/deep_research_orchestrator_pivot_wave2_required.test.ts`
+Run (example):
+```bash
+git status
+git worktree add /tmp/wt-dr-cli-refactor -b dr-cli-refactor
+```
 
-### Steps 7–N — Extract handlers (one at a time)
+Expected:
+- new worktree exists at `/tmp/wt-dr-cli-refactor`
 
-Start with smallest commands to stabilize the pattern:
-- `handlers/status.ts`
-- `handlers/inspect.ts`
-- `handlers/triage.ts`
+**Step 2: Record baseline**
 
-Then medium:
-- `handlers/stage-advance.ts`
-- `handlers/pause.ts`, `handlers/resume.ts`, `handlers/cancel.ts`
-- `handlers/capture-fixtures.ts`, `handlers/rerun.ts`
+Run:
+```bash
+cd /tmp/wt-dr-cli-refactor
+wc -l .opencode/pai-tools/deep-research-option-c.ts
+```
 
-Then highest-risk:
-- `handlers/init.ts`
-- `handlers/perspectives-draft.ts`
-- `handlers/agent-result.ts`
-- `handlers/tick.ts` (contains stage routing and driver policy glue)
-- `handlers/run.ts`
+Expected:
+- prints 4716 (or update tracker if it differs)
 
-Validation contract for each extracted handler:
-- `--help` works for that subcommand.
-- `--json` prints one JSON object.
-- Relevant entity tests pass.
+**Step 3: Run Tier 1 once (baseline green)**
 
-### Final consolidation
+Run Tier 1 commands (see section 2).
 
-When all handlers are extracted:
-- Reduce `deep-research-option-c.ts` to wiring only.
-- Remove the old `runX` implementations from the monolith (after their modules are stable).
+Expected:
+- all PASS
 
-## Anti-regrowth guardrails
+**Step 4: Update tracker row T00**
 
-Add mechanical guards early in the refactor execution (not in this planning phase):
+Fill in:
+- Monolith LOC before→after
+- Tier 1 PASS? = yes
 
-- Hard limit: `deep-research-option-c.ts` ≤ 250 lines.
-- Soft limit: every module ≤ 500 lines.
-- Add a small smoke test that asserts `--json` stdout is a single JSON object.
+---
 
-## Context capture / continuity
+### Task T01: Extract JSON mode + emitJson (real move+delete)
 
-If a session dies mid-refactor, the handoff should include:
-- current file tree state (which modules exist)
-- which `runX` functions were migrated
-- which entity tests were used as the “green bar” after each wave
-- current line counts of remaining large files
+**Files:**
+- Create: `.opencode/pai-tools/deep-research-option-c/cli/json-mode.ts`
+- Modify: `.opencode/pai-tools/deep-research-option-c.ts`
+- Test: `.opencode/tests/entities/deep_research_operator_cli_ergonomics.test.ts`
+
+**Step 1: Create module and export helpers**
+
+In `cli/json-mode.ts`, export at minimum:
+- `isJsonModeRequested(argv: string[]): boolean`
+- `configureStdoutForJsonMode(enabled: boolean): void`
+- `emitJson(payload: unknown): void`
+
+**Step 2: Move+delete these symbols from monolith**
+
+Move the real logic (cut/paste) for:
+- `CLI_ARGV` (or equivalent argv capture)
+- `JSON_MODE_REQUESTED`
+- the `if (JSON_MODE_REQUESTED) console.log = ...` override
+- `emitJson(...)`
+
+Then delete the originals from `deep-research-option-c.ts`.
+
+**Step 3: Wire entrypoint to call configure early**
+
+Requirement:
+- stdout/stderr policy for `--json` remains identical.
+
+**Step 4: Validation**
+
+- Run Tier 0 + Tier 1
+- Run anti-shim checks (section 3)
+- Update tracker row T01 with LOC delta
+
+---
+
+### Task T02: Extract CLI errors helpers (move+delete)
+
+**Files:**
+- Create: `.opencode/pai-tools/deep-research-option-c/cli/errors.ts`
+- Modify: `.opencode/pai-tools/deep-research-option-c.ts`
+
+**Step 1: Create module exports**
+
+Export (names must match current usage or update call sites):
+- `throwWithCode(...)`
+- `throwWithCodeAndDetails(...)`
+- `toolErrorDetails(...)`
+- `resultErrorDetails(...)`
+
+**Step 2: Move+delete implementations**
+
+Cut/paste the real implementations into `cli/errors.ts` and delete them from the monolith.
+
+**Step 3: Validation**
+
+- Run Tier 0 + Tier 1
+- Run anti-shim checks
+- Update tracker row T02
+
+---
+
+### Task T03: Extract tool runtime (envelope/context/callTool)
+
+**Files:**
+- Create: `.opencode/pai-tools/deep-research-option-c/runtime/tool-context.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/runtime/tool-envelope.ts`
+- Modify: `.opencode/pai-tools/deep-research-option-c.ts`
+
+**Step 1: Move+delete the tool envelope type and helpers**
+
+Move these symbols into the runtime modules:
+- `ToolEnvelope`
+- `ToolWithExecute`
+- `makeToolContext()`
+- `parseToolEnvelope(...)`
+- `toolErrorMessage(...)`
+- `callTool(...)`
+
+Delete them from the monolith.
+
+**Step 2: Validation**
+
+- Run Tier 0 + Tier 1
+- Run anti-shim checks
+- Update tracker row T03
+
+---
+
+### Task T04: Extract run-handle resolution (resolveRunHandle + lock)
+
+**Files:**
+- Create: `.opencode/pai-tools/deep-research-option-c/lib/run-handle.ts`
+- Modify: `.opencode/pai-tools/deep-research-option-c.ts`
+
+**Step 1: Move+delete implementations**
+
+Move these symbols into `lib/run-handle.ts`:
+- `resolveRunHandle(...)`
+- `withRunLock(...)`
+
+Delete from the monolith and update call sites.
+
+**Step 2: Validation**
+
+- Run Tier 0 + Tier 1
+- Run anti-shim checks
+- Update tracker row T04
+
+---
+
+### Task T05: Extract paths + manifest safety helpers
+
+**Files:**
+- Create: `.opencode/pai-tools/deep-research-option-c/lib/paths.ts`
+- Modify: `.opencode/pai-tools/deep-research-option-c.ts`
+
+**Step 1: Move+delete**
+
+Move:
+- `requireAbsolutePath(...)`
+- `isManifestRelativePathSafe(...)`
+- `safeResolveManifestPath(...)`
+- `isSafeSegment(...)`
+- `resolveRunRoot(...)`
+
+Delete from monolith and update imports.
+
+**Step 2: Validation**
+
+- Tier 0 + Tier 1
+- anti-shim checks
+- update tracker row T05
+
+---
+
+### Task T06: Extract fs/json/jsonl/time/digest helpers
+
+**Files:**
+- Create: `.opencode/pai-tools/deep-research-option-c/lib/fs-utils.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/lib/io-json.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/lib/io-jsonl.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/lib/time.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/lib/digest.ts`
+- Modify: `.opencode/pai-tools/deep-research-option-c.ts`
+
+**Step 1: Move+delete**
+
+Move as appropriate:
+- `fileExists(...)`
+- `writeCheckpoint(...)`
+- `readJsonObject(...)`
+- `readJsonlRecords(...)`
+- `nowIso()`
+- `stableDigest(...)`
+- `promptDigestFromPromptMarkdown(...)`
+
+Delete originals from monolith.
+
+**Step 2: Validation**
+
+- Tier 0 + Tier 1
+- anti-shim checks
+- update tracker row T06
+
+---
+
+### Task T07: Extract observability subsystem
+
+**Files:**
+- Create: `.opencode/pai-tools/deep-research-option-c/observability/tick-observability.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/observability/tick-outcome.ts`
+- Modify: `.opencode/pai-tools/deep-research-option-c.ts`
+
+**Step 1: Move+delete**
+
+Move:
+- `appendTickLedgerBestEffort(...)`
+- `appendTelemetryBestEffort(...)`
+- `writeRunMetricsBestEffort(...)`
+- `computeTickOutcome(...)`
+- `beginTickObservability(...)`
+- `finalizeTickObservability(...)`
+
+Delete originals from monolith.
+
+**Step 2: Validation**
+
+- Tier 0 + Tier 1
+- anti-shim checks
+- update tracker row T07
+
+---
+
+### Task T08: Extract triage + halt artifacts subsystem
+
+**Files:**
+- Create: `.opencode/pai-tools/deep-research-option-c/triage/blockers.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/triage/halt-artifacts.ts`
+- Modify: `.opencode/pai-tools/deep-research-option-c.ts`
+
+**Step 1: Move+delete**
+
+Move:
+- `triageFromStageAdvanceResult(...)`
+- `blockersSummaryJson(...)`
+- `printBlockersSummary(...)`
+- `writeHaltArtifact(...)`
+- `writeHaltArtifactForFailure(...)`
+- `handleTickFailureArtifacts(...)`
+
+Delete originals from monolith.
+
+**Step 2: Validation**
+
+- Tier 0 + Tier 1
+- anti-shim checks
+- update tracker row T08
+
+---
+
+### Task T09: Extract perspectives subsystem helpers
+
+**Files:**
+- Create: `.opencode/pai-tools/deep-research-option-c/perspectives/schema.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/perspectives/prompt.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/perspectives/policy.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/perspectives/state.ts`
+- Modify: `.opencode/pai-tools/deep-research-option-c.ts`
+
+**Step 1: Move+delete**
+
+Move:
+- `normalizePerspectivesDraftOutputV1(...)`
+- `buildPerspectivesDraftPromptMarkdown(...)`
+- `buildDefaultPerspectivesPolicyArtifact(...)`
+- `writeDefaultPerspectivesPolicy(...)`
+- any small helpers used exclusively by the above
+
+Delete originals from monolith.
+
+**Step 2: Validation**
+
+- Tier 0 + Tier 1
+- anti-shim checks
+- update tracker row T09
+
+---
+
+### Task T10–T24: Extract command handlers (one command at a time)
+
+For EACH handler task below, repeat the exact pattern.
+
+#### Common handler pattern (copy/paste)
+
+**Files:**
+- Create: `.opencode/pai-tools/deep-research-option-c/handlers/<cmd>.ts`
+- Modify: `.opencode/pai-tools/deep-research-option-c.ts`
+
+**Steps:**
+
+1) Create handler file exporting `run<Cmd>(args: ...)` (signature matches existing `cmd/*.ts` wrappers).
+2) Cut/paste the real `run<Cmd>` implementation from monolith into handler.
+3) In monolith: import the handler and pass it into `create<Cmd>Cmd({ ..., run<Cmd> })`.
+4) Delete the original `run<Cmd>` from monolith.
+5) Confirm the definition is gone from monolith (Mechanical check 3C).
+6) Run Tier 0 + Tier 1.
+7) Run anti-shim checks.
+8) Update tracker row with LOC delta.
+
+#### Handler tasks
+
+- T10: `handlers/status.ts` (move+delete `runStatus`)
+- T11: `handlers/inspect.ts` (move+delete `runInspect`)
+- T12: `handlers/triage.ts` (move+delete `runTriage`)
+- T13: `handlers/pause.ts` (move+delete `runPause`)
+- T14: `handlers/resume.ts` (move+delete `runResume`)
+- T15: `handlers/cancel.ts` (move+delete `runCancel`)
+- T16: `handlers/stage-advance.ts` (move+delete `runStageAdvance`)
+- T17: `handlers/capture-fixtures.ts` (move+delete `runCaptureFixtures`)
+- T18: `handlers/rerun.ts` (move+delete `runRerunWave1`)
+- T19: `handlers/init.ts` (move+delete `runInit`)
+- T20: `handlers/perspectives-draft.ts` (move+delete `runPerspectivesDraft`)
+- T21: `handlers/agent-result.ts` (move+delete `runAgentResult`)
+- T22: `handlers/tick-internals.ts` (move+delete `runOneOrchestratorTick`)
+- T23: `handlers/tick.ts` (move+delete `runTick`)
+- T24: `handlers/run.ts` (move+delete `runRun`)
+
+---
+
+### Task T25: Final wiring-only entrypoint (≤250 LOC)
+
+**Files:**
+- Modify: `.opencode/pai-tools/deep-research-option-c.ts`
+
+**Step 1: Delete remaining non-wiring helpers**
+
+Goal:
+- monolith contains only:
+  - imports
+  - CLI boot/wiring
+  - cmd-ts command registration
+
+**Step 2: Validation**
+
+- Tier 0 + Tier 1
+- anti-shim checks
+- update tracker row T25
+
+---
+
+## 7) Completion gates (PASS required)
+
+### Gate G-ARCH (Architect PASS)
+
+Architect must confirm:
+- Monolith is wiring-only and ≤250 LOC
+- No module imports the monolith
+- Module boundaries make sense and each file is ~≤500 LOC (or exceptions justified)
+- Runtime install constraints are respected
+
+### Gate G-QA (QA PASS)
+
+QA must provide evidence:
+- Tier 2 PASS (all entity tests)
+- Tier 3 PASS (install-smoke + installed help commands)
+
+---
+
+## Execution Handoff
+
+Two execution options:
+
+1) **Subagent-Driven (this session)** — Recommended
+   - Load: `using-git-worktrees`, then `subagent-driven-development`
+   - Execute tasks sequentially, update tracker after each
+
+2) **Parallel Session**
+   - Load: `executing-plans`
+   - Execute tasks in batches with checkpoints
+
+Choose option (1) unless you explicitly want a separate session.
