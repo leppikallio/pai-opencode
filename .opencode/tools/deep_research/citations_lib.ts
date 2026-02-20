@@ -150,7 +150,7 @@ function errorWithPath(message: string, pathStr: string) {
 
 const MANIFEST_STATUS: string[] = ["created", "running", "paused", "failed", "completed", "cancelled"];
 const MANIFEST_MODE: string[] = ["quick", "standard", "deep"];
-const MANIFEST_STAGE: string[] = ["init", "wave1", "pivot", "wave2", "citations", "summaries", "synthesis", "review", "finalize"];
+const MANIFEST_STAGE: string[] = ["init", "perspectives", "wave1", "pivot", "wave2", "citations", "summaries", "synthesis", "review", "finalize"];
 
 export function validateManifestV1(value: unknown): string | null {
   if (!isPlainObject(value)) return errorWithPath("manifest must be an object", "$");

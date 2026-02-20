@@ -12,6 +12,7 @@ import {
 
 const runUntilStages = [
   "init",
+  "perspectives",
   "wave1",
   "pivot",
   "wave2",

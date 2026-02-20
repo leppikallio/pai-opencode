@@ -126,6 +126,43 @@ describe("deep_research operator CLI ergonomics (entity)", () => {
     });
   });
 
+  test("stage-advance accepts requested-next perspectives", async () => {
+    await withTempDir(async (base) => {
+      const runId = "dr_test_cli_stage_advance_001";
+      const initRes = await runCli([
+        "init",
+        "Q",
+        "--run-id",
+        runId,
+        "--runs-root",
+        base,
+        "--no-perspectives",
+        "--json",
+      ]);
+      const initPayload = expectSingleJsonStdout(initRes, 0);
+      const manifestPath = String(initPayload.manifest_path ?? "");
+      expect(manifestPath.length).toBeGreaterThan(0);
+      expect(String(initPayload.stage_current ?? "")).toBe("init");
+
+      const advanceRes = await runCli([
+        "stage-advance",
+        "--manifest",
+        manifestPath,
+        "--requested-next",
+        "perspectives",
+        "--reason",
+        "test stage advance perspectives",
+        "--json",
+      ]);
+
+      const advancePayload = expectSingleJsonStdout(advanceRes, 0);
+      expect(advancePayload.command).toBe("stage-advance");
+      expect(advancePayload.from).toBe("init");
+      expect(advancePayload.to).toBe("perspectives");
+      expect(advancePayload.stage_current).toBe("perspectives");
+    });
+  });
+
   test("status/inspect/triage --json emit one parseable object with required keys", async () => {
     await withTempDir(async (base) => {
       const runId = "dr_test_cli_json_001";

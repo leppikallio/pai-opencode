@@ -316,9 +316,10 @@ function errorWithPath(message: string, pathStr: string) {
 
 const MANIFEST_STATUS: string[] = ["created", "running", "paused", "failed", "completed", "cancelled"];
 const MANIFEST_MODE: string[] = ["quick", "standard", "deep"];
-export const MANIFEST_STAGE: string[] = ["init", "wave1", "pivot", "wave2", "citations", "summaries", "synthesis", "review", "finalize"];
+export const MANIFEST_STAGE: string[] = ["init", "perspectives", "wave1", "pivot", "wave2", "citations", "summaries", "synthesis", "review", "finalize"];
 export const STAGE_TIMEOUT_SECONDS_V1: Record<string, number> = {
   init: 120,
+  perspectives: 120,
   wave1: 600,
   pivot: 120,
   wave2: 600,
