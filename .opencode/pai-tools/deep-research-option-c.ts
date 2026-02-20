@@ -122,11 +122,12 @@ type RerunWave1CliArgs = {
 
 type AgentResultCliArgs = {
   manifest: string;
-  stage: "wave1" | "wave2" | "summaries" | "synthesis";
+  stage: "perspectives" | "wave1" | "wave2" | "summaries" | "synthesis";
   perspective: string;
   input: string;
   agentRunId: string;
   reason: string;
+  force: boolean;
   startedAt?: string;
   finishedAt?: string;
   model?: string;
@@ -774,6 +775,261 @@ function normalizePromptDigest(value: unknown): string | null {
   return null;
 }
 
+const PERSPECTIVES_DRAFT_SCHEMA_VERSION = "perspectives-draft-output.v1" as const;
+const PERSPECTIVE_TRACKS = ["standard", "independent", "contrarian"] as const;
+const PERSPECTIVE_DOMAINS = ["social_media", "academic", "technical", "multimodal", "security", "news", "unknown"] as const;
+
+function throwWithCode(code: string, message: string): never {
+  const error = new Error(message) as Error & { code?: string };
+  error.code = code;
+  throw error;
+}
+
+function requireNonEmptyStringAt(value: unknown, fieldPath: string): string {
+  const out = asNonEmptyString(value);
+  if (!out) {
+    throwWithCode("PERSPECTIVES_DRAFT_SCHEMA_INVALID", `${fieldPath} must be a non-empty string`);
+  }
+  return out;
+}
+
+function requireStringArrayAt(value: unknown, fieldPath: string): string[] {
+  if (!Array.isArray(value)) {
+    throwWithCode("PERSPECTIVES_DRAFT_SCHEMA_INVALID", `${fieldPath} must be an array of non-empty strings`);
+  }
+
+  const out: string[] = [];
+  for (let index = 0; index < value.length; index += 1) {
+    const normalized = asNonEmptyString(value[index]);
+    if (!normalized) {
+      throwWithCode("PERSPECTIVES_DRAFT_SCHEMA_INVALID", `${fieldPath}[${index}] must be a non-empty string`);
+    }
+    out.push(normalized);
+  }
+  return out;
+}
+
+function normalizePerspectivesDraftFlags(value: unknown, fieldPath: string): {
+  human_review_required: boolean;
+  missing_platform_requirements: boolean;
+  missing_tool_policy: boolean;
+} {
+  if (value === undefined) {
+    return {
+      human_review_required: false,
+      missing_platform_requirements: false,
+      missing_tool_policy: false,
+    };
+  }
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throwWithCode("PERSPECTIVES_DRAFT_SCHEMA_INVALID", `${fieldPath} must be an object`);
+  }
+
+  const flags = value as Record<string, unknown>;
+  const bool = (entry: unknown): boolean => (typeof entry === "boolean" ? entry : false);
+  return {
+    human_review_required: bool(flags.human_review_required),
+    missing_platform_requirements: bool(flags.missing_platform_requirements),
+    missing_tool_policy: bool(flags.missing_tool_policy),
+  };
+}
+
+function normalizePlatformRequirements(value: unknown, fieldPath: string): {
+  requirements: Array<{ name: string; reason: string }>;
+  missing: boolean;
+} {
+  if (value === undefined) {
+    return { requirements: [], missing: true };
+  }
+  if (!Array.isArray(value)) {
+    throwWithCode("PERSPECTIVES_DRAFT_SCHEMA_INVALID", `${fieldPath} must be an array`);
+  }
+
+  const requirements: Array<{ name: string; reason: string }> = [];
+  for (let index = 0; index < value.length; index += 1) {
+    const item = value[index];
+    if (!item || typeof item !== "object" || Array.isArray(item)) {
+      throwWithCode("PERSPECTIVES_DRAFT_SCHEMA_INVALID", `${fieldPath}[${index}] must be an object`);
+    }
+    const requirement = item as Record<string, unknown>;
+    requirements.push({
+      name: requireNonEmptyStringAt(requirement.name, `${fieldPath}[${index}].name`),
+      reason: requireNonEmptyStringAt(requirement.reason, `${fieldPath}[${index}].reason`),
+    });
+  }
+
+  return {
+    requirements,
+    missing: requirements.length === 0,
+  };
+}
+
+function normalizeToolPolicy(value: unknown, fieldPath: string): {
+  toolPolicy: {
+    primary: string[];
+    secondary: string[];
+    forbidden: string[];
+  };
+  missing: boolean;
+} {
+  if (value === undefined) {
+    return {
+      toolPolicy: { primary: [], secondary: [], forbidden: [] },
+      missing: true,
+    };
+  }
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throwWithCode("PERSPECTIVES_DRAFT_SCHEMA_INVALID", `${fieldPath} must be an object`);
+  }
+
+  const policy = value as Record<string, unknown>;
+  const primary = policy.primary === undefined
+    ? []
+    : requireStringArrayAt(policy.primary, `${fieldPath}.primary`);
+  const secondary = policy.secondary === undefined
+    ? []
+    : requireStringArrayAt(policy.secondary, `${fieldPath}.secondary`);
+  const forbidden = policy.forbidden === undefined
+    ? []
+    : requireStringArrayAt(policy.forbidden, `${fieldPath}.forbidden`);
+
+  return {
+    toolPolicy: { primary, secondary, forbidden },
+    missing: primary.length === 0 && secondary.length === 0 && forbidden.length === 0,
+  };
+}
+
+function normalizePerspectivesDraftOutputV1(args: {
+  value: unknown;
+  expectedRunId: string;
+}): {
+  schema_version: "perspectives-draft-output.v1";
+  run_id: string;
+  source: {
+    agent_type: string;
+    label: string;
+  };
+  candidates: Array<{
+    title: string;
+    questions: string[];
+    track: "standard" | "independent" | "contrarian";
+    recommended_agent_type: string;
+    domain: "social_media" | "academic" | "technical" | "multimodal" | "security" | "news" | "unknown";
+    confidence: number;
+    rationale: string;
+    platform_requirements: Array<{ name: string; reason: string }>;
+    tool_policy: {
+      primary: string[];
+      secondary: string[];
+      forbidden: string[];
+    };
+    flags: {
+      human_review_required: boolean;
+      missing_platform_requirements: boolean;
+      missing_tool_policy: boolean;
+    };
+  }>;
+} {
+  if (!args.value || typeof args.value !== "object" || Array.isArray(args.value)) {
+    throwWithCode("PERSPECTIVES_DRAFT_SCHEMA_INVALID", "payload must be an object");
+  }
+
+  const root = args.value as Record<string, unknown>;
+  if (root.schema_version !== PERSPECTIVES_DRAFT_SCHEMA_VERSION) {
+    throwWithCode("PERSPECTIVES_DRAFT_SCHEMA_INVALID", "schema_version must be perspectives-draft-output.v1");
+  }
+
+  const runId = requireNonEmptyStringAt(root.run_id, "run_id");
+  if (runId !== args.expectedRunId) {
+    throwWithCode(
+      "PERSPECTIVES_DRAFT_RUN_ID_MISMATCH",
+      `run_id mismatch: expected ${args.expectedRunId}, got ${runId}`,
+    );
+  }
+
+  const sourceRaw = root.source;
+  if (!sourceRaw || typeof sourceRaw !== "object" || Array.isArray(sourceRaw)) {
+    throwWithCode("PERSPECTIVES_DRAFT_SCHEMA_INVALID", "source must be an object");
+  }
+  const source = sourceRaw as Record<string, unknown>;
+
+  const candidatesRaw = root.candidates;
+  if (!Array.isArray(candidatesRaw)) {
+    throwWithCode("PERSPECTIVES_DRAFT_SCHEMA_INVALID", "candidates must be an array");
+  }
+
+  const candidates = candidatesRaw.map((candidateRaw, index) => {
+    if (!candidateRaw || typeof candidateRaw !== "object" || Array.isArray(candidateRaw)) {
+      throwWithCode("PERSPECTIVES_DRAFT_SCHEMA_INVALID", `candidates[${index}] must be an object`);
+    }
+
+    const candidate = candidateRaw as Record<string, unknown>;
+    const trackValue = asNonEmptyString(candidate.track);
+    const missingTrack = !trackValue;
+    const track = missingTrack
+      ? "standard"
+      : (trackValue as "standard" | "independent" | "contrarian");
+    if (!missingTrack && !PERSPECTIVE_TRACKS.includes(track)) {
+      throwWithCode("PERSPECTIVES_DRAFT_SCHEMA_INVALID", `candidates[${index}].track must be standard|independent|contrarian`);
+    }
+
+    const domain = requireNonEmptyStringAt(candidate.domain, `candidates[${index}].domain`);
+    if (!PERSPECTIVE_DOMAINS.includes(domain as (typeof PERSPECTIVE_DOMAINS)[number])) {
+      throwWithCode("PERSPECTIVES_DRAFT_SCHEMA_INVALID", `candidates[${index}].domain is invalid`);
+    }
+
+    const confidenceRaw = candidate.confidence;
+    if (typeof confidenceRaw !== "number" || !Number.isInteger(confidenceRaw) || confidenceRaw < 0 || confidenceRaw > 100) {
+      throwWithCode("PERSPECTIVES_DRAFT_SCHEMA_INVALID", `candidates[${index}].confidence must be an integer between 0 and 100`);
+    }
+    const confidence = confidenceRaw;
+
+    const { requirements, missing: missingPlatformRequirements } = normalizePlatformRequirements(
+      candidate.platform_requirements,
+      `candidates[${index}].platform_requirements`,
+    );
+    const { toolPolicy, missing: missingToolPolicy } = normalizeToolPolicy(
+      candidate.tool_policy,
+      `candidates[${index}].tool_policy`,
+    );
+
+    const flags = normalizePerspectivesDraftFlags(candidate.flags, `candidates[${index}].flags`);
+    const humanReviewRequired = flags.human_review_required || missingTrack || missingPlatformRequirements || missingToolPolicy;
+
+    return {
+      title: requireNonEmptyStringAt(candidate.title, `candidates[${index}].title`),
+      questions: requireStringArrayAt(candidate.questions, `candidates[${index}].questions`),
+      track,
+      recommended_agent_type: requireNonEmptyStringAt(
+        candidate.recommended_agent_type,
+        `candidates[${index}].recommended_agent_type`,
+      ),
+      domain: domain as "social_media" | "academic" | "technical" | "multimodal" | "security" | "news" | "unknown",
+      confidence,
+      rationale: requireNonEmptyStringAt(candidate.rationale, `candidates[${index}].rationale`),
+      platform_requirements: requirements,
+      tool_policy: toolPolicy,
+      flags: {
+        human_review_required: humanReviewRequired,
+        missing_platform_requirements: flags.missing_platform_requirements || missingPlatformRequirements,
+        missing_tool_policy: flags.missing_tool_policy || missingToolPolicy,
+      },
+    };
+  });
+
+  return {
+    schema_version: PERSPECTIVES_DRAFT_SCHEMA_VERSION,
+    run_id: runId,
+    source: {
+      agent_type: requireNonEmptyStringAt(source.agent_type, "source.agent_type"),
+      label: requireNonEmptyStringAt(source.label, "source.label"),
+    },
+    candidates,
+  };
+}
+
 function buildPerspectivesDraftPromptMarkdown(args: {
   runId: string;
   queryText: string;
@@ -789,9 +1045,42 @@ function buildPerspectivesDraftPromptMarkdown(args: {
     query,
     "",
     "## Output Contract",
-    "- Draft one or more perspectives for this run.",
-    "- Keep perspectives mutually distinct and actionable.",
-    "- Return markdown only (no synthetic final promotion).",
+    "Return a single JSON object (no surrounding markdown) matching schema `perspectives-draft-output.v1`.",
+    "",
+    "Required shape:",
+    "```json",
+    "{",
+    "  \"schema_version\": \"perspectives-draft-output.v1\",",
+    "  \"run_id\": \"<run_id>\",",
+    "  \"source\": { \"agent_type\": \"<agent_type>\", \"label\": \"<label>\" },",
+    "  \"candidates\": [",
+    "    {",
+    "      \"title\": \"...\",",
+    "      \"questions\": [\"...\"],",
+    "      \"track\": \"standard|independent|contrarian\",",
+    "      \"recommended_agent_type\": \"...\",",
+    "      \"domain\": \"social_media|academic|technical|multimodal|security|news|unknown\",",
+    "      \"confidence\": 0,",
+    "      \"rationale\": \"...\",",
+    "      \"platform_requirements\": [{ \"name\": \"...\", \"reason\": \"...\" }],",
+    "      \"tool_policy\": {",
+    "        \"primary\": [\"...\"],",
+    "        \"secondary\": [\"...\"],",
+    "        \"forbidden\": [\"...\"]",
+    "      },",
+    "      \"flags\": {",
+    "        \"human_review_required\": false,",
+    "        \"missing_platform_requirements\": false,",
+    "        \"missing_tool_policy\": false",
+    "      }",
+    "    }",
+    "  ]",
+    "}",
+    "```",
+    "",
+    "Constraints:",
+    "- confidence MUST be an integer 0..100",
+    "- candidates must be mutually distinct and actionable",
   ].join("\n");
 }
 
@@ -802,17 +1091,18 @@ async function writeTaskDriverPerspectiveDraftPrompt(args: {
 }): Promise<TaskDriverMissingPerspective> {
   const perspectiveId = "primary";
   const promptPath = path.join(args.runRoot, "operator", "prompts", "perspectives", `${perspectiveId}.md`);
-  const outputPath = path.join(args.runRoot, "operator", "outputs", "perspectives", `${perspectiveId}.md`);
+  const outputPath = path.join(args.runRoot, "operator", "outputs", "perspectives", `${perspectiveId}.json`);
   const metaPath = path.join(args.runRoot, "operator", "outputs", "perspectives", `${perspectiveId}.meta.json`);
 
   const promptMd = buildPerspectivesDraftPromptMarkdown({
     runId: args.runId,
     queryText: args.queryText,
   });
-  const promptDigest = promptDigestFromPromptMarkdown(promptMd);
+  const promptFileText = `${promptMd.trim()}\n`;
+  const promptDigest = promptDigestFromPromptMarkdown(promptFileText);
 
   await fs.mkdir(path.dirname(promptPath), { recursive: true });
-  await fs.writeFile(promptPath, `${promptMd.trim()}\n`, "utf8");
+  await fs.writeFile(promptPath, promptFileText, "utf8");
 
   return {
     perspectiveId,
@@ -870,17 +1160,20 @@ async function readWave2PlanEntries(runRoot: string): Promise<Array<{ perspectiv
 }
 
 async function sidecarPromptDigestMatches(metaPath: string, expectedPromptDigest: string): Promise<boolean> {
-  const exists = await fileExists(metaPath);
-  if (!exists) return false;
-
-  let metaRaw: Record<string, unknown>;
-  try {
-    metaRaw = await readJsonObject(metaPath);
-  } catch {
-    return false;
-  }
-  const normalized = normalizePromptDigest(metaRaw.prompt_digest);
+  const normalized = await readPromptDigestFromMeta(metaPath);
   return normalized === expectedPromptDigest;
+}
+
+async function readPromptDigestFromMeta(metaPath: string): Promise<string | null> {
+  const exists = await fileExists(metaPath);
+  if (!exists) return null;
+
+  try {
+    const metaRaw = await readJsonObject(metaPath);
+    return normalizePromptDigest(metaRaw.prompt_digest);
+  } catch {
+    return null;
+  }
 }
 
 async function collectTaskDriverMissingWave1Perspectives(args: {
@@ -2506,7 +2799,8 @@ async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Promise<voi
     },
     nextCommandsOverride: [
       `${nextStepCliInvocation()} inspect --manifest "${runHandle.manifestPath}"`,
-      `${nextStepCliInvocation()} stage-advance --manifest "${runHandle.manifestPath}" --requested-next wave1 --reason "perspectives finalized"`,
+      `${nextStepCliInvocation()} agent-result --manifest "${runHandle.manifestPath}" --stage perspectives --perspective "${missingPerspective.perspectiveId}" --input "${path.join(summary.runRoot, "operator", "outputs", "perspectives", `${missingPerspective.perspectiveId}.raw.json`)}" --agent-run-id "<AGENT_RUN_ID>" --reason "operator: ingest perspectives/${missingPerspective.perspectiveId}"`,
+      `${nextStepCliInvocation()} stage-advance --manifest "${runHandle.manifestPath}" --requested-next wave1 --reason "perspectives finalized (requires perspectives.json promotion)"`,
     ],
   });
 
@@ -3421,8 +3715,8 @@ async function runAgentResult(args: AgentResultCliArgs): Promise<void> {
   const agentRunId = args.agentRunId.trim();
   const reason = args.reason.trim();
 
-  if (stage !== "wave1" && stage !== "wave2" && stage !== "summaries" && stage !== "synthesis") {
-    throw new Error("--stage must be wave1|wave2|summaries|synthesis");
+  if (stage !== "perspectives" && stage !== "wave1" && stage !== "wave2" && stage !== "summaries" && stage !== "synthesis") {
+    throw new Error("--stage must be perspectives|wave1|wave2|summaries|synthesis");
   }
   if (!isSafeSegment(perspectiveId)) {
     throw new Error("--perspective must contain only letters, numbers, underscores, or dashes");
@@ -3434,9 +3728,9 @@ async function runAgentResult(args: AgentResultCliArgs): Promise<void> {
     throw new Error("--reason must be non-empty");
   }
 
-  const sourceMarkdown = await fs.readFile(inputPath, "utf8");
-  if (!sourceMarkdown.trim()) {
-    throw new Error("--input markdown is empty");
+  const sourceInputText = await fs.readFile(inputPath, "utf8");
+  if (!sourceInputText.trim()) {
+    throw new Error("--input is empty");
   }
 
   const manifest = await readJsonObject(manifestPath);
@@ -3445,9 +3739,33 @@ async function runAgentResult(args: AgentResultCliArgs): Promise<void> {
   let promptMd: string;
   let promptDigest: string;
   let outputPath: string;
+  let rawOutputPath: string | null = null;
   let metaPath: string;
+  let normalizedPerspectivesOutput: ReturnType<typeof normalizePerspectivesDraftOutputV1> | null = null;
+  let noop = false;
 
-  if (stage === "wave1" || stage === "wave2") {
+  if (stage === "perspectives") {
+    const promptPath = path.join(runRoot, "operator", "prompts", "perspectives", `${perspectiveId}.md`);
+    promptMd = await fs.readFile(promptPath, "utf8");
+    if (!promptMd.trim()) throw new Error(`perspectives prompt missing/empty: ${promptPath}`);
+    promptDigest = promptDigestFromPromptMarkdown(promptMd);
+
+    let parsedInput: unknown;
+    try {
+      parsedInput = JSON.parse(sourceInputText);
+    } catch {
+      throwWithCode("AGENT_RESULT_PERSPECTIVES_INPUT_INVALID_JSON", "--input must be valid JSON for stage=perspectives");
+    }
+
+    normalizedPerspectivesOutput = normalizePerspectivesDraftOutputV1({
+      value: parsedInput,
+      expectedRunId: summary.runId,
+    });
+
+    rawOutputPath = path.join(runRoot, "operator", "outputs", "perspectives", `${perspectiveId}.raw.json`);
+    outputPath = path.join(runRoot, "operator", "outputs", "perspectives", `${perspectiveId}.json`);
+    metaPath = path.join(runRoot, "operator", "outputs", "perspectives", `${perspectiveId}.meta.json`);
+  } else if (stage === "wave1" || stage === "wave2") {
     const planEntries = stage === "wave1"
       ? await readWave1PlanEntries(runRoot)
       : await readWave2PlanEntries(runRoot);
@@ -3478,6 +3796,9 @@ async function runAgentResult(args: AgentResultCliArgs): Promise<void> {
   }
 
   assertWithinRoot(runRoot, outputPath, `${stage} output`);
+  if (rawOutputPath) {
+    assertWithinRoot(runRoot, rawOutputPath, `${stage} raw output`);
+  }
   assertWithinRoot(runRoot, metaPath, `${stage} meta sidecar`);
 
   const startedAt = normalizeOptional(args.startedAt);
@@ -3500,8 +3821,57 @@ async function runAgentResult(args: AgentResultCliArgs): Promise<void> {
     runRoot,
     reason: `operator-cli agent-result: ${reason}`,
     fn: async () => {
+      if (stage === "perspectives") {
+        const outputExists = await fileExists(outputPath);
+        const rawExists = rawOutputPath ? await fileExists(rawOutputPath) : false;
+        const metaExists = await fileExists(metaPath);
+        const normalizedInputPath = path.resolve(inputPath);
+        const normalizedRawOutputPath = rawOutputPath ? path.resolve(rawOutputPath) : null;
+        const inputMatchesRawOutput = rawOutputPath ? normalizedInputPath === normalizedRawOutputPath : false;
+
+        if (!args.force && outputExists && metaExists) {
+          const existingPromptDigest = await readPromptDigestFromMeta(metaPath);
+          if (existingPromptDigest === promptDigest) {
+            noop = true;
+            return;
+          }
+          if (existingPromptDigest) {
+            throwWithCode(
+              "AGENT_RESULT_PROMPT_DIGEST_CONFLICT",
+              `perspectives output/meta prompt_digest mismatch for ${perspectiveId}; use --force to overwrite`,
+            );
+          }
+        }
+
+        if (!args.force && outputExists) {
+          throwWithCode(
+            "AGENT_RESULT_META_CONFLICT",
+            `perspectives output exists with missing/invalid meta for ${perspectiveId}; use --force to overwrite`,
+          );
+        }
+
+        if (!args.force && (metaExists || (!inputMatchesRawOutput && rawExists))) {
+          throwWithCode(
+            "AGENT_RESULT_CONFLICT",
+            `perspectives artifacts already exist for ${perspectiveId}; use --force to overwrite`,
+          );
+        }
+
+        if (!rawOutputPath || !normalizedPerspectivesOutput) {
+          throwWithCode("AGENT_RESULT_INTERNAL_ERROR", "perspectives ingest was not initialized");
+        }
+
+        await fs.mkdir(path.dirname(outputPath), { recursive: true });
+        if (!inputMatchesRawOutput && !rawExists) {
+          await fs.writeFile(rawOutputPath, sourceInputText, "utf8");
+        }
+        await fs.writeFile(outputPath, `${JSON.stringify(normalizedPerspectivesOutput, null, 2)}\n`, "utf8");
+        await fs.writeFile(metaPath, `${JSON.stringify(sidecar, null, 2)}\n`, "utf8");
+        return;
+      }
+
       await fs.mkdir(path.dirname(outputPath), { recursive: true });
-      await fs.writeFile(outputPath, `${sourceMarkdown.trim()}\n`, "utf8");
+      await fs.writeFile(outputPath, `${sourceInputText.trim()}\n`, "utf8");
       await fs.writeFile(metaPath, `${JSON.stringify(sidecar, null, 2)}\n`, "utf8");
     },
   });
@@ -3520,7 +3890,9 @@ async function runAgentResult(args: AgentResultCliArgs): Promise<void> {
       perspective_id: perspectiveId,
       output_path: outputPath,
       meta_path: metaPath,
+      ...(rawOutputPath ? { raw_output_path: rawOutputPath } : {}),
       prompt_digest: promptDigest,
+      noop,
     });
     return;
   }

@@ -9,7 +9,7 @@ import {
   type Type,
 } from "cmd-ts";
 
-type AgentResultStage = "wave1" | "wave2" | "summaries" | "synthesis";
+type AgentResultStage = "perspectives" | "wave1" | "wave2" | "summaries" | "synthesis";
 
 type RunAgentResultArgs = {
   manifest: string;
@@ -18,6 +18,7 @@ type RunAgentResultArgs = {
   input: string;
   agentRunId: string;
   reason: string;
+  force: boolean;
   startedAt?: string;
   finishedAt?: string;
   model?: string;
@@ -30,14 +31,15 @@ export function createAgentResultCmd(deps: {
 }) {
   return command({
     name: "agent-result",
-    description: "Ingest a task-produced wave output into canonical wave artifacts",
+    description: "Ingest a task-produced stage output into canonical artifacts",
     args: {
       manifest: option({ long: "manifest", type: deps.AbsolutePath }),
-      stage: option({ long: "stage", type: oneOf(["wave1", "wave2", "summaries", "synthesis"]) }),
+      stage: option({ long: "stage", type: oneOf(["perspectives", "wave1", "wave2", "summaries", "synthesis"]) }),
       perspective: option({ long: "perspective", type: string }),
       input: option({ long: "input", type: deps.AbsolutePath }),
       agentRunId: option({ long: "agent-run-id", type: string }),
       reason: option({ long: "reason", type: string }),
+      force: flag({ long: "force", type: boolean }),
       startedAt: option({ long: "started-at", type: optional(string) }),
       finishedAt: option({ long: "finished-at", type: optional(string) }),
       model: option({ long: "model", type: optional(string) }),
@@ -51,6 +53,7 @@ export function createAgentResultCmd(deps: {
         input: args.input,
         agentRunId: args.agentRunId,
         reason: args.reason,
+        force: args.force,
         startedAt: args.startedAt,
         finishedAt: args.finishedAt,
         model: args.model,
