@@ -71,7 +71,7 @@ export const stage_advance = tool({
 
       const stageObj = isPlainObject(manifest.stage) ? (manifest.stage as Record<string, unknown>) : {};
       const from = String(stageObj.current ?? "");
-      const allowedStages = ["init", "wave1", "pivot", "wave2", "citations", "summaries", "synthesis", "review", "finalize"] as const;
+      const allowedStages = ["init", "perspectives", "wave1", "pivot", "wave2", "citations", "summaries", "synthesis", "review", "finalize"] as const;
       if (!from || !allowedStages.includes(from as (typeof allowedStages)[number])) {
         return err("INVALID_STATE", "stage not recognized", { stage: from });
       }
@@ -198,7 +198,8 @@ export const stage_advance = tool({
 
       const allowedNextFor = (stage: string): string[] => {
         switch (stage) {
-          case "init": return ["wave1"];
+          case "init": return ["perspectives", "wave1"];
+          case "perspectives": return ["wave1"];
           case "wave1": return ["pivot"];
           case "pivot": return ["wave2", "citations"];
           case "wave2": return ["citations"];
@@ -271,6 +272,9 @@ export const stage_advance = tool({
             return err("MISSING_ARTIFACT", "review decision incomplete", { file: reviewBundleFile });
           }
           to = review.decision === "PASS" ? "finalize" : "synthesis";
+        } else if (from === "init") {
+          // Backward-compatible default for callers that do not pass requested_next.
+          to = "wave1";
         } else if (allowedNext.length === 1) {
           to = allowedNext[0];
         } else {
@@ -293,7 +297,7 @@ export const stage_advance = tool({
         return { code, message, details };
       };
 
-      if (from === "init" && to === "wave1") {
+      if ((from === "init" || from === "perspectives") && to === "wave1") {
         block ??= blockIfFailed(await evalArtifact(perspectivesFile, path.join(runRoot, perspectivesFile)), "MISSING_ARTIFACT", "perspectives.json missing", { file: perspectivesFile });
       }
 

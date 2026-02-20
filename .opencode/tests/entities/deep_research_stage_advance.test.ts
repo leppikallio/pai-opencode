@@ -169,6 +169,26 @@ async function advance(
 }
 
 describe("deep_research_stage_advance (entity)", () => {
+  test("advances init -> perspectives when explicitly requested", async () => {
+    await withOptionCRun("dr_test_stage_000p", async ({ manifestPath, gatesPath }) => {
+      const out = await advance(manifestPath, gatesPath, "test: init -> perspectives", "perspectives");
+      expect(out.ok).toBe(true);
+      expect(getStringProp(out, "from")).toBe("init");
+      expect(getStringProp(out, "to")).toBe("perspectives");
+
+      const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
+      expect(manifest.stage.current).toBe("perspectives");
+      expect(Array.isArray(manifest.stage.history)).toBe(true);
+      expect(manifest.stage.history.length).toBe(1);
+      expect(manifest.stage.history[0]).toMatchObject({
+        from: "init",
+        to: "perspectives",
+        inputs_digest: expect.any(String),
+        gates_revision: expect.any(Number),
+      });
+    });
+  });
+
   test("advances init -> wave1 when perspectives artifact exists", async () => {
     await withOptionCRun("dr_test_stage_001", async ({ manifestPath, gatesPath, runRoot }) => {
       const p = fixturePath("runs", "p02-stage-advance-init", "perspectives.json");

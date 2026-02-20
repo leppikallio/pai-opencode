@@ -48,6 +48,7 @@ import { createPauseCmd } from "./deep-research-option-c/cmd/pause";
 import { createResumeCmd } from "./deep-research-option-c/cmd/resume";
 import { createRerunCmd } from "./deep-research-option-c/cmd/rerun";
 import { createRunCmd } from "./deep-research-option-c/cmd/run";
+import { createStageAdvanceCmd } from "./deep-research-option-c/cmd/stage-advance";
 import { createStatusCmd } from "./deep-research-option-c/cmd/status";
 import { createTickCmd } from "./deep-research-option-c/cmd/tick";
 import { createTriageCmd } from "./deep-research-option-c/cmd/triage";
@@ -94,6 +95,14 @@ type PauseResumeCliArgs = RunHandleCliArgs & {
 };
 
 type RunStatusInspectTriageCliArgs = RunHandleCliArgs & {
+  json: boolean;
+};
+
+type StageAdvanceCliArgs = {
+  manifest: string;
+  gates?: string;
+  requestedNext?: string;
+  reason: string;
   json: boolean;
 };
 
@@ -2104,6 +2113,19 @@ async function runOneOrchestratorTick(args: {
   }
 
   const stage = args.stageHint ?? (await summarizeManifest(await readJsonObject(args.manifestPath))).stageCurrent;
+  if (stage === "perspectives") {
+    return {
+      ok: false,
+      error: {
+        code: "INVALID_STATE",
+        message: "stage perspectives requires explicit drafting flow before tick",
+        details: {
+          stage,
+          required_action: "stage-advance --requested-next wave1 after perspectives are finalized",
+        },
+      },
+    } as TickResult;
+  }
   if (stage === "init" || stage === "wave1") {
     if (!args.liveDriver) throw new Error("internal: live driver missing");
     return await orchestrator_tick_live({
@@ -2375,6 +2397,56 @@ async function runTick(args: TickCliArgs): Promise<void> {
     stageCurrent: summary.stageCurrent,
     status: summary.status,
   });
+}
+
+async function runStageAdvance(args: StageAdvanceCliArgs): Promise<void> {
+  ensureOptionCEnabledForCli();
+
+  const runHandle = await resolveRunHandle({
+    manifest: args.manifest,
+    gates: args.gates,
+  });
+
+  const stageAdvance = await callTool("stage_advance", stage_advance as unknown as ToolWithExecute, {
+    manifest_path: runHandle.manifestPath,
+    gates_path: runHandle.gatesPath,
+    ...(args.requestedNext ? { requested_next: args.requestedNext } : {}),
+    reason: args.reason,
+  });
+
+  const manifest = await readJsonObject(runHandle.manifestPath);
+  const summary = await summarizeManifest(manifest);
+
+  if (args.json) {
+    emitJson({
+      ok: true,
+      command: "stage-advance",
+      run_id: summary.runId,
+      run_root: summary.runRoot,
+      manifest_path: runHandle.manifestPath,
+      gates_path: summary.gatesPath,
+      stage_current: summary.stageCurrent,
+      status: summary.status,
+      from: String(stageAdvance.from ?? ""),
+      to: String(stageAdvance.to ?? ""),
+      manifest_revision: Number(stageAdvance.manifest_revision ?? Number.NaN),
+      decision_inputs_digest: String((asObject(stageAdvance.decision).inputs_digest ?? "")),
+    });
+    return;
+  }
+
+  printContract({
+    runId: summary.runId,
+    runRoot: summary.runRoot,
+    manifestPath: runHandle.manifestPath,
+    gatesPath: summary.gatesPath,
+    stageCurrent: summary.stageCurrent,
+    status: summary.status,
+  });
+  console.log("stage_advance.ok: true");
+  console.log(`stage_advance.from: ${String(stageAdvance.from ?? "")}`);
+  console.log(`stage_advance.to: ${String(stageAdvance.to ?? "")}`);
+  console.log(`stage_advance.manifest_revision: ${String(stageAdvance.manifest_revision ?? "")}`);
 }
 
 async function runStatus(args: RunStatusInspectTriageCliArgs): Promise<void> {
@@ -3330,6 +3402,8 @@ const agentResultCmd = createAgentResultCmd({ AbsolutePath, runAgentResult });
 
 const runCmd = createRunCmd({ AbsolutePath, runRun });
 
+const stageAdvanceCmd = createStageAdvanceCmd({ AbsolutePath, runStageAdvance });
+
 const statusCmd = createStatusCmd({ AbsolutePath, runStatus });
 
 const inspectCmd = createInspectCmd({ AbsolutePath, runInspect });
@@ -3353,6 +3427,7 @@ const app = subcommands({
     tick: tickCmd,
     "agent-result": agentResultCmd,
     run: runCmd,
+    "stage-advance": stageAdvanceCmd,
     status: statusCmd,
     inspect: inspectCmd,
     triage: triageCmd,

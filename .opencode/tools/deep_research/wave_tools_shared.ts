@@ -26,7 +26,7 @@ export type ToolWithExecute = {
 
 const MANIFEST_STATUS: string[] = ["created", "running", "paused", "failed", "completed", "cancelled"];
 const MANIFEST_MODE: string[] = ["quick", "standard", "deep"];
-const MANIFEST_STAGE: string[] = ["init", "wave1", "pivot", "wave2", "citations", "summaries", "synthesis", "review", "finalize"];
+const MANIFEST_STAGE: string[] = ["init", "perspectives", "wave1", "pivot", "wave2", "citations", "summaries", "synthesis", "review", "finalize"];
 const GAP_PRIORITY_VALUES = ["P0", "P1", "P2", "P3"] as const;
 type GapPriority = typeof GAP_PRIORITY_VALUES[number];
 type PivotGap = {
