@@ -14,6 +14,8 @@ import {
   sha256HexLowerUtf8,
   validateManifestV1,
 } from "./lifecycle_lib";
+import { validatePerspectivesV1 } from "./schema_v1";
+import { sha256DigestForJson } from "./wave_tools_shared";
 import { gate_a_evaluate } from "./gate_a_evaluate";
 import { gate_b_derive } from "./gate_b_derive";
 import { gates_write } from "./gates_write";
@@ -938,6 +940,41 @@ export async function orchestrator_tick_live(
   if (!isPlainObject(planRaw)) {
     return fail("SCHEMA_VALIDATION_FAILED", "wave1 plan must be an object", {
       plan_path: planPath,
+    });
+  }
+
+  const actualPerspectivesDigest = nonEmptyString((planRaw as Record<string, unknown>).perspectives_digest);
+
+  let perspectivesRawForDigest: unknown;
+  try {
+    perspectivesRawForDigest = await readJson(perspectivesPath);
+  } catch (e) {
+    if (e instanceof SyntaxError) {
+      return fail("INVALID_JSON", "perspectives_path contains invalid JSON", {
+        perspectives_path: perspectivesPath,
+      });
+    }
+    return fail("NOT_FOUND", "perspectives_path not found", {
+      perspectives_path: perspectivesPath,
+      message: String(e),
+    });
+  }
+
+  const perspectivesValidationError = validatePerspectivesV1(perspectivesRawForDigest);
+  if (perspectivesValidationError) {
+    return fail("SCHEMA_VALIDATION_FAILED", "perspectives validation failed", {
+      perspectives_path: perspectivesPath,
+      error: perspectivesValidationError,
+    });
+  }
+
+  const expectedPerspectivesDigest = sha256DigestForJson(perspectivesRawForDigest);
+  if (!actualPerspectivesDigest || actualPerspectivesDigest !== expectedPerspectivesDigest) {
+    return fail("WAVE1_PLAN_STALE", "wave1 plan perspectives digest mismatch", {
+      plan_path: planPath,
+      perspectives_path: perspectivesPath,
+      expected_digest: expectedPerspectivesDigest,
+      actual_digest: actualPerspectivesDigest,
     });
   }
 

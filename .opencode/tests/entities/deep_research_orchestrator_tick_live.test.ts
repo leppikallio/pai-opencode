@@ -392,42 +392,32 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
         const toWave1 = parseToolJson(toWave1Raw);
         expect(toWave1.ok).toBe(true);
 
-        const seededPrompt = "## Scope Contract\n- seeded";
-        await fs.mkdir(path.join(runRoot, "wave-1"), { recursive: true });
-        await fs.writeFile(
-          path.join(runRoot, "wave-1", "wave1-plan.json"),
-          `${JSON.stringify(
-            {
-              schema_version: "wave1_plan.v1",
-              run_id: runId,
-              generated_at: "2026-02-16T10:00:00.000Z",
-              inputs_digest: "digest",
-              entries: [
-                {
-                  perspective_id: "p3",
-                  agent_type: "GrokResearcher",
-                  output_md: "wave-1/p3.md",
-                  prompt_md: seededPrompt,
-                },
-                {
-                  perspective_id: "p1",
-                  agent_type: "ClaudeResearcher",
-                  output_md: "wave-1/p1.md",
-                  prompt_md: seededPrompt,
-                },
-                {
-                  perspective_id: "p2",
-                  agent_type: "GeminiResearcher",
-                  output_md: "wave-1/p2.md",
-                  prompt_md: seededPrompt,
-                },
-              ],
-            },
-            null,
-            2,
-          )}\n`,
-          "utf8",
-        );
+        const planRaw = (await (wave1_plan as any).execute(
+          {
+            manifest_path: manifestPath,
+            reason: "test: preseed wave1 plan",
+          },
+          makeToolContext(),
+        )) as string;
+        const planResult = parseToolJson(planRaw);
+        expect(planResult.ok).toBe(true);
+
+        const planDoc = JSON.parse(await fs.readFile(path.join(runRoot, "wave-1", "wave1-plan.json"), "utf8")) as {
+          entries?: Array<Record<string, unknown>>;
+        };
+        const promptByPerspective = new Map<string, string>();
+        for (const entry of planDoc.entries ?? []) {
+          const perspectiveId = String(entry.perspective_id ?? "").trim();
+          const promptMd = String(entry.prompt_md ?? "");
+          if (perspectiveId && promptMd.trim()) promptByPerspective.set(perspectiveId, promptMd);
+        }
+        const p1Prompt = promptByPerspective.get("p1");
+        const p2Prompt = promptByPerspective.get("p2");
+        const p3Prompt = promptByPerspective.get("p3");
+        if (!p1Prompt || !p2Prompt || !p3Prompt) {
+          throw new Error("expected wave1 plan prompts for p1/p2/p3");
+        }
+
         await fs.writeFile(path.join(runRoot, "wave-1", "p1.md"), validMarkdown("p1"), "utf8");
         await fs.writeFile(path.join(runRoot, "wave-1", "p2.md"), validMarkdown("p2"), "utf8");
         await fs.writeFile(path.join(runRoot, "wave-1", "p3.md"), validMarkdown("p3"), "utf8");
@@ -436,7 +426,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
           `${JSON.stringify(
             {
               schema_version: "wave-output-meta.v1",
-              prompt_digest: promptDigest(seededPrompt),
+              prompt_digest: promptDigest(p1Prompt),
               agent_run_id: "agent-run-p1-seeded",
               ingested_at: "2026-02-16T10:00:00.000Z",
               source_input_path: path.join(runRoot, "wave-1", "p1.md"),
@@ -454,7 +444,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
           `${JSON.stringify(
             {
               schema_version: "wave-output-meta.v1",
-              prompt_digest: promptDigest(seededPrompt),
+              prompt_digest: promptDigest(p2Prompt),
               agent_run_id: "agent-run-p2-seeded",
               ingested_at: "2026-02-16T10:00:00.000Z",
               source_input_path: path.join(runRoot, "wave-1", "p2.md"),
@@ -472,7 +462,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
           `${JSON.stringify(
             {
               schema_version: "wave-output-meta.v1",
-              prompt_digest: promptDigest(seededPrompt),
+              prompt_digest: promptDigest(p3Prompt),
               agent_run_id: "agent-run-p3-seeded",
               ingested_at: "2026-02-16T10:00:00.000Z",
               source_input_path: path.join(runRoot, "wave-1", "p3.md"),
@@ -564,7 +554,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
 
         const preservedMeta = JSON.parse(await fs.readFile(path.join(runRoot, "wave-1", "p1.meta.json"), "utf8"));
         expect(preservedMeta.schema_version).toBe("wave-output-meta.v1");
-        expect(preservedMeta.prompt_digest).toBe(promptDigest(seededPrompt));
+        expect(preservedMeta.prompt_digest).toBe(promptDigest(p1Prompt));
         expect(preservedMeta.agent_run_id).toBe("agent-run-p1-seeded");
         expect(preservedMeta.ingested_at).toBe("2026-02-16T10:00:00.000Z");
         expect(preservedMeta.source_input_path).toBe(path.join(runRoot, "wave-1", "p1.md"));
@@ -662,6 +652,91 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
 
         const p2Meta = JSON.parse(await fs.readFile(path.join(runRoot, "wave-1", "p2.meta.json"), "utf8"));
         expect(p2Meta.prompt_digest).toBe(promptDigest(mutatedPrompt));
+      });
+    });
+  });
+
+  test("fails fast with WAVE1_PLAN_STALE when perspectives mutate after wave1 plan creation", async () => {
+    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+      await withTempDir(async (base) => {
+        const runId = "dr_test_orchestrator_tick_live_wave1_plan_stale_010";
+
+        const initRaw = (await (run_init as any).execute(
+          { query: "Q", mode: "standard", sensitivity: "normal", run_id: runId, root_override: base },
+          makeToolContext(),
+        )) as string;
+        const init = parseToolJson(initRaw);
+        expect(init.ok).toBe(true);
+
+        const manifestPath = String((init as any).manifest_path);
+        const gatesPath = String((init as any).gates_path);
+        const runRoot = path.dirname(manifestPath);
+        const perspectivesPath = await writePerspectivesForRun(runRoot, runId);
+
+        const toWave1Raw = (await (stage_advance as any).execute(
+          {
+            manifest_path: manifestPath,
+            gates_path: gatesPath,
+            reason: "test: init -> wave1",
+            requested_next: "wave1",
+          },
+          makeToolContext(),
+        )) as string;
+        const toWave1 = parseToolJson(toWave1Raw);
+        expect(toWave1.ok).toBe(true);
+
+        const planRaw = (await (wave1_plan as any).execute(
+          {
+            manifest_path: manifestPath,
+            reason: "test: preseed wave1 plan",
+          },
+          makeToolContext(),
+        )) as string;
+        const planResult = parseToolJson(planRaw);
+        expect(planResult.ok).toBe(true);
+
+        const planPath = path.join(runRoot, "wave-1", "wave1-plan.json");
+        const planDoc = JSON.parse(await fs.readFile(planPath, "utf8")) as Record<string, unknown>;
+        const planPerspectivesDigest = String(planDoc.perspectives_digest ?? "");
+        expect(planPerspectivesDigest.startsWith("sha256:")).toBe(true);
+
+        const perspectivesDoc = JSON.parse(await fs.readFile(perspectivesPath, "utf8")) as Record<string, unknown>;
+        const perspectives = Array.isArray(perspectivesDoc.perspectives)
+          ? (perspectivesDoc.perspectives as Array<Record<string, unknown>>)
+          : [];
+        expect(perspectives.length).toBeGreaterThan(0);
+        // Add an extra field to change the digest without breaking wave1-plan prompt alignment.
+        perspectives[0].notes = "mutated after plan creation";
+        await fs.writeFile(perspectivesPath, `${JSON.stringify(perspectivesDoc, null, 2)}\n`, "utf8");
+
+        const { sha256DigestForJson } = await import("../../tools/deep_research/wave_tools_shared");
+        const expectedDigest = sha256DigestForJson(perspectivesDoc);
+        expect(expectedDigest).not.toBe(planPerspectivesDigest);
+
+        let runAgentCalls = 0;
+
+        const out = await orchestrator_tick_live({
+          manifest_path: manifestPath,
+          gates_path: gatesPath,
+          reason: "test: wave1 plan stale",
+          drivers: {
+            runAgent: async (input: OrchestratorLiveRunAgentInput) => {
+              runAgentCalls += 1;
+              return { markdown: validMarkdown(input.perspective_id) };
+            },
+          },
+          stage_advance_tool: stage_advance as any,
+          tool_context: makeToolContext(),
+        });
+
+        expect(out.ok).toBe(false);
+        if (out.ok) return;
+        expect(out.error.code).toBe("WAVE1_PLAN_STALE");
+        expect(runAgentCalls).toBe(0);
+        expect(String(out.error.details.expected_digest ?? "")).toBe(expectedDigest);
+        expect(String(out.error.details.actual_digest ?? "")).toBe(planPerspectivesDigest);
+        expect(JSON.stringify(out.error.details)).toContain("expected_digest");
+        expect(JSON.stringify(out.error.details)).toContain("actual_digest");
       });
     });
   });
