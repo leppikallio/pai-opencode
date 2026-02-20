@@ -84,6 +84,23 @@ When running commands, either:
    - do not hardcode `.opencode/...` in runtime outputs
 4) No behavior changes except already-approved known-issue fixes.
 
+### Task sizing + review cadence (important: fixes the “tiny extractions + huge review cost” failure mode)
+
+**Problem we are avoiding:** moving 5–30 lines at a time while paying Architect+QA review overhead after every micro-step.
+
+**New rule (from T04 onward):** each refactor task must remove a *cohesive subsystem chunk*.
+
+- **Minimum deletion target:** each completed task should remove **≥ 200 LOC** from the monolith.
+- **Preferred deletion target:** **250–500 LOC** removed per task.
+- **Minimum module size target:** each new “primary” module should be roughly **150–500 LOC**.
+  - Small utility modules (<100 LOC) are allowed **only** when truly atomic (e.g., `cli/json-mode.ts`).
+
+**Review cadence rule:**
+
+- We still follow `subagent-driven-development`, but we define “task” as a **meaningful extraction wave**.
+- Do **not** create tasks whose only outcome is a tiny helper extraction.
+- If a change would remove <200 LOC, **expand the task scope** by including adjacent, logically-related code until the deletion target is met.
+
 ---
 
 ## 1) How this plan is executed (controller + subagents)
@@ -199,7 +216,7 @@ Statuses: `TODO | IN_PROGRESS | DONE | ARCH_PASS | QA_PASS | BLOCKED(<reason>)`
 | T02 | Extract CLI errors helpers | DONE | 4711 → 4687 | yes | commit d51b067 |
 | T03 | Extract tool runtime (envelope/context/callTool) | DONE | 4687 → 4642 | yes | commit a9a37f5 |
 | T04 | Extract run-handle resolution | TODO |  |  | `resolveRunHandle`, `withRunLock` |
-| T05 | Extract paths + manifest safety helpers | TODO |  |  | `requireAbsolutePath`, `safeResolveManifestPath` |
+| T05 | Extract paths + manifest safety helpers | DONE | 4642 → 4552 | yes | commit 8b20932 (paths.ts is 101 LOC) |
 | T06 | Extract fs/json/jsonl/time/digest helpers | TODO |  |  | `readJsonObject`, `readJsonlRecords`, `stableDigest` |
 | T07 | Extract observability (tick ledger/telemetry/metrics) | TODO |  |  | `beginTickObservability` |
 | T08 | Extract triage + halt artifacts | TODO |  |  | `writeHaltArtifact*`, `handleTickFailureArtifacts` |
@@ -433,15 +450,39 @@ Delete them from the monolith.
 
 ### Task T04: Extract run-handle resolution (resolveRunHandle + lock)
 
+**Sizing rule for this task:** this is the first “big deletion” task. Do not move only the two functions.
+
+- Target deletion: **250–500 LOC** removed from the monolith.
+- If you can’t hit 250 LOC by moving only `resolveRunHandle/withRunLock`, expand scope by moving the full **run-handle + contract** subsystem listed below.
+- It is acceptable (recommended) to complete **most of T06** (IO helpers) in the same extraction wave if needed to hit deletion targets.
+
 **Files:**
 - Create: `.opencode/pai-tools/deep-research-option-c/lib/run-handle.ts`
 - Modify: `.opencode/pai-tools/deep-research-option-c.ts`
 
-**Step 1: Move+delete implementations**
+**Step 1: Move+delete implementations (run-handle + contract subsystem)**
 
 Move these symbols into `lib/run-handle.ts`:
 - `resolveRunHandle(...)`
 - `withRunLock(...)`
+
+Also move (keep it cohesive; don’t leave stragglers):
+- `resolveRunRoot(...)`
+- `resolveLogsDirFromManifest(...)`
+- `resolveGatesPathFromManifest(...)`
+- `resolvePerspectivesPathFromManifest(...)`
+- `summarizeManifest(...)`
+- `printContract(...)`
+- `contractJson(...)`
+- `emitContractCommandJson(...)`
+- `gateStatusesSummaryRecord(...)`
+- `readGateStatusesSummary(...)`
+- `parseGateStatuses(...)`
+
+And these types (where they live today doesn’t matter; they must end up in the module, not the monolith):
+- `GateStatusSummary`
+- `ManifestSummary`
+- `CliContractJson`
 
 Delete from the monolith and update call sites.
 
@@ -466,7 +507,9 @@ Move:
 - `isManifestRelativePathSafe(...)`
 - `safeResolveManifestPath(...)`
 - `isSafeSegment(...)`
-- `resolveRunRoot(...)`
+- `normalizeOptional(...)`
+- `validateRunId(...)`
+- `assertWithinRoot(...)`
 
 Delete from monolith and update imports.
 
@@ -479,6 +522,11 @@ Delete from monolith and update imports.
 ---
 
 ### Task T06: Extract fs/json/jsonl/time/digest helpers
+
+**Sizing rule for this task:** avoid creating 5 tiny files that each contain 10–40 lines.
+
+- Preferred: combine into **1–3** cohesive modules (`lib/io.ts`, `lib/time.ts`, `lib/digest.ts`) that are **150–500 LOC** each.
+- If T04 already moved `readJsonObject`/`resolveRunRoot`-adjacent IO helpers, remove them from this task and focus on what remains.
 
 **Files:**
 - Create: `.opencode/pai-tools/deep-research-option-c/lib/fs-utils.ts`
