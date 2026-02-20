@@ -7,6 +7,13 @@ Run Wave 1 with the non-manual task driver loop (`tick --driver task` + `agent-r
 - Task driver mode is enabled (`--driver task`).
 - `manifest.json`, `gates.json`, and the Wave 1 plan artifact exist under the run root.
 
+## Staleness guard (common failure)
+
+If `tick --driver task` fails fast with `WAVE1_PLAN_STALE`, your Wave 1 plan no longer matches `perspectives.json`.
+
+- Fix: regenerate the Wave 1 plan by re-running the perspectives drafting + promotion flow.
+- Reference: `Workflows/DraftPerspectivesFromQuery.md`
+
 ## Inputs
 
 - `manifest_path` (absolute)
