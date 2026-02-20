@@ -12,6 +12,48 @@
 
 ---
 
+## Orchestrator instruction (PATH DISCIPLINE — read first)
+
+Subagents have been “bouncing” due to ambiguous relative paths. **Do not use ambiguous relative paths.**
+
+### Canonical working directory for *all* commands
+
+- Worktree root (this refactor happens here):
+  - `/tmp/wt-dr-cli-refactor`
+
+When running commands, either:
+
+1) `cd /tmp/wt-dr-cli-refactor` first, **or**
+2) run commands with an explicit working directory (preferred).
+
+### Canonical absolute paths (copy/paste)
+
+- Plan file:
+  - `/tmp/wt-dr-cli-refactor/.opencode/Plans/DeepResearchOptionC/2026-02-20/01-cli-refactor-plan-llm-manageable.md`
+- Monolith entrypoint:
+  - `/tmp/wt-dr-cli-refactor/.opencode/pai-tools/deep-research-option-c.ts`
+- Extracted module root:
+  - `/tmp/wt-dr-cli-refactor/.opencode/pai-tools/deep-research-option-c/`
+- Entity tests root:
+  - `/tmp/wt-dr-cli-refactor/.opencode/tests/entities/`
+- Tier 1 test files:
+  - `/tmp/wt-dr-cli-refactor/.opencode/tests/entities/deep_research_operator_cli_ergonomics.test.ts`
+  - `/tmp/wt-dr-cli-refactor/.opencode/tests/entities/deep_research_operator_cli_wave2_task_driver.test.ts`
+  - `/tmp/wt-dr-cli-refactor/.opencode/tests/entities/deep_research_orchestrator_pivot_wave2_required.test.ts`
+- Installer (for Tier 3 smoke):
+  - `/tmp/wt-dr-cli-refactor/Tools/Install.ts`
+
+### Anti-shim check scope (important)
+
+- The anti-shim rule applies to modules under:
+  - `/tmp/wt-dr-cli-refactor/.opencode/pai-tools/deep-research-option-c/**`
+- It is OK and expected that the entrypoint:
+  - `/tmp/wt-dr-cli-refactor/.opencode/pai-tools/deep-research-option-c.ts`
+  imports those modules.
+- It is **not** OK for any module under `deep-research-option-c/**` to import the monolith entrypoint.
+
+---
+
 ## 0) Context (what you are refactoring)
 
 ### What the CLI is
