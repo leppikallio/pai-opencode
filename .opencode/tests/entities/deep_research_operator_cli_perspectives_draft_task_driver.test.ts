@@ -94,6 +94,16 @@ describe("deep_research operator CLI perspectives-draft task driver (entity)", (
       expect(draftRes.exit).toBe(0);
       expect(`${draftRes.stdout}\n${draftRes.stderr}`).toContain("RUN_AGENT_REQUIRED");
 
+      const policyPath = path.join(runRoot, "operator", "config", "perspectives-policy.json");
+      const policy = JSON.parse(await fs.readFile(policyPath, "utf8")) as Record<string, unknown>;
+      expect(String(policy.schema_version ?? "")).toBe("perspectives-policy.v1");
+
+      const perspectivesStatePath = path.join(runRoot, "operator", "state", "perspectives-state.json");
+      const stateAfterInitialDraft = JSON.parse(await fs.readFile(perspectivesStatePath, "utf8")) as Record<string, unknown>;
+      expect(String(stateAfterInitialDraft.schema_version ?? "")).toBe("perspectives-draft-state.v1");
+      expect(String(stateAfterInitialDraft.status ?? "")).toBe("awaiting_agent_results");
+      expect(String(stateAfterInitialDraft.policy_path ?? "")).toBe(policyPath);
+
       const promptPath = path.join(runRoot, "operator", "prompts", "perspectives", "primary.md");
       await fs.stat(promptPath);
 
@@ -332,15 +342,15 @@ describe("deep_research operator CLI perspectives-draft task driver (entity)", (
       ]);
       expect(draftRes.exit).toBe(0);
 
+      const policyPath = path.join(runRoot, "operator", "config", "perspectives-policy.json");
+      const policy = JSON.parse(await fs.readFile(policyPath, "utf8")) as Record<string, unknown>;
+      expect(String(policy.schema_version ?? "")).toBe("perspectives-policy.v1");
+
       const perspectivesStatePath = path.join(runRoot, "operator", "state", "perspectives-state.json");
-      const stateAfterInitialDraft = await readJsonIfExists(perspectivesStatePath);
-      if (stateAfterInitialDraft) {
-        expect(String(stateAfterInitialDraft.schema_version ?? "")).toBe("perspectives-draft-state.v1");
-        expect(String(stateAfterInitialDraft.status ?? "")).toBe("awaiting_agent_results");
-      } else {
-        // Backward compatibility until all environments include M4 state artifacts.
-        expect(`${draftRes.stdout}\n${draftRes.stderr}`).toContain("RUN_AGENT_REQUIRED");
-      }
+      const stateAfterInitialDraft = JSON.parse(await fs.readFile(perspectivesStatePath, "utf8")) as Record<string, unknown>;
+      expect(String(stateAfterInitialDraft.schema_version ?? "")).toBe("perspectives-draft-state.v1");
+      expect(String(stateAfterInitialDraft.status ?? "")).toBe("awaiting_agent_results");
+      expect(String(stateAfterInitialDraft.policy_path ?? "")).toBe(policyPath);
 
       const perspectivePayload = {
         schema_version: "perspectives-draft-output.v1",
@@ -423,15 +433,11 @@ describe("deep_research operator CLI perspectives-draft task driver (entity)", (
 
       expect(secondCode.length).toBeGreaterThan(0);
 
-      const stateAfterSecondDraft = await readJsonIfExists(perspectivesStatePath);
-      if (stateAfterSecondDraft) {
-        expect(String(stateAfterSecondDraft.schema_version ?? "")).toBe("perspectives-draft-state.v1");
-        expect(String(stateAfterSecondDraft.status ?? "")).toBe("merging");
-        expect(secondCode).not.toBe("RUN_AGENT_REQUIRED");
-      } else {
-        // Backward compatibility until all environments include M4 state artifacts.
-        expect(secondCode).toBe("RUN_AGENT_REQUIRED");
-      }
+      const stateAfterSecondDraft = JSON.parse(await fs.readFile(perspectivesStatePath, "utf8")) as Record<string, unknown>;
+      expect(String(stateAfterSecondDraft.schema_version ?? "")).toBe("perspectives-draft-state.v1");
+      expect(String(stateAfterSecondDraft.status ?? "")).toBe("merging");
+      expect(String(stateAfterSecondDraft.policy_path ?? "")).toBe(policyPath);
+      expect(secondCode).not.toBe("RUN_AGENT_REQUIRED");
     });
   });
 

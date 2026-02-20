@@ -439,7 +439,7 @@ Status values: `TODO | IN_PROGRESS | BLOCKED | DONE`
 | G-STAGE | Mini-gate: stage+CLI preconditions align | DONE | QA | e2f09d8; added entity precondition test; bun test entities: 175 pass/1 skip/0 fail |
 | M3 | CLI: `agent-result --stage perspectives` ingest | DONE | Eng | (uncommitted) 2026-02-20; supports raw+normalized artifacts + raw-path input; bun test entities: 177 pass/1 skip/0 fail |
 | M4 | Artifacts: `operator/state/perspectives-state.json` lifecycle | DONE | Eng | (uncommitted) 2026-02-20; state transitions covered; bun test entities: 178 pass/1 skip/0 fail |
-| M5 | Artifacts: `operator/config/perspectives-policy.json` (defaults + overrides) | TODO | Eng | entity test: policy persisted + read |
+| M5 | Artifacts: `operator/config/perspectives-policy.json` (defaults + overrides) | DONE | Eng | (uncommitted) 2026-02-20; default policy persisted + referenced by state; bun test entities: 178 pass/1 skip/0 fail |
 | M6 | Merge + promote: `perspectives.json` + `wave1_plan` regen | TODO | Eng | entity test: perspectives_write + wave1_plan |
 | M7 | Mechanical staleness: `perspectives_digest` in wave1-plan + fail-fast mismatch | TODO | Eng | entity test: stale plan fails |
 | M8 | Wave1 prompts include platform + tool policy blocks | TODO | Eng | snapshot test of prompt_md |
