@@ -152,8 +152,8 @@ Statuses: `TODO | IN_PROGRESS | DONE | ARCH_PASS | QA_PASS | BLOCKED(<reason>)`
 
 | ID | Task | Status | Monolith LOC (before → after) | Tier 1 PASS? | Notes |
 |---|---|---|---:|---|---|
-| T00 | Create worktree + baseline snapshot | TODO | 4716 → 4716 | N/A | capture initial outputs |
-| T01 | Extract JSON mode + emitJson | TODO |  |  | `JSON_MODE_REQUESTED`, `emitJson` |
+| T00 | Create worktree + baseline snapshot | DONE | 4716 → 4716 | yes | worktree + bun install + Tier 1 green |
+| T01 | Extract JSON mode + emitJson | DONE | 4716 → 4711 | yes | commit a36a0fb |
 | T02 | Extract CLI errors helpers | TODO |  |  | `throwWithCode*`, `toolErrorDetails` |
 | T03 | Extract tool runtime (envelope/context/callTool) | TODO |  |  | `ToolEnvelope`, `callTool` |
 | T04 | Extract run-handle resolution | TODO |  |  | `resolveRunHandle`, `withRunLock` |
