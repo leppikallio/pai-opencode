@@ -54,6 +54,12 @@ import { createStageAdvanceCmd } from "./deep-research-option-c/cmd/stage-advanc
 import { createStatusCmd } from "./deep-research-option-c/cmd/status";
 import { createTickCmd } from "./deep-research-option-c/cmd/tick";
 import { createTriageCmd } from "./deep-research-option-c/cmd/triage";
+import {
+  configureStdoutForJsonMode,
+  emitJson,
+  getCliArgv,
+  isJsonModeRequested,
+} from "./deep-research-option-c/cli/json-mode";
 import { resolveRuntimeRootFromMainScript } from "./resolveRuntimeRootFromMainScript";
 
 type ToolEnvelope = Record<string, unknown> & { ok: boolean };
@@ -313,21 +319,15 @@ type TickOutcome = {
 };
 
 const TICK_METRICS_INTERVAL = 1;
-const CLI_ARGV = process.argv.slice(2);
-const JSON_MODE_REQUESTED = CLI_ARGV.includes("--json");
+const CLI_ARGV = getCliArgv();
+const JSON_MODE_REQUESTED = isJsonModeRequested(CLI_ARGV);
 const TOOL_CONTEXT_RUNTIME_ROOT = resolveRuntimeRootFromMainScript(import.meta.url);
 
 function nextStepCliInvocation(): string {
   return 'bun "pai-tools/deep-research-option-c.ts"';
 }
 
-if (JSON_MODE_REQUESTED) {
-  // Hard contract: in --json mode, reserve stdout for exactly one JSON object.
-  // Any incidental console.log output is redirected to stderr.
-  console.log = (...args: unknown[]): void => {
-    console.error(...args);
-  };
-}
+configureStdoutForJsonMode(JSON_MODE_REQUESTED);
 
 function stableDigest(value: Record<string, unknown>): string {
   return `sha256:${sha256HexLowerUtf8(JSON.stringify(value))}`;
@@ -1855,11 +1855,6 @@ function normalizeOptional(value: string | undefined): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
-}
-
-function emitJson(payload: unknown): void {
-  // LLM/operator contract: JSON mode prints exactly one parseable object.
-  process.stdout.write(`${JSON.stringify(payload)}\n`);
 }
 
 function validateRunId(runId: string): void {
