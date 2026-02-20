@@ -11,7 +11,6 @@ import {
 } from "cmd-ts";
 
 import {
-  fixture_bundle_capture,
   manifest_write,
   orchestrator_tick_fixture,
   orchestrator_tick_live,
@@ -49,6 +48,12 @@ import { createStatusCmd } from "./deep-research-option-c/cmd/status";
 import { createTickCmd } from "./deep-research-option-c/cmd/tick";
 import { createTriageCmd } from "./deep-research-option-c/cmd/triage";
 import { runInspect } from "./deep-research-option-c/handlers/inspect";
+import { runCancel } from "./deep-research-option-c/handlers/cancel";
+import { runCaptureFixtures } from "./deep-research-option-c/handlers/capture-fixtures";
+import { runPause } from "./deep-research-option-c/handlers/pause";
+import { runResume } from "./deep-research-option-c/handlers/resume";
+import { runRerunWave1 } from "./deep-research-option-c/handlers/rerun";
+import { runStageAdvance } from "./deep-research-option-c/handlers/stage-advance";
 import { runStatus } from "./deep-research-option-c/handlers/status";
 import { runTriage } from "./deep-research-option-c/handlers/triage";
 import {
@@ -78,9 +83,11 @@ import {
   readJsonObject,
 } from "./deep-research-option-c/lib/io-json";
 import {
+  fileExists,
+} from "./deep-research-option-c/lib/fs-utils";
+import {
   printContract,
   resolveGatesPathFromManifest,
-  resolveLogsDirFromManifest,
   resolvePerspectivesPathFromManifest,
   resolveRunHandle,
   resolveRunRoot,
@@ -114,6 +121,7 @@ import {
   type ToolEnvelope,
   type ToolWithExecute,
 } from "./deep-research-option-c/runtime/tool-envelope";
+import { nowIso } from "./deep-research-option-c/lib/time";
 
 type InitCliArgs = {
   query: string;
@@ -145,30 +153,11 @@ type RunCliArgs = TickCliArgs & {
   until?: string;
 };
 
-type PauseResumeCliArgs = RunHandleCliArgs & {
-  reason: string;
-  json?: boolean;
-};
-
-type StageAdvanceCliArgs = {
-  manifest: string;
-  gates?: string;
-  requestedNext?: string;
-  reason: string;
-  json: boolean;
-};
-
 type PerspectivesDraftCliArgs = {
   manifest: string;
   reason: string;
   driver: "task";
   json: boolean;
-};
-
-type RerunWave1CliArgs = {
-  manifest: string;
-  perspective: string;
-  reason: string;
 };
 
 type AgentResultCliArgs = {
@@ -204,16 +193,6 @@ function stableDigest(value: Record<string, unknown>): string {
   return `sha256:${sha256HexLowerUtf8(JSON.stringify(value))}`;
 }
 
-async function fileExists(filePath: string): Promise<boolean> {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch (error) {
-    const code = (error as { code?: string }).code;
-    if (code === "ENOENT") return false;
-    throw error;
-  }
-}
 function ensureOptionCEnabledForCli(): void {
   const flags = resolveDeepResearchFlagsV1();
   if (!flags.optionCEnabled) {
@@ -221,17 +200,6 @@ function ensureOptionCEnabledForCli(): void {
       "Deep research Option C is disabled in current configuration",
     );
   }
-}
-
-async function writeCheckpoint(args: {
-  logsDirAbs: string;
-  filename: string;
-  content: string;
-}): Promise<string> {
-  const outPath = path.join(args.logsDirAbs, args.filename);
-  await fs.mkdir(path.dirname(outPath), { recursive: true });
-  await fs.writeFile(outPath, `${args.content.trim()}\n`, "utf8");
-  return outPath;
 }
 
 function promptDigestFromPromptMarkdown(promptMd: string): string {
@@ -837,10 +805,6 @@ function createOperatorInputDriver(): (
     }
     return { markdown: draft };
   };
-}
-
-function nowIso(): string {
-  return new Date().toISOString();
 }
 
 function defaultPerspectivePayload(runId: string): Record<string, unknown> {
@@ -1851,56 +1815,6 @@ async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Promise<voi
   await printHaltArtifactSummary(halt);
 }
 
-async function runStageAdvance(args: StageAdvanceCliArgs): Promise<void> {
-  ensureOptionCEnabledForCli();
-
-  const runHandle = await resolveRunHandle({
-    manifest: args.manifest,
-    gates: args.gates,
-  });
-
-  const stageAdvance = await callTool("stage_advance", stage_advance as unknown as ToolWithExecute, {
-    manifest_path: runHandle.manifestPath,
-    gates_path: runHandle.gatesPath,
-    ...(args.requestedNext ? { requested_next: args.requestedNext } : {}),
-    reason: args.reason,
-  });
-
-  const manifest = await readJsonObject(runHandle.manifestPath);
-  const summary = await summarizeManifest(manifest);
-
-  if (args.json) {
-    emitJson({
-      ok: true,
-      command: "stage-advance",
-      run_id: summary.runId,
-      run_root: summary.runRoot,
-      manifest_path: runHandle.manifestPath,
-      gates_path: summary.gatesPath,
-      stage_current: summary.stageCurrent,
-      status: summary.status,
-      from: String(stageAdvance.from ?? ""),
-      to: String(stageAdvance.to ?? ""),
-      manifest_revision: Number(stageAdvance.manifest_revision ?? Number.NaN),
-      decision_inputs_digest: String((asObject(stageAdvance.decision).inputs_digest ?? "")),
-    });
-    return;
-  }
-
-  printContract({
-    runId: summary.runId,
-    runRoot: summary.runRoot,
-    manifestPath: runHandle.manifestPath,
-    gatesPath: summary.gatesPath,
-    stageCurrent: summary.stageCurrent,
-    status: summary.status,
-  });
-  console.log("stage_advance.ok: true");
-  console.log(`stage_advance.from: ${String(stageAdvance.from ?? "")}`);
-  console.log(`stage_advance.to: ${String(stageAdvance.to ?? "")}`);
-  console.log(`stage_advance.manifest_revision: ${String(stageAdvance.manifest_revision ?? "")}`);
-}
-
 async function runRun(args: RunCliArgs): Promise<void> {
   ensureOptionCEnabledForCli();
   const runHandle = await resolveRunHandle(args);
@@ -2205,322 +2119,6 @@ async function runRun(args: RunCliArgs): Promise<void> {
   log("run.ok: false");
   log("run.error.code: TICK_CAP_EXCEEDED");
   log("run.error.message: max ticks reached before completion");
-}
-
-async function runPause(args: PauseResumeCliArgs): Promise<void> {
-  ensureOptionCEnabledForCli();
-  const runHandle = await resolveRunHandle(args);
-
-  const manifest = await readJsonObject(runHandle.manifestPath);
-  const summary = await summarizeManifest(manifest);
-  const logsDirAbs = await resolveLogsDirFromManifest(manifest);
-  const manifestRevision = Number(manifest.revision ?? Number.NaN);
-  if (!Number.isFinite(manifestRevision)) throw new Error("manifest.revision invalid");
-  let checkpointPath = "";
-
-  await withRunLock({
-    runRoot: summary.runRoot,
-    reason: `operator-cli pause: ${args.reason}`,
-    fn: async () => {
-      await callTool("manifest_write", manifest_write as unknown as ToolWithExecute, {
-        manifest_path: runHandle.manifestPath,
-        patch: { status: "paused" },
-        expected_revision: manifestRevision,
-        reason: `operator-cli pause: ${args.reason}`,
-      });
-
-      checkpointPath = await writeCheckpoint({
-        logsDirAbs,
-        filename: "pause-checkpoint.md",
-        content: [
-          "# Pause Checkpoint",
-          "",
-          `- ts: ${nowIso()}`,
-          `- run_id: ${summary.runId}`,
-          `- stage: ${summary.stageCurrent}`,
-          `- reason: ${args.reason}`,
-          `- next_step: ${nextStepCliInvocation()} resume --manifest "${runHandle.manifestPath}" --reason "operator resume"`,
-        ].join("\n"),
-      });
-
-      if (!args.json) {
-        console.log("pause.ok: true");
-        console.log(`pause.checkpoint_path: ${checkpointPath}`);
-      }
-    },
-  });
-
-  if (args.json) {
-    const currentSummary = await summarizeManifest(await readJsonObject(runHandle.manifestPath));
-    emitJson({
-      ok: true,
-      command: "pause",
-      checkpoint_path: checkpointPath,
-      run_id: currentSummary.runId,
-      run_root: currentSummary.runRoot,
-      manifest_path: runHandle.manifestPath,
-      gates_path: currentSummary.gatesPath,
-      stage_current: currentSummary.stageCurrent,
-      status: currentSummary.status,
-    });
-  }
-}
-
-async function runResume(args: PauseResumeCliArgs): Promise<void> {
-  ensureOptionCEnabledForCli();
-  const runHandle = await resolveRunHandle(args);
-
-  const manifest = await readJsonObject(runHandle.manifestPath);
-  const summary = await summarizeManifest(manifest);
-  const logsDirAbs = await resolveLogsDirFromManifest(manifest);
-  const manifestRevision = Number(manifest.revision ?? Number.NaN);
-  if (!Number.isFinite(manifestRevision)) throw new Error("manifest.revision invalid");
-  let checkpointPath = "";
-
-  await withRunLock({
-    runRoot: summary.runRoot,
-    reason: `operator-cli resume: ${args.reason}`,
-    fn: async () => {
-      await callTool("manifest_write", manifest_write as unknown as ToolWithExecute, {
-        manifest_path: runHandle.manifestPath,
-        patch: { status: "running", stage: { started_at: nowIso() } },
-        expected_revision: manifestRevision,
-        reason: `operator-cli resume: ${args.reason}`,
-      });
-
-      checkpointPath = await writeCheckpoint({
-        logsDirAbs,
-        filename: "resume-checkpoint.md",
-        content: [
-          "# Resume Checkpoint",
-          "",
-          `- ts: ${nowIso()}`,
-          `- run_id: ${summary.runId}`,
-          `- stage: ${summary.stageCurrent}`,
-          `- reason: ${args.reason}`,
-        ].join("\n"),
-      });
-
-      if (!args.json) {
-        console.log("resume.ok: true");
-        console.log(`resume.checkpoint_path: ${checkpointPath}`);
-      }
-    },
-  });
-
-  if (args.json) {
-    const currentSummary = await summarizeManifest(await readJsonObject(runHandle.manifestPath));
-    emitJson({
-      ok: true,
-      command: "resume",
-      checkpoint_path: checkpointPath,
-      run_id: currentSummary.runId,
-      run_root: currentSummary.runRoot,
-      manifest_path: runHandle.manifestPath,
-      gates_path: currentSummary.gatesPath,
-      stage_current: currentSummary.stageCurrent,
-      status: currentSummary.status,
-    });
-  }
-}
-
-async function runCancel(args: PauseResumeCliArgs): Promise<void> {
-  ensureOptionCEnabledForCli();
-  const runHandle = await resolveRunHandle(args);
-
-  const manifest = await readJsonObject(runHandle.manifestPath);
-  const summary = await summarizeManifest(manifest);
-  const logsDirAbs = await resolveLogsDirFromManifest(manifest);
-  const manifestRevision = Number(manifest.revision ?? Number.NaN);
-  if (!Number.isFinite(manifestRevision)) throw new Error("manifest.revision invalid");
-
-  if (summary.status === "cancelled") {
-    if (args.json) {
-      emitJson({
-        ok: true,
-        command: "cancel",
-        note: "already cancelled",
-        run_id: summary.runId,
-        run_root: summary.runRoot,
-        manifest_path: runHandle.manifestPath,
-        gates_path: summary.gatesPath,
-        stage_current: summary.stageCurrent,
-        status: summary.status,
-      });
-    } else {
-      console.log("cancel.ok: true");
-      console.log("cancel.note: already cancelled");
-    }
-    return;
-  }
-
-  let checkpointPath = "";
-
-  await withRunLock({
-    runRoot: summary.runRoot,
-    reason: `operator-cli cancel: ${args.reason}`,
-    fn: async () => {
-      await callTool("manifest_write", manifest_write as unknown as ToolWithExecute, {
-        manifest_path: runHandle.manifestPath,
-        patch: { status: "cancelled" },
-        expected_revision: manifestRevision,
-        reason: `operator-cli cancel: ${args.reason}`,
-      });
-
-      checkpointPath = await writeCheckpoint({
-        logsDirAbs,
-        filename: "cancel-checkpoint.md",
-        content: [
-          "# Cancel Checkpoint",
-          "",
-          `- ts: ${nowIso()}`,
-          `- run_id: ${summary.runId}`,
-          `- stage: ${summary.stageCurrent}`,
-          `- reason: ${args.reason}`,
-          `- next_step: ${nextStepCliInvocation()} status --manifest "${runHandle.manifestPath}"`,
-        ].join("\n"),
-      });
-
-      if (!args.json) {
-        console.log("cancel.ok: true");
-        console.log(`cancel.checkpoint_path: ${checkpointPath}`);
-      }
-    },
-  });
-
-  if (args.json) {
-    const currentSummary = await summarizeManifest(await readJsonObject(runHandle.manifestPath));
-    emitJson({
-      ok: true,
-      command: "cancel",
-      checkpoint_path: checkpointPath,
-      run_id: currentSummary.runId,
-      run_root: currentSummary.runRoot,
-      manifest_path: runHandle.manifestPath,
-      gates_path: currentSummary.gatesPath,
-      stage_current: currentSummary.stageCurrent,
-      status: currentSummary.status,
-    });
-  }
-}
-
-async function runCaptureFixtures(args: {
-  manifest: string;
-  outputDir?: string;
-  bundleId?: string;
-  reason: string;
-  json?: boolean;
-}): Promise<void> {
-  ensureOptionCEnabledForCli();
-
-  const manifest = await readJsonObject(args.manifest);
-  const summary = await summarizeManifest(manifest);
-  const runId = summary.runId;
-  const createdAt = nowIso();
-
-  const outputDir = args.outputDir
-    ? requireAbsolutePath(args.outputDir, "--output-dir")
-    : path.join(summary.runRoot, "fixtures");
-  const defaultBundleId = `${runId}_bundle_${timestampTokenFromIso(createdAt)}`;
-  const bundleId = String(args.bundleId ?? defaultBundleId).trim();
-  if (!bundleId) throw new Error("--bundle-id must be non-empty");
-
-  const capture = await callTool("fixture_bundle_capture", fixture_bundle_capture as unknown as ToolWithExecute, {
-    manifest_path: args.manifest,
-    output_dir: outputDir,
-    bundle_id: bundleId,
-    reason: args.reason,
-  });
-
-  if (args.json) {
-    emitJson({
-      ok: true,
-      command: "capture-fixtures",
-      run_id: runId,
-      run_root: summary.runRoot,
-      manifest_path: args.manifest,
-      gates_path: summary.gatesPath,
-      stage_current: summary.stageCurrent,
-      status: summary.status,
-      bundle_id: String(capture.bundle_id ?? bundleId),
-      bundle_root: String(capture.bundle_root ?? ""),
-      replay_command: "deep_research_fixture_replay --bundle_root <bundle_root>",
-    });
-    return;
-  }
-
-  printContract({
-    runId,
-    runRoot: summary.runRoot,
-    manifestPath: args.manifest,
-    gatesPath: summary.gatesPath,
-    stageCurrent: summary.stageCurrent,
-    status: summary.status,
-  });
-  console.log("capture_fixtures.ok: true");
-  console.log(`capture_fixtures.bundle_id: ${String(capture.bundle_id ?? bundleId)}`);
-  console.log(`capture_fixtures.bundle_root: ${String(capture.bundle_root ?? "")}`);
-  console.log("capture_fixtures.replay: deep_research_fixture_replay --bundle_root <bundle_root>");
-}
-
-async function runRerunWave1(args: RerunWave1CliArgs): Promise<void> {
-  ensureOptionCEnabledForCli();
-
-  const manifestPath = requireAbsolutePath(args.manifest, "--manifest");
-  const perspective = args.perspective.trim();
-  const reason = args.reason.trim();
-
-  if (!/^[A-Za-z0-9_-]+$/.test(perspective)) {
-    throw new Error("--perspective must contain only letters, numbers, underscores, or dashes");
-  }
-  if (!reason) {
-    throw new Error("--reason must be non-empty");
-  }
-
-  const manifest = await readJsonObject(manifestPath);
-  const summary = await summarizeManifest(manifest);
-  const retryDirectivesPath = await safeResolveManifestPath(
-    summary.runRoot,
-    "retry/retry-directives.json",
-    "retry.retry_directives_file",
-  );
-
-  const retryArtifact = {
-    schema_version: "wave1.retry_directives.v1",
-    run_id: summary.runId,
-    stage: "wave1",
-    generated_at: nowIso(),
-    consumed_at: null,
-    retry_directives: [
-      {
-        perspective_id: perspective,
-        action: "retry",
-        change_note: reason,
-      },
-    ],
-    deferred_validation_failures: [],
-  };
-
-  await withRunLock({
-    runRoot: summary.runRoot,
-    reason: `operator-cli rerun wave1: ${reason}`,
-    fn: async () => {
-      await fs.mkdir(path.dirname(retryDirectivesPath), { recursive: true });
-      await fs.writeFile(retryDirectivesPath, `${JSON.stringify(retryArtifact, null, 2)}\n`, "utf8");
-    },
-  });
-
-  printContract({
-    runId: summary.runId,
-    runRoot: summary.runRoot,
-    manifestPath,
-    gatesPath: summary.gatesPath,
-    stageCurrent: summary.stageCurrent,
-    status: summary.status,
-  });
-  console.log("rerun.wave1.ok: true");
-  console.log(`rerun.wave1.retry_directives_path: ${retryDirectivesPath}`);
-  console.log(`rerun.wave1.perspective_id: ${perspective}`);
 }
 
 async function runAgentResult(args: AgentResultCliArgs): Promise<void> {
