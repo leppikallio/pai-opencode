@@ -142,7 +142,7 @@ type TaskDriverMissingPerspective = {
   promptDigest: string;
 };
 
-type PerspectivesDraftStatus = "awaiting_agent_results" | "merging";
+type PerspectivesDraftStatus = "awaiting_agent_results" | "merging" | "awaiting_human_review" | "promoted";
 
 type PerspectivesDraftStateArtifactV1 = {
   schema_version: "perspectives-draft-state.v1";
@@ -150,8 +150,39 @@ type PerspectivesDraftStateArtifactV1 = {
   status: PerspectivesDraftStatus;
   policy_path: string;
   inputs_digest: string;
-  draft_digest: null;
-  promoted_digest: null;
+  draft_digest: string | null;
+  promoted_digest: string | null;
+};
+
+type PerspectivesDraftMergeReportV1 = {
+  schema_version: "perspectives-draft-merge-report.v1";
+  run_id: string;
+  generated_from: string[];
+  candidate_count_in: number;
+  candidate_count_out: number;
+  review_required: boolean;
+  dedupe_keys: string[];
+};
+
+type PerspectivesV1Payload = {
+  schema_version: "perspectives.v1";
+  run_id: string;
+  created_at: string;
+  perspectives: Array<{
+    id: string;
+    title: string;
+    track: "standard" | "independent" | "contrarian";
+    agent_type: string;
+    prompt_contract: {
+      max_words: number;
+      max_sources: number;
+      tool_budget: {
+        search_calls: number;
+        fetch_calls: number;
+      };
+      must_include_sections: string[];
+    };
+  }>;
 };
 
 type PerspectivesPolicyArtifactV1 = {
@@ -1164,6 +1195,139 @@ async function writeJsonFileIfChanged(filePath: string, payload: Record<string, 
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, serialized, "utf8");
   return true;
+}
+
+function normalizeWhitespace(value: string): string {
+  return value.trim().replace(/\s+/gu, " ");
+}
+
+function trackWeight(track: string): number {
+  if (track === "standard") return 0;
+  if (track === "independent") return 1;
+  if (track === "contrarian") return 2;
+  return 9;
+}
+
+function defaultWave1PromptContract() {
+  return {
+    max_words: 900,
+    max_sources: 10,
+    tool_budget: {
+      search_calls: 3,
+      fetch_calls: 4,
+    },
+    must_include_sections: ["Findings", "Sources", "Gaps"],
+  };
+}
+
+async function listNormalizedPerspectivesDraftOutputs(args: {
+  runRoot: string;
+}): Promise<Array<{ fileName: string; absPath: string }>> {
+  const dirPath = path.join(args.runRoot, "operator", "outputs", "perspectives");
+  let entries: string[];
+  try {
+    entries = await fs.readdir(dirPath);
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "ENOENT") return [];
+    throw error;
+  }
+
+  const normalized = entries
+    .filter((name) => name.endsWith(".json"))
+    .filter((name) => !name.endsWith(".meta.json"))
+    .filter((name) => !name.endsWith(".raw.json"))
+    .filter((name) => !name.endsWith(".input.json"))
+    .filter((name) => /^[A-Za-z0-9_-]+\.json$/u.test(name))
+    .sort((a, b) => a.localeCompare(b));
+
+  return normalized.map((fileName) => ({ fileName, absPath: path.join(dirPath, fileName) }));
+}
+
+async function buildPerspectivesDraftFromOutputs(args: {
+  runId: string;
+  runRoot: string;
+  createdAt: string;
+}): Promise<{
+  perspectivesDoc: PerspectivesV1Payload;
+  mergeReport: PerspectivesDraftMergeReportV1;
+  draftDigest: string;
+  reviewRequired: boolean;
+}> {
+  const sources = await listNormalizedPerspectivesDraftOutputs({ runRoot: args.runRoot });
+  if (sources.length === 0) {
+    throwWithCode("PERSPECTIVES_DRAFT_OUTPUTS_MISSING", "no normalized perspectives draft outputs found");
+  }
+
+  const allCandidates: Array<ReturnType<typeof normalizePerspectivesDraftOutputV1>["candidates"][number]> = [];
+  for (const source of sources) {
+    const raw = await readJsonObject(source.absPath);
+    const normalized = normalizePerspectivesDraftOutputV1({ value: raw, expectedRunId: args.runId });
+    allCandidates.push(...normalized.candidates);
+  }
+
+  const keys: string[] = [];
+  const dedupedByKey = new Map<string, {
+    title: string;
+    questions: string[];
+    track: "standard" | "independent" | "contrarian";
+    recommended_agent_type: string;
+    domain: string;
+    flags: { human_review_required: boolean };
+  }>();
+
+  for (const candidate of allCandidates) {
+    const title = normalizeWhitespace(candidate.title);
+    const questions = candidate.questions.map((q) => normalizeWhitespace(q));
+    const key = sha256HexLowerUtf8(`${candidate.track}\n${title}\n${questions.join("\n")}`);
+    keys.push(key);
+    if (dedupedByKey.has(key)) continue;
+    dedupedByKey.set(key, {
+      title,
+      questions,
+      track: candidate.track,
+      recommended_agent_type: candidate.recommended_agent_type,
+      domain: candidate.domain,
+      flags: { human_review_required: Boolean(candidate.flags?.human_review_required) },
+    });
+  }
+
+  const merged = Array.from(dedupedByKey.values()).sort((a, b) => {
+    const tw = trackWeight(a.track) - trackWeight(b.track);
+    if (tw !== 0) return tw;
+    const domainCmp = String(a.domain).localeCompare(String(b.domain));
+    if (domainCmp !== 0) return domainCmp;
+    return a.title.localeCompare(b.title);
+  });
+
+  const reviewRequired = merged.some((c) => c.flags.human_review_required);
+  const contract = defaultWave1PromptContract();
+
+  const perspectivesDoc: PerspectivesV1Payload = {
+    schema_version: "perspectives.v1",
+    run_id: args.runId,
+    created_at: args.createdAt,
+    perspectives: merged.map((item, idx) => ({
+      id: `p${idx + 1}`,
+      title: item.title,
+      track: item.track,
+      agent_type: item.recommended_agent_type,
+      prompt_contract: contract,
+    })),
+  };
+
+  const mergeReport: PerspectivesDraftMergeReportV1 = {
+    schema_version: "perspectives-draft-merge-report.v1",
+    run_id: args.runId,
+    generated_from: sources.map((s) => s.fileName),
+    candidate_count_in: allCandidates.length,
+    candidate_count_out: merged.length,
+    review_required: reviewRequired,
+    dedupe_keys: Array.from(new Set(keys)).sort((a, b) => a.localeCompare(b)),
+  };
+
+  const draftDigest = stableDigest(perspectivesDoc);
+  return { perspectivesDoc, mergeReport, draftDigest, reviewRequired };
 }
 
 function buildDefaultPerspectivesPolicyArtifact(): PerspectivesPolicyArtifactV1 {
@@ -2941,7 +3105,7 @@ async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Promise<voi
     policy_path: policyWrite.policyPath,
     policy_digest: policyWrite.policyDigest,
   });
-  const stateArtifact: PerspectivesDraftStateArtifactV1 = {
+  let stateArtifact: PerspectivesDraftStateArtifactV1 = {
     schema_version: "perspectives-draft-state.v1",
     run_id: summary.runId,
     status: statusResolution.status,
@@ -2950,14 +3114,184 @@ async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Promise<voi
     draft_digest: null,
     promoted_digest: null,
   };
+
+  // If outputs are present+valid, deterministically merge and (optionally) promote.
+  if (statusResolution.status === "merging") {
+    const createdAt = String(runHandle.manifest.created_at ?? "").trim()
+      || String((asObject(runHandle.manifest.stage).started_at ?? "")).trim();
+    if (!createdAt) {
+      throwWithCode("PERSPECTIVES_CREATED_AT_MISSING", "manifest.created_at is missing; cannot promote perspectives deterministically");
+    }
+
+    const draftBuild = await buildPerspectivesDraftFromOutputs({
+      runId: summary.runId,
+      runRoot: summary.runRoot,
+      createdAt,
+    });
+
+    const draftPath = path.join(summary.runRoot, "operator", "drafts", "perspectives.draft.json");
+    const mergeReportPath = path.join(summary.runRoot, "operator", "drafts", "perspectives.merge-report.json");
+
+    stateArtifact = {
+      ...stateArtifact,
+      status: draftBuild.reviewRequired ? "awaiting_human_review" : "merging",
+      draft_digest: draftBuild.draftDigest,
+    };
+
+    await withRunLock({
+      runRoot: summary.runRoot,
+      reason: `operator-cli perspectives-draft merge: ${args.reason}`,
+      fn: async () => {
+        await writeJsonFileIfChanged(draftPath, draftBuild.perspectivesDoc as unknown as Record<string, unknown>);
+        await writeJsonFileIfChanged(mergeReportPath, draftBuild.mergeReport as unknown as Record<string, unknown>);
+        await writeJsonFileIfChanged(statePath, stateArtifact);
+      },
+    });
+
+    if (draftBuild.reviewRequired) {
+      const halt = await writeHaltArtifactForFailure({
+        runRoot: summary.runRoot,
+        runId: summary.runId,
+        stageCurrent: summary.stageCurrent,
+        manifestPath: runHandle.manifestPath,
+        gatesPath: summary.gatesPath,
+        reason: `operator-cli perspectives-draft: ${args.reason}`,
+        error: {
+          code: "HUMAN_REVIEW_REQUIRED",
+          message: "Perspectives draft requires human review before promotion",
+          details: {
+            stage: "perspectives",
+            status: "awaiting_human_review",
+            state_path: statePath,
+            policy_path: policyWrite.policyPath,
+            draft_path: draftPath,
+            merge_report_path: mergeReportPath,
+            draft_digest: draftBuild.draftDigest,
+          },
+        },
+        nextCommandsOverride: [
+          `${nextStepCliInvocation()} inspect --manifest "${runHandle.manifestPath}"`,
+          `# Edit draft then rerun perspectives-draft: ${draftPath}`,
+          `${nextStepCliInvocation()} perspectives-draft --manifest "${runHandle.manifestPath}" --reason "approve perspectives draft" --driver task`,
+        ],
+      });
+
+      if (args.json) {
+        emitJson({
+          ok: false,
+          command: "perspectives-draft",
+          driver: args.driver,
+          run_id: summary.runId,
+          run_root: summary.runRoot,
+          manifest_path: runHandle.manifestPath,
+          gates_path: summary.gatesPath,
+          stage_current: summary.stageCurrent,
+          status: summary.status,
+          error: {
+            code: "HUMAN_REVIEW_REQUIRED",
+            message: "Perspectives draft requires human review before promotion",
+            details: {
+              draft_path: draftPath,
+              merge_report_path: mergeReportPath,
+              state_path: statePath,
+              draft_digest: draftBuild.draftDigest,
+            },
+          },
+          state_path: statePath,
+          halt: {
+            tick_index: halt.tickIndex,
+            tick_path: halt.tickPath,
+            latest_path: halt.latestPath,
+          },
+        });
+        return;
+      }
+
+      printContract({
+        runId: summary.runId,
+        runRoot: summary.runRoot,
+        manifestPath: runHandle.manifestPath,
+        gatesPath: summary.gatesPath,
+        stageCurrent: summary.stageCurrent,
+        status: summary.status,
+      });
+      console.log("perspectives_draft.ok: false");
+      console.log("perspectives_draft.error.code: HUMAN_REVIEW_REQUIRED");
+      console.log(`perspectives_draft.draft_path: ${draftPath}`);
+      console.log(`perspectives_draft.merge_report_path: ${mergeReportPath}`);
+      await printHaltArtifactSummary(halt);
+      return;
+    }
+
+    // Auto-promote (deterministic created_at) and advance to wave1.
+    const perspectivesPath = path.join(summary.runRoot, "perspectives.json");
+    await callTool("perspectives_write", perspectives_write as unknown as ToolWithExecute, {
+      perspectives_path: perspectivesPath,
+      value: draftBuild.perspectivesDoc as unknown as Record<string, unknown>,
+      reason: `operator-cli perspectives-draft: promote perspectives (${args.reason})`,
+    });
+
+    const wave1Plan = await callTool("wave1_plan", wave1_plan as unknown as ToolWithExecute, {
+      manifest_path: runHandle.manifestPath,
+      reason: `operator-cli perspectives-draft: regenerate wave1 plan (${args.reason})`,
+    });
+
+    await callTool("stage_advance", stage_advance as unknown as ToolWithExecute, {
+      manifest_path: runHandle.manifestPath,
+      gates_path: summary.gatesPath,
+      requested_next: "wave1",
+      reason: `operator-cli perspectives-draft: enter wave1 (${args.reason})`,
+    });
+
+    stateArtifact = {
+      ...stateArtifact,
+      status: "promoted",
+      promoted_digest: stableDigest(draftBuild.perspectivesDoc),
+      draft_digest: draftBuild.draftDigest,
+    };
+    await writeJsonFileIfChanged(statePath, stateArtifact);
+
+    const manifestAfter = await readJsonObject(runHandle.manifestPath);
+    const afterSummary = await summarizeManifest(manifestAfter);
+    const wave1PlanPath = String(wave1Plan.plan_path ?? "").trim();
+
+    if (args.json) {
+      emitJson({
+        ok: true,
+        command: "perspectives-draft",
+        driver: args.driver,
+        run_id: afterSummary.runId,
+        run_root: afterSummary.runRoot,
+        manifest_path: runHandle.manifestPath,
+        gates_path: afterSummary.gatesPath,
+        stage_current: afterSummary.stageCurrent,
+        status: afterSummary.status,
+        perspectives_path: perspectivesPath,
+        wave1_plan_path: wave1PlanPath,
+        state_path: statePath,
+      });
+      return;
+    }
+
+    printContract({
+      runId: afterSummary.runId,
+      runRoot: afterSummary.runRoot,
+      manifestPath: runHandle.manifestPath,
+      gatesPath: afterSummary.gatesPath,
+      stageCurrent: afterSummary.stageCurrent,
+      status: afterSummary.status,
+    });
+    console.log("perspectives_draft.ok: true");
+    console.log(`perspectives_path: ${perspectivesPath}`);
+    if (wave1PlanPath) console.log(`wave1_plan_path: ${wave1PlanPath}`);
+    console.log(`perspectives_state_path: ${statePath}`);
+    return;
+  }
+
   await writeJsonFileIfChanged(statePath, stateArtifact);
 
-  const errorCode = statusResolution.status === "merging"
-    ? "PERSPECTIVES_MERGE_REQUIRED"
-    : "RUN_AGENT_REQUIRED";
-  const errorMessage = statusResolution.status === "merging"
-    ? "Perspectives outputs are ingested and validated; merge/promotion is required"
-    : "Perspectives drafting requires external agent results via task driver";
+  const errorCode = "RUN_AGENT_REQUIRED";
+  const errorMessage = "Perspectives drafting requires external agent results via task driver";
 
   const errorDetails: Record<string, unknown> = {
     stage: "perspectives",
@@ -2984,34 +3318,23 @@ async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Promise<voi
         },
       }
       : {}),
-    ...(statusResolution.status === "awaiting_agent_results"
-      ? {
-        missing_count: 1,
-        missing_perspectives: [
-          {
-            perspective_id: missingPerspective.perspectiveId,
-            prompt_path: missingPerspective.promptPath,
-            output_path: missingPerspective.outputPath,
-            meta_path: missingPerspective.metaPath,
-            prompt_digest: missingPerspective.promptDigest,
-          },
-        ],
-      }
-      : {
-        merge_required: true,
-      }),
+    missing_count: 1,
+    missing_perspectives: [
+      {
+        perspective_id: missingPerspective.perspectiveId,
+        prompt_path: missingPerspective.promptPath,
+        output_path: missingPerspective.outputPath,
+        meta_path: missingPerspective.metaPath,
+        prompt_digest: missingPerspective.promptDigest,
+      },
+    ],
   };
 
-  const nextCommands = statusResolution.status === "merging"
-    ? [
-      `${nextStepCliInvocation()} inspect --manifest "${runHandle.manifestPath}"`,
-      `${nextStepCliInvocation()} stage-advance --manifest "${runHandle.manifestPath}" --requested-next wave1 --reason "perspectives finalized after task-driver ingestion"`,
-    ]
-    : [
-      `${nextStepCliInvocation()} inspect --manifest "${runHandle.manifestPath}"`,
-      `${nextStepCliInvocation()} agent-result --manifest "${runHandle.manifestPath}" --stage perspectives --perspective "${missingPerspective.perspectiveId}" --input "${path.join(summary.runRoot, "operator", "outputs", "perspectives", `${missingPerspective.perspectiveId}.raw.json`)}" --agent-run-id "<AGENT_RUN_ID>" --reason "operator: ingest perspectives/${missingPerspective.perspectiveId}"`,
-      `${nextStepCliInvocation()} stage-advance --manifest "${runHandle.manifestPath}" --requested-next wave1 --reason "perspectives finalized (requires perspectives.json promotion)"`,
-    ];
+  const nextCommands = [
+    `${nextStepCliInvocation()} inspect --manifest "${runHandle.manifestPath}"`,
+    `${nextStepCliInvocation()} agent-result --manifest "${runHandle.manifestPath}" --stage perspectives --perspective "${missingPerspective.perspectiveId}" --input "${path.join(summary.runRoot, "operator", "outputs", "perspectives", `${missingPerspective.perspectiveId}.raw.json`)}" --agent-run-id "<AGENT_RUN_ID>" --reason "operator: ingest perspectives/${missingPerspective.perspectiveId}"`,
+    `${nextStepCliInvocation()} stage-advance --manifest "${runHandle.manifestPath}" --requested-next wave1 --reason "perspectives finalized (requires perspectives.json promotion)"`,
+  ];
 
   const halt = await writeHaltArtifactForFailure({
     runRoot: summary.runRoot,

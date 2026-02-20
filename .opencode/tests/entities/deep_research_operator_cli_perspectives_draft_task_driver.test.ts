@@ -37,18 +37,6 @@ function parseJsonStdout(stdout: string): Record<string, unknown> {
   return JSON.parse(trimmed) as Record<string, unknown>;
 }
 
-async function readJsonIfExists(filePath: string): Promise<Record<string, unknown> | null> {
-  try {
-    return JSON.parse(await fs.readFile(filePath, "utf8")) as Record<string, unknown>;
-  } catch (error) {
-    const code = error && typeof error === "object" && "code" in error
-      ? String((error as NodeJS.ErrnoException).code ?? "")
-      : "";
-    if (code === "ENOENT") return null;
-    throw error;
-  }
-}
-
 function sha256Hex(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
@@ -303,7 +291,7 @@ describe("deep_research operator CLI perspectives-draft task driver (entity)", (
     });
   });
 
-  test("perspectives-draft task flow covers state transitions and merge-required halt when outputs exist", async () => {
+  test("perspectives-draft task flow auto-promotes ingested output to wave1 (M6 happy path)", async () => {
     await withTempDir(async (base) => {
       const runId = "dr_test_cli_perspectives_draft_004";
       const initRes = await runCli([
@@ -367,7 +355,7 @@ describe("deep_research operator CLI perspectives-draft task driver (entity)", (
             recommended_agent_type: "researcher",
             domain: "technical",
             confidence: 82,
-            rationale: "Covers state transition + merge-halt expectations.",
+            rationale: "Covers M6 auto-promotion from ingested draft output.",
             platform_requirements: [
               { name: "none", reason: "No external platform hard requirement for this candidate." },
             ],
@@ -415,29 +403,34 @@ describe("deep_research operator CLI perspectives-draft task driver (entity)", (
         "--manifest",
         manifestPath,
         "--reason",
-        "test perspectives draft halt after output",
+        "test perspectives draft auto-promote after output",
         "--driver",
         "task",
-        "--json",
       ]);
       expect(secondDraftRes.exit).toBe(0);
+      expect(`${secondDraftRes.stdout}\n${secondDraftRes.stderr}`).not.toContain("RUN_AGENT_REQUIRED");
 
-      const secondDraftPayload = parseJsonStdout(secondDraftRes.stdout);
-      const secondDraftError = (secondDraftPayload.error ?? {}) as Record<string, unknown>;
-      const secondCodeFromPayload = String(secondDraftError.code ?? "");
+      const perspectivesPath = path.join(runRoot, "perspectives.json");
+      const perspectivesDoc = JSON.parse(await fs.readFile(perspectivesPath, "utf8")) as Record<string, unknown>;
+      expect(String(perspectivesDoc.schema_version ?? "")).toBe("perspectives.v1");
+      expect(String(perspectivesDoc.run_id ?? "")).toBe(runId);
+      const perspectives = Array.isArray(perspectivesDoc.perspectives)
+        ? perspectivesDoc.perspectives as Array<Record<string, unknown>>
+        : [];
+      expect(perspectives.length).toBeGreaterThan(0);
+      expect(String(perspectives[0]?.id ?? "").length).toBeGreaterThan(0);
 
-      const haltLatestPath = path.join(runRoot, "operator", "halt", "latest.json");
-      const haltLatest = await readJsonIfExists(haltLatestPath);
-      const haltLatestError = (haltLatest?.error ?? {}) as Record<string, unknown>;
-      const secondCode = secondCodeFromPayload || String(haltLatestError.code ?? "");
+      await fs.stat(path.join(runRoot, "wave-1", "wave1-plan.json"));
 
-      expect(secondCode.length).toBeGreaterThan(0);
+      const manifestAfter = JSON.parse(await fs.readFile(manifestPath, "utf8")) as {
+        stage?: Record<string, unknown>;
+      };
+      expect(String(manifestAfter.stage?.current ?? "")).toBe("wave1");
 
       const stateAfterSecondDraft = JSON.parse(await fs.readFile(perspectivesStatePath, "utf8")) as Record<string, unknown>;
       expect(String(stateAfterSecondDraft.schema_version ?? "")).toBe("perspectives-draft-state.v1");
-      expect(String(stateAfterSecondDraft.status ?? "")).toBe("merging");
+      expect(String(stateAfterSecondDraft.status ?? "")).toBe("promoted");
       expect(String(stateAfterSecondDraft.policy_path ?? "")).toBe(policyPath);
-      expect(secondCode).not.toBe("RUN_AGENT_REQUIRED");
     });
   });
 
