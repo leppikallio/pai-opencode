@@ -63,8 +63,8 @@ bun ".opencode/pai-tools/deep-research-option-c.ts" perspectives-draft \
 
 4) Create a JSON output file matching **exactly** `perspectives-draft-output.v1`:
 
-- Prompt: `operator/prompts/perspectives/primary.md`
-- Write agent output JSON to: `operator/outputs/perspectives/primary.raw.json`
+- Prompt: `<run_root>/operator/prompts/perspectives/primary.md`
+- Write agent output JSON to: `<run_root>/operator/outputs/perspectives/primary.raw.json`
 
 5) Ingest the JSON output:
 
@@ -93,9 +93,9 @@ bun ".opencode/pai-tools/deep-research-option-c.ts" perspectives-draft \
 
 ### New/important artifacts
 
-- `operator/state/perspectives-state.json`
-- `operator/config/perspectives-policy.json`
-- `operator/drafts/perspectives.draft.json`
+- `<run_root>/operator/state/perspectives-state.json`
+- `<run_root>/operator/config/perspectives-policy.json`
+- `<run_root>/operator/drafts/perspectives.draft.json`
 
 ### Staleness guard (Wave 1)
 

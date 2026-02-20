@@ -444,8 +444,8 @@ Status values: `TODO | IN_PROGRESS | BLOCKED | DONE`
 | M7 | Mechanical staleness: `perspectives_digest` in wave1-plan + fail-fast mismatch | DONE | Eng | (uncommitted) 2026-02-20; WAVE1_PLAN_STALE enforced; bun test entities: 178 pass/1 skip/0 fail |
 | M8 | Wave1 prompts include platform + tool policy blocks | DONE | Eng | (uncommitted) 2026-02-20; deep_research_wave1_plan.test.ts asserts blocks; bun test entities: 179 pass/1 skip/0 fail |
 | M9 | Skill UX: update deep-research SKILL.md + workflows | DONE | Writer/Eng | 2026-02-20; updated SKILL + workflows; link check: Workflows/*.md exists; bun test entities: 179 pass/1 skip/0 fail |
-| G-ARCH | Architect PASS (implementation) | TODO | Architect | review report |
-| G-QA | QA PASS (tests + runtime install + runtime smoke) | TODO | QA | test outputs + install output |
+| G-ARCH | Architect PASS (implementation) | DONE | Architect | 2026-02-20; perspectives meta schema fixed + perspectives stage timeout raised; see `.opencode/pai-tools/deep-research-option-c.ts:4516` + `.opencode/tools/deep_research/lifecycle_lib.ts:320-323` |
+| G-QA | QA PASS (tests + runtime install + runtime smoke) | DONE | QA | 2026-02-20; install ok to `/tmp/pai-opencode-runtime-smoke-qa-20260220c` (ScanBrokenRefs ok) + smoke init/stage-advance/perspectives-draft shows RUN_AGENT_REQUIRED |
 
 ## 14) UX / Skill workflow requirements (REQUIRED for end-to-end usability)
 

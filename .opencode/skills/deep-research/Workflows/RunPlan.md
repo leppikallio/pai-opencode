@@ -16,7 +16,7 @@ bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" --mode standa
 ```
 
 > This workflow assumes you **do not** pass `--no-perspectives`.
-> If you want the perspectives drafting seam (`perspectives-draft`), use `init --no-perspectives` and follow `Workflows/DraftPerspectivesFromQuery.md`.
+> If you want the perspectives drafting seam (`perspectives-draft`), use `init --no-perspectives` and follow `DraftPerspectivesFromQuery.md`.
 
 2. Confirm required artifacts using the printed contract fields:
    - `manifest_path`
