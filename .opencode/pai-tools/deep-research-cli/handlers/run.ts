@@ -15,16 +15,17 @@ import {
   resultErrorDetails,
   toolErrorDetails,
 } from "../cli/errors";
+import { emitJsonV1 } from "../cli/json-contract";
 import {
   beginTickObservability,
   finalizeTickObservability,
 } from "../observability/tick-observability";
+import { resolveDeepResearchCliInvocation } from "../utils/cli-invocation";
 import {
   callTool,
   type ToolEnvelope,
   type ToolWithExecute,
 } from "../tooling/tool-envelope";
-import { emitJson } from "../cli/json-mode";
 import { createOperatorInputDriver } from "../drivers/operator-input-driver";
 import {
   runOneOrchestratorTick,
@@ -47,10 +48,6 @@ export type RunCliArgs = RunHandleCliArgs & {
   json?: boolean;
 };
 
-function nextStepCliInvocation(): string {
-  return `bun "pai-tools/${["deep-research-cli", "ts"].join(".")}"`;
-}
-
 function ensureOptionCEnabledForCli(): void {
   const flags = resolveDeepResearchCliFlagsV1();
   if (!flags.cliEnabled) {
@@ -66,16 +63,27 @@ export async function runRun(args: RunCliArgs): Promise<void> {
 
   const liveDriver = args.driver === "live" ? createOperatorInputDriver() : null;
 
-  const emitRunJson = (summary: ManifestSummary, payload: Record<string, unknown>): void => {
-    emitJson({
+  const emitRunJson = (summary: ManifestSummary, payload: {
+    ok: boolean;
+    result?: Record<string, unknown> | null;
+    error?: Record<string, unknown> | null;
+    halt?: Record<string, unknown> | null;
+  }): void => {
+    emitJsonV1({
+      ok: payload.ok,
       command: "run",
-      run_id: summary.runId,
-      run_root: summary.runRoot,
-      manifest_path: runHandle.manifestPath,
-      gates_path: summary.gatesPath,
-      stage_current: summary.stageCurrent,
-      status: summary.status,
-      ...payload,
+      contract: {
+        run_id: summary.runId,
+        run_root: summary.runRoot,
+        manifest_path: runHandle.manifestPath,
+        gates_path: summary.gatesPath,
+        stage_current: summary.stageCurrent,
+        status: summary.status,
+        cli_invocation: resolveDeepResearchCliInvocation(),
+      },
+      result: payload.result ?? null,
+      error: payload.error ?? null,
+      halt: payload.halt ?? null,
     });
   };
 
@@ -98,8 +106,10 @@ export async function runRun(args: RunCliArgs): Promise<void> {
           error: {
             code: "WATCHDOG_TIMEOUT",
             message: "stage timed out before tick execution",
+            details: {
+              checkpoint_path: String(pre.checkpoint_path ?? ""),
+            },
           },
-          checkpoint_path: String(pre.checkpoint_path ?? ""),
         });
       } else {
         log("run.ok: false");
@@ -115,7 +125,12 @@ export async function runRun(args: RunCliArgs): Promise<void> {
 
     if (summary.status === "completed" || summary.status === "failed" || summary.status === "cancelled") {
       if (args.json) {
-        emitRunJson(summary, { ok: true, terminal: true });
+        emitRunJson(summary, {
+          ok: true,
+          result: {
+            terminal: true,
+          },
+        });
       } else {
         log("run.ok: true");
         printContract({
@@ -132,7 +147,12 @@ export async function runRun(args: RunCliArgs): Promise<void> {
 
     if (args.until && summary.stageCurrent === args.until) {
       if (args.json) {
-        emitRunJson(summary, { ok: true, until_reached: args.until });
+        emitRunJson(summary, {
+          ok: true,
+          result: {
+            until_reached: args.until,
+          },
+        });
       } else {
         log("run.ok: true");
         log(`run.until_reached: ${args.until}`);
@@ -155,6 +175,7 @@ export async function runRun(args: RunCliArgs): Promise<void> {
           error: {
             code: "PAUSED",
             message: "run is paused; resume first",
+            details: {},
           },
         });
       } else {
@@ -215,7 +236,12 @@ export async function runRun(args: RunCliArgs): Promise<void> {
         const current = await readJsonObject(runHandle.manifestPath);
         const currentSummary = await summarizeManifest(current);
         if (args.json) {
-          emitRunJson(currentSummary, { ok: true, cancelled: true });
+          emitRunJson(currentSummary, {
+            ok: true,
+            result: {
+              cancelled: true,
+            },
+          });
         } else {
           log("run.ok: true");
           printContract({
@@ -234,7 +260,7 @@ export async function runRun(args: RunCliArgs): Promise<void> {
         code: "UNKNOWN",
         message: "tick failed",
       };
-      const haltArtifact = await handleTickFailureArtifacts({
+        const haltArtifact = await handleTickFailureArtifacts({
         runRoot: context.runRoot,
         runId: context.runId,
         stageCurrent: context.stageBefore,
@@ -243,26 +269,28 @@ export async function runRun(args: RunCliArgs): Promise<void> {
         reason: `operator-cli run tick_${i} failure: ${args.reason}`,
         error: tickError,
         triageReason: `operator-cli run auto-triage: ${args.reason}`,
-        nextStepCliInvocation,
-        emitLogs: !args.json,
-      });
+          nextStepCliInvocation: resolveDeepResearchCliInvocation,
+          emitLogs: !args.json,
+        });
 
       const currentSummary = await summarizeManifest(await readJsonObject(runHandle.manifestPath));
-      if (args.json) {
-        emitRunJson(currentSummary, {
-          ok: false,
-          error: {
-            code: result.error.code,
-            message: result.error.message,
-            details: result.error.details ?? {},
-          },
-          halt: {
-            tick_index: haltArtifact.tickIndex,
-            tick_path: haltArtifact.tickPath,
-            latest_path: haltArtifact.latestPath,
-            blockers_summary: haltArtifact.triage ? blockersSummaryJson(haltArtifact.triage) : null,
-          },
-        });
+        if (args.json) {
+          emitRunJson(currentSummary, {
+            ok: false,
+            result: null,
+            error: {
+              code: result.error.code,
+              message: result.error.message,
+              details: result.error.details ?? {},
+            },
+            halt: {
+              tick_index: haltArtifact.tickIndex,
+              tick_path: haltArtifact.tickPath,
+              latest_path: haltArtifact.latestPath,
+              next_commands: haltArtifact.nextCommands,
+              blockers_summary: haltArtifact.triage ? blockersSummaryJson(haltArtifact.triage) : null,
+            },
+          });
       } else {
         log("run.ok: false");
         log(`run.error.code: ${result.error.code}`);
@@ -290,8 +318,10 @@ export async function runRun(args: RunCliArgs): Promise<void> {
           error: {
             code: "WATCHDOG_TIMEOUT",
             message: "stage timed out after tick execution",
+            details: {
+              checkpoint_path: String(post.checkpoint_path ?? ""),
+            },
           },
-          checkpoint_path: String(post.checkpoint_path ?? ""),
         });
       } else {
         log("run.ok: false");
@@ -306,7 +336,13 @@ export async function runRun(args: RunCliArgs): Promise<void> {
     const afterSummary = await summarizeManifest(after);
     if (afterSummary.status === "completed" || afterSummary.status === "failed" || afterSummary.status === "cancelled") {
       if (args.json) {
-        emitRunJson(afterSummary, { ok: true, terminal: true, ticks_executed: i });
+        emitRunJson(afterSummary, {
+          ok: true,
+          result: {
+            terminal: true,
+            ticks_executed: i,
+          },
+        });
       } else {
         log("run.ok: true");
         printContract({
@@ -323,7 +359,13 @@ export async function runRun(args: RunCliArgs): Promise<void> {
 
     if (args.until && afterSummary.stageCurrent === args.until) {
       if (args.json) {
-        emitRunJson(afterSummary, { ok: true, until_reached: args.until, ticks_executed: i });
+        emitRunJson(afterSummary, {
+          ok: true,
+          result: {
+            until_reached: args.until,
+            ticks_executed: i,
+          },
+        });
       } else {
         log("run.ok: true");
         log(`run.until_reached: ${args.until}`);
@@ -341,7 +383,16 @@ export async function runRun(args: RunCliArgs): Promise<void> {
 
     if (String(result.to ?? "") === String(result.from ?? "")) {
       if (args.json) {
-        emitRunJson(afterSummary, { ok: false, note: "stage did not advance", ticks_executed: i });
+        emitRunJson(afterSummary, {
+          ok: false,
+          error: {
+            code: "STAGE_DID_NOT_ADVANCE",
+            message: "stage did not advance",
+            details: {
+              ticks_executed: i,
+            },
+          },
+        });
       } else {
         log("run.note: stage did not advance");
       }
@@ -356,6 +407,7 @@ export async function runRun(args: RunCliArgs): Promise<void> {
       error: {
         code: "TICK_CAP_EXCEEDED",
         message: "max ticks reached before completion",
+        details: {},
       },
     });
     return;
