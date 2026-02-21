@@ -49,15 +49,15 @@ export function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
 
   // Optional: read from integration-layer settings.json (if present).
   // Shape is intentionally flexible for now:
-  // - settings.deepResearch.flags.*
-  // - settings.pai.deepResearch.flags.*
+  // - settings.deepResearchCli.flags.*
+  // - settings.pai.deepResearchCli.flags.*
   const settings = readSettingsJson(integrationRootFromToolFile());
   const flagsFromSettings = (() => {
     if (!settings) return null;
 
-    const direct = getObjectProp(settings, "deepResearch");
+    const direct = getObjectProp(settings, "deepResearchCli");
     const pai = getObjectProp(settings, "pai");
-    const nested = pai ? getObjectProp(pai, "deepResearch") : null;
+    const nested = pai ? getObjectProp(pai, "deepResearchCli") : null;
     const candidate = direct ?? nested;
     if (!candidate) return null;
     return getObjectProp(candidate, "flags");

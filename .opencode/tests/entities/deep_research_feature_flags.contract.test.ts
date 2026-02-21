@@ -58,12 +58,12 @@ async function withDeterministicFlagsSettings<T>(
   const original = JSON.parse(originalRaw) as Record<string, unknown>;
   const next = { ...original } as Record<string, unknown>;
 
-  const deepResearch = typeof next.deepResearch === "object" && next.deepResearch && !Array.isArray(next.deepResearch)
-    ? { ...(next.deepResearch as Record<string, unknown>) }
+  const deepResearchCli = typeof next.deepResearchCli === "object" && next.deepResearchCli && !Array.isArray(next.deepResearchCli)
+    ? { ...(next.deepResearchCli as Record<string, unknown>) }
     : {};
 
-  deepResearch.flags = deterministicFlagSettings(overrides);
-  next.deepResearch = deepResearch;
+  deepResearchCli.flags = deterministicFlagSettings(overrides);
+  next.deepResearchCli = deepResearchCli;
 
   await fs.writeFile(SETTINGS_PATH, `${JSON.stringify(next, null, 2)}\n`, "utf8");
   try {

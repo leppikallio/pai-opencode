@@ -145,9 +145,9 @@ export function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
   const flagsFromSettings = (() => {
     if (!settings) return null;
 
-    const direct = getObjectProp(settings, "deepResearch");
+    const direct = getObjectProp(settings, "deepResearchCli");
     const pai = getObjectProp(settings, "pai");
-    const nested = pai ? getObjectProp(pai, "deepResearch") : null;
+    const nested = pai ? getObjectProp(pai, "deepResearchCli") : null;
     const candidate = direct ?? nested;
     if (!candidate) return null;
     return getObjectProp(candidate, "flags");
