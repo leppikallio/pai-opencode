@@ -1,10 +1,11 @@
 import { stage_advance } from "../../../tools/deep_research_cli.ts";
 import { resolveDeepResearchCliFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
-import { emitJson } from "../cli/json-mode";
+import { emitJsonV1 } from "../cli/json-contract";
 import {
   asObject,
   readJsonObject,
 } from "../utils/io-json";
+import { resolveDeepResearchCliInvocation } from "../utils/cli-invocation";
 import {
   printContract,
   resolveRunHandle,
@@ -49,19 +50,26 @@ export async function runStageAdvance(args: RunStageAdvanceArgs): Promise<void> 
   const summary = await summarizeManifest(manifest);
 
   if (args.json) {
-    emitJson({
+    emitJsonV1({
       ok: true,
       command: "stage-advance",
-      run_id: summary.runId,
-      run_root: summary.runRoot,
-      manifest_path: runHandle.manifestPath,
-      gates_path: summary.gatesPath,
-      stage_current: summary.stageCurrent,
-      status: summary.status,
-      from: String(stageAdvance.from ?? ""),
-      to: String(stageAdvance.to ?? ""),
-      manifest_revision: Number(stageAdvance.manifest_revision ?? Number.NaN),
-      decision_inputs_digest: String((asObject(stageAdvance.decision).inputs_digest ?? "")),
+      contract: {
+        run_id: summary.runId,
+        run_root: summary.runRoot,
+        manifest_path: runHandle.manifestPath,
+        gates_path: summary.gatesPath,
+        stage_current: summary.stageCurrent,
+        status: summary.status,
+        cli_invocation: resolveDeepResearchCliInvocation(),
+      },
+      result: {
+        from: String(stageAdvance.from ?? ""),
+        to: String(stageAdvance.to ?? ""),
+        manifest_revision: Number(stageAdvance.manifest_revision ?? Number.NaN),
+        decision_inputs_digest: String((asObject(stageAdvance.decision).inputs_digest ?? "")),
+      },
+      error: null,
+      halt: null,
     });
     return;
   }

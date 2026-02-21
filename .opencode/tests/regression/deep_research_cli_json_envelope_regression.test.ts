@@ -196,6 +196,52 @@ describe("deep_research cli --json dr.cli.v1 envelope (regression)", () => {
     });
   });
 
+  test("stage-advance --json emits dr.cli.v1 envelope with contract/result/error/halt keys", async () => {
+    await withTempDir(async (base) => {
+      const runId = "dr_test_cli_json_envelope_stage_advance_001";
+      const initPayload = expectSingleJsonStdout(await runCli([
+        "init",
+        "Q",
+        "--run-id",
+        runId,
+        "--runs-root",
+        base,
+        "--no-perspectives",
+        "--json",
+      ]), 0);
+
+      const manifestPath = manifestPathFromInitEnvelope(initPayload);
+
+      const stageAdvancePayload = expectSingleJsonStdout(await runCli([
+        "stage-advance",
+        "--manifest",
+        manifestPath,
+        "--requested-next",
+        "perspectives",
+        "--reason",
+        "stage advance json envelope regression",
+        "--json",
+      ]), 0);
+
+      expect(stageAdvancePayload.schema_version).toBe("dr.cli.v1");
+      expect(stageAdvancePayload.ok).toBe(true);
+      expect(stageAdvancePayload.command).toBe("stage-advance");
+
+      const contract = expectContract(stageAdvancePayload.contract);
+      expect(contract.run_id).toBe(runId);
+      expect(contract.manifest_path).toBe(manifestPath);
+      expect(contract.stage_current).toBe("perspectives");
+
+      const result = stageAdvancePayload.result as Record<string, unknown>;
+      expect(result.from).toBe("init");
+      expect(result.to).toBe("perspectives");
+      expect(typeof result.manifest_revision).toBe("number");
+      expect(typeof result.decision_inputs_digest).toBe("string");
+      expect(stageAdvancePayload.error).toBeNull();
+      expect(stageAdvancePayload.halt).toBeNull();
+    });
+  });
+
   test("pause --json emits dr.cli.v1 envelope with contract/result/error/halt keys", async () => {
     await withTempDir(async (base) => {
       const runId = "dr_test_cli_json_envelope_pause_001";
