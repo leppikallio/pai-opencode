@@ -250,6 +250,14 @@ export async function atomicWriteJson(filePath: string, value: unknown): Promise
   await fs.promises.rename(tmp, filePath);
 }
 
+export async function atomicWriteUtf8(filePath: string, content: string): Promise<void> {
+  const dir = path.dirname(filePath);
+  await ensureDir(dir);
+  const tmp = `${filePath}.tmp.${process.pid}.${Date.now()}`;
+  await fs.promises.writeFile(tmp, content, "utf8");
+  await fs.promises.rename(tmp, filePath);
+}
+
 export async function readJson(filePath: string): Promise<unknown> {
   const raw = await fs.promises.readFile(filePath, "utf8");
   return JSON.parse(raw);
