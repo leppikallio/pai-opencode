@@ -232,6 +232,54 @@ describe("deep_research cli --json dr.cli.v1 envelope (regression)", () => {
     });
   });
 
+  test("resume --json emits dr.cli.v1 envelope with contract/result/error/halt keys", async () => {
+    await withTempDir(async (base) => {
+      const runId = "dr_test_cli_json_envelope_resume_001";
+      const initPayload = expectSingleJsonStdout(await runCli([
+        "init",
+        "Q",
+        "--run-id",
+        runId,
+        "--runs-root",
+        base,
+        "--json",
+      ]), 0);
+
+      const manifestPath = manifestPathFromInitEnvelope(initPayload);
+
+      expectSingleJsonStdout(await runCli([
+        "pause",
+        "--manifest",
+        manifestPath,
+        "--reason",
+        "resume json envelope pre-pause",
+        "--json",
+      ]), 0);
+
+      const resumePayload = expectSingleJsonStdout(await runCli([
+        "resume",
+        "--manifest",
+        manifestPath,
+        "--reason",
+        "resume json envelope regression",
+        "--json",
+      ]), 0);
+
+      expect(resumePayload.schema_version).toBe("dr.cli.v1");
+      expect(resumePayload.ok).toBe(true);
+      expect(resumePayload.command).toBe("resume");
+
+      const contract = expectContract(resumePayload.contract);
+      expect(contract.run_id).toBe(runId);
+      expect(contract.manifest_path).toBe(manifestPath);
+
+      const result = resumePayload.result as Record<string, unknown>;
+      expect(typeof result.checkpoint_path).toBe("string");
+      expect(resumePayload.error).toBeNull();
+      expect(resumePayload.halt).toBeNull();
+    });
+  });
+
   test("status --json emits dr.cli.v1 envelope with contract/result/error/halt keys", async () => {
     await withTempDir(async (base) => {
       const runId = "dr_test_cli_json_envelope_status_001";
