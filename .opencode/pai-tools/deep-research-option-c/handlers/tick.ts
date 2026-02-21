@@ -15,19 +15,19 @@ import {
 import { emitJson } from "../cli/json-mode";
 import {
   isSafeSegment,
-} from "../lib/paths";
+} from "../utils/paths";
 import {
   asObject,
   readJsonObject,
-} from "../lib/io-json";
+} from "../utils/io-json";
 import {
   fileExists,
-} from "../lib/fs-utils";
+} from "../utils/fs-utils";
 import {
   printContract,
   resolveRunHandle,
   summarizeManifest,
-} from "../lib/run-handle";
+} from "../utils/run-handle";
 import {
   resultErrorDetails,
   throwWithCodeAndDetails,
@@ -40,12 +40,12 @@ import {
 import {
   normalizePromptDigest,
   promptDigestFromPromptMarkdown,
-} from "../lib/digest";
+} from "../utils/digest";
 import { type TaskDriverMissingPerspective } from "../perspectives/state";
 import {
   callTool,
   type ToolWithExecute,
-} from "../runtime/tool-envelope";
+} from "../tooling/tool-envelope";
 import { createOperatorInputDriver } from "../drivers/operator-input-driver";
 import {
   runOneOrchestratorTick,

@@ -2,7 +2,7 @@ import { emitJson } from "./json-mode";
 import {
   contractJson,
   type ManifestSummary,
-} from "../lib/run-handle";
+} from "../utils/run-handle";
 
 export function emitContractCommandJson(args: {
   command: "status" | "inspect" | "triage";

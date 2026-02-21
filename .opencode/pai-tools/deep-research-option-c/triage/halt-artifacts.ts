@@ -4,10 +4,10 @@ import * as path from "node:path";
 import {
   asObject,
   readJsonObject,
-} from "../lib/io-json";
+} from "../utils/io-json";
 import {
   safeResolveManifestPath,
-} from "../lib/paths";
+} from "../utils/paths";
 import {
   computeTriageBlockers,
   printBlockersSummary,

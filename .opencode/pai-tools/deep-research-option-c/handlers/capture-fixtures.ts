@@ -3,17 +3,17 @@ import * as path from "node:path";
 import { fixture_bundle_capture } from "../../../tools/deep_research.ts";
 import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research/lifecycle_lib";
 import { emitJson } from "../cli/json-mode";
-import { readJsonObject } from "../lib/io-json";
-import { requireAbsolutePath } from "../lib/paths";
+import { readJsonObject } from "../utils/io-json";
+import { requireAbsolutePath } from "../utils/paths";
 import {
   printContract,
   summarizeManifest,
-} from "../lib/run-handle";
-import { nowIso } from "../lib/time";
+} from "../utils/run-handle";
+import { nowIso } from "../utils/time";
 import {
   callTool,
   type ToolWithExecute,
-} from "../runtime/tool-envelope";
+} from "../tooling/tool-envelope";
 
 export type CaptureFixturesCliArgs = {
   manifest: string;

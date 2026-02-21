@@ -11,25 +11,25 @@ import {
 import {
   asObject,
   readJsonObject,
-} from "../lib/io-json";
-import { fileExists } from "../lib/fs-utils";
+} from "../utils/io-json";
+import { fileExists } from "../utils/fs-utils";
 import {
   assertWithinRoot,
   isSafeSegment,
   normalizeOptional,
   requireAbsolutePath,
-} from "../lib/paths";
+} from "../utils/paths";
 import {
   printContract,
   resolvePerspectivesPathFromManifest,
   summarizeManifest,
   withRunLock,
-} from "../lib/run-handle";
-import { nowIso } from "../lib/time";
+} from "../utils/run-handle";
+import { nowIso } from "../utils/time";
 import {
   normalizePromptDigest,
   promptDigestFromPromptMarkdown,
-} from "../lib/digest";
+} from "../utils/digest";
 import { normalizePerspectivesDraftOutputV1 } from "../perspectives/schema";
 
 export type AgentResultCliArgs = {

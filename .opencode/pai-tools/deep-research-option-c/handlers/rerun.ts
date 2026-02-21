@@ -2,17 +2,17 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research/lifecycle_lib";
-import { readJsonObject } from "../lib/io-json";
+import { readJsonObject } from "../utils/io-json";
 import {
   requireAbsolutePath,
   safeResolveManifestPath,
-} from "../lib/paths";
+} from "../utils/paths";
 import {
   printContract,
   summarizeManifest,
   withRunLock,
-} from "../lib/run-handle";
-import { nowIso } from "../lib/time";
+} from "../utils/run-handle";
+import { nowIso } from "../utils/time";
 
 export type RerunWave1CliArgs = {
   manifest: string;

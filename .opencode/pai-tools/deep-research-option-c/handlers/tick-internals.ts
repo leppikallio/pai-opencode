@@ -11,9 +11,9 @@ import {
   type OrchestratorTickPostSummariesResult,
 } from "../../../tools/deep_research.ts";
 import { defaultFixtureDriver } from "../drivers/fixture-driver";
-import { readJsonObject } from "../lib/io-json";
-import { summarizeManifest } from "../lib/run-handle";
-import { makeToolContext } from "../runtime/tool-context";
+import { readJsonObject } from "../utils/io-json";
+import { summarizeManifest } from "../utils/run-handle";
+import { makeToolContext } from "../tooling/tool-context";
 
 export type TickDriver = "fixture" | "live" | "task";
 

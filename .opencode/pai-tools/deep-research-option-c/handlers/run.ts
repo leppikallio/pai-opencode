@@ -4,13 +4,13 @@ import {
 import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research/lifecycle_lib";
 import { blockersSummaryJson } from "../triage/blockers";
 import { handleTickFailureArtifacts } from "../triage/halt-artifacts";
-import { readJsonObject } from "../lib/io-json";
+import { readJsonObject } from "../utils/io-json";
 import {
   printContract,
   resolveRunHandle,
   summarizeManifest,
   type ManifestSummary,
-} from "../lib/run-handle";
+} from "../utils/run-handle";
 import {
   resultErrorDetails,
   toolErrorDetails,
@@ -23,7 +23,7 @@ import {
   callTool,
   type ToolEnvelope,
   type ToolWithExecute,
-} from "../runtime/tool-envelope";
+} from "../tooling/tool-envelope";
 import { emitJson } from "../cli/json-mode";
 import { createOperatorInputDriver } from "../drivers/operator-input-driver";
 import {

@@ -6,13 +6,13 @@ import { stage_advance } from "../../../tools/deep_research.ts";
 import {
   asObject,
   readJsonObject,
-} from "../lib/io-json";
-import { makeToolContext } from "../runtime/tool-context";
+} from "../utils/io-json";
+import { makeToolContext } from "../tooling/tool-context";
 import {
   parseToolEnvelope,
   type ToolEnvelope,
   type ToolWithExecute,
-} from "../runtime/tool-envelope";
+} from "../tooling/tool-envelope";
 
 export type TriageBlockers = {
   from: string;

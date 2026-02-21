@@ -15,19 +15,19 @@ import { throwWithCode } from "../cli/errors";
 import {
   asObject,
   readJsonObject,
-} from "../lib/io-json";
-import { fileExists } from "../lib/fs-utils";
+} from "../utils/io-json";
+import { fileExists } from "../utils/fs-utils";
 import {
   printContract,
   resolveRunHandle,
   summarizeManifest,
   withRunLock,
-} from "../lib/run-handle";
+} from "../utils/run-handle";
 import {
   stableDigest,
   promptDigestFromPromptMarkdown,
   normalizePromptDigest,
-} from "../lib/digest";
+} from "../utils/digest";
 import { writeDefaultPerspectivesPolicy } from "../perspectives/policy";
 import { buildPerspectivesDraftPromptMarkdown } from "../perspectives/prompt";
 import { normalizePerspectivesDraftOutputV1 } from "../perspectives/schema";
@@ -45,7 +45,7 @@ import {
 import {
   callTool,
   type ToolWithExecute,
-} from "../runtime/tool-envelope";
+} from "../tooling/tool-envelope";
 
 export type PerspectivesDraftCliArgs = {
   manifest: string;
