@@ -28,6 +28,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" <command> [flags]
 
 ```bash
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" <command> [flags]
 ```
 
@@ -41,6 +42,7 @@ bun "pai-tools/deep-research-cli.ts" <command> [flags]
 bun ".opencode/pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" --reason "wave1 task tick" --driver task
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" --reason "wave1 task tick" --driver task
 ```
 
@@ -60,6 +62,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" agent-result \
   [--started-at "<iso>"] [--finished-at "<iso>"] [--model "<model>"]
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" agent-result \
   --manifest "<manifest_abs>" \
   --stage wave1 \
@@ -80,6 +83,7 @@ bun "pai-tools/deep-research-cli.ts" agent-result \
 bun ".opencode/pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" --reason "wave1 resume" --driver task
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" --reason "wave1 resume" --driver task
 ```
 

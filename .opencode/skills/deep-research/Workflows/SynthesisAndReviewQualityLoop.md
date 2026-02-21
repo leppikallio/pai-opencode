@@ -35,6 +35,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" run \
   --json
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" run \
   --manifest "<manifest_abs>" \
   --gates "<gates_abs>" \
@@ -56,6 +57,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" tick \
   --json
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" tick \
   --manifest "<manifest_abs>" \
   --reason "phase05 loop tick" \
@@ -68,6 +70,7 @@ bun "pai-tools/deep-research-cli.ts" tick \
 bun ".opencode/pai-tools/deep-research-cli.ts" triage --manifest "<manifest_abs>"
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" triage --manifest "<manifest_abs>"
 ```
 

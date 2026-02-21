@@ -28,6 +28,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" <command> [...flags]
 ### Runtime install (`~/.config/opencode`)
 
 ```bash
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" <command> [...flags]
 ```
 

@@ -18,6 +18,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" <command> [flags]
 
 ```bash
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" <command> [flags]
 ```
 
@@ -62,6 +63,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
   --no-perspectives
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
@@ -78,6 +80,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" stage-advance \
   --reason "enter perspectives drafting"
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" stage-advance \
   --manifest "<manifest_abs>" \
   --gates "<gates_abs>" \
@@ -94,6 +97,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
   --driver task
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" perspectives-draft \
   --manifest "<manifest_abs>" \
   --reason "draft perspectives" \
@@ -119,6 +123,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" agent-result \
   --reason "operator: ingest perspectives/primary"
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" agent-result \
   --manifest "<manifest_abs>" \
   --stage perspectives \
@@ -143,6 +148,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
   --driver task
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" perspectives-draft \
   --manifest "<manifest_abs>" \
   --reason "approve perspectives draft" \

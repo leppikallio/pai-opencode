@@ -16,6 +16,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" <command> [flags]
 
 ```bash
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" <command> [flags]
 ```
 
@@ -27,6 +28,7 @@ bun "pai-tools/deep-research-cli.ts" <command> [flags]
 bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --sensitivity no_web --mode standard
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" init "<query>" --sensitivity no_web --mode standard
 ```
 
@@ -36,6 +38,7 @@ bun "pai-tools/deep-research-cli.ts" init "<query>" --sensitivity no_web --mode 
 bun ".opencode/pai-tools/deep-research-cli.ts" run --manifest "<manifest_abs>" --gates "<gates_abs>" --reason "fixture finalize" --driver fixture --max-ticks 30
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" run --manifest "<manifest_abs>" --gates "<gates_abs>" --reason "fixture finalize" --driver fixture --max-ticks 30
 ```
 
@@ -45,6 +48,7 @@ bun "pai-tools/deep-research-cli.ts" run --manifest "<manifest_abs>" --gates "<g
 bun ".opencode/pai-tools/deep-research-cli.ts" inspect --manifest "<manifest_abs>"
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" inspect --manifest "<manifest_abs>"
 ```
 

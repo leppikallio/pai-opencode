@@ -16,6 +16,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" <command> [flags]
 
 ```bash
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" <command> [flags]
 ```
 
@@ -27,6 +28,7 @@ bun "pai-tools/deep-research-cli.ts" <command> [flags]
 bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity normal
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity normal
 ```
 
@@ -46,6 +48,7 @@ Notes:
 bun ".opencode/pai-tools/deep-research-cli.ts" triage --manifest "<manifest_abs>"
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" triage --manifest "<manifest_abs>"
 ```
 
