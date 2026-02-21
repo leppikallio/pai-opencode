@@ -156,6 +156,7 @@ export const run_init = tool({
     const manifestPath = path.join(root, "manifest.json");
     const gatesPath = path.join(root, "gates.json");
     const scopePath = path.join(root, "operator", "scope.json");
+    const policyPath = runPolicyPathFromRunRoot(root);
     const ledgerPath = path.join(baseResolved, "runs-ledger.jsonl");
 
     try {
@@ -172,6 +173,7 @@ export const run_init = tool({
           created: false,
           manifest_path: manifestPath,
           gates_path: gatesPath,
+          policy_path: policyPath,
           ledger: { path: ledgerPath, written: false },
           paths: {
             wave1_dir: "wave-1",
@@ -316,7 +318,7 @@ export const run_init = tool({
       await atomicWriteJson(scopePath, scope);
       await atomicWriteJson(manifestPath, manifest);
       await atomicWriteJson(gatesPath, gates);
-      await atomicWriteJson(runPolicyPathFromRunRoot(root), defaultRunPolicyV1());
+      await atomicWriteJson(policyPath, defaultRunPolicyV1());
 
       return ok({
         run_id: runId,
@@ -324,6 +326,7 @@ export const run_init = tool({
         created: true,
         manifest_path: manifestPath,
         gates_path: gatesPath,
+        policy_path: policyPath,
         ledger: { path: ledgerPath, written: ledgerWritten, error: ledgerError },
         paths: {
           wave1_dir: "wave-1",
