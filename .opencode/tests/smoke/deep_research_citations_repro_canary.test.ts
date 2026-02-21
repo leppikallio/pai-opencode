@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import * as deepResearch from "../../tools/deep_research.ts";
+import * as deepResearch from "../../tools/deep_research_cli.ts";
 
 import { fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
@@ -46,7 +46,7 @@ describe("deep_research canary (M4 citations reproducibility)", () => {
         const urlMapPath = path.join(citationsDir, "url-map.json");
         await fs.writeFile(
           urlMapPath,
-          JSON.stringify(
+          `${JSON.stringify(
             {
               schema_version: "url_map.v1",
               run_id: runId,
@@ -60,7 +60,7 @@ describe("deep_research canary (M4 citations reproducibility)", () => {
             },
             null,
             2,
-          ) + "\n",
+          )}\n`,
           "utf8",
         );
 

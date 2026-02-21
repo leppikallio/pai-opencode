@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { wave_output_validate } from "../../tools/deep_research.ts";
+import { wave_output_validate } from "../../tools/deep_research_cli.ts";
 import { fixturePath, makeToolContext, parseToolJson } from "../helpers/dr-harness";
 
 describe("deep_research_wave_output_validate (entity)", () => {

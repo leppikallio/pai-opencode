@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { run_init, watchdog_check } from "../../tools/deep_research.ts";
+import { run_init, watchdog_check } from "../../tools/deep_research_cli.ts";
 import { fixturePath, makeToolContext, parseToolJson } from "../helpers/dr-harness";
 
 type TimeoutFixture = {

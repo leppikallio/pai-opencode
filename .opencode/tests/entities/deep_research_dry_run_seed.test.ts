@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { dry_run_seed } from "../../tools/deep_research.ts";
+import { dry_run_seed } from "../../tools/deep_research_cli.ts";
 import { fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 describe("deep_research_dry_run_seed (entity)", () => {

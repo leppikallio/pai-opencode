@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { run_init } from "../../tools/deep_research.ts";
-import * as deepResearch from "../../tools/deep_research.ts";
+import { run_init } from "../../tools/deep_research_cli.ts";
+import * as deepResearch from "../../tools/deep_research_cli.ts";
 import { fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 const citations_extract_urls = ((deepResearch as any).citations_extract_urls ??

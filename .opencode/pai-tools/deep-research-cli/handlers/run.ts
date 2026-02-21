@@ -1,7 +1,7 @@
 import {
   watchdog_check,
-} from "../../../tools/deep_research.ts";
-import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research/lifecycle_lib";
+} from "../../../tools/deep_research_cli.ts";
+import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
 import { blockersSummaryJson } from "../triage/blockers";
 import { handleTickFailureArtifacts } from "../triage/halt-artifacts";
 import { readJsonObject } from "../utils/io-json";

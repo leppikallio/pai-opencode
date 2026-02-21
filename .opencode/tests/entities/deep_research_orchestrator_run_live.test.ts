@@ -6,7 +6,7 @@ import {
   type OrchestratorLiveRunAgentInput,
   orchestrator_run_live,
   run_init,
-} from "../../tools/deep_research.ts";
+} from "../../tools/deep_research_cli.ts";
 import {
   fixturePath,
   makeToolContext,

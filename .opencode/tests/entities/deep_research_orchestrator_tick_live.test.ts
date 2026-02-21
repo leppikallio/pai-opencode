@@ -10,7 +10,7 @@ import {
   run_init,
   stage_advance,
   wave1_plan,
-} from "../../tools/deep_research.ts";
+} from "../../tools/deep_research_cli.ts";
 import {
   fixturePath,
   makeToolContext,
@@ -709,7 +709,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
         perspectives[0].notes = "mutated after plan creation";
         await fs.writeFile(perspectivesPath, `${JSON.stringify(perspectivesDoc, null, 2)}\n`, "utf8");
 
-        const { sha256DigestForJson } = await import("../../tools/deep_research/wave_tools_shared");
+        const { sha256DigestForJson } = await import("../../tools/deep_research_cli/wave_tools_shared");
         const expectedDigest = sha256DigestForJson(perspectivesDoc);
         expect(expectedDigest).not.toBe(planPerspectivesDigest);
 

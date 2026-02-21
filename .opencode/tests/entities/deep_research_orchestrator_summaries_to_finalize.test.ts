@@ -8,7 +8,7 @@ import {
   orchestrator_run_post_pivot,
   orchestrator_run_post_summaries,
   run_init,
-} from "../../tools/deep_research.ts";
+} from "../../tools/deep_research_cli.ts";
 import {
   fixturePath,
   makeToolContext,

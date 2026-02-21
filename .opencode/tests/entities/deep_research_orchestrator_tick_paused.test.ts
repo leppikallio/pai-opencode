@@ -7,7 +7,7 @@ import {
   orchestrator_tick_post_pivot,
   orchestrator_tick_post_summaries,
   run_init,
-} from "../../tools/deep_research.ts";
+} from "../../tools/deep_research_cli.ts";
 import {
   makeToolContext,
   parseToolJson,

@@ -8,7 +8,7 @@ import {
   isRunLockStale,
   releaseRunLock,
   startRunLockHeartbeat,
-} from "../../tools/deep_research/run_lock";
+} from "../../tools/deep_research_cli/run_lock";
 import { withTempDir } from "../helpers/dr-harness";
 
 describe("deep_research_run_lock heartbeat (entity)", () => {

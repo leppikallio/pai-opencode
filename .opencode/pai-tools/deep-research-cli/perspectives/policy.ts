@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { sha256HexLowerUtf8 } from "../../../tools/deep_research/lifecycle_lib";
+import { sha256HexLowerUtf8 } from "../../../tools/deep_research_cli/lifecycle_lib";
 
 import type { PerspectivesPolicyArtifactV1 } from "./state";
 

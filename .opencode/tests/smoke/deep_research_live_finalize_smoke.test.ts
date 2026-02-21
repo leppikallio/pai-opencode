@@ -8,7 +8,7 @@ import {
   orchestrator_tick_post_summaries,
   run_init,
   stage_advance,
-} from "../../tools/deep_research.ts";
+} from "../../tools/deep_research_cli.ts";
 
 import { fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 

@@ -5,7 +5,7 @@ import * as path from "node:path";
 import {
   orchestrator_tick_post_pivot,
   run_init,
-} from "../../tools/deep_research.ts";
+} from "../../tools/deep_research_cli.ts";
 import {
   makeToolContext,
   parseToolJson,

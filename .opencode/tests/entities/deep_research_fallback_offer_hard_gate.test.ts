@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { fallback_offer, gates_write, run_init } from "../../tools/deep_research.ts";
+import { fallback_offer, gates_write, run_init } from "../../tools/deep_research_cli.ts";
 import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 describe("deep_research_fallback_offer_hard_gate (entity)", () => {

@@ -3,8 +3,8 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { run_init } from "../../tools/deep_research.ts";
-import * as deepResearch from "../../tools/deep_research.ts";
+import { run_init } from "../../tools/deep_research_cli.ts";
+import * as deepResearch from "../../tools/deep_research_cli.ts";
 import { fixturePath, makeToolContext, parseToolJson, withEnv } from "../helpers/dr-harness";
 
 const gate_e_reports = ((deepResearch as any).gate_e_reports ??

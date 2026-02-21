@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { stage_advance } from "../../../tools/deep_research.ts";
+import { stage_advance } from "../../../tools/deep_research_cli.ts";
 import {
   asObject,
   readJsonObject,

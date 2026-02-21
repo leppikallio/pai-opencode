@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import * as deepResearch from "../../tools/deep_research.ts";
-import { validateGatesV1, validateManifestV1 } from "../../tools/deep_research/schema_v1";
+import * as deepResearch from "../../tools/deep_research_cli.ts";
+import { validateGatesV1, validateManifestV1 } from "../../tools/deep_research_cli/schema_v1";
 import { fixturePath, makeToolContext, parseToolJson, withTempDir } from "../helpers/dr-harness";
 
 const fixture_run_seed = ((deepResearch as any).fixture_run_seed ??

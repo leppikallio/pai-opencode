@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { gates_write, run_init, stage_advance } from "../../tools/deep_research.ts";
+import { gates_write, run_init, stage_advance } from "../../tools/deep_research_cli.ts";
 import { asRecord, fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 type RunContext = {

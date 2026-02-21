@@ -1,8 +1,8 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research/lifecycle_lib";
-import { sha256DigestForJson } from "../../../tools/deep_research/wave_tools_shared";
+import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
+import { sha256DigestForJson } from "../../../tools/deep_research_cli/wave_tools_shared";
 import { emitJson } from "../cli/json-mode";
 import {
   throwWithCode,
