@@ -140,6 +140,59 @@ describe("deep_research cli --json dr.cli.v1 envelope (regression)", () => {
     });
   });
 
+  test("run --json emits dr.cli.v1 envelope with contract/result/error/halt keys", async () => {
+    await withTempDir(async (base) => {
+      const runId = "dr_test_cli_json_envelope_run_001";
+      const initPayload = expectSingleJsonStdout(await runCli([
+        "init",
+        "Q",
+        "--run-id",
+        runId,
+        "--runs-root",
+        base,
+        "--json",
+      ]), 0);
+
+      const manifestPath = manifestPathFromInitEnvelope(initPayload);
+
+      const runPayload = expectSingleJsonStdout(await runCli([
+        "run",
+        "--manifest",
+        manifestPath,
+        "--reason",
+        "run json envelope regression",
+        "--driver",
+        "fixture",
+        "--max-ticks",
+        "1",
+        "--json",
+      ]), 0);
+
+      expect(runPayload.schema_version).toBe("dr.cli.v1");
+      expect(typeof runPayload.ok).toBe("boolean");
+      expect(runPayload.command).toBe("run");
+
+      const contract = expectContract(runPayload.contract);
+      expect(contract.run_id).toBe(runId);
+      expect(contract.manifest_path).toBe(manifestPath);
+
+      if (runPayload.ok === true) {
+        expect(runPayload.result).toBeTruthy();
+        expect(runPayload.error).toBeNull();
+      } else {
+        expect(runPayload.result).toBeNull();
+        const error = runPayload.error as Record<string, unknown>;
+        expect(typeof error.code).toBe("string");
+        expect(typeof error.message).toBe("string");
+      }
+
+      const halt = runPayload.halt as Record<string, unknown> | null;
+      if (halt) {
+        expect(Array.isArray(halt.next_commands)).toBe(true);
+      }
+    });
+  });
+
   test("status --json emits dr.cli.v1 envelope with contract/result/error/halt keys", async () => {
     await withTempDir(async (base) => {
       const runId = "dr_test_cli_json_envelope_status_001";
