@@ -64,13 +64,14 @@ import {
 } from "./deep-research-cli/handlers/triage";
 import {
   configureStdoutForJsonMode,
-  emitJson,
   getCliArgv,
   isJsonModeRequested,
 } from "./deep-research-cli/cli/json-mode";
+import { emitJsonV1 } from "./deep-research-cli/cli/json-contract";
 import {
   requireAbsolutePath,
 } from "./deep-research-cli/utils/paths";
+import { resolveDeepResearchCliInvocation } from "./deep-research-cli/utils/cli-invocation";
 
 const CLI_ARGV = getCliArgv();
 const JSON_MODE_REQUESTED = isJsonModeRequested(CLI_ARGV);
@@ -131,19 +132,34 @@ const app = subcommands({
   },
 });
 
+function errorContract(): Record<string, unknown> {
+  return {
+    run_id: null,
+    run_root: null,
+    manifest_path: null,
+    gates_path: null,
+    stage_current: null,
+    status: null,
+    cli_invocation: resolveDeepResearchCliInvocation(),
+  };
+}
+
 runSafely(app, CLI_ARGV)
   .then((result) => {
     if (result._tag === "ok") return;
 
     const command = typeof CLI_ARGV[0] === "string" && CLI_ARGV[0].trim().length > 0 ? CLI_ARGV[0] : "unknown";
     if (JSON_MODE_REQUESTED) {
-      emitJson({
+      emitJsonV1({
         ok: false,
         command,
+        contract: errorContract(),
+        result: null,
         error: {
           code: "CLI_PARSE_ERROR",
           message: result.error.config.message,
         },
+        halt: null,
       });
       process.exit(result.error.config.exitCode);
       return;
@@ -158,13 +174,16 @@ runSafely(app, CLI_ARGV)
       : "CLI_ERROR";
 
     if (JSON_MODE_REQUESTED) {
-      emitJson({
+      emitJsonV1({
         ok: false,
         command: typeof CLI_ARGV[0] === "string" && CLI_ARGV[0].trim().length > 0 ? CLI_ARGV[0] : "unknown",
+        contract: errorContract(),
+        result: null,
         error: {
           code: errorCode,
           message,
         },
+        halt: null,
       });
     } else {
       console.error(`ERROR: ${message}`);
