@@ -30,11 +30,13 @@ export type RunPolicyV1 = {
   schema_version: "run_policy.v1";
   stage_timeouts_seconds_v1: Record<string, number>;
   citations_ladder_policy_v1: CitationsLadderPolicyV1;
-  run_lock_policy_v1?: {
-    lease_seconds: number;
-    heartbeat_interval_ms: number;
-    heartbeat_max_failures: number;
-  };
+  run_lock_policy_v1: RunLockPolicyV1;
+};
+
+export type RunLockPolicyV1 = {
+  lease_seconds: number;
+  heartbeat_interval_ms: number;
+  heartbeat_max_failures: number;
 };
 
 export type RunPolicySource =
@@ -62,6 +64,12 @@ const DEFAULT_CITATIONS_LADDER_POLICY_V1: CitationsLadderPolicyV1 = {
   backoff_max_ms: 1000,
 };
 
+const DEFAULT_RUN_LOCK_POLICY_V1: RunLockPolicyV1 = {
+  lease_seconds: 120,
+  heartbeat_interval_ms: 30_000,
+  heartbeat_max_failures: 1,
+};
+
 function defaultStageTimeoutsV1(): Record<string, number> {
   return { ...STAGE_TIMEOUT_SECONDS_V1 };
 }
@@ -71,6 +79,7 @@ export function defaultRunPolicyV1(): RunPolicyV1 {
     schema_version: RUN_POLICY_SCHEMA_VERSION,
     stage_timeouts_seconds_v1: defaultStageTimeoutsV1(),
     citations_ladder_policy_v1: { ...DEFAULT_CITATIONS_LADDER_POLICY_V1 },
+    run_lock_policy_v1: { ...DEFAULT_RUN_LOCK_POLICY_V1 },
   };
 }
 
@@ -117,6 +126,17 @@ function sanitizeCitationsLadderPolicy(value: unknown): CitationsLadderPolicyV1 
   };
 }
 
+function sanitizeRunLockPolicy(value: unknown): RunLockPolicyV1 {
+  const base = { ...DEFAULT_RUN_LOCK_POLICY_V1 };
+  if (!isPlainObject(value)) return base;
+
+  return {
+    lease_seconds: coercePositiveInt(value.lease_seconds, base.lease_seconds),
+    heartbeat_interval_ms: coercePositiveInt(value.heartbeat_interval_ms, base.heartbeat_interval_ms),
+    heartbeat_max_failures: coercePositiveInt(value.heartbeat_max_failures, base.heartbeat_max_failures),
+  };
+}
+
 function sanitizeRunPolicy(value: unknown): RunPolicyV1 | null {
   if (!isPlainObject(value)) return null;
   if (value.schema_version !== RUN_POLICY_SCHEMA_VERSION) return null;
@@ -125,6 +145,7 @@ function sanitizeRunPolicy(value: unknown): RunPolicyV1 | null {
     schema_version: RUN_POLICY_SCHEMA_VERSION,
     stage_timeouts_seconds_v1: sanitizeStageTimeouts(value.stage_timeouts_seconds_v1),
     citations_ladder_policy_v1: sanitizeCitationsLadderPolicy(value.citations_ladder_policy_v1),
+    run_lock_policy_v1: sanitizeRunLockPolicy(value.run_lock_policy_v1),
   };
 }
 

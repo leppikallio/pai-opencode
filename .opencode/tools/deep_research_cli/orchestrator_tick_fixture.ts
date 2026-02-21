@@ -10,6 +10,7 @@ import {
   readJson,
   validateManifestV1,
 } from "./lifecycle_lib";
+import { readRunPolicyForRunRoot } from "./run_policy_read";
 import { stage_advance } from "./stage_advance";
 
 export type FixtureWaveOutput = {
@@ -166,9 +167,12 @@ export async function orchestrator_tick_fixture(args: OrchestratorTickFixtureArg
     return fail("INVALID_STATE", "manifest.artifacts.root invalid", { manifest_path: manifestPath, root: runRoot });
   }
 
+  const runPolicy = await readRunPolicyForRunRoot(runRoot);
+  const runLockPolicy = runPolicy.policy.run_lock_policy_v1;
+
   const lockResult = await acquireRunLock({
     run_root: runRoot,
-    lease_seconds: 120,
+    lease_seconds: runLockPolicy.lease_seconds,
     reason: `orchestrator_tick_fixture: ${reason}`,
   });
   if (!lockResult.ok) {
@@ -177,8 +181,9 @@ export async function orchestrator_tick_fixture(args: OrchestratorTickFixtureArg
   const runLockHandle = lockResult.handle;
   const heartbeat = startRunLockHeartbeat({
     handle: runLockHandle,
-    interval_ms: 30_000,
-    lease_seconds: 120,
+    interval_ms: runLockPolicy.heartbeat_interval_ms,
+    lease_seconds: runLockPolicy.lease_seconds,
+    max_failures: runLockPolicy.heartbeat_max_failures,
   });
 
   try {
