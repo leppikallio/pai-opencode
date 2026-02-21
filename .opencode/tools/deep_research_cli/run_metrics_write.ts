@@ -8,10 +8,13 @@ import {
   telemetryPathFromManifest,
   validateTelemetryEventV1,
 } from "./telemetry_lib";
+import { readOrCreateTelemetryIndex } from "./telemetry_index_lib";
 import { readJsonlObjects } from "./citations_validate_lib";
 import {
   err,
   errorCode,
+  isInteger,
+  isPlainObject,
   nowIso,
   ok,
   readJson,
@@ -51,6 +54,53 @@ export const run_metrics_write = tool({
         return err("INVALID_ARGS", "telemetry_path resolved to non-absolute path", {
           telemetry_path: args.telemetry_path ?? null,
         });
+      }
+
+      const telemetryIndex = await readOrCreateTelemetryIndex(telemetryPath);
+      if (!telemetryIndex.ok) {
+        return err(telemetryIndex.code, telemetryIndex.message, telemetryIndex.details);
+      }
+      const telemetryLastSeq = telemetryIndex.last_seq;
+
+      const metricsPath = path.join(runRoot, "metrics", "run-metrics.json");
+      try {
+        const existingMetricsRaw = await readJson(metricsPath);
+        if (isPlainObject(existingMetricsRaw)) {
+          const existingRun = isPlainObject(existingMetricsRaw.run)
+            ? (existingMetricsRaw.run as Record<string, unknown>)
+            : null;
+          const existingLastSeq = existingRun?.last_seq;
+          if (isInteger(existingLastSeq) && existingLastSeq === telemetryLastSeq) {
+            try {
+              await appendAuditJsonl({
+                runRoot,
+                event: {
+                  ts: nowIso(),
+                  kind: "run_metrics_write",
+                  run_id: runId,
+                  reason,
+                  telemetry_path: toPosixPath(path.relative(runRoot, telemetryPath)),
+                  metrics_path: toPosixPath(path.relative(runRoot, metricsPath)),
+                  skipped: true,
+                  skip_reason: "telemetry unchanged",
+                  last_seq: telemetryLastSeq,
+                },
+              });
+            } catch {
+              // best effort
+            }
+
+            return ok({
+              metrics_path: metricsPath,
+              telemetry_path: telemetryPath,
+              skipped: true,
+              reason: "telemetry unchanged",
+              last_seq: telemetryLastSeq,
+            });
+          }
+        }
+      } catch {
+        // continue with full metrics recompute
       }
 
       const events = await readJsonlObjects(telemetryPath);
@@ -163,6 +213,7 @@ export const run_metrics_write = tool({
         stages_finished_total: stagesFinishedTotal,
         stage_timeouts_total: stageTimeoutsTotal,
         failures_total: failuresTotal,
+        last_seq: telemetryLastSeq,
       };
 
       const stageMetrics = {
@@ -187,7 +238,6 @@ export const run_metrics_write = tool({
         stage: stageMetrics,
       };
 
-      const metricsPath = path.join(runRoot, "metrics", "run-metrics.json");
       await atomicWriteCanonicalJson(metricsPath, metricsDoc);
 
       try {
