@@ -16,6 +16,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" <command> [flags]
 
 ```bash
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" <command> [flags]
 ```
 
@@ -27,6 +28,7 @@ bun "pai-tools/deep-research-cli.ts" <command> [flags]
 bun ".opencode/pai-tools/deep-research-cli.ts" resume --manifest "<manifest_abs>" --reason "operator resume"
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" resume --manifest "<manifest_abs>" --reason "operator resume"
 ```
 

@@ -24,6 +24,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" <command> [flags]
 
 ```bash
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" <command> [flags]
 ```
 
@@ -35,6 +36,7 @@ bun "pai-tools/deep-research-cli.ts" <command> [flags]
 bun ".opencode/pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" --reason "loop tick" --driver task --json
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" --reason "loop tick" --driver task --json
 ```
 
@@ -46,6 +48,7 @@ bun "pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" --reason "
 bun ".opencode/pai-tools/deep-research-cli.ts" triage --manifest "<manifest_abs>"
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" triage --manifest "<manifest_abs>"
 ```
 

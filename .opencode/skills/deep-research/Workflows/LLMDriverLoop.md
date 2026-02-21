@@ -15,6 +15,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" <command> [flags]
 
 ```bash
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" <command> [flags]
 ```
 
@@ -37,6 +38,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
   --json
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
@@ -58,6 +60,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" tick \
   --json
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" tick \
   --manifest "<manifest_abs>" \
   --reason "operator tick" \
@@ -111,6 +114,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" agent-result \
   --json
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" agent-result \
   --manifest "<manifest_abs>" \
   --stage "<stage>" \
@@ -131,6 +135,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" tick \
   --json
 
 # Runtime install (~/.config/opencode)
+cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" tick \
   --manifest "<manifest_abs>" \
   --reason "resume after ingest" \
