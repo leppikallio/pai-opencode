@@ -216,4 +216,43 @@ describe("deep_research cli --json dr.cli.v1 envelope (regression)", () => {
       expect(inspectPayload.halt).toBeNull();
     });
   });
+
+  test("triage --json emits dr.cli.v1 envelope with contract/result/error/halt keys", async () => {
+    await withTempDir(async (base) => {
+      const runId = "dr_test_cli_json_envelope_triage_001";
+      const initPayload = expectSingleJsonStdout(await runCli([
+        "init",
+        "Q",
+        "--run-id",
+        runId,
+        "--runs-root",
+        base,
+        "--json",
+      ]), 0);
+
+      const manifestPath = manifestPathFromInitEnvelope(initPayload);
+
+      const triagePayload = expectSingleJsonStdout(await runCli([
+        "triage",
+        "--manifest",
+        manifestPath,
+        "--json",
+      ]), 0);
+
+      expect(triagePayload.schema_version).toBe("dr.cli.v1");
+      expect(triagePayload.ok).toBe(true);
+      expect(triagePayload.command).toBe("triage");
+
+      const contract = expectContract(triagePayload.contract);
+      expect(contract.run_id).toBe(runId);
+      expect(contract.manifest_path).toBe(manifestPath);
+
+      const result = triagePayload.result as Record<string, unknown>;
+      expect(result).toBeTruthy();
+      expect(result.gate_statuses_summary).toBeTruthy();
+      expect(result.blockers_summary).toBeTruthy();
+      expect(triagePayload.error).toBeNull();
+      expect(triagePayload.halt).toBeNull();
+    });
+  });
 });
