@@ -67,7 +67,7 @@ describe("deep-research-cli inspect (entity)", () => {
   });
 
   test("surfaces blocked URLs summary and next actions", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_cli_inspect_001";
         const initRaw = (await (run_init as any).execute(

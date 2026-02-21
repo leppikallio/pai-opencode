@@ -15,7 +15,7 @@ describe("deep_research_gate_c_compute (entity)", () => {
   const maybeTest = gate_c_compute ? test : test.skip;
 
   maybeTest("counts paywalled as validated for Gate C metrics", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p04_gate_c_001";
         const initRaw = (await (run_init as any).execute(

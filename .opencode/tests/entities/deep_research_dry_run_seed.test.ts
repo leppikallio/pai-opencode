@@ -7,7 +7,7 @@ import { fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } fro
 
 describe("deep_research_dry_run_seed (entity)", () => {
   test("seeds run root from fixture and records dry_run constraint", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const fixtureDir = fixturePath("dry-run", "case-minimal");
         const runId = "dr_test_dry_seed_001";

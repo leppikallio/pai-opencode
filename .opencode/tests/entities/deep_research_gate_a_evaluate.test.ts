@@ -15,7 +15,7 @@ async function writePerspectivesForRun(runRoot: string, runId: string): Promise<
 
 describe("deep_research_gate_a_evaluate (entity)", () => {
   test("returns pass when scope, perspectives, and wave1-plan contracts hold", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_gate_a_001";
         const initRaw = (await (run_init as any).execute(
@@ -58,7 +58,7 @@ describe("deep_research_gate_a_evaluate (entity)", () => {
   });
 
   test("returns fail with typed warning when scope.json is missing", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_gate_a_002";
         const initRaw = (await (run_init as any).execute(

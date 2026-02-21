@@ -8,8 +8,8 @@ export type RunMode = "quick" | "standard" | "deep";
 export type Sensitivity = "normal" | "restricted" | "no_web";
 export type CitationValidationTier = "basic" | "standard" | "thorough";
 
-export type DeepResearchFlagsV1 = {
-  optionCEnabled: boolean;
+export type DeepResearchCliFlagsV1 = {
+  cliEnabled: boolean;
   modeDefault: RunMode;
   maxWave1Agents: number;
   maxWave2Agents: number;

@@ -44,7 +44,7 @@ async function materializeBundles(fixturesRoot: string, bundleIds: string[]): Pr
 
 describe("deep_research_phase06_regression (regression)", () => {
   test("replays baseline bundles and asserts Gate E outcomes + warning codes", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withDeterministicTempDir("phase06-regression", async (base) => {
         const fixturesRoot = path.join(base, "bundles");
         const bundleIds = [PASS_BUNDLE_ID, FAIL_BUNDLE_ID];

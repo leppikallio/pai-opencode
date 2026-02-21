@@ -41,7 +41,7 @@ function perspectivesDoc(runId: string) {
 
 describe("deep_research_summary_pack_build (entity)", () => {
   test("builds generate-mode summaries from deterministic agent outputs", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p05_summary_pack_generate_001";
         const initRaw = (await run_init.execute(
@@ -109,7 +109,7 @@ describe("deep_research_summary_pack_build (entity)", () => {
   });
 
   test("builds summary_pack.v1 with required envelope fields", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p05_summary_pack_001";
         const initRaw = (await run_init.execute(
@@ -167,7 +167,7 @@ describe("deep_research_summary_pack_build (entity)", () => {
   });
 
   test("fails RAW_URL_NOT_ALLOWED when fixture summary includes raw URL", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p05_summary_pack_002";
         const initRaw = (await run_init.execute(

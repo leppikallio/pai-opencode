@@ -117,7 +117,7 @@ async function seedWave1OutputsWithMatchingPromptDigests(args: {
 
 describe("deep_research_orchestrator_tick_live (entity)", () => {
   test("drives wave1 -> pivot through injected runAgent boundary", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_live_001";
 
@@ -220,7 +220,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
   });
 
   test("can advance from init directly to pivot in one tick", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_live_002";
 
@@ -261,7 +261,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
   });
 
   test("rejects traversal in manifest wave_review_report_file path", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_live_003";
 
@@ -312,7 +312,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
   });
 
   test("rejects symlinked wave1_dir that realpath-escapes run root", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_live_003b";
 
@@ -364,7 +364,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
   });
 
   test("idempotent rerun skips runAgent/ingest/review/gates_write and still advances", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_live_004";
 
@@ -566,7 +566,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
   });
 
   test("reruns only perspective whose prompt digest no longer matches sidecar", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_live_prompt_digest_009";
 
@@ -657,7 +657,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
   });
 
   test("fails fast with WAVE1_PLAN_STALE when perspectives mutate after wave1 plan creation", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_live_wave1_plan_stale_010";
 
@@ -742,7 +742,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
   });
 
   test("fails Gate A when scope.json is missing and records typed reason in gates", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_live_gate_a_missing_scope_008";
 
@@ -811,7 +811,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
   });
 
   test("passes expected_revision to gates_write (mismatch path proves optimistic lock wiring)", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_live_optlock_005";
 
@@ -866,7 +866,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
   });
 
   test("records retry directives and bounded retry state when wave review fails", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_live_retry_005";
 
@@ -935,7 +935,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
   });
 
   test("consumes retry directives and reruns targeted outputs even when files already exist", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_live_retry_consume_007";
 
@@ -1020,7 +1020,7 @@ describe("deep_research_orchestrator_tick_live (entity)", () => {
   });
 
   test("returns typed cap exhaustion when retry cap for gate B is reached", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_live_006";
 

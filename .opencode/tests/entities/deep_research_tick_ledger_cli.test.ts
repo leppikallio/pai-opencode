@@ -59,7 +59,7 @@ describe("deep_research tick ledger + CLI observability", () => {
   const maybeTest = tick_ledger_append ? test : test.skip;
 
   maybeTest("appends explicit tick ledger entry", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withDeterministicTempDir("tick-ledger-tool", async (base) => {
         const runId = "dr_test_e4_tick_ledger_001";
         const { manifestPath, runRoot } = await initRun(base, runId);
@@ -98,7 +98,7 @@ describe("deep_research tick ledger + CLI observability", () => {
   });
 
   test("fixture tick writes ledger + telemetry + metrics artifacts", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withDeterministicTempDir("tick-ledger-cli", async (base) => {
         const runId = "dr_test_e4_tick_cli_001";
         const { manifestPath, gatesPath, runRoot } = await initRun(base, runId);
@@ -124,8 +124,8 @@ describe("deep_research tick ledger + CLI observability", () => {
             stderr: "pipe",
             env: {
               ...process.env,
-              PAI_DR_OPTION_C_ENABLED: "1",
-              PAI_DR_NO_WEB: "1",
+              PAI_DR_CLI_ENABLED: "1",
+              PAI_DR_CLI_NO_WEB: "1",
             },
           },
         );

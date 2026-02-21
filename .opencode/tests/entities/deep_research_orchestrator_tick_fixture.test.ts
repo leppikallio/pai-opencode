@@ -13,7 +13,7 @@ import { fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } fro
 
 describe("deep_research_orchestrator_tick_fixture (entity)", () => {
   test("runs fixture driver boundary and delegates transition authority to stage_advance", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_001";
 
@@ -69,7 +69,7 @@ describe("deep_research_orchestrator_tick_fixture (entity)", () => {
   });
 
   test("bubbles stage_advance block errors while still proving fixture boundary execution", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_002";
 
@@ -111,7 +111,7 @@ describe("deep_research_orchestrator_tick_fixture (entity)", () => {
   });
 
   test("prevents concurrent tick execution when run lock is held", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_003";
 

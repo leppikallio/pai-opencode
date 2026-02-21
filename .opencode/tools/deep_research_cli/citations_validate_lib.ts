@@ -299,7 +299,7 @@ function readEndpointFromRunConfig(
 
 function readEndpointFromManifestFlags(
   manifest: Record<string, unknown>,
-  key: "PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT" | "PAI_DR_CITATIONS_APIFY_ENDPOINT",
+  key: "PAI_DR_CLI_CITATIONS_BRIGHT_DATA_ENDPOINT" | "PAI_DR_CLI_CITATIONS_APIFY_ENDPOINT",
 ): string | null {
   const query = asObject(manifest.query);
   const constraints = asObject(query.constraints);
@@ -324,7 +324,7 @@ export function resolveCitationsConfig(args: {
       ? "run-config.effective.citations"
       : "unset";
 
-  const manifestBrightData = readEndpointFromManifestFlags(args.manifest, "PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT");
+  const manifestBrightData = readEndpointFromManifestFlags(args.manifest, "PAI_DR_CLI_CITATIONS_BRIGHT_DATA_ENDPOINT");
   const runConfigBrightData = readEndpointFromRunConfig(args.runConfig, "brightdata");
   const brightDataEndpoint = manifestBrightData ?? runConfigBrightData ?? "";
   const brightDataSource: CitationConfigSource = manifestBrightData
@@ -333,7 +333,7 @@ export function resolveCitationsConfig(args: {
       ? "run-config.effective.citations"
       : "unset";
 
-  const manifestApify = readEndpointFromManifestFlags(args.manifest, "PAI_DR_CITATIONS_APIFY_ENDPOINT");
+  const manifestApify = readEndpointFromManifestFlags(args.manifest, "PAI_DR_CLI_CITATIONS_APIFY_ENDPOINT");
   const runConfigApify = readEndpointFromRunConfig(args.runConfig, "apify");
   const apifyEndpoint = manifestApify ?? runConfigApify ?? "";
   const apifySource: CitationConfigSource = manifestApify

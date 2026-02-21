@@ -7,7 +7,7 @@ import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers
 
 describe("deep_research_manifest_write (entity)", () => {
   test("bumps revision, enforces optimistic lock, and appends audit", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_manifest_001";
         const initRaw = (await (run_init as any).execute(
@@ -61,7 +61,7 @@ describe("deep_research_manifest_write (entity)", () => {
   });
 
   test("rejects immutable patch fields and returns actionable errors", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_manifest_002";
         const initRaw = (await (run_init as any).execute(
@@ -103,7 +103,7 @@ describe("deep_research_manifest_write (entity)", () => {
   });
 
   test("writes audit under manifest artifacts root when it differs", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_manifest_003";
         const initRaw = (await (run_init as any).execute(

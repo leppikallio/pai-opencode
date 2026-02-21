@@ -40,7 +40,7 @@ describe("deep_research_quality_audit (entity)", () => {
   const maybeTest = quality_audit ? test : test.skip;
 
   maybeTest("writes default report, validates Gate E statuses, and is byte-deterministic", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       const auditTool = requireTool("deep_research_quality_audit", quality_audit);
       const fixturesRoot = fixturePath("bundles");
       const expectedOutputPath = path.join(fixturesRoot, "reports", "quality-audit.json");

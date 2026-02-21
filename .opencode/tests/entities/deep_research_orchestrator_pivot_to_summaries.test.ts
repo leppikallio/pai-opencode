@@ -43,7 +43,7 @@ async function writePerspectivesForRun(runRoot: string, runId: string): Promise<
 
 describe("deep_research orchestrator pivot -> summaries (entity)", () => {
   test("deterministically drives pivot -> citations -> summaries with Gate C enforced", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_pivot_to_summaries_001";
 

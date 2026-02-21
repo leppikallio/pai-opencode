@@ -5,23 +5,23 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 import { run_init } from "../../tools/deep_research_cli.ts";
-import { resolveDeepResearchFlagsV1 as resolveFlagsFromSpecReader } from "../../tools/deep_research_cli/flags_v1";
-import { resolveDeepResearchFlagsV1 as resolveFlagsFromLifecycle } from "../../tools/deep_research_cli/lifecycle_lib";
+import { resolveDeepResearchCliFlagsV1 as resolveFlagsFromSpecReader } from "../../tools/deep_research_cli/flags_v1";
+import { resolveDeepResearchCliFlagsV1 as resolveFlagsFromLifecycle } from "../../tools/deep_research_cli/lifecycle_lib";
 import { makeToolContext, parseToolJson, withTempDir } from "../helpers/dr-harness";
 
 const FLAG_SETTINGS_KEYS = [
-  "PAI_DR_OPTION_C_ENABLED",
-  "PAI_DR_MODE_DEFAULT",
-  "PAI_DR_MAX_WAVE1_AGENTS",
-  "PAI_DR_MAX_WAVE2_AGENTS",
-  "PAI_DR_MAX_SUMMARY_KB",
-  "PAI_DR_MAX_TOTAL_SUMMARY_KB",
-  "PAI_DR_MAX_REVIEW_ITERATIONS",
-  "PAI_DR_CITATION_VALIDATION_TIER",
-  "PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT",
-  "PAI_DR_CITATIONS_APIFY_ENDPOINT",
-  "PAI_DR_NO_WEB",
-  "PAI_DR_RUNS_ROOT",
+  "PAI_DR_CLI_ENABLED",
+  "PAI_DR_CLI_MODE_DEFAULT",
+  "PAI_DR_CLI_MAX_WAVE1_AGENTS",
+  "PAI_DR_CLI_MAX_WAVE2_AGENTS",
+  "PAI_DR_CLI_MAX_SUMMARY_KB",
+  "PAI_DR_CLI_MAX_TOTAL_SUMMARY_KB",
+  "PAI_DR_CLI_MAX_REVIEW_ITERATIONS",
+  "PAI_DR_CLI_CITATION_VALIDATION_TIER",
+  "PAI_DR_CLI_CITATIONS_BRIGHT_DATA_ENDPOINT",
+  "PAI_DR_CLI_CITATIONS_APIFY_ENDPOINT",
+  "PAI_DR_CLI_NO_WEB",
+  "PAI_DR_CLI_RUNS_ROOT",
 ] as const;
 
 function opencodeRootFromCwd(): string {
@@ -34,18 +34,18 @@ const SETTINGS_PATH = path.join(opencodeRootFromCwd(), "settings.json");
 
 function deterministicFlagSettings(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    PAI_DR_OPTION_C_ENABLED: true,
-    PAI_DR_MODE_DEFAULT: "standard",
-    PAI_DR_MAX_WAVE1_AGENTS: 6,
-    PAI_DR_MAX_WAVE2_AGENTS: 6,
-    PAI_DR_MAX_SUMMARY_KB: 5,
-    PAI_DR_MAX_TOTAL_SUMMARY_KB: 60,
-    PAI_DR_MAX_REVIEW_ITERATIONS: 4,
-    PAI_DR_CITATION_VALIDATION_TIER: "standard",
-    PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT: "",
-    PAI_DR_CITATIONS_APIFY_ENDPOINT: "",
-    PAI_DR_NO_WEB: false,
-    PAI_DR_RUNS_ROOT: path.join(os.tmpdir(), "dr-feature-flags-contract-runs"),
+    PAI_DR_CLI_ENABLED: true,
+    PAI_DR_CLI_MODE_DEFAULT: "standard",
+    PAI_DR_CLI_MAX_WAVE1_AGENTS: 6,
+    PAI_DR_CLI_MAX_WAVE2_AGENTS: 6,
+    PAI_DR_CLI_MAX_SUMMARY_KB: 5,
+    PAI_DR_CLI_MAX_TOTAL_SUMMARY_KB: 60,
+    PAI_DR_CLI_MAX_REVIEW_ITERATIONS: 4,
+    PAI_DR_CLI_CITATION_VALIDATION_TIER: "standard",
+    PAI_DR_CLI_CITATIONS_BRIGHT_DATA_ENDPOINT: "",
+    PAI_DR_CLI_CITATIONS_APIFY_ENDPOINT: "",
+    PAI_DR_CLI_NO_WEB: false,
+    PAI_DR_CLI_RUNS_ROOT: path.join(os.tmpdir(), "dr-feature-flags-contract-runs"),
     ...overrides,
   };
 }
@@ -85,21 +85,21 @@ describe("deep_research_feature_flags contract (entity)", () => {
         "Flag invariant broke: flags_v1.ts and lifecycle_lib.ts resolved different effective surfaces",
       );
 
-      assert.equal(specReader.optionCEnabled, true, "Flag invariant broke: PAI_DR_OPTION_C_ENABLED should resolve true");
-      assert.equal(specReader.modeDefault, "standard", "Flag invariant broke: PAI_DR_MODE_DEFAULT should resolve to standard");
-      assert.equal(specReader.maxWave1Agents, 6, "Flag invariant broke: PAI_DR_MAX_WAVE1_AGENTS should resolve to 6");
-      assert.equal(specReader.maxWave2Agents, 6, "Flag invariant broke: PAI_DR_MAX_WAVE2_AGENTS should resolve to 6");
-      assert.equal(specReader.maxSummaryKb, 5, "Flag invariant broke: PAI_DR_MAX_SUMMARY_KB should resolve to 5");
-      assert.equal(specReader.maxTotalSummaryKb, 60, "Flag invariant broke: PAI_DR_MAX_TOTAL_SUMMARY_KB should resolve to 60");
-      assert.equal(specReader.maxReviewIterations, 4, "Flag invariant broke: PAI_DR_MAX_REVIEW_ITERATIONS should resolve to 4");
+      assert.equal(specReader.cliEnabled, true, "Flag invariant broke: PAI_DR_CLI_ENABLED should resolve true");
+      assert.equal(specReader.modeDefault, "standard", "Flag invariant broke: PAI_DR_CLI_MODE_DEFAULT should resolve to standard");
+      assert.equal(specReader.maxWave1Agents, 6, "Flag invariant broke: PAI_DR_CLI_MAX_WAVE1_AGENTS should resolve to 6");
+      assert.equal(specReader.maxWave2Agents, 6, "Flag invariant broke: PAI_DR_CLI_MAX_WAVE2_AGENTS should resolve to 6");
+      assert.equal(specReader.maxSummaryKb, 5, "Flag invariant broke: PAI_DR_CLI_MAX_SUMMARY_KB should resolve to 5");
+      assert.equal(specReader.maxTotalSummaryKb, 60, "Flag invariant broke: PAI_DR_CLI_MAX_TOTAL_SUMMARY_KB should resolve to 60");
+      assert.equal(specReader.maxReviewIterations, 4, "Flag invariant broke: PAI_DR_CLI_MAX_REVIEW_ITERATIONS should resolve to 4");
       assert.equal(
         specReader.citationValidationTier,
         "standard",
-        "Flag invariant broke: PAI_DR_CITATION_VALIDATION_TIER should resolve to standard",
+        "Flag invariant broke: PAI_DR_CLI_CITATION_VALIDATION_TIER should resolve to standard",
       );
       assert.equal(specReader.citationsBrightDataEndpoint, null);
       assert.equal(specReader.citationsApifyEndpoint, null);
-      assert.equal(specReader.noWeb, false, "Flag invariant broke: PAI_DR_NO_WEB should resolve false when configured false");
+      assert.equal(specReader.noWeb, false, "Flag invariant broke: PAI_DR_CLI_NO_WEB should resolve false when configured false");
       assert.deepEqual(
         specReader.source.settings,
         [...FLAG_SETTINGS_KEYS],
@@ -112,11 +112,11 @@ describe("deep_research_feature_flags contract (entity)", () => {
   test("safety clamps prevent runaway canary fan-out and invalid bounds", async () => {
     await withDeterministicFlagsSettings(
       {
-        PAI_DR_MAX_WAVE1_AGENTS: 0,
-        PAI_DR_MAX_WAVE2_AGENTS: 999,
-        PAI_DR_MAX_SUMMARY_KB: 0,
-        PAI_DR_MAX_TOTAL_SUMMARY_KB: 999999,
-        PAI_DR_MAX_REVIEW_ITERATIONS: -7,
+        PAI_DR_CLI_MAX_WAVE1_AGENTS: 0,
+        PAI_DR_CLI_MAX_WAVE2_AGENTS: 999,
+        PAI_DR_CLI_MAX_SUMMARY_KB: 0,
+        PAI_DR_CLI_MAX_TOTAL_SUMMARY_KB: 999999,
+        PAI_DR_CLI_MAX_REVIEW_ITERATIONS: -7,
       },
       async () => {
         const flags = resolveFlagsFromSpecReader();
@@ -140,12 +140,12 @@ describe("deep_research_feature_flags contract (entity)", () => {
 
   // Note: env-based global enable/disable is intentionally not part of the contract.
 
-  test("offline-first safety: PAI_DR_NO_WEB forces no_web sensitivity and preserves canary caps in manifest", async () => {
+  test("offline-first safety: PAI_DR_CLI_NO_WEB forces no_web sensitivity and preserves canary caps in manifest", async () => {
     await withDeterministicFlagsSettings(
       {
-        PAI_DR_NO_WEB: true,
-        PAI_DR_MAX_WAVE1_AGENTS: 2,
-        PAI_DR_MAX_WAVE2_AGENTS: 2,
+        PAI_DR_CLI_NO_WEB: true,
+        PAI_DR_CLI_MAX_WAVE1_AGENTS: 2,
+        PAI_DR_CLI_MAX_WAVE2_AGENTS: 2,
       },
       async () => {
         await withTempDir(async (base) => {
@@ -170,12 +170,12 @@ describe("deep_research_feature_flags contract (entity)", () => {
           assert.equal(
             manifest.query.sensitivity,
             "no_web",
-            "Flag invariant broke: PAI_DR_NO_WEB=1 must force offline sensitivity regardless of requested sensitivity",
+            "Flag invariant broke: PAI_DR_CLI_NO_WEB=1 must force offline sensitivity regardless of requested sensitivity",
           );
           assert.equal(
-            manifest.query.constraints.deep_research_cli_flags.PAI_DR_NO_WEB,
+            manifest.query.constraints.deep_research_cli_flags.PAI_DR_CLI_NO_WEB,
             true,
-            "Flag invariant broke: manifest deep_research_cli_flags must persist PAI_DR_NO_WEB=true",
+            "Flag invariant broke: manifest deep_research_cli_flags must persist PAI_DR_CLI_NO_WEB=true",
           );
           assert.equal(
             manifest.limits.max_wave1_agents,

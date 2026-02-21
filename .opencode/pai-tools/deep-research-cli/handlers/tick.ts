@@ -6,7 +6,7 @@ import {
   type OrchestratorLiveRunAgentResult,
   watchdog_check,
 } from "../../../tools/deep_research_cli.ts";
-import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
+import { resolveDeepResearchCliFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
 import { sha256DigestForJson } from "../../../tools/deep_research_cli/wave_tools_shared";
 import { blockersSummaryJson, type TriageBlockers } from "../triage/blockers";
 import {
@@ -73,8 +73,8 @@ function nextStepCliInvocation(): string {
 }
 
 function ensureOptionCEnabledForCli(): void {
-  const flags = resolveDeepResearchFlagsV1();
-  if (!flags.optionCEnabled) {
+  const flags = resolveDeepResearchCliFlagsV1();
+  if (!flags.cliEnabled) {
     throw new Error(
       "Deep research Option C is disabled in current configuration",
     );

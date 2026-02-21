@@ -7,7 +7,7 @@ import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers
 
 describe("deep_research_gates_write (entity)", () => {
   test("updates a gate, bumps revision, and appends audit", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_gates_001";
         const initRaw = (await (run_init as any).execute(
@@ -51,7 +51,7 @@ describe("deep_research_gates_write (entity)", () => {
   });
 
   test("enforces lifecycle and schema validation with actionable path", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_gates_002";
         const initRaw = (await (run_init as any).execute(

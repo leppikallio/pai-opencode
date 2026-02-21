@@ -7,7 +7,7 @@ import {
   stage_advance,
   wave1_plan,
 } from "../../../tools/deep_research_cli.ts";
-import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
+import { resolveDeepResearchCliFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
 import { emitJson } from "../cli/json-mode";
 import {
   asObject,
@@ -39,8 +39,8 @@ export type InitCliArgs = {
 };
 
 function ensureOptionCEnabledForCli(): void {
-  const flags = resolveDeepResearchFlagsV1();
-  if (!flags.optionCEnabled) {
+  const flags = resolveDeepResearchCliFlagsV1();
+  if (!flags.cliEnabled) {
     throw new Error(
       "Deep research Option C is disabled in current configuration",
     );
@@ -104,14 +104,14 @@ async function writeRunConfig(args: {
   gatesPath: string;
   manifest: Record<string, unknown>;
 }): Promise<string> {
-  const flags = resolveDeepResearchFlagsV1();
+  const flags = resolveDeepResearchCliFlagsV1();
   const limits = asObject(args.manifest.limits);
   const query = asObject(args.manifest.query);
   const effectiveSensitivity = String(query.sensitivity ?? "normal");
   const deepFlags = readManifestDeepFlags(args.manifest);
 
-  const manifestBrightDataEndpoint = asNonEmptyString(deepFlags.PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT);
-  const manifestApifyEndpoint = asNonEmptyString(deepFlags.PAI_DR_CITATIONS_APIFY_ENDPOINT);
+  const manifestBrightDataEndpoint = asNonEmptyString(deepFlags.PAI_DR_CLI_CITATIONS_BRIGHT_DATA_ENDPOINT);
+  const manifestApifyEndpoint = asNonEmptyString(deepFlags.PAI_DR_CLI_CITATIONS_APIFY_ENDPOINT);
   const effectiveBrightDataEndpoint = (manifestBrightDataEndpoint ?? flags.citationsBrightDataEndpoint ?? "").trim();
   const effectiveApifyEndpoint = (manifestApifyEndpoint ?? flags.citationsApifyEndpoint ?? "").trim();
   const citationMode = citationModeFromSensitivity(effectiveSensitivity);

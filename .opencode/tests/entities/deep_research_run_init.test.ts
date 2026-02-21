@@ -23,7 +23,7 @@ async function withSettingsFlags<T>(flags: Record<string, unknown>, fn: () => Pr
     : {};
 
   deepResearchCli.flags = {
-    PAI_DR_OPTION_C_ENABLED: true,
+    PAI_DR_CLI_ENABLED: true,
     ...flags,
   };
   next.deepResearchCli = deepResearchCli;
@@ -108,9 +108,9 @@ describe("deep_research_run_init (entity)", () => {
     });
   });
 
-  test("uses PAI_DR_RUNS_ROOT from settings when root_override is omitted", async () => {
+  test("uses PAI_DR_CLI_RUNS_ROOT from settings when root_override is omitted", async () => {
     await withTempDir(async (runsRoot) => {
-      await withSettingsFlags({ PAI_DR_RUNS_ROOT: runsRoot }, async () => {
+      await withSettingsFlags({ PAI_DR_CLI_RUNS_ROOT: runsRoot }, async () => {
         const runId = "dr_test_runs_root_001";
         const outRaw = (await (run_init as any).execute(
           {
@@ -128,7 +128,7 @@ describe("deep_research_run_init (entity)", () => {
 
         const manifestPath = (out as any).manifest_path as string;
         const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
-        expect(manifest.query.constraints.deep_research_cli_flags.PAI_DR_RUNS_ROOT).toBe(runsRoot);
+        expect(manifest.query.constraints.deep_research_cli_flags.PAI_DR_CLI_RUNS_ROOT).toBe(runsRoot);
       });
     });
   });

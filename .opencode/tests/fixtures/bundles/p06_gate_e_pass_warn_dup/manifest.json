@@ -8,20 +8,20 @@
     "text": "Phase06 fixture pass with duplicate warning",
     "constraints": {
       "deep_research_cli_flags": {
-        "PAI_DR_OPTION_C_ENABLED": true,
-        "PAI_DR_MODE_DEFAULT": "standard",
-        "PAI_DR_MAX_WAVE1_AGENTS": 6,
-        "PAI_DR_MAX_WAVE2_AGENTS": 6,
-        "PAI_DR_MAX_SUMMARY_KB": 5,
-        "PAI_DR_MAX_TOTAL_SUMMARY_KB": 60,
-        "PAI_DR_MAX_REVIEW_ITERATIONS": 4,
-        "PAI_DR_CITATION_VALIDATION_TIER": "standard",
-        "PAI_DR_NO_WEB": true,
-        "PAI_DR_RUNS_ROOT": "/fixtures/bundles",
+        "PAI_DR_CLI_ENABLED": true,
+        "PAI_DR_CLI_MODE_DEFAULT": "standard",
+        "PAI_DR_CLI_MAX_WAVE1_AGENTS": 6,
+        "PAI_DR_CLI_MAX_WAVE2_AGENTS": 6,
+        "PAI_DR_CLI_MAX_SUMMARY_KB": 5,
+        "PAI_DR_CLI_MAX_TOTAL_SUMMARY_KB": 60,
+        "PAI_DR_CLI_MAX_REVIEW_ITERATIONS": 4,
+        "PAI_DR_CLI_CITATION_VALIDATION_TIER": "standard",
+        "PAI_DR_CLI_NO_WEB": true,
+        "PAI_DR_CLI_RUNS_ROOT": "/fixtures/bundles",
         "source": {
           "env": [
-            "PAI_DR_OPTION_C_ENABLED",
-            "PAI_DR_NO_WEB"
+            "PAI_DR_CLI_ENABLED",
+            "PAI_DR_CLI_NO_WEB"
           ],
           "settings": []
         }

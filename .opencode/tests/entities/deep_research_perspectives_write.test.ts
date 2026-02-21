@@ -7,7 +7,7 @@ import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers
 
 describe("deep_research_perspectives_write (entity)", () => {
   test("writes valid perspectives.v1 to <runRoot>/perspectives.json", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_perspectives_001";
         const initRaw = (await (run_init as any).execute(

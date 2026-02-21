@@ -6,7 +6,7 @@ import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers
 
 describe("deep_research_watchdog_check (entity)", () => {
   test("times out when no heartbeat progress exists", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_watchdog_001";
         const initRaw = (await (run_init as any).execute(
@@ -64,7 +64,7 @@ describe("deep_research_watchdog_check (entity)", () => {
   });
 
   test("keeps stage alive when heartbeat progress is recent", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_watchdog_heartbeat_001";
         const initRaw = (await (run_init as any).execute(
@@ -106,7 +106,7 @@ describe("deep_research_watchdog_check (entity)", () => {
   });
 
   test("does not time out when manifest is paused", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_watchdog_paused_001";
         const initRaw = (await (run_init as any).execute(

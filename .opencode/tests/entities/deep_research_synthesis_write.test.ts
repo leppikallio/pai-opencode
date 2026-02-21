@@ -64,7 +64,7 @@ async function setup(base: string, runId: string) {
 
 describe("deep_research_synthesis_write (entity)", () => {
   test("writes generate-mode draft from generated summary pack", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p05_synthesis_generate_001";
         const initRaw = (await run_init.execute(
@@ -138,7 +138,7 @@ describe("deep_research_synthesis_write (entity)", () => {
   });
 
   test("writes fixture draft using bounded inputs only", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const { manifestPath, runRoot } = await setup(base, "dr_test_p05_synthesis_001");
 
@@ -180,7 +180,7 @@ describe("deep_research_synthesis_write (entity)", () => {
   });
 
   test("fails UNKNOWN_CID when draft references unvalidated cid", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const { manifestPath } = await setup(base, "dr_test_p05_synthesis_002");
         const draftFixturePath = path.join(base, "draft.md");

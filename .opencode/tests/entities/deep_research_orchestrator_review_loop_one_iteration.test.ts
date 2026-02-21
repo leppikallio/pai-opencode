@@ -98,7 +98,7 @@ async function setupRunToSummaries(base: string, runId: string): Promise<{
 
 describe("deep_research orchestrator bounded review loop (entity)", () => {
   test("runs one review->synthesis iteration then finalizes", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_review_loop_001";
         const { manifestPath, gatesPath } = await setupRunToSummaries(base, runId);

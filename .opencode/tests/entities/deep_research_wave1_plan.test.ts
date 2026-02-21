@@ -9,7 +9,7 @@ describe("deep_research_wave1_plan (entity)", () => {
   test("writes deterministic plan artifact under wave-1/wave1-plan.json", async () => {
     await withEnv(
       {
-        PAI_DR_OPTION_C_ENABLED: "1",
+        PAI_DR_CLI_ENABLED: "1",
       },
       async () => {
         await withTempDir(async (base) => {
@@ -95,7 +95,7 @@ describe("deep_research_wave1_plan (entity)", () => {
   test("returns WAVE_CAP_EXCEEDED when perspectives exceed manifest cap", async () => {
     await withEnv(
       {
-        PAI_DR_OPTION_C_ENABLED: "1",
+        PAI_DR_CLI_ENABLED: "1",
       },
       async () => {
         await withTempDir(async (base) => {

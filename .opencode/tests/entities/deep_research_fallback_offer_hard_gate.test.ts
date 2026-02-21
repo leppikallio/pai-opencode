@@ -7,7 +7,7 @@ import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers
 
 describe("deep_research_fallback_offer_hard_gate (entity)", () => {
   test("writes fallback summary and marks manifest failed when a hard gate fails", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_fallback_offer_hard_gate_001";
 

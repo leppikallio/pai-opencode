@@ -24,7 +24,7 @@ function parseJsonl(raw: string): Array<Record<string, unknown>> {
 
 describe("deep_research citations phase04 (entity)", () => {
   test("offline pipeline: extract -> normalize -> validate -> gate C -> render", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_citations_001";
         const initRaw = (await (run_init as any).execute(
@@ -200,7 +200,7 @@ describe("deep_research citations phase04 (entity)", () => {
   });
 
   test("online mode runs deterministic dry-run ladder without stub placeholders", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "0" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "0" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_citations_002";
         const initRaw = (await (run_init as any).execute(
@@ -262,7 +262,7 @@ describe("deep_research citations phase04 (entity)", () => {
   });
 
   test("online fixture path enables Gate C pass and citations->summaries advance", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "0" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "0" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_citations_003";
         const initRaw = (await (run_init as any).execute(

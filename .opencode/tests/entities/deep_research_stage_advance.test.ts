@@ -63,7 +63,7 @@ async function initRun(base: string, runId: string): Promise<RunContext> {
 }
 
 async function withOptionCRun(runId: string, fn: (ctx: RunContext) => Promise<void>) {
-  await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+  await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
     await withTempDir(async (base) => {
       await fn(await initRun(base, runId));
     });

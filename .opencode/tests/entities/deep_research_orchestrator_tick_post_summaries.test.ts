@@ -86,7 +86,7 @@ async function seedGenerateInputs(base: string, runId: string) {
 
 describe("deep_research_orchestrator_tick_post_summaries (entity)", () => {
   test("generate mode advances summaries -> finalize without fixture directories", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const { manifestPath, gatesPath, runRoot } = await seedGenerateInputs(base, "dr_test_orch_post_sum_generate_001");
 
@@ -140,7 +140,7 @@ describe("deep_research_orchestrator_tick_post_summaries (entity)", () => {
   });
 
   test("review loop is bounded by max_review_iterations", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orch_post_sum_generate_002";
         const { manifestPath, gatesPath } = await seedGenerateInputs(base, runId);

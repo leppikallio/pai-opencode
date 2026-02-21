@@ -14,8 +14,8 @@ export type ToolWithExecute = {
 export type RunMode = "quick" | "standard" | "deep";
 export type Sensitivity = "normal" | "restricted" | "no_web";
 
-type DeepResearchFlagsV1 = {
-  optionCEnabled: boolean;
+type DeepResearchCliFlagsV1 = {
+  cliEnabled: boolean;
   modeDefault: RunMode;
   maxWave1Agents: number;
   maxWave2Agents: number;
@@ -124,18 +124,18 @@ export function getManifestPaths(manifest: Record<string, unknown>): Record<stri
   return paths ?? {};
 }
 
-export function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
-  const source: DeepResearchFlagsV1["source"] = { env: [], settings: [] };
+export function resolveDeepResearchCliFlagsV1(): DeepResearchCliFlagsV1 {
+  const source: DeepResearchCliFlagsV1["source"] = { env: [], settings: [] };
 
   // Defaults (spec-feature-flags-v1)
-  let optionCEnabled = true;
+  let cliEnabled = true;
   let modeDefault: RunMode = "standard";
   let maxWave1Agents = 6;
   let maxWave2Agents = 6;
   let maxSummaryKb = 5;
   let maxTotalSummaryKb = 60;
   let maxReviewIterations = 4;
-  let citationValidationTier: DeepResearchFlagsV1["citationValidationTier"] = "standard";
+  let citationValidationTier: DeepResearchCliFlagsV1["citationValidationTier"] = "standard";
   let citationsBrightDataEndpoint: string | null = null;
   let citationsApifyEndpoint: string | null = null;
   let noWeb = false;
@@ -160,52 +160,52 @@ export function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
     source.settings.push(key);
   };
 
-  applySetting("PAI_DR_OPTION_C_ENABLED", (flags) => {
-    const b = parseBool(flags.PAI_DR_OPTION_C_ENABLED);
-    if (b !== null) optionCEnabled = b;
+  applySetting("PAI_DR_CLI_ENABLED", (flags) => {
+    const b = parseBool(flags.PAI_DR_CLI_ENABLED);
+    if (b !== null) cliEnabled = b;
   });
-  applySetting("PAI_DR_MODE_DEFAULT", (flags) => {
-    const e = parseEnum(flags.PAI_DR_MODE_DEFAULT, ["quick", "standard", "deep"] as const);
+  applySetting("PAI_DR_CLI_MODE_DEFAULT", (flags) => {
+    const e = parseEnum(flags.PAI_DR_CLI_MODE_DEFAULT, ["quick", "standard", "deep"] as const);
     if (e) modeDefault = e;
   });
-  applySetting("PAI_DR_MAX_WAVE1_AGENTS", (flags) => {
-    const n = parseIntSafe(flags.PAI_DR_MAX_WAVE1_AGENTS);
+  applySetting("PAI_DR_CLI_MAX_WAVE1_AGENTS", (flags) => {
+    const n = parseIntSafe(flags.PAI_DR_CLI_MAX_WAVE1_AGENTS);
     if (n !== null) maxWave1Agents = n;
   });
-  applySetting("PAI_DR_MAX_WAVE2_AGENTS", (flags) => {
-    const n = parseIntSafe(flags.PAI_DR_MAX_WAVE2_AGENTS);
+  applySetting("PAI_DR_CLI_MAX_WAVE2_AGENTS", (flags) => {
+    const n = parseIntSafe(flags.PAI_DR_CLI_MAX_WAVE2_AGENTS);
     if (n !== null) maxWave2Agents = n;
   });
-  applySetting("PAI_DR_MAX_SUMMARY_KB", (flags) => {
-    const n = parseIntSafe(flags.PAI_DR_MAX_SUMMARY_KB);
+  applySetting("PAI_DR_CLI_MAX_SUMMARY_KB", (flags) => {
+    const n = parseIntSafe(flags.PAI_DR_CLI_MAX_SUMMARY_KB);
     if (n !== null) maxSummaryKb = n;
   });
-  applySetting("PAI_DR_MAX_TOTAL_SUMMARY_KB", (flags) => {
-    const n = parseIntSafe(flags.PAI_DR_MAX_TOTAL_SUMMARY_KB);
+  applySetting("PAI_DR_CLI_MAX_TOTAL_SUMMARY_KB", (flags) => {
+    const n = parseIntSafe(flags.PAI_DR_CLI_MAX_TOTAL_SUMMARY_KB);
     if (n !== null) maxTotalSummaryKb = n;
   });
-  applySetting("PAI_DR_MAX_REVIEW_ITERATIONS", (flags) => {
-    const n = parseIntSafe(flags.PAI_DR_MAX_REVIEW_ITERATIONS);
+  applySetting("PAI_DR_CLI_MAX_REVIEW_ITERATIONS", (flags) => {
+    const n = parseIntSafe(flags.PAI_DR_CLI_MAX_REVIEW_ITERATIONS);
     if (n !== null) maxReviewIterations = n;
   });
-  applySetting("PAI_DR_CITATION_VALIDATION_TIER", (flags) => {
-    const e = parseEnum(flags.PAI_DR_CITATION_VALIDATION_TIER, ["basic", "standard", "thorough"] as const);
+  applySetting("PAI_DR_CLI_CITATION_VALIDATION_TIER", (flags) => {
+    const e = parseEnum(flags.PAI_DR_CLI_CITATION_VALIDATION_TIER, ["basic", "standard", "thorough"] as const);
     if (e) citationValidationTier = e;
   });
-  applySetting("PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT", (flags) => {
-    const endpoint = String(flags.PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT ?? "").trim();
+  applySetting("PAI_DR_CLI_CITATIONS_BRIGHT_DATA_ENDPOINT", (flags) => {
+    const endpoint = String(flags.PAI_DR_CLI_CITATIONS_BRIGHT_DATA_ENDPOINT ?? "").trim();
     citationsBrightDataEndpoint = endpoint || null;
   });
-  applySetting("PAI_DR_CITATIONS_APIFY_ENDPOINT", (flags) => {
-    const endpoint = String(flags.PAI_DR_CITATIONS_APIFY_ENDPOINT ?? "").trim();
+  applySetting("PAI_DR_CLI_CITATIONS_APIFY_ENDPOINT", (flags) => {
+    const endpoint = String(flags.PAI_DR_CLI_CITATIONS_APIFY_ENDPOINT ?? "").trim();
     citationsApifyEndpoint = endpoint || null;
   });
-  applySetting("PAI_DR_NO_WEB", (flags) => {
-    const b = parseBool(flags.PAI_DR_NO_WEB);
+  applySetting("PAI_DR_CLI_NO_WEB", (flags) => {
+    const b = parseBool(flags.PAI_DR_CLI_NO_WEB);
     if (b !== null) noWeb = b;
   });
-  applySetting("PAI_DR_RUNS_ROOT", (flags) => {
-    const p = parseAbsolutePathSetting(flags.PAI_DR_RUNS_ROOT);
+  applySetting("PAI_DR_CLI_RUNS_ROOT", (flags) => {
+    const p = parseAbsolutePathSetting(flags.PAI_DR_CLI_RUNS_ROOT);
     if (p) runsRoot = p;
   });
 
@@ -220,7 +220,7 @@ export function resolveDeepResearchFlagsV1(): DeepResearchFlagsV1 {
   maxReviewIterations = clampInt(maxReviewIterations, 0, 50);
 
   return {
-    optionCEnabled,
+    cliEnabled,
     modeDefault,
     maxWave1Agents,
     maxWave2Agents,

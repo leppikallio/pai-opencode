@@ -15,7 +15,7 @@ describe("deep_research_citations_render_md (entity)", () => {
   const maybeTest = citations_render_md ? test : test.skip;
 
   maybeTest("renders deterministic markdown from citations.jsonl", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p04_render_001";
         const initRaw = (await (run_init as any).execute(

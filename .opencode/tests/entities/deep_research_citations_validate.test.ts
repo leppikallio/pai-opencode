@@ -19,8 +19,8 @@ describe("deep_research_citations_validate (entity)", () => {
         sensitivity: "normal",
         constraints: {
           deep_research_cli_flags: {
-            PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT: "https://manifest.example/bright",
-            PAI_DR_CITATIONS_APIFY_ENDPOINT: "https://manifest.example/apify",
+            PAI_DR_CLI_CITATIONS_BRIGHT_DATA_ENDPOINT: "https://manifest.example/bright",
+            PAI_DR_CLI_CITATIONS_APIFY_ENDPOINT: "https://manifest.example/apify",
           },
         },
       },
@@ -84,7 +84,7 @@ describe("deep_research_citations_validate (entity)", () => {
   const maybeTest = citations_validate ? test : test.skip;
 
   maybeTest("runs in OFFLINE fixture mode when sensitivity=no_web", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p04_validate_001";
         const initRaw = (await (run_init as any).execute(
@@ -133,7 +133,7 @@ describe("deep_research_citations_validate (entity)", () => {
   });
 
   maybeTest("requires offline_fixtures_path in OFFLINE mode", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p04_validate_002";
         const initRaw = (await (run_init as any).execute(
@@ -159,7 +159,7 @@ describe("deep_research_citations_validate (entity)", () => {
   });
 
   maybeTest("ONLINE mode blocks private/local URLs as invalid", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "0" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "0" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p04_validate_003";
         const initRaw = (await (run_init as any).execute(
@@ -219,7 +219,7 @@ describe("deep_research_citations_validate (entity)", () => {
   });
 
   maybeTest("ONLINE mode captures fixtures and replays deterministically without network", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "0" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "0" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p04_validate_004";
         const initRaw = (await (run_init as any).execute(
@@ -337,7 +337,7 @@ describe("deep_research_citations_validate (entity)", () => {
 
   const canaryTest = ((globalThis as any).process?.env?.PAI_DR_ENABLE_ONLINE_CANARY === "1") ? maybeTest : test.skip;
   canaryTest("ONLINE canary is opt-in and skipped by default", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "0" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "0" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p04_validate_canary_001";
         const initRaw = (await (run_init as any).execute(

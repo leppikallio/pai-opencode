@@ -7,7 +7,7 @@ import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers
 
 describe("deep_research_review_factory_run (entity)", () => {
   test("generate mode returns PASS for bounded draft", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p05_review_factory_generate_001";
         const initRaw = (await run_init.execute(
@@ -60,7 +60,7 @@ describe("deep_research_review_factory_run (entity)", () => {
   });
 
   test("generate mode returns CHANGES_REQUIRED for malformed draft", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p05_review_factory_generate_002";
         const initRaw = (await run_init.execute(
@@ -96,7 +96,7 @@ describe("deep_research_review_factory_run (entity)", () => {
   });
 
   test("fixture mode writes bounded review bundle", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p05_review_factory_001";
         const initRaw = (await run_init.execute(
