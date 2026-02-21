@@ -296,10 +296,11 @@ export const summary_pack_build = tool({
         await atomicWriteText(item.summary_path, item.markdown);
       }
 
+      const generatedAt = nowIso();
       const summaryPack = {
         schema_version: "summary_pack.v1",
         run_id: runId,
-        generated_at: nowIso(),
+        generated_at: generatedAt,
         limits: {
           max_summary_kb: maxSummaryKb,
           max_total_summary_kb: maxTotalSummaryKb,
@@ -335,11 +336,19 @@ export const summary_pack_build = tool({
         })),
       });
 
+      const summaryPackMetaPath = path.join(path.dirname(summaryPackPath), "summary-pack.meta.json");
+      await atomicWriteJson(summaryPackMetaPath, {
+        schema_version: "summary_pack_meta.v1",
+        mode,
+        generated_at: generatedAt,
+        inputs_digest: inputsDigest,
+      });
+
       try {
         await appendAuditJsonl({
           runRoot,
           event: {
-            ts: nowIso(),
+            ts: generatedAt,
             kind: "summary_pack_build",
             run_id: runId,
             reason,
@@ -353,6 +362,7 @@ export const summary_pack_build = tool({
 
       return ok({
         summary_pack_path: summaryPackPath,
+        summary_pack_meta_path: summaryPackMetaPath,
         summaries_dir: summariesDir,
         summary_count: prepared.length,
         inputs_digest: inputsDigest,
