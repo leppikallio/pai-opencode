@@ -1,6 +1,7 @@
 import { manifest_write } from "../../../tools/deep_research_cli.ts";
 import { resolveDeepResearchCliFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
-import { emitJson } from "../cli/json-mode";
+import { emitJsonV1 } from "../cli/json-contract";
+import { resolveDeepResearchCliInvocation } from "../utils/cli-invocation";
 import {
   writeCheckpoint,
 } from "../utils/fs-utils";
@@ -49,16 +50,23 @@ export async function runCancel(args: CancelCliArgs): Promise<void> {
 
   if (summary.status === "cancelled") {
     if (args.json) {
-      emitJson({
+      emitJsonV1({
         ok: true,
         command: "cancel",
-        note: "already cancelled",
-        run_id: summary.runId,
-        run_root: summary.runRoot,
-        manifest_path: runHandle.manifestPath,
-        gates_path: summary.gatesPath,
-        stage_current: summary.stageCurrent,
-        status: summary.status,
+        contract: {
+          run_id: summary.runId,
+          run_root: summary.runRoot,
+          manifest_path: runHandle.manifestPath,
+          gates_path: summary.gatesPath,
+          stage_current: summary.stageCurrent,
+          status: summary.status,
+          cli_invocation: resolveDeepResearchCliInvocation(),
+        },
+        result: {
+          note: "already cancelled",
+        },
+        error: null,
+        halt: null,
       });
     } else {
       console.log("cancel.ok: true");
@@ -103,16 +111,23 @@ export async function runCancel(args: CancelCliArgs): Promise<void> {
 
   if (args.json) {
     const currentSummary = await summarizeManifest(await readJsonObject(runHandle.manifestPath));
-    emitJson({
+    emitJsonV1({
       ok: true,
       command: "cancel",
-      checkpoint_path: checkpointPath,
-      run_id: currentSummary.runId,
-      run_root: currentSummary.runRoot,
-      manifest_path: runHandle.manifestPath,
-      gates_path: currentSummary.gatesPath,
-      stage_current: currentSummary.stageCurrent,
-      status: currentSummary.status,
+      contract: {
+        run_id: currentSummary.runId,
+        run_root: currentSummary.runRoot,
+        manifest_path: runHandle.manifestPath,
+        gates_path: currentSummary.gatesPath,
+        stage_current: currentSummary.stageCurrent,
+        status: currentSummary.status,
+        cli_invocation: resolveDeepResearchCliInvocation(),
+      },
+      result: {
+        checkpoint_path: checkpointPath,
+      },
+      error: null,
+      halt: null,
     });
   }
 }
