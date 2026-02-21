@@ -15,6 +15,29 @@ This is the canonical operator skill for Option C deep research. It is the sourc
 - CLI: `bun ".opencode/pai-tools/deep-research-cli.ts" <command> [...flags]`
 - Run artifacts (manifest, gates, stage artifacts) are the source of truth; do not rely on ambient env vars.
 
+## CLI invocation (repo vs runtime)
+
+Use whichever path exists.
+
+### Repo checkout (this repository)
+
+```bash
+bun ".opencode/pai-tools/deep-research-cli.ts" <command> [...flags]
+```
+
+### Runtime install (`~/.config/opencode`)
+
+```bash
+bun "pai-tools/deep-research-cli.ts" <command> [...flags]
+```
+
+### LLM-driving recommendations
+
+- Prefer `--json` when an LLM is driving the loop.
+  - The CLI emits a single-line JSON envelope: `schema_version="dr.cli.v1"`.
+  - When a command halts, `halt.next_commands` is included **inline** in that JSON.
+- Prefer `--run-id` on `init` for deterministic reproduction/debugging.
+
 ## Perspective Drafting (task-driver seam)
 
 Use this when you want **agent-authored perspectives** instead of the default `init`-generated `perspectives.json`.
@@ -39,6 +62,7 @@ If you do **not** pass `--no-perspectives`, `init` may write `perspectives.json`
 bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
+  --run-id "<run_id>" \
   --no-perspectives
 ```
 
@@ -112,6 +136,10 @@ This skill is the operator surface. Legacy slashcommand docs are removed.
 - **fixture (offline):** `init` with `--sensitivity no_web`, loop `tick --driver fixture` until terminal status or typed blocker; use `triage` when blocked.
 - **live (operator run):** use task-driver seams (`tick --driver task` + `agent-result`) to produce wave artifacts, then proceed through citations/summaries/synthesis.
 
+> **Scaffold warning (required):** `--driver fixture` and `mode=generate` paths are deterministic scaffolding.
+> They validate contracts/gates/artifacts, but do **not** constitute “real research” unless you are explicitly running
+> the task-driver loop (`tick --driver task` + `agent-result`) with agent-authored outputs.
+
 ### Required final print contract
 
 When operating a run (any mode), always capture/print:
@@ -139,7 +167,10 @@ When operating a run (any mode), always capture/print:
 ## Workflows
 
 - `Workflows/RunPlan.md`
+- `Workflows/LLMDriverLoop.md`
 - `Workflows/DraftPerspectivesFromQuery.md`
+- `Workflows/RunM2Canary.md`
+- `Workflows/RunM3Canary.md`
 - `Workflows/RunWave1WithTaskDriver.md`
 - `Workflows/RunFixtureToFinalize.md`
 - `Workflows/RunLiveWave1ToPivot.md`
