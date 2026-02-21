@@ -5,18 +5,18 @@ import * as path from "node:path";
 import { run_init, stage_advance } from "../../tools/deep_research_cli.ts";
 import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
-async function setManifestOptionCEnabled(manifestPath: string, enabled: boolean) {
+async function setManifestDeepResearchCliEnabled(manifestPath: string, enabled: boolean) {
   const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
   manifest.query ??= {};
   manifest.query.constraints ??= {};
-  manifest.query.constraints.option_c ??= {};
-  manifest.query.constraints.option_c.enabled = enabled;
+  manifest.query.constraints.deep_research_cli ??= {};
+  manifest.query.constraints.deep_research_cli.enabled = enabled;
   await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 }
 
-async function readManifestOptionCEnabled(manifestPath: string): Promise<boolean | undefined> {
+async function readManifestDeepResearchCliEnabled(manifestPath: string): Promise<boolean | undefined> {
   const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
-  return manifest?.query?.constraints?.option_c?.enabled;
+  return manifest?.query?.constraints?.deep_research_cli?.enabled;
 }
 
 describe("deep_research_fallback_path (entity)", () => {
@@ -41,7 +41,7 @@ describe("deep_research_fallback_path (entity)", () => {
         const runRoot = path.join(base, runId);
         const st = await fs.stat(runRoot);
         expect(st.isDirectory()).toBe(true);
-        expect(await readManifestOptionCEnabled(String((out as any).manifest_path))).toBe(true);
+        expect(await readManifestDeepResearchCliEnabled(String((out as any).manifest_path))).toBe(true);
       });
     });
   });
@@ -63,7 +63,7 @@ describe("deep_research_fallback_path (entity)", () => {
 
         const out = parseToolJson(outRaw);
         expect(out.ok).toBe(true);
-        expect(await readManifestOptionCEnabled(String((out as any).manifest_path))).toBe(true);
+        expect(await readManifestDeepResearchCliEnabled(String((out as any).manifest_path))).toBe(true);
       });
     });
   });
@@ -90,7 +90,7 @@ describe("deep_research_fallback_path (entity)", () => {
       await fs.writeFile(sentinelPath, "preserve-this-artifact", "utf8");
       const manifestPath = String((initOut as any).manifest_path);
       const gatesPath = String((initOut as any).gates_path);
-      await setManifestOptionCEnabled(manifestPath, false);
+      await setManifestDeepResearchCliEnabled(manifestPath, false);
 
       const outRaw = (await (stage_advance as any).execute(
         {
@@ -106,7 +106,7 @@ describe("deep_research_fallback_path (entity)", () => {
       expect(out.ok).toBe(false);
       expect((out as any).error.code).toBe("DISABLED");
       expect((out as any).error.message).toBe("Option C is disabled");
-      expect((out as any).error.details.constraint_path).toBe("manifest.query.constraints.option_c.enabled");
+      expect((out as any).error.details.constraint_path).toBe("manifest.query.constraints.deep_research_cli.enabled");
       expect(String((out as any).error.details.instruction)).toContain("No env vars required");
 
       expect(await fs.readFile(sentinelPath, "utf8")).toBe("preserve-this-artifact");

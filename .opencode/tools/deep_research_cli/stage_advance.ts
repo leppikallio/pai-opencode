@@ -59,12 +59,12 @@ export const stage_advance = tool({
       const constraints = query && isPlainObject(query.constraints)
         ? (query.constraints as Record<string, unknown>)
         : null;
-      const optionC = constraints && isPlainObject(constraints.option_c)
-        ? (constraints.option_c as Record<string, unknown>)
+      const optionC = constraints && isPlainObject(constraints.deep_research_cli)
+        ? (constraints.deep_research_cli as Record<string, unknown>)
         : null;
       if (optionC?.enabled === false) {
         return err("DISABLED", "Option C is disabled", {
-          constraint_path: "manifest.query.constraints.option_c.enabled",
+          constraint_path: "manifest.query.constraints.deep_research_cli.enabled",
           instruction: "No env vars required; use CLI flags and run artifacts.",
         });
       }

@@ -90,7 +90,7 @@ function citationModeFromSensitivity(sensitivity: string): "offline" | "online" 
 function readManifestDeepFlags(manifest: Record<string, unknown>): Record<string, unknown> {
   const query = asObject(manifest.query);
   const constraints = asObject(query.constraints);
-  return asObject(constraints.deep_research_flags);
+  return asObject(constraints.deep_research_cli_flags);
 }
 
 function _timestampTokenFromIso(iso: string): string {

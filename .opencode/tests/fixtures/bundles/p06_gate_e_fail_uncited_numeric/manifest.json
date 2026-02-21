@@ -7,7 +7,7 @@
   "query": {
     "text": "Phase06 fixture fail with uncited numeric claim",
     "constraints": {
-      "deep_research_flags": {
+      "deep_research_cli_flags": {
         "PAI_DR_OPTION_C_ENABLED": true,
         "PAI_DR_MODE_DEFAULT": "standard",
         "PAI_DR_MAX_WAVE1_AGENTS": 6,

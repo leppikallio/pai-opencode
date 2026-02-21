@@ -239,10 +239,10 @@ export const run_init = tool({
           text: args.query,
           constraints: {
             scope_path: SCOPE_PATH_RELATIVE,
-            option_c: {
+            deep_research_cli: {
               enabled: true,
             },
-            deep_research_flags: {
+            deep_research_cli_flags: {
               PAI_DR_OPTION_C_ENABLED: flags.optionCEnabled,
               PAI_DR_MODE_DEFAULT: flags.modeDefault,
               PAI_DR_MAX_WAVE1_AGENTS: flags.maxWave1Agents,

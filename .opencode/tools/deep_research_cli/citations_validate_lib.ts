@@ -241,7 +241,7 @@ type CitationMode = "offline" | "online" | "dry_run";
 
 export type CitationConfigSource =
   | "manifest.query.sensitivity"
-  | "manifest.query.constraints.deep_research_flags"
+  | "manifest.query.constraints.deep_research_cli_flags"
   | "run-config.effective.citations"
   | "unset"
   | "arg.online_dry_run";
@@ -303,7 +303,7 @@ function readEndpointFromManifestFlags(
 ): string | null {
   const query = asObject(manifest.query);
   const constraints = asObject(query.constraints);
-  const flags = asObject(constraints.deep_research_flags);
+  const flags = asObject(constraints.deep_research_cli_flags);
   return asNonEmptyString(flags[key]);
 }
 
@@ -328,7 +328,7 @@ export function resolveCitationsConfig(args: {
   const runConfigBrightData = readEndpointFromRunConfig(args.runConfig, "brightdata");
   const brightDataEndpoint = manifestBrightData ?? runConfigBrightData ?? "";
   const brightDataSource: CitationConfigSource = manifestBrightData
-    ? "manifest.query.constraints.deep_research_flags"
+    ? "manifest.query.constraints.deep_research_cli_flags"
     : runConfigBrightData
       ? "run-config.effective.citations"
       : "unset";
@@ -337,7 +337,7 @@ export function resolveCitationsConfig(args: {
   const runConfigApify = readEndpointFromRunConfig(args.runConfig, "apify");
   const apifyEndpoint = manifestApify ?? runConfigApify ?? "";
   const apifySource: CitationConfigSource = manifestApify
-    ? "manifest.query.constraints.deep_research_flags"
+    ? "manifest.query.constraints.deep_research_cli_flags"
     : runConfigApify
       ? "run-config.effective.citations"
       : "unset";
