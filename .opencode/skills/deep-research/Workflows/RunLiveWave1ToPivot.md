@@ -7,13 +7,16 @@ Run live Wave 1 collection and stop when the run reaches `stage.current=pivot`.
 - Query string
 - Optional: `--run-id`
 
-## Choose CLI invocation
+## CLI command forms (copy/paste)
 
 ```bash
 # Repo checkout (this repository)
-CLI='bun .opencode/pai-tools/deep-research-cli.ts'
+bun ".opencode/pai-tools/deep-research-cli.ts" <command> [flags]
+```
+
+```bash
 # Runtime install (~/.config/opencode)
-# CLI='bun pai-tools/deep-research-cli.ts'
+bun "pai-tools/deep-research-cli.ts" <command> [flags]
 ```
 
 ## Steps
@@ -21,7 +24,10 @@ CLI='bun .opencode/pai-tools/deep-research-cli.ts'
 1. Initialize run:
 
 ```bash
-$CLI init "<query>" --mode standard --sensitivity normal
+bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity normal
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity normal
 ```
 
 2. Execute Wave 1 autonomously (Option A: Task-backed driver) until the run reaches `stage.current: pivot`.
@@ -37,7 +43,10 @@ Notes:
 3. If progress stalls, inspect blockers:
 
 ```bash
-$CLI triage --manifest "<manifest_abs>"
+bun ".opencode/pai-tools/deep-research-cli.ts" triage --manifest "<manifest_abs>"
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" triage --manifest "<manifest_abs>"
 ```
 
 ## Validation Contract

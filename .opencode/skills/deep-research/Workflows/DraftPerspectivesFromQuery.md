@@ -9,13 +9,16 @@ Derive a stable `perspectives.json` from a query so Wave 1 can run deterministic
 - `run_root`
 - Wave cap from `manifest.limits.max_wave1_agents`
 
-## Choose CLI invocation
+## CLI command forms (copy/paste)
 
 ```bash
 # Repo checkout (this repository)
-CLI='bun .opencode/pai-tools/deep-research-cli.ts'
+bun ".opencode/pai-tools/deep-research-cli.ts" <command> [flags]
+```
+
+```bash
 # Runtime install (~/.config/opencode)
-# CLI='bun pai-tools/deep-research-cli.ts'
+bun "pai-tools/deep-research-cli.ts" <command> [flags]
 ```
 
 ## Stability rules (required)
@@ -53,7 +56,13 @@ Minimum baseline:
 1) Initialize a run **without** perspectives (so you can enter the perspectives drafting seam):
 
 ```bash
-$CLI init "<query>" \
+bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
+  --mode standard \
+  --sensitivity normal \
+  --no-perspectives
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
   --no-perspectives
@@ -62,7 +71,14 @@ $CLI init "<query>" \
 2) Advance into `stage.current=perspectives`:
 
 ```bash
-$CLI stage-advance \
+bun ".opencode/pai-tools/deep-research-cli.ts" stage-advance \
+  --manifest "<manifest_abs>" \
+  --gates "<gates_abs>" \
+  --requested-next perspectives \
+  --reason "enter perspectives drafting"
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" stage-advance \
   --manifest "<manifest_abs>" \
   --gates "<gates_abs>" \
   --requested-next perspectives \
@@ -72,7 +88,13 @@ $CLI stage-advance \
 3) Run the task-driver prompt-out command (this **writes prompts and HALTs**):
 
 ```bash
-$CLI perspectives-draft \
+bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
+  --manifest "<manifest_abs>" \
+  --reason "draft perspectives" \
+  --driver task
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" perspectives-draft \
   --manifest "<manifest_abs>" \
   --reason "draft perspectives" \
   --driver task
@@ -88,7 +110,16 @@ On halt (`RUN_AGENT_REQUIRED`), use these artifact paths:
 5) Ingest it (normalizes + writes canonical sidecars):
 
 ```bash
-$CLI agent-result \
+bun ".opencode/pai-tools/deep-research-cli.ts" agent-result \
+  --manifest "<manifest_abs>" \
+  --stage perspectives \
+  --perspective "primary" \
+  --input "<run_root>/operator/outputs/perspectives/primary.raw.json" \
+  --agent-run-id "<agent_run_id>" \
+  --reason "operator: ingest perspectives/primary"
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" agent-result \
   --manifest "<manifest_abs>" \
   --stage perspectives \
   --perspective "primary" \
@@ -106,7 +137,13 @@ This writes:
 6) Rerun `perspectives-draft` to merge + (possibly) halt for human review, or auto-promote:
 
 ```bash
-$CLI perspectives-draft \
+bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
+  --manifest "<manifest_abs>" \
+  --reason "approve perspectives draft" \
+  --driver task
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" perspectives-draft \
   --manifest "<manifest_abs>" \
   --reason "approve perspectives draft" \
   --driver task

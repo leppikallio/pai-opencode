@@ -7,13 +7,16 @@ Safely pause a long-running Option C run.
 - `manifest` absolute path
 - Optional pause reason
 
-## Choose CLI invocation
+## CLI command forms (copy/paste)
 
 ```bash
 # Repo checkout (this repository)
-CLI='bun .opencode/pai-tools/deep-research-cli.ts'
+bun ".opencode/pai-tools/deep-research-cli.ts" <command> [flags]
+```
+
+```bash
 # Runtime install (~/.config/opencode)
-# CLI='bun pai-tools/deep-research-cli.ts'
+bun "pai-tools/deep-research-cli.ts" <command> [flags]
 ```
 
 ## Steps
@@ -21,7 +24,10 @@ CLI='bun .opencode/pai-tools/deep-research-cli.ts'
 1. Pause:
 
 ```bash
-$CLI pause --manifest "<manifest_abs>" --reason "operator pause"
+bun ".opencode/pai-tools/deep-research-cli.ts" pause --manifest "<manifest_abs>" --reason "operator pause"
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" pause --manifest "<manifest_abs>" --reason "operator pause"
 ```
 
 2. Confirm a pause checkpoint was written (the CLI prints the checkpoint path) and includes restart guidance.
