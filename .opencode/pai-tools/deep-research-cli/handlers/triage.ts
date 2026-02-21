@@ -1,5 +1,6 @@
-import { emitContractCommandJson } from "../cli/contract-json";
+import { emitJsonV1 } from "../cli/json-contract";
 import { readJsonObject } from "../utils/io-json";
+import { resolveDeepResearchCliInvocation } from "../utils/cli-invocation";
 import {
   printContract,
   readGateStatusesSummary,
@@ -32,17 +33,38 @@ export async function runTriage(args: RunTriageCliArgs): Promise<void> {
     reason: "operator-cli triage: stage-advance dry-run",
   });
   const triage = triageFromStageAdvanceResult(dryRun);
+  const blockersSummary = blockersSummaryJson(triage);
 
   if (args.json) {
-    emitContractCommandJson({
+    const payload: Parameters<typeof emitJsonV1>[0] & Record<string, unknown> = {
+      ok: true,
       command: "triage",
-      summary,
-      manifestPath: runHandle.manifestPath,
-      gateStatusesSummary,
-      extra: {
-        blockers_summary: blockersSummaryJson(triage),
+      contract: {
+        run_id: summary.runId,
+        run_root: summary.runRoot,
+        manifest_path: runHandle.manifestPath,
+        gates_path: summary.gatesPath,
+        stage_current: summary.stageCurrent,
+        status: summary.status,
+        cli_invocation: resolveDeepResearchCliInvocation(),
       },
-    });
+      result: {
+        gate_statuses_summary: gateStatusesSummary,
+        blockers_summary: blockersSummary,
+      },
+      error: null,
+      halt: null,
+      // Legacy transitional mirrors (consumed by existing entity tests).
+      run_id: summary.runId,
+      run_root: summary.runRoot,
+      manifest_path: runHandle.manifestPath,
+      gates_path: summary.gatesPath,
+      stage_current: summary.stageCurrent,
+      status: summary.status,
+      gate_statuses_summary: gateStatusesSummary,
+      blockers_summary: blockersSummary,
+    };
+    emitJsonV1(payload);
     return;
   }
 
