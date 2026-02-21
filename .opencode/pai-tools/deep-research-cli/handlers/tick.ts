@@ -426,7 +426,13 @@ export async function runTick(args: TickCliArgs): Promise<void> {
     printTickResult(args.driver, result);
   }
 
-  let haltArtifact: { tickPath: string; latestPath: string; tickIndex: number; triage: TriageBlockers | null } | null = null;
+  let haltArtifact: {
+    tickPath: string;
+    latestPath: string;
+    tickIndex: number;
+    nextCommands: string[];
+    triage: TriageBlockers | null;
+  } | null = null;
 
   if (!result.ok) {
     const tickError = resultErrorDetails(result) ?? {
@@ -494,6 +500,7 @@ export async function runTick(args: TickCliArgs): Promise<void> {
           tick_index: haltArtifact.tickIndex,
           tick_path: haltArtifact.tickPath,
           latest_path: haltArtifact.latestPath,
+          next_commands: haltArtifact.nextCommands,
           blockers_summary: haltArtifact.triage ? blockersSummaryJson(haltArtifact.triage) : null,
         }
         : null,
