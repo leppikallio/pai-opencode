@@ -46,6 +46,13 @@ export async function runOneOrchestratorTick(args: {
   }
 
   const stage = args.stageHint ?? (await summarizeManifest(await readJsonObject(args.manifestPath))).stageCurrent;
+  const liveDrivers = args.driver === "live"
+    ? (args.liveDriver ? { runAgent: args.liveDriver } : null)
+    : null;
+  if (args.driver === "live" && !liveDrivers) {
+    throw new Error("internal: live driver missing");
+  }
+
   if (stage === "perspectives") {
     return {
       ok: false,
@@ -71,13 +78,6 @@ export async function runOneOrchestratorTick(args: {
   }
 
   if (stage === "pivot" || stage === "wave2" || stage === "citations") {
-    const liveDrivers = args.driver === "live"
-      ? (args.liveDriver ? { runAgent: args.liveDriver } : null)
-      : null;
-    if (args.driver === "live" && !liveDrivers) {
-      throw new Error("internal: live driver missing");
-    }
-
     return await orchestrator_tick_post_pivot({
       manifest_path: args.manifestPath,
       gates_path: args.gatesPath,
@@ -93,6 +93,7 @@ export async function runOneOrchestratorTick(args: {
     gates_path: args.gatesPath,
     reason: args.reason,
     driver: args.driver,
+    ...(liveDrivers ? { drivers: liveDrivers } : {}),
     tool_context: makeToolContext(),
   });
 }

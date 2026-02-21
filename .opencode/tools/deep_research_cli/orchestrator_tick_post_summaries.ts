@@ -25,6 +25,10 @@ import { stage_advance } from "./stage_advance";
 import { summary_pack_build } from "./summary_pack_build";
 import { synthesis_write } from "./synthesis_write";
 import { manifest_write } from "./manifest_write";
+import type {
+  OrchestratorLiveDrivers,
+  OrchestratorLiveRunAgentResult,
+} from "./orchestrator_tick_live";
 
 type ToolJsonOk = {
   ok: true;
@@ -56,6 +60,7 @@ export type OrchestratorTickPostSummariesArgs = {
   revision_control_tool?: ToolWithExecute;
   gates_write_tool?: ToolWithExecute;
   stage_advance_tool?: ToolWithExecute;
+  drivers?: Pick<OrchestratorLiveDrivers, "runAgent">;
   tool_context?: unknown;
 };
 
@@ -128,6 +133,60 @@ function normalizePromptDigest(value: unknown): string | null {
   if (/^sha256:[a-f0-9]{64}$/u.test(trimmed)) return trimmed;
   if (/^[a-f0-9]{64}$/u.test(trimmed)) return `sha256:${trimmed}`;
   return null;
+}
+
+function toPosixPath(value: string): string {
+  return value.split(path.sep).join("/");
+}
+
+function normalizeRunAgentResult(
+  value: OrchestratorLiveRunAgentResult,
+):
+  | {
+    ok: true;
+    markdown: string;
+    agentRunId: string | null;
+    startedAt: string | null;
+    finishedAt: string | null;
+    model: string | null;
+  }
+  | { ok: false; code: string; message: string } {
+  if (!isPlainObject(value)) {
+    return {
+      ok: false,
+      code: "RUN_AGENT_FAILED",
+      message: "drivers.runAgent result must be an object",
+    };
+  }
+
+  const runError = isPlainObject(value.error)
+    ? (value.error as Record<string, unknown>)
+    : null;
+  if (runError) {
+    return {
+      ok: false,
+      code: String(runError.code ?? "RUN_AGENT_FAILED"),
+      message: String(runError.message ?? "drivers.runAgent returned an error"),
+    };
+  }
+
+  const markdown = nonEmptyString(value.markdown);
+  if (!markdown) {
+    return {
+      ok: false,
+      code: "RUN_AGENT_FAILED",
+      message: "drivers.runAgent markdown must be non-empty",
+    };
+  }
+
+  return {
+    ok: true,
+    markdown,
+    agentRunId: nonEmptyString(value.agent_run_id),
+    startedAt: nonEmptyString(value.started_at),
+    finishedAt: nonEmptyString(value.finished_at),
+    model: nonEmptyString(value.model),
+  };
 }
 
 async function sidecarPromptDigestMatches(metaPath: string, expectedPromptDigest: string): Promise<boolean> {
@@ -612,7 +671,11 @@ export async function orchestrator_tick_post_summaries(
     let fixtureSummariesDir = args.fixture_summaries_dir?.trim() ?? "";
     let summaryMode: "fixture" | "generate" = fixtureSummariesDir ? "fixture" : "generate";
 
-    if (driver === "task") {
+    const liveRunAgent = driver === "live" && args.drivers && typeof args.drivers.runAgent === "function"
+      ? args.drivers.runAgent
+      : null;
+
+    if (driver === "task" || liveRunAgent) {
       const pathsObj = getManifestPaths(manifest);
       const summariesDirRel = nonEmptyString(pathsObj.summaries_dir) ?? "summaries";
       const summariesDirAbs = path.join(runRoot, summariesDirRel);
@@ -635,11 +698,19 @@ export async function orchestrator_tick_post_summaries(
       const perspectives = Array.isArray(doc.perspectives)
         ? (doc.perspectives as Array<Record<string, unknown>>)
         : [];
-      const ids = perspectives
-        .map((p) => (isPlainObject(p) ? String(p.id ?? "").trim() : ""))
-        .filter((id) => id.length > 0)
-        .sort((a, b) => a.localeCompare(b));
-      if (ids.length === 0) {
+      const perspectiveEntries = perspectives
+        .map((p) => {
+          if (!isPlainObject(p)) return null;
+          const perspectiveId = String(p.id ?? "").trim();
+          if (!perspectiveId) return null;
+          return {
+            perspective_id: perspectiveId,
+            agent_type: nonEmptyString(p.agent_type) ?? "researcher",
+          };
+        })
+        .filter((entry): entry is { perspective_id: string; agent_type: string } => entry !== null)
+        .sort((a, b) => a.perspective_id.localeCompare(b.perspective_id));
+      if (perspectiveEntries.length === 0) {
         return fail("SCHEMA_VALIDATION_FAILED", "perspectives list is empty", {
           perspectives_path: perspectivesAbs,
         });
@@ -647,13 +718,17 @@ export async function orchestrator_tick_post_summaries(
 
       const missing: Array<{
         perspective_id: string;
+        agent_type: string;
+        output_md: string;
+        prompt_md: string;
         prompt_path: string;
         output_path: string;
         meta_path: string;
         prompt_digest: string;
       }> = [];
 
-      for (const perspectiveId of ids) {
+      for (const perspective of perspectiveEntries) {
+        const perspectiveId = perspective.perspective_id;
         const promptMd = [
           "## Query",
           queryText || "(missing)",
@@ -673,6 +748,7 @@ export async function orchestrator_tick_post_summaries(
         const promptPath = path.join(runRoot, "operator", "prompts", "summaries", `${perspectiveId}.md`);
         const outputPath = path.join(summariesDirAbs, `${perspectiveId}.md`);
         const metaPath = path.join(summariesDirAbs, `${perspectiveId}.meta.json`);
+        const outputMd = toPosixPath(path.relative(runRoot, outputPath));
 
         const outputExists = await exists(outputPath);
         const digestMatches = outputExists && await sidecarPromptDigestMatches(metaPath, promptDigest);
@@ -682,6 +758,9 @@ export async function orchestrator_tick_post_summaries(
         await fs.writeFile(promptPath, promptMd.endsWith("\n") ? promptMd : `${promptMd}\n`, "utf8");
         missing.push({
           perspective_id: perspectiveId,
+          agent_type: perspective.agent_type,
+          output_md: outputMd,
+          prompt_md: promptMd,
           prompt_path: promptPath,
           output_path: outputPath,
           meta_path: metaPath,
@@ -690,15 +769,75 @@ export async function orchestrator_tick_post_summaries(
       }
 
       if (missing.length > 0) {
-        return fail("RUN_AGENT_REQUIRED", "Summaries require external agent results via agent-result", {
-          stage: "summaries",
-          missing_count: missing.length,
-          missing_perspectives: missing,
-        });
+        if (liveRunAgent) {
+          for (const missingEntry of missing) {
+            let runAgentRaw: OrchestratorLiveRunAgentResult;
+            try {
+              runAgentRaw = await liveRunAgent({
+                run_id: runId,
+                stage: "summaries",
+                run_root: runRoot,
+                perspective_id: missingEntry.perspective_id,
+                agent_type: missingEntry.agent_type,
+                prompt_md: missingEntry.prompt_md,
+                output_md: missingEntry.output_md,
+              });
+            } catch (e) {
+              return fail("RUN_AGENT_FAILED", "drivers.runAgent threw", {
+                perspective_id: missingEntry.perspective_id,
+                message: String(e),
+              });
+            }
+
+            const normalizedRunAgent = normalizeRunAgentResult(runAgentRaw);
+            if (!normalizedRunAgent.ok) {
+              return fail(normalizedRunAgent.code, normalizedRunAgent.message, {
+                perspective_id: missingEntry.perspective_id,
+              });
+            }
+
+            const markdownOut = normalizedRunAgent.markdown.endsWith("\n")
+              ? normalizedRunAgent.markdown
+              : `${normalizedRunAgent.markdown}\n`;
+            const sidecarPayload = {
+              schema_version: "wave-output-meta.v1",
+              prompt_digest: missingEntry.prompt_digest,
+              agent_run_id:
+                normalizedRunAgent.agentRunId
+                ?? `live:${missingEntry.perspective_id}:${missingEntry.prompt_digest}`,
+              ingested_at: nowIso(),
+              source_input_path: missingEntry.output_path,
+              ...(normalizedRunAgent.startedAt ? { started_at: normalizedRunAgent.startedAt } : {}),
+              ...(normalizedRunAgent.finishedAt ? { finished_at: normalizedRunAgent.finishedAt } : {}),
+              ...(normalizedRunAgent.model ? { model: normalizedRunAgent.model } : {}),
+            };
+
+            try {
+              await fs.mkdir(path.dirname(missingEntry.output_path), { recursive: true });
+              await fs.writeFile(missingEntry.output_path, markdownOut, "utf8");
+              await fs.writeFile(missingEntry.meta_path, `${JSON.stringify(sidecarPayload, null, 2)}\n`, "utf8");
+            } catch (e) {
+              return fail("WRITE_FAILED", "failed to persist live summary artifacts", {
+                perspective_id: missingEntry.perspective_id,
+                output_path: missingEntry.output_path,
+                meta_path: missingEntry.meta_path,
+                message: String(e),
+              });
+            }
+          }
+        } else if (driver === "task") {
+          return fail("RUN_AGENT_REQUIRED", "Summaries require external agent results via agent-result", {
+            stage: "summaries",
+            missing_count: missing.length,
+            missing_perspectives: missing,
+          });
+        }
       }
 
-      summaryMode = "fixture";
-      fixtureSummariesDir = summariesDirAbs;
+      if (driver === "task" || liveRunAgent) {
+        summaryMode = "fixture";
+        fixtureSummariesDir = summariesDirAbs;
+      }
     }
 
     if (summaryMode === "fixture" && !path.isAbsolute(fixtureSummariesDir)) {
@@ -818,7 +957,11 @@ export async function orchestrator_tick_post_summaries(
   }
 
   if (from === "synthesis") {
-    if (driver === "task") {
+    const liveRunAgent = driver === "live" && args.drivers && typeof args.drivers.runAgent === "function"
+      ? args.drivers.runAgent
+      : null;
+
+    if (driver === "task" || liveRunAgent) {
       const queryObj = isPlainObject(manifest.query)
         ? (manifest.query as Record<string, unknown>)
         : {};
@@ -846,6 +989,7 @@ export async function orchestrator_tick_post_summaries(
       const promptDigest = `sha256:${sha256HexLowerUtf8(promptMd)}`;
       const promptPath = path.join(runRoot, "operator", "prompts", "synthesis", "final-synthesis.md");
       const outputPath = finalSynthesisPath;
+      const outputMd = toPosixPath(path.relative(runRoot, outputPath));
       const metaPath = path.join(path.dirname(finalSynthesisPath), "final-synthesis.meta.json");
 
       const outputExists = await exists(outputPath);
@@ -854,19 +998,73 @@ export async function orchestrator_tick_post_summaries(
         await fs.mkdir(path.dirname(promptPath), { recursive: true });
         await fs.writeFile(promptPath, promptMd.endsWith("\n") ? promptMd : `${promptMd}\n`, "utf8");
 
-        return fail("RUN_AGENT_REQUIRED", "Synthesis requires external agent results via agent-result", {
-          stage: "synthesis",
-          missing_count: 1,
-          missing_perspectives: [
-            {
+        if (liveRunAgent) {
+          let runAgentRaw: OrchestratorLiveRunAgentResult;
+          try {
+            runAgentRaw = await liveRunAgent({
+              run_id: runId,
+              stage: "synthesis",
+              run_root: runRoot,
               perspective_id: "final-synthesis",
-              prompt_path: promptPath,
+              agent_type: "researcher",
+              prompt_md: promptMd,
+              output_md: outputMd,
+            });
+          } catch (e) {
+            return fail("RUN_AGENT_FAILED", "drivers.runAgent threw", {
+              perspective_id: "final-synthesis",
+              message: String(e),
+            });
+          }
+
+          const normalizedRunAgent = normalizeRunAgentResult(runAgentRaw);
+          if (!normalizedRunAgent.ok) {
+            return fail(normalizedRunAgent.code, normalizedRunAgent.message, {
+              perspective_id: "final-synthesis",
+            });
+          }
+
+          const markdownOut = normalizedRunAgent.markdown.endsWith("\n")
+            ? normalizedRunAgent.markdown
+            : `${normalizedRunAgent.markdown}\n`;
+          const sidecarPayload = {
+            schema_version: "wave-output-meta.v1",
+            prompt_digest: promptDigest,
+            agent_run_id: normalizedRunAgent.agentRunId ?? `live:final-synthesis:${promptDigest}`,
+            ingested_at: nowIso(),
+            source_input_path: outputPath,
+            ...(normalizedRunAgent.startedAt ? { started_at: normalizedRunAgent.startedAt } : {}),
+            ...(normalizedRunAgent.finishedAt ? { finished_at: normalizedRunAgent.finishedAt } : {}),
+            ...(normalizedRunAgent.model ? { model: normalizedRunAgent.model } : {}),
+          };
+
+          try {
+            await fs.mkdir(path.dirname(outputPath), { recursive: true });
+            await fs.writeFile(outputPath, markdownOut, "utf8");
+            await fs.writeFile(metaPath, `${JSON.stringify(sidecarPayload, null, 2)}\n`, "utf8");
+          } catch (e) {
+            return fail("WRITE_FAILED", "failed to persist live synthesis artifacts", {
+              perspective_id: "final-synthesis",
               output_path: outputPath,
               meta_path: metaPath,
-              prompt_digest: promptDigest,
-            },
-          ],
-        });
+              message: String(e),
+            });
+          }
+        } else {
+          return fail("RUN_AGENT_REQUIRED", "Synthesis requires external agent results via agent-result", {
+            stage: "synthesis",
+            missing_count: 1,
+            missing_perspectives: [
+              {
+                perspective_id: "final-synthesis",
+                prompt_path: promptPath,
+                output_path: outputPath,
+                meta_path: metaPath,
+                prompt_digest: promptDigest,
+              },
+            ],
+          });
+        }
       }
 
       const synthesisProgress = await markProgress("synthesis_written");
