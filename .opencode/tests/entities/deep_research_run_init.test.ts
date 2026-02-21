@@ -128,7 +128,7 @@ describe("deep_research_run_init (entity)", () => {
 
         const manifestPath = (out as any).manifest_path as string;
         const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
-        expect(manifest.query.constraints.deep_research_flags.PAI_DR_RUNS_ROOT).toBe(runsRoot);
+        expect(manifest.query.constraints.deep_research_cli_flags.PAI_DR_RUNS_ROOT).toBe(runsRoot);
       });
     });
   });

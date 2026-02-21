@@ -18,7 +18,7 @@ describe("deep_research_citations_validate (entity)", () => {
       query: {
         sensitivity: "normal",
         constraints: {
-          deep_research_flags: {
+          deep_research_cli_flags: {
             PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT: "https://manifest.example/bright",
             PAI_DR_CITATIONS_APIFY_ENDPOINT: "https://manifest.example/apify",
           },
@@ -44,15 +44,15 @@ describe("deep_research_citations_validate (entity)", () => {
     });
     expect(resolvedManifestFirst.brightDataEndpoint).toBe("https://manifest.example/bright");
     expect(resolvedManifestFirst.apifyEndpoint).toBe("https://manifest.example/apify");
-    expect(resolvedManifestFirst.endpointSources.brightData).toBe("manifest.query.constraints.deep_research_flags");
-    expect(resolvedManifestFirst.endpointSources.apify).toBe("manifest.query.constraints.deep_research_flags");
+    expect(resolvedManifestFirst.endpointSources.brightData).toBe("manifest.query.constraints.deep_research_cli_flags");
+    expect(resolvedManifestFirst.endpointSources.apify).toBe("manifest.query.constraints.deep_research_cli_flags");
     expect(resolvedManifestFirst.mode).toBe("online");
 
     const manifestWithoutEndpoint = {
       query: {
         sensitivity: "restricted",
         constraints: {
-          deep_research_flags: {},
+          deep_research_cli_flags: {},
         },
       },
     } as Record<string, unknown>;

@@ -8,13 +8,13 @@ async function disableOptionCInManifest(manifestPath: string) {
   const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8"));
   manifest.query ??= {};
   manifest.query.constraints ??= {};
-  manifest.query.constraints.option_c ??= {};
-  manifest.query.constraints.option_c.enabled = false;
+  manifest.query.constraints.deep_research_cli ??= {};
+  manifest.query.constraints.deep_research_cli.enabled = false;
   await fs.writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
 }
 
 describe("deep_research_stage_advance emergency disable (entity)", () => {
-  test("returns DISABLED when manifest option_c.enabled is false", async () => {
+  test("returns DISABLED when manifest deep_research_cli.enabled is false", async () => {
     await withTempDir(async (base) => {
       const runId = "dr_test_stage_emergency_disable_001";
 
@@ -47,7 +47,7 @@ describe("deep_research_stage_advance emergency disable (entity)", () => {
       expect(out.ok).toBe(false);
       expect((out as any).error.code).toBe("DISABLED");
       expect((out as any).error.message).toBe("Option C is disabled");
-      expect((out as any).error.details.constraint_path).toBe("manifest.query.constraints.option_c.enabled");
+      expect((out as any).error.details.constraint_path).toBe("manifest.query.constraints.deep_research_cli.enabled");
       expect(String((out as any).error.details.instruction)).toContain("No env vars required");
       expect((out as any).error.details.env).toBeUndefined();
     });

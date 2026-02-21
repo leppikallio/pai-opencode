@@ -173,9 +173,9 @@ describe("deep_research_feature_flags contract (entity)", () => {
             "Flag invariant broke: PAI_DR_NO_WEB=1 must force offline sensitivity regardless of requested sensitivity",
           );
           assert.equal(
-            manifest.query.constraints.deep_research_flags.PAI_DR_NO_WEB,
+            manifest.query.constraints.deep_research_cli_flags.PAI_DR_NO_WEB,
             true,
-            "Flag invariant broke: manifest deep_research_flags must persist PAI_DR_NO_WEB=true",
+            "Flag invariant broke: manifest deep_research_cli_flags must persist PAI_DR_NO_WEB=true",
           );
           assert.equal(
             manifest.limits.max_wave1_agents,
