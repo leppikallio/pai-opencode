@@ -31,6 +31,12 @@ function parseJsonStdout(stdout: string): Record<string, unknown> {
   return JSON.parse(stdout) as Record<string, unknown>;
 }
 
+function initContractFromEnvelope(payload: Record<string, unknown>): Record<string, unknown> {
+  const contract = payload.contract as Record<string, unknown>;
+  expect(contract).toBeTruthy();
+  return contract;
+}
+
 function expectSingleJsonStdout(res: { exit: number; stdout: string; stderr: string }, expectedExit: number): Record<string, unknown> {
   expect(res.exit).toBe(expectedExit);
   const trimmed = res.stdout.trim();
@@ -140,9 +146,10 @@ describe("deep_research operator CLI ergonomics (entity)", () => {
         "--json",
       ]);
       const initPayload = expectSingleJsonStdout(initRes, 0);
-      const manifestPath = String(initPayload.manifest_path ?? "");
+      const initContract = initContractFromEnvelope(initPayload);
+      const manifestPath = String(initContract.manifest_path ?? "");
       expect(manifestPath.length).toBeGreaterThan(0);
-      expect(String(initPayload.stage_current ?? "")).toBe("init");
+      expect(String(initContract.stage_current ?? "")).toBe("init");
 
       const advanceRes = await runCli([
         "stage-advance",
@@ -230,7 +237,8 @@ describe("deep_research operator CLI ergonomics (entity)", () => {
         "--json",
       ]));
 
-      const manifestPath = String(initPayload.manifest_path ?? "");
+      const initContract = initContractFromEnvelope(initPayload);
+      const manifestPath = String(initContract.manifest_path ?? "");
       expect(manifestPath.length).toBeGreaterThan(0);
 
       const tickPayload = assertOneJsonObject(await runCli([

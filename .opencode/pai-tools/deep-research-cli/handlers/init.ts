@@ -8,7 +8,10 @@ import {
   wave1_plan,
 } from "../../../tools/deep_research_cli.ts";
 import { resolveDeepResearchCliFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
-import { emitJson } from "../cli/json-mode";
+import { emitJsonV1 } from "../cli/json-contract";
+import {
+  resolveDeepResearchCliInvocation,
+} from "../utils/cli-invocation";
 import {
   asObject,
   readJsonObject,
@@ -308,19 +311,27 @@ export async function runInit(args: InitCliArgs): Promise<void> {
   });
 
   if (args.json) {
-    emitJson({
+    emitJsonV1({
       ok: true,
       command: "init",
-      run_id: runId,
-      run_root: runRoot,
-      manifest_path: manifestPath,
-      gates_path: summary.gatesPath,
-      stage_current: summary.stageCurrent,
-      status: summary.status,
-      run_config_path: runConfigPath,
-      perspectives_path: perspectivesPathOut,
-      wave1_plan_path: wave1PlanPathOut,
-      notes,
+      contract: {
+        run_id: runId,
+        run_root: runRoot,
+        manifest_path: manifestPath,
+        gates_path: summary.gatesPath,
+        stage_current: summary.stageCurrent,
+        status: summary.status,
+        cli_invocation: resolveDeepResearchCliInvocation(),
+      },
+      result: {
+        run_config_path: runConfigPath,
+        perspectives_path: perspectivesPathOut,
+        wave1_plan_path: wave1PlanPathOut,
+        notes,
+        created,
+      },
+      error: null,
+      halt: null,
     });
     return;
   }
