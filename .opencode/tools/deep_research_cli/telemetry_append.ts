@@ -13,7 +13,7 @@ import {
   telemetryPathFromManifest,
   validateTelemetryEventV1,
 } from "./telemetry_lib";
-import { readJsonlObjects } from "./citations_validate_lib";
+import { readOrCreateTelemetryIndex, writeTelemetryIndex } from "./telemetry_index_lib";
 import {
   err,
   errorCode,
@@ -50,34 +50,11 @@ export const telemetry_append = tool({
       const runRoot = resolveRunRootFromManifest(manifestPath, manifest);
       const telemetryPath = telemetryPathFromManifest(runRoot, manifest);
 
-      const existingEvents = await readJsonlObjects(telemetryPath).catch((readErr) => {
-        if (errorCode(readErr) === "ENOENT") return [] as Array<Record<string, unknown>>;
-        throw readErr;
-      });
-
-      let maxSeq = 0;
-      let previousSeq = 0;
-      for (let i = 0; i < existingEvents.length; i += 1) {
-        const event = existingEvents[i] as Record<string, unknown>;
-        const existingSeq = event.seq;
-        if (!isInteger(existingSeq) || existingSeq <= 0) {
-          return err("SCHEMA_VALIDATION_FAILED", "existing telemetry seq must be positive integer", {
-            telemetry_path: telemetryPath,
-            index: i,
-            seq: event.seq ?? null,
-          });
-        }
-        if (existingSeq <= previousSeq) {
-          return err("SCHEMA_VALIDATION_FAILED", "telemetry stream must be strictly increasing by seq", {
-            telemetry_path: telemetryPath,
-            index: i,
-            previous_seq: previousSeq,
-            seq: existingSeq,
-          });
-        }
-        previousSeq = existingSeq;
-        if (existingSeq > maxSeq) maxSeq = existingSeq;
+      const telemetryIndex = await readOrCreateTelemetryIndex(telemetryPath);
+      if (!telemetryIndex.ok) {
+        return err(telemetryIndex.code, telemetryIndex.message, telemetryIndex.details);
       }
+      const maxSeq = telemetryIndex.last_seq;
 
       const nextSeq = maxSeq + 1;
       const event = { ...args.event };
@@ -98,6 +75,11 @@ export const telemetry_append = tool({
 
       await ensureDir(path.dirname(telemetryPath));
       await fs.promises.appendFile(telemetryPath, canonicalJsonLine(event), "utf8");
+
+      const indexWrite = await writeTelemetryIndex(telemetryIndex.index_path, Number(event.seq));
+      if (!indexWrite.ok) {
+        return err(indexWrite.code, indexWrite.message, indexWrite.details);
+      }
 
       const inputsDigest = sha256DigestForJson({
         schema: "telemetry_append.inputs.v1",
