@@ -7,13 +7,16 @@ Resume a paused Option C run and restore watchdog timing semantics.
 - `manifest` absolute path
 - Optional resume reason
 
-## Choose CLI invocation
+## CLI command forms (copy/paste)
 
 ```bash
 # Repo checkout (this repository)
-CLI='bun .opencode/pai-tools/deep-research-cli.ts'
+bun ".opencode/pai-tools/deep-research-cli.ts" <command> [flags]
+```
+
+```bash
 # Runtime install (~/.config/opencode)
-# CLI='bun pai-tools/deep-research-cli.ts'
+bun "pai-tools/deep-research-cli.ts" <command> [flags]
 ```
 
 ## Steps
@@ -21,7 +24,10 @@ CLI='bun .opencode/pai-tools/deep-research-cli.ts'
 1. Resume:
 
 ```bash
-$CLI resume --manifest "<manifest_abs>" --reason "operator resume"
+bun ".opencode/pai-tools/deep-research-cli.ts" resume --manifest "<manifest_abs>" --reason "operator resume"
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" resume --manifest "<manifest_abs>" --reason "operator resume"
 ```
 
 2. Verify a resume checkpoint was written (the CLI prints the checkpoint path) and the run can continue normally.

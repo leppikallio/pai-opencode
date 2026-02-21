@@ -15,13 +15,16 @@ Resume-safe loop that dispatches by current manifest stage until progress stops.
 - `pivot|citations` -> post-pivot orchestration path
 - `summaries|synthesis|review` -> post-summaries orchestration path
 
-## Choose CLI invocation
+## CLI command forms (copy/paste)
 
 ```bash
 # Repo checkout (this repository)
-CLI='bun .opencode/pai-tools/deep-research-cli.ts'
+bun ".opencode/pai-tools/deep-research-cli.ts" <command> [flags]
+```
+
+```bash
 # Runtime install (~/.config/opencode)
-# CLI='bun pai-tools/deep-research-cli.ts'
+bun "pai-tools/deep-research-cli.ts" <command> [flags]
 ```
 
 ## Steps
@@ -29,7 +32,10 @@ CLI='bun .opencode/pai-tools/deep-research-cli.ts'
 1. Loop one tick at a time:
 
 ```bash
-$CLI tick --manifest "<manifest_abs>" --reason "loop tick" --driver task --json
+bun ".opencode/pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" --reason "loop tick" --driver task --json
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" --reason "loop tick" --driver task --json
 ```
 
    `--gates "<gates_abs>"` is optional; omit it unless you need to override the manifest-derived gates path.
@@ -37,7 +43,10 @@ $CLI tick --manifest "<manifest_abs>" --reason "loop tick" --driver task --json
 2. After each tick, run triage when blocked:
 
 ```bash
-$CLI triage --manifest "<manifest_abs>"
+bun ".opencode/pai-tools/deep-research-cli.ts" triage --manifest "<manifest_abs>"
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" triage --manifest "<manifest_abs>"
 ```
 
 3. Stop when terminal status reached or a typed blocker is emitted (the CLI prints the blocker artifact path when present).

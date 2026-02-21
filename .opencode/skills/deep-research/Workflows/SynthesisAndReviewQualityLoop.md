@@ -17,6 +17,62 @@ Use deterministic generate mode first:
 - `gate_e_reports` + `gate_e_evaluate` + `gates_write`
 - `revision_control`
 
+### Copy/paste CLI baseline (deterministic generate mode)
+
+Use either of these deterministic fixture-driver paths with your manifest/gates paths.
+
+#### Option A: single run command until finalize
+
+```bash
+# Repo checkout (this repository)
+bun ".opencode/pai-tools/deep-research-cli.ts" run \
+  --manifest "<manifest_abs>" \
+  --gates "<gates_abs>" \
+  --reason "phase05 generate baseline" \
+  --driver fixture \
+  --until finalize \
+  --max-ticks 30 \
+  --json
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" run \
+  --manifest "<manifest_abs>" \
+  --gates "<gates_abs>" \
+  --reason "phase05 generate baseline" \
+  --driver fixture \
+  --until finalize \
+  --max-ticks 30 \
+  --json
+```
+
+#### Option B: explicit tick loop with fixture driver
+
+```bash
+# Repo checkout (this repository)
+bun ".opencode/pai-tools/deep-research-cli.ts" tick \
+  --manifest "<manifest_abs>" \
+  --reason "phase05 loop tick" \
+  --driver fixture \
+  --json
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" tick \
+  --manifest "<manifest_abs>" \
+  --reason "phase05 loop tick" \
+  --driver fixture \
+  --json
+```
+
+```bash
+# Repo checkout (this repository)
+bun ".opencode/pai-tools/deep-research-cli.ts" triage --manifest "<manifest_abs>"
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" triage --manifest "<manifest_abs>"
+```
+
+Repeat Option B tick+triage until stage reaches `finalize` and gate statuses pass.
+
 ## Optional extension (future)
 
 If an approved LLM-backed path exists, it may replace generate-mode synthesis/review generation,

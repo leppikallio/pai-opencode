@@ -7,13 +7,16 @@ Execute deterministic fixture progression end-to-end until terminal state.
 - Query string
 - Optional: `--run-id`
 
-## Choose CLI invocation
+## CLI command forms (copy/paste)
 
 ```bash
 # Repo checkout (this repository)
-CLI='bun .opencode/pai-tools/deep-research-cli.ts'
+bun ".opencode/pai-tools/deep-research-cli.ts" <command> [flags]
+```
+
+```bash
 # Runtime install (~/.config/opencode)
-# CLI='bun pai-tools/deep-research-cli.ts'
+bun "pai-tools/deep-research-cli.ts" <command> [flags]
 ```
 
 ## Steps
@@ -21,19 +24,28 @@ CLI='bun .opencode/pai-tools/deep-research-cli.ts'
 1. Initialize fixture run:
 
 ```bash
-$CLI init "<query>" --sensitivity no_web --mode standard
+bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --sensitivity no_web --mode standard
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" init "<query>" --sensitivity no_web --mode standard
 ```
 
 2. Advance with fixture driver until stop:
 
 ```bash
-$CLI run --manifest "<manifest_abs>" --gates "<gates_abs>" --reason "fixture finalize" --driver fixture --max-ticks 30
+bun ".opencode/pai-tools/deep-research-cli.ts" run --manifest "<manifest_abs>" --gates "<gates_abs>" --reason "fixture finalize" --driver fixture --max-ticks 30
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" run --manifest "<manifest_abs>" --gates "<gates_abs>" --reason "fixture finalize" --driver fixture --max-ticks 30
 ```
 
 3. If blocked, inspect + triage:
 
 ```bash
-$CLI inspect --manifest "<manifest_abs>"
+bun ".opencode/pai-tools/deep-research-cli.ts" inspect --manifest "<manifest_abs>"
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" inspect --manifest "<manifest_abs>"
 ```
 
 ## Validation Contract

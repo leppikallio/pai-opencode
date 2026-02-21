@@ -7,13 +7,16 @@ Create a deterministic run root, produce the Wave 1 plan artifact, and stop at `
 - Query string
 - Optional: `--run-id`, `--mode quick|standard|deep`, `--sensitivity normal|restricted|no_web`
 
-## Choose CLI invocation
+## CLI command forms (copy/paste)
 
 ```bash
 # Repo checkout (this repository)
-CLI='bun .opencode/pai-tools/deep-research-cli.ts'
+bun ".opencode/pai-tools/deep-research-cli.ts" <command> [flags]
+```
+
+```bash
 # Runtime install (~/.config/opencode)
-# CLI='bun pai-tools/deep-research-cli.ts'
+bun "pai-tools/deep-research-cli.ts" <command> [flags]
 ```
 
 ## Steps
@@ -21,7 +24,10 @@ CLI='bun .opencode/pai-tools/deep-research-cli.ts'
 1. Initialize run:
 
 ```bash
-$CLI init "<query>" --mode standard --sensitivity no_web
+bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity no_web
+
+# Runtime install (~/.config/opencode)
+bun "pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity no_web
 ```
 
 > This workflow assumes you **do not** pass `--no-perspectives`.
