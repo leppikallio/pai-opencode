@@ -12,7 +12,7 @@ import {
   run_init,
   stage_advance,
   wave_output_validate,
-} from "../.opencode/tools/deep_research.ts";
+} from "../.opencode/tools/deep_research_cli";
 
 type ToolEnvelope = Record<string, unknown> & { ok: boolean };
 type ToolWithExecute = {

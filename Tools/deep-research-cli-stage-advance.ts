@@ -2,7 +2,7 @@
 
 import * as path from "node:path";
 
-import { stage_advance } from "../.opencode/tools/deep_research/stage_advance";
+import { stage_advance } from "../.opencode/tools/deep_research_cli";
 
 type CliArgs = {
   help: boolean;
