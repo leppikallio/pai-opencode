@@ -18,6 +18,7 @@ import {
   err,
   errorCode,
   getManifestPaths,
+  isPlainObject,
   nowIso,
   ok,
   readJson,
@@ -40,6 +41,21 @@ export const gate_e_evaluate = tool({
     citations_path?: string;
     reason: string;
   }) {
+    const readMetaMode = async (metaPath: string, schemaVersion: string): Promise<string | null> => {
+      try {
+        const raw = await readJson(metaPath);
+        if (!isPlainObject(raw)) return null;
+        if (String(raw.schema_version ?? "") !== schemaVersion) return null;
+        const mode = String(raw.mode ?? "").trim();
+        return mode || null;
+      } catch (e) {
+        const code = errorCode(e);
+        if (code === "ENOENT") return null;
+        if (e instanceof SyntaxError) return null;
+        return null;
+      }
+    };
+
     try {
       const manifestPath = args.manifest_path.trim();
       const reason = args.reason.trim();
@@ -89,6 +105,21 @@ export const gate_e_evaluate = tool({
         citationMetrics.citation_utilization_rate,
         citationMetrics.duplicate_citation_rate,
       );
+
+      const synthesisMetaPath = path.join(path.dirname(synthesisPath), "final-synthesis.meta.json");
+      const synthesisMode = await readMetaMode(synthesisMetaPath, "synthesis_meta.v1");
+      if (synthesisMode === "generate") warnings.push("SCAFFOLD_SYNTHESIS");
+
+      const summaryPackPath = resolveArtifactPath(
+        undefined,
+        runRoot,
+        typeof artifactPaths.summary_pack_file === "string" ? artifactPaths.summary_pack_file : undefined,
+        "summaries/summary-pack.json",
+      );
+      const summaryPackMetaPath = path.join(path.dirname(summaryPackPath), "summary-pack.meta.json");
+      const summaryPackMode = await readMetaMode(summaryPackMetaPath, "summary_pack_meta.v1");
+      if (summaryPackMode === "generate") warnings.push("SCAFFOLD_SUMMARY_PACK");
+      warnings.sort((a, b) => a.localeCompare(b));
 
       const passHard = isGateEHardPassV1(uncitedNumericClaims, sectionCoverage.report_sections_present);
       const status: "pass" | "fail" = passHard ? "pass" : "fail";
