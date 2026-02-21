@@ -16,9 +16,10 @@ import {
   nowIso,
   ok,
   readJson,
-  sha256HexLowerUtf8,
   validateManifestV1,
 } from "./lifecycle_lib";
+
+import { sha256DigestForJson } from "./wave_tools_shared";
 
 export const manifest_write = tool({
   description: "Atomic manifest.json writer with revision bump",
@@ -69,7 +70,7 @@ export const manifest_write = tool({
         prev_revision: curRev,
         new_revision: nextRev,
         reason: args.reason,
-        patch_digest: `sha256:${sha256HexLowerUtf8(JSON.stringify(args.patch))}`,
+        patch_digest: sha256DigestForJson(args.patch),
       };
       try {
         await appendAuditJsonl({ runRoot, event: auditEvent });
