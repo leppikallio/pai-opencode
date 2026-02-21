@@ -22,6 +22,7 @@ import {
   validateManifestV1,
 } from "./lifecycle_lib";
 import { manifest_write } from "./manifest_write";
+import { readRunPolicyFromManifest } from "./run_policy_read";
 
 export const watchdog_check = tool({
   description: "Check stage timeout and fail run deterministically",
@@ -63,7 +64,11 @@ export const watchdog_check = tool({
         });
       }
 
-      const timeout_s = STAGE_TIMEOUT_SECONDS_V1[stage];
+      const resolvedPolicy = await readRunPolicyFromManifest({
+        manifest_path: args.manifest_path,
+        manifest,
+      });
+      const timeout_s = resolvedPolicy.policy.stage_timeouts_seconds_v1[stage] ?? STAGE_TIMEOUT_SECONDS_V1[stage];
       if (!isInteger(timeout_s) || timeout_s <= 0) {
         return err("INVALID_STATE", "no timeout configured for stage", { stage });
       }
@@ -107,6 +112,7 @@ export const watchdog_check = tool({
           stage,
           elapsed_s,
           timeout_s,
+          timeout_policy_source: resolvedPolicy.source,
           timer_origin: timerOrigin.toISOString(),
           timer_origin_field: timerOriginField,
           paused: true,
@@ -119,6 +125,7 @@ export const watchdog_check = tool({
           stage,
           elapsed_s,
           timeout_s,
+          timeout_policy_source: resolvedPolicy.source,
           timer_origin: timerOrigin.toISOString(),
           timer_origin_field: timerOriginField,
         });
@@ -204,6 +211,7 @@ export const watchdog_check = tool({
         stage,
         elapsed_s,
         timeout_s,
+        timeout_policy_source: resolvedPolicy.source,
         timer_origin: timerOrigin.toISOString(),
         timer_origin_field: timerOriginField,
         checkpoint_path: checkpointPath,

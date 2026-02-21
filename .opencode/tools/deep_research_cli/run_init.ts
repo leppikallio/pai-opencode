@@ -16,6 +16,7 @@ import {
   validateGatesV1,
   validateManifestV1,
 } from "./lifecycle_lib";
+import { defaultRunPolicyV1, runPolicyPathFromRunRoot } from "./run_policy_read";
 
 const SCOPE_PATH_RELATIVE = "operator/scope.json";
 
@@ -190,7 +191,7 @@ export const run_init = tool({
 
     try {
       await ensureDir(root);
-      const dirs = ["wave-1", "wave-2", "citations", "summaries", "synthesis", "logs", "operator"];
+      const dirs = ["wave-1", "wave-2", "citations", "summaries", "synthesis", "logs", "operator", "run-config"];
       for (const d of dirs) await ensureDir(path.join(root, d));
 
       let ledgerWritten = false;
@@ -315,6 +316,7 @@ export const run_init = tool({
       await atomicWriteJson(scopePath, scope);
       await atomicWriteJson(manifestPath, manifest);
       await atomicWriteJson(gatesPath, gates);
+      await atomicWriteJson(runPolicyPathFromRunRoot(root), defaultRunPolicyV1());
 
       return ok({
         run_id: runId,
