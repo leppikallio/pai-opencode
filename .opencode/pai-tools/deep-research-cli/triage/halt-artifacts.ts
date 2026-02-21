@@ -168,7 +168,7 @@ export async function writeHaltArtifact(args: {
   triage: TriageBlockers | null;
   nextStepCliInvocation: () => string;
   nextCommandsOverride?: string[];
-}): Promise<{ tickPath: string; latestPath: string; tickIndex: number }> {
+}): Promise<{ tickPath: string; latestPath: string; tickIndex: number; nextCommands: string[] }> {
   const haltDir = path.join(args.runRoot, "operator", "halt");
   await fs.mkdir(haltDir, { recursive: true });
 
@@ -228,7 +228,12 @@ export async function writeHaltArtifact(args: {
   await fs.writeFile(tickPath, serialized, "utf8");
   await fs.writeFile(latestPath, serialized, "utf8");
 
-  return { tickPath, latestPath, tickIndex };
+  return {
+    tickPath,
+    latestPath,
+    tickIndex,
+    nextCommands: artifact.next_commands,
+  };
 }
 
 export async function writeHaltArtifactForFailure(args: {
@@ -241,7 +246,7 @@ export async function writeHaltArtifactForFailure(args: {
   error: { code: string; message: string; details?: Record<string, unknown> };
   nextStepCliInvocation: () => string;
   nextCommandsOverride?: string[];
-}): Promise<{ tickPath: string; latestPath: string; tickIndex: number; triage: TriageBlockers | null }> {
+}): Promise<{ tickPath: string; latestPath: string; tickIndex: number; nextCommands: string[]; triage: TriageBlockers | null }> {
   const triage = await computeTriageBlockers({
     manifestPath: args.manifestPath,
     gatesPath: args.gatesPath,
@@ -307,7 +312,7 @@ export async function handleTickFailureArtifacts(args: {
   nextStepCliInvocation: () => string;
   nextCommandsOverride?: string[];
   emitLogs?: boolean;
-}): Promise<{ tickPath: string; latestPath: string; tickIndex: number; triage: TriageBlockers | null }> {
+}): Promise<{ tickPath: string; latestPath: string; tickIndex: number; nextCommands: string[]; triage: TriageBlockers | null }> {
   const halt = await writeHaltArtifactForFailure({
     runRoot: args.runRoot,
     runId: args.runId,
