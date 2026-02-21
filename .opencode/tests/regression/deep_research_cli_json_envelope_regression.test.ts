@@ -1,7 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
 
-import { withTempDir } from "../helpers/dr-harness";
+import {
+  fixturePath,
+  withTempDir,
+} from "../helpers/dr-harness";
 
 const repoRoot = path.basename(process.cwd()) === ".opencode"
   ? path.resolve(process.cwd(), "..")
@@ -316,6 +319,58 @@ describe("deep_research cli --json dr.cli.v1 envelope (regression)", () => {
       expect(typeof result.checkpoint_path).toBe("string");
       expect(cancelPayload.error).toBeNull();
       expect(cancelPayload.halt).toBeNull();
+    });
+  });
+
+  test("agent-result --json emits dr.cli.v1 envelope with contract/result/error/halt keys", async () => {
+    await withTempDir(async (base) => {
+      const runId = "dr_test_cli_json_envelope_agent_result_001";
+      const initPayload = expectSingleJsonStdout(await runCli([
+        "init",
+        "Q",
+        "--run-id",
+        runId,
+        "--runs-root",
+        base,
+        "--json",
+      ]), 0);
+
+      const manifestPath = manifestPathFromInitEnvelope(initPayload);
+
+      const agentResultPayload = expectSingleJsonStdout(await runCli([
+        "agent-result",
+        "--manifest",
+        manifestPath,
+        "--stage",
+        "wave1",
+        "--perspective",
+        "p1",
+        "--input",
+        fixturePath("wave-output", "valid.md"),
+        "--agent-run-id",
+        "json-envelope-agent-result-001",
+        "--reason",
+        "agent-result json envelope regression",
+        "--json",
+      ]), 0);
+
+      expect(agentResultPayload.schema_version).toBe("dr.cli.v1");
+      expect(agentResultPayload.ok).toBe(true);
+      expect(agentResultPayload.command).toBe("agent-result");
+
+      const contract = expectContract(agentResultPayload.contract);
+      expect(contract.run_id).toBe(runId);
+      expect(contract.manifest_path).toBe(manifestPath);
+
+      const result = agentResultPayload.result as Record<string, unknown>;
+      expect(result.stage).toBe("wave1");
+      expect(result.perspective_id).toBe("p1");
+      expect(typeof result.output_path).toBe("string");
+      expect(typeof result.meta_path).toBe("string");
+      expect(typeof result.prompt_digest).toBe("string");
+      expect(typeof result.noop).toBe("boolean");
+      expect(agentResultPayload.error).toBeNull();
+      expect(agentResultPayload.halt).toBeNull();
     });
   });
 
