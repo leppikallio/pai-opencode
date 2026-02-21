@@ -5,13 +5,13 @@ Resume-safe loop that dispatches by current manifest stage until progress stops.
 ## Inputs
 
 - `manifest` absolute path
-- `gates` absolute path
-- `driver`: `fixture` or `live`
+- `gates` absolute path (optional override; defaults to manifest-derived `state/gates.json`)
+- `driver`: `fixture | task | live`
 - `reason`
 
 ## Dispatch Contract
 
-- `init|wave1` -> live tick path for `--driver live`, fixture tick for `--driver fixture`
+- `init|wave1` -> task/live tick path for `--driver task|live`, fixture tick for `--driver fixture`
 - `pivot|citations` -> post-pivot orchestration path
 - `summaries|synthesis|review` -> post-summaries orchestration path
 
@@ -20,8 +20,10 @@ Resume-safe loop that dispatches by current manifest stage until progress stops.
 1. Loop one tick at a time:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" --gates "<gates_abs>" --reason "loop tick" --driver <fixture|live>
+bun ".opencode/pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" --reason "loop tick" --driver task --json
 ```
+
+   `--gates "<gates_abs>"` is optional; omit it unless you need to override the manifest-derived gates path.
 
 2. After each tick, run triage when blocked:
 
@@ -30,6 +32,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" triage --manifest "<manifest_abs>
 ```
 
 3. Stop when terminal status reached or a typed blocker is emitted (the CLI prints the blocker artifact path when present).
+   When present, execute `halt.next_commands[]` before the next tick.
 
 ## Validation Contract
 
