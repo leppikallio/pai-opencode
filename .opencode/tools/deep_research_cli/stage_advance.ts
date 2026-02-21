@@ -496,6 +496,7 @@ export const stage_advance = tool({
 
       if (from === "review" && to === "finalize") {
         block ??= blockIfFailed(evalGatePass("E"), "GATE_BLOCKED", "Gate E not pass", { gate: "E" });
+        block ??= blockIfFailed(evalGatePass("F"), "GATE_BLOCKED", "Gate F not pass", { gate: "F" });
       }
 
       const digestInput = {
