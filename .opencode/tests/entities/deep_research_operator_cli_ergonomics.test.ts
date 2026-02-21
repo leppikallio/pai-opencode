@@ -163,10 +163,16 @@ describe("deep_research operator CLI ergonomics (entity)", () => {
       ]);
 
       const advancePayload = expectSingleJsonStdout(advanceRes, 0);
+      expect(advancePayload.schema_version).toBe("dr.cli.v1");
+      expect(advancePayload.ok).toBe(true);
       expect(advancePayload.command).toBe("stage-advance");
-      expect(advancePayload.from).toBe("init");
-      expect(advancePayload.to).toBe("perspectives");
-      expect(advancePayload.stage_current).toBe("perspectives");
+      const advanceContract = initContractFromEnvelope(advancePayload);
+      expect(String(advanceContract.run_id ?? "")).toBe(runId);
+      expect(String(advanceContract.stage_current ?? "")).toBe("perspectives");
+
+      const result = advancePayload.result as Record<string, unknown>;
+      expect(result.from).toBe("init");
+      expect(result.to).toBe("perspectives");
     });
   });
 
