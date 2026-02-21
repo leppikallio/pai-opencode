@@ -41,7 +41,7 @@ import {
   normalizePromptDigest,
   promptDigestFromPromptMarkdown,
 } from "../utils/digest";
-import { type TaskDriverMissingPerspective } from "../perspectives/state";
+import type { TaskDriverMissingPerspective } from "../perspectives/state";
 import {
   callTool,
   type ToolWithExecute,
@@ -69,7 +69,7 @@ export type TickCliArgs = RunHandleCliArgs & {
 };
 
 function nextStepCliInvocation(): string {
-  return `bun "pai-tools/${["deep-research-option-c", "ts"].join(".")}"`;
+  return `bun "pai-tools/${["deep-research-cli", "ts"].join(".")}"`;
 }
 
 function ensureOptionCEnabledForCli(): void {

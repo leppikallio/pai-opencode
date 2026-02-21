@@ -34,7 +34,7 @@ function ensureOptionCEnabledForCli(): void {
 }
 
 function nextStepCliInvocation(): string {
-  return `bun "pai-tools/${["deep-research-option-c", "ts"].join(".")}"`;
+  return `bun "pai-tools/${["deep-research-cli", "ts"].join(".")}"`;
 }
 
 export async function runCancel(args: CancelCliArgs): Promise<void> {

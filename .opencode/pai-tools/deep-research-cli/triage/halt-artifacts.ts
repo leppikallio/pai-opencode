@@ -2,7 +2,6 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
 import {
-  asObject,
   readJsonObject,
 } from "../utils/io-json";
 import {

@@ -6,71 +6,71 @@ import {
   subcommands,
 } from "cmd-ts";
 
-import { createAgentResultCmd } from "./deep-research-option-c/cmd/agent-result";
-import { createCancelCmd } from "./deep-research-option-c/cmd/cancel";
-import { createCaptureFixturesCmd } from "./deep-research-option-c/cmd/capture-fixtures";
-import { createInitCmd } from "./deep-research-option-c/cmd/init";
-import { createInspectCmd } from "./deep-research-option-c/cmd/inspect";
-import { createPauseCmd } from "./deep-research-option-c/cmd/pause";
-import { createPerspectivesDraftCmd } from "./deep-research-option-c/cmd/perspectives-draft";
-import { createResumeCmd } from "./deep-research-option-c/cmd/resume";
-import { createRerunCmd } from "./deep-research-option-c/cmd/rerun";
-import { createRunCmd } from "./deep-research-option-c/cmd/run";
-import { createStageAdvanceCmd } from "./deep-research-option-c/cmd/stage-advance";
-import { createStatusCmd } from "./deep-research-option-c/cmd/status";
-import { createTickCmd } from "./deep-research-option-c/cmd/tick";
-import { createTriageCmd } from "./deep-research-option-c/cmd/triage";
+import { createAgentResultCmd } from "./deep-research-cli/cmd/agent-result";
+import { createCancelCmd } from "./deep-research-cli/cmd/cancel";
+import { createCaptureFixturesCmd } from "./deep-research-cli/cmd/capture-fixtures";
+import { createInitCmd } from "./deep-research-cli/cmd/init";
+import { createInspectCmd } from "./deep-research-cli/cmd/inspect";
+import { createPauseCmd } from "./deep-research-cli/cmd/pause";
+import { createPerspectivesDraftCmd } from "./deep-research-cli/cmd/perspectives-draft";
+import { createResumeCmd } from "./deep-research-cli/cmd/resume";
+import { createRerunCmd } from "./deep-research-cli/cmd/rerun";
+import { createRunCmd } from "./deep-research-cli/cmd/run";
+import { createStageAdvanceCmd } from "./deep-research-cli/cmd/stage-advance";
+import { createStatusCmd } from "./deep-research-cli/cmd/status";
+import { createTickCmd } from "./deep-research-cli/cmd/tick";
+import { createTriageCmd } from "./deep-research-cli/cmd/triage";
 import {
   runAgentResult,
-} from "./deep-research-option-c/handlers/agent-result";
+} from "./deep-research-cli/handlers/agent-result";
 import {
   runCancel,
-} from "./deep-research-option-c/handlers/cancel";
+} from "./deep-research-cli/handlers/cancel";
 import {
   runCaptureFixtures,
-} from "./deep-research-option-c/handlers/capture-fixtures";
+} from "./deep-research-cli/handlers/capture-fixtures";
 import {
   runInit,
-} from "./deep-research-option-c/handlers/init";
+} from "./deep-research-cli/handlers/init";
 import {
   runInspect,
-} from "./deep-research-option-c/handlers/inspect";
+} from "./deep-research-cli/handlers/inspect";
 import {
   runPause,
-} from "./deep-research-option-c/handlers/pause";
+} from "./deep-research-cli/handlers/pause";
 import {
   runPerspectivesDraft,
-} from "./deep-research-option-c/handlers/perspectives-draft";
+} from "./deep-research-cli/handlers/perspectives-draft";
 import {
   runResume,
-} from "./deep-research-option-c/handlers/resume";
+} from "./deep-research-cli/handlers/resume";
 import {
   runRerunWave1,
-} from "./deep-research-option-c/handlers/rerun";
+} from "./deep-research-cli/handlers/rerun";
 import {
   runRun,
-} from "./deep-research-option-c/handlers/run";
+} from "./deep-research-cli/handlers/run";
 import {
   runStageAdvance,
-} from "./deep-research-option-c/handlers/stage-advance";
+} from "./deep-research-cli/handlers/stage-advance";
 import {
   runStatus,
-} from "./deep-research-option-c/handlers/status";
+} from "./deep-research-cli/handlers/status";
 import {
   runTick,
-} from "./deep-research-option-c/handlers/tick";
+} from "./deep-research-cli/handlers/tick";
 import {
   runTriage,
-} from "./deep-research-option-c/handlers/triage";
+} from "./deep-research-cli/handlers/triage";
 import {
   configureStdoutForJsonMode,
   emitJson,
   getCliArgv,
   isJsonModeRequested,
-} from "./deep-research-option-c/cli/json-mode";
+} from "./deep-research-cli/cli/json-mode";
 import {
   requireAbsolutePath,
-} from "./deep-research-option-c/utils/paths";
+} from "./deep-research-cli/utils/paths";
 
 const CLI_ARGV = getCliArgv();
 const JSON_MODE_REQUESTED = isJsonModeRequested(CLI_ARGV);
@@ -112,7 +112,7 @@ const captureFixturesCmd = createCaptureFixturesCmd({ AbsolutePath, runCaptureFi
 const rerunCmd = createRerunCmd({ AbsolutePath, runRerunWave1 });
 
 const app = subcommands({
-  name: "deep-research-option-c",
+  name: "deep-research-cli",
   cmds: {
     init: initCmd,
     tick: tickCmd,

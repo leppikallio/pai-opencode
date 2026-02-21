@@ -20,7 +20,7 @@ export function buildPerspectivesDraftPromptMarkdown(args: {
     "Required shape:",
     "```json",
     "{",
-    `  \"schema_version\": \"${PERSPECTIVES_DRAFT_SCHEMA_VERSION}\",`,
+    `  "schema_version": "${PERSPECTIVES_DRAFT_SCHEMA_VERSION}",`,
     "  \"run_id\": \"<run_id>\",",
     "  \"source\": { \"agent_type\": \"<agent_type>\", \"label\": \"<label>\" },",
     "  \"candidates\": [",
