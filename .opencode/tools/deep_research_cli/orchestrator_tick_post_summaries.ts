@@ -17,6 +17,7 @@ import {
 import { gate_d_evaluate } from "./gate_d_evaluate";
 import { gate_e_evaluate } from "./gate_e_evaluate";
 import { gate_e_reports } from "./gate_e_reports";
+import { gate_f_evaluate } from "./gate_f_evaluate";
 import { gates_write } from "./gates_write";
 import { revision_control } from "./revision_control";
 import { review_factory_run } from "./review_factory_run";
@@ -51,6 +52,7 @@ export type OrchestratorTickPostSummariesArgs = {
   review_factory_run_tool?: ToolWithExecute;
   gate_e_reports_tool?: ToolWithExecute;
   gate_e_evaluate_tool?: ToolWithExecute;
+  gate_f_evaluate_tool?: ToolWithExecute;
   revision_control_tool?: ToolWithExecute;
   gates_write_tool?: ToolWithExecute;
   stage_advance_tool?: ToolWithExecute;
@@ -466,6 +468,7 @@ export async function orchestrator_tick_post_summaries(
   const reviewFactoryRunTool = args.review_factory_run_tool ?? (review_factory_run as unknown as ToolWithExecute);
   const gateEReportsTool = args.gate_e_reports_tool ?? (gate_e_reports as unknown as ToolWithExecute);
   const gateEEvaluateTool = args.gate_e_evaluate_tool ?? (gate_e_evaluate as unknown as ToolWithExecute);
+  const gateFEvaluateTool = args.gate_f_evaluate_tool ?? (gate_f_evaluate as unknown as ToolWithExecute);
   const revisionControlTool = args.revision_control_tool ?? (revision_control as unknown as ToolWithExecute);
   const gatesWriteTool = args.gates_write_tool ?? (gates_write as unknown as ToolWithExecute);
   const stageAdvanceTool = args.stage_advance_tool ?? (stage_advance as unknown as ToolWithExecute);
@@ -478,6 +481,7 @@ export async function orchestrator_tick_post_summaries(
     { name: "REVIEW_FACTORY_RUN", tool: reviewFactoryRunTool },
     { name: "GATE_E_REPORTS", tool: gateEReportsTool },
     { name: "GATE_E_EVALUATE", tool: gateEEvaluateTool },
+    { name: "GATE_F_EVALUATE", tool: gateFEvaluateTool },
     { name: "REVISION_CONTROL", tool: revisionControlTool },
     { name: "GATES_WRITE", tool: gatesWriteTool },
     { name: "STAGE_ADVANCE", tool: stageAdvanceTool },
@@ -1085,7 +1089,58 @@ export async function orchestrator_tick_post_summaries(
     });
   }
 
-  const advanceFromReview = await runStageAdvance();
+  if (reviewDecision === "PASS") {
+    const gateF = await executeToolJson({
+      name: "GATE_F_EVALUATE",
+      tool: gateFEvaluateTool,
+      payload: {
+        manifest_path: manifestPath,
+        reason,
+      },
+      tool_context: args.tool_context,
+    });
+    if (!gateF.ok) {
+      return fail(gateF.code, gateF.message, gateF.details);
+    }
+
+    const gateFUpdate = isPlainObject(gateF.update)
+      ? (gateF.update as Record<string, unknown>)
+      : null;
+    const gateFInputsDigest = nonEmptyString(gateF.inputs_digest);
+    if (!gateFUpdate || !gateFInputsDigest) {
+      return fail("INVALID_STATE", "gate_f_evaluate returned incomplete gate patch", {
+        update: gateF.update ?? null,
+        inputs_digest: gateF.inputs_digest ?? null,
+      });
+    }
+
+    const gateFRevision = await readGatesRevision();
+    if (!gateFRevision.ok) return gateFRevision.failure;
+
+    const writeGateF = await executeToolJson({
+      name: "GATES_WRITE",
+      tool: gatesWriteTool,
+      payload: {
+        gates_path: gatesPath,
+        update: gateFUpdate,
+        inputs_digest: gateFInputsDigest,
+        expected_revision: gateFRevision.revision,
+        reason,
+      },
+      tool_context: args.tool_context,
+    });
+    if (!writeGateF.ok) {
+      return fail(writeGateF.code, writeGateF.message, writeGateF.details);
+    }
+  }
+
+  const requestedNext = reviewDecision === "PASS"
+    ? "finalize"
+    : reviewDecision === "CHANGES_REQUIRED"
+      ? "synthesis"
+      : undefined;
+
+  const advanceFromReview = await runStageAdvance(requestedNext);
   if (!advanceFromReview.ok) {
     return fail(advanceFromReview.code, advanceFromReview.message, {
       ...advanceFromReview.details,
