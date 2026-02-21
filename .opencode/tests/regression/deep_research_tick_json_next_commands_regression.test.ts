@@ -35,6 +35,14 @@ function expectSingleJsonStdout(
   return JSON.parse(trimmed) as Record<string, unknown>;
 }
 
+function initManifestPathFromEnvelope(payload: Record<string, unknown>): string {
+  const contract = payload.contract as Record<string, unknown>;
+  expect(contract).toBeTruthy();
+  const manifestPath = String(contract.manifest_path ?? "");
+  expect(manifestPath.length).toBeGreaterThan(0);
+  return manifestPath;
+}
+
 describe("deep_research tick --json halt next_commands (regression)", () => {
   test("tick --json includes halt.next_commands when tick fails", async () => {
     await withTempDir(async (base) => {
@@ -50,8 +58,7 @@ describe("deep_research tick --json halt next_commands (regression)", () => {
         "--json",
       ]), 0);
 
-      const manifestPath = String(initPayload.manifest_path ?? "");
-      expect(manifestPath.length).toBeGreaterThan(0);
+      const manifestPath = initManifestPathFromEnvelope(initPayload);
 
       const manifest = JSON.parse(await fs.readFile(manifestPath, "utf8")) as Record<string, unknown>;
       manifest.status = "running";

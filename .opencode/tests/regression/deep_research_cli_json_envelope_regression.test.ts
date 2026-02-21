@@ -46,7 +46,45 @@ function expectContract(contractRaw: unknown): Record<string, unknown> {
   return contract;
 }
 
+function manifestPathFromInitEnvelope(initPayload: Record<string, unknown>): string {
+  const contract = expectContract(initPayload.contract);
+  const manifestPath = String(contract.manifest_path ?? "");
+  expect(manifestPath.length).toBeGreaterThan(0);
+  return manifestPath;
+}
+
 describe("deep_research cli --json dr.cli.v1 envelope (regression)", () => {
+  test("init --json emits dr.cli.v1 envelope with contract/result/error/halt keys", async () => {
+    await withTempDir(async (base) => {
+      const runId = "dr_test_cli_json_envelope_init_001";
+      const initPayload = expectSingleJsonStdout(await runCli([
+        "init",
+        "Q",
+        "--run-id",
+        runId,
+        "--runs-root",
+        base,
+        "--json",
+      ]), 0);
+
+      expect(initPayload.schema_version).toBe("dr.cli.v1");
+      expect(initPayload.ok).toBe(true);
+      expect(initPayload.command).toBe("init");
+
+      const contract = expectContract(initPayload.contract);
+      expect(contract.run_id).toBe(runId);
+
+      const result = initPayload.result as Record<string, unknown>;
+      expect(result).toBeTruthy();
+      expect(typeof result.run_config_path).toBe("string");
+      expect(Array.isArray(result.notes)).toBe(true);
+      expect(typeof result.created).toBe("boolean");
+
+      expect(initPayload.error).toBeNull();
+      expect(initPayload.halt).toBeNull();
+    });
+  });
+
   test("tick --json emits dr.cli.v1 envelope with contract/result/error/halt keys", async () => {
     await withTempDir(async (base) => {
       const runId = "dr_test_cli_json_envelope_tick_001";
@@ -60,8 +98,7 @@ describe("deep_research cli --json dr.cli.v1 envelope (regression)", () => {
         "--json",
       ]), 0);
 
-      const manifestPath = String(initPayload.manifest_path ?? "");
-      expect(manifestPath.length).toBeGreaterThan(0);
+      const manifestPath = manifestPathFromInitEnvelope(initPayload);
 
       const tickPayload = expectSingleJsonStdout(await runCli([
         "tick",
