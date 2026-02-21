@@ -102,8 +102,12 @@ async function readRunLockFile(
 	lockPath: string,
 ): Promise<RunLockRecord | null> {
 	const raw = await fs.promises.readFile(lockPath, "utf8");
-	const parsed = JSON.parse(raw);
-	return normalizeRunLockRecord(parsed);
+	try {
+		const parsed = JSON.parse(raw);
+		return normalizeRunLockRecord(parsed);
+	} catch {
+		return null;
+	}
 }
 
 function createLockRecord(args: {
@@ -251,7 +255,7 @@ export async function acquireRunLock(args: {
 		);
 	}
 
-	if (!existingLock || !isRunLockStale(existingLock)) {
+	if (existingLock && !isRunLockStale(existingLock)) {
 		return runLockFailure("LOCK_HELD", "run lock is already held", {
 			lock_path: lockPath,
 			lock: existingLock,
