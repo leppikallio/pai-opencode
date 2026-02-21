@@ -12,7 +12,7 @@ Create a deterministic run root, produce the Wave 1 plan artifact, and stop at `
 1. Initialize run:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" --mode standard --sensitivity no_web
+bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity no_web
 ```
 
 > This workflow assumes you **do not** pass `--no-perspectives`.

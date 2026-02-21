@@ -7,7 +7,7 @@ import { withTempDir } from "../helpers/dr-harness";
 const repoRoot = path.basename(process.cwd()) === ".opencode"
   ? path.resolve(process.cwd(), "..")
   : process.cwd();
-const cliPath = path.join(repoRoot, ".opencode", "pai-tools", "deep-research-option-c.ts");
+const cliPath = path.join(repoRoot, ".opencode", "pai-tools", "deep-research-cli.ts");
 
 async function runCli(args: string[]): Promise<{ exit: number; stdout: string; stderr: string }> {
   const proc = Bun.spawn({

@@ -12,16 +12,16 @@ It focuses on two themes:
 ## Canonical entrypoints
 
 - Canonical Option C operator CLI (source):
-  - `.opencode/pai-tools/deep-research-option-c.ts`
-  - Installed runtime path: `pai-tools/deep-research-option-c.ts`
+  - `.opencode/pai-tools/deep-research-cli.ts`
+  - Installed runtime path: `pai-tools/deep-research-cli.ts`
 - Repo shim (keep it):
-  - `Tools/deep-research-option-c.ts` (imports the canonical file)
+  - `Tools/deep-research-cli.ts` (imports the canonical file)
 
 ---
 
 ## Directory layout and responsibility
 
-`deep-research-option-c/`
+`deep-research-cli/`
 
 - `cmd/` — **cmd-ts parsing only**
   - Defines flags/args, then calls a handler (`deps.runX`).
@@ -142,11 +142,11 @@ Instead, move coded errors to a neutral module or return structured errors.
 ## How to add a new command (current workflow)
 
 1) Add handler:
-   - `deep-research-option-c/handlers/<command>.ts`
+   - `deep-research-cli/handlers/<command>.ts`
    - Export: `run<Command>(args): Promise<void>`
 
 2) Add cmd-ts command:
-   - `deep-research-option-c/cmd/<command>.ts`
+   - `deep-research-cli/cmd/<command>.ts`
    - Export: `create<Command>Cmd({ AbsolutePath, run<Command> })`
    - Include:
      - run-handle selectors when applicable (`--manifest|--run-root|--run-id` + `--runs-root`)
@@ -154,7 +154,7 @@ Instead, move coded errors to a neutral module or return structured errors.
      - `--json` when machine output exists
 
 3) Wire it in the entrypoint:
-   - `.opencode/pai-tools/deep-research-option-c.ts`
+   - `.opencode/pai-tools/deep-research-cli.ts`
    - Import the cmd factory and handler, then add it to `subcommands({ cmds: { ... } })`.
 
 4) Add/adjust tests:
@@ -172,8 +172,8 @@ Common quick set:
 
 ```bash
 # Tier 0
-bun .opencode/pai-tools/deep-research-option-c.ts --help
-bun .opencode/pai-tools/deep-research-option-c.ts status --help
+bun .opencode/pai-tools/deep-research-cli.ts --help
+bun .opencode/pai-tools/deep-research-cli.ts status --help
 
 # Tier 1 (CLI behavior)
 bun test ./.opencode/tests/entities/deep_research_operator_cli_ergonomics.test.ts

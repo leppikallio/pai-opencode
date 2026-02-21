@@ -107,7 +107,7 @@ describe("deep_research tick ledger + CLI observability", () => {
         const proc = Bun.spawn(
           [
             "bun",
-            ".opencode/pai-tools/deep-research-option-c.ts",
+            ".opencode/pai-tools/deep-research-cli.ts",
             "tick",
             "--manifest",
             manifestPath,

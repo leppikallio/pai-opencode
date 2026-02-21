@@ -14,12 +14,12 @@ type CliArgs = {
 
 function usage(): string {
   return [
-    "Option C stage-advance wrapper",
+    "Deep-research CLI stage-advance wrapper",
     "",
     "Usage:",
-    "  bun Tools/deep-research-option-c-stage-advance.ts --manifest <abs> --gates <abs> --next <stage> --reason \"...\"",
-    "  bun Tools/deep-research-option-c-stage-advance.ts --manifest <abs> --gates <abs> --reason \"...\"",
-    "  bun Tools/deep-research-option-c-stage-advance.ts --help",
+    "  bun Tools/deep-research-cli-stage-advance.ts --manifest <abs> --gates <abs> --next <stage> --reason \"...\"",
+    "  bun Tools/deep-research-cli-stage-advance.ts --manifest <abs> --gates <abs> --reason \"...\"",
+    "  bun Tools/deep-research-cli-stage-advance.ts --help",
     "",
     "Flags:",
     "  --manifest  Absolute path to manifest.json (required)",

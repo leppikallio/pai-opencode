@@ -12,7 +12,7 @@ This is the canonical operator skill for Option C deep research. It is the sourc
 ## Primary Surface
 
 - Skill workflows in `Workflows/` (canonical operator guidance)
-- CLI: `bun ".opencode/pai-tools/deep-research-option-c.ts" <command> [...flags]`
+- CLI: `bun ".opencode/pai-tools/deep-research-cli.ts" <command> [...flags]`
 - Run artifacts (manifest, gates, stage artifacts) are the source of truth; do not rely on ambient env vars.
 
 ## Perspective Drafting (task-driver seam)
@@ -36,7 +36,7 @@ If you do **not** pass `--no-perspectives`, `init` may write `perspectives.json`
 1) Init without perspectives:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" \
+bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
   --no-perspectives
@@ -45,7 +45,7 @@ bun ".opencode/pai-tools/deep-research-option-c.ts" init "<query>" \
 2) Advance into the perspectives stage:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-option-c.ts" stage-advance \
+bun ".opencode/pai-tools/deep-research-cli.ts" stage-advance \
   --manifest "<manifest_abs>" \
   --gates "<gates_abs>" \
   --requested-next perspectives \
@@ -55,7 +55,7 @@ bun ".opencode/pai-tools/deep-research-option-c.ts" stage-advance \
 3) Prompt-out + HALT (task driver):
 
 ```bash
-bun ".opencode/pai-tools/deep-research-option-c.ts" perspectives-draft \
+bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
   --manifest "<manifest_abs>" \
   --reason "draft perspectives" \
   --driver task
@@ -69,7 +69,7 @@ bun ".opencode/pai-tools/deep-research-option-c.ts" perspectives-draft \
 5) Ingest the JSON output:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-option-c.ts" agent-result \
+bun ".opencode/pai-tools/deep-research-cli.ts" agent-result \
   --manifest "<manifest_abs>" \
   --stage perspectives \
   --perspective "primary" \
@@ -81,7 +81,7 @@ bun ".opencode/pai-tools/deep-research-option-c.ts" agent-result \
 6) Rerun `perspectives-draft` to auto-promote + regenerate Wave 1 plan + stage-advance to Wave 1:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-option-c.ts" perspectives-draft \
+bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
   --manifest "<manifest_abs>" \
   --reason "approve perspectives draft" \
   --driver task
@@ -122,10 +122,9 @@ When operating a run (any mode), always capture/print:
 - `stage.current`
 - `status`
 
-## Compatibility
+## Canonical naming
 
-- `deep-research-option-c` and `deep-research-production` are retained as compatibility stubs only.
-- Canonical workflow references and contracts now live in this skill.
+- Canonical workflow references and contracts live in this skill (`deep-research`).
 
 ## No-env-var guidance (required)
 
