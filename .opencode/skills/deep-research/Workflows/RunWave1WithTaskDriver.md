@@ -19,6 +19,15 @@ If `tick --driver task` fails fast with `WAVE1_PLAN_STALE`, your Wave 1 plan no 
 - `manifest_path` (absolute)
 - `reason`
 
+## Choose CLI invocation
+
+```bash
+# Repo checkout (this repository)
+CLI='bun .opencode/pai-tools/deep-research-cli.ts'
+# Runtime install (~/.config/opencode)
+# CLI='bun pai-tools/deep-research-cli.ts'
+```
+
 ## Steps
 
 1. Start from a valid run initialized for live execution.
@@ -26,7 +35,7 @@ If `tick --driver task` fails fast with `WAVE1_PLAN_STALE`, your Wave 1 plan no 
 2. Execute one prompt-out tick:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" --reason "wave1 task tick" --driver task
+$CLI tick --manifest "<manifest_abs>" --reason "wave1 task tick" --driver task
 ```
 
 3. On halt (`RUN_AGENT_REQUIRED`), read prompts from:
@@ -35,7 +44,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" 
 4. For each missing perspective, ingest markdown via CLI:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" agent-result \
+$CLI agent-result \
   --manifest "<manifest_abs>" \
   --stage wave1 \
   --perspective "<id>" \
@@ -52,7 +61,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" agent-result \
 6. Re-run tick until Wave 1 clears:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" --reason "wave1 resume" --driver task
+$CLI tick --manifest "<manifest_abs>" --reason "wave1 resume" --driver task
 ```
 
 7. When all missing perspectives are ingested, deterministic review/Gate B flow proceeds and stage advances to `pivot`.

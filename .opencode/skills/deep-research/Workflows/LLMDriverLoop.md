@@ -6,20 +6,13 @@ This is the canonical operator loop:
 
 > `tick --driver task --json` → (if halted) run agent → `agent-result` → repeat `tick`
 
-## CLI invocation (repo vs runtime)
-
-Use whichever path exists:
-
-### Repo checkout (this repository)
+## Choose CLI invocation
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" <command> [...flags]
-```
-
-### Runtime install (`~/.config/opencode`)
-
-```bash
-bun "pai-tools/deep-research-cli.ts" <command> [...flags]
+# Repo checkout (this repository)
+CLI='bun .opencode/pai-tools/deep-research-cli.ts'
+# Runtime install (~/.config/opencode)
+# CLI='bun pai-tools/deep-research-cli.ts'
 ```
 
 ### Recommendation
@@ -34,7 +27,7 @@ Pick a stable run id so you can reproduce failures deterministically later.
 
 ```bash
 # Example run id: dr_<YYYY-MM-DD>_<short-slug>
-bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
+$CLI init "<query>" \
   --mode standard \
   --sensitivity normal \
   --run-id "<run_id>" \
@@ -48,7 +41,7 @@ The `--json` envelope includes (at minimum) the absolute `contract.manifest_path
 ### Step 1: Tick once (prompt-out)
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" tick \
+$CLI tick \
   --manifest "<manifest_abs>" \
   --reason "operator tick" \
   --driver task \
@@ -91,7 +84,7 @@ Either:
 - Run it manually:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" agent-result \
+$CLI agent-result \
   --manifest "<manifest_abs>" \
   --stage "<stage>" \
   --perspective "<perspective>" \
@@ -104,7 +97,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" agent-result \
 ### Step 4: Tick again
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" tick \
+$CLI tick \
   --manifest "<manifest_abs>" \
   --reason "resume after ingest" \
   --driver task \
