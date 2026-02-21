@@ -8,6 +8,9 @@ import {
   safeResolveManifestPath,
 } from "../utils/paths";
 import {
+  resolveDeepResearchCliInvocation,
+} from "../utils/cli-invocation";
+import {
   computeTriageBlockers,
   printBlockersSummary,
   type TriageBlockers,
@@ -149,7 +152,7 @@ function nextHaltCommands(args: {
   if (Array.isArray(args.nextCommandsOverride) && args.nextCommandsOverride.length > 0) {
     return args.nextCommandsOverride;
   }
-  const cli = args.nextStepCliInvocation();
+  const cli = resolveDeepResearchCliInvocation();
   return [
     `${cli} inspect --manifest "${args.manifestPath}"`,
     `${cli} triage --manifest "${args.manifestPath}"`,

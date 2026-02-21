@@ -17,6 +17,9 @@ import {
   isSafeSegment,
 } from "../utils/paths";
 import {
+  resolveDeepResearchCliInvocation,
+} from "../utils/cli-invocation";
+import {
   asObject,
   readJsonObject,
 } from "../utils/io-json";
@@ -67,10 +70,6 @@ export type TickCliArgs = RunHandleCliArgs & {
   driver: TickDriver;
   json?: boolean;
 };
-
-function nextStepCliInvocation(): string {
-  return `bun "pai-tools/${["deep-research-cli", "ts"].join(".")}"`;
-}
 
 function ensureOptionCEnabledForCli(): void {
   const flags = resolveDeepResearchCliFlagsV1();
@@ -187,7 +186,7 @@ function buildTaskDriverNextCommands(args: {
   stage: "wave1" | "wave2" | "summaries" | "synthesis";
   missing: TaskDriverMissingPerspective[];
 }): string[] {
-  const cli = nextStepCliInvocation();
+  const cli = resolveDeepResearchCliInvocation();
   const agentResultCommands = args.missing.map((item) => {
     const inputPath = path.join(args.runRoot, "operator", "outputs", args.stage, `${item.perspectiveId}.md`);
     return `${cli} agent-result --manifest "${args.manifestPath}" --stage ${args.stage} --perspective "${item.perspectiveId}" --input "${inputPath}" --agent-run-id "<AGENT_RUN_ID>" --reason "operator: task driver ingest ${args.stage}/${item.perspectiveId}"`;
@@ -448,7 +447,7 @@ export async function runTick(args: TickCliArgs): Promise<void> {
       reason: `operator-cli tick failure: ${args.reason}`,
       error: tickError,
       triageReason: `operator-cli tick auto-triage: ${args.reason}`,
-      nextStepCliInvocation,
+      nextStepCliInvocation: resolveDeepResearchCliInvocation,
       nextCommandsOverride: haltNextCommandsOverride,
       emitLogs: !args.json,
     });
