@@ -32,6 +32,7 @@ import {
   resolveCitationsConfig,
   validateUrlMapV1,
 } from "./citations_validate_lib";
+import { readRunPolicyFromManifest } from "./run_policy_read";
 
 function toTimestampToken(iso: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?Z$/.exec(iso);
@@ -183,6 +184,12 @@ export const citations_validate = tool({
       const artifacts = getManifestArtifacts(manifest);
       const runRoot = String((artifacts ? getStringProp(artifacts, "root") : null) ?? path.dirname(manifestPath));
       const checkedAt = isNonEmptyString(manifest.updated_at) ? String(manifest.updated_at) : nowIso();
+
+      const resolvedRunPolicy = await readRunPolicyFromManifest({
+        manifest_path: manifestPath,
+        manifest,
+      });
+      const citationsLadderPolicy = resolvedRunPolicy.policy.citations_ladder_policy_v1;
 
       const runConfigPath = path.join(runRoot, "run-config.json");
       let runConfig: Record<string, unknown> | null = null;
@@ -337,6 +344,16 @@ export const citations_validate = tool({
           const onlineResult = await classifyOnlineWithLadder(item.normalized_url, {
             dryRun: onlineDryRun,
             fixture: onlineFixture,
+            directFetchTimeoutMs: citationsLadderPolicy.direct_fetch_timeout_ms,
+            endpointTimeoutMs: citationsLadderPolicy.endpoint_timeout_ms,
+            maxRedirects: citationsLadderPolicy.max_redirects,
+            maxBodyBytes: citationsLadderPolicy.max_body_bytes,
+            directFetchMaxAttempts: citationsLadderPolicy.direct_fetch_max_attempts,
+            brightDataMaxAttempts: citationsLadderPolicy.bright_data_max_attempts,
+            apifyMaxAttempts: citationsLadderPolicy.apify_max_attempts,
+            backoffInitialMs: citationsLadderPolicy.backoff_initial_ms,
+            backoffMultiplier: citationsLadderPolicy.backoff_multiplier,
+            backoffMaxMs: citationsLadderPolicy.backoff_max_ms,
             brightDataEndpoint,
             apifyEndpoint,
           });
@@ -471,6 +488,9 @@ export const citations_validate = tool({
                 apify: resolvedConfig.endpointSources.apify,
               },
               run_config_path: runConfig ? runConfigPath : null,
+              run_policy_path: resolvedRunPolicy.policy_path,
+              run_policy_source: resolvedRunPolicy.source,
+              citations_ladder_policy_v1: citationsLadderPolicy,
             },
             items: onlineFixtureItems,
           });
@@ -517,6 +537,8 @@ export const citations_validate = tool({
         fixture_digest: validationMode === "offline" ? fixtureLookup.fixtureDigest : null,
         online_fixture_digest: validationMode === "online" ? onlineFixtureLookup.fixtureDigest : null,
         online_dry_run: validationMode === "online" ? onlineDryRun : null,
+        run_policy_source: resolvedRunPolicy.source,
+        citations_ladder_policy_v1: citationsLadderPolicy,
       });
 
       try {
@@ -557,6 +579,8 @@ export const citations_validate = tool({
           bright_data: resolvedConfig.endpointSources.brightData,
           apify: resolvedConfig.endpointSources.apify,
         },
+        run_policy_source: resolvedRunPolicy.source,
+        citations_ladder_policy_v1: citationsLadderPolicy,
         validated: records.length,
         inputs_digest: inputsDigest,
         online_fixtures_path: onlineFixturesOutputPath,

@@ -148,8 +148,15 @@ export function findFixtureForUrlMapItem(lookup: OfflineFixtureLookup, item: Url
 const SENSITIVE_QUERY_KEYS = ["token", "key", "api_key", "access_token", "auth", "session", "password"];
 
 const DEFAULT_DIRECT_FETCH_TIMEOUT_MS = 5000;
+const DEFAULT_ENDPOINT_TIMEOUT_MS = 5000;
 const DEFAULT_MAX_REDIRECTS = 5;
 const DEFAULT_MAX_BODY_BYTES = 2 * 1024 * 1024;
+const DEFAULT_DIRECT_FETCH_MAX_ATTEMPTS = 1;
+const DEFAULT_BRIGHT_DATA_MAX_ATTEMPTS = 1;
+const DEFAULT_APIFY_MAX_ATTEMPTS = 1;
+const DEFAULT_BACKOFF_INITIAL_MS = 100;
+const DEFAULT_BACKOFF_MULTIPLIER = 2;
+const DEFAULT_BACKOFF_MAX_MS = 1000;
 
 export function redactSensitiveUrl(input: string): { value: string; hadUserinfo: boolean } {
   try {
@@ -221,8 +228,15 @@ export type OnlineLadderOptions = {
   fixture?: OfflineFixtureEntry | null;
   fetchImpl?: FetchLike;
   directFetchTimeoutMs?: number;
+  endpointTimeoutMs?: number;
   maxRedirects?: number;
   maxBodyBytes?: number;
+  directFetchMaxAttempts?: number;
+  brightDataMaxAttempts?: number;
+  apifyMaxAttempts?: number;
+  backoffInitialMs?: number;
+  backoffMultiplier?: number;
+  backoffMaxMs?: number;
   brightDataEndpoint?: string;
   apifyEndpoint?: string;
 };
@@ -632,6 +646,82 @@ function formatLadderAttempts(attempts: OnlineAttempt[]): string {
   return attempts.map((attempt) => `${attempt.step}=${attempt.outcome}(${attempt.detail})`).join("; ");
 }
 
+function normalizePositiveInt(value: unknown, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  const normalized = Math.trunc(value);
+  if (normalized <= 0) return fallback;
+  return normalized;
+}
+
+function normalizePositiveFinite(value: unknown, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return fallback;
+  return value;
+}
+
+function retryBackoffMs(args: {
+  attempt: number;
+  backoffInitialMs: number;
+  backoffMultiplier: number;
+  backoffMaxMs: number;
+}): number {
+  const factor = Math.max(0, args.attempt - 1);
+  const growth = Math.pow(args.backoffMultiplier, factor);
+  const raw = Math.trunc(args.backoffInitialMs * growth);
+  return Math.max(0, Math.min(args.backoffMaxMs, raw));
+}
+
+async function sleepMs(ms: number): Promise<void> {
+  if (ms <= 0) return;
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function retryIneligible(detail: string): boolean {
+  const normalized = detail.toLowerCase();
+  return normalized.includes("endpoint not configured")
+    || normalized.includes("disallowed protocol")
+    || normalized.includes("private/local target blocked");
+}
+
+async function runStepWithRetry(args: {
+  step: OnlineStepName;
+  maxAttempts: number;
+  attempts: OnlineAttempt[];
+  backoffInitialMs: number;
+  backoffMultiplier: number;
+  backoffMaxMs: number;
+  runner: () => Promise<LadderStepResult>;
+}): Promise<LadderStepResult> {
+  for (let attempt = 1; attempt <= args.maxAttempts; attempt += 1) {
+    const stepResult = await args.runner();
+    if (stepResult.ok) {
+      args.attempts.push({
+        step: args.step,
+        outcome: "success",
+        detail: `attempt ${attempt}/${args.maxAttempts}: ${stepResult.detail}`,
+      });
+      return stepResult;
+    }
+
+    const detail = `attempt ${attempt}/${args.maxAttempts}: ${stepResult.detail}`;
+    args.attempts.push({ step: args.step, outcome: "failed", detail });
+
+    if (attempt >= args.maxAttempts || retryIneligible(stepResult.detail)) {
+      return stepResult;
+    }
+
+    await sleepMs(
+      retryBackoffMs({
+        attempt,
+        backoffInitialMs: args.backoffInitialMs,
+        backoffMultiplier: args.backoffMultiplier,
+        backoffMaxMs: args.backoffMaxMs,
+      }),
+    );
+  }
+
+  return { ok: false, detail: "retry budget exhausted" };
+}
+
 export async function classifyOnlineWithLadder(urlValue: string, options: OnlineLadderOptions = {}): Promise<OnlineCitationResult> {
   const preflight = classifyOnlineUrlPreflight(urlValue);
   if (!preflight.ok) return preflight.result;
@@ -641,6 +731,16 @@ export async function classifyOnlineWithLadder(urlValue: string, options: Online
   const dryRun = options.dryRun === true;
   const attempts: OnlineAttempt[] = [];
   const fetchImpl = options.fetchImpl ?? fetch;
+  const directFetchTimeoutMs = normalizePositiveInt(options.directFetchTimeoutMs, DEFAULT_DIRECT_FETCH_TIMEOUT_MS);
+  const endpointTimeoutMs = normalizePositiveInt(options.endpointTimeoutMs, DEFAULT_ENDPOINT_TIMEOUT_MS);
+  const maxRedirects = normalizePositiveInt(options.maxRedirects, DEFAULT_MAX_REDIRECTS);
+  const maxBodyBytes = normalizePositiveInt(options.maxBodyBytes, DEFAULT_MAX_BODY_BYTES);
+  const directFetchMaxAttempts = normalizePositiveInt(options.directFetchMaxAttempts, DEFAULT_DIRECT_FETCH_MAX_ATTEMPTS);
+  const brightDataMaxAttempts = normalizePositiveInt(options.brightDataMaxAttempts, DEFAULT_BRIGHT_DATA_MAX_ATTEMPTS);
+  const apifyMaxAttempts = normalizePositiveInt(options.apifyMaxAttempts, DEFAULT_APIFY_MAX_ATTEMPTS);
+  const backoffInitialMs = normalizePositiveInt(options.backoffInitialMs, DEFAULT_BACKOFF_INITIAL_MS);
+  const backoffMultiplier = normalizePositiveFinite(options.backoffMultiplier, DEFAULT_BACKOFF_MULTIPLIER);
+  const backoffMaxMs = normalizePositiveInt(options.backoffMaxMs, DEFAULT_BACKOFF_MAX_MS);
 
   if (dryRun) {
     attempts.push({ step: "direct_fetch", outcome: "skipped", detail: "dry-run" });
@@ -653,35 +753,56 @@ export async function classifyOnlineWithLadder(urlValue: string, options: Online
     };
   }
 
-  const direct = await runDirectFetchStep({
-    url: preflight.url,
-    fetchImpl,
-    timeoutMs: options.directFetchTimeoutMs ?? DEFAULT_DIRECT_FETCH_TIMEOUT_MS,
-    maxRedirects: options.maxRedirects ?? DEFAULT_MAX_REDIRECTS,
-    maxBodyBytes: options.maxBodyBytes ?? DEFAULT_MAX_BODY_BYTES,
+  const direct = await runStepWithRetry({
+    step: "direct_fetch",
+    maxAttempts: directFetchMaxAttempts,
+    attempts,
+    backoffInitialMs,
+    backoffMultiplier,
+    backoffMaxMs,
+    runner: () => runDirectFetchStep({
+      url: preflight.url,
+      fetchImpl,
+      timeoutMs: directFetchTimeoutMs,
+      maxRedirects,
+      maxBodyBytes,
+    }),
   });
   if (direct.ok) return direct.data;
-  attempts.push({ step: "direct_fetch", outcome: "failed", detail: direct.detail });
 
-  const bright = await runEndpointStep({
+  const bright = await runStepWithRetry({
     step: "bright_data",
-    endpoint: (options.brightDataEndpoint ?? "").trim(),
-    url: preflight.url,
-    fetchImpl,
-    timeoutMs: options.directFetchTimeoutMs ?? DEFAULT_DIRECT_FETCH_TIMEOUT_MS,
+    maxAttempts: brightDataMaxAttempts,
+    attempts,
+    backoffInitialMs,
+    backoffMultiplier,
+    backoffMaxMs,
+    runner: () => runEndpointStep({
+      step: "bright_data",
+      endpoint: (options.brightDataEndpoint ?? "").trim(),
+      url: preflight.url,
+      fetchImpl,
+      timeoutMs: endpointTimeoutMs,
+    }),
   });
   if (bright.ok) return bright.data;
-  attempts.push({ step: "bright_data", outcome: "failed", detail: bright.detail });
 
-  const apify = await runEndpointStep({
+  const apify = await runStepWithRetry({
     step: "apify",
-    endpoint: (options.apifyEndpoint ?? "").trim(),
-    url: preflight.url,
-    fetchImpl,
-    timeoutMs: options.directFetchTimeoutMs ?? DEFAULT_DIRECT_FETCH_TIMEOUT_MS,
+    maxAttempts: apifyMaxAttempts,
+    attempts,
+    backoffInitialMs,
+    backoffMultiplier,
+    backoffMaxMs,
+    runner: () => runEndpointStep({
+      step: "apify",
+      endpoint: (options.apifyEndpoint ?? "").trim(),
+      url: preflight.url,
+      fetchImpl,
+      timeoutMs: endpointTimeoutMs,
+    }),
   });
   if (apify.ok) return apify.data;
-  attempts.push({ step: "apify", outcome: "failed", detail: apify.detail });
 
   return {
     status: "blocked",
