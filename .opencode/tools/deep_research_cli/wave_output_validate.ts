@@ -8,11 +8,90 @@ import {
   errorCode,
   findHeadingSection,
   hasHeading,
+  isPlainObject,
   ok,
   parseSourcesSection,
   readJson,
   validatePerspectivesV1,
 } from "./wave_tools_shared";
+
+function sidecarCandidates(markdownPath: string, perspectiveId: string): string[] {
+  const candidates = new Set<string>();
+  const dir = path.dirname(markdownPath);
+  candidates.add(path.join(dir, `${perspectiveId}.meta.json`));
+  if (markdownPath.endsWith(".md")) {
+    candidates.add(`${markdownPath.slice(0, -3)}.meta.json`);
+  } else {
+    candidates.add(`${markdownPath}.meta.json`);
+  }
+  return Array.from(candidates);
+}
+
+async function readToolUsageFromSidecar(args: {
+  markdownPath: string;
+  perspectiveId: string;
+  budgetKeys: string[];
+}): Promise<{ usage: Record<string, number>; sidecar_path: string | null; sidecar_found: boolean } | string> {
+  const usage: Record<string, number> = {};
+  for (const key of args.budgetKeys) usage[key] = 0;
+
+  const candidates = sidecarCandidates(args.markdownPath, args.perspectiveId);
+  for (const candidatePath of candidates) {
+    let sidecarRaw: unknown;
+    try {
+      sidecarRaw = await readJson(candidatePath);
+    } catch (e) {
+      if (errorCode(e) === "ENOENT") continue;
+      if (e instanceof SyntaxError) {
+        return err("INVALID_JSON", "wave output sidecar contains invalid JSON", {
+          sidecar_path: candidatePath,
+        });
+      }
+      throw e;
+    }
+
+    if (!isPlainObject(sidecarRaw)) {
+      return err("INVALID_JSON", "wave output sidecar must be a JSON object", {
+        sidecar_path: candidatePath,
+      });
+    }
+
+    const toolUsageRaw = sidecarRaw.tool_usage;
+    if (toolUsageRaw !== undefined && !isPlainObject(toolUsageRaw)) {
+      return err("INVALID_TOOL_USAGE", "wave output sidecar tool_usage must be an object", {
+        sidecar_path: candidatePath,
+      });
+    }
+
+    const toolUsage = isPlainObject(toolUsageRaw)
+      ? (toolUsageRaw as Record<string, unknown>)
+      : {};
+
+    for (const key of args.budgetKeys) {
+      const rawCount = Number(toolUsage[key] ?? 0);
+      if (!Number.isFinite(rawCount) || rawCount < 0) {
+        return err("INVALID_TOOL_USAGE", "wave output sidecar tool usage must be non-negative numbers", {
+          sidecar_path: candidatePath,
+          tool: key,
+          recorded: toolUsage[key] ?? null,
+        });
+      }
+      usage[key] = rawCount;
+    }
+
+    return {
+      usage,
+      sidecar_path: candidatePath,
+      sidecar_found: true,
+    };
+  }
+
+  return {
+    usage,
+    sidecar_path: null,
+    sidecar_found: false,
+  };
+}
 
 export const wave_output_validate = tool({
   description: "Validate Wave output markdown contract for a single perspective",
@@ -62,6 +141,22 @@ export const wave_output_validate = tool({
       const contract = perspective.prompt_contract as Record<string, unknown>;
       const maxWords = Number(contract.max_words ?? 0);
       const maxSources = Number(contract.max_sources ?? 0);
+      const toolBudgetRaw = isPlainObject(contract.tool_budget)
+        ? (contract.tool_budget as Record<string, unknown>)
+        : {};
+      const toolBudget: Record<string, number> = {};
+      for (const [tool, rawLimit] of Object.entries(toolBudgetRaw)) {
+        const normalizedTool = String(tool ?? "").trim();
+        if (!normalizedTool) continue;
+        const limit = Number(rawLimit ?? Number.NaN);
+        if (!Number.isFinite(limit) || limit < 0) {
+          return err("INVALID_TOOL_BUDGET", "prompt_contract.tool_budget entries must be non-negative numbers", {
+            tool: normalizedTool,
+            limit: rawLimit ?? null,
+          });
+        }
+        toolBudget[normalizedTool] = limit;
+      }
       const requiredSections = Array.isArray(contract.must_include_sections)
         ? contract.must_include_sections.map((value) => String(value ?? "").trim()).filter((value) => value.length > 0)
         : [];
@@ -117,11 +212,36 @@ export const wave_output_validate = tool({
         }
       }
 
+      const budgetKeys = Object.keys(toolBudget);
+      const usageOrErr = await readToolUsageFromSidecar({
+        markdownPath,
+        perspectiveId,
+        budgetKeys,
+      });
+      if (typeof usageOrErr === "string") return usageOrErr;
+
+      for (const tool of budgetKeys) {
+        const limit = toolBudget[tool] ?? 0;
+        const recorded = usageOrErr.usage[tool] ?? 0;
+        if (recorded > limit) {
+          return err("TOOL_BUDGET_EXCEEDED", "recorded tool usage exceeds prompt_contract.tool_budget", {
+            tool,
+            limit,
+            recorded,
+            sidecar_path: usageOrErr.sidecar_path,
+          });
+        }
+      }
+
       return ok({
         perspective_id: perspectiveId,
         markdown_path: markdownPath,
         words,
         sources,
+        tool_budget: toolBudget,
+        tool_usage: usageOrErr.usage,
+        sidecar_path: usageOrErr.sidecar_path,
+        sidecar_found: usageOrErr.sidecar_found,
         missing_sections: [],
       });
     } catch (e) {
