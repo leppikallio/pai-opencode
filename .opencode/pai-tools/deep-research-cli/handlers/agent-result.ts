@@ -3,7 +3,7 @@ import * as path from "node:path";
 
 import { resolveDeepResearchCliFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
 import { sha256DigestForJson } from "../../../tools/deep_research_cli/wave_tools_shared";
-import { emitJson } from "../cli/json-mode";
+import { emitJsonV1 } from "../cli/json-contract";
 import {
   throwWithCode,
   throwWithCodeAndDetails,
@@ -25,6 +25,7 @@ import {
   summarizeManifest,
   withRunLock,
 } from "../utils/run-handle";
+import { resolveDeepResearchCliInvocation } from "../utils/cli-invocation";
 import { nowIso } from "../utils/time";
 import {
   normalizePromptDigest,
@@ -307,22 +308,29 @@ export async function runAgentResult(args: AgentResultCliArgs): Promise<void> {
   });
 
   if (args.json) {
-    emitJson({
+    emitJsonV1({
       ok: true,
       command: "agent-result",
-      run_id: summary.runId,
-      run_root: runRoot,
-      manifest_path: manifestPath,
-      gates_path: summary.gatesPath,
-      stage_current: summary.stageCurrent,
-      status: summary.status,
-      stage,
-      perspective_id: perspectiveId,
-      output_path: outputPath,
-      meta_path: metaPath,
-      ...(rawOutputPath ? { raw_output_path: rawOutputPath } : {}),
-      prompt_digest: promptDigest,
-      noop,
+      contract: {
+        run_id: summary.runId,
+        run_root: runRoot,
+        manifest_path: manifestPath,
+        gates_path: summary.gatesPath,
+        stage_current: summary.stageCurrent,
+        status: summary.status,
+        cli_invocation: resolveDeepResearchCliInvocation(),
+      },
+      result: {
+        stage,
+        perspective_id: perspectiveId,
+        output_path: outputPath,
+        meta_path: metaPath,
+        ...(rawOutputPath ? { raw_output_path: rawOutputPath } : {}),
+        prompt_digest: promptDigest,
+        noop,
+      },
+      error: null,
+      halt: null,
     });
     return;
   }
