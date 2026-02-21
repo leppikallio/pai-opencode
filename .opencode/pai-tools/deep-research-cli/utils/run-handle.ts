@@ -3,7 +3,7 @@ import * as path from "node:path";
 import {
   acquireRunLock,
   releaseRunLock,
-} from "../../../tools/deep_research.ts";
+} from "../../../tools/deep_research_cli.ts";
 import {
   assertWithinRoot,
   normalizeOptional,

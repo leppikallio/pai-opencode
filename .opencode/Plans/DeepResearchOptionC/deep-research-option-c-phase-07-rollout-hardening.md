@@ -46,7 +46,7 @@ Deliver production-safe rollout with feature flags, canary controls, and fallbac
 - `.opencode/Plans/DeepResearchOptionC/incident-response-matrix-v1.md`
 - `.opencode/Plans/DeepResearchOptionC/operator-runbooks-v1.md`
 - `.opencode/Plans/DeepResearchOptionC/operator-drills-log-v1.md`
-- `.opencode/tools/deep_research/fallback_offer.ts`
+- `.opencode/tools/deep_research_cli/fallback_offer.ts`
 - `.opencode/tests/entities/deep_research_fallback_offer_hard_gate.test.ts`
 
 ## Gate

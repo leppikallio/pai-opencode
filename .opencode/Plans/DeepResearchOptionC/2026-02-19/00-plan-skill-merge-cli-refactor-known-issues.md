@@ -16,7 +16,7 @@ Repo root: `/Users/zuul/Projects/pai-opencode-graphviz`
 
 - Slashcommand docs: removed (`.opencode/commands/deep-research*.md` no longer present)
 - Operator CLI (bloated): `.opencode/pai-tools/deep-research-option-c.ts` (**3667 lines**)
-- Deep research tools surface: `.opencode/tools/deep_research/index.ts`
+- Deep research tools surface: `.opencode/tools/deep_research_cli/index.ts`
 - Two skills (must be merged):
   - `.opencode/skills/deep-research-option-c/`
   - `.opencode/skills/deep-research-production/`
@@ -238,7 +238,7 @@ Status: **DONE** (see progress tracker E3).
 Status: **DONE** (see progress tracker E4).
 
 **Builder changes**
-- In `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts`, stop producing placeholder Wave2 outputs by default.
+- In `.opencode/tools/deep_research_cli/orchestrator_tick_post_pivot.ts`, stop producing placeholder Wave2 outputs by default.
 - Replace “synthetic wave2 markdown” with a **real agent seam**:
   - Wave2 work items are prompt-out tasks derived from pivot gaps.
   - Outputs must be ingested deterministically as artifacts under `wave-2/`.

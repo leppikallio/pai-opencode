@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { run_init } from "../../tools/deep_research.ts";
-import * as deepResearch from "../../tools/deep_research.ts";
-import { resolveCitationsConfig } from "../../tools/deep_research/citations_validate_lib";
+import { run_init } from "../../tools/deep_research_cli.ts";
+import * as deepResearch from "../../tools/deep_research_cli.ts";
+import { resolveCitationsConfig } from "../../tools/deep_research_cli/citations_validate_lib";
 import { fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 const citations_validate = ((deepResearch as any).citations_validate ??

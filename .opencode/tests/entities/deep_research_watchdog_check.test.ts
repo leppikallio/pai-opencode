@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 
-import { run_init, watchdog_check } from "../../tools/deep_research.ts";
+import { run_init, watchdog_check } from "../../tools/deep_research_cli.ts";
 import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 describe("deep_research_watchdog_check (entity)", () => {

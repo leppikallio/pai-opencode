@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research/lifecycle_lib";
+import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
 import { readJsonObject } from "../utils/io-json";
 import {
   requireAbsolutePath,

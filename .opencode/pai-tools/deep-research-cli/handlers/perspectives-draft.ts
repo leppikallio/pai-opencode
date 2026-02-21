@@ -5,11 +5,11 @@ import {
   perspectives_write,
   stage_advance,
   wave1_plan,
-} from "../../../tools/deep_research.ts";
+} from "../../../tools/deep_research_cli.ts";
 import {
   resolveDeepResearchFlagsV1,
   sha256HexLowerUtf8,
-} from "../../../tools/deep_research/lifecycle_lib";
+} from "../../../tools/deep_research_cli/lifecycle_lib";
 import { emitJson } from "../cli/json-mode";
 import { throwWithCode } from "../cli/errors";
 import {

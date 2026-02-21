@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { run_init } from "../../tools/deep_research.ts";
+import { run_init } from "../../tools/deep_research_cli.ts";
 import { makeToolContext, parseToolJson, withTempDir } from "../helpers/dr-harness";
 
 function opencodeRootFromCwd(): string {

@@ -4,7 +4,7 @@
 Define a **deterministic, offline** rubric for the Option C **pivot** stage: decide whether the run must execute **Wave 2** (targeted follow-up) or **skip Wave 2** and proceed to `citations`.
 
 This rubric is designed to be implemented as a tool:
-`deep_research_pivot_decide` in `.opencode/tools/deep_research.ts`.
+`deep_research_pivot_decide` in `.opencode/tools/deep_research_cli.ts`.
 
 Stage alignment: `spec-stage-machine-v1.md` stage IDs are lowercase: `wave1 -> pivot -> wave2|citations`.
 

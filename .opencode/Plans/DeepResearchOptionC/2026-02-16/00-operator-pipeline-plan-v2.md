@@ -15,7 +15,7 @@ This is the revision of the operator plan after independent reviews (Architect, 
 ### Delivered (deterministic substrate)
 We have a working artifact-first toolchain with entity tests and fixtures. The authoritative tool export surface is:
 
-- `.opencode/tools/deep_research/index.ts`
+- `.opencode/tools/deep_research_cli/index.ts`
 
 Core properties:
 - **Artifacts are the source of truth** (manifest/gates/audit log + stage dirs).

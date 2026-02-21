@@ -11,7 +11,7 @@ Validate the Phase 01 tool substrate behaves as specified:
 ## Test environment
 - Repo: `/Users/zuul/Projects/pai-opencode-graphviz`
 - Tools package: `/Users/zuul/Projects/pai-opencode-graphviz/.opencode`
-- Tool file: `.opencode/tools/deep_research.ts`
+- Tool file: `.opencode/tools/deep_research_cli.ts`
 
 ## Checks
 

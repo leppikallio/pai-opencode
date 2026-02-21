@@ -24,7 +24,7 @@ Make Deep Research Option C **ready for real research runs** by:
 ## Working definitions (for subagents)
 
 - **Operator CLI (canonical surface)**: `.opencode/pai-tools/deep-research-option-c.ts`
-- **Deep research tools**: `.opencode/tools/deep_research/*`
+- **Deep research tools**: `.opencode/tools/deep_research_cli/*`
 - **Run root**: directory containing `manifest.json` and `gates.json` created by `run_init`.
 - **Task-driver loop**: CLI writes prompts to `operator/prompts/<stage>/<id>.md`, halts with `RUN_AGENT_REQUIRED`, and later ingests results via `agent-result` writing canonical artifacts under run root.
 

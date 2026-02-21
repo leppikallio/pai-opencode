@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { run_init, summary_pack_build } from "../../tools/deep_research.ts";
+import { run_init, summary_pack_build } from "../../tools/deep_research_cli.ts";
 import { fixturePath, makeToolContext, parseToolJson } from "./dr-harness";
 
 export const phase05FixturePath = (...parts: string[]): string => fixturePath("summaries", "phase05", ...parts);

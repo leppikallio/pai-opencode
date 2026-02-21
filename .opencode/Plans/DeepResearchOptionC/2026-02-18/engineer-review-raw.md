@@ -47,72 +47,72 @@ If I had to pick the smallest “pleasantness” critical path:
 
 The Option C tool barrel is:
 
-- `.opencode/tools/deep_research/index.ts`
+- `.opencode/tools/deep_research_cli/index.ts`
 
 Operator-critical tool IDs referenced throughout command/docs (examples):
 
 - Run substrate:
-  - `deep_research_run_init` (`.opencode/tools/deep_research/run_init.ts`)
-  - `deep_research_manifest_write` (`.opencode/tools/deep_research/manifest_write.ts`)
-  - `deep_research_gates_write` (`.opencode/tools/deep_research/gates_write.ts`)
-  - `deep_research_stage_advance` (`.opencode/tools/deep_research/stage_advance.ts`) — authoritative stage transition gatekeeper
+  - `deep_research_run_init` (`.opencode/tools/deep_research_cli/run_init.ts`)
+  - `deep_research_manifest_write` (`.opencode/tools/deep_research_cli/manifest_write.ts`)
+  - `deep_research_gates_write` (`.opencode/tools/deep_research_cli/gates_write.ts`)
+  - `deep_research_stage_advance` (`.opencode/tools/deep_research_cli/stage_advance.ts`) — authoritative stage transition gatekeeper
 
 - Wave 1:
-  - `deep_research_wave1_plan` (`.opencode/tools/deep_research/wave1_plan.ts`)
-  - `deep_research_wave_output_validate` (`.opencode/tools/deep_research/wave_output_validate.ts`)
-  - `deep_research_wave_output_ingest` (`.opencode/tools/deep_research/wave_output_ingest.ts`)
-  - `deep_research_wave_review` (`.opencode/tools/deep_research/wave_review.ts`)
-  - `deep_research_gate_b_derive` (`.opencode/tools/deep_research/gate_b_derive.ts`)
+  - `deep_research_wave1_plan` (`.opencode/tools/deep_research_cli/wave1_plan.ts`)
+  - `deep_research_wave_output_validate` (`.opencode/tools/deep_research_cli/wave_output_validate.ts`)
+  - `deep_research_wave_output_ingest` (`.opencode/tools/deep_research_cli/wave_output_ingest.ts`)
+  - `deep_research_wave_review` (`.opencode/tools/deep_research_cli/wave_review.ts`)
+  - `deep_research_gate_b_derive` (`.opencode/tools/deep_research_cli/gate_b_derive.ts`)
 
 - Pivot/citations:
-  - `deep_research_pivot_decide` (`.opencode/tools/deep_research/pivot_decide.ts`)
-  - `deep_research_citations_extract_urls` (`.opencode/tools/deep_research/citations_extract_urls.ts`)
-  - `deep_research_citations_normalize` (`.opencode/tools/deep_research/citations_normalize.ts`)
-  - `deep_research_citations_validate` (`.opencode/tools/deep_research/citations_validate.ts`)
-  - `deep_research_gate_c_compute` (`.opencode/tools/deep_research/gate_c_compute.ts`)
+  - `deep_research_pivot_decide` (`.opencode/tools/deep_research_cli/pivot_decide.ts`)
+  - `deep_research_citations_extract_urls` (`.opencode/tools/deep_research_cli/citations_extract_urls.ts`)
+  - `deep_research_citations_normalize` (`.opencode/tools/deep_research_cli/citations_normalize.ts`)
+  - `deep_research_citations_validate` (`.opencode/tools/deep_research_cli/citations_validate.ts`)
+  - `deep_research_gate_c_compute` (`.opencode/tools/deep_research_cli/gate_c_compute.ts`)
 
 - Summaries/synthesis/review/finalize:
-  - `deep_research_summary_pack_build` (`.opencode/tools/deep_research/summary_pack_build.ts`)
-  - `deep_research_gate_d_evaluate` (`.opencode/tools/deep_research/gate_d_evaluate.ts`)
-  - `deep_research_synthesis_write` (`.opencode/tools/deep_research/synthesis_write.ts`)
-  - `deep_research_review_factory_run` (`.opencode/tools/deep_research/review_factory_run.ts`)
-  - `deep_research_revision_control` (`.opencode/tools/deep_research/revision_control.ts`)
-  - `deep_research_gate_e_evaluate` (`.opencode/tools/deep_research/gate_e_evaluate.ts`)
-  - `deep_research_gate_e_reports` (`.opencode/tools/deep_research/gate_e_reports.ts`)
+  - `deep_research_summary_pack_build` (`.opencode/tools/deep_research_cli/summary_pack_build.ts`)
+  - `deep_research_gate_d_evaluate` (`.opencode/tools/deep_research_cli/gate_d_evaluate.ts`)
+  - `deep_research_synthesis_write` (`.opencode/tools/deep_research_cli/synthesis_write.ts`)
+  - `deep_research_review_factory_run` (`.opencode/tools/deep_research_cli/review_factory_run.ts`)
+  - `deep_research_revision_control` (`.opencode/tools/deep_research_cli/revision_control.ts`)
+  - `deep_research_gate_e_evaluate` (`.opencode/tools/deep_research_cli/gate_e_evaluate.ts`)
+  - `deep_research_gate_e_reports` (`.opencode/tools/deep_research_cli/gate_e_reports.ts`)
 
 ### Orchestrators exist (but “real live” is not proven)
 
 There are orchestrator drivers/ticks for multiple parts of the stage machine:
 
 - Wave 1 live tick and run loop:
-  - `.opencode/tools/deep_research/orchestrator_tick_live.ts`
-  - `.opencode/tools/deep_research/orchestrator_run_live.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_run_live.ts`
   - **Fact:** `orchestrator_tick_live` currently executes **only the first wave1 plan entry** (it reads `entries[0]`).
   - **Fact:** it depends on an injected `drivers.runAgent(...)` function; it is not wired to the OpenCode `Task` tool from within tool code.
 
 - Post-pivot tick and run loop (pivot → citations → summaries):
-  - `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts`
-  - `.opencode/tools/deep_research/orchestrator_run_post_pivot.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_post_pivot.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_run_post_pivot.ts`
 
 - Post-summaries tick and run loop (summaries → synthesis → review → finalize):
-  - `.opencode/tools/deep_research/orchestrator_tick_post_summaries.ts`
-  - `.opencode/tools/deep_research/orchestrator_run_post_summaries.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_post_summaries.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_run_post_summaries.ts`
   - **Fact:** current tick implementation hard-requires *fixture inputs* (see below).
 
 - Fixture tick:
-  - `.opencode/tools/deep_research/orchestrator_tick_fixture.ts` (stage advancement using a `fixture_driver`).
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_fixture.ts` (stage advancement using a `fixture_driver`).
 
 ### Phase 05 is currently “fixture-only” (blocks true live end-to-end)
 
 Several Phase 05 tools explicitly reject `mode=generate`:
 
-- `.opencode/tools/deep_research/summary_pack_build.ts`
+- `.opencode/tools/deep_research_cli/summary_pack_build.ts`
   - `if (mode !== "fixture") return err("INVALID_ARGS", "only fixture mode is supported", { mode });`
 
-- `.opencode/tools/deep_research/synthesis_write.ts`
+- `.opencode/tools/deep_research_cli/synthesis_write.ts`
   - same pattern: fixture-only.
 
-- `.opencode/tools/deep_research/review_factory_run.ts`
+- `.opencode/tools/deep_research_cli/review_factory_run.ts`
   - same pattern: fixture-only.
 
 This is the key “not pleasant yet” blocker: a real research run needs the system to **generate** summaries, synthesis, and reviews (or integrate with a real reviewer pool), not require fixture directories.
@@ -147,7 +147,7 @@ There is also a deterministic fixture runner script:
 
 ### Flags/config: settings-only (env unsupported)
 
-- `.opencode/tools/deep_research/flags_v1.ts` (via `lifecycle_lib.ts`) reads flags from:
+- `.opencode/tools/deep_research_cli/flags_v1.ts` (via `lifecycle_lib.ts`) reads flags from:
   - `.opencode/settings.json` under `settings.deepResearch.flags.*` **or** `settings.pai.deepResearch.flags.*`
   - Environment variables are intentionally unsupported for Option C flags.
 
@@ -185,8 +185,8 @@ Default run root:
 
 6) **Observability exists on paper + as tools, but is not stitched into the operator loop.**
    - Telemetry tooling exists:
-     - `deep_research_telemetry_append` (`.opencode/tools/deep_research/telemetry_append.ts`)
-     - `deep_research_run_metrics_write` (`.opencode/tools/deep_research/run_metrics_write.ts`)
+     - `deep_research_telemetry_append` (`.opencode/tools/deep_research_cli/telemetry_append.ts`)
+     - `deep_research_run_metrics_write` (`.opencode/tools/deep_research_cli/run_metrics_write.ts`)
    - But the orchestrator ticks are not emitting stage lifecycle telemetry consistently today.
 
 7) **Operator UX is still “developer UX.”**
@@ -230,7 +230,7 @@ This section is intentionally concrete: each item has a clear “what to impleme
 - When stage advance fails (missing artifact, gate blocked), the operator often has to open multiple files to find *which artifact/gate* caused the block.
 
 **Existing substrate:**
-- `.opencode/tools/deep_research/stage_advance.ts` builds an `evaluated[]` array and returns a `decision` object in error details.
+- `.opencode/tools/deep_research_cli/stage_advance.ts` builds an `evaluated[]` array and returns a `decision` object in error details.
 
 **Fix:**
 - Add an operator command (doc + optionally a CLI wrapper) that prints:
@@ -249,7 +249,7 @@ This section is intentionally concrete: each item has a clear “what to impleme
 - Gate failures can lead to ad-hoc reruns without a consistent “material change” record.
 
 **Existing substrate:**
-- `deep_research_retry_record` (`.opencode/tools/deep_research/retry_record.ts`) enforces bounded retries per gate (caps in `schema_v1.ts`).
+- `deep_research_retry_record` (`.opencode/tools/deep_research_cli/retry_record.ts`) enforces bounded retries per gate (caps in `schema_v1.ts`).
 
 **Fix:**
 - In the operator loop, whenever a stage’s critical gate fails (B/C/D/E), do two things:
@@ -267,7 +267,7 @@ This forces iteration hygiene and prevents silent “try again” loops.
 **Problem:** the system can’t be pleasant if it doesn’t know *what success looks like* before Wave 1.
 
 **Concrete implementation approach (no schema change required):**
-- Use `manifest.query.constraints` (already allowed as a plain object by `validateManifestV1` in `.opencode/tools/deep_research/schema_v1.ts`) to store:
+- Use `manifest.query.constraints` (already allowed as a plain object by `validateManifestV1` in `.opencode/tools/deep_research_cli/schema_v1.ts`) to store:
   - target deliverable (“answer type”): memo vs annotated bibliography vs position paper
   - time budget: e.g. `time_budget_minutes: 20|60|180`
   - depth: quick/standard/deep (separate from `manifest.mode` if you want)
@@ -283,7 +283,7 @@ This forces iteration hygiene and prevents silent “try again” loops.
 **Existing substrate:**
 - `perspectives.json` schema supports:
   - `prompt_contract.max_words`, `prompt_contract.max_sources`, `prompt_contract.tool_budget`, and required sections
-  - validated by `validatePerspectivesV1` in `.opencode/tools/deep_research/schema_v1.ts`
+  - validated by `validatePerspectivesV1` in `.opencode/tools/deep_research_cli/schema_v1.ts`
 
 **Fix:**
 - Define 3–4 canonical “tracks” (already allowed values: `standard|independent|contrarian`) with default budgets.
@@ -301,7 +301,7 @@ This reduces wasted cycles where the first wave outputs are invalid purely due t
 #### 1) Standardize “resume from run root” as the primary iteration unit
 
 **Existing substrate:**
-- Stable run roots created by `deep_research_run_init` (`.opencode/tools/deep_research/run_init.ts`).
+- Stable run roots created by `deep_research_run_init` (`.opencode/tools/deep_research_cli/run_init.ts`).
 - Stage authority enforced by `deep_research_stage_advance`.
 
 **Fix:**
@@ -328,7 +328,7 @@ This reduces wasted cycles where the first wave outputs are invalid purely due t
 #### 3) Make reproducibility a one-liner: fixture bundle capture at stage boundaries
 
 **Existing substrate:**
-- `deep_research_fixture_bundle_capture` (`.opencode/tools/deep_research/fixture_bundle_capture.ts`).
+- `deep_research_fixture_bundle_capture` (`.opencode/tools/deep_research_cli/fixture_bundle_capture.ts`).
 
 **Fix:**
 - In live runs, capture fixture bundles automatically at least at:
@@ -391,7 +391,7 @@ This makes “it was good yesterday but not today” debuggable.
   - `PAI_DR_CITATIONS_APIFY_ENDPOINT`
 
 **Fix:**
-- Extend `.opencode/tools/deep_research/flags_v1.ts` (or create a parallel citation flags resolver) to read endpoints from `.opencode/settings.json`.
+- Extend `.opencode/tools/deep_research_cli/flags_v1.ts` (or create a parallel citation flags resolver) to read endpoints from `.opencode/settings.json`.
   - This keeps the operator UX “typed, stable, no env vars”.
 
 #### 2) Make blocking outcomes actionable
@@ -612,9 +612,9 @@ Because Phase 05 is fixture-only today, I recommend splitting M3 into two explic
 
 **Work required:**
 - Implement `mode=generate` in:
-  - `.opencode/tools/deep_research/summary_pack_build.ts`
-  - `.opencode/tools/deep_research/synthesis_write.ts`
-  - `.opencode/tools/deep_research/review_factory_run.ts`
+  - `.opencode/tools/deep_research_cli/summary_pack_build.ts`
+  - `.opencode/tools/deep_research_cli/synthesis_write.ts`
+  - `.opencode/tools/deep_research_cli/review_factory_run.ts`
 
 **Success artifacts checklist:**
 - `manifest.stage.current = finalize`
@@ -699,7 +699,7 @@ Concrete strategy:
 - Progress tracker: `.opencode/Plans/DeepResearchOptionC/deep-research-option-c-progress-tracker.md`
 
 - Tools:
-  - `.opencode/tools/deep_research/*`
+  - `.opencode/tools/deep_research_cli/*`
   - notably: `run_init.ts`, `stage_advance.ts`, `wave_output_ingest.ts`, `citations_validate.ts`, orchestrator ticks/runs
 
 - Tests:

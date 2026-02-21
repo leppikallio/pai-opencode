@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { gates_write, run_init } from "../../tools/deep_research.ts";
+import { gates_write, run_init } from "../../tools/deep_research_cli.ts";
 import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 describe("deep_research_gates_write (entity)", () => {

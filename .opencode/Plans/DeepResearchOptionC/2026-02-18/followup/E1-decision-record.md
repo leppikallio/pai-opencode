@@ -23,7 +23,7 @@ Choose **Option A: assistant-orchestrated driver**.
 ## Evidence from repo inspection
 
 - Driver seam and required types:
-  - `.opencode/tools/deep_research/orchestrator_tick_live.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts`
   - `OrchestratorLiveRunAgentInput` (run/stage/run_root/perspective/agent/prompt/output fields)
   - `OrchestratorLiveRunAgentResult` (requires non-empty `markdown`; optional `agent_run_id`, `started_at`, `finished_at`)
 - Current live wiring:

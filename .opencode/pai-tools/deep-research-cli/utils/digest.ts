@@ -1,4 +1,4 @@
-import { sha256HexLowerUtf8 } from "../../../tools/deep_research/lifecycle_lib";
+import { sha256HexLowerUtf8 } from "../../../tools/deep_research_cli/lifecycle_lib";
 
 export function stableDigest(value: Record<string, unknown>): string {
   return `sha256:${sha256HexLowerUtf8(JSON.stringify(value))}`;

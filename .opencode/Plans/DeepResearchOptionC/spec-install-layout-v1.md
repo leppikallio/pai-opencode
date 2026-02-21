@@ -34,7 +34,7 @@ Add (if not already present):
 Notes:
 - Tool filenames define tool names (see OpenCode custom tools docs).
 - Multiple exports per file become tools named `<filename>_<exportname>`.
-  - Example: `.opencode/tools/deep_research.ts` exporting `run_init` becomes `deep_research_run_init`.
+  - Example: `.opencode/tools/deep_research_cli.ts` exporting `run_init` becomes `deep_research_run_init`.
 - Phase 01 keeps Option C tooling in a single entry file to preserve stable tool names.
 
 ## Runtime layout (installed)

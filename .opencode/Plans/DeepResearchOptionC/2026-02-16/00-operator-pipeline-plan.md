@@ -65,7 +65,7 @@ This matches the core Option C invariants:
 
 ### 2.1 Tools (artifact-first building blocks)
 Canonical export list:
-- `.opencode/tools/deep_research/index.ts`
+- `.opencode/tools/deep_research_cli/index.ts`
 
 Highlights (not exhaustive):
 
@@ -239,7 +239,7 @@ Required reviewer inputs (read-only):
 - `deep-research-option-c-implementation-approach.md`
 - `spec-stage-machine-v1.md`
 - `.opencode/commands/deep-research.md`
-- tool export list: `.opencode/tools/deep_research/index.ts`
+- tool export list: `.opencode/tools/deep_research_cli/index.ts`
 
 ---
 

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import * as deepResearch from "../../tools/deep_research.ts";
+import * as deepResearch from "../../tools/deep_research_cli.ts";
 import { asRecord, fixturePath, makeToolContext, parseToolJson, withEnv } from "../helpers/dr-harness";
 
 const quality_audit = ((deepResearch as any).quality_audit ??

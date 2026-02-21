@@ -20,7 +20,7 @@ Phase 01 — Platform core scaffolding (Option C) in the integration layer.
 Expected global paths after install:
 - `~/.config/opencode/commands/deep-research.md`
 - `~/.config/opencode/commands/deep-research-status.md`
-- `~/.config/opencode/tools/deep_research.ts`
+- `~/.config/opencode/tools/deep_research_cli.ts`
 
 ## Signoff
 Gate A for Phase 01 is **PASSED** based on the independent reviews and runtime deploy verification.

@@ -4,11 +4,11 @@
 
 ## Evidence snapshot
 - Deterministic substrate is present (run init, stage machine, gates, review/synthesis/citation tools):
-  - `.opencode/tools/deep_research/*.ts` includes `run_init.ts`, `stage_advance.ts`, `gate_*`, `summary_pack_build.ts`, `review_factory_run.ts`, etc.
+  - `.opencode/tools/deep_research_cli/*.ts` includes `run_init.ts`, `stage_advance.ts`, `gate_*`, `summary_pack_build.ts`, `review_factory_run.ts`, etc.
 - Stage machine authority exists and aligns with plan transitions:
-  - `.opencode/tools/deep_research/stage_advance.ts` (transition guards, gate checks).
+  - `.opencode/tools/deep_research_cli/stage_advance.ts` (transition guards, gate checks).
 - Canonical runs root already matches plan default:
-  - `.opencode/tools/deep_research/flags_v1.ts` (`runsRoot = ~/.config/opencode/research-runs`).
+  - `.opencode/tools/deep_research_cli/flags_v1.ts` (`runsRoot = ~/.config/opencode/research-runs`).
 
 ## Gaps to implement
 - `deep_research_wave_output_ingest` is missing.
@@ -18,12 +18,12 @@
 ## Minimal code deltas
 
 1) **Add Wave ingest tool (required for M2)**
-- New: `.opencode/tools/deep_research/wave_output_ingest.ts`
-- Export via `.opencode/tools/deep_research/index.ts`
+- New: `.opencode/tools/deep_research_cli/wave_output_ingest.ts`
+- Export via `.opencode/tools/deep_research_cli/index.ts`
 - New test: `.opencode/tests/entities/deep_research_wave_output_ingest.test.ts`
 
 2) **Implement orchestrator driver loop boundary**
-- New orchestrator module(s) (e.g. `.opencode/tools/deep_research/orchestrator.ts` + driver adapters).
+- New orchestrator module(s) (e.g. `.opencode/tools/deep_research_cli/orchestrator.ts` + driver adapters).
 - Define `OrchestratorDrivers` and support:
   - fixture driver (deterministic replay)
   - live driver (Task-backed agent execution)

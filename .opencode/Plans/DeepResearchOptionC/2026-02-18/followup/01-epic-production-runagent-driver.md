@@ -57,13 +57,13 @@ There are multiple viable implementations; this epic starts with a bounded disco
 **Goal:** Confirm which driver option is feasible in this repo/runtime.
 
 Where to look:
-- Orchestrator driver boundary: `.opencode/tools/deep_research/orchestrator_tick_live.ts`
+- Orchestrator driver boundary: `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts`
 - CLI operator-input driver: `.opencode/pai-tools/deep-research-option-c.ts`
 - Command doc entrypoint: `.opencode/commands/deep-research.md`
 - Existing skills and workflows: `.opencode/skills/deep-research-option-c/**`
 
 Steps:
-1) `rg "drivers:\s*\{\s*runAgent" .opencode/tools/deep_research/orchestrator_tick_live.ts -n`
+1) `rg "drivers:\s*\{\s*runAgent" .opencode/tools/deep_research_cli/orchestrator_tick_live.ts -n`
 2) Identify exactly what the driver must return (type shape).
 3) Identify where “agent spawning” can happen today (tooling available in OpenCode runtime vs Node scripts).
 4) Write a short decision record file:
@@ -100,7 +100,7 @@ If Option A (assistant-orchestrated):
   1) load perspectives + wave1 plan
   2) spawn one `functions.task` per perspective with a strict validation contract
   3) write outputs to run root
-  4) call `.opencode/tools/deep_research/wave_output_ingest.ts` to ingest
+  4) call `.opencode/tools/deep_research_cli/wave_output_ingest.ts` to ingest
   5) run wave review + retry directives loop
 
 If Option B (inference):

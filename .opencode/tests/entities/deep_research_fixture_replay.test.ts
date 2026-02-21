@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import * as deepResearch from "../../tools/deep_research.ts";
+import * as deepResearch from "../../tools/deep_research_cli.ts";
 import { asRecord, fixturePath, makeToolContext, parseToolJson, withEnv } from "../helpers/dr-harness";
 
 const fixture_bundle_capture = ((deepResearch as any).fixture_bundle_capture ??

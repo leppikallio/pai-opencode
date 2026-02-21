@@ -55,7 +55,7 @@ On expected failures:
 - Tool remains deterministic and testable without network or agent execution.
 
 ## Implementation notes (current gaps to call out)
-The existing `perspectives_write` implementation (in `.opencode/tools/deep_research.ts`) currently:
+The existing `perspectives_write` implementation (in `.opencode/tools/deep_research_cli.ts`) currently:
 - does **not** enforce `perspectives_path` naming/location (it can write anywhere),
 - does **not** enforce stable ordering or uniqueness of `perspectives[].id` (recommended upstream),
 - treats audit append as **non-fatal** (`ok:true` with `audit_written:false`).

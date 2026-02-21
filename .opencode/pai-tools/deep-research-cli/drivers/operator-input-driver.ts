@@ -5,7 +5,7 @@ import { createInterface } from "node:readline/promises";
 import type {
   OrchestratorLiveRunAgentInput,
   OrchestratorLiveRunAgentResult,
-} from "../../../tools/deep_research.ts";
+} from "../../../tools/deep_research_cli.ts";
 import { isSafeSegment } from "../utils/paths";
 
 export function createOperatorInputDriver(): (

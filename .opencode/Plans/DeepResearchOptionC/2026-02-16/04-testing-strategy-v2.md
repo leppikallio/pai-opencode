@@ -104,7 +104,7 @@ These remain the dominant test category.
 Purpose: prove stage transitions are driven only by artifacts + gate state.
 
 Entity under test:
-- `deep_research_stage_advance` (`.opencode/tools/deep_research/stage_advance.ts`)
+- `deep_research_stage_advance` (`.opencode/tools/deep_research_cli/stage_advance.ts`)
 
 Must cover:
 - every transition in `spec-stage-machine-v1.md`

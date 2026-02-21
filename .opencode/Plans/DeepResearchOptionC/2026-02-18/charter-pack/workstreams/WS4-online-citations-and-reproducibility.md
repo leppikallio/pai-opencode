@@ -19,8 +19,8 @@ Make citations real-web capable, bounded, and replayable:
 ## Deliverables
 
 - Modify:
-  - `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts`
-  - `.opencode/tools/deep_research/citations_validate.ts` and/or `flags_v1.ts` (configuration sourcing)
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_post_pivot.ts`
+  - `.opencode/tools/deep_research_cli/citations_validate.ts` and/or `flags_v1.ts` (configuration sourcing)
 - Add tests:
   - deterministic online-fixtures replay path
   - minimal online canary (if feasible) gated separately

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { gate_a_evaluate, run_init, wave1_plan } from "../../tools/deep_research.ts";
+import { gate_a_evaluate, run_init, wave1_plan } from "../../tools/deep_research_cli.ts";
 import { fixturePath, makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 async function writePerspectivesForRun(runRoot: string, runId: string): Promise<void> {

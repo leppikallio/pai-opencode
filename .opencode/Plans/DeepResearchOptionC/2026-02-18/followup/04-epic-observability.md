@@ -13,8 +13,8 @@ Status: DONE
 
 ## Target files
 - Existing tools:
-  - `.opencode/tools/deep_research/telemetry_append.ts`
-  - `.opencode/tools/deep_research/run_metrics_write.ts`
+  - `.opencode/tools/deep_research_cli/telemetry_append.ts`
+  - `.opencode/tools/deep_research_cli/run_metrics_write.ts`
 - CLI operator loop:
   - `.opencode/pai-tools/deep-research-option-c.ts`
 - Logs dir resolution helpers:
@@ -44,7 +44,7 @@ Acceptance:
 
 ### E4-T1 — Implement tick ledger append helper
 Add a helper (suggested location):
-- `.opencode/tools/deep_research/tick_ledger_append.ts`
+- `.opencode/tools/deep_research_cli/tick_ledger_append.ts`
 
 Requirements:
 - Append-only JSONL
@@ -52,7 +52,7 @@ Requirements:
 - Best-effort append is OK, but failures must be visible (telemetry warning or CLI warning line)
 
 Acceptance:
-- Tool exists and is exported in `.opencode/tools/deep_research/index.ts` and/or used directly by CLI.
+- Tool exists and is exported in `.opencode/tools/deep_research_cli/index.ts` and/or used directly by CLI.
 
 ### E4-T2 — Wire tick ledger into CLI `tick` and `run`
 Steps:
@@ -85,7 +85,7 @@ Add deterministic entity tests:
 | Task | Status | Owner | PR/Commit | Evidence |
 |---|---|---|---|---|
 | E4-T0 Ledger schema | DONE | Marvin | `36ba9d0` | Added `followup/tick-ledger-schema-v1.md` with required fields and determinism notes. |
-| E4-T1 Ledger append helper | DONE | Marvin | `36ba9d0` | Added `.opencode/tools/deep_research/tick_ledger_append.ts` and exported in tool index. |
+| E4-T1 Ledger append helper | DONE | Marvin | `36ba9d0` | Added `.opencode/tools/deep_research_cli/tick_ledger_append.ts` and exported in tool index. |
 | E4-T2 CLI wiring | DONE | Marvin | `36ba9d0` | CLI `tick`/`run` now appends `logs/ticks.jsonl` start+finish entries for every tick attempt. |
 | E4-T3 Telemetry wiring | DONE | Marvin | `36ba9d0` | CLI now emits `stage_started`/`stage_finished`/conditional `stage_retry_planned` and writes `run-metrics.json`. |
 | E4-T4 Tests | DONE | Marvin | `36ba9d0` | Added `deep_research_tick_ledger_cli.test.ts`; validates ledger + telemetry + metrics artifacts. |

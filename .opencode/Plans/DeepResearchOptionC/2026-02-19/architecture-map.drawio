@@ -17,7 +17,7 @@
           <mxGeometry x="700" y="40" width="320" height="80" as="geometry" />
         </mxCell>
 
-        <mxCell id="tools" value="Deep Research Tools\n(.opencode/tools/deep_research/*)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+        <mxCell id="tools" value="Deep Research Tools\n(.opencode/tools/deep_research_cli/*)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
           <mxGeometry x="320" y="170" width="700" height="110" as="geometry" />
         </mxCell>
 
@@ -93,7 +93,7 @@
           <mxGeometry x="320" y="500" width="260" height="120" as="geometry" />
         </mxCell>
 
-        <mxCell id="index2" value="Tool surface index\n.opencode/tools/deep_research/index.ts\n(exports all tools below)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0e7ff;strokeColor=#4338ca;" vertex="1" parent="1">
+        <mxCell id="index2" value="Tool surface index\n.opencode/tools/deep_research_cli/index.ts\n(exports all tools below)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0e7ff;strokeColor=#4338ca;" vertex="1" parent="1">
           <mxGeometry x="620" y="90" width="300" height="80" as="geometry" />
         </mxCell>
 

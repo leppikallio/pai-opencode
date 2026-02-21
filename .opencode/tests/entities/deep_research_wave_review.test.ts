@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as path from "node:path";
 
-import { wave_review } from "../../tools/deep_research.ts";
+import { wave_review } from "../../tools/deep_research_cli.ts";
 import { makeToolContext, parseToolJson } from "../helpers/dr-harness";
 
 describe("deep_research_wave_review (entity)", () => {

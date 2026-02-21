@@ -77,7 +77,7 @@ Tool spec (authoritative contract):
 Replay command (run from repo root; offline-safe):
 ```bash
 bun -e '
-import { deep_research_fixture_replay } from "./.opencode/tools/deep_research.ts";
+import { deep_research_fixture_replay } from "./.opencode/tools/deep_research_cli.ts";
 
 const ctx = {
   sessionID: "ses_phase06_checkpoint",

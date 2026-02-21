@@ -23,7 +23,7 @@ bun test v1.3.2 (b131639c)
 Ran 11 tests across 7 files. [111.00ms]
 ```
 
-## 2) Targeted typecheck — `tools/deep_research.ts` (required)
+## 2) Targeted typecheck — `tools/deep_research_cli.ts` (required)
 
 Command:
 ```bash
@@ -38,7 +38,7 @@ bunx tsc --noEmit --pretty false \
   --types node \
   --esModuleInterop \
   --resolveJsonModule \
-  tools/deep_research.ts
+  tools/deep_research_cli.ts
 ```
 
 Output:
@@ -48,7 +48,7 @@ exit:0
 
 ## 3) Phase 02 tools exist + are entity-tested (required)
 
-### Tools verified (exports in `tools/deep_research.ts`)
+### Tools verified (exports in `tools/deep_research_cli.ts`)
 - `stage_advance`
 - `retry_record`
 - `watchdog_check`

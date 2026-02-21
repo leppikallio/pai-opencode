@@ -40,7 +40,7 @@ Gate B for Phase 02 is interpreted per:
 
 Typecheck:
 ```bash
-$ bunx tsc ... tools/deep_research.ts
+$ bunx tsc ... tools/deep_research_cli.ts
 TYPECHECK_OK
 ```
 
@@ -53,7 +53,7 @@ $ bun test tests
 ### Concrete evidence pointers (paths + what they prove)
 
 1. **Deterministic stage transitions (implementation):**
-   - File: `.opencode/tools/deep_research.ts`
+   - File: `.opencode/tools/deep_research_cli.ts`
    - Proof: `export const stage_advance = tool({ ... })` defines deterministic `allowedNextFor(from)` plus validation of `requested_next` and explicit error codes.
    - Pointers: lines ~1151–1310 (transition selection + validation) and lines ~1415–1437 (persisting stage history via `manifest_write`).
 
@@ -68,7 +68,7 @@ $ bun test tests
    - Pointers: lines 60–101.
 
 4. **Bounded retry caps tied to escalation spec (implementation):**
-   - File: `.opencode/tools/deep_research.ts`
+   - File: `.opencode/tools/deep_research_cli.ts`
    - Proof: `GATE_RETRY_CAPS_V1` defines per-gate max retries (comment references `spec-gate-escalation-v1.md`), and `retry_record` enforces `current >= max -> RETRY_EXHAUSTED`.
    - Pointers: lines ~323–331 (`GATE_RETRY_CAPS_V1`) and lines ~985–1062 (`retry_record`).
 
@@ -78,7 +78,7 @@ $ bun test tests
    - Pointers: lines 9–69.
 
 6. **Watchdog timeout -> terminal failure + checkpoint artifact (implementation):**
-   - File: `.opencode/tools/deep_research.ts`
+   - File: `.opencode/tools/deep_research_cli.ts`
    - Proof: `watchdog_check` computes `elapsed_s` vs `timeout_s`, writes `logs/timeout-checkpoint.md`, sets `manifest.status="failed"`, appends `manifest.failures[]` with `{ kind: "timeout", ... }`.
    - Pointers: lines 1445–1561.
 
@@ -88,7 +88,7 @@ $ bun test tests
    - Pointers: lines 8–60.
 
 8. **Dry-run seeding from fixtures + `no_web` marking (implementation + test):**
-   - File: `.opencode/tools/deep_research.ts` and `.opencode/tests/entities/deep_research_dry_run_seed.test.ts`
+   - File: `.opencode/tools/deep_research_cli.ts` and `.opencode/tests/entities/deep_research_dry_run_seed.test.ts`
    - Proof: `dry_run_seed` calls `run_init` with `sensitivity:"no_web"`, copies fixture artifacts, patches manifest with `constraints.dry_run.*`; test asserts copied fixture output + manifest constraints.
    - Pointers: tool lines ~754–915, test lines 9–39.
 

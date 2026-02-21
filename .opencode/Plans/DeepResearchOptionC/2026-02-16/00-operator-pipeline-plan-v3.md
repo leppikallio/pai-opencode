@@ -51,8 +51,8 @@ In operator docs, tool IDs are written as:
 `deep_research_<file_basename>`
 
 Examples:
-- `.opencode/tools/deep_research/run_init.ts` → `deep_research_run_init`
-- `.opencode/tools/deep_research/wave1_plan.ts` → `deep_research_wave1_plan`
+- `.opencode/tools/deep_research_cli/run_init.ts` → `deep_research_run_init`
+- `.opencode/tools/deep_research_cli/wave1_plan.ts` → `deep_research_wave1_plan`
 
 This matches how tools are referenced throughout Option C specs and prevents naming drift.
 
@@ -127,7 +127,7 @@ Acceptance evidence:
 
 **Doc surface test (must be created):**
 - `.opencode/tests/docs/deep_research_operator_docs_surface.test.ts`
-- It must fail if runbook references a tool ID that doesn’t exist in `.opencode/tools/deep_research/index.ts`.
+- It must fail if runbook references a tool ID that doesn’t exist in `.opencode/tools/deep_research_cli/index.ts`.
 
 ### M1 — Offline end-to-end finalize smoke (fixture-run)
 Purpose: prove the stage machine + gates + review loop can reach `finalize` deterministically.
@@ -154,7 +154,7 @@ Smoke assertions (minimum):
 Purpose: actually conduct multi-agent research.
 
 Deliverable (must be built): **wave output ingest tool**
-- `.opencode/tools/deep_research/wave_output_ingest.ts`
+- `.opencode/tools/deep_research_cli/wave_output_ingest.ts`
 - tool ID: `deep_research_wave_output_ingest`
 - Behavior: batch write outputs to `wave-1/<id>.md` (or `wave-2/<id>.md`), validate via `deep_research_wave_output_validate`, emit ingest report + retry directives.
 

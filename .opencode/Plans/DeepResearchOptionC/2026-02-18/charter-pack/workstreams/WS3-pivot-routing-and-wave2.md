@@ -15,8 +15,8 @@ Make pivot stage deterministic and complete:
 ## Deliverables
 
 - Modify:
-  - `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts`
-  - `.opencode/tools/deep_research/orchestrator_run_post_pivot.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_post_pivot.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_run_post_pivot.ts`
 - Add:
   - wave2 planning artifact and ingestion loop
   - tests for wave2-required scenario

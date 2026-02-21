@@ -25,8 +25,8 @@ Make Wave 1 truly multi-perspective and stable:
 ## Deliverables
 
 - Modify:
-  - `.opencode/tools/deep_research/orchestrator_tick_live.ts`
-  - `.opencode/tools/deep_research/orchestrator_run_live.ts` (if needed)
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_run_live.ts` (if needed)
 - Add:
   - sidecar schema doc under run root (if implemented)
   - tests:

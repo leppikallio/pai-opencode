@@ -15,11 +15,11 @@ Status: DONE
 ## Target files
 - Run-config emission: `.opencode/pai-tools/deep-research-option-c.ts`
 - Citation validation:
-  - `.opencode/tools/deep_research/citations_validate.ts`
-  - `.opencode/tools/deep_research/citations_validate_lib.ts`
+  - `.opencode/tools/deep_research_cli/citations_validate.ts`
+  - `.opencode/tools/deep_research_cli/citations_validate_lib.ts`
 - Flags/config:
-  - `.opencode/tools/deep_research/flags_v1.ts`
-  - `.opencode/tools/deep_research/run_init.ts` (manifest snapshot)
+  - `.opencode/tools/deep_research_cli/flags_v1.ts`
+  - `.opencode/tools/deep_research_cli/run_init.ts` (manifest snapshot)
 
 ## Outcomes (what “done” means)
 1) Config precedence is explicit and stable: post-init uses run artifacts as source of truth.
@@ -95,7 +95,7 @@ Goal: one command captures deterministic replay bundle.
 
 Steps:
 - Add `capture-fixtures` to `.opencode/pai-tools/deep-research-option-c.ts`.
-- Wrap tool: `.opencode/tools/deep_research/fixture_bundle_capture.ts`.
+- Wrap tool: `.opencode/tools/deep_research_cli/fixture_bundle_capture.ts`.
 - Output:
   - bundle id
   - bundle root

@@ -8,7 +8,7 @@ Evidence-based QA verification for Phase 03 Wave 1 scaffolding tools:
 - `deep_research_wave_output_validate`
 
 ## Summary
-- ✅ Targeted typecheck passes for `.opencode/tools/deep_research.ts`.
+- ✅ Targeted typecheck passes for `.opencode/tools/deep_research_cli.ts`.
 - ✅ `bun test tests` passes.
 - ✅ `wave1_plan` now matches spec: writes `wave-1/wave1-plan.json`, includes `inputs_digest`, and enforces `WAVE_CAP_EXCEEDED`.
 - ✅ `wave_output_validate` now matches spec: perspectives-aware args and error codes (`MISSING_REQUIRED_SECTION`, `TOO_MANY_SOURCES`, etc.).
@@ -22,7 +22,7 @@ bunx tsc --noEmit --pretty false --incremental false \
   --target ES2022 --module ESNext --moduleResolution bundler \
   --allowImportingTsExtensions true --strict true --skipLibCheck true \
   --esModuleInterop true --resolveJsonModule true --types node \
-  tools/deep_research.ts
+  tools/deep_research_cli.ts
 ```
 
 Result: exit 0

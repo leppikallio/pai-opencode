@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { run_init } from "../../tools/deep_research.ts";
+import { run_init } from "../../tools/deep_research_cli.ts";
 import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 const cliPath = fileURLToPath(new URL("../../pai-tools/deep-research-option-c.ts", import.meta.url));

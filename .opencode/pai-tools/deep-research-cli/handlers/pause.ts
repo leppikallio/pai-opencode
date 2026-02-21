@@ -1,5 +1,5 @@
-import { manifest_write } from "../../../tools/deep_research.ts";
-import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research/lifecycle_lib";
+import { manifest_write } from "../../../tools/deep_research_cli.ts";
+import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
 import { emitJson } from "../cli/json-mode";
 import {
   writeCheckpoint,

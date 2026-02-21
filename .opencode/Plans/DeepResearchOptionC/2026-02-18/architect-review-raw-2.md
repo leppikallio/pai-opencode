@@ -11,16 +11,16 @@ This is a pedantic, pragmatic, end-to-end architecture review of the **current**
 ## Executive summary (bullet)
 
 - **Option C is now materially closer to “real runs” than the 2026-02-18 raw review implies.** The biggest previously-noted gaps—Wave1 fan-out, retry directive consumption, pivot→wave2 routing, and Phase05 `mode=generate`—are implemented in code. Evidence:
-  - Wave1 executes all plan entries, persists sidecars, derives Gate B, writes retry directives, records retry counts, and only then advances to pivot: `.opencode/tools/deep_research/orchestrator_tick_live.ts:650-680,703-775,814-871,919-947,999-1069,1071-1100`.
-  - Pivot correctly stage-advances to **wave2 or citations** based on `pivot.json`, and wave2 execution exists: `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts:1362-1472,1475-1527` and policy enforcement in `.opencode/tools/deep_research/stage_advance.ts:240-279,311-397`.
-  - Summaries/synthesis/review all support `mode=generate` (bounded, deterministic), and post-summaries tick selects generate mode when fixture paths are absent: `.opencode/tools/deep_research/orchestrator_tick_post_summaries.ts:546-644,657-711,713-858`.
+  - Wave1 executes all plan entries, persists sidecars, derives Gate B, writes retry directives, records retry counts, and only then advances to pivot: `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts:650-680,703-775,814-871,919-947,999-1069,1071-1100`.
+  - Pivot correctly stage-advances to **wave2 or citations** based on `pivot.json`, and wave2 execution exists: `.opencode/tools/deep_research_cli/orchestrator_tick_post_pivot.ts:1362-1472,1475-1527` and policy enforcement in `.opencode/tools/deep_research_cli/stage_advance.ts:240-279,311-397`.
+  - Summaries/synthesis/review all support `mode=generate` (bounded, deterministic), and post-summaries tick selects generate mode when fixture paths are absent: `.opencode/tools/deep_research_cli/orchestrator_tick_post_summaries.ts:546-644,657-711,713-858`.
   - Entity tests validate multi-perspective Wave1 and wave2 routing: `.opencode/tests/entities/deep_research_orchestrator_tick_live.test.ts:88-151`, `.opencode/tests/entities/deep_research_orchestrator_pivot_wave2_required.test.ts:46-141`.
 
 - **The “artifact core” is strong and coherent**: atomic writers + schema validation + optimistic locking, a deterministic stage authority (`stage_advance`) with an explicit decision digest, and a run-root lock/lease. Evidence:
-  - Atomic manifest writer with revision bump + immutable-field enforcement: `.opencode/tools/deep_research/manifest_write.ts:23-79`.
-  - Atomic gates writer with lifecycle rules + optimistic locking: `.opencode/tools/deep_research/gates_write.ts:16-88`.
-  - Stage authority: allowed stage graph + preconditions + `inputs_digest` computed from evaluated checks: `.opencode/tools/deep_research/stage_advance.ts:72-78,199-212,283-421,497-535`.
-  - Run lock/lease with heartbeat refresh and ownership checks: `.opencode/tools/deep_research/run_lock.ts:187-239,295-399,401-451`.
+  - Atomic manifest writer with revision bump + immutable-field enforcement: `.opencode/tools/deep_research_cli/manifest_write.ts:23-79`.
+  - Atomic gates writer with lifecycle rules + optimistic locking: `.opencode/tools/deep_research_cli/gates_write.ts:16-88`.
+  - Stage authority: allowed stage graph + preconditions + `inputs_digest` computed from evaluated checks: `.opencode/tools/deep_research_cli/stage_advance.ts:72-78,199-212,283-421,497-535`.
+  - Run lock/lease with heartbeat refresh and ownership checks: `.opencode/tools/deep_research_cli/run_lock.ts:187-239,295-399,401-451`.
 
 - **Operator ergonomics are now “operator-grade enough to iterate”**: there is a single CLI with `init/tick/run/status/inspect/triage/pause/resume`, a safe stage-advance dry-run, run-config emission, and watchdog enforcement around ticks. Evidence:
   - CLI command set: `.opencode/pai-tools/deep-research-option-c.ts:1122-1258`.
@@ -31,10 +31,10 @@ This is a pedantic, pragmatic, end-to-end architecture review of the **current**
   - `/deep-research` command doc already routes to this CLI: `.opencode/commands/deep-research.md:20-46`.
 
 - **The remaining blockers for true M2/M3 are now mostly “quality and operationalization,” not “missing plumbing.”** Specifically:
-  1) Live execution is still *driver-based* at the `runAgent` boundary; the default “live” driver in CLI is **operator-input**, not autonomous Task-spawned agents. Evidence: injected boundary in `.opencode/tools/deep_research/orchestrator_tick_live.ts:822-833` and operator-input driver in `.opencode/pai-tools/deep-research-option-c.ts:712-713`.
-  2) Long-run (1h+) safety is currently incompatible with default stage watchdog thresholds unless you pause/resume or adjust timeout semantics. Evidence: `wave1: 600s`, `citations: 600s`, etc in `.opencode/tools/deep_research/lifecycle_lib.ts:349-362` and watchdog behavior in `.opencode/tools/deep_research/watchdog_check.ts:84-91,89-96`.
-  3) Gate coverage is incomplete: **Gate A and Gate F are defined but there is no evaluator/deriver tool**, and stage transitions do not require them. Evidence: gates created in `.opencode/tools/deep_research/run_init.ts:211-225`, but only B/C/D/E are derived/evaluated by implemented tools (see exports in `.opencode/tools/deep_research/index.ts:18-39` and the absence of any `gate_a_*`/`gate_f_*` tool in grep).
-  4) Online citations ladder depends on env-provided endpoints (Bright Data / Apify), which is a non-deterministic seam unless captured and replayed via fixtures. Evidence: endpoint reads in `.opencode/tools/deep_research/citations_validate.ts:114-116` and online fixture capture in `.opencode/tools/deep_research/citations_validate.ts:329-366`.
+  1) Live execution is still *driver-based* at the `runAgent` boundary; the default “live” driver in CLI is **operator-input**, not autonomous Task-spawned agents. Evidence: injected boundary in `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts:822-833` and operator-input driver in `.opencode/pai-tools/deep-research-option-c.ts:712-713`.
+  2) Long-run (1h+) safety is currently incompatible with default stage watchdog thresholds unless you pause/resume or adjust timeout semantics. Evidence: `wave1: 600s`, `citations: 600s`, etc in `.opencode/tools/deep_research_cli/lifecycle_lib.ts:349-362` and watchdog behavior in `.opencode/tools/deep_research_cli/watchdog_check.ts:84-91,89-96`.
+  3) Gate coverage is incomplete: **Gate A and Gate F are defined but there is no evaluator/deriver tool**, and stage transitions do not require them. Evidence: gates created in `.opencode/tools/deep_research_cli/run_init.ts:211-225`, but only B/C/D/E are derived/evaluated by implemented tools (see exports in `.opencode/tools/deep_research_cli/index.ts:18-39` and the absence of any `gate_a_*`/`gate_f_*` tool in grep).
+  4) Online citations ladder depends on env-provided endpoints (Bright Data / Apify), which is a non-deterministic seam unless captured and replayed via fixtures. Evidence: endpoint reads in `.opencode/tools/deep_research_cli/citations_validate.ts:114-116` and online fixture capture in `.opencode/tools/deep_research_cli/citations_validate.ts:329-366`.
 
 ---
 
@@ -98,9 +98,9 @@ The stage graph is encoded in code (authoritative) and mirrored in the spec.
 
 - Spec table: `.opencode/Plans/DeepResearchOptionC/spec-stage-machine-v1.md:6-31`.
 - Code authority:
-  - Allowed stages and allowed-next table: `.opencode/tools/deep_research/stage_advance.ts:72-78,199-212`.
-  - Preconditions per edge: `.opencode/tools/deep_research/stage_advance.ts:296-421,423-495`.
-  - Decision digest: `.opencode/tools/deep_research/stage_advance.ts:497-535`.
+  - Allowed stages and allowed-next table: `.opencode/tools/deep_research_cli/stage_advance.ts:72-78,199-212`.
+  - Preconditions per edge: `.opencode/tools/deep_research_cli/stage_advance.ts:296-421,423-495`.
+  - Decision digest: `.opencode/tools/deep_research_cli/stage_advance.ts:497-535`.
 
 ---
 
@@ -116,10 +116,10 @@ The stage graph is encoded in code (authoritative) and mirrored in the spec.
   - a **decision envelope** containing `evaluated[]` + `inputs_digest` recorded in manifest history.
 
 Evidence:
-- Dynamic next stage for `pivot` and `review`: `.opencode/tools/deep_research/stage_advance.ts:239-279`.
-- Preconditions mapping to artifacts/gates: `.opencode/tools/deep_research/stage_advance.ts:296-421,493-495`.
-- Digest payload: `.opencode/tools/deep_research/stage_advance.ts:497-520`.
-- Manifest write is optimistic-locked to avoid lost updates: `.opencode/tools/deep_research/stage_advance.ts:548-553`.
+- Dynamic next stage for `pivot` and `review`: `.opencode/tools/deep_research_cli/stage_advance.ts:239-279`.
+- Preconditions mapping to artifacts/gates: `.opencode/tools/deep_research_cli/stage_advance.ts:296-421,493-495`.
+- Digest payload: `.opencode/tools/deep_research_cli/stage_advance.ts:497-520`.
+- Manifest write is optimistic-locked to avoid lost updates: `.opencode/tools/deep_research_cli/stage_advance.ts:548-553`.
 
 Architectural note: this is the correct design choice. It makes orchestration “policy-light” and “artifact-driven,” and enables reliable `inspect/triage` by reusing `evaluated[]`.
 
@@ -133,18 +133,18 @@ The tick functions behave like resumable state machines:
 - they return a typed result that can be looped.
 
 Evidence:
-- Live Wave1 tick plan creation if missing: `.opencode/tools/deep_research/orchestrator_tick_live.ts:650-680`.
-- Multi-perspective loop + retry directive consumption: `.opencode/tools/deep_research/orchestrator_tick_live.ts:715-821,999-1069`.
-- Post-pivot handles pivot→(wave2|citations) and citations→summaries: `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts:1362-1472,1530-1698`.
-- Post-summaries supports summaries/synthesis/review and delegates finalize-vs-synthesis decision to `stage_advance`: `.opencode/tools/deep_research/orchestrator_tick_post_summaries.ts:546-644,657-711,827-858`.
+- Live Wave1 tick plan creation if missing: `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts:650-680`.
+- Multi-perspective loop + retry directive consumption: `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts:715-821,999-1069`.
+- Post-pivot handles pivot→(wave2|citations) and citations→summaries: `.opencode/tools/deep_research_cli/orchestrator_tick_post_pivot.ts:1362-1472,1530-1698`.
+- Post-summaries supports summaries/synthesis/review and delegates finalize-vs-synthesis decision to `stage_advance`: `.opencode/tools/deep_research_cli/orchestrator_tick_post_summaries.ts:546-644,657-711,827-858`.
 
 #### 3) Concurrency control exists at two layers (good)
 
 - **Run-root lock/lease**: acquired by orchestrators and refreshed during long ticks.
-  - Evidence: lock acquire + heartbeat in fixture tick: `.opencode/tools/deep_research/orchestrator_tick_fixture.ts:162-176`; same pattern in post-pivot and post-summaries (imports and lock usage).
+  - Evidence: lock acquire + heartbeat in fixture tick: `.opencode/tools/deep_research_cli/orchestrator_tick_fixture.ts:162-176`; same pattern in post-pivot and post-summaries (imports and lock usage).
 - **Optimistic locking for mutation tools**:
-  - `stage_advance` uses `expected_revision` to protect manifest transitions: `.opencode/tools/deep_research/stage_advance.ts:65-70,548-553`.
-  - Orchestrators read `gates.revision` and pass `expected_revision` into `gates_write`: e.g., live tick `.opencode/tools/deep_research/orchestrator_tick_live.ts:960-994`, post-pivot `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts:1626-1659`, post-summaries `.opencode/tools/deep_research/orchestrator_tick_post_summaries.ts:601-618,793-803`.
+  - `stage_advance` uses `expected_revision` to protect manifest transitions: `.opencode/tools/deep_research_cli/stage_advance.ts:65-70,548-553`.
+  - Orchestrators read `gates.revision` and pass `expected_revision` into `gates_write`: e.g., live tick `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts:960-994`, post-pivot `.opencode/tools/deep_research_cli/orchestrator_tick_post_pivot.ts:1626-1659`, post-summaries `.opencode/tools/deep_research_cli/orchestrator_tick_post_summaries.ts:601-618,793-803`.
 
 This is unusually robust for an orchestration subsystem.
 
@@ -156,9 +156,9 @@ Even without LLM-based summarization/review, the Phase05 tools can produce:
 - a review bundle with deterministic checks
 
 Evidence:
-- Summary generation uses source artifacts and requires at least one validated citation: `.opencode/tools/deep_research/summary_pack_build.ts:184-246,201-212`.
-- Synthesis generation composes from summary-pack + citations and enforces required headings: `.opencode/tools/deep_research/synthesis_write.ts:121-206,208-223`.
-- Review generation performs deterministic checks (missing headings, unknown cids, uncited numeric claims) and emits directives: `.opencode/tools/deep_research/review_factory_run.ts:118-180`.
+- Summary generation uses source artifacts and requires at least one validated citation: `.opencode/tools/deep_research_cli/summary_pack_build.ts:184-246,201-212`.
+- Synthesis generation composes from summary-pack + citations and enforces required headings: `.opencode/tools/deep_research_cli/synthesis_write.ts:121-206,208-223`.
+- Review generation performs deterministic checks (missing headings, unknown cids, uncited numeric claims) and emits directives: `.opencode/tools/deep_research_cli/review_factory_run.ts:118-180`.
 
 This is a legitimate “M3 scaffolding” that preserves deterministic replay for ops hardening—even if the resulting synthesis quality is intentionally conservative.
 
@@ -213,25 +213,25 @@ So the *pipeline plumbing* is largely there.
 
 1) **No autonomous in-runtime agent driver for Wave1/Wave2**
    - The orchestrator boundary requires a `drivers.runAgent` function; without a Task-spawning driver, “live mode” defaults to operator-input (manual edit) in CLI.
-   - Evidence: driver boundary invocation `.opencode/tools/deep_research/orchestrator_tick_live.ts:822-833`; CLI’s operator-input driver `.opencode/pai-tools/deep-research-option-c.ts:712-713`.
+   - Evidence: driver boundary invocation `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts:822-833`; CLI’s operator-input driver `.opencode/pai-tools/deep-research-option-c.ts:712-713`.
    - Practical impact: you can prove orchestration correctness, but you cannot yet claim “real research runs” without manual involvement.
 
 2) **Stage watchdog defaults are incompatible with 1h+ runs**
    - Default `STAGE_TIMEOUT_SECONDS_V1` makes Wave1/citations/summaries/synthesis 10 minutes, review 5 minutes.
-   - Evidence: `.opencode/tools/deep_research/lifecycle_lib.ts:352-362`.
-   - The system *can* survive long runs via pause/resume (watchdog returns early on paused status: `.opencode/tools/deep_research/watchdog_check.ts:84-91`), but “long live stage execution” will time out unless you redesign timeout semantics.
+   - Evidence: `.opencode/tools/deep_research_cli/lifecycle_lib.ts:352-362`.
+   - The system *can* survive long runs via pause/resume (watchdog returns early on paused status: `.opencode/tools/deep_research_cli/watchdog_check.ts:84-91`), but “long live stage execution” will time out unless you redesign timeout semantics.
 
 3) **Gate A and Gate F exist as concepts but are not enforced by tools**
    - Gates are created, but there is no deriver/evaluator for A or F.
-   - Evidence: gate definitions in `.opencode/tools/deep_research/run_init.ts:211-225`; export surface includes `gate_b_derive`, `gate_c_compute`, `gate_d_evaluate`, `gate_e_evaluate` but nothing for A/F: `.opencode/tools/deep_research/index.ts:18-39`.
+   - Evidence: gate definitions in `.opencode/tools/deep_research_cli/run_init.ts:211-225`; export surface includes `gate_b_derive`, `gate_c_compute`, `gate_d_evaluate`, `gate_e_evaluate` but nothing for A/F: `.opencode/tools/deep_research_cli/index.ts:18-39`.
    - Practical impact: “planning completeness” and “rollout safety” are not actually part of the computational pipeline, so the system can complete without them.
 
 4) **Online citations configuration is still partially env-driven**
-   - `citations_validate` reads Bright Data/Apify endpoints from env: `.opencode/tools/deep_research/citations_validate.ts:114-116`.
+   - `citations_validate` reads Bright Data/Apify endpoints from env: `.opencode/tools/deep_research_cli/citations_validate.ts:114-116`.
    - This is acceptable as an escape hatch, but it violates the goal of “single CLI without env vars” unless the CLI writes these values into run-local config and tools consult that instead.
 
 5) **Observability tools exist but are not integrated into the operator loop by default**
-   - Telemetry/metrics tools are exported: `.opencode/tools/deep_research/index.ts:40-42`.
+   - Telemetry/metrics tools are exported: `.opencode/tools/deep_research_cli/index.ts:40-42`.
    - The CLI currently relies on watchdog + printed contract fields, but does not emit structured telemetry per tick.
 
 6) **Planning artifacts are now drifted relative to implementation**
@@ -249,7 +249,7 @@ I recommend distinguishing three separate properties:
 
 1) **Replay determinism (fixture determinism)**
    - Given a fully-captured fixture bundle, the pipeline replays to the same outputs.
-   - You already have explicit fixture bundle capture: `.opencode/tools/deep_research/fixture_bundle_capture.ts:28-172`.
+   - You already have explicit fixture bundle capture: `.opencode/tools/deep_research_cli/fixture_bundle_capture.ts:28-172`.
 
 2) **Resume determinism (idempotent ticks)**
    - Given a run root on disk, rerunning a tick is safe: it either advances, or produces an explicit typed blocker without corrupting state.
@@ -265,25 +265,25 @@ I recommend distinguishing three separate properties:
 
 1) **Stage transitions are computed from explicit inputs, and the decision is digest-stamped**
    - `inputs_digest` hashes `{from,to, requested_next, revisions, gate statuses, evaluated[]}`.
-   - Evidence: `.opencode/tools/deep_research/stage_advance.ts:497-520`.
+   - Evidence: `.opencode/tools/deep_research_cli/stage_advance.ts:497-520`.
 
 2) **Atomic writers with schema validation enforce invariants**
-   - Manifest immutable field protection + revision bump: `.opencode/tools/deep_research/manifest_write.ts:37-58`.
-   - Gates lifecycle rules: `.opencode/tools/deep_research/gates_write.ts:47-58`.
+   - Manifest immutable field protection + revision bump: `.opencode/tools/deep_research_cli/manifest_write.ts:37-58`.
+   - Gates lifecycle rules: `.opencode/tools/deep_research_cli/gates_write.ts:47-58`.
 
 3) **Stable ordering is used where it matters**
-   - Wave1 planned entries are processed sequentially in plan order, with duplicate detection and containment checks: `.opencode/tools/deep_research/orchestrator_tick_live.ts:715-774`.
-   - Citations URL-map items are sorted deterministically before validation: `.opencode/tools/deep_research/citations_validate.ts:146-163,306-312`.
+   - Wave1 planned entries are processed sequentially in plan order, with duplicate detection and containment checks: `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts:715-774`.
+   - Citations URL-map items are sorted deterministically before validation: `.opencode/tools/deep_research_cli/citations_validate.ts:146-163,306-312`.
 
 4) **Lock/lease + optimistic locking reduce concurrency nondeterminism**
-   - Evidence: `.opencode/tools/deep_research/run_lock.ts:187-239,295-399` and `expected_revision` usage as cited above.
+   - Evidence: `.opencode/tools/deep_research_cli/run_lock.ts:187-239,295-399` and `expected_revision` usage as cited above.
 
 ### Non-deterministic seams (where runs can diverge) and how to bound them
 
 #### Seam 1: Ambient environment variables override settings and can diverge on resume
 
-- Flags come from settings.json *and* env (env wins): `.opencode/tools/deep_research/flags_v1.ts:48-63,112-160`.
-- Some tool behaviors consult env directly (citation endpoints): `.opencode/tools/deep_research/citations_validate.ts:114-116`.
+- Flags come from settings.json *and* env (env wins): `.opencode/tools/deep_research_cli/flags_v1.ts:48-63,112-160`.
+- Some tool behaviors consult env directly (citation endpoints): `.opencode/tools/deep_research_cli/citations_validate.ts:114-116`.
 
 Why it matters:
 - If a run is resumed in a different shell/host, the env state can silently change the ladder behavior, runs root, or no-web flag.
@@ -292,14 +292,14 @@ Bounding recommendation:
 - Treat env as **bootstrap-only**, but after `run_init`, use run-local captured config as the source of truth.
 - You already write `<run_root>/run-config.json` describing effective settings: `.opencode/pai-tools/deep-research-option-c.ts:420-464`.
 - Make downstream tools consult either:
-  - manifest `query.constraints.deep_research_flags` (already written by run_init: `.opencode/tools/deep_research/run_init.ts:161-176`) or
+  - manifest `query.constraints.deep_research_flags` (already written by run_init: `.opencode/tools/deep_research_cli/run_init.ts:161-176`) or
   - run-config.json
   before consulting env. (This keeps determinism while still allowing explicit overrides.)
 
 #### Seam 2: Time as implicit input (timestamps, tokenized filenames)
 
-- Manifest and gates writers update timestamps: `.opencode/tools/deep_research/manifest_write.ts:55-58`; `.opencode/tools/deep_research/gates_write.ts:62-66`.
-- Citations online fixtures are written as `online-fixtures.<ts>.json`: `.opencode/tools/deep_research/citations_validate.ts:329-366`.
+- Manifest and gates writers update timestamps: `.opencode/tools/deep_research_cli/manifest_write.ts:55-58`; `.opencode/tools/deep_research_cli/gates_write.ts:62-66`.
+- Citations online fixtures are written as `online-fixtures.<ts>.json`: `.opencode/tools/deep_research_cli/citations_validate.ts:329-366`.
 
 Why it matters:
 - Time isn’t a correctness problem, but it *is* a replay/diff noise problem and complicates deduplication.
@@ -311,19 +311,19 @@ Bounding recommendation:
 #### Seam 3: LLM output variability in Wave1/Wave2 (the fundamental dynamic seam)
 
 Current bounds that already exist:
-- Output contract validation is enforced: `.opencode/tools/deep_research/wave_output_validate.ts` (not reprinted here; see wave review usage below).
-- Wave review aggregates and issues retry directives: `.opencode/tools/deep_research/orchestrator_tick_live.ts:919-933,999-1069`.
-- Retry directives are consumed by injecting them into the prompt deterministically: `.opencode/tools/deep_research/orchestrator_tick_live.ts:818-821`.
+- Output contract validation is enforced: `.opencode/tools/deep_research_cli/wave_output_validate.ts` (not reprinted here; see wave review usage below).
+- Wave review aggregates and issues retry directives: `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts:919-933,999-1069`.
+- Retry directives are consumed by injecting them into the prompt deterministically: `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts:818-821`.
 - A prompt digest and sidecar metadata are persisted and test-validated: `.opencode/tests/entities/deep_research_orchestrator_tick_live.test.ts:127-138`.
 
 Bounding recommendation:
 - **Make the retry directive artifact a first-class “tick input”** and always record which directives were consumed in the sidecar, not only the prompt digest.
-- For “real runs,” implement a Task-backed driver that logs `agent_run_id`, timestamps, and tool budgets (the types already allow `agent_run_id`: `.opencode/tools/deep_research/orchestrator_tick_live.ts:48-57`).
+- For “real runs,” implement a Task-backed driver that logs `agent_run_id`, timestamps, and tool budgets (the types already allow `agent_run_id`: `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts:48-57`).
 
 #### Seam 4: Online citations network variability
 
 Current bounds:
-- Online ladder classification captures an `online-fixtures.*.json` record and a `blocked-urls.json` with actionable next steps: `.opencode/tools/deep_research/citations_validate.ts:344-359`.
+- Online ladder classification captures an `online-fixtures.*.json` record and a `blocked-urls.json` with actionable next steps: `.opencode/tools/deep_research_cli/citations_validate.ts:344-359`.
 
 Remaining bounding work:
 - Decide whether “blocked URLs” fail Gate C (hard) or become a typed “operator intervention required” stop with a resumable directive.
@@ -450,13 +450,13 @@ The remaining alignment work is primarily to keep planning artifacts in sync (se
 
 1) **Pausing stops watchdog and prevents orchestration**
 - Orchestrators return `PAUSED` when manifest.status is paused (validated by tests): `.opencode/tests/entities/deep_research_orchestrator_tick_paused.test.ts:16-82`.
-- Watchdog explicitly treats paused as non-timeout: `.opencode/tools/deep_research/watchdog_check.ts:84-91`.
+- Watchdog explicitly treats paused as non-timeout: `.opencode/tools/deep_research_cli/watchdog_check.ts:84-91`.
 
 2) **Resume resets stage timer semantics**
 - Resume sets `status=running` and refreshes `stage.started_at`: `.opencode/pai-tools/deep-research-option-c.ts:1090-1095`.
 
 3) **Run locks prevent concurrent ticks**
-- Acquire/refresh/release semantics with ownership checks and stale-lock handling: `.opencode/tools/deep_research/run_lock.ts:187-293,295-369,401-451`.
+- Acquire/refresh/release semantics with ownership checks and stale-lock handling: `.opencode/tools/deep_research_cli/run_lock.ts:187-293,295-369,401-451`.
 
 ### What’s missing for *safe* 1h+ runs
 
@@ -464,10 +464,10 @@ The current design is safe for long runs **only if the operator pauses/resumes p
 
 #### 1) Stage timeouts are too small for real research work
 
-Default limits are 2–10 minutes per stage: `.opencode/tools/deep_research/lifecycle_lib.ts:352-362`.
+Default limits are 2–10 minutes per stage: `.opencode/tools/deep_research_cli/lifecycle_lib.ts:352-362`.
 
 What breaks today in a 1h+ run if you do not pause:
-- Watchdog will mark the run `failed` and write a checkpoint: `.opencode/tools/deep_research/watchdog_check.ts:89-116,118-155`.
+- Watchdog will mark the run `failed` and write a checkpoint: `.opencode/tools/deep_research_cli/watchdog_check.ts:89-116,118-155`.
 
 What must change to support 1h+ runs:
 - Either:
@@ -487,7 +487,7 @@ Concrete requirements:
 
 #### 3) Online citations need resumable operator guidance as first-class artifacts
 
-You already write `blocked-urls.json` and an online fixtures capture: `.opencode/tools/deep_research/citations_validate.ts:344-359`.
+You already write `blocked-urls.json` and an online fixtures capture: `.opencode/tools/deep_research_cli/citations_validate.ts:344-359`.
 
 What’s missing:
 - A policy decision: when any citations are blocked/invalid, does Gate C fail hard, or does it stop with “operator action required” while leaving the run resumable?
@@ -495,7 +495,7 @@ What’s missing:
 
 #### 4) Cancellation semantics are not productized
 
-Manifest schema allows `cancelled` status: `.opencode/tools/deep_research/lifecycle_lib.ts:349-351`, but operator CLI does not provide a cancel command.
+Manifest schema allows `cancelled` status: `.opencode/tools/deep_research_cli/lifecycle_lib.ts:349-351`, but operator CLI does not provide a cancel command.
 
 For 1h+ runs, `cancel` is essential for safely stopping automated loops.
 
@@ -574,27 +574,27 @@ Validation contracts (cross-cutting):
 Top 10 risks/footguns, with mitigations.
 
 1) **Ambient env var drift changes run behavior on resume**
-   - Evidence: flags resolution prefers env: `.opencode/tools/deep_research/flags_v1.ts:112-160`.
+   - Evidence: flags resolution prefers env: `.opencode/tools/deep_research_cli/flags_v1.ts:112-160`.
    - Mitigation: treat run-config/manifest-captured flags as authoritative post-init; surface “effective config” in `status`.
 
 2) **Default stage watchdog timeouts will fail legitimate long work**
-   - Evidence: timeouts are 5–10 minutes: `.opencode/tools/deep_research/lifecycle_lib.ts:352-362`.
+   - Evidence: timeouts are 5–10 minutes: `.opencode/tools/deep_research_cli/lifecycle_lib.ts:352-362`.
    - Mitigation: adopt progress-heartbeat semantics or per-mode timeouts; require pause/resume for human-in-the-loop.
 
 3) **“Live mode” is not truly autonomous without a Task-backed driver**
-   - Evidence: driver boundary `.opencode/tools/deep_research/orchestrator_tick_live.ts:822-833` and operator-input driver `.opencode/pai-tools/deep-research-option-c.ts:712-713`.
+   - Evidence: driver boundary `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts:822-833` and operator-input driver `.opencode/pai-tools/deep-research-option-c.ts:712-713`.
    - Mitigation: implement a production driver that spawns agents and captures run IDs and prompts.
 
 4) **Gate A/F are conceptual only; pipeline can complete without them**
-   - Evidence: gates exist but no evaluator tool: `.opencode/tools/deep_research/run_init.ts:211-225`; tool exports show B/C/D/E only: `.opencode/tools/deep_research/index.ts:18-39`.
+   - Evidence: gates exist but no evaluator tool: `.opencode/tools/deep_research_cli/run_init.ts:211-225`; tool exports show B/C/D/E only: `.opencode/tools/deep_research_cli/index.ts:18-39`.
    - Mitigation: either remove these gates from “hard readiness” claims, or implement evaluators and enforce via stage_advance.
 
 5) **Online citations require endpoint config and can block unpredictably**
-   - Evidence: endpoints from env `.opencode/tools/deep_research/citations_validate.ts:114-116`; blocked URLs artifact `.opencode/tools/deep_research/citations_validate.ts:344-359`.
+   - Evidence: endpoints from env `.opencode/tools/deep_research_cli/citations_validate.ts:114-116`; blocked URLs artifact `.opencode/tools/deep_research_cli/citations_validate.ts:344-359`.
    - Mitigation: surface blocked URLs in `inspect`; define operator playbook for resolving blocks; capture fixtures for replay.
 
 6) **Audit logging is best-effort and can silently drop events**
-   - Evidence: manifest_write returns ok even if audit append fails: `.opencode/tools/deep_research/manifest_write.ts:74-79`; many tools have “best effort” audit append patterns.
+   - Evidence: manifest_write returns ok even if audit append fails: `.opencode/tools/deep_research_cli/manifest_write.ts:74-79`; many tools have “best effort” audit append patterns.
    - Mitigation: for long-run readiness, treat audit append failures as warnings in run metrics; add a dedicated tick ledger.
 
 7) **Stage-advance dry-run uses temp copies; correctness depends on faithful copying**
@@ -602,11 +602,11 @@ Top 10 risks/footguns, with mitigations.
    - Mitigation: also add a “decision-only” mode to stage_advance (pure function) to avoid relying on filesystem copies.
 
 8) **Path containment checks can be overly strict on not-yet-existing parents**
-   - Evidence: orchestrators resolve contained paths by walking up to an existing parent and realpath-checking containment: `.opencode/tools/deep_research/orchestrator_tick_live.ts:131-213` (resolveContainedPath) and similar in post-pivot.
+   - Evidence: orchestrators resolve contained paths by walking up to an existing parent and realpath-checking containment: `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts:131-213` (resolveContainedPath) and similar in post-pivot.
    - Mitigation: keep this strictness (security win), but ensure operator CLI creates required dirs in init (already does via run_init).
 
 9) **Generate-mode synthesis/review quality may be insufficient for “real research” claims**
-   - Evidence: generate-mode is deterministic and minimal; e.g., synthesis builds from first lines of summaries: `.opencode/tools/deep_research/synthesis_write.ts:142-205`.
+   - Evidence: generate-mode is deterministic and minimal; e.g., synthesis builds from first lines of summaries: `.opencode/tools/deep_research_cli/synthesis_write.ts:142-205`.
    - Mitigation: label generate-mode as “bounded scaffolding”; add LLM-based mode later with fixture capture and strict contracts.
 
 10) **Planning artifacts (charter pack) can mislead implementation status**
@@ -623,18 +623,18 @@ This is a pass/fail checklist for **“ready for real research runs”** (not ju
 
 - [ ] `run_init` succeeds without requiring the operator to set env vars manually (CLI provides this UX).
   - Evidence target: `bun ".opencode/pai-tools/deep-research-option-c.ts" init "Q"` prints contract + run-config.
-  - Code anchor: enablement check in `run_init`: `.opencode/tools/deep_research/run_init.ts:52-57` and CLI bootstrap: `.opencode/pai-tools/deep-research-option-c.ts:144-149`.
+  - Code anchor: enablement check in `run_init`: `.opencode/tools/deep_research_cli/run_init.ts:52-57` and CLI bootstrap: `.opencode/pai-tools/deep-research-option-c.ts:144-149`.
 - [ ] After every tick, `manifest.json` and `gates.json` validate as v1.
-  - Code anchor: schema validation is used in multiple entrypoints (e.g., stage_advance validates both manifest + gates: `.opencode/tools/deep_research/stage_advance.ts:49-55`).
+  - Code anchor: schema validation is used in multiple entrypoints (e.g., stage_advance validates both manifest + gates: `.opencode/tools/deep_research_cli/stage_advance.ts:49-55`).
 - [ ] Stage movement occurs via `stage_advance` only (no direct manifest edits).
-  - Evidence anchor: stage transitions are persisted via manifest_write inside stage_advance: `.opencode/tools/deep_research/stage_advance.ts:538-553`.
+  - Evidence anchor: stage transitions are persisted via manifest_write inside stage_advance: `.opencode/tools/deep_research_cli/stage_advance.ts:538-553`.
 
 ### Gate B — Live Wave1 completeness (M2 prerequisite)
 
 - [ ] Live execution runs **all** entries in `wave-1/wave1-plan.json`.
   - Evidence: unit test expects 3 driver calls and 3 outputs: `.opencode/tests/entities/deep_research_orchestrator_tick_live.test.ts:105-112`.
 - [ ] Retry directives are produced, consumed deterministically, and recorded via `retry_record` when needed.
-  - Evidence: retry directive artifact write + retry_record call: `.opencode/tools/deep_research/orchestrator_tick_live.ts:1013-1058`.
+  - Evidence: retry directive artifact write + retry_record call: `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts:1013-1058`.
 - [ ] Gate B ends as `pass`, and stage advances to pivot.
   - Evidence: same unit test asserts Gate B pass and stage pivot: `.opencode/tests/entities/deep_research_orchestrator_tick_live.test.ts:146-151`.
 
@@ -644,34 +644,34 @@ This is a pass/fail checklist for **“ready for real research runs”** (not ju
   - `citations/citations.jsonl`
   - `citations/online-fixtures.<ts>.json`
   - `citations/blocked-urls.json`
-  - Evidence anchor: citations_validate online artifact writes: `.opencode/tools/deep_research/citations_validate.ts:329-366`.
+  - Evidence anchor: citations_validate online artifact writes: `.opencode/tools/deep_research_cli/citations_validate.ts:329-366`.
 - [ ] Gate C is computed, written, and citations stage advances to summaries.
-  - Evidence anchor: gate C compute + gates_write + stage advance: `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts:1600-1698`.
+  - Evidence anchor: gate C compute + gates_write + stage advance: `.opencode/tools/deep_research_cli/orchestrator_tick_post_pivot.ts:1600-1698`.
 
 ### Gate D — Summaries boundedness (M3b prerequisite)
 
 - [ ] Summary pack build works in `mode=generate` without fixtures.
-  - Evidence: generate mode branch: `.opencode/tools/deep_research/summary_pack_build.ts:184-246`.
+  - Evidence: generate mode branch: `.opencode/tools/deep_research_cli/summary_pack_build.ts:184-246`.
 - [ ] Gate D is evaluated and written, and stage advances `summaries -> synthesis`.
-  - Evidence: `.opencode/tools/deep_research/orchestrator_tick_post_summaries.ts:575-644`.
+  - Evidence: `.opencode/tools/deep_research_cli/orchestrator_tick_post_summaries.ts:575-644`.
 
 ### Gate E — Synthesis + review loop + finalize (M3 completion)
 
 - [ ] `synthesis_write` supports `mode=generate` and writes `synthesis/final-synthesis.md`.
-  - Evidence: orchestrator synthesis stage uses generate default when fixture path absent: `.opencode/tools/deep_research/orchestrator_tick_post_summaries.ts:657-710`.
+  - Evidence: orchestrator synthesis stage uses generate default when fixture path absent: `.opencode/tools/deep_research_cli/orchestrator_tick_post_summaries.ts:657-710`.
 - [ ] `review_factory_run` supports `mode=generate` and produces `review/review-bundle.json`.
-  - Evidence: review generate branch: `.opencode/tools/deep_research/review_factory_run.ts:118-180` and orchestration call: `.opencode/tools/deep_research/orchestrator_tick_post_summaries.ts:724-738`.
+  - Evidence: review generate branch: `.opencode/tools/deep_research_cli/review_factory_run.ts:118-180` and orchestration call: `.opencode/tools/deep_research_cli/orchestrator_tick_post_summaries.ts:724-738`.
 - [ ] Revision control enforces bounded iterations, and stage_advance resolves review->(synthesis|finalize) correctly.
-  - Evidence: revision_control tool call and stage advance: `.opencode/tools/deep_research/orchestrator_tick_post_summaries.ts:809-858` and stage authority policy `.opencode/tools/deep_research/stage_advance.ts:257-274,423-489,493-495`.
+  - Evidence: revision_control tool call and stage advance: `.opencode/tools/deep_research_cli/orchestrator_tick_post_summaries.ts:809-858` and stage authority policy `.opencode/tools/deep_research_cli/stage_advance.ts:257-274,423-489,493-495`.
 
 ### Ops gate — Restart/reload guidance + pause/resume + lock safety
 
 - [ ] Two concurrent orchestrators cannot mutate the same run root (lock held).
-  - Evidence: `.opencode/tools/deep_research/run_lock.ts:254-260,325-335`.
+  - Evidence: `.opencode/tools/deep_research_cli/run_lock.ts:254-260,325-335`.
 - [ ] Operator can pause and resume without manual file edits.
   - Evidence: CLI pause/resume: `.opencode/pai-tools/deep-research-option-c.ts:1037-1113`.
 - [ ] Watchdog enforced at tick boundaries and does not cause false timeouts when paused.
-  - Evidence: watchdog in run loop `.opencode/pai-tools/deep-research-option-c.ts:912-923` and paused guard in watchdog `.opencode/tools/deep_research/watchdog_check.ts:84-91`.
+  - Evidence: watchdog in run loop `.opencode/pai-tools/deep-research-option-c.ts:912-923` and paused guard in watchdog `.opencode/tools/deep_research_cli/watchdog_check.ts:84-91`.
 
 ---
 
@@ -680,24 +680,24 @@ This is a pass/fail checklist for **“ready for real research runs”** (not ju
 1) **Implement a production `runAgent` driver** that spawns actual agents (Task tool) and returns `{ markdown, agent_run_id, started_at, finished_at }` to `orchestrator_tick_live`.
 
 2) **Decide and codify long-run timeout semantics** (mode-based timeouts or progress-heartbeat timeouts), to make “1h+ wave1/citations” feasible without manual pause.
-   - Evidence anchor for current limits: `.opencode/tools/deep_research/lifecycle_lib.ts:352-362`.
+   - Evidence anchor for current limits: `.opencode/tools/deep_research_cli/lifecycle_lib.ts:352-362`.
 
 3) **Add `cancel` to the operator CLI** to set `manifest.status=cancelled` with checkpointing, and make orchestrators treat it as terminal.
-   - Evidence that status supports cancelled: `.opencode/tools/deep_research/lifecycle_lib.ts:349-351`.
+   - Evidence that status supports cancelled: `.opencode/tools/deep_research_cli/lifecycle_lib.ts:349-351`.
 
 4) **Surface citations operator guidance in `inspect`** by reading `citations/blocked-urls.json` when present and printing actionable steps.
-   - Evidence anchor for blocked urls artifact: `.opencode/tools/deep_research/citations_validate.ts:353-358`.
+   - Evidence anchor for blocked urls artifact: `.opencode/tools/deep_research_cli/citations_validate.ts:353-358`.
 
 5) **Add a tick ledger (`logs/ticks.jsonl`)** with one structured entry per tick (start/end/outcome/digests) for postmortems and 1h+ run visibility.
 
 6) **Integrate telemetry/metrics tools into CLI `run`** (orchestrator-run wrappers) so every tick emits `telemetry_append` and periodic `run_metrics_write` snapshots.
-   - Evidence these tools exist: `.opencode/tools/deep_research/index.ts:40-42`.
+   - Evidence these tools exist: `.opencode/tools/deep_research_cli/index.ts:40-42`.
 
 7) **Resolve configuration precedence**: after init, prefer run-config/manifest-captured flags over env for all downstream tools.
    - Evidence anchor: run-config emitted: `.opencode/pai-tools/deep-research-option-c.ts:420-464`.
 
 8) **Either implement Gate A and Gate F evaluators, or remove them from “hard gate” claims**.
-   - Evidence: these gates are created but not evaluated: `.opencode/tools/deep_research/run_init.ts:218-223`.
+   - Evidence: these gates are created but not evaluated: `.opencode/tools/deep_research_cli/run_init.ts:218-223`.
 
 9) **Update the charter pack to reflect current implementation reality** (CLI location, completed workstreams) so planning artifacts stop suggesting already-done work.
    - Evidence of drift: WS1 expects Tools/ CLI: `.opencode/Plans/.../WS1-operator-cli-and-unified-runloop.md:16-23`.

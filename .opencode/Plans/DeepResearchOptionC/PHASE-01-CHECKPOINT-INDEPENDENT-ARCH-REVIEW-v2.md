@@ -42,13 +42,13 @@ Date: 2026-02-13
 1. Backlog definitions for P01-03 / P01-05 / P01-07:
    - `.opencode/Plans/DeepResearchOptionC/deep-research-option-c-phase-01-executable-backlog.md`
 2. Immutable manifest patch path detection + enforcement:
-   - `.opencode/tools/deep_research.ts` (containsImmutableManifestPatch + manifest_write)
+   - `.opencode/tools/deep_research_cli.ts` (containsImmutableManifestPatch + manifest_write)
 3. Revision bump logic in `manifest_write`:
-   - `.opencode/tools/deep_research.ts` (curRev/nextRev assignment)
+   - `.opencode/tools/deep_research_cli.ts` (curRev/nextRev assignment)
 4. Audit append helper + usage:
-   - `.opencode/tools/deep_research.ts` (appendAuditJsonl + manifest_write/gates_write)
+   - `.opencode/tools/deep_research_cli.ts` (appendAuditJsonl + manifest_write/gates_write)
 5. Gates required IDs + per-class status enum enforcement:
-   - `.opencode/tools/deep_research.ts` (validateGatesV1)
+   - `.opencode/tools/deep_research_cli.ts` (validateGatesV1)
 6. Schema validation scope/acceptance criteria:
    - `.opencode/Plans/DeepResearchOptionC/spec-schema-validation-v1.md`
 7. Session progress conventions and command usage:

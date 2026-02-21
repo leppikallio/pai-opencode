@@ -18,17 +18,17 @@ Hard constraints:
 
 Option C is a **deterministic research run pipeline** driven by:
 
-1) A **run directory** (created by tool `deep_research_run_init` in `.opencode/tools/deep_research/run_init.ts`) containing:
+1) A **run directory** (created by tool `deep_research_run_init` in `.opencode/tools/deep_research_cli/run_init.ts`) containing:
    - `manifest.json` (schema `manifest.v1`)
    - `gates.json` (schema `gates.v1`)
    - stage artifact folders: `wave-1/`, `wave-2/`, `citations/`, `summaries/`, `synthesis/`, `logs/`
 
-2) Deterministic stage transitions (`deep_research_stage_advance` in `.opencode/tools/deep_research/stage_advance.ts`).
+2) Deterministic stage transitions (`deep_research_stage_advance` in `.opencode/tools/deep_research_cli/stage_advance.ts`).
 
 3) Orchestrator “ticks” that run the deterministic work:
-   - Wave1 (init/wave1 → pivot): `.opencode/tools/deep_research/orchestrator_tick_live.ts`
-   - Post-pivot (pivot/wave2/citations → summaries): `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts`
-   - Post-summaries (summaries/synthesis/review → finalize): `.opencode/tools/deep_research/orchestrator_tick_post_summaries.ts`
+   - Wave1 (init/wave1 → pivot): `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts`
+   - Post-pivot (pivot/wave2/citations → summaries): `.opencode/tools/deep_research_cli/orchestrator_tick_post_pivot.ts`
+   - Post-summaries (summaries/synthesis/review → finalize): `.opencode/tools/deep_research_cli/orchestrator_tick_post_summaries.ts`
 
 4) The operator CLI (typed, stable commands) at:
    - `.opencode/pai-tools/deep-research-option-c.ts`
@@ -37,14 +37,14 @@ Option C is a **deterministic research run pipeline** driven by:
 
 ### Key artifacts + contracts
 
-- Wave1 plan: `<run_root>/wave-1/wave1-plan.json` produced by tool `deep_research_wave1_plan` (`.opencode/tools/deep_research/wave1_plan.ts`).
-- Wave outputs: `<run_root>/wave-1/<perspective_id>.md` validated by `deep_research_wave_output_validate` (`.opencode/tools/deep_research/wave_output_validate.ts`).
-- Wave review: `<run_root>/wave-review.json` produced by `deep_research_wave_review` (`.opencode/tools/deep_research/wave_review.ts`).
+- Wave1 plan: `<run_root>/wave-1/wave1-plan.json` produced by tool `deep_research_wave1_plan` (`.opencode/tools/deep_research_cli/wave1_plan.ts`).
+- Wave outputs: `<run_root>/wave-1/<perspective_id>.md` validated by `deep_research_wave_output_validate` (`.opencode/tools/deep_research_cli/wave_output_validate.ts`).
+- Wave review: `<run_root>/wave-review.json` produced by `deep_research_wave_review` (`.opencode/tools/deep_research_cli/wave_review.ts`).
 - Retry directives: `<run_root>/retry/retry-directives.json` written by the live wave1 orchestrator when contract validation fails.
 - Citations:
-  - Extract URLs: `deep_research_citations_extract_urls` (`.opencode/tools/deep_research/citations_extract_urls.ts`)
+  - Extract URLs: `deep_research_citations_extract_urls` (`.opencode/tools/deep_research_cli/citations_extract_urls.ts`)
   - Normalize: `deep_research_citations_normalize`
-  - Validate: `deep_research_citations_validate` (`.opencode/tools/deep_research/citations_validate.ts`)
+  - Validate: `deep_research_citations_validate` (`.opencode/tools/deep_research_cli/citations_validate.ts`)
   - Online reproducibility artifacts (online mode):
     - `<run_root>/citations/online-fixtures.<ts>.json`
     - `<run_root>/citations/online-fixtures.latest.json`
@@ -108,9 +108,9 @@ Before implementing WS-B and beyond, the Architect must decide (and record in th
 | D-02 | Decision | Architect | DONE | See “Architect decision record” below |  | Gate A runs in `orchestrator_tick_live` pre-agent |
 | D-03 | Decision | Architect | DONE | See “Architect decision record” below |  | Halt artifacts `tick-####.json` + `latest.json` |
 | D-04 | Decision | Architect | DONE | See “Architect decision record” below |  | Prompts in `operator/prompts/wave1/`; outputs in `wave-1/` |
-| A1 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_run_init.test.ts` (pass) | `operator/scope.json` | Implemented in `.opencode/tools/deep_research/run_init.ts`; scope_path pointer only |
-| A2 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_wave1_plan.test.ts` (pass) | `wave1-plan.json` prompt_md has Scope Contract | Implemented in `.opencode/tools/deep_research/wave1_plan.ts` + `wave_tools_shared.ts` |
-| A3 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_gate_a_evaluate.test.ts` (pass) | `gates.A` computed | Tool: `.opencode/tools/deep_research/gate_a_evaluate.ts`; wired into `orchestrator_tick_live.ts` |
+| A1 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_run_init.test.ts` (pass) | `operator/scope.json` | Implemented in `.opencode/tools/deep_research_cli/run_init.ts`; scope_path pointer only |
+| A2 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_wave1_plan.test.ts` (pass) | `wave1-plan.json` prompt_md has Scope Contract | Implemented in `.opencode/tools/deep_research_cli/wave1_plan.ts` + `wave_tools_shared.ts` |
+| A3 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_gate_a_evaluate.test.ts` (pass) | `gates.A` computed | Tool: `.opencode/tools/deep_research_cli/gate_a_evaluate.ts`; wired into `orchestrator_tick_live.ts` |
 | B1 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_orchestrator_tick_live.test.ts` (pass) | `wave-1/*.meta.json` digests enforced | Skip only when md+meta exist and digest matches current plan prompt |
 | C1 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_operator_halt_artifacts.test.ts` (pass) | `operator/halt/latest.json` | CLI writes `halt.v1` on tick/run failure |
 | D1 | Task | Eng | DONE | `bun test ./.opencode/tests/entities/deep_research_operator_cli_ergonomics.test.ts` (pass) | `retry/retry-directives.json` | CLI `rerun wave1` writes one retry directive, consumed_at=null |
@@ -214,11 +214,11 @@ Each task is written so a subagent can execute without additional context.
 
 **Context / Why**
 - Today, scope is implicit in `query` + `perspectives.json`. This causes late retries and researcher thrash.
-- `run_init` already writes `manifest.query.constraints.deep_research_flags` in `.opencode/tools/deep_research/run_init.ts`.
+- `run_init` already writes `manifest.query.constraints.deep_research_flags` in `.opencode/tools/deep_research_cli/run_init.ts`.
 
 **Files to modify**
-- `.opencode/tools/deep_research/run_init.ts`
-- (Optional) `.opencode/tools/deep_research/schema_v1.ts` (only if schema validation must be tightened; prefer a local scope validator)
+- `.opencode/tools/deep_research_cli/run_init.ts`
+- (Optional) `.opencode/tools/deep_research_cli/schema_v1.ts` (only if schema validation must be tightened; prefer a local scope validator)
 
 **New/updated artifacts**
 - `<run_root>/operator/scope.json` (canonical; single source of truth)
@@ -264,12 +264,12 @@ Each task is written so a subagent can execute without additional context.
 **Goal**: Ensure every `wave1_plan` entry `prompt_md` includes the scope contract content.
 
 **Context / Why**
-- Wave prompts are generated in `.opencode/tools/deep_research/wave1_plan.ts` via `buildWave1PromptMd(...)`.
+- Wave prompts are generated in `.opencode/tools/deep_research_cli/wave1_plan.ts` via `buildWave1PromptMd(...)`.
 - Without scope inclusion, perspective outputs will drift and retries increase.
 
 **Files to modify**
-- `.opencode/tools/deep_research/wave1_plan.ts`
-- `.opencode/tools/deep_research/wave_tools_shared.ts` (if `buildWave1PromptMd` lives there)
+- `.opencode/tools/deep_research_cli/wave1_plan.ts`
+- `.opencode/tools/deep_research_cli/wave_tools_shared.ts` (if `buildWave1PromptMd` lives there)
 
 **New/updated artifacts**
 - `<run_root>/wave-1/wave1-plan.json` includes scope text inside each `prompt_md`.
@@ -312,10 +312,10 @@ Each task is written so a subagent can execute without additional context.
 - Early failure is cheaper than wave1 retries.
 
 **Files to modify**
-- Add new tool: `.opencode/tools/deep_research/gate_a_evaluate.ts` (recommended)
-- Export from `.opencode/tools/deep_research/index.ts` so it becomes `deep_research_gate_a_evaluate` (ensure naming consistent with other tools)
+- Add new tool: `.opencode/tools/deep_research_cli/gate_a_evaluate.ts` (recommended)
+- Export from `.opencode/tools/deep_research_cli/index.ts` so it becomes `deep_research_gate_a_evaluate` (ensure naming consistent with other tools)
 - Update orchestrator tick path to call it:
-  - `.opencode/tools/deep_research/orchestrator_tick_live.ts` (**every tick**, after ensuring `wave-1/wave1-plan.json` exists, **before** any `runAgent` calls)
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts` (**every tick**, after ensuring `wave-1/wave1-plan.json` exists, **before** any `runAgent` calls)
 
 **New/updated artifacts**
 - `gates.json` Gate A updated with:
@@ -362,7 +362,7 @@ Each task is written so a subagent can execute without additional context.
 - It already writes `*.meta.json` sidecars with `prompt_digest`.
 
 **Files to modify**
-- `.opencode/tools/deep_research/orchestrator_tick_live.ts`
+- `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts`
 
 **New/updated artifacts**
 - No new artifact type; reuse existing `*.meta.json` sidecar.
@@ -549,7 +549,7 @@ Each task is written so a subagent can execute without additional context.
 - It already writes `<run_root>/citations/online-fixtures.latest.json`.
 
 **Files to modify**
-- `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts`
+- `.opencode/tools/deep_research_cli/orchestrator_tick_post_pivot.ts`
 
 **Implementation steps**
 1) In citations stage, before calling `citations_validate`, check for `citations/online-fixtures.latest.json`.
@@ -580,7 +580,7 @@ Each task is written so a subagent can execute without additional context.
 - `citations_validate.ts` writes `citations/blocked-urls.json` with action hints.
 
 **Files to modify**
-- `.opencode/tools/deep_research/citations_validate.ts` (or a small post-processor tool)
+- `.opencode/tools/deep_research_cli/citations_validate.ts` (or a small post-processor tool)
 
 **New/updated artifacts**
 - `<run_root>/citations/blocked-urls.queue.md`

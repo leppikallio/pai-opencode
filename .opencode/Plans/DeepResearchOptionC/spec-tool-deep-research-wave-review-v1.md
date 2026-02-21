@@ -3,7 +3,7 @@
 ## Tool name
 `deep_research_wave_review`
 
-> Export: `wave_review` in `.opencode/tools/deep_research.ts`.
+> Export: `wave_review` in `.opencode/tools/deep_research_cli.ts`.
 
 ## Purpose
 Provide a **deterministic, offline reviewer-enforcement scaffold** for Wave outputs.

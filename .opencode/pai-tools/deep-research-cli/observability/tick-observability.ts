@@ -4,8 +4,8 @@ import {
   run_metrics_write,
   telemetry_append,
   tick_ledger_append,
-} from "../../../tools/deep_research.ts";
-import { sha256HexLowerUtf8 } from "../../../tools/deep_research/lifecycle_lib";
+} from "../../../tools/deep_research_cli.ts";
+import { sha256HexLowerUtf8 } from "../../../tools/deep_research_cli/lifecycle_lib";
 import { resultErrorDetails } from "../cli/errors";
 import {
   readJsonObject,

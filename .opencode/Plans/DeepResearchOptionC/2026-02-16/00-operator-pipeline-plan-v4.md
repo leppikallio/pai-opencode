@@ -185,7 +185,7 @@ Minimum assertions:
 
 ### M2 — Live Wave 1 works (first true real-world milestone)
 Deliverables:
-- New tool: `.opencode/tools/deep_research/wave_output_ingest.ts` (tool id: `deep_research_wave_output_ingest`)
+- New tool: `.opencode/tools/deep_research_cli/wave_output_ingest.ts` (tool id: `deep_research_wave_output_ingest`)
 - Entity test: `.opencode/tests/entities/deep_research_wave_output_ingest.test.ts`
 - Orchestrator live mode drives:
   - perspective selection → wave1 plan → spawn agents → ingest outputs → validate/review → Gate B → pivot
@@ -226,7 +226,7 @@ These are intentionally separable so multiple engineers can proceed in parallel:
   - Target: `.opencode/tests/entities/deep_research_stage_advance.test.ts`
 
 - **Workstream C (M2):** implement `deep_research_wave_output_ingest` + entity tests
-  - Targets: `.opencode/tools/deep_research/wave_output_ingest.ts` + `.opencode/tests/entities/deep_research_wave_output_ingest.test.ts`
+  - Targets: `.opencode/tools/deep_research_cli/wave_output_ingest.ts` + `.opencode/tests/entities/deep_research_wave_output_ingest.test.ts`
 
 - **Workstream D (Orchestrator core):** implement driver loop + fixture driver boundary test
   - Targets: orchestrator module + `.opencode/tests/entities/deep_research_orchestrator_tick_fixture.test.ts`

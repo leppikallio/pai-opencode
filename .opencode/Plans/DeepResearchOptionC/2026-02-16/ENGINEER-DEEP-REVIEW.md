@@ -49,7 +49,7 @@ Smallest changes to make live Wave 1 runnable (spawn agents, write outputs):
    - If pass: write Gate B + advance to pivot
    - If fail: bounded retries only for failed perspectives
 
-3. **Export new tool** in `.opencode/tools/deep_research/index.ts` and add deterministic tests.
+3. **Export new tool** in `.opencode/tools/deep_research_cli/index.ts` and add deterministic tests.
 
 ---
 
@@ -59,12 +59,12 @@ Smallest changes to make live Wave 1 runnable (spawn agents, write outputs):
   - `.opencode/commands/deep-research.md` (single dispatcher: offline canary + live wave1 path)
 
 - New/updated tools:
-  - `.opencode/tools/deep_research/wave_outputs_commit.ts` *(new)*
-  - `.opencode/tools/deep_research/synthesis_write.ts` *(extend with final output mode)*
-  - `.opencode/tools/deep_research/index.ts` *(export new tool)*
+  - `.opencode/tools/deep_research_cli/wave_outputs_commit.ts` *(new)*
+  - `.opencode/tools/deep_research_cli/synthesis_write.ts` *(extend with final output mode)*
+  - `.opencode/tools/deep_research_cli/index.ts` *(export new tool)*
 
 - Optional helper:
-  - `.opencode/tools/deep_research/orchestrator_contracts.ts` (shared response shapes, gate patch helpers)
+  - `.opencode/tools/deep_research_cli/orchestrator_contracts.ts` (shared response shapes, gate patch helpers)
 
 ---
 

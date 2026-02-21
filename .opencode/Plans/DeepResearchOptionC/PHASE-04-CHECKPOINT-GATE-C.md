@@ -16,14 +16,14 @@ Source backlog: `deep-research-option-c-phase-04-executable-backlog.md`
 | ID | Backlog item | Status | Evidence |
 |---|---|---|---|
 | P04-01 | URL extraction contract | ✅ Done | `spec-tool-deep-research-citations-extract-urls-v1.md` |
-| P04-02 | Tool: citations_extract_urls | ✅ Done | `.opencode/tools/deep_research.ts` (`export const citations_extract_urls`) + entity test `deep_research_citations_extract_urls.test.ts` |
+| P04-02 | Tool: citations_extract_urls | ✅ Done | `.opencode/tools/deep_research_cli.ts` (`export const citations_extract_urls`) + entity test `deep_research_citations_extract_urls.test.ts` |
 | P04-03 | Normalize + cid contract | ✅ Done | `spec-tool-deep-research-citations-normalize-v1.md` + `spec-citation-schema-v1.md` |
-| P04-04 | Tool: citations_normalize | ✅ Done | `.opencode/tools/deep_research.ts` (`export const citations_normalize`) + entity test `deep_research_citations_normalize.test.ts` |
+| P04-04 | Tool: citations_normalize | ✅ Done | `.opencode/tools/deep_research_cli.ts` (`export const citations_normalize`) + entity test `deep_research_citations_normalize.test.ts` |
 | P04-05 | Validation contract (OFFLINE vs ONLINE, ladder) | ✅ Done | `spec-tool-deep-research-citations-validate-v1.md` (Bright Data → Apify ladder + paywalled semantics) |
-| P04-06 | Tool: citations_validate (OFFLINE fixtures) | ✅ Done | `.opencode/tools/deep_research.ts` (`export const citations_validate`) + entity test `deep_research_citations_validate.test.ts` |
+| P04-06 | Tool: citations_validate (OFFLINE fixtures) | ✅ Done | `.opencode/tools/deep_research_cli.ts` (`export const citations_validate`) + entity test `deep_research_citations_validate.test.ts` |
 | P04-07 | Gate C compute contract | ✅ Done | `spec-tool-deep-research-gate-c-compute-v1.md` + `spec-gate-thresholds-v1.md` |
-| P04-08 | Tool: gate_c_compute | ✅ Done | `.opencode/tools/deep_research.ts` (`export const gate_c_compute`) + entity test `deep_research_gate_c_compute.test.ts` |
-| P04-09 | Tool: citations_render_md | ✅ Done | `.opencode/tools/deep_research.ts` (`export const citations_render_md`) + entity test `deep_research_citations_render_md.test.ts` |
+| P04-08 | Tool: gate_c_compute | ✅ Done | `.opencode/tools/deep_research_cli.ts` (`export const gate_c_compute`) + entity test `deep_research_gate_c_compute.test.ts` |
+| P04-09 | Tool: citations_render_md | ✅ Done | `.opencode/tools/deep_research_cli.ts` (`export const citations_render_md`) + entity test `deep_research_citations_render_md.test.ts` |
 | P04-T* | Phase 04 entity tests + fixtures | ✅ Done | `bun test tests` (see Evidence) + fixtures under `.opencode/tests/fixtures/citations/phase04/` |
 | P04-X1 | Phase 04 checkpoint + Gate C signoff | ✅ Done | This document |
 

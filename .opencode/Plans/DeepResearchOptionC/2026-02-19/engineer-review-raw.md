@@ -24,7 +24,7 @@ Option C’s **deterministic core is already strong** (typed stage machine + gat
 
 ### Scope alignment before Wave 1 (what’s missing today)
 
-Option C currently has a **mode knob** (`--mode quick|standard|deep`) and **per-perspective budgets** (`prompt_contract.max_words`, `max_sources`, `tool_budget`) via `perspectives.json` → `wave1_plan` (`.opencode/tools/deep_research/wave1_plan.ts`). What it lacks is an explicit, durable “research scope contract” artifact that gets carried into every prompt.
+Option C currently has a **mode knob** (`--mode quick|standard|deep`) and **per-perspective budgets** (`prompt_contract.max_words`, `max_sources`, `tool_budget`) via `perspectives.json` → `wave1_plan` (`.opencode/tools/deep_research_cli/wave1_plan.ts`). What it lacks is an explicit, durable “research scope contract” artifact that gets carried into every prompt.
 
 Concrete need (pleasantness + time-savings):
 
@@ -38,7 +38,7 @@ Concrete need (pleasantness + time-savings):
 Concrete proposal:
 
 1) Add a run-root artifact: `<run_root>/operator/scope.md` (or `scope.json`) written during `init`.
-2) Persist the same payload into `manifest.query.constraints.scope` (manifest already has `query.constraints` in `.opencode/tools/deep_research/run_init.ts`).
+2) Persist the same payload into `manifest.query.constraints.scope` (manifest already has `query.constraints` in `.opencode/tools/deep_research_cli/run_init.ts`).
 3) Update `wave1_plan` prompt generation to include `scope` text in every `prompt_md` (currently built via `buildWave1PromptMd()` in `wave1_plan.ts`).
 4) Introduce a deterministic “Gate A: Planning completeness” evaluator that checks:
    - `scope` exists
@@ -66,7 +66,7 @@ This shifts failures from “late wave1 retries” to “early plan correction,�
 ### Deterministic stage machine + “blocking” semantics
 
 - Stage advancement is deterministic and checks artifacts + gates:
-  - `.opencode/tools/deep_research/stage_advance.ts`
+  - `.opencode/tools/deep_research_cli/stage_advance.ts`
   - It evaluates required artifacts/gates per transition (e.g., `wave1 -> pivot` requires wave dir non-empty, `wave-review.json`, and `Gate B pass`).
   - It records a **decision inputs digest** (`inputs_digest`) and writes a structured `decision.evaluated[]` list (see `digestInput` in `stage_advance.ts`).
 
@@ -75,7 +75,7 @@ This shifts failures from “late wave1 retries” to “early plan correction,�
 The orchestrator is split into three tick drivers:
 
 - **Wave1 live tick (init/wave1 → pivot)**:
-  - `.opencode/tools/deep_research/orchestrator_tick_live.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts`
   - Expects `drivers.runAgent(...)` and performs:
     - `wave1_plan` creation if missing
     - agent execution (via `drivers.runAgent`)
@@ -87,7 +87,7 @@ The orchestrator is split into three tick drivers:
   - Writes output metadata sidecars next to each markdown output: `*.meta.json` with `prompt_digest` and `retry_count`.
 
 - **Post-pivot tick (pivot/wave2/citations → summaries)**:
-  - `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_post_pivot.ts`
   - Creates `pivot.json` via `pivot_decide` if missing.
   - Generates deterministic Wave2 outputs (no agent seam yet; currently generates placeholder markdown in-code).
   - Runs citations pipeline:
@@ -95,7 +95,7 @@ The orchestrator is split into three tick drivers:
   - In `sensitivity=no_web`, it writes deterministic offline fixtures (`offline-fixtures.orchestrator.json`) and passes them to `citations_validate`.
 
 - **Post-summaries tick (summaries/synthesis/review → finalize)**:
-  - `.opencode/tools/deep_research/orchestrator_tick_post_summaries.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_post_summaries.ts`
   - Runs:
     - `summary_pack_build` → `gate_d_evaluate` → `gates_write` → `stage_advance("synthesis")`
     - `synthesis_write` → `stage_advance("review")`
@@ -104,12 +104,12 @@ The orchestrator is split into three tick drivers:
 ### Web citations system already has reproducibility primitives
 
 - URL extraction from wave markdown sources sections:
-  - `.opencode/tools/deep_research/citations_extract_urls.ts` writes:
+  - `.opencode/tools/deep_research_cli/citations_extract_urls.ts` writes:
     - `citations/extracted-urls.txt`
     - `citations/found-by.json` (bounded “found-by” mapping)
 
 - Online/offline citation validation:
-  - `.opencode/tools/deep_research/citations_validate.ts`
+  - `.opencode/tools/deep_research_cli/citations_validate.ts`
   - Key behaviors:
     - Mode is resolved from `manifest` + optional `run-config.json` + env (via `resolveCitationsConfig()` in `citations_validate_lib.ts`).
     - Writes `citations/citations.jsonl`.
@@ -121,11 +121,11 @@ The orchestrator is split into three tick drivers:
 
 ### Observability exists (but is not yet “operator-friendly”)
 
-- Audit log: tools append to `<run_root>/logs/audit.jsonl` via helpers in `.opencode/tools/deep_research/lifecycle_lib.ts` (see `appendAuditJsonl`).
+- Audit log: tools append to `<run_root>/logs/audit.jsonl` via helpers in `.opencode/tools/deep_research_cli/lifecycle_lib.ts` (see `appendAuditJsonl`).
 - CLI adds tick-level observability:
   - `.opencode/pai-tools/deep-research-option-c.ts`:
     - `beginTickObservability()` and `finalizeTickObservability()`
-    - uses tools `tick_ledger_append`, `telemetry_append`, `run_metrics_write` (imported from `../tools/deep_research.ts`).
+    - uses tools `tick_ledger_append`, `telemetry_append`, `run_metrics_write` (imported from `../tools/deep_research_cli.ts`).
 
 ### Acceptance tests already exist (offline canaries)
 
@@ -147,7 +147,7 @@ The orchestrator is split into three tick drivers:
 
 Facts:
 
-- The orchestrator supports a driver seam (`drivers.runAgent`) in `.opencode/tools/deep_research/orchestrator_tick_live.ts`.
+- The orchestrator supports a driver seam (`drivers.runAgent`) in `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts`.
 - The CLI `--driver live` uses a **manual operator edit loop** (`createOperatorInputDriver()` in `.opencode/pai-tools/deep-research-option-c.ts`, writes `operator/prompts/...` and `operator/drafts/...`, then waits for ENTER).
 
 Why it blocks research:
@@ -167,7 +167,7 @@ Concrete need:
 
 Facts:
 
-- `orchestrator_tick_live` decides whether to call `runAgent` primarily on “does output markdown exist?” and “is there an active retry note?” (see logic around `outputAlreadyExists` in `.opencode/tools/deep_research/orchestrator_tick_live.ts`).
+- `orchestrator_tick_live` decides whether to call `runAgent` primarily on “does output markdown exist?” and “is there an active retry note?” (see logic around `outputAlreadyExists` in `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts`).
 - It writes a sidecar with `prompt_digest` (see `writeOutputMetadataSidecar()` in `orchestrator_tick_live.ts`).
 
 Risk:
@@ -183,9 +183,9 @@ Concrete need:
 Facts:
 
 - Flags resolution happens in multiple places:
-  - `.opencode/tools/deep_research/flags_v1.ts` has `resolveDeepResearchFlagsV1()`.
-  - `.opencode/tools/deep_research/lifecycle_lib.ts` *also* defines `resolveDeepResearchFlagsV1()`.
-- `run_init` bakes a snapshot of flags into `manifest.query.constraints.deep_research_flags` (`.opencode/tools/deep_research/run_init.ts`, lines ~161–179).
+  - `.opencode/tools/deep_research_cli/flags_v1.ts` has `resolveDeepResearchFlagsV1()`.
+  - `.opencode/tools/deep_research_cli/lifecycle_lib.ts` *also* defines `resolveDeepResearchFlagsV1()`.
+- `run_init` bakes a snapshot of flags into `manifest.query.constraints.deep_research_flags` (`.opencode/tools/deep_research_cli/run_init.ts`, lines ~161–179).
 - The CLI writes `run-config.json` (`writeRunConfig()` in `.opencode/pai-tools/deep-research-option-c.ts`), and `citations_validate.ts` attempts to read it.
 
 Pain:
@@ -215,7 +215,7 @@ Below are proposals that map to concrete repo paths and existing tool seams.
 
 Problem:
 
-- In `.opencode/tools/deep_research/orchestrator_tick_live.ts`, the rerun decision is “output exists?” instead of “output exists AND matches current prompt.”
+- In `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts`, the rerun decision is “output exists?” instead of “output exists AND matches current prompt.”
 
 Concrete implementation:
 
@@ -230,7 +230,7 @@ Why this kills time waste:
 
 Where to implement:
 
-- `.opencode/tools/deep_research/orchestrator_tick_live.ts` (skip logic near `outputAlreadyExists`).
+- `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts` (skip logic near `outputAlreadyExists`).
 
 #### P0.2 First-class Task-backed Wave1 runAgent (pleasant live research)
 
@@ -339,7 +339,7 @@ This is iteration-friendly because it prevents full reruns and makes changes exp
 Current:
 
 - CLI supports `capture-fixtures` → `fixture_bundle_capture` (`.opencode/pai-tools/deep-research-option-c.ts`).
-- Bundle currently requires presence of synthesis + Gate E reports (`.opencode/tools/deep_research/fixture_bundle_capture.ts`).
+- Bundle currently requires presence of synthesis + Gate E reports (`.opencode/tools/deep_research_cli/fixture_bundle_capture.ts`).
 
 Proposal:
 
@@ -359,7 +359,7 @@ Why:
 
 Current wave contract:
 
-- Enforced by `wave_output_validate` (`.opencode/tools/deep_research/wave_output_validate.ts`):
+- Enforced by `wave_output_validate` (`.opencode/tools/deep_research_cli/wave_output_validate.ts`):
   - required headings
   - max words
   - max sources
@@ -481,7 +481,7 @@ Add CLI commands:
 
 Current:
 
-- Locking exists and is robust (`.opencode/tools/deep_research/run_lock.ts` supports stale lock eviction).
+- Locking exists and is robust (`.opencode/tools/deep_research_cli/run_lock.ts` supports stale lock eviction).
 - But there’s no “operator command” to inspect/clear locks.
 
 Add:
@@ -580,7 +580,7 @@ Failure triage steps:
 
 1) `bun ".opencode/pai-tools/deep-research-option-c.ts" inspect --manifest "<ABS_MANIFEST>"`
 2) If `RETRY_REQUIRED`: open `retry/retry-directives.json`, rerun only those perspectives.
-3) If `wave_output_validate` failures (missing headings/too many words): adjust prompt template in `wave1_plan` prompt builder (`buildWave1PromptMd()` in `.opencode/tools/deep_research/wave_tools_shared.ts`, via `wave1_plan.ts`).
+3) If `wave_output_validate` failures (missing headings/too many words): adjust prompt template in `wave1_plan` prompt builder (`buildWave1PromptMd()` in `.opencode/tools/deep_research_cli/wave_tools_shared.ts`, via `wave1_plan.ts`).
 
 ### M3 (Finalize) — evidence run
 
@@ -637,7 +637,7 @@ Long runs fail for two reasons: (1) web brittleness, (2) human context loss. The
    - If blocking occurs: convert it to a queue; resolve by replacement URLs or fixture capture.
 
 4) **Convergence policy**:
-   - Wave outputs: bounded retries via `retry_record` caps (Gate B cap in `GATE_RETRY_CAPS_V1` in `.opencode/tools/deep_research/schema_v1.ts`).
+   - Wave outputs: bounded retries via `retry_record` caps (Gate B cap in `GATE_RETRY_CAPS_V1` in `.opencode/tools/deep_research_cli/schema_v1.ts`).
    - Review loop: bounded by `manifest.limits.max_review_iterations` and enforced by `stage_advance.ts`.
 
 ---
@@ -666,7 +666,7 @@ Long runs fail for two reasons: (1) web brittleness, (2) human context loss. The
 
 - Stage-level `.stage-cache` digests and skip semantics.
 - Two-stage fixture capture (citations + finalize).
-- Regression replay suite integration (`regression_run` already exists under `.opencode/tools/deep_research/regression_run.ts`).
+- Regression replay suite integration (`regression_run` already exists under `.opencode/tools/deep_research_cli/regression_run.ts`).
 
 ---
 
@@ -674,10 +674,10 @@ Long runs fail for two reasons: (1) web brittleness, (2) human context loss. The
 
 - Operator doc: `.opencode/commands/deep-research.md`
 - Option C CLI: `.opencode/pai-tools/deep-research-option-c.ts`
-- Stage machine: `.opencode/tools/deep_research/stage_advance.ts`
-- Wave1 orchestrator: `.opencode/tools/deep_research/orchestrator_tick_live.ts`
-- Post-pivot orchestrator: `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts`
-- Post-summaries orchestrator: `.opencode/tools/deep_research/orchestrator_tick_post_summaries.ts`
-- Citations validate: `.opencode/tools/deep_research/citations_validate.ts`
-- Fixture capture: `.opencode/tools/deep_research/fixture_bundle_capture.ts`
+- Stage machine: `.opencode/tools/deep_research_cli/stage_advance.ts`
+- Wave1 orchestrator: `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts`
+- Post-pivot orchestrator: `.opencode/tools/deep_research_cli/orchestrator_tick_post_pivot.ts`
+- Post-summaries orchestrator: `.opencode/tools/deep_research_cli/orchestrator_tick_post_summaries.ts`
+- Citations validate: `.opencode/tools/deep_research_cli/citations_validate.ts`
+- Fixture capture: `.opencode/tools/deep_research_cli/fixture_bundle_capture.ts`
 - Smoke tests: `.opencode/tests/smoke/deep_research_live_wave1_smoke.test.ts`, `.opencode/tests/smoke/deep_research_live_finalize_smoke.test.ts`

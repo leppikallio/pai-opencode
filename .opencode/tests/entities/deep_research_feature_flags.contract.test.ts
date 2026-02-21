@@ -4,9 +4,9 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 
-import { run_init } from "../../tools/deep_research.ts";
-import { resolveDeepResearchFlagsV1 as resolveFlagsFromSpecReader } from "../../tools/deep_research/flags_v1";
-import { resolveDeepResearchFlagsV1 as resolveFlagsFromLifecycle } from "../../tools/deep_research/lifecycle_lib";
+import { run_init } from "../../tools/deep_research_cli.ts";
+import { resolveDeepResearchFlagsV1 as resolveFlagsFromSpecReader } from "../../tools/deep_research_cli/flags_v1";
+import { resolveDeepResearchFlagsV1 as resolveFlagsFromLifecycle } from "../../tools/deep_research_cli/lifecycle_lib";
 import { makeToolContext, parseToolJson, withTempDir } from "../helpers/dr-harness";
 
 const FLAG_SETTINGS_KEYS = [

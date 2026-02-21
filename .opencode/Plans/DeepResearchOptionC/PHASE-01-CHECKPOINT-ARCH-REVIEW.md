@@ -4,7 +4,7 @@ Date: 2026-02-13
 
 ## Review scope
 Reviewed the **Phase 01 substrate** implemented so far:
-- `.opencode/tools/deep_research.ts` tool contracts and naming conventions
+- `.opencode/tools/deep_research_cli.ts` tool contracts and naming conventions
 - Phase 01 spec alignment updates:
   - `spec-install-layout-v1.md`
   - `spec-session-progress-v1.md`
@@ -19,7 +19,7 @@ Not reviewed / not complete in Phase 01:
 ## Findings
 
 ### PASS — Tool naming and OpenCode compatibility
-- Tool file: `.opencode/tools/deep_research.ts`
+- Tool file: `.opencode/tools/deep_research_cli.ts`
 - Conforms to OpenCode tool naming rule: `<filename>_<exportname>`.
   - Example: export `run_init` → tool name `deep_research_run_init`.
 
@@ -54,7 +54,7 @@ Not reviewed / not complete in Phase 01:
 
 2) Install layout spec updated to match implementation
 - `spec-install-layout-v1.md` now lists:
-  - `tools/deep_research.ts`
+  - `tools/deep_research_cli.ts`
 
 3) Checkpoint draft exists and lists known gaps
 - `PHASE-01-CHECKPOINT.md` (Draft)

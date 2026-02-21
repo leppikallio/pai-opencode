@@ -4,7 +4,7 @@ Date: 2026-02-13
 
 ## Environment
 - Workdir: `/Users/zuul/Projects/pai-opencode-graphviz/.opencode`
-- Tool under test: `./tools/deep_research.ts`
+- Tool under test: `./tools/deep_research_cli.ts`
 
 ## What was verified
 1) `manifest_write` rejects immutable-field patches (e.g. `revision`).
@@ -14,7 +14,7 @@ Date: 2026-02-13
 
 ## Command executed (repro)
 ```bash
-bun -e 'import { run_init, manifest_write, gates_write } from "./tools/deep_research.ts";
+bun -e 'import { run_init, manifest_write, gates_write } from "./tools/deep_research_cli.ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 

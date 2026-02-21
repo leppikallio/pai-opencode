@@ -2,8 +2,8 @@ import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { run_init } from "../../tools/deep_research.ts";
-import * as deepResearch from "../../tools/deep_research.ts";
+import { run_init } from "../../tools/deep_research_cli.ts";
+import * as deepResearch from "../../tools/deep_research_cli.ts";
 import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 const gate_b_derive = ((deepResearch as any).gate_b_derive ??

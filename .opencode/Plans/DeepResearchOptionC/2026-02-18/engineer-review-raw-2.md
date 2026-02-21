@@ -14,13 +14,13 @@ I’m treating “pleasant” as: **(1)** minimal reruns, **(2)** obvious next s
 
 Option C already has a strong “artifact core” that supports deterministic orchestration and replay:
 
-- **Run roots + schemas**: `.opencode/tools/deep_research/run_init.ts` writes `manifest.v1` and `gates.v1` with stable artifact paths and constraints snapshot (`manifest.query.constraints.deep_research_flags`).
-- **Authoritative stage machine**: `.opencode/tools/deep_research/stage_advance.ts` is the gatekeeper for stage transitions and surfaces a structured `decision.evaluated[]` explaining exactly *what* is missing/blocked.
+- **Run roots + schemas**: `.opencode/tools/deep_research_cli/run_init.ts` writes `manifest.v1` and `gates.v1` with stable artifact paths and constraints snapshot (`manifest.query.constraints.deep_research_flags`).
+- **Authoritative stage machine**: `.opencode/tools/deep_research_cli/stage_advance.ts` is the gatekeeper for stage transitions and surfaces a structured `decision.evaluated[]` explaining exactly *what* is missing/blocked.
 - **Orchestrator ticks exist** for fixture, live (wave1), post-pivot (citations), and post-summaries (phase05):
-  - `.opencode/tools/deep_research/orchestrator_tick_fixture.ts`
-  - `.opencode/tools/deep_research/orchestrator_tick_live.ts`
-  - `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts`
-  - `.opencode/tools/deep_research/orchestrator_tick_post_summaries.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_fixture.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_post_pivot.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_post_summaries.ts`
 - **Deterministic fixture completion exists**: `Tools/deep-research-option-c-fixture-run.ts` drives a full offline run to `finalize` using fixture artifacts.
 
 What’s making Option C *not yet pleasant for real research* is not missing “core schemas”—it’s missing a cohesive **operator loop** that:
@@ -37,9 +37,9 @@ Smallest “pleasantness” critical path (in order):
 - **P0:** Add a **preflight scope calibration artifact** (brief + budgets + constraints + deliverables) persisted to run root and reflected in `manifest.query.constraints` before wave1 planning.
 - **P0:** Make web citations operational without manual env-var setup by moving citation endpoints into **settings or run-config artifacts** (still allowing env overrides), and by always producing **online fixtures**.
 - **P1:** Finish live end-to-end by enabling **Phase 05 generate mode** in:
-  - `.opencode/tools/deep_research/summary_pack_build.ts`
-  - `.opencode/tools/deep_research/synthesis_write.ts`
-  - `.opencode/tools/deep_research/review_factory_run.ts`
+  - `.opencode/tools/deep_research_cli/summary_pack_build.ts`
+  - `.opencode/tools/deep_research_cli/synthesis_write.ts`
+  - `.opencode/tools/deep_research_cli/review_factory_run.ts`
 - **P1:** Tighten the “iteration loop”: cheap partial reruns, explicit retry recording (`deep_research_retry_record`), and first-class triage output.
 
 ---
@@ -58,7 +58,7 @@ Smallest “pleasantness” critical path (in order):
    - CLI already writes `run-config.json` into run root and prints a stable contract (`run_id`, `run_root`, `manifest_path`, `gates_path`, `stage.current`, `status`).
 
 3) **Orchestrator ticks exist and are testable without OpenCode agent spawning**
-   - Live tick takes an injected driver function: `orchestrator_tick_live(... drivers: { runAgent } ...)` in `.opencode/tools/deep_research/orchestrator_tick_live.ts`.
+   - Live tick takes an injected driver function: `orchestrator_tick_live(... drivers: { runAgent } ...)` in `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts`.
    - The CLI currently provides a “manual operator input driver” (`createOperatorInputDriver`) that writes:
      - `operator/prompts/<stage>/<perspective_id>.md`
      - `operator/drafts/<stage>/<perspective_id>.md`
@@ -66,7 +66,7 @@ Smallest “pleasantness” critical path (in order):
 
 ### Artifact-first run substrate
 
-1) **Run init**: `.opencode/tools/deep_research/run_init.ts`
+1) **Run init**: `.opencode/tools/deep_research_cli/run_init.ts`
    - Writes `manifest.json` with:
      - `manifest.query.text`
      - `manifest.query.constraints.deep_research_flags` snapshot
@@ -74,16 +74,16 @@ Smallest “pleasantness” critical path (in order):
      - `manifest.artifacts.paths.*` canonical artifact layout
    - Writes `gates.json` with Gate A–F set `not_run`.
 
-2) **Stage advancement**: `.opencode/tools/deep_research/stage_advance.ts`
+2) **Stage advancement**: `.opencode/tools/deep_research_cli/stage_advance.ts`
    - Enforces stage transitions and, on failure, returns a structured decision including `evaluated[]` with missing artifacts and gate status.
    - This is an **ideal “operator blocker API”**—it just needs a first-class UX.
 
 3) **Web citations pipeline is present and already has reproducibility seams**:
-   - Extract URLs: `.opencode/tools/deep_research/citations_extract_urls.ts`
-   - Normalize + deterministic cid mapping: `.opencode/tools/deep_research/citations_normalize.ts`
-   - Validate: `.opencode/tools/deep_research/citations_validate.ts`
-     - In online mode, it uses an “online ladder” (`direct_fetch → bright_data → apify`) implemented in `.opencode/tools/deep_research/citations_validate_lib.ts`.
-     - It currently reads endpoints from env vars (`PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT`, `PAI_DR_CITATIONS_APIFY_ENDPOINT`) in `.opencode/tools/deep_research/citations_validate.ts`.
+   - Extract URLs: `.opencode/tools/deep_research_cli/citations_extract_urls.ts`
+   - Normalize + deterministic cid mapping: `.opencode/tools/deep_research_cli/citations_normalize.ts`
+   - Validate: `.opencode/tools/deep_research_cli/citations_validate.ts`
+     - In online mode, it uses an “online ladder” (`direct_fetch → bright_data → apify`) implemented in `.opencode/tools/deep_research_cli/citations_validate_lib.ts`.
+     - It currently reads endpoints from env vars (`PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT`, `PAI_DR_CITATIONS_APIFY_ENDPOINT`) in `.opencode/tools/deep_research_cli/citations_validate.ts`.
      - It writes `citations/found-by.json` (used to stabilize future behavior) and can emit deterministic “blocked url” items with action hints.
 
 ### Deterministic completion is proven (offline)
@@ -110,7 +110,7 @@ Smallest “pleasantness” critical path (in order):
 
 3) **Phase 05 generate-mode isn’t available end-to-end.**
    - Tools expose `mode: fixture|generate` but key parts still act fixture-first.
-   - Even where `generate` exists (e.g., `.opencode/tools/deep_research/review_factory_run.ts` has a generate branch), the operator path needs to consistently pick the right mode and persist its artifacts.
+   - Even where `generate` exists (e.g., `.opencode/tools/deep_research_cli/review_factory_run.ts` has a generate branch), the operator path needs to consistently pick the right mode and persist its artifacts.
 
 4) **Wave execution still needs a reliable “agent runner” layer.**
    - `orchestrator_tick_live.ts` supports an injected `drivers.runAgent` function, but there is no “blessed” driver that:
@@ -126,8 +126,8 @@ Smallest “pleasantness” critical path (in order):
 
 6) **Observability exists as primitives but isn’t consistently emitted in operator loops.**
    - Telemetry tools exist:
-     - `.opencode/tools/deep_research/telemetry_append.ts`
-     - `.opencode/tools/deep_research/run_metrics_write.ts`
+     - `.opencode/tools/deep_research_cli/telemetry_append.ts`
+     - `.opencode/tools/deep_research_cli/run_metrics_write.ts`
    - They need to be wired as “always-on” in the operator loop (and stage ticks should produce predictable telemetry events).
 
 ---
@@ -141,7 +141,7 @@ Smallest “pleasantness” critical path (in order):
 **Symptom:** if anything fails, you tend to restart from `init` because resuming is cognitively expensive.
 
 **Existing substrate:**
-- `run_init` returns `{ created: false }` if a run root already exists with manifest/gates (`.opencode/tools/deep_research/run_init.ts`).
+- `run_init` returns `{ created: false }` if a run root already exists with manifest/gates (`.opencode/tools/deep_research_cli/run_init.ts`).
 - CLI already has `pause` and `resume` (`.opencode/pai-tools/deep-research-option-c.ts`).
 
 **Concrete fix:**
@@ -159,7 +159,7 @@ Smallest “pleasantness” critical path (in order):
 **Symptom:** when blocked, you open multiple artifacts to discover which file/gate is missing.
 
 **Existing substrate:**
-- `stage_advance` already produces a structured decision containing `evaluated[]` entries with `{ kind: artifact|gate, ok, details.path }` (`.opencode/tools/deep_research/stage_advance.ts`).
+- `stage_advance` already produces a structured decision containing `evaluated[]` entries with `{ kind: artifact|gate, ok, details.path }` (`.opencode/tools/deep_research_cli/stage_advance.ts`).
 - CLI already has `triage` which does a *dry-run* stage advance on temp copies and summarizes missing artifacts/gates (`stageAdvanceDryRun` + `triageFromStageAdvanceResult` in `.opencode/pai-tools/deep-research-option-c.ts`).
 
 **Concrete fix:**
@@ -175,7 +175,7 @@ Smallest “pleasantness” critical path (in order):
 **Symptom:** “try again” loops waste time and create non-reproducible runs.
 
 **Existing substrate:**
-- `deep_research_retry_record` exists and enforces caps via `GATE_RETRY_CAPS_V1` (`.opencode/tools/deep_research/retry_record.ts`).
+- `deep_research_retry_record` exists and enforces caps via `GATE_RETRY_CAPS_V1` (`.opencode/tools/deep_research_cli/retry_record.ts`).
 - `orchestrator_tick_live.ts` already wires `retry_record` and even has helper `getRetryChangeNote(...)` for wave-review directives.
 
 **Concrete fix:**
@@ -236,8 +236,8 @@ This makes iteration intentional and prevents accidental flakiness.
 **Goal:** after a live run, produce a deterministic fixture bundle so the run can be replayed offline.
 
 **Existing tool surface:**
-- `deep_research_fixture_bundle_capture` (`.opencode/tools/deep_research/fixture_bundle_capture.ts`)
-- `deep_research_fixture_replay` (`.opencode/tools/deep_research/fixture_replay.ts`)
+- `deep_research_fixture_bundle_capture` (`.opencode/tools/deep_research_cli/fixture_bundle_capture.ts`)
+- `deep_research_fixture_replay` (`.opencode/tools/deep_research_cli/fixture_replay.ts`)
 
 **Concrete UX:**
 - Add `deep-research-option-c capture-fixtures --manifest ... --bundle-id ...` that:
@@ -262,7 +262,7 @@ What’s missing is a reliable driver contract that covers:
    - required sections (`Findings`, `Sources`, `Gaps`) (this is already in the default perspective payload in `.opencode/commands/deep-research.md`).
 2) **Agent spawn**: spawn one agent per perspective (or per plan entry) and capture raw markdown output.
 3) **Ingest**: call `deep_research_wave_output_ingest` to atomically write outputs and validate contract.
-   - Tool: `.opencode/tools/deep_research/wave_output_ingest.ts`
+   - Tool: `.opencode/tools/deep_research_cli/wave_output_ingest.ts`
 4) **Validate/review**: run `deep_research_wave_output_validate` and `deep_research_wave_review`.
 5) **Retry**: if wave-review emits directives:
    - call `deep_research_retry_record` (Gate B)
@@ -271,7 +271,7 @@ What’s missing is a reliable driver contract that covers:
 
 **Where to implement without changing OpenCode:**
 - Implement the wave runner in the *slash command* (`.opencode/commands/deep-research.md`) as the orchestration layer that can call the Task tool in-chat, and then call the deterministic tools to persist results.
-- Keep `.opencode/tools/deep_research/orchestrator_tick_live.ts` as a deterministic “engine” used by tests and by non-chat drivers.
+- Keep `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts` as a deterministic “engine” used by tests and by non-chat drivers.
 
 ---
 
@@ -280,14 +280,14 @@ What’s missing is a reliable driver contract that covers:
 #### P0.8 Default to reproducible “online fixtures” in live mode
 
 **Current behavior:**
-- Online citations ladder exists, but endpoints are configured via env vars inside `.opencode/tools/deep_research/citations_validate.ts`.
+- Online citations ladder exists, but endpoints are configured via env vars inside `.opencode/tools/deep_research_cli/citations_validate.ts`.
 
 **Concrete improvements:**
 1) **Persist effective citation config** in `run-config.json` (already written by CLI):
    - `.opencode/pai-tools/deep-research-option-c.ts` writes `run-config.json` including `citation_validation_tier` and endpoint tool IDs.
    - Extend it to also include endpoint URLs (if configured) and whether online fixtures are required.
 2) **Always write `citations/online-fixtures.json`** during online validation.
-   - If a URL is blocked/paywalled, store a deterministic fixture with `status=blocked|paywalled` + action hint (see `blockedUrlAction` in `.opencode/tools/deep_research/citations_validate.ts`).
+   - If a URL is blocked/paywalled, store a deterministic fixture with `status=blocked|paywalled` + action hint (see `blockedUrlAction` in `.opencode/tools/deep_research_cli/citations_validate.ts`).
 3) **Support `online_dry_run=true`** as a first operator pass:
    - Use it to get deterministic classification without network; then selectively escalate.
 
@@ -316,9 +316,9 @@ This is how you avoid time-waste from “randomly rerun citations and hope it wo
 #### P0.10 Make telemetry always-on at the operator layer
 
 **Existing tools:**
-- `deep_research_telemetry_append`: `.opencode/tools/deep_research/telemetry_append.ts`
-- `deep_research_run_metrics_write`: `.opencode/tools/deep_research/run_metrics_write.ts`
-- `deep_research_watchdog_check`: `.opencode/tools/deep_research/watchdog_check.ts`
+- `deep_research_telemetry_append`: `.opencode/tools/deep_research_cli/telemetry_append.ts`
+- `deep_research_run_metrics_write`: `.opencode/tools/deep_research_cli/run_metrics_write.ts`
+- `deep_research_watchdog_check`: `.opencode/tools/deep_research_cli/watchdog_check.ts`
 
 **Concrete event model (minimal):**
 - `run_status`: running|paused|failed|completed
@@ -379,7 +379,7 @@ bun ".opencode/pai-tools/deep-research-option-c.ts" triage --run-id dr_20260218_
 
 #### P1.2 “No env vars” in practice: make config explicit and inspectable
 
-Reality check: some env vars are still used (notably citations endpoints in `.opencode/tools/deep_research/citations_validate.ts`).
+Reality check: some env vars are still used (notably citations endpoints in `.opencode/tools/deep_research_cli/citations_validate.ts`).
 
 Concrete proposal:
 
@@ -490,7 +490,7 @@ For 1h+ runs, “pleasant” means you can pause, resume, and recover without co
 Concrete strategy (all artifact-derived):
 
 1) **Hard time bounds per tick**
-   - Enforce `deep_research_watchdog_check` before and after ticks (`.opencode/tools/deep_research/watchdog_check.ts`).
+   - Enforce `deep_research_watchdog_check` before and after ticks (`.opencode/tools/deep_research_cli/watchdog_check.ts`).
 2) **Pause/resume is first-class**
    - CLI already has `pause` and `resume` (`.opencode/pai-tools/deep-research-option-c.ts`).
    - Ensure pause writes a checkpoint that includes:
@@ -553,16 +553,16 @@ Operator CLI:
 - `.opencode/pai-tools/deep-research-option-c.ts`
 
 Deterministic tools (export barrel):
-- `.opencode/tools/deep_research/index.ts`
+- `.opencode/tools/deep_research_cli/index.ts`
 
 Key tools:
-- `deep_research_run_init` (`.opencode/tools/deep_research/run_init.ts`)
-- `deep_research_stage_advance` (`.opencode/tools/deep_research/stage_advance.ts`)
-- `deep_research_retry_record` (`.opencode/tools/deep_research/retry_record.ts`)
-- `deep_research_wave_output_ingest` (`.opencode/tools/deep_research/wave_output_ingest.ts`)
-- `deep_research_citations_validate` (`.opencode/tools/deep_research/citations_validate.ts`)
-- `deep_research_telemetry_append` (`.opencode/tools/deep_research/telemetry_append.ts`)
-- `deep_research_run_metrics_write` (`.opencode/tools/deep_research/run_metrics_write.ts`)
+- `deep_research_run_init` (`.opencode/tools/deep_research_cli/run_init.ts`)
+- `deep_research_stage_advance` (`.opencode/tools/deep_research_cli/stage_advance.ts`)
+- `deep_research_retry_record` (`.opencode/tools/deep_research_cli/retry_record.ts`)
+- `deep_research_wave_output_ingest` (`.opencode/tools/deep_research_cli/wave_output_ingest.ts`)
+- `deep_research_citations_validate` (`.opencode/tools/deep_research_cli/citations_validate.ts`)
+- `deep_research_telemetry_append` (`.opencode/tools/deep_research_cli/telemetry_append.ts`)
+- `deep_research_run_metrics_write` (`.opencode/tools/deep_research_cli/run_metrics_write.ts`)
 
 Specs:
 - `.opencode/Plans/DeepResearchOptionC/spec-stage-machine-v1.md`

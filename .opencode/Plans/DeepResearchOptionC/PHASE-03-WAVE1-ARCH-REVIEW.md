@@ -1,6 +1,6 @@
 # PHASE-03-WAVE1-ARCH-REVIEW — Spec Compliance Review (Wave 1)
 
-Scope: Phase 03 Wave 1 tools implemented in `.opencode/tools/deep_research.ts`:
+Scope: Phase 03 Wave 1 tools implemented in `.opencode/tools/deep_research_cli.ts`:
 - `wave1_plan` (tool name: `deep_research_wave1_plan`)
 - `wave_output_validate` (tool name: `deep_research_wave_output_validate`)
 
@@ -87,10 +87,10 @@ Suggested additions:
 ## Evidence pointers
 
 1) Implementation — `wave1_plan`:
-- `.opencode/tools/deep_research.ts` (wave1_plan implementation section)
+- `.opencode/tools/deep_research_cli.ts` (wave1_plan implementation section)
 
 2) Implementation — `wave_output_validate`:
-- `.opencode/tools/deep_research.ts` (wave_output_validate implementation section)
+- `.opencode/tools/deep_research_cli.ts` (wave_output_validate implementation section)
 
 3) Spec — wave1 plan:
 - `.opencode/Plans/DeepResearchOptionC/spec-tool-deep-research-wave1-plan-v1.md`

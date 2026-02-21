@@ -8,7 +8,7 @@ Status: Signed off — see `PHASE-01-CHECKPOINT-GATE-A-SIGNOFF.md`.
 Phase 01 — Platform core scaffolding (Option C) in the integration layer only.
 
 ## What changed
-- Implemented/updated custom tools in `.opencode/tools/deep_research.ts`:
+- Implemented/updated custom tools in `.opencode/tools/deep_research_cli.ts`:
   - `deep_research_run_init`
   - `deep_research_manifest_write`
   - `deep_research_gates_write`
@@ -24,7 +24,7 @@ Phase 01 — Platform core scaffolding (Option C) in the integration layer only.
 
 ## Evidence
 1) Tool typecheck (targeted)
-- Command: `bunx tsc ... tools/deep_research.ts`
+- Command: `bunx tsc ... tools/deep_research_cli.ts`
 - Result: `TYPECHECK_OK`
 
 2) Flag persistence in manifest

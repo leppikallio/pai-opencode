@@ -12,13 +12,13 @@ Status: DONE
 - Epic branch: `ws/epic-e3-longrun-timeouts`
 
 ## Target files
-- Timeout constants: `.opencode/tools/deep_research/lifecycle_lib.ts`
-- Watchdog enforcement: `.opencode/tools/deep_research/watchdog_check.ts`
-- Manifest writer: `.opencode/tools/deep_research/manifest_write.ts`
+- Timeout constants: `.opencode/tools/deep_research_cli/lifecycle_lib.ts`
+- Watchdog enforcement: `.opencode/tools/deep_research_cli/watchdog_check.ts`
+- Manifest writer: `.opencode/tools/deep_research_cli/manifest_write.ts`
 - Orchestrators (to emit progress):
-  - `.opencode/tools/deep_research/orchestrator_tick_live.ts`
-  - `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts`
-  - `.opencode/tools/deep_research/orchestrator_tick_post_summaries.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_post_pivot.ts`
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_post_summaries.ts`
 
 ## Outcome (what “done” means)
 Long-running live stages do not fail deterministically just because they take > 10 minutes.

@@ -32,7 +32,7 @@ Reason: the deterministic substrate is already substantial (stage machine, gates
 ### M2 — Wave output ingest/commit tool (batch writes + validation)
 
 1) **Add new tool module**
-- Suggested file: `.opencode/tools/deep_research/wave_output_ingest.ts`
+- Suggested file: `.opencode/tools/deep_research_cli/wave_output_ingest.ts`
 - Behavior:
   - accept batch outputs
   - write `wave-1/<perspective_id>.md` (or wave-2 equivalent)
@@ -41,7 +41,7 @@ Reason: the deterministic substrate is already substantial (stage machine, gates
   - return pass/fail + retry directives
 
 2) **Export wiring**
-- Update `.opencode/tools/deep_research/index.ts` and optionally `wave.ts`.
+- Update `.opencode/tools/deep_research_cli/index.ts` and optionally `wave.ts`.
 
 3) **Entity test for ingest tool**
 - Suggested file: `.opencode/tests/entities/deep_research_wave_output_ingest.test.ts`

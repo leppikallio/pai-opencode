@@ -16,9 +16,9 @@ Remove the fixture-only blockers so real runs can reach finalize:
 ## Deliverables
 
 - Modify:
-  - `.opencode/tools/deep_research/summary_pack_build.ts`
-  - `.opencode/tools/deep_research/synthesis_write.ts`
-  - `.opencode/tools/deep_research/review_factory_run.ts`
+  - `.opencode/tools/deep_research_cli/summary_pack_build.ts`
+  - `.opencode/tools/deep_research_cli/synthesis_write.ts`
+  - `.opencode/tools/deep_research_cli/review_factory_run.ts`
 - Extend orchestrator post-summaries to support live inputs (not absolute fixture dirs).
 - Add entity tests for generate-mode path using deterministic agent-output fixtures (not Phase05 fixtures).
 

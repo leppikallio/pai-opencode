@@ -3,7 +3,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { pivot_decide, run_init } from "../../tools/deep_research.ts";
+import { pivot_decide, run_init } from "../../tools/deep_research_cli.ts";
 import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
 const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));

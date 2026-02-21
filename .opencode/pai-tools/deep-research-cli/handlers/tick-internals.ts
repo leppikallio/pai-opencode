@@ -9,7 +9,7 @@ import {
   type OrchestratorTickLiveResult,
   type OrchestratorTickPostPivotResult,
   type OrchestratorTickPostSummariesResult,
-} from "../../../tools/deep_research.ts";
+} from "../../../tools/deep_research_cli.ts";
 import { defaultFixtureDriver } from "../drivers/fixture-driver";
 import { readJsonObject } from "../utils/io-json";
 import { summarizeManifest } from "../utils/run-handle";

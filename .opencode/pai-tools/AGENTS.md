@@ -53,7 +53,7 @@ Prefer:
 Avoid:
 
 - feature modules importing `cli/*` (domain/schema logic should be CLI-agnostic)
-- ad-hoc direct imports of `../../../tools/deep_research.ts` from many files (wrap in `tooling/*` helpers)
+- ad-hoc direct imports of `../../../tools/deep_research_cli.ts` from many files (wrap in `tooling/*` helpers)
 
 ---
 

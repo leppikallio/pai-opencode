@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import * as fs from "node:fs/promises";
 
-import { run_init, stage_advance } from "../../tools/deep_research.ts";
+import { run_init, stage_advance } from "../../tools/deep_research_cli.ts";
 import { makeToolContext, parseToolJson, withTempDir } from "../helpers/dr-harness";
 
 async function disableOptionCInManifest(manifestPath: string) {

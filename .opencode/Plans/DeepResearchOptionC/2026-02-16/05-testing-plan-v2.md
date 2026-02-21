@@ -111,7 +111,7 @@ Recommended deterministic write flow:
 3) `deep_research_gates_write` (atomic Gate B write)
 
 ### 2.2 Required new ingestion tool + entity test (exact paths)
-- **MUST ADD tool**: `.opencode/tools/deep_research/wave_output_ingest.ts`
+- **MUST ADD tool**: `.opencode/tools/deep_research_cli/wave_output_ingest.ts`
 - **MUST ADD test**: `.opencode/tests/entities/deep_research_wave_output_ingest.test.ts`
 
 Ingest test must prove:

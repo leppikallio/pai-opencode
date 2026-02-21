@@ -2,7 +2,7 @@
 
 ## Environment
 - Repo: `/Users/zuul/Projects/pai-opencode-graphviz`
-- Tool under test: `.opencode/tools/deep_research.ts`
+- Tool under test: `.opencode/tools/deep_research_cli.ts`
 - Specs:
   - `.opencode/Plans/DeepResearchOptionC/spec-tool-deep-research-run-init-v1.md`
   - `.opencode/Plans/DeepResearchOptionC/spec-tool-deep-research-manifest-write-v1.md`

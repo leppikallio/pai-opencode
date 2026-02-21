@@ -18,15 +18,15 @@ Source backlog: `deep-research-option-c-phase-05-executable-backlog.md`
 | ID | Backlog item | Status | Evidence |
 |---|---|---|---|
 | P05-01 | Summary pack build contract | ✅ Done | `spec-tool-deep-research-summary-pack-build-v1.md` |
-| P05-02 | Tool: `deep_research_summary_pack_build` | ✅ Done | `.opencode/tools/deep_research.ts` (`export const summary_pack_build`) + entity test `deep_research_summary_pack_build.test.ts` |
+| P05-02 | Tool: `deep_research_summary_pack_build` | ✅ Done | `.opencode/tools/deep_research_cli.ts` (`export const summary_pack_build`) + entity test `deep_research_summary_pack_build.test.ts` |
 | P05-03 | Gate D evaluator contract | ✅ Done | `spec-tool-deep-research-gate-d-evaluate-v1.md` |
-| P05-04 | Tool: `deep_research_gate_d_evaluate` | ✅ Done | `.opencode/tools/deep_research.ts` (`export const gate_d_evaluate`) + entity test `deep_research_gate_d_evaluate.test.ts` |
+| P05-04 | Tool: `deep_research_gate_d_evaluate` | ✅ Done | `.opencode/tools/deep_research_cli.ts` (`export const gate_d_evaluate`) + entity test `deep_research_gate_d_evaluate.test.ts` |
 | P05-05 | Synthesis writer contract | ✅ Done | `spec-tool-deep-research-synthesis-write-v1.md` |
-| P05-06 | Tool: `deep_research_synthesis_write` | ✅ Done | `.opencode/tools/deep_research.ts` (`export const synthesis_write`) + entity test `deep_research_synthesis_write.test.ts` |
+| P05-06 | Tool: `deep_research_synthesis_write` | ✅ Done | `.opencode/tools/deep_research_cli.ts` (`export const synthesis_write`) + entity test `deep_research_synthesis_write.test.ts` |
 | P05-07 | Gate E evaluator contract | ✅ Done | `spec-tool-deep-research-gate-e-evaluate-v1.md` |
-| P05-08 | Tool: `deep_research_gate_e_evaluate` | ✅ Done | `.opencode/tools/deep_research.ts` (`export const gate_e_evaluate`) + entity test `deep_research_gate_e_evaluate.test.ts` |
+| P05-08 | Tool: `deep_research_gate_e_evaluate` | ✅ Done | `.opencode/tools/deep_research_cli.ts` (`export const gate_e_evaluate`) + entity test `deep_research_gate_e_evaluate.test.ts` |
 | P05-09 | Reviewer factory contract | ✅ Done | `spec-tool-deep-research-review-factory-run-v1.md` |
-| P05-10 | Tools: `deep_research_review_factory_run` + `deep_research_revision_control` | ✅ Done | `.opencode/tools/deep_research.ts` (`export const review_factory_run`, `export const revision_control`) + entity tests `deep_research_review_factory_run.test.ts`, `deep_research_revision_control.test.ts` |
+| P05-10 | Tools: `deep_research_review_factory_run` + `deep_research_revision_control` | ✅ Done | `.opencode/tools/deep_research_cli.ts` (`export const review_factory_run`, `export const revision_control`) + entity tests `deep_research_review_factory_run.test.ts`, `deep_research_revision_control.test.ts` |
 | P05-T* | Phase 05 entity tests + fixtures | ✅ Done | `bun test tests` (see Evidence) + fixtures under `.opencode/tests/fixtures/summaries/phase05/` |
 | P05-X1 | Phase 05 checkpoint + Gate D/E signoff | ✅ Done | This document |
 

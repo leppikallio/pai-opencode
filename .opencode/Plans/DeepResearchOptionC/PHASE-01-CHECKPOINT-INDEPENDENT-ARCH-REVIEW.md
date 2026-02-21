@@ -4,7 +4,7 @@
 Independent architecture review of Phase 01 (Platform core scaffolding) for Deep Research Option C.
 
 Reviewed artifacts:
-- `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/tools/deep_research.ts`
+- `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/tools/deep_research_cli.ts`
 - `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/commands/deep-research.md`
 - `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/Plans/DeepResearchOptionC/spec-install-layout-v1.md`
 - `/Users/zuul/Projects/pai-opencode-graphviz/.opencode/Plans/DeepResearchOptionC/spec-feature-flags-v1.md`

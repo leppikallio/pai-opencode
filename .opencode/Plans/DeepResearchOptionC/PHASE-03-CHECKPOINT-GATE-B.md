@@ -22,18 +22,18 @@ Source backlog: `deep-research-option-c-phase-03-executable-backlog.md`
 | ID | Backlog item | Status | Evidence |
 |---|---|---|---|
 | P03-01 | Perspectives writer contract | ✅ Done | `spec-tool-deep-research-perspectives-write-v1.md` |
-| P03-02 | Tool: perspectives_write | ✅ Done | `.opencode/tools/deep_research.ts` (`export const perspectives_write`) + entity test `deep_research_perspectives_write.test.ts` |
+| P03-02 | Tool: perspectives_write | ✅ Done | `.opencode/tools/deep_research_cli.ts` (`export const perspectives_write`) + entity test `deep_research_perspectives_write.test.ts` |
 | P03-T1 | Entity tests: perspectives_write | ✅ Done | `bun test tests` (see Evidence) |
 | P03-03 | Wave 1 plan contract | ✅ Done | `spec-tool-deep-research-wave1-plan-v1.md` |
-| P03-04 | Tool: wave1_plan | ✅ Done | `.opencode/tools/deep_research.ts` (`export const wave1_plan`) + entity test `deep_research_wave1_plan.test.ts` |
+| P03-04 | Tool: wave1_plan | ✅ Done | `.opencode/tools/deep_research_cli.ts` (`export const wave1_plan`) + entity test `deep_research_wave1_plan.test.ts` |
 | P03-T2 | Entity tests: wave1_plan | ✅ Done | `bun test tests` (see Evidence) |
 | P03-05 | Wave output validate contract | ✅ Done | `spec-tool-deep-research-wave-output-validate-v1.md` |
-| P03-06 | Tool: wave_output_validate | ✅ Done | `.opencode/tools/deep_research.ts` (`export const wave_output_validate`) + entity test `deep_research_wave_output_validate.test.ts` |
+| P03-06 | Tool: wave_output_validate | ✅ Done | `.opencode/tools/deep_research_cli.ts` (`export const wave_output_validate`) + entity test `deep_research_wave_output_validate.test.ts` |
 | P03-T3 | Entity tests: wave_output_validate | ✅ Done | `bun test tests` (see Evidence) |
 | P03-07 | Pivot rubric + decision schema | ✅ Done | `pivot-rubric-v1.md` + `spec-pivot-decision-schema-v1.md` |
-| P03-08 | Tool: pivot_decide | ✅ Done | `.opencode/tools/deep_research.ts` (`export const pivot_decide`) + entity test `deep_research_pivot_decide.test.ts` |
+| P03-08 | Tool: pivot_decide | ✅ Done | `.opencode/tools/deep_research_cli.ts` (`export const pivot_decide`) + entity test `deep_research_pivot_decide.test.ts` |
 | P03-T4 | Entity tests: pivot_decide | ✅ Done | `bun test ./.opencode/tests/entities/deep_research_pivot_decide.test.ts` (see Evidence) |
-| P03-09 | Reviewer scaffold spec + tool | ✅ Done | `spec-tool-deep-research-wave-review-v1.md` + `.opencode/tools/deep_research.ts` (`export const wave_review`) |
+| P03-09 | Reviewer scaffold spec + tool | ✅ Done | `spec-tool-deep-research-wave-review-v1.md` + `.opencode/tools/deep_research_cli.ts` (`export const wave_review`) |
 | P03-T5 | Entity tests: wave_review | ✅ Done | `bun test ./.opencode/tests/entities/deep_research_wave_review.test.ts` (see Evidence) |
 | P03-X1 | Phase 03 checkpoint + Gate B signoff | ✅ Done | This document |
 
@@ -54,7 +54,7 @@ Gate B for Phase 03 is interpreted per:
 ### Typecheck (targeted)
 Command (run in `.opencode/`):
 ```bash
-bunx tsc ... tools/deep_research.ts
+bunx tsc ... tools/deep_research_cli.ts
 TYPECHECK_OK
 ```
 

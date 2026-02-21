@@ -21,8 +21,8 @@ Deliverables:
 
 Suggested implementation targets (from reviews):
 - Driver boundary is injected into:
-  - `.opencode/tools/deep_research/orchestrator_tick_live.ts` (Wave1)
-  - `.opencode/tools/deep_research/orchestrator_tick_post_pivot.ts` (Wave2)
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_live.ts` (Wave1)
+  - `.opencode/tools/deep_research_cli/orchestrator_tick_post_pivot.ts` (Wave2)
 - The CLI currently defaults to an operator-input driver:
   - `.opencode/pai-tools/deep-research-option-c.ts`
 

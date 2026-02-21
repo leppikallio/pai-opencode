@@ -1,7 +1,7 @@
 import * as path from "node:path";
 
-import { fixture_bundle_capture } from "../../../tools/deep_research.ts";
-import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research/lifecycle_lib";
+import { fixture_bundle_capture } from "../../../tools/deep_research_cli.ts";
+import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
 import { emitJson } from "../cli/json-mode";
 import { readJsonObject } from "../utils/io-json";
 import { requireAbsolutePath } from "../utils/paths";

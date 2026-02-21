@@ -14,9 +14,9 @@ Status: TODO
 ## Target files (where changes will land)
 - Operator CLI: `.opencode/pai-tools/deep-research-option-c.ts`
 - Deterministic helpers referenced by CLI:
-  - `.opencode/tools/deep_research/lifecycle_lib.ts`
-  - `.opencode/tools/deep_research/manifest_write.ts`
-  - `.opencode/tools/deep_research/stage_advance.ts`
+  - `.opencode/tools/deep_research_cli/lifecycle_lib.ts`
+  - `.opencode/tools/deep_research_cli/manifest_write.ts`
+  - `.opencode/tools/deep_research_cli/stage_advance.ts`
 
 ## Outcomes (what “done” means)
 The CLI becomes “run-id-first, resume-first”:
