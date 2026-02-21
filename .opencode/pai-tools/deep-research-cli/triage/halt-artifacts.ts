@@ -5,6 +5,9 @@ import {
   readJsonObject,
 } from "../utils/io-json";
 import {
+  atomicWriteUtf8,
+} from "../../../tools/deep_research_cli/lifecycle_lib";
+import {
   safeResolveManifestPath,
 } from "../utils/paths";
 import {
@@ -228,8 +231,8 @@ export async function writeHaltArtifact(args: {
   };
 
   const serialized = `${JSON.stringify(artifact, null, 2)}\n`;
-  await fs.writeFile(tickPath, serialized, "utf8");
-  await fs.writeFile(latestPath, serialized, "utf8");
+  await atomicWriteUtf8(tickPath, serialized);
+  await atomicWriteUtf8(latestPath, serialized);
 
   return {
     tickPath,
