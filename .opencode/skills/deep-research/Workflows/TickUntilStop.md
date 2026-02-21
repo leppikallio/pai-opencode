@@ -15,12 +15,21 @@ Resume-safe loop that dispatches by current manifest stage until progress stops.
 - `pivot|citations` -> post-pivot orchestration path
 - `summaries|synthesis|review` -> post-summaries orchestration path
 
+## Choose CLI invocation
+
+```bash
+# Repo checkout (this repository)
+CLI='bun .opencode/pai-tools/deep-research-cli.ts'
+# Runtime install (~/.config/opencode)
+# CLI='bun pai-tools/deep-research-cli.ts'
+```
+
 ## Steps
 
 1. Loop one tick at a time:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" --reason "loop tick" --driver task --json
+$CLI tick --manifest "<manifest_abs>" --reason "loop tick" --driver task --json
 ```
 
    `--gates "<gates_abs>"` is optional; omit it unless you need to override the manifest-derived gates path.
@@ -28,7 +37,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" tick --manifest "<manifest_abs>" 
 2. After each tick, run triage when blocked:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" triage --manifest "<manifest_abs>"
+$CLI triage --manifest "<manifest_abs>"
 ```
 
 3. Stop when terminal status reached or a typed blocker is emitted (the CLI prints the blocker artifact path when present).

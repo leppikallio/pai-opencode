@@ -9,6 +9,15 @@ Derive a stable `perspectives.json` from a query so Wave 1 can run deterministic
 - `run_root`
 - Wave cap from `manifest.limits.max_wave1_agents`
 
+## Choose CLI invocation
+
+```bash
+# Repo checkout (this repository)
+CLI='bun .opencode/pai-tools/deep-research-cli.ts'
+# Runtime install (~/.config/opencode)
+# CLI='bun pai-tools/deep-research-cli.ts'
+```
+
 ## Stability rules (required)
 
 - Perspective IDs must be unique and deterministic (`p1`, `p2`, ... in final order).
@@ -44,7 +53,7 @@ Minimum baseline:
 1) Initialize a run **without** perspectives (so you can enter the perspectives drafting seam):
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
+$CLI init "<query>" \
   --mode standard \
   --sensitivity normal \
   --no-perspectives
@@ -53,7 +62,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
 2) Advance into `stage.current=perspectives`:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" stage-advance \
+$CLI stage-advance \
   --manifest "<manifest_abs>" \
   --gates "<gates_abs>" \
   --requested-next perspectives \
@@ -63,7 +72,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" stage-advance \
 3) Run the task-driver prompt-out command (this **writes prompts and HALTs**):
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
+$CLI perspectives-draft \
   --manifest "<manifest_abs>" \
   --reason "draft perspectives" \
   --driver task
@@ -79,7 +88,7 @@ On halt (`RUN_AGENT_REQUIRED`), use these artifact paths:
 5) Ingest it (normalizes + writes canonical sidecars):
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" agent-result \
+$CLI agent-result \
   --manifest "<manifest_abs>" \
   --stage perspectives \
   --perspective "primary" \
@@ -97,7 +106,7 @@ This writes:
 6) Rerun `perspectives-draft` to merge + (possibly) halt for human review, or auto-promote:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
+$CLI perspectives-draft \
   --manifest "<manifest_abs>" \
   --reason "approve perspectives draft" \
   --driver task

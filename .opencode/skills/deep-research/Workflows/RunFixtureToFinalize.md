@@ -7,24 +7,33 @@ Execute deterministic fixture progression end-to-end until terminal state.
 - Query string
 - Optional: `--run-id`
 
+## Choose CLI invocation
+
+```bash
+# Repo checkout (this repository)
+CLI='bun .opencode/pai-tools/deep-research-cli.ts'
+# Runtime install (~/.config/opencode)
+# CLI='bun pai-tools/deep-research-cli.ts'
+```
+
 ## Steps
 
 1. Initialize fixture run:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --sensitivity no_web --mode standard
+$CLI init "<query>" --sensitivity no_web --mode standard
 ```
 
 2. Advance with fixture driver until stop:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" run --manifest "<manifest_abs>" --gates "<gates_abs>" --reason "fixture finalize" --driver fixture --max-ticks 30
+$CLI run --manifest "<manifest_abs>" --gates "<gates_abs>" --reason "fixture finalize" --driver fixture --max-ticks 30
 ```
 
 3. If blocked, inspect + triage:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" inspect --manifest "<manifest_abs>"
+$CLI inspect --manifest "<manifest_abs>"
 ```
 
 ## Validation Contract
