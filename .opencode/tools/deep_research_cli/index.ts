@@ -34,6 +34,7 @@ export * from "./summary_pack_build";
 export * from "./gate_d_evaluate";
 export * from "./synthesis_write";
 export * from "./gate_e_evaluate";
+export * from "./gate_f_evaluate";
 export * from "./gate_e_reports";
 export * from "./review_factory_run";
 export * from "./revision_control";
