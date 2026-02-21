@@ -2,6 +2,10 @@
 
 Run bounded Phase 05 synthesis/review loops until finalize criteria are met.
 
+> **Scaffold warning (read first):** The baseline flow below uses **generate-mode** synthesis/review.
+> This is deterministic scaffolding to validate artifacts, gates, and bounded iteration policy.
+> Do **not** treat generate-mode synthesis/review output as “real research” unless an approved LLM-backed path produced it.
+
 ## Baseline mode (required)
 
 Use deterministic generate mode first:
