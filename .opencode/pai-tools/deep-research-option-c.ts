@@ -70,7 +70,7 @@ import {
 } from "./deep-research-option-c/cli/json-mode";
 import {
   requireAbsolutePath,
-} from "./deep-research-option-c/lib/paths";
+} from "./deep-research-option-c/utils/paths";
 
 const CLI_ARGV = getCliArgv();
 const JSON_MODE_REQUESTED = isJsonModeRequested(CLI_ARGV);

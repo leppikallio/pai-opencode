@@ -2,15 +2,15 @@ import { emitContractCommandJson } from "../cli/contract-json";
 import {
   asObject,
   readJsonObject,
-} from "../lib/io-json";
-import { safeResolveManifestPath } from "../lib/paths";
+} from "../utils/io-json";
+import { safeResolveManifestPath } from "../utils/paths";
 import {
   gateStatusesSummaryRecord,
   parseGateStatuses,
   printContract,
   resolveRunHandle,
   summarizeManifest,
-} from "../lib/run-handle";
+} from "../utils/run-handle";
 import { resolveLatestOnlineFixtures } from "../triage/halt-artifacts";
 import {
   blockersSummaryJson,

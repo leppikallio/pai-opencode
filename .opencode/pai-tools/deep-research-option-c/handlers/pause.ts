@@ -3,19 +3,19 @@ import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research/lifecyc
 import { emitJson } from "../cli/json-mode";
 import {
   writeCheckpoint,
-} from "../lib/fs-utils";
-import { readJsonObject } from "../lib/io-json";
+} from "../utils/fs-utils";
+import { readJsonObject } from "../utils/io-json";
 import {
   resolveLogsDirFromManifest,
   resolveRunHandle,
   summarizeManifest,
   withRunLock,
-} from "../lib/run-handle";
-import { nowIso } from "../lib/time";
+} from "../utils/run-handle";
+import { nowIso } from "../utils/time";
 import {
   callTool,
   type ToolWithExecute,
-} from "../runtime/tool-envelope";
+} from "../tooling/tool-envelope";
 
 export type PauseCliArgs = {
   runId?: string;

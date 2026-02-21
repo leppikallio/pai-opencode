@@ -6,7 +6,7 @@ import {
   type OrchestratorLiveRunAgentInput,
   type OrchestratorLiveRunAgentResult,
 } from "../../../tools/deep_research.ts";
-import { isSafeSegment } from "../lib/paths";
+import { isSafeSegment } from "../utils/paths";
 
 export function createOperatorInputDriver(): (
   input: OrchestratorLiveRunAgentInput,

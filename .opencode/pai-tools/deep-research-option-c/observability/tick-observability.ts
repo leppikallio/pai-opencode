@@ -10,15 +10,15 @@ import { resultErrorDetails } from "../cli/errors";
 import {
   readJsonObject,
   readJsonlRecords,
-} from "../lib/io-json";
+} from "../utils/io-json";
 import {
   resolveLogsDirFromManifest,
   summarizeManifest,
-} from "../lib/run-handle";
+} from "../utils/run-handle";
 import {
   callTool,
   type ToolWithExecute,
-} from "../runtime/tool-envelope";
+} from "../tooling/tool-envelope";
 import {
   computeTickOutcome,
   type TickResultLike,

@@ -12,20 +12,20 @@ import { emitJson } from "../cli/json-mode";
 import {
   asObject,
   readJsonObject,
-} from "../lib/io-json";
+} from "../utils/io-json";
 import {
   normalizeOptional,
   requireAbsolutePath,
-} from "../lib/paths";
+} from "../utils/paths";
 import {
   printContract,
   resolveRunRoot,
   summarizeManifest,
-} from "../lib/run-handle";
+} from "../utils/run-handle";
 import {
   callTool,
   type ToolWithExecute,
-} from "../runtime/tool-envelope";
+} from "../tooling/tool-envelope";
 
 export type InitCliArgs = {
   query: string;

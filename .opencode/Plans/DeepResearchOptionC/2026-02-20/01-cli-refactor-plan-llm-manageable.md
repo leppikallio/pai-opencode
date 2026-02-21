@@ -6,7 +6,7 @@
 
 **Goal:** Reduce the CLI monolith to **≤ 250 LOC wiring-only**, by extracting real logic into meaningful modules (~≤ 500 LOC each), while preserving CLI behavior and ensuring runtime install works.
 
-**Architecture:** Keep the public entrypoint file path stable (`pai-tools/deep-research-option-c.ts`). Extract subsystems first (json/errors/tool-runtime/paths/io/observability/triage/perspectives/run-handle), then extract each command handler (move+delete; no shims). Validate continuously with Tier 0/1 tests and require Architect + QA PASS gates at the end.
+**Architecture:** Keep the public entrypoint file path stable (`pai-tools/deep-research-option-c.ts`). Extract subsystems first (json/errors/tooling/utils/observability/triage/perspectives/run-handle), then extract each command handler (move+delete; no shims). Validate continuously with Tier 0/1 tests and require Architect + QA PASS gates at the end.
 
 **Tech Stack:** TypeScript (ESNext), Bun, `cmd-ts`, Node `fs/path`, PAI runtime installer `Tools/Install.ts`.
 
@@ -217,7 +217,7 @@ Statuses: `TODO | IN_PROGRESS | DONE | ARCH_PASS | QA_PASS | BLOCKED(<reason>)`
 | T03 | Extract tool runtime (envelope/context/callTool) | DONE | 4687 → 4642 | yes | commit a9a37f5 |
 | T04 | Extract run-handle resolution | DONE | 4552 → 4300 | yes | wave commits af90363 + 2d548c6 (run-handle.ts=264 LOC) |
 | T05 | Extract paths + manifest safety helpers | DONE | 4642 → 4552 | yes | commit 8b20932 (paths.ts is 101 LOC) |
-| T06 | Extract fs/json/jsonl/time/digest helpers | DONE |  | yes | io-json/fs-utils/time/digest live under lib/; no helpers remain in monolith |
+| T06 | Extract fs/json/jsonl/time/digest helpers | DONE |  | yes | io-json/fs-utils/time/digest live under utils/; no helpers remain in monolith |
 | T07 | Extract observability (tick ledger/telemetry/metrics) | DONE | 4300 → 3991 | yes | commit e133ba56 (tick-observability.ts=291 LOC) |
 | T08 | Extract triage + halt artifacts | DONE | 3991 → 3495 | yes | commit 392dd3a (halt-artifacts.ts=335 LOC) |
 | T09 | Extract perspectives subsystem helpers | DONE | 3495 → 3078 | yes | commit 0e317e8 (schema.ts=261 LOC) |
@@ -273,10 +273,10 @@ Proposed structure (OK to adjust if Architect approves, but keep intent):
     cli/
       json-mode.ts
       errors.ts
-    runtime/
+    tooling/
       tool-context.ts
       tool-envelope.ts
-    lib/
+    utils/
       run-handle.ts
       paths.ts
       fs-utils.ts
@@ -424,8 +424,8 @@ Cut/paste the real implementations into `cli/errors.ts` and delete them from the
 ### Task T03: Extract tool runtime (envelope/context/callTool)
 
 **Files:**
-- Create: `.opencode/pai-tools/deep-research-option-c/runtime/tool-context.ts`
-- Create: `.opencode/pai-tools/deep-research-option-c/runtime/tool-envelope.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/tooling/tool-context.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/tooling/tool-envelope.ts`
 - Modify: `.opencode/pai-tools/deep-research-option-c.ts`
 
 **Step 1: Move+delete the tool envelope type and helpers**
@@ -457,12 +457,12 @@ Delete them from the monolith.
 - It is acceptable (recommended) to complete **most of T06** (IO helpers) in the same extraction wave if needed to hit deletion targets.
 
 **Files:**
-- Create: `.opencode/pai-tools/deep-research-option-c/lib/run-handle.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/utils/run-handle.ts`
 - Modify: `.opencode/pai-tools/deep-research-option-c.ts`
 
 **Step 1: Move+delete implementations (run-handle + contract subsystem)**
 
-Move these symbols into `lib/run-handle.ts`:
+Move these symbols into `utils/run-handle.ts`:
 - `resolveRunHandle(...)`
 - `withRunLock(...)`
 
@@ -497,7 +497,7 @@ Delete from the monolith and update call sites.
 ### Task T05: Extract paths + manifest safety helpers
 
 **Files:**
-- Create: `.opencode/pai-tools/deep-research-option-c/lib/paths.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/utils/paths.ts`
 - Modify: `.opencode/pai-tools/deep-research-option-c.ts`
 
 **Step 1: Move+delete**
@@ -525,15 +525,15 @@ Delete from monolith and update imports.
 
 **Sizing rule for this task:** avoid creating 5 tiny files that each contain 10–40 lines.
 
-- Preferred: combine into **1–3** cohesive modules (`lib/io.ts`, `lib/time.ts`, `lib/digest.ts`) that are **150–500 LOC** each.
+- Preferred: combine into **1–3** cohesive modules (`utils/io.ts`, `utils/time.ts`, `utils/digest.ts`) that are **150–500 LOC** each.
 - If T04 already moved `readJsonObject`/`resolveRunRoot`-adjacent IO helpers, remove them from this task and focus on what remains.
 
 **Files:**
-- Create: `.opencode/pai-tools/deep-research-option-c/lib/fs-utils.ts`
-- Create: `.opencode/pai-tools/deep-research-option-c/lib/io-json.ts`
-- Create: `.opencode/pai-tools/deep-research-option-c/lib/io-jsonl.ts`
-- Create: `.opencode/pai-tools/deep-research-option-c/lib/time.ts`
-- Create: `.opencode/pai-tools/deep-research-option-c/lib/digest.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/utils/fs-utils.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/utils/io-json.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/utils/io-jsonl.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/utils/time.ts`
+- Create: `.opencode/pai-tools/deep-research-option-c/utils/digest.ts`
 - Modify: `.opencode/pai-tools/deep-research-option-c.ts`
 
 **Step 1: Move+delete**

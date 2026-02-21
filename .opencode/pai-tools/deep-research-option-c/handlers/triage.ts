@@ -1,11 +1,11 @@
 import { emitContractCommandJson } from "../cli/contract-json";
-import { readJsonObject } from "../lib/io-json";
+import { readJsonObject } from "../utils/io-json";
 import {
   printContract,
   readGateStatusesSummary,
   resolveRunHandle,
   summarizeManifest,
-} from "../lib/run-handle";
+} from "../utils/run-handle";
 import {
   blockersSummaryJson,
   stageAdvanceDryRun,
