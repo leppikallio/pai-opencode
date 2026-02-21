@@ -1,3 +1,5 @@
+export const DR_CLI_JSON_SCHEMA_VERSION = "dr.cli.v1";
+
 export function getCliArgv(argv: string[] = process.argv.slice(2)): string[] {
   return argv;
 }
