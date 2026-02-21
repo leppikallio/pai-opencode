@@ -135,6 +135,8 @@ type TickInProgressMarker = {
   reason: string;
 };
 
+const STALE_TICK_MARKER_THRESHOLD_MS = 5 * 60 * 1000;
+
 function tickInProgressMarkerPath(runRoot: string): string {
   return path.join(runRoot, "logs", "tick-in-progress.json");
 }
@@ -162,6 +164,41 @@ async function removeTickInProgressMarker(markerPath: string): Promise<void> {
     const code = e && typeof e === "object" ? String((e as { code?: unknown }).code ?? "") : "";
     if (code !== "ENOENT") throw e;
   }
+}
+
+async function checkForStaleTickInProgressMarker(runRoot: string): Promise<
+  | { ok: true }
+  | { ok: false; details: Record<string, unknown> }
+> {
+  const markerPath = tickInProgressMarkerPath(runRoot);
+  if (!(await exists(markerPath))) return { ok: true };
+
+  let markerRaw: unknown;
+  try {
+    markerRaw = await readJson(markerPath);
+  } catch {
+    return { ok: true };
+  }
+
+  if (!isPlainObject(markerRaw)) return { ok: true };
+  const markerTs = nonEmptyString(markerRaw.ts);
+  if (!markerTs) return { ok: true };
+
+  const tsEpochMs = new Date(markerTs).getTime();
+  if (!Number.isFinite(tsEpochMs)) return { ok: true };
+
+  const markerAgeMs = Date.now() - tsEpochMs;
+  if (markerAgeMs < STALE_TICK_MARKER_THRESHOLD_MS) return { ok: true };
+
+  return {
+    ok: false,
+    details: {
+      marker_path: markerPath,
+      marker: markerRaw,
+      marker_age_ms: markerAgeMs,
+      stale_after_ms: STALE_TICK_MARKER_THRESHOLD_MS,
+    },
+  };
 }
 
 function normalizePromptDigest(value: unknown): string | null {
@@ -520,6 +557,15 @@ export async function orchestrator_tick_post_summaries(
   let tickSucceeded = false;
 
   try {
+  const staleMarkerCheck = await checkForStaleTickInProgressMarker(runRoot);
+  if (!staleMarkerCheck.ok) {
+    return fail(
+      "PREVIOUS_TICK_INCOMPLETE",
+      "previous tick appears incomplete; stale tick marker detected",
+      staleMarkerCheck.details,
+    );
+  }
+
   tickMarkerPath = await writeTickInProgressMarker({
     runRoot,
     stage: from,
