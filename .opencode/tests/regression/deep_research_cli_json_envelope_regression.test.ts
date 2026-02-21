@@ -139,4 +139,42 @@ describe("deep_research cli --json dr.cli.v1 envelope (regression)", () => {
       }
     });
   });
+
+  test("status --json emits dr.cli.v1 envelope with contract/result/error/halt keys", async () => {
+    await withTempDir(async (base) => {
+      const runId = "dr_test_cli_json_envelope_status_001";
+      const initPayload = expectSingleJsonStdout(await runCli([
+        "init",
+        "Q",
+        "--run-id",
+        runId,
+        "--runs-root",
+        base,
+        "--json",
+      ]), 0);
+
+      const manifestPath = manifestPathFromInitEnvelope(initPayload);
+
+      const statusPayload = expectSingleJsonStdout(await runCli([
+        "status",
+        "--manifest",
+        manifestPath,
+        "--json",
+      ]), 0);
+
+      expect(statusPayload.schema_version).toBe("dr.cli.v1");
+      expect(statusPayload.ok).toBe(true);
+      expect(statusPayload.command).toBe("status");
+
+      const contract = expectContract(statusPayload.contract);
+      expect(contract.run_id).toBe(runId);
+      expect(contract.manifest_path).toBe(manifestPath);
+
+      const result = statusPayload.result as Record<string, unknown>;
+      expect(result).toBeTruthy();
+      expect(result.gate_statuses_summary).toBeTruthy();
+      expect(statusPayload.error).toBeNull();
+      expect(statusPayload.halt).toBeNull();
+    });
+  });
 });
