@@ -15,11 +15,11 @@ import {
   ok,
   parseJsonSafe,
   readJson,
-  sha256HexLowerUtf8,
   validateGatesV1,
   validateManifestV1,
 } from "./lifecycle_lib";
 import { manifest_write } from "./manifest_write";
+import { sha256DigestForJson } from "./wave_tools_shared";
 
 export const stage_advance = tool({
   description: "Advance deep research stage deterministically (Phase 02)",
@@ -516,7 +516,7 @@ export const stage_advance = tool({
         },
         evaluated,
       };
-      const inputs_digest = `sha256:${sha256HexLowerUtf8(JSON.stringify(digestInput))}`;
+      const inputs_digest = sha256DigestForJson(digestInput);
 
       const decision = {
         allowed: block === null,
