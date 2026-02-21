@@ -32,3 +32,6 @@ session-ses_*.md
 # Local backup artifacts (never commit)
 .opencode/BACKUPS/
 Components_backup/
+
+# Git worktrees (local only)
+.worktrees/
