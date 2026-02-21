@@ -4,6 +4,7 @@ import * as path from "node:path";
 
 import { validateManifestV1 } from "./schema_v1";
 import {
+  atomicWriteJson,
   atomicWriteText,
   err,
   errorCode,
@@ -233,11 +234,20 @@ export const synthesis_write = tool({
         cited,
       });
 
+      const generatedAt = nowIso();
+      const synthesisMetaPath = path.join(path.dirname(outputPath), "final-synthesis.meta.json");
+      await atomicWriteJson(synthesisMetaPath, {
+        schema_version: "synthesis_meta.v1",
+        mode,
+        generated_at: generatedAt,
+        inputs_digest: inputsDigest,
+      });
+
       try {
         await appendAuditJsonl({
           runRoot,
           event: {
-            ts: nowIso(),
+            ts: generatedAt,
             kind: "synthesis_write",
             run_id: runId,
             reason,
@@ -251,6 +261,7 @@ export const synthesis_write = tool({
 
       return ok({
         output_path: outputPath,
+        meta_path: synthesisMetaPath,
         inputs_digest: inputsDigest,
       });
     } catch (e) {
