@@ -19,6 +19,9 @@ type RunInitArgs = {
   runsRoot?: string;
   sensitivity: InitSensitivity;
   mode: InitMode;
+  citationsBrightDataEndpoint?: string;
+  citationsApifyEndpoint?: string;
+  citationValidationTier?: "basic" | "standard" | "thorough";
   writePerspectives: boolean;
   force: boolean;
   json: boolean;
@@ -37,6 +40,9 @@ export function createInitCmd(deps: {
       runsRoot: option({ long: "runs-root", type: optional(deps.AbsolutePath) }),
       sensitivity: option({ long: "sensitivity", type: optional(oneOf(["normal", "restricted", "no_web"])) }),
       mode: option({ long: "mode", type: optional(oneOf(["quick", "standard", "deep"])) }),
+      citationsBrightDataEndpoint: option({ long: "citations-brightdata-endpoint", type: optional(string) }),
+      citationsApifyEndpoint: option({ long: "citations-apify-endpoint", type: optional(string) }),
+      citationValidationTier: option({ long: "citation-validation-tier", type: optional(oneOf(["basic", "standard", "thorough"])) }),
       noPerspectives: flag({ long: "no-perspectives", type: boolean }),
       force: flag({ long: "force", type: boolean }),
       json: flag({ long: "json", type: boolean }),
@@ -48,6 +54,9 @@ export function createInitCmd(deps: {
         runsRoot: args.runsRoot,
         sensitivity: (args.sensitivity ?? "normal") as InitSensitivity,
         mode: (args.mode ?? "standard") as InitMode,
+        citationsBrightDataEndpoint: args.citationsBrightDataEndpoint,
+        citationsApifyEndpoint: args.citationsApifyEndpoint,
+        citationValidationTier: args.citationValidationTier,
         writePerspectives: !args.noPerspectives,
         force: args.force,
         json: args.json,
