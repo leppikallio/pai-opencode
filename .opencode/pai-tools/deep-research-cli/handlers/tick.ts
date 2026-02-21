@@ -6,7 +6,10 @@ import {
   type OrchestratorLiveRunAgentResult,
   watchdog_check,
 } from "../../../tools/deep_research_cli.ts";
-import { resolveDeepResearchCliFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
+import {
+  atomicWriteUtf8,
+  resolveDeepResearchCliFlagsV1,
+} from "../../../tools/deep_research_cli/lifecycle_lib";
 import { sha256DigestForJson } from "../../../tools/deep_research_cli/wave_tools_shared";
 import { blockersSummaryJson, type TriageBlockers } from "../triage/blockers";
 import {
@@ -165,8 +168,7 @@ async function collectTaskDriverMissingWave1Perspectives(args: {
 
     if (digestMatches) continue;
 
-    await fs.mkdir(path.dirname(promptPath), { recursive: true });
-    await fs.writeFile(promptPath, `${entry.promptMd.trim()}\n`, "utf8");
+    await atomicWriteUtf8(promptPath, `${entry.promptMd.trim()}\n`);
 
     missing.push({
       perspectiveId: entry.perspectiveId,
@@ -229,8 +231,7 @@ function createTaskPromptOutDriver(): TickLiveDriver {
       return { markdown: "", error: { code: "PATH_TRAVERSAL", message: "prompt path escapes run root" } };
     }
 
-    await fs.mkdir(path.dirname(promptPath), { recursive: true });
-    await fs.writeFile(promptPath, `${promptMd.trim()}\n`, "utf8");
+    await atomicWriteUtf8(promptPath, `${promptMd.trim()}\n`);
 
     return {
       markdown: "",

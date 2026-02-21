@@ -7,7 +7,10 @@ import {
   stage_advance,
   wave1_plan,
 } from "../../../tools/deep_research_cli.ts";
-import { resolveDeepResearchCliFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
+import {
+  atomicWriteJson,
+  resolveDeepResearchCliFlagsV1,
+} from "../../../tools/deep_research_cli/lifecycle_lib";
 import { emitJsonV1 } from "../cli/json-contract";
 import {
   resolveDeepResearchCliInvocation,
@@ -204,7 +207,7 @@ async function writeRunConfig(args: {
   };
 
   const outPath = path.join(args.runRoot, "run-config.json");
-  await fs.writeFile(outPath, `${JSON.stringify(runConfig, null, 2)}\n`, "utf8");
+  await atomicWriteJson(outPath, runConfig);
   return outPath;
 }
 
