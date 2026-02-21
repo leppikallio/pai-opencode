@@ -16,7 +16,7 @@ export const MANIFEST_STAGE: string[] = ["init", "perspectives", "wave1", "pivot
 
 export const STAGE_TIMEOUT_SECONDS_V1: Record<string, number> = {
   init: 120,
-  perspectives: 120,
+  perspectives: 86400,
   wave1: 600,
   pivot: 120,
   wave2: 600,
