@@ -71,11 +71,7 @@ const MANDATORY_SKILLS: string[] = [
   "first-principles",
 ];
 
-// Auto-include canonical skills when compatibility aliases are selected.
-const SKILL_DEPENDENCIES: Record<string, string[]> = {
-  "deep-research-option-c": ["deep-research"],
-  "deep-research-production": ["deep-research"],
-};
+const SKILL_DEPENDENCIES: Record<string, string[]> = {};
 
 type Options = {
   targetDir: string;

@@ -6,9 +6,9 @@ import { fileURLToPath } from "node:url";
 import { run_init } from "../../tools/deep_research_cli.ts";
 import { makeToolContext, parseToolJson, withEnv, withTempDir } from "../helpers/dr-harness";
 
-const cliPath = fileURLToPath(new URL("../../pai-tools/deep-research-option-c.ts", import.meta.url));
+const cliPath = fileURLToPath(new URL("../../pai-tools/deep-research-cli.ts", import.meta.url));
 
-describe("deep-research-option-c inspect (entity)", () => {
+describe("deep-research-cli inspect (entity)", () => {
   test("capture-fixtures command is registered", async () => {
     const proc = Bun.spawn({
       cmd: ["bun", cliPath, "capture-fixtures", "--help"],
@@ -23,7 +23,7 @@ describe("deep-research-option-c inspect (entity)", () => {
 
     expect(exitCode).toBe(0);
     expect(stderr.trim()).toBe("");
-    expect(stdout).toContain("deep-research-option-c capture-fixtures");
+    expect(stdout).toContain("deep-research-cli capture-fixtures");
   });
 
   test("init persists effective citations config into run-config.json", async () => {

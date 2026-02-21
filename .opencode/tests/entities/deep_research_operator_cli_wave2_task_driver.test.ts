@@ -7,7 +7,7 @@ import { withTempDir } from "../helpers/dr-harness";
 const repoRoot = path.basename(process.cwd()) === ".opencode"
   ? path.resolve(process.cwd(), "..")
   : process.cwd();
-const cliPath = path.join(repoRoot, ".opencode", "pai-tools", "deep-research-option-c.ts");
+const cliPath = path.join(repoRoot, ".opencode", "pai-tools", "deep-research-cli.ts");
 
 async function runCli(args: string[]): Promise<{ exit: number; stdout: string; stderr: string }> {
   const proc = Bun.spawn({
@@ -93,7 +93,7 @@ describe("deep_research operator CLI wave2 task driver (entity)", () => {
       expect(String(haltLatest.schema_version ?? "")).toBe("halt.v1");
       expect(String(haltError.code ?? "")).toBe("RUN_AGENT_REQUIRED");
       const nextCommands = Array.isArray(haltLatest.next_commands) ? haltLatest.next_commands : [];
-      expect(nextCommands.some((item) => String(item).startsWith('bun "pai-tools/deep-research-option-c.ts"'))).toBe(true);
+      expect(nextCommands.some((item) => String(item).startsWith('bun "pai-tools/deep-research-cli.ts"'))).toBe(true);
       expect(nextCommands.some((item) => String(item).includes("agent-result") && String(item).includes("--stage wave2") && String(item).includes("--perspective \"gap_alpha\""))).toBe(true);
 
       const inputMarkdownPath = path.join(repoRoot, ".opencode", "tests", "fixtures", "wave-output", "valid-no-example.md");
