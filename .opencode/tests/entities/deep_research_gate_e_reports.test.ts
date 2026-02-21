@@ -66,7 +66,7 @@ describe("deep_research_gate_e_reports (entity)", () => {
   const maybeTest = gate_e_reports ? test : test.skip;
 
   maybeTest("writes deterministic Gate E report artifacts for pass fixture", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withDeterministicTempDir("gate-e-reports-pass", async (base) => {
         const { manifestPath, runRoot } = await seedRunArtifacts({
           base,
@@ -102,7 +102,7 @@ describe("deep_research_gate_e_reports (entity)", () => {
   });
 
   maybeTest("reports fail when synthesis fixture has uncited numeric claim", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withDeterministicTempDir("gate-e-reports-fail", async (base) => {
         const { manifestPath, runRoot } = await seedRunArtifacts({
           base,

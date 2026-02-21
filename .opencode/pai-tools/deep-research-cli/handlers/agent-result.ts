@@ -1,7 +1,7 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 
-import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
+import { resolveDeepResearchCliFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
 import { sha256DigestForJson } from "../../../tools/deep_research_cli/wave_tools_shared";
 import { emitJson } from "../cli/json-mode";
 import {
@@ -47,8 +47,8 @@ export type AgentResultCliArgs = {
 };
 
 function ensureOptionCEnabledForCli(): void {
-  const flags = resolveDeepResearchFlagsV1();
-  if (!flags.optionCEnabled) {
+  const flags = resolveDeepResearchCliFlagsV1();
+  if (!flags.cliEnabled) {
     throw new Error(
       "Deep research Option C is disabled in current configuration",
     );

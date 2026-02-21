@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { ensureDir } from "../../plugins/lib/paths";
-import { resolveDeepResearchFlagsV1 } from "./flags_v1";
+import { resolveDeepResearchCliFlagsV1 } from "./flags_v1";
 import { validateGatesV1, validateManifestV1 } from "./schema_v1";
 import { err, errorCode, isPlainObject, ok, readJson } from "./utils";
 import { copyDirContents, parseJsonSafe, statPath } from "./wave_tools_io";
@@ -73,7 +73,7 @@ export const fixture_run_seed = tool({
         });
       }
 
-      const runsRoot = path.resolve(rootOverrideInput || resolveDeepResearchFlagsV1().runsRoot);
+      const runsRoot = path.resolve(rootOverrideInput || resolveDeepResearchCliFlagsV1().runsRoot);
       const root = path.resolve(runsRoot, runId);
       rollbackRoot = root;
       if (!isPathWithin(runsRoot, root)) {

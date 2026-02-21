@@ -11,7 +11,7 @@ import {
   err,
   nowIso,
   ok,
-  resolveDeepResearchFlagsV1,
+  resolveDeepResearchCliFlagsV1,
   stableRunId,
   validateGatesV1,
   validateManifestV1,
@@ -107,10 +107,10 @@ export const run_init = tool({
     },
     context: ToolContext,
   ) {
-    const flags = resolveDeepResearchFlagsV1();
-    if (!flags.optionCEnabled) {
+    const flags = resolveDeepResearchCliFlagsV1();
+    if (!flags.cliEnabled) {
       return err("DISABLED", "Deep research Option C is disabled", {
-        hint: "Enable in settings.json (deepResearch.flags.PAI_DR_OPTION_C_ENABLED=true).",
+        hint: "Enable in settings.json (deepResearchCli.flags.PAI_DR_CLI_ENABLED=true).",
       });
     }
 
@@ -240,21 +240,21 @@ export const run_init = tool({
           constraints: {
             scope_path: SCOPE_PATH_RELATIVE,
             deep_research_cli: {
-              enabled: true,
+              enabled: flags.cliEnabled,
             },
             deep_research_cli_flags: {
-              PAI_DR_OPTION_C_ENABLED: flags.optionCEnabled,
-              PAI_DR_MODE_DEFAULT: flags.modeDefault,
-              PAI_DR_MAX_WAVE1_AGENTS: flags.maxWave1Agents,
-              PAI_DR_MAX_WAVE2_AGENTS: flags.maxWave2Agents,
-              PAI_DR_MAX_SUMMARY_KB: flags.maxSummaryKb,
-              PAI_DR_MAX_TOTAL_SUMMARY_KB: flags.maxTotalSummaryKb,
-              PAI_DR_MAX_REVIEW_ITERATIONS: flags.maxReviewIterations,
-              PAI_DR_CITATION_VALIDATION_TIER: flags.citationValidationTier,
-              PAI_DR_CITATIONS_BRIGHT_DATA_ENDPOINT: flags.citationsBrightDataEndpoint,
-              PAI_DR_CITATIONS_APIFY_ENDPOINT: flags.citationsApifyEndpoint,
-              PAI_DR_NO_WEB: flags.noWeb,
-              PAI_DR_RUNS_ROOT: flags.runsRoot,
+              PAI_DR_CLI_ENABLED: flags.cliEnabled,
+              PAI_DR_CLI_MODE_DEFAULT: flags.modeDefault,
+              PAI_DR_CLI_MAX_WAVE1_AGENTS: flags.maxWave1Agents,
+              PAI_DR_CLI_MAX_WAVE2_AGENTS: flags.maxWave2Agents,
+              PAI_DR_CLI_MAX_SUMMARY_KB: flags.maxSummaryKb,
+              PAI_DR_CLI_MAX_TOTAL_SUMMARY_KB: flags.maxTotalSummaryKb,
+              PAI_DR_CLI_MAX_REVIEW_ITERATIONS: flags.maxReviewIterations,
+              PAI_DR_CLI_CITATION_VALIDATION_TIER: flags.citationValidationTier,
+              PAI_DR_CLI_CITATIONS_BRIGHT_DATA_ENDPOINT: flags.citationsBrightDataEndpoint,
+              PAI_DR_CLI_CITATIONS_APIFY_ENDPOINT: flags.citationsApifyEndpoint,
+              PAI_DR_CLI_NO_WEB: flags.noWeb,
+              PAI_DR_CLI_RUNS_ROOT: flags.runsRoot,
               source: flags.source,
             },
           },

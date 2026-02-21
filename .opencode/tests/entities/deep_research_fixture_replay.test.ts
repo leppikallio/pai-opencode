@@ -63,7 +63,7 @@ describe("deep_research_fixture_replay (entity)", () => {
   });
 
   test("replays pass fixture deterministically and preserves Gate E warning contract", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       const manifest = JSON.parse(
         await fs.readFile(fixturePath("bundles", PASS_BUNDLE_ID, "manifest.json"), "utf8"),
       ) as Record<string, unknown>;
@@ -105,7 +105,7 @@ describe("deep_research_fixture_replay (entity)", () => {
   });
 
   test("replays uncited-numeric fixture with fail Gate E status and empty warnings", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withDeterministicTempDir("fixture-replay-fail", async (base) => {
         const bundleRoot = await materializeFixtureBundle(FAIL_BUNDLE_ID, base);
         const out = await runReplay(bundleRoot, "test: replay fail gate e");

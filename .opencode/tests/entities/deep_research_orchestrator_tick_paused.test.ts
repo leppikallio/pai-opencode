@@ -17,7 +17,7 @@ import {
 
 describe("deep_research_orchestrator_tick_* paused handling (entity)", () => {
   test("returns PAUSED for live tick when manifest.status is paused", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_paused_live_001";
         const initRaw = (await (run_init as any).execute(
@@ -53,7 +53,7 @@ describe("deep_research_orchestrator_tick_* paused handling (entity)", () => {
   });
 
   test("returns PAUSED for fixture tick when manifest.status is paused", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_paused_fixture_001";
         const initRaw = (await (run_init as any).execute(
@@ -86,7 +86,7 @@ describe("deep_research_orchestrator_tick_* paused handling (entity)", () => {
   });
 
   test("returns CANCELLED for live tick when manifest.status is cancelled", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_cancelled_live_001";
         const initRaw = (await (run_init as any).execute(
@@ -121,7 +121,7 @@ describe("deep_research_orchestrator_tick_* paused handling (entity)", () => {
   });
 
   test("returns CANCELLED for fixture tick when manifest.status is cancelled", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_cancelled_fixture_001";
         const initRaw = (await (run_init as any).execute(
@@ -154,7 +154,7 @@ describe("deep_research_orchestrator_tick_* paused handling (entity)", () => {
   });
 
   test("returns CANCELLED for post-pivot tick when manifest.status is cancelled", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_cancelled_post_pivot_001";
         const initRaw = (await (run_init as any).execute(
@@ -186,7 +186,7 @@ describe("deep_research_orchestrator_tick_* paused handling (entity)", () => {
   });
 
   test("returns CANCELLED for post-summaries tick when manifest.status is cancelled", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_tick_cancelled_post_summaries_001";
         const initRaw = (await (run_init as any).execute(

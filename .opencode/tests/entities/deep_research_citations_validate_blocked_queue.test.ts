@@ -13,7 +13,7 @@ describe("deep_research_citations_validate blocked queue (entity)", () => {
   const maybeTest = citations_validate ? test : test.skip;
 
   maybeTest("writes blocked-urls.queue.md in deterministic order with found_by context", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "0" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "0" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p04_validate_queue_001";
         const initRaw = (await (run_init as any).execute(

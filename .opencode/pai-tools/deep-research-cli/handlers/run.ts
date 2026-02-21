@@ -1,7 +1,7 @@
 import {
   watchdog_check,
 } from "../../../tools/deep_research_cli.ts";
-import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
+import { resolveDeepResearchCliFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
 import { blockersSummaryJson } from "../triage/blockers";
 import { handleTickFailureArtifacts } from "../triage/halt-artifacts";
 import { readJsonObject } from "../utils/io-json";
@@ -52,8 +52,8 @@ function nextStepCliInvocation(): string {
 }
 
 function ensureOptionCEnabledForCli(): void {
-  const flags = resolveDeepResearchFlagsV1();
-  if (!flags.optionCEnabled) {
+  const flags = resolveDeepResearchCliFlagsV1();
+  if (!flags.cliEnabled) {
     throw new Error(
       "Deep research Option C is disabled in current configuration",
     );

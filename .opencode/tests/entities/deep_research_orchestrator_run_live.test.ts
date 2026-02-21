@@ -42,7 +42,7 @@ async function writePerspectivesForRun(runRoot: string, runId: string): Promise<
 
 describe("deep_research_orchestrator_run_live (entity)", () => {
   test("loops ticks until pivot and returns run summary", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_run_live_001";
 
@@ -98,7 +98,7 @@ describe("deep_research_orchestrator_run_live (entity)", () => {
   });
 
   test("halts with terminal timeout artifact when watchdog detects timeout", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orchestrator_run_live_002";
 

@@ -21,7 +21,7 @@ async function readManifestDeepResearchCliEnabled(manifestPath: string): Promise
 
 describe("deep_research_fallback_path (entity)", () => {
   test("run_init stays enabled when Option C env is unset", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: undefined }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: undefined }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_fallback_enabled_unset";
         const outRaw = (await (run_init as any).execute(
@@ -47,7 +47,7 @@ describe("deep_research_fallback_path (entity)", () => {
   });
 
   test("run_init stays enabled when Option C env is explicitly 0", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "0" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "0" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_fallback_enabled_zero";
         const outRaw = (await (run_init as any).execute(

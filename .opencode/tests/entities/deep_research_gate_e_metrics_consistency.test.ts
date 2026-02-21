@@ -74,7 +74,7 @@ describe("Gate E metric consistency between evaluate and reports", () => {
   const maybeTest = gate_e_reports ? test : test.skip;
 
   maybeTest("uses percent units for report_sections_present and aligned values", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withDeterministicTempDir("gate-e-metrics-consistency-pass", async (base) => {
         const { manifestPath } = await seedRunArtifacts({
           base,
@@ -103,7 +103,7 @@ describe("Gate E metric consistency between evaluate and reports", () => {
   });
 
   maybeTest("keeps duplicate citation rate aligned at zero when mentions are absent", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withDeterministicTempDir("gate-e-metrics-consistency-no-mentions", async (base) => {
         const { manifestPath } = await seedRunArtifacts({
           base,

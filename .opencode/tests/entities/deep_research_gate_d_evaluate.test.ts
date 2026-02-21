@@ -72,7 +72,7 @@ async function seedSummaryPack(base: string, runId: string) {
 
 describe("deep_research_gate_d_evaluate (entity)", () => {
   test("returns pass when thresholds meet manifest limits", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const { manifestPath } = await seedSummaryPack(base, "dr_test_p05_gate_d_001");
 
@@ -91,7 +91,7 @@ describe("deep_research_gate_d_evaluate (entity)", () => {
   });
 
   test("fails when summary_count_ratio drops below 0.90", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const { manifestPath, summaryPackPath } = await seedSummaryPack(base, "dr_test_p05_gate_d_002");
         const pack = JSON.parse(await fs.readFile(summaryPackPath, "utf8"));

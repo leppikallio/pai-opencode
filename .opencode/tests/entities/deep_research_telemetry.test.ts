@@ -105,7 +105,7 @@ describe("deep_research_telemetry (entity)", () => {
   const maybeTest = telemetry_append && run_metrics_write ? test : test.skip;
 
   maybeTest("appends fixture telemetry events and writes deterministic run metrics", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withDeterministicTempDir("telemetry-metrics", async (base) => {
         const runId = "dr_test_p06_telemetry_001";
         const { manifestPath, runRoot } = await initRun(base, runId);

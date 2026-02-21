@@ -22,7 +22,7 @@ async function initRun(base: string, runId: string) {
 
 describe("deep_research_revision_control (entity)", () => {
   test("returns advance when review PASS and Gate E pass", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const { manifestPath, gatesPath, runRoot } = await initRun(base, "dr_test_p05_revision_001");
 
@@ -73,7 +73,7 @@ describe("deep_research_revision_control (entity)", () => {
   });
 
   test("returns revise then escalate based on iteration bounds", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const { manifestPath, gatesPath, runRoot } = await initRun(base, "dr_test_p05_revision_002");
         const reviewBundlePath = path.join(runRoot, "review", "review-bundle.json");

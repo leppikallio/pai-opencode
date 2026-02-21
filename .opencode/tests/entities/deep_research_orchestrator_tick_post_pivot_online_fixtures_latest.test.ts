@@ -15,7 +15,7 @@ import {
 
 describe("deep_research_orchestrator_tick_post_pivot online fixtures latest replay (entity)", () => {
   test("citations stage reuses online-fixtures.latest.json target when present", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "0" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "0" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_orch_post_pivot_online_latest_001";
         const initRaw = (await (run_init as any).execute(

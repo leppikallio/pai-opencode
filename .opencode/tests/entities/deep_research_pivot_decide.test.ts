@@ -26,7 +26,7 @@ function makeReport(perspectiveId: string, markdownPath: string, overrides: Reco
 
 describe("deep_research_pivot_decide (entity)", () => {
   test("writes pivot decision artifact and requires wave2 for P0 gaps", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_pivot_decide_needed_001";
         const initRaw = (await (run_init as any).execute(
@@ -80,7 +80,7 @@ describe("deep_research_pivot_decide (entity)", () => {
   });
 
   test("produces deterministic artifact ordering for equivalent input permutations", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_pivot_decide_deterministic_001";
         const initRaw = (await (run_init as any).execute(
@@ -146,7 +146,7 @@ describe("deep_research_pivot_decide (entity)", () => {
   });
 
   test("skips wave2 when no gaps are present", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_pivot_decide_skip_001";
         const initRaw = (await (run_init as any).execute(
@@ -194,7 +194,7 @@ describe("deep_research_pivot_decide (entity)", () => {
   });
 
   test("returns deterministic error codes for malformed gaps and unmet wave1 contract", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_pivot_decide_error_001";
         const initRaw = (await (run_init as any).execute(

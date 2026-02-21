@@ -60,7 +60,7 @@ describe("deep_research_gate_b_derive (entity)", () => {
   const maybeTest = gate_b_derive ? test : test.skip;
 
   maybeTest("derives Gate B PASS when wave_review report satisfies contract", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const initRaw = (await (run_init as any).execute(
           { query: "Q", mode: "standard", sensitivity: "normal", run_id: "dr_test_gate_b_pass", root_override: base },
@@ -104,7 +104,7 @@ describe("deep_research_gate_b_derive (entity)", () => {
   });
 
   maybeTest("derives Gate B FAIL when wave_review report violates contract", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const initRaw = (await (run_init as any).execute(
           { query: "Q", mode: "standard", sensitivity: "normal", run_id: "dr_test_gate_b_fail", root_override: base },
@@ -155,7 +155,7 @@ describe("deep_research_gate_b_derive (entity)", () => {
   maybeTest("rejects wave_review symlink escape via realpath containment", async () => {
     if (process.platform === "win32") return;
 
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const initRaw = (await (run_init as any).execute(
           { query: "Q", mode: "standard", sensitivity: "normal", run_id: "dr_test_gate_b_symlink", root_override: base },

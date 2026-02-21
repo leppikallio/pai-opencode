@@ -15,7 +15,7 @@ describe("deep_research_citations_extract_urls (entity)", () => {
   const maybeTest = citations_extract_urls ? test : test.skip;
 
   maybeTest("extracts only Sources http(s) URLs across wave-1 and wave-2", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p04_extract_001";
         const initRaw = (await (run_init as any).execute(
@@ -68,7 +68,7 @@ describe("deep_research_citations_extract_urls (entity)", () => {
   });
 
   maybeTest("respects include_wave2=false", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p04_extract_002";
         const initRaw = (await (run_init as any).execute(

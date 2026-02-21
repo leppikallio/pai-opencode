@@ -64,7 +64,7 @@ async function setWaveDirInManifest(
 
 describe("deep_research_wave_output_ingest (entity)", () => {
   test("writes and validates wave1 markdown outputs", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_wave_ingest_wave1_001";
         const initRaw = (await (run_init as any).execute(
@@ -106,7 +106,7 @@ describe("deep_research_wave_output_ingest (entity)", () => {
   });
 
   test("writes wave2 outputs under wave-2 directory", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_wave_ingest_wave2_001";
         const initRaw = (await (run_init as any).execute(
@@ -139,7 +139,7 @@ describe("deep_research_wave_output_ingest (entity)", () => {
   });
 
   test("returns validation error codes from wave_output_validate", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_wave_ingest_validate_fail_001";
         const initRaw = (await (run_init as any).execute(
@@ -183,7 +183,7 @@ describe("deep_research_wave_output_ingest (entity)", () => {
   });
 
   test("is transactional when one output fails validation", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_wave_ingest_txn_001";
         const initRaw = (await (run_init as any).execute(
@@ -232,7 +232,7 @@ describe("deep_research_wave_output_ingest (entity)", () => {
   });
 
   test("rejects invalid wave directory invariants", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_wave_ingest_wave_dir_invariants_001";
         const initRaw = (await (run_init as any).execute(
@@ -268,7 +268,7 @@ describe("deep_research_wave_output_ingest (entity)", () => {
   });
 
   test("rejects symlink wave directory and symlink-segment escapes", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_wave_ingest_symlink_001";
         const initRaw = (await (run_init as any).execute(
@@ -328,7 +328,7 @@ describe("deep_research_wave_output_ingest (entity)", () => {
   });
 
   test("blocks path traversal from perspective_id", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_wave_ingest_traversal_001";
         const initRaw = (await (run_init as any).execute(

@@ -12,7 +12,7 @@ type ManifestFixture = {
 
 describe("deep_research_stage_advance wave2 cap (entity)", () => {
   test("blocks pivot -> wave2 when wave2_gap_ids exceed max_wave2_agents", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_stage_wave2_cap_001";
         const initRaw = (await (run_init as any).execute(

@@ -7,7 +7,7 @@ import { asRecord, makeToolContext, parseToolJson, withEnv, withTempDir } from "
 
 describe("deep_research_gate_e_evaluate (entity)", () => {
   test("counts paywalled as validated for utilization and emits soft warnings", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p05_gate_e_001";
         const initRaw = (await run_init.execute(
@@ -70,7 +70,7 @@ describe("deep_research_gate_e_evaluate (entity)", () => {
   });
 
   test("fails hard metric when uncited numeric claim exists", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1" }, async () => {
       await withTempDir(async (base) => {
         const runId = "dr_test_p05_gate_e_002";
         const initRaw = (await run_init.execute(

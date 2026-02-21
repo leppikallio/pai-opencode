@@ -1,7 +1,7 @@
 import * as path from "node:path";
 
 import { fixture_bundle_capture } from "../../../tools/deep_research_cli.ts";
-import { resolveDeepResearchFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
+import { resolveDeepResearchCliFlagsV1 } from "../../../tools/deep_research_cli/lifecycle_lib";
 import { emitJson } from "../cli/json-mode";
 import { readJsonObject } from "../utils/io-json";
 import { requireAbsolutePath } from "../utils/paths";
@@ -24,8 +24,8 @@ export type CaptureFixturesCliArgs = {
 };
 
 function ensureOptionCEnabledForCli(): void {
-  const flags = resolveDeepResearchFlagsV1();
-  if (!flags.optionCEnabled) {
+  const flags = resolveDeepResearchCliFlagsV1();
+  if (!flags.cliEnabled) {
     throw new Error("Deep research Option C is disabled in current configuration");
   }
 }

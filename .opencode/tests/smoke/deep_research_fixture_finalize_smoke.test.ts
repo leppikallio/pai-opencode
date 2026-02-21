@@ -128,7 +128,7 @@ async function driveToTerminal(args: {
 
 describe("deep_research_fixture_finalize_smoke (smoke)", () => {
   test("init->wave1 missing perspectives returns typed MISSING_ARTIFACT error", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withTempDir(async (base) => {
         const run = await materializeFixtureRun("m1-finalize-happy", base);
         await fs.rm(path.join(run.runRoot, "perspectives.json"), { force: true });
@@ -157,7 +157,7 @@ describe("deep_research_fixture_finalize_smoke (smoke)", () => {
   });
 
   test("happy fixture reaches finalize and records transition + gate audit events", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withTempDir(async (base) => {
         const run = await materializeFixtureRun("m1-finalize-happy", base);
 
@@ -242,7 +242,7 @@ describe("deep_research_fixture_finalize_smoke (smoke)", () => {
   });
 
   test("gate B blocking fixture returns typed GATE_BLOCKED error", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withTempDir(async (base) => {
         const run = await materializeFixtureRun("m1-gate-b-blocks", base);
         const result = await driveToTerminal({ scenario: "m1-gate-b-blocks", ...run, maxSteps: 4 });
@@ -257,7 +257,7 @@ describe("deep_research_fixture_finalize_smoke (smoke)", () => {
   });
 
   test("gate C blocking fixture returns typed GATE_BLOCKED error", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withTempDir(async (base) => {
         const run = await materializeFixtureRun("m1-gate-c-blocks", base);
         const result = await driveToTerminal({ scenario: "m1-gate-c-blocks", ...run, maxSteps: 4 });
@@ -272,7 +272,7 @@ describe("deep_research_fixture_finalize_smoke (smoke)", () => {
   });
 
   test("review-loop-one-iteration fixture reaches finalize after one revise cycle", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withTempDir(async (base) => {
         const run = await materializeFixtureRun("m1-review-loop-one-iteration", base);
         let reviewVisits = 0;
@@ -302,7 +302,7 @@ describe("deep_research_fixture_finalize_smoke (smoke)", () => {
   });
 
   test("review-loop-hit-cap fixture hard-stops when review cap reached", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "1" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "1" }, async () => {
       await withTempDir(async (base) => {
         const run = await materializeFixtureRun("m1-review-loop-hit-cap", base);
         const result = await driveToTerminal({

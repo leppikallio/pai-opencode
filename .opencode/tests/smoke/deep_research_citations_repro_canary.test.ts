@@ -14,7 +14,7 @@ describe("deep_research canary (M4 citations reproducibility)", () => {
   const maybeTest = run_init && citations_validate ? test : test.skip;
 
   maybeTest("online citations writes replayable fixtures; replay yields identical citations.jsonl", async () => {
-    await withEnv({ PAI_DR_OPTION_C_ENABLED: "1", PAI_DR_NO_WEB: "0" }, async () => {
+    await withEnv({ PAI_DR_CLI_ENABLED: "1", PAI_DR_CLI_NO_WEB: "0" }, async () => {
       await withTempDir(async (base) => {
         const baseReal = await fs.realpath(base).catch(() => base);
         const runId = `dr_smoke_m4_${Date.now()}`;
