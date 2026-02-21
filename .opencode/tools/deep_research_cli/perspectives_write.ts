@@ -7,7 +7,7 @@ import {
   err,
   nowIso,
   ok,
-  sha256HexLowerUtf8,
+  sha256DigestForJson,
   validatePerspectivesV1,
 } from "./wave_tools_shared";
 
@@ -41,7 +41,7 @@ export const perspectives_write = tool({
         run_id: String(args.value.run_id ?? ""),
         reason,
         path: perspectivesPath,
-        value_digest: `sha256:${sha256HexLowerUtf8(JSON.stringify(args.value))}`,
+        value_digest: sha256DigestForJson(args.value),
       };
 
       try {
