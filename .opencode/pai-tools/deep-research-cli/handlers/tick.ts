@@ -12,7 +12,7 @@ import { blockersSummaryJson, type TriageBlockers } from "../triage/blockers";
 import {
   handleTickFailureArtifacts,
 } from "../triage/halt-artifacts";
-import { emitJson } from "../cli/json-mode";
+import { emitJsonV1 } from "../cli/json-contract";
 import {
   isSafeSegment,
 } from "../utils/paths";
@@ -465,35 +465,41 @@ export async function runTick(args: TickCliArgs): Promise<void> {
   const summary = await summarizeManifest(manifest);
 
   if (args.json) {
-    const tickPayload: Record<string, unknown> = result.ok
-      ? {
-        ok: true,
-        from: String(result.from ?? ""),
-        to: String(result.to ?? ""),
-      }
-      : {
-        ok: false,
-        error: {
-          code: String(result.error.code ?? "UNKNOWN"),
-          message: String(result.error.message ?? "tick failed"),
-          details: result.error.details ?? {},
-        },
-      };
-    if ("wave_outputs_count" in result && typeof result.wave_outputs_count === "number") {
-      tickPayload.wave_outputs_count = result.wave_outputs_count;
-    }
-
-    emitJson({
-      ok: result.ok,
-      command: "tick",
-      driver: args.driver,
-      tick: tickPayload,
+    const contract = {
       run_id: summary.runId,
       run_root: summary.runRoot,
       manifest_path: runHandle.manifestPath,
       gates_path: summary.gatesPath,
       stage_current: summary.stageCurrent,
       status: summary.status,
+      cli_invocation: resolveDeepResearchCliInvocation(),
+    };
+
+    const resultPayload = result.ok
+      ? {
+        driver: args.driver,
+        from: String(result.from ?? ""),
+        to: String(result.to ?? ""),
+        ...("wave_outputs_count" in result && typeof result.wave_outputs_count === "number"
+          ? { wave_outputs_count: result.wave_outputs_count }
+          : {}),
+      }
+      : null;
+
+    const errorPayload = result.ok
+      ? null
+      : {
+        code: String(result.error.code ?? "UNKNOWN"),
+        message: String(result.error.message ?? "tick failed"),
+        details: result.error.details ?? {},
+      };
+
+    emitJsonV1({
+      ok: result.ok,
+      command: "tick",
+      contract,
+      result: resultPayload,
+      error: errorPayload,
       halt: haltArtifact
         ? {
           tick_index: haltArtifact.tickIndex,
