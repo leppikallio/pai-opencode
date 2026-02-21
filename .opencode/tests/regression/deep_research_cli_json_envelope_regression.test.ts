@@ -49,6 +49,19 @@ function expectContract(contractRaw: unknown): Record<string, unknown> {
   return contract;
 }
 
+function expectGlobalErrorContract(contractRaw: unknown): Record<string, unknown> {
+  const contract = contractRaw as Record<string, unknown>;
+  expect(contract.run_id).toBeNull();
+  expect(contract.run_root).toBeNull();
+  expect(contract.manifest_path).toBeNull();
+  expect(contract.gates_path).toBeNull();
+  expect(contract.stage_current).toBeNull();
+  expect(contract.status).toBeNull();
+  expect(typeof contract.cli_invocation).toBe("string");
+  expect(String(contract.cli_invocation ?? "").length).toBeGreaterThan(0);
+  return contract;
+}
+
 function manifestPathFromInitEnvelope(initPayload: Record<string, unknown>): string {
   const contract = expectContract(initPayload.contract);
   const manifestPath = String(contract.manifest_path ?? "");
@@ -534,5 +547,19 @@ describe("deep_research cli --json dr.cli.v1 envelope (regression)", () => {
       expect(triagePayload.error).toBeNull();
       expect(triagePayload.halt).toBeNull();
     });
+  });
+
+  test("invalid command with --json emits dr.cli.v1 envelope on parse error path", async () => {
+    const payload = expectSingleJsonStdout(await runCli(["not-a-real-command", "--json"]), 1);
+
+    expect(payload.schema_version).toBe("dr.cli.v1");
+    expect(payload.ok).toBe(false);
+    expect(payload.command).toBe("not-a-real-command");
+    expectGlobalErrorContract(payload.contract);
+    expect(payload.result).toBeNull();
+    const error = payload.error as Record<string, unknown>;
+    expect(error.code).toBe("CLI_PARSE_ERROR");
+    expect(typeof error.message).toBe("string");
+    expect(payload.halt).toBeNull();
   });
 });
