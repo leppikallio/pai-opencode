@@ -24,6 +24,10 @@ import { stage_advance } from "./stage_advance";
 import { wave_output_ingest } from "./wave_output_ingest";
 import { wave_output_validate } from "./wave_output_validate";
 import { manifest_write } from "./manifest_write";
+import type {
+  OrchestratorLiveDrivers,
+  OrchestratorLiveRunAgentResult,
+} from "./orchestrator_tick_live";
 
 type ToolJsonOk = {
   ok: true;
@@ -75,6 +79,7 @@ export type OrchestratorTickPostPivotArgs = {
   citations_validate_tool?: ToolWithExecute;
   gate_c_compute_tool?: ToolWithExecute;
   gates_write_tool?: ToolWithExecute;
+  drivers?: Pick<OrchestratorLiveDrivers, "runAgent">;
   tool_context?: unknown;
 };
 
@@ -686,6 +691,56 @@ function normalizePromptDigest(value: unknown): string | null {
   return null;
 }
 
+function normalizeRunAgentResult(
+  value: unknown,
+):
+  | {
+    ok: true;
+    markdown: string;
+    agentRunId: string | null;
+    startedAt: string | null;
+    finishedAt: string | null;
+    model: string | null;
+  }
+  | { ok: false; code: string; message: string } {
+  if (!isPlainObject(value)) {
+    return {
+      ok: false,
+      code: "RUN_AGENT_FAILED",
+      message: "drivers.runAgent result must be an object",
+    };
+  }
+
+  const runError = isPlainObject(value.error)
+    ? (value.error as Record<string, unknown>)
+    : null;
+  if (runError) {
+    return {
+      ok: false,
+      code: String(runError.code ?? "RUN_AGENT_FAILED"),
+      message: String(runError.message ?? "drivers.runAgent returned an error"),
+    };
+  }
+
+  const markdown = nonEmptyString(value.markdown);
+  if (!markdown) {
+    return {
+      ok: false,
+      code: "RUN_AGENT_FAILED",
+      message: "drivers.runAgent markdown must be non-empty",
+    };
+  }
+
+  return {
+    ok: true,
+    markdown,
+    agentRunId: nonEmptyString(value.agent_run_id),
+    startedAt: nonEmptyString(value.started_at),
+    finishedAt: nonEmptyString(value.finished_at),
+    model: nonEmptyString(value.model),
+  };
+}
+
 async function sidecarPromptDigestMatches(metaPath: string, expectedPromptDigest: string): Promise<boolean> {
   if (!(await exists(metaPath))) return false;
   const raw = await readJson(metaPath);
@@ -899,6 +954,7 @@ async function executeWave2Stage(args: {
   reason: string;
   waveOutputIngestTool: ToolWithExecute;
   waveOutputValidateTool: ToolWithExecute;
+  drivers?: Pick<OrchestratorLiveDrivers, "runAgent">;
   markProgress?: (checkpoint: string) => Promise<{ ok: true } | { ok: false; code: string; message: string; details: Record<string, unknown> }>;
   tool_context?: unknown;
 }): Promise<{ ok: true; plan_path: string; outputs_count: number } | { ok: false; code: string; message: string; details: Record<string, unknown> }> {
@@ -1010,6 +1066,9 @@ async function executeWave2Stage(args: {
 
   const missing: Array<{
     perspective_id: string;
+    agent_type: string;
+    output_md: string;
+    prompt_md: string;
     prompt_path: string;
     output_path: string;
     meta_path: string;
@@ -1045,6 +1104,9 @@ async function executeWave2Stage(args: {
 
     missing.push({
       perspective_id: entry.perspective_id,
+      agent_type: entry.agent_type,
+      output_md: entry.output_md,
+      prompt_md: entry.prompt_md,
       prompt_path: promptPath,
       output_path: outputPath,
       meta_path: metaPath,
@@ -1053,6 +1115,88 @@ async function executeWave2Stage(args: {
   }
 
   if (missing.length > 0) {
+    if (args.driver === "live" && args.drivers && typeof args.drivers.runAgent === "function") {
+      for (const missingEntry of missing) {
+        let runAgentRaw: OrchestratorLiveRunAgentResult;
+        try {
+          runAgentRaw = await args.drivers.runAgent({
+            run_id: args.runId,
+            stage: "wave2",
+            run_root: args.runRoot,
+            perspective_id: missingEntry.perspective_id,
+            agent_type: missingEntry.agent_type,
+            prompt_md: missingEntry.prompt_md,
+            output_md: missingEntry.output_md,
+          });
+        } catch (e) {
+          return {
+            ok: false,
+            code: "RUN_AGENT_FAILED",
+            message: "drivers.runAgent threw",
+            details: {
+              perspective_id: missingEntry.perspective_id,
+              message: String(e),
+            },
+          };
+        }
+
+        const normalizedRunAgent = normalizeRunAgentResult(runAgentRaw);
+        if (!normalizedRunAgent.ok) {
+          return {
+            ok: false,
+            code: normalizedRunAgent.code,
+            message: normalizedRunAgent.message,
+            details: {
+              perspective_id: missingEntry.perspective_id,
+            },
+          };
+        }
+
+        const markdownOut = normalizedRunAgent.markdown.endsWith("\n")
+          ? normalizedRunAgent.markdown
+          : `${normalizedRunAgent.markdown}\n`;
+        const sidecarPayload = {
+          schema_version: "wave-output-meta.v1",
+          prompt_digest: missingEntry.prompt_digest,
+          agent_run_id:
+            normalizedRunAgent.agentRunId
+            ?? `live:${missingEntry.perspective_id}:${missingEntry.prompt_digest}`,
+          ingested_at: nowIso(),
+          source_input_path: missingEntry.output_path,
+          ...(normalizedRunAgent.startedAt ? { started_at: normalizedRunAgent.startedAt } : {}),
+          ...(normalizedRunAgent.finishedAt ? { finished_at: normalizedRunAgent.finishedAt } : {}),
+          ...(normalizedRunAgent.model ? { model: normalizedRunAgent.model } : {}),
+        };
+
+        try {
+          await fs.mkdir(path.dirname(missingEntry.output_path), { recursive: true });
+          await fs.writeFile(missingEntry.output_path, markdownOut, "utf8");
+          await fs.writeFile(
+            missingEntry.meta_path,
+            `${JSON.stringify(sidecarPayload, null, 2)}\n`,
+            "utf8",
+          );
+        } catch (e) {
+          return {
+            ok: false,
+            code: "WRITE_FAILED",
+            message: "failed to persist live wave2 artifacts",
+            details: {
+              perspective_id: missingEntry.perspective_id,
+              output_path: missingEntry.output_path,
+              meta_path: missingEntry.meta_path,
+              message: String(e),
+            },
+          };
+        }
+      }
+    }
+  }
+
+  if (missing.length > 0) {
+    if (args.driver === "live" && args.drivers && typeof args.drivers.runAgent === "function") {
+      // Missing artifacts were produced via live runAgent seam; continue with validation below.
+    } else {
     const code = args.driver === "task" ? "RUN_AGENT_REQUIRED" : "MISSING_ARTIFACT";
     const message = args.driver === "task"
       ? "Wave 2 requires external agent results via agent-result"
@@ -1067,6 +1211,7 @@ async function executeWave2Stage(args: {
         missing_perspectives: missing,
       },
     };
+    }
   }
 
   for (const [index, entry] of planResult.plan.entries.entries()) {
@@ -1625,6 +1770,7 @@ export async function orchestrator_tick_post_pivot(
       runRoot,
       runRootReal,
       driver,
+      drivers: args.drivers,
       manifest,
       perspectivesPath,
       wave2DirPath,
