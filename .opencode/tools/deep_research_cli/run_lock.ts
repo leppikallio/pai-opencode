@@ -376,29 +376,56 @@ export function startRunLockHeartbeat(args: {
 	handle: RunLockHandle;
 	interval_ms?: number;
 	lease_seconds?: number;
+	on_failure?: (failure: {
+		code: string;
+		message: string;
+		details: Record<string, unknown>;
+	}) => void;
+	max_failures?: number;
 }): { stop: () => void } {
 	const intervalMsRaw =
 		typeof args.interval_ms === "number" && Number.isFinite(args.interval_ms)
 			? Math.trunc(args.interval_ms)
 			: 30_000;
 	const intervalMs = Math.max(250, intervalMsRaw);
+	const maxFailuresRaw =
+		typeof args.max_failures === "number" && Number.isFinite(args.max_failures)
+			? Math.trunc(args.max_failures)
+			: 1;
+	const maxFailures = Math.max(1, maxFailuresRaw);
 
 	let stopped = false;
+	let failureCount = 0;
+	const stop = () => {
+		stopped = true;
+		clearInterval(timer);
+	};
 	const timer = setInterval(() => {
 		if (stopped) return;
 		void refreshRunLock({
 			handle: args.handle,
 			lease_seconds: args.lease_seconds,
-		}).then(() => undefined, () => undefined);
+		}).then(
+			(result) => {
+				if (result.ok) return;
+				failureCount += 1;
+				args.on_failure?.({
+					code: result.code,
+					message: result.message,
+					details: result.details,
+				});
+				if (failureCount >= maxFailures) {
+					stop();
+				}
+			},
+			() => undefined,
+		);
 	}, intervalMs);
 	// Avoid keeping the process alive just for the heartbeat.
 	(timer as unknown as { unref?: () => void }).unref?.();
 
 	return {
-		stop: () => {
-			stopped = true;
-			clearInterval(timer);
-		},
+		stop,
 	};
 }
 
