@@ -36,6 +36,9 @@ export type InitCliArgs = {
   runsRoot?: string;
   sensitivity: "normal" | "restricted" | "no_web";
   mode: "quick" | "standard" | "deep";
+  citationsBrightDataEndpoint?: string;
+  citationsApifyEndpoint?: string;
+  citationValidationTier?: "basic" | "standard" | "thorough";
   writePerspectives: boolean;
   force: boolean;
   json?: boolean;
@@ -84,6 +87,12 @@ function asNonEmptyString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function normalizeCitationEndpoint(value: string | undefined): string | null {
+  const normalized = asNonEmptyString(value);
+  if (!normalized) return null;
+  return normalized.startsWith("http") ? normalized : null;
+}
+
 function citationModeFromSensitivity(sensitivity: string): "offline" | "online" | "dry_run" {
   if (sensitivity === "no_web") return "offline";
   if (sensitivity === "restricted") return "dry_run";
@@ -106,6 +115,9 @@ async function writeRunConfig(args: {
   manifestPath: string;
   gatesPath: string;
   manifest: Record<string, unknown>;
+  citationsBrightDataEndpoint?: string;
+  citationsApifyEndpoint?: string;
+  citationValidationTier?: "basic" | "standard" | "thorough";
 }): Promise<string> {
   const flags = resolveDeepResearchCliFlagsV1();
   const limits = asObject(args.manifest.limits);
@@ -113,18 +125,34 @@ async function writeRunConfig(args: {
   const effectiveSensitivity = String(query.sensitivity ?? "normal");
   const deepFlags = readManifestDeepFlags(args.manifest);
 
+  const cliBrightDataProvided = args.citationsBrightDataEndpoint !== undefined;
+  const cliApifyProvided = args.citationsApifyEndpoint !== undefined;
+  const cliBrightDataEndpoint = normalizeCitationEndpoint(args.citationsBrightDataEndpoint);
+  const cliApifyEndpoint = normalizeCitationEndpoint(args.citationsApifyEndpoint);
+
   const manifestBrightDataEndpoint = asNonEmptyString(deepFlags.PAI_DR_CLI_CITATIONS_BRIGHT_DATA_ENDPOINT);
   const manifestApifyEndpoint = asNonEmptyString(deepFlags.PAI_DR_CLI_CITATIONS_APIFY_ENDPOINT);
-  const effectiveBrightDataEndpoint = (manifestBrightDataEndpoint ?? flags.citationsBrightDataEndpoint ?? "").trim();
-  const effectiveApifyEndpoint = (manifestApifyEndpoint ?? flags.citationsApifyEndpoint ?? "").trim();
+  const settingsBrightDataEndpoint = asNonEmptyString(flags.citationsBrightDataEndpoint);
+  const settingsApifyEndpoint = asNonEmptyString(flags.citationsApifyEndpoint);
+  const effectiveBrightDataEndpoint = cliBrightDataProvided
+    ? cliBrightDataEndpoint
+    : (manifestBrightDataEndpoint ?? settingsBrightDataEndpoint ?? null);
+  const effectiveApifyEndpoint = cliApifyProvided
+    ? cliApifyEndpoint
+    : (manifestApifyEndpoint ?? settingsApifyEndpoint ?? null);
+  const effectiveCitationValidationTier = args.citationValidationTier ?? flags.citationValidationTier;
   const citationMode = citationModeFromSensitivity(effectiveSensitivity);
 
-  const brightDataSource = manifestBrightDataEndpoint
+  const brightDataSource = cliBrightDataProvided
+    ? "run-config"
+    : manifestBrightDataEndpoint
     ? "manifest"
     : flags.citationsBrightDataEndpoint
       ? "settings"
       : "run-config";
-  const apifySource = manifestApifyEndpoint
+  const apifySource = cliApifyProvided
+    ? "run-config"
+    : manifestApifyEndpoint
     ? "manifest"
     : flags.citationsApifyEndpoint
       ? "settings"
@@ -136,13 +164,13 @@ async function writeRunConfig(args: {
     created_at: new Date().toISOString(),
     manifest_path: args.manifestPath,
     gates_path: args.gatesPath,
-    effective: {
-      sensitivity: effectiveSensitivity,
-      flags: {
-        option_c_enabled: true,
-        no_web: effectiveSensitivity === "no_web" || flags.noWeb,
-        citation_validation_tier: flags.citationValidationTier,
-      },
+      effective: {
+        sensitivity: effectiveSensitivity,
+        flags: {
+          option_c_enabled: true,
+          no_web: effectiveSensitivity === "no_web" || flags.noWeb,
+          citation_validation_tier: effectiveCitationValidationTier,
+        },
       citation_endpoints: {
         extract_urls: "deep_research_citations_extract_urls",
         normalize: "deep_research_citations_normalize",
@@ -308,6 +336,9 @@ export async function runInit(args: InitCliArgs): Promise<void> {
     manifestPath,
     gatesPath,
     manifest,
+    citationsBrightDataEndpoint: args.citationsBrightDataEndpoint,
+    citationsApifyEndpoint: args.citationsApifyEndpoint,
+    citationValidationTier: args.citationValidationTier,
   });
 
   if (args.json) {
