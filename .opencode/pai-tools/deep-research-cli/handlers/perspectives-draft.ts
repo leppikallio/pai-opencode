@@ -31,12 +31,12 @@ import {
 import { writeDefaultPerspectivesPolicy } from "../perspectives/policy";
 import { buildPerspectivesDraftPromptMarkdown } from "../perspectives/prompt";
 import { normalizePerspectivesDraftOutputV1 } from "../perspectives/schema";
-import {
-  type PerspectivesDraftMergeReportV1,
-  type PerspectivesDraftStateArtifactV1,
-  type PerspectivesDraftStatus,
-  type PerspectivesV1Payload,
-  type TaskDriverMissingPerspective,
+import type {
+  PerspectivesDraftMergeReportV1,
+  PerspectivesDraftStateArtifactV1,
+  PerspectivesDraftStatus,
+  PerspectivesV1Payload,
+  TaskDriverMissingPerspective,
 } from "../perspectives/state";
 import {
   printHaltArtifactSummary,
@@ -64,7 +64,7 @@ function ensureOptionCEnabledForCli(): void {
 }
 
 function nextStepCliInvocation(): string {
-  const cliName = "deep-research-option-c" + ".ts";
+  const cliName = "deep-research-cli" + ".ts";
   return `bun "pai-tools/${cliName}"`;
 }
 

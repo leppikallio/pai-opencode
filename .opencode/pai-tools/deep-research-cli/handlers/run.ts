@@ -48,7 +48,7 @@ export type RunCliArgs = RunHandleCliArgs & {
 };
 
 function nextStepCliInvocation(): string {
-  return `bun "pai-tools/${["deep-research-option-c", "ts"].join(".")}"`;
+  return `bun "pai-tools/${["deep-research-cli", "ts"].join(".")}"`;
 }
 
 function ensureOptionCEnabledForCli(): void {

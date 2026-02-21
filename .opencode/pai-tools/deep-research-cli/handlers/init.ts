@@ -93,7 +93,7 @@ function readManifestDeepFlags(manifest: Record<string, unknown>): Record<string
   return asObject(constraints.deep_research_flags);
 }
 
-function timestampTokenFromIso(iso: string): string {
+function _timestampTokenFromIso(iso: string): string {
   return iso.replace(/[-:]/g, "").replace(/\..*Z$/, "Z").replace("T", "T");
 }
 

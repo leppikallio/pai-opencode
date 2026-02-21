@@ -2,9 +2,9 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { createInterface } from "node:readline/promises";
 
-import {
-  type OrchestratorLiveRunAgentInput,
-  type OrchestratorLiveRunAgentResult,
+import type {
+  OrchestratorLiveRunAgentInput,
+  OrchestratorLiveRunAgentResult,
 } from "../../../tools/deep_research.ts";
 import { isSafeSegment } from "../utils/paths";
 
