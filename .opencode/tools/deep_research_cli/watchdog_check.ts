@@ -8,6 +8,7 @@ import {
   MANIFEST_STAGE,
   STAGE_TIMEOUT_SECONDS_V1,
   type ToolWithExecute,
+  atomicWriteJson,
   err,
   errorCode,
   getManifestArtifacts,
@@ -131,6 +132,7 @@ export const watchdog_check = tool({
 
       const logsDir = String(getManifestPaths(manifest).logs_dir ?? "logs");
       const checkpointPath = path.join(runRoot, logsDir, "timeout-checkpoint.md");
+      const checkpointJsonPath = path.join(runRoot, logsDir, "timeout-checkpoint.json");
       const failureTs = now.toISOString();
 
       const checkpointContent = `${[
@@ -151,6 +153,22 @@ export const watchdog_check = tool({
 
       await ensureDir(path.dirname(checkpointPath));
       await fs.promises.writeFile(checkpointPath, checkpointContent, "utf8");
+      await atomicWriteJson(checkpointJsonPath, {
+        schema_version: "timeout_checkpoint.v1",
+        generated_at: failureTs,
+        stage,
+        elapsed_seconds: elapsed_s,
+        timeout_seconds: timeout_s,
+        timer_origin_field: timerOriginField,
+        timer_origin: timerOrigin.toISOString(),
+        stage_started_at: startedAt.toISOString(),
+        stage_last_progress_at: lastProgressAt ? lastProgressAt.toISOString() : null,
+        last_known_subtask: null,
+        next_steps: [
+          "Inspect logs/audit.jsonl for recent events.",
+          "Decide whether to restart this stage or abort run.",
+        ],
+      });
 
       const existingFailures = Array.isArray(manifest.failures) ? manifest.failures : [];
       const patch = {
@@ -189,6 +207,7 @@ export const watchdog_check = tool({
         timer_origin: timerOrigin.toISOString(),
         timer_origin_field: timerOriginField,
         checkpoint_path: checkpointPath,
+        checkpoint_json_path: checkpointJsonPath,
         manifest_revision: Number((writeObj.value as Record<string, unknown>).new_revision ?? 0),
       });
     } catch (e) {
