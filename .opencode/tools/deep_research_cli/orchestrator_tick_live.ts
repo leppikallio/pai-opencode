@@ -3,6 +3,7 @@ import * as fs from "node:fs/promises";
 
 import { acquireRunLock, releaseRunLock, startRunLockHeartbeat } from "./run_lock";
 import {
+  atomicWriteJson,
   type ToolWithExecute,
   getManifestArtifacts,
   getManifestPaths,
@@ -234,6 +235,42 @@ async function exists(filePath: string): Promise<boolean> {
     return true;
   } catch {
     return false;
+  }
+}
+
+type TickInProgressMarker = {
+  schema_version: "tick_in_progress.v1";
+  ts: string;
+  stage: string;
+  reason: string;
+};
+
+function tickInProgressMarkerPath(runRoot: string): string {
+  return path.join(runRoot, "logs", "tick-in-progress.json");
+}
+
+async function writeTickInProgressMarker(args: {
+  runRoot: string;
+  stage: string;
+  reason: string;
+}): Promise<string> {
+  const markerPath = tickInProgressMarkerPath(args.runRoot);
+  const marker: TickInProgressMarker = {
+    schema_version: "tick_in_progress.v1",
+    ts: nowIso(),
+    stage: args.stage,
+    reason: args.reason,
+  };
+  await atomicWriteJson(markerPath, marker);
+  return markerPath;
+}
+
+async function removeTickInProgressMarker(markerPath: string): Promise<void> {
+  try {
+    await fs.unlink(markerPath);
+  } catch (e) {
+    const code = e && typeof e === "object" ? String((e as { code?: unknown }).code ?? "") : "";
+    if (code !== "ENOENT") throw e;
   }
 }
 
@@ -626,7 +663,15 @@ export async function orchestrator_tick_live(
     max_failures: runLockPolicy.heartbeat_max_failures,
   });
 
+  let tickMarkerPath: string | null = null;
+  let tickSucceeded = false;
+
   try {
+  tickMarkerPath = await writeTickInProgressMarker({
+    runRoot,
+    stage: from,
+    reason,
+  });
 
   const pathsObj = getManifestPaths(manifest);
   const perspectivesResolved = await resolveContainedPath({
@@ -814,6 +859,7 @@ export async function orchestrator_tick_live(
   }
 
   if (currentStage === "pivot") {
+    tickSucceeded = true;
     return {
       ok: true,
       schema_version: "orchestrator_tick.live.v1",
@@ -1384,6 +1430,7 @@ export async function orchestrator_tick_live(
       ? decisionObj.inputs_digest
       : null;
 
+  tickSucceeded = true;
   return {
     ok: true,
     schema_version: "orchestrator_tick.live.v1",
@@ -1394,6 +1441,9 @@ export async function orchestrator_tick_live(
     decision_inputs_digest: decisionInputsDigest,
   };
   } finally {
+    if (tickSucceeded && tickMarkerPath) {
+      await removeTickInProgressMarker(tickMarkerPath);
+    }
     heartbeat.stop();
     await releaseRunLock(runLockHandle).catch(() => undefined);
   }
