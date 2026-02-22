@@ -1862,7 +1862,6 @@ async function sync(mode: Mode, opts: Options) {
     // Preserve personal content and runtime state.
     const preserve: string[] = [
       "MEMORY/",
-      "config/",
       "skills/PAI/USER/",
       "skills/PAI/WORK/",
     ];
