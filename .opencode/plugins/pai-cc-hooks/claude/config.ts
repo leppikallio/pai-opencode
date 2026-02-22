@@ -1,7 +1,8 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-import { getClaudeConfigDir } from "../shared/claude-config-dir";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { ClaudeHooksConfig, HookCommand, HookMatcher } from "./types";
 
 interface RawHookMatcher {
@@ -46,18 +47,29 @@ function normalizeHooksConfig(raw: RawClaudeHooksConfig): ClaudeHooksConfig {
 }
 
 export function getClaudeSettingsPaths(customPath?: string): string[] {
-  const claudeConfigDir = getClaudeConfigDir();
+  const openCodeConfigDir = getOpenCodeConfigDir();
   const paths = [
-    join(claudeConfigDir, "settings.json"),
+    join(openCodeConfigDir, "config", "claude-hooks.settings.json"),
     join(process.cwd(), ".claude", "settings.json"),
     join(process.cwd(), ".claude", "settings.local.json"),
+    join(homedir(), ".claude", "settings.json"),
   ];
 
   if (customPath && existsSync(customPath)) {
-    paths.unshift(customPath);
+    paths.push(customPath);
   }
 
   return [...new Set(paths)];
+}
+
+function getOpenCodeConfigDir(): string {
+  const envConfigDir = process.env.OPEN_CODE_CONFIG_DIR;
+  if (envConfigDir) {
+    return envConfigDir;
+  }
+
+  const pluginDir = dirname(fileURLToPath(import.meta.url));
+  return resolve(pluginDir, "..", "..", "..");
 }
 
 function mergeHooksConfig(base: ClaudeHooksConfig, override: ClaudeHooksConfig): ClaudeHooksConfig {
