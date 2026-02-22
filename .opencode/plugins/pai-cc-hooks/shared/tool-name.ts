@@ -1,4 +1,7 @@
 const SPECIAL_TOOL_MAPPINGS: Record<string, string> = {
+  question: "AskUserQuestion",
+  // apply_patch mutates existing files in-place, so treat it as Edit for hook matching.
+  apply_patch: "Edit",
   webfetch: "WebFetch",
   websearch: "WebSearch",
   todoread: "TodoRead",
