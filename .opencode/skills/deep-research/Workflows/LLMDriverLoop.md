@@ -4,7 +4,7 @@ Run the `deep-research` CLI in **task-driver** mode while an external LLM/agent 
 
 This is the canonical operator loop:
 
-> `tick --driver task --json` → (if halted) run agent → `agent-result --json` → repeat `tick --json`
+> `tick --driver task --json` → (if halted) run agent → `agent-result --json` → repeat `tick --driver task --json`
 
 ## CLI command forms (copy/paste)
 

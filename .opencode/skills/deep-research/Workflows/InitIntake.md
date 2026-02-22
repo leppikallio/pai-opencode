@@ -58,6 +58,6 @@ bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
 
 ## Expected seam behavior
 
-- `perspectives-draft --driver task` halts with `RUN_AGENT_REQUIRED`.
+- `perspectives-draft --driver task --json` halts with `RUN_AGENT_REQUIRED`.
 - Prompt files are written under `<run_root>/operator/prompts/perspectives/`.
 - Ingest each required result with one `agent-result` call per perspective (from `halt.next_commands[]`).
