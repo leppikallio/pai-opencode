@@ -45,6 +45,45 @@ bun "~/.config/opencode/skills/create-skill/Tools/ImportSkill.ts" \
 # Repeat for each directory under <SuperpowersRepoDir>/skills/* that contains SKILL.md
 ```
 
+### 2b) Apply PAI-local generalizations (REQUIRED)
+
+Upstream Superpowers content is written for a Claude-centric environment. In PAI/OpenCode, we want the vendored skills to be **model-neutral** and to use **un-namespaced skill names**.
+
+Apply these generalizations **immediately after each import** (or once after importing all skills):
+
+1) Replace `For Claude` → `For the executor`
+2) Drop the `superpowers:` prefix in required sub-skill references (skills load by plain name in this runtime)
+
+Run (repeat with the imported skill name):
+
+```bash
+cd <PaiRepoDir>
+
+SKILL_DIR="<PaiRepoDir>/.opencode/skills/<SkillName>"
+
+python - <<'PY'
+from pathlib import Path
+import os
+
+skill_dir = Path(os.environ["SKILL_DIR"])
+for p in skill_dir.rglob("*.md"):
+  txt = p.read_text(encoding="utf-8")
+  new = txt
+  new = new.replace("> **For Claude:**", "> **For the executor:**")
+  new = new.replace("superpowers:", "")
+  if new != txt:
+    p.write_text(new, encoding="utf-8")
+PY
+
+# Sanity checks (should return no matches)
+rg -n "For Claude" "$SKILL_DIR" || true
+rg -n "superpowers:" "$SKILL_DIR" || true
+```
+
+Notes:
+- If upstream ever introduces skill-name collisions, re-introduce namespacing deliberately. The default here is “no prefix”.
+- Keep the changes minimal and mechanical; do not editorialize upstream docs beyond these generalizations.
+
 ### 3) Review and commit
 
 ```bash
