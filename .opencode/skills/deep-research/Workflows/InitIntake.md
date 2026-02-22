@@ -18,7 +18,6 @@ Canonical init intake for the **default operator happy path**: LLM drafting seam
 Use these defaults unless you explicitly need an override:
 
 - `--json`
-- `--no-perspectives`
 - `--mode standard`
 - `--sensitivity normal`
 
@@ -27,8 +26,10 @@ Use these defaults unless you explicitly need an override:
 1) Init the run at the LLM drafting seam:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity normal --run-id "<run_id>" --no-perspectives --json
+bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity normal --run-id "<run_id>" --json
 ```
+
+`init` is seam-first by default. Add `--with-perspectives` only for the legacy fast path (`init -> wave1` in one command).
 
 `<manifest_abs>` and `<gates_abs>` in subsequent commands come from init output:
 

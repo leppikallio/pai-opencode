@@ -25,15 +25,15 @@ bun "pai-tools/deep-research-cli.ts" <command> [flags]
 1. Initialize run:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity no_web
+bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity no_web --with-perspectives
 
 # Runtime install (~/.config/opencode)
 cd "$HOME/.config/opencode"
-bun "pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity no_web
+bun "pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity no_web --with-perspectives
 ```
 
-> This workflow assumes you **do not** pass `--no-perspectives`.
-> If you want the perspectives drafting seam (`perspectives-draft`), use `init --no-perspectives` and follow `DraftPerspectivesFromQuery.md`.
+> This workflow requires `--with-perspectives`.
+> If you want the seam-first drafting flow (`perspectives-draft`), use default `init` and follow `DraftPerspectivesFromQuery.md`.
 
 2. Confirm required artifacts using the printed contract fields:
    - `manifest_path`
@@ -42,7 +42,7 @@ bun "pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivit
    - `perspectives_path` (printed)
    - `wave1_plan_path` (printed)
 
-When perspectives are written (i.e., `init` without `--no-perspectives`), the CLI performs this deterministic sequence:
+When `--with-perspectives` is set, the CLI performs this deterministic sequence:
 
 1. `run_init`
 2. `perspectives_write`
@@ -58,7 +58,7 @@ No environment variables are required for this transition.
 - [ ] The printed `perspectives_path` exists.
 - [ ] The printed `wave1_plan_path` points to an existing file and its JSON contains `inputs_digest`.
 - [ ] The Wave 1 plan JSON includes `perspectives_digest`.
-- [ ] `manifest.stage.current` equals `wave1` after `init` (only when not using `--no-perspectives`).
+- [ ] `manifest.stage.current` equals `wave1` after `init --with-perspectives`.
 
 ## Notes
 

@@ -42,30 +42,40 @@ bun "pai-tools/deep-research-cli.ts" <command> [...flags]
 
 ## Perspective Drafting (default LLM seam)
 
-The default operator flow uses **agent-authored perspectives** via `init --no-perspectives`.
+The default operator flow uses **agent-authored perspectives** via seam-first `init` (no perspectives written unless opted in).
 
-### Why/when to run `init --no-perspectives`
+### Why/when to run seam-first `init`
 
-Run `init` with `--no-perspectives` when:
+Run `init` (default behavior) when:
 
 1) You need the **perspectives stage** (`stage.current=perspectives`) and the `perspectives-draft` task-driver seam.
 2) You want to **halt**, let an external agent produce a JSON payload, then ingest it deterministically.
 3) You want `perspectives-draft` to **promote** `perspectives.json`, **regenerate** the Wave 1 plan, and **stage-advance** to `wave1`.
 
-If you do **not** pass `--no-perspectives`, `init` may write `perspectives.json`, generate the Wave 1 plan, and advance directly to `stage.current=wave1` (skipping the perspectives drafting seam).
+If you pass `--with-perspectives`, `init` uses the legacy fast path: write `perspectives.json`, generate the Wave 1 plan, and advance directly to `stage.current=wave1` (skipping the perspectives drafting seam).
 
 ### Canonical happy path (end-to-end)
 
 > Canonical workflow docs: `Workflows/InitIntake.md` and `Workflows/DraftPerspectivesFromQuery.md`
 
-1) Init without perspectives:
+1) Init (seam-first default; no perspectives written):
 
 ```bash
 bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
   --run-id "<run_id>" \
-  --no-perspectives \
+  --json
+```
+
+Legacy fast path (opt-in):
+
+```bash
+bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
+  --mode standard \
+  --sensitivity normal \
+  --run-id "<run_id>" \
+  --with-perspectives \
   --json
 ```
 
@@ -139,8 +149,8 @@ If `wave1` execution fails fast with `WAVE1_PLAN_STALE`, it means the Wave 1 pla
 
 This skill is the canonical operator surface.
 
-- **plan (offline-first):** `init` with `--sensitivity no_web`, optionally one `tick --driver fixture`, then stop.
-- **fixture (offline):** `init` with `--sensitivity no_web`, loop `tick --driver fixture` until terminal status or typed blocker; use `triage` when blocked.
+- **plan (offline-first):** `init` with `--sensitivity no_web --with-perspectives`, optionally one `tick --driver fixture`, then stop.
+- **fixture (offline):** `init` with `--sensitivity no_web --with-perspectives`, loop `tick --driver fixture` until terminal status or typed blocker; use `triage` when blocked.
 - **live (operator run):** use task-driver seams (`tick --driver task --json` + `agent-result --json`) to produce wave artifacts, then proceed through citations/summaries/synthesis.
 
 > **Scaffold warning (required):** `--driver fixture` and `mode=generate` paths are deterministic scaffolding.

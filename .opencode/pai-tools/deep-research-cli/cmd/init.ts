@@ -43,11 +43,20 @@ export function createInitCmd(deps: {
       citationsBrightDataEndpoint: option({ long: "citations-brightdata-endpoint", type: optional(string) }),
       citationsApifyEndpoint: option({ long: "citations-apify-endpoint", type: optional(string) }),
       citationValidationTier: option({ long: "citation-validation-tier", type: optional(oneOf(["basic", "standard", "thorough"])) }),
+      withPerspectives: flag({ long: "with-perspectives", type: boolean }),
       noPerspectives: flag({ long: "no-perspectives", type: boolean }),
       force: flag({ long: "force", type: boolean }),
       json: flag({ long: "json", type: boolean }),
     },
     handler: async (args) => {
+      if (args.withPerspectives && args.noPerspectives) {
+        throw new Error("Cannot use both --with-perspectives and --no-perspectives");
+      }
+
+      const writePerspectives = args.withPerspectives
+        ? true
+        : false;
+
       await deps.runInit({
         query: args.query,
         runId: args.runId,
@@ -56,8 +65,8 @@ export function createInitCmd(deps: {
         mode: (args.mode ?? "standard") as InitMode,
         citationsBrightDataEndpoint: args.citationsBrightDataEndpoint,
         citationsApifyEndpoint: args.citationsApifyEndpoint,
-        citationValidationTier: args.citationValidationTier,
-        writePerspectives: !args.noPerspectives,
+        citationValidationTier: args.citationValidationTier as RunInitArgs["citationValidationTier"],
+        writePerspectives,
         force: args.force,
         json: args.json,
       });

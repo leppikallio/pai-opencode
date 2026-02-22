@@ -25,11 +25,11 @@ bun "pai-tools/deep-research-cli.ts" <command> [flags]
 1. Initialize fixture run:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --sensitivity no_web --mode standard
+bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --sensitivity no_web --mode standard --with-perspectives
 
 # Runtime install (~/.config/opencode)
 cd "$HOME/.config/opencode"
-bun "pai-tools/deep-research-cli.ts" init "<query>" --sensitivity no_web --mode standard
+bun "pai-tools/deep-research-cli.ts" init "<query>" --sensitivity no_web --mode standard --with-perspectives
 ```
 
 2. Advance with fixture driver until stop:

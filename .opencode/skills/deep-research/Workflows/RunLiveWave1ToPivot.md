@@ -25,11 +25,11 @@ bun "pai-tools/deep-research-cli.ts" <command> [flags]
 1. Initialize run:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity normal
+bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity normal --with-perspectives
 
 # Runtime install (~/.config/opencode)
 cd "$HOME/.config/opencode"
-bun "pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity normal
+bun "pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity normal --with-perspectives
 ```
 
 2. Execute Wave 1 autonomously (Option A: Task-backed driver) until the run reaches `stage.current: pivot`.

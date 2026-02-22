@@ -31,7 +31,7 @@ function extractField(stdout: string, field: string): string {
 }
 
 async function initRun(runId: string, runsRoot: string): Promise<{ manifestPath: string; runRoot: string }> {
-  const initRes = await runCli(["init", "Q", "--run-id", runId, "--runs-root", runsRoot]);
+  const initRes = await runCli(["init", "Q", "--run-id", runId, "--runs-root", runsRoot, "--with-perspectives"]);
   expect(initRes.exit).toBe(0);
   expect(initRes.stderr.trim()).toBe("");
   return {

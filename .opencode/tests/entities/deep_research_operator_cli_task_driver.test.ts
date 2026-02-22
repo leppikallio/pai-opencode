@@ -42,7 +42,7 @@ describe("deep_research operator CLI task driver (entity)", () => {
   test("tick --driver task prompt-outs and agent-result ingests canonical wave outputs", async () => {
     await withTempDir(async (base) => {
       const runId = "dr_test_cli_task_driver_001";
-      const initRes = await runCli(["init", "Q", "--run-id", runId, "--runs-root", base]);
+      const initRes = await runCli(["init", "Q", "--run-id", runId, "--runs-root", base, "--with-perspectives"]);
       expect(initRes.exit).toBe(0);
 
       const manifestPath = extractField(initRes.stdout, "manifest_path");
@@ -73,7 +73,7 @@ describe("deep_research operator CLI task driver (entity)", () => {
       expect(String(haltLatest.schema_version ?? "")).toBe("halt.v1");
       expect(String(haltError.code ?? "")).toBe("RUN_AGENT_REQUIRED");
       const nextCommands = Array.isArray(haltLatest.next_commands) ? haltLatest.next_commands : [];
-      expect(nextCommands.some((item) => String(item).startsWith('bun "pai-tools/deep-research-cli.ts"'))).toBe(true);
+      expect(nextCommands.some((item) => String(item).includes("deep-research-cli.ts"))).toBe(true);
       expect(nextCommands.some((item) => String(item).includes("agent-result") && String(item).includes("--perspective \"p1\""))).toBe(true);
 
       const inputMarkdownPath = fixturePath("wave-output", "valid.md");

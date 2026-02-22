@@ -56,14 +56,13 @@ Minimum baseline:
 
 ## Steps
 
-1) Initialize a run **without** perspectives (so you can enter the perspectives drafting seam):
+1) Initialize a run (seam-first default, so you can enter the perspectives drafting seam):
 
 ```bash
 bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
   --run-id "<run_id>" \
-  --no-perspectives \
   --json
 
 # Runtime install (~/.config/opencode)
@@ -72,9 +71,10 @@ bun "pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
   --run-id "<run_id>" \
-  --no-perspectives \
   --json
 ```
+
+`--no-perspectives` remains supported for explicitness/back-compat, but is no longer required.
 
 2) Advance into `stage.current=perspectives`:
 

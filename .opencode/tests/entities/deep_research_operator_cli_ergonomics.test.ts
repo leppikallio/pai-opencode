@@ -54,7 +54,7 @@ function extractField(stdout: string, field: string): string {
 }
 
 async function initRun(runId: string, runsRoot: string): Promise<{ manifestPath: string; gatesPath: string }> {
-  const initRes = await runCli(["init", "Q", "--run-id", runId, "--runs-root", runsRoot]);
+  const initRes = await runCli(["init", "Q", "--run-id", runId, "--runs-root", runsRoot, "--with-perspectives"]);
   expect(initRes.exit).toBe(0);
   expect(initRes.stderr).not.toContain("ERROR:");
   return {
@@ -68,7 +68,7 @@ describe("deep_research operator CLI ergonomics (entity)", () => {
     await withTempDir(async (base) => {
       const runId = "dr_test_cli_init_resume_001";
 
-      const init1 = await runCli(["init", "Q", "--run-id", runId, "--runs-root", base]);
+      const init1 = await runCli(["init", "Q", "--run-id", runId, "--runs-root", base, "--with-perspectives"]);
       expect(init1.exit).toBe(0);
       expect(init1.stderr).not.toContain("ERROR:");
 
@@ -85,7 +85,7 @@ describe("deep_research operator CLI ergonomics (entity)", () => {
       raw.perspectives[0].title = "SENTINEL";
       await fs.writeFile(perspectivesPath, `${JSON.stringify(raw, null, 2)}\n`, "utf8");
 
-      const init2 = await runCli(["init", "Q", "--run-id", runId, "--runs-root", base]);
+      const init2 = await runCli(["init", "Q", "--run-id", runId, "--runs-root", base, "--with-perspectives"]);
       expect(init2.exit).toBe(0);
       expect(init2.stderr).not.toContain("ERROR:");
 
@@ -96,7 +96,7 @@ describe("deep_research operator CLI ergonomics (entity)", () => {
       const after2 = JSON.parse(await fs.readFile(perspectivesPath, "utf8"));
       expect(after2.perspectives[0].title).toBe("SENTINEL");
 
-      const init3 = await runCli(["init", "Q", "--run-id", runId, "--runs-root", base, "--force"]);
+      const init3 = await runCli(["init", "Q", "--run-id", runId, "--runs-root", base, "--with-perspectives", "--force"]);
       expect(init3.exit).toBe(0);
       expect(init3.stderr).not.toContain("ERROR:");
 
@@ -106,6 +106,41 @@ describe("deep_research operator CLI ergonomics (entity)", () => {
 
       const after3 = JSON.parse(await fs.readFile(perspectivesPath, "utf8"));
       expect(after3.perspectives[0].title).toBe("Default synthesis perspective");
+    });
+  });
+
+  test("init defaults to seam-first and --with-perspectives enables legacy wave1 bootstrap", async () => {
+    await withTempDir(async (base) => {
+      const seamRunId = "dr_test_cli_init_default_seam_001";
+      const seamInit = await runCli(["init", "Q", "--run-id", seamRunId, "--runs-root", base, "--json"]);
+      const seamPayload = expectSingleJsonStdout(seamInit, 0);
+      const seamContract = initContractFromEnvelope(seamPayload);
+      const seamRunRoot = String(seamContract.run_root ?? "");
+      expect(seamRunRoot.length).toBeGreaterThan(0);
+      expect(String(seamContract.stage_current ?? "")).toBe("init");
+
+      await expect(fs.stat(path.join(seamRunRoot, "perspectives.json"))).rejects.toBeTruthy();
+      await expect(fs.stat(path.join(seamRunRoot, "wave-1", "wave1-plan.json"))).rejects.toBeTruthy();
+
+      const withRunId = "dr_test_cli_init_with_perspectives_001";
+      const withInit = await runCli([
+        "init",
+        "Q",
+        "--run-id",
+        withRunId,
+        "--runs-root",
+        base,
+        "--with-perspectives",
+        "--json",
+      ]);
+      const withPayload = expectSingleJsonStdout(withInit, 0);
+      const withContract = initContractFromEnvelope(withPayload);
+      const withRunRoot = String(withContract.run_root ?? "");
+      expect(withRunRoot.length).toBeGreaterThan(0);
+      expect(String(withContract.stage_current ?? "")).toBe("wave1");
+
+      await fs.stat(path.join(withRunRoot, "perspectives.json"));
+      await fs.stat(path.join(withRunRoot, "wave-1", "wave1-plan.json"));
     });
   });
 
@@ -240,6 +275,7 @@ describe("deep_research operator CLI ergonomics (entity)", () => {
         runId,
         "--runs-root",
         base,
+        "--with-perspectives",
         "--json",
       ]));
 
@@ -468,5 +504,16 @@ describe("deep_research operator CLI ergonomics (entity)", () => {
     expect(payload.command).toBe("status");
     const error = payload.error as Record<string, unknown>;
     expect(String(error.message ?? "")).toContain("--runs-root is required when using --run-id");
+  });
+
+  test("init rejects mutually exclusive perspectives flags", async () => {
+    const res = await runCli(["init", "Q", "--with-perspectives", "--no-perspectives", "--json"]);
+    const payload = expectSingleJsonStdout(res, 1);
+
+    expect(payload.ok).toBe(false);
+    expect(payload.command).toBe("init");
+    const error = payload.error as Record<string, unknown>;
+    expect(String(error.code ?? "")).toBe("CLI_ERROR");
+    expect(String(error.message ?? "")).toContain("Cannot use both --with-perspectives and --no-perspectives");
   });
 });

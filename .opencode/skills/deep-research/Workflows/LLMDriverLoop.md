@@ -35,7 +35,6 @@ bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
   --run-id "<run_id>" \
-  --no-perspectives \
   --json
 
 # Runtime install (~/.config/opencode)
@@ -44,9 +43,10 @@ bun "pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
   --run-id "<run_id>" \
-  --no-perspectives \
   --json
 ```
+
+`init` is seam-first by default. Use `--with-perspectives` only when you intentionally want the legacy fast path (`init -> wave1` directly).
 
 The `--json` envelope includes (at minimum) absolute contract paths:
 
