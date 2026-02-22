@@ -26,7 +26,10 @@ Use these defaults unless you explicitly need an override:
 1) Init the run at the LLM drafting seam:
 
 ```bash
-bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity normal --run-id "<run_id>" --json
+bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity normal --json
+
+# Optional reproducible override:
+#   --run-id "<run_id>"
 ```
 
 `init` is seam-first by default. Add `--with-perspectives` only for the legacy fast path (`init -> wave1` in one command).
@@ -56,6 +59,20 @@ bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
   --driver task \
   --json
 ```
+
+## Handling custom free-text answers from `functions.question`
+
+For option prompts where `custom` is enabled:
+
+- `mode`: normalize custom text and map only if it matches allowed values (`quick`, `standard`, `deep`).
+- `sensitivity`: normalize custom text and map only if it matches allowed values (`normal`, `restricted`, `no_web`).
+- If a custom mode/sensitivity answer does not map cleanly, re-ask with allowed values.
+
+For `run-id` / `runs-root` overrides:
+
+- First ask whether to keep defaults or override.
+- If override is chosen (or typed), issue a follow-up `functions.question` to collect the exact string value.
+- Treat the follow-up custom text as the literal value for `--run-id` / `--runs-root`; if empty, re-ask.
 
 ## Expected seam behavior
 

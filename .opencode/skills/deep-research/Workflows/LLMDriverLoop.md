@@ -25,25 +25,29 @@ bun "pai-tools/deep-research-cli.ts" <command> [flags]
   - The CLI emits a single-line JSON envelope: `schema_version="dr.cli.v1"`.
   - When a command halts, `halt.next_commands` is included **inline** in that JSON.
 
-## Init (always set `--run-id`, default to LLM drafting seam)
+## Init (seam-first default; `--run-id` is optional)
 
-Pick a stable run id so you can reproduce failures deterministically later.
+Use `--run-id` when you need reproducible reruns; otherwise keep defaults and let init choose one.
 
 ```bash
 # Example run id: dr_<YYYY-MM-DD>_<short-slug>
 bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
-  --run-id "<run_id>" \
   --json
+
+# Optional reproducible override:
+#   --run-id "<run_id>"
 
 # Runtime install (~/.config/opencode)
 cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
-  --run-id "<run_id>" \
   --json
+
+# Optional reproducible override:
+#   --run-id "<run_id>"
 ```
 
 `init` is seam-first by default. Use `--with-perspectives` only when you intentionally want the legacy fast path (`init -> wave1` directly).
