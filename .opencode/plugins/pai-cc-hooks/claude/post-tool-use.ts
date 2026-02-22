@@ -48,7 +48,9 @@ export async function executePostToolUseHooks(
   }
 
   const transformedToolName = transformToolName(ctx.toolName);
-  const matchers = findMatchingHooks(config, "PostToolUse", transformedToolName);
+  const toolNamesToMatch =
+    transformedToolName === "ApplyPatch" ? ["ApplyPatch", "Edit", "Write"] : [transformedToolName];
+  const matchers = toolNamesToMatch.flatMap((toolName) => findMatchingHooks(config, "PostToolUse", toolName));
   if (matchers.length === 0) {
     return { block: false };
   }
@@ -70,11 +72,14 @@ export async function executePostToolUseHooks(
   const warnings: string[] = [];
   let firstHookName: string | undefined;
   const startTime = Date.now();
+  const seenHookCommands = new Set<string>();
 
   for (const matcher of matchers) {
     if (!matcher.hooks || matcher.hooks.length === 0) continue;
     for (const hook of matcher.hooks) {
       if (hook.type !== "command") continue;
+      if (seenHookCommands.has(hook.command)) continue;
+      seenHookCommands.add(hook.command);
 
       if (isHookCommandDisabled("PostToolUse", hook.command, extendedConfig ?? null)) {
         log("PostToolUse hook command skipped (disabled by config)", {

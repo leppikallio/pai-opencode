@@ -7,7 +7,7 @@ describe("transformToolName", () => {
     expect(transformToolName("question")).toBe("AskUserQuestion");
   });
 
-  test("maps apply_patch to Edit", () => {
-    expect(transformToolName("apply_patch")).toBe("Edit");
+  test("maps apply_patch to ApplyPatch", () => {
+    expect(transformToolName("apply_patch")).toBe("ApplyPatch");
   });
 });

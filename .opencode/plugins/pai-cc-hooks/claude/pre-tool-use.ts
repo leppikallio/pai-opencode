@@ -56,7 +56,9 @@ export async function executePreToolUseHooks(
   }
 
   const transformedToolName = transformToolName(ctx.toolName);
-  const matchers = findMatchingHooks(config, "PreToolUse", transformedToolName);
+  const toolNamesToMatch =
+    transformedToolName === "ApplyPatch" ? ["ApplyPatch", "Edit", "Write"] : [transformedToolName];
+  const matchers = toolNamesToMatch.flatMap((toolName) => findMatchingHooks(config, "PreToolUse", toolName));
   if (matchers.length === 0) {
     return { decision: "allow" };
   }
@@ -76,11 +78,14 @@ export async function executePreToolUseHooks(
   const startTime = Date.now();
   let firstHookName: string | undefined;
   const inputLines = buildInputLines(ctx.toolInput);
+  const seenHookCommands = new Set<string>();
 
   for (const matcher of matchers) {
     if (!matcher.hooks || matcher.hooks.length === 0) continue;
     for (const hook of matcher.hooks) {
       if (hook.type !== "command") continue;
+      if (seenHookCommands.has(hook.command)) continue;
+      seenHookCommands.add(hook.command);
 
       if (isHookCommandDisabled("PreToolUse", hook.command, extendedConfig ?? null)) {
         log("PreToolUse hook command skipped (disabled by config)", {
