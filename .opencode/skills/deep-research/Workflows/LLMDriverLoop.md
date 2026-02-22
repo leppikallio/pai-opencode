@@ -4,7 +4,7 @@ Run the `deep-research` CLI in **task-driver** mode while an external LLM/agent 
 
 This is the canonical operator loop:
 
-> `tick --driver task --json` → (if halted) run agent → `agent-result` → repeat `tick`
+> `tick --driver task --json` → (if halted) run agent → `agent-result --json` → repeat `tick --json`
 
 ## CLI command forms (copy/paste)
 
@@ -48,7 +48,12 @@ bun "pai-tools/deep-research-cli.ts" init "<query>" \
   --json
 ```
 
-The `--json` envelope includes (at minimum) the absolute `contract.manifest_path`.
+The `--json` envelope includes (at minimum) absolute contract paths:
+
+- `contract.manifest_path`
+- `contract.gates_path`
+
+Use those values as `<manifest_abs>` and `<gates_abs>` in subsequent commands.
 
 After init, enter perspectives drafting before normal task-driver ticking:
 
@@ -57,12 +62,14 @@ bun ".opencode/pai-tools/deep-research-cli.ts" stage-advance \
   --manifest "<manifest_abs>" \
   --gates "<gates_abs>" \
   --requested-next perspectives \
-  --reason "enter perspectives drafting"
+  --reason "enter perspectives drafting" \
+  --json
 
 bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
   --manifest "<manifest_abs>" \
   --reason "draft perspectives" \
-  --driver task
+  --driver task \
+  --json
 ```
 
 ## The driver loop (tick → agent-result → tick)

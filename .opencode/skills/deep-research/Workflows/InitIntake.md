@@ -30,6 +30,11 @@ Use these defaults unless you explicitly need an override:
 bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" --mode standard --sensitivity normal --run-id "<run_id>" --no-perspectives --json
 ```
 
+`<manifest_abs>` and `<gates_abs>` in subsequent commands come from init output:
+
+- Printed contract fields: `manifest_path`, `gates_path`
+- Or the `init --json` envelope: `contract.manifest_path`, `contract.gates_path`
+
 2) Advance to perspectives:
 
 ```bash
@@ -37,7 +42,8 @@ bun ".opencode/pai-tools/deep-research-cli.ts" stage-advance \
   --manifest "<manifest_abs>" \
   --gates "<gates_abs>" \
   --requested-next perspectives \
-  --reason "enter perspectives drafting"
+  --reason "enter perspectives drafting" \
+  --json
 ```
 
 3) Generate ensemble perspective prompts:
@@ -46,7 +52,8 @@ bun ".opencode/pai-tools/deep-research-cli.ts" stage-advance \
 bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
   --manifest "<manifest_abs>" \
   --reason "draft perspectives" \
-  --driver task
+  --driver task \
+  --json
 ```
 
 ## Expected seam behavior

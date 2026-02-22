@@ -76,7 +76,8 @@ bun ".opencode/pai-tools/deep-research-cli.ts" stage-advance \
   --manifest "<manifest_abs>" \
   --gates "<gates_abs>" \
   --requested-next perspectives \
-  --reason "enter perspectives drafting"
+  --reason "enter perspectives drafting" \
+  --json
 ```
 
 3) Prompt-out + HALT (task driver):
@@ -85,7 +86,8 @@ bun ".opencode/pai-tools/deep-research-cli.ts" stage-advance \
 bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
   --manifest "<manifest_abs>" \
   --reason "draft perspectives" \
-  --driver task
+  --driver task \
+  --json
 ```
 
 4) Create one JSON output file per required perspective, each matching **exactly** `perspectives-draft-output.v1`:
@@ -102,7 +104,8 @@ bun ".opencode/pai-tools/deep-research-cli.ts" agent-result \
   --perspective "<perspective_id>" \
   --input "<run_root>/operator/outputs/perspectives/<perspective_id>.raw.json" \
   --agent-run-id "<agent_run_id_for_perspective>" \
-  --reason "ingest perspectives <perspective_id>"
+  --reason "ingest perspectives <perspective_id>" \
+  --json
 ```
 
 6) Rerun `perspectives-draft` to auto-promote + regenerate Wave 1 plan + stage-advance to Wave 1:
@@ -111,7 +114,8 @@ bun ".opencode/pai-tools/deep-research-cli.ts" agent-result \
 bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
   --manifest "<manifest_abs>" \
   --reason "approve perspectives draft" \
-  --driver task
+  --driver task \
+  --json
 ```
 
 7) Continue with Wave 1 task-driver loop:
@@ -137,11 +141,11 @@ This skill is the canonical operator surface.
 
 - **plan (offline-first):** `init` with `--sensitivity no_web`, optionally one `tick --driver fixture`, then stop.
 - **fixture (offline):** `init` with `--sensitivity no_web`, loop `tick --driver fixture` until terminal status or typed blocker; use `triage` when blocked.
-- **live (operator run):** use task-driver seams (`tick --driver task` + `agent-result`) to produce wave artifacts, then proceed through citations/summaries/synthesis.
+- **live (operator run):** use task-driver seams (`tick --driver task --json` + `agent-result --json`) to produce wave artifacts, then proceed through citations/summaries/synthesis.
 
 > **Scaffold warning (required):** `--driver fixture` and `mode=generate` paths are deterministic scaffolding.
 > They validate contracts/gates/artifacts, but do **not** constitute “real research” unless you are explicitly running
-> the task-driver loop (`tick --driver task` + `agent-result`) with agent-authored outputs.
+> the task-driver loop (`tick --driver task --json` + `agent-result --json`) with agent-authored outputs.
 
 ### Required final print contract
 
