@@ -49,6 +49,7 @@ export async function executePreToolUseHooks(
   ctx: PreToolUseContext,
   config: ClaudeHooksConfig | null,
   extendedConfig?: PluginExtendedConfig | null,
+  settingsEnv?: Record<string, string>,
 ): Promise<PreToolUseResult> {
   if (!config) {
     return { decision: "allow" };
@@ -95,6 +96,7 @@ export async function executePreToolUseHooks(
       const result = await executeHookCommand(hook.command, JSON.stringify(stdinData), ctx.cwd, {
         forceZsh: DEFAULT_CONFIG.forceZsh,
         zshPath: DEFAULT_CONFIG.zshPath,
+        env: settingsEnv,
       });
 
       if (result.exitCode === 2) {

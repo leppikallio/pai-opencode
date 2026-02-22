@@ -11,6 +11,7 @@ export interface CommandResult {
 export interface ExecuteHookOptions {
   forceZsh?: boolean;
   zshPath?: string;
+  env?: Record<string, string>;
 }
 
 const DEFAULT_ZSH_PATHS = ["/bin/zsh", "/usr/bin/zsh", "/usr/local/bin/zsh"];
@@ -40,6 +41,29 @@ function findBashPath(): string | null {
   return findShellPath(DEFAULT_BASH_PATHS);
 }
 
+function expandEnvironmentVariables(command: string, env: NodeJS.ProcessEnv): string {
+  return command.replace(/\$\{([A-Z0-9_]+)\}|\$([A-Z0-9_]+)/g, (match, bracedName, bareName) => {
+    const variableName = (bracedName || bareName) as string;
+    const value = env[variableName];
+    return value === undefined ? match : value;
+  });
+}
+
+export function expandHookCommand(command: string, cwd: string, settingsEnv?: Record<string, string>): string {
+  const home = getHomeDirectory();
+  const expansionEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    ...(settingsEnv ?? {}),
+    HOME: home,
+    CLAUDE_PROJECT_DIR: cwd,
+  };
+
+  return expandEnvironmentVariables(
+    command.replace(/^~(?=\/|$)/g, home).replace(/\s~(?=\/)/g, ` ${home}`),
+    expansionEnv,
+  );
+}
+
 export async function executeHookCommand(
   command: string,
   stdin: string,
@@ -47,12 +71,14 @@ export async function executeHookCommand(
   options?: ExecuteHookOptions,
 ): Promise<CommandResult> {
   const home = getHomeDirectory();
+  const mergedEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    ...(options?.env ?? {}),
+    HOME: home,
+    CLAUDE_PROJECT_DIR: cwd,
+  };
 
-  const expandedCommand = command
-    .replace(/^~(?=\/|$)/g, home)
-    .replace(/\s~(?=\/)/g, ` ${home}`)
-    .replace(/\$CLAUDE_PROJECT_DIR/g, cwd)
-    .replace(/\$\{CLAUDE_PROJECT_DIR\}/g, cwd);
+  const expandedCommand = expandHookCommand(command, cwd, options?.env);
 
   let finalCommand = expandedCommand;
 
@@ -67,13 +93,18 @@ export async function executeHookCommand(
         finalCommand = `${bashPath} -lc '${escapedCommand}'`;
       }
     }
+
+  }
+
+  if (mergedEnv.PAI_CC_HOOKS_DEBUG === "1") {
+    console.warn(`[pai-cc-hooks] Expanded command: ${finalCommand}`);
   }
 
   return new Promise((resolve) => {
     const proc = spawn(finalCommand, {
       cwd,
       shell: true,
-      env: { ...process.env, HOME: home, CLAUDE_PROJECT_DIR: cwd },
+      env: mergedEnv,
     });
 
     let stdout = "";

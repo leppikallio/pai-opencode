@@ -46,6 +46,7 @@ export async function executeStopHooks(
   ctx: StopContext,
   config: ClaudeHooksConfig | null,
   extendedConfig?: PluginExtendedConfig | null,
+  settingsEnv?: Record<string, string>,
 ): Promise<StopResult> {
   if (ctx.parentSessionId) {
     return { block: false };
@@ -84,6 +85,7 @@ export async function executeStopHooks(
       const result = await executeHookCommand(hook.command, JSON.stringify(stdinData), ctx.cwd, {
         forceZsh: DEFAULT_CONFIG.forceZsh,
         zshPath: DEFAULT_CONFIG.zshPath,
+        env: settingsEnv,
       });
 
       if (result.exitCode === 2) {

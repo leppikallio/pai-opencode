@@ -38,6 +38,7 @@ export async function executeUserPromptSubmitHooks(
   ctx: UserPromptSubmitContext,
   config: ClaudeHooksConfig | null,
   extendedConfig?: PluginExtendedConfig | null,
+  settingsEnv?: Record<string, string>,
 ): Promise<UserPromptSubmitResult> {
   const modifiedParts = ctx.parts;
   const messages: string[] = [];
@@ -90,6 +91,7 @@ export async function executeUserPromptSubmitHooks(
       const result = await executeHookCommand(hook.command, JSON.stringify(stdinData), ctx.cwd, {
         forceZsh: DEFAULT_CONFIG.forceZsh,
         zshPath: DEFAULT_CONFIG.zshPath,
+        env: settingsEnv,
       });
 
       if (result.stdout) {

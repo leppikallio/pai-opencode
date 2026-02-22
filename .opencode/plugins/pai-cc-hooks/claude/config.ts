@@ -19,6 +19,16 @@ interface RawClaudeHooksConfig {
   PreCompact?: RawHookMatcher[];
 }
 
+interface RawClaudeSettings {
+  hooks?: RawClaudeHooksConfig;
+  env?: Record<string, unknown>;
+}
+
+export interface LoadedClaudeHookSettings {
+  hooks: ClaudeHooksConfig | null;
+  env: Record<string, string>;
+}
+
 function normalizeHookMatcher(raw: RawHookMatcher): HookMatcher {
   return {
     matcher: raw.matcher ?? raw.pattern ?? "*",
@@ -44,6 +54,21 @@ function normalizeHooksConfig(raw: RawClaudeHooksConfig): ClaudeHooksConfig {
   }
 
   return result;
+}
+
+function normalizeEnvConfig(raw: Record<string, unknown> | undefined): Record<string, string> {
+  if (!raw) {
+    return {};
+  }
+
+  const normalized: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === "string") {
+      normalized[key] = value;
+    }
+  }
+
+  return normalized;
 }
 
 export function getClaudeSettingsPaths(customPath?: string): string[] {
@@ -102,18 +127,24 @@ function mergeHooksConfig(base: ClaudeHooksConfig, override: ClaudeHooksConfig):
 }
 
 export async function loadClaudeHooksConfig(customSettingsPath?: string): Promise<ClaudeHooksConfig | null> {
+  const settings = await loadClaudeHookSettings(customSettingsPath);
+  return settings.hooks;
+}
+
+export async function loadClaudeHookSettings(customSettingsPath?: string): Promise<LoadedClaudeHookSettings> {
   const paths = getClaudeSettingsPaths(customSettingsPath);
   let mergedConfig: ClaudeHooksConfig = {};
+  let mergedEnv: Record<string, string> = {};
 
   for (const settingsPath of paths) {
     if (!existsSync(settingsPath)) continue;
 
     try {
       const content = await readFile(settingsPath, "utf-8");
-      let settings: { hooks?: RawClaudeHooksConfig };
+      let settings: RawClaudeSettings;
 
       try {
-        settings = JSON.parse(content) as { hooks?: RawClaudeHooksConfig };
+        settings = JSON.parse(content) as RawClaudeSettings;
       } catch (error) {
         logParseFailure(settingsPath, error);
         continue;
@@ -123,12 +154,20 @@ export async function loadClaudeHooksConfig(customSettingsPath?: string): Promis
         const normalizedHooks = normalizeHooksConfig(settings.hooks);
         mergedConfig = mergeHooksConfig(mergedConfig, normalizedHooks);
       }
+
+      mergedEnv = {
+        ...mergedEnv,
+        ...normalizeEnvConfig(settings.env),
+      };
     } catch {
       continue;
     }
   }
 
-  return Object.keys(mergedConfig).length > 0 ? mergedConfig : null;
+  return {
+    hooks: Object.keys(mergedConfig).length > 0 ? mergedConfig : null,
+    env: mergedEnv,
+  };
 }
 
 export type { ClaudeHooksConfig } from "./types";

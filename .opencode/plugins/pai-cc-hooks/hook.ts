@@ -1,4 +1,4 @@
-import { loadClaudeHooksConfig, type ClaudeHooksConfig } from "./claude/config";
+import { loadClaudeHookSettings, type LoadedClaudeHookSettings } from "./claude/config";
 import { executePreToolUseHooks } from "./claude/pre-tool-use";
 import { executePostToolUseHooks } from "./claude/post-tool-use";
 import { executeUserPromptSubmitHooks } from "./claude/user-prompt-submit";
@@ -28,13 +28,13 @@ function getBoolean(obj: UnknownRecord, key: string): boolean | undefined {
   return typeof value === "boolean" ? value : undefined;
 }
 
-let configPromise: Promise<ClaudeHooksConfig | null> | null = null;
+let settingsPromise: Promise<LoadedClaudeHookSettings> | null = null;
 
-function getConfigPromise(): Promise<ClaudeHooksConfig | null> {
-  if (!configPromise) {
-    configPromise = loadClaudeHooksConfig();
+function getSettingsPromise(): Promise<LoadedClaudeHookSettings> {
+  if (!settingsPromise) {
+    settingsPromise = loadClaudeHookSettings();
   }
-  return configPromise as Promise<ClaudeHooksConfig | null>;
+  return settingsPromise as Promise<LoadedClaudeHookSettings>;
 }
 
 export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
@@ -55,7 +55,7 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
         return;
       }
 
-      const config = await getConfigPromise();
+      const { hooks: config, env } = await getSettingsPromise();
       const properties = getRecord(event, "properties") ?? {};
       const info = getRecord(properties, "info") ?? {};
       const sessionId =
@@ -69,6 +69,8 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
           stopHookActive: getBoolean(properties, "stopHookActive"),
         },
         config,
+        undefined,
+        env,
       );
 
       if (result.stopHookActive !== undefined) {
@@ -80,7 +82,7 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
     "chat.message": async (input, output) => {
       const payload = asRecord(input);
       const out = asRecord(output);
-      const config = await getConfigPromise();
+      const { hooks: config, env } = await getSettingsPromise();
 
       const partsRaw = payload.parts;
       const parts = Array.isArray(partsRaw)
@@ -107,6 +109,8 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
           cwd: process.cwd(),
         },
         config,
+        undefined,
+        env,
       );
 
       if (result.block) {
@@ -121,7 +125,7 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
     "tool.execute.before": async (input, output) => {
       const payload = asRecord(input);
       const out = asRecord(output);
-      const config = await getConfigPromise();
+      const { hooks: config, env } = await getSettingsPromise();
 
       const toolName = getString(payload, "tool") ?? "";
       const toolInput = getRecord(payload, "args") ?? {};
@@ -136,6 +140,8 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
           toolUseId: getString(payload, "callID") ?? getString(payload, "callId"),
         },
         config,
+        undefined,
+        env,
       );
 
       if (result.modifiedInput) {
@@ -155,7 +161,7 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
     "tool.execute.after": async (input, output) => {
       const payload = asRecord(input);
       const out = asRecord(output);
-      const config = await getConfigPromise();
+      const { hooks: config, env } = await getSettingsPromise();
 
       const toolName = getString(payload, "tool") ?? "";
       const toolInput = getRecord(payload, "args") ?? {};
@@ -172,6 +178,8 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
           toolUseId: getString(payload, "callID") ?? getString(payload, "callId"),
         },
         config,
+        undefined,
+        env,
       );
 
       if (result.block) {
