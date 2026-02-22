@@ -1233,6 +1233,36 @@ function removeLegacyStatusLineDocs(args: { targetDir: string; dryRun: boolean }
   }
 }
 
+function pruneDeprecatedDeepResearchCommands(args: {
+  sourceDir: string;
+  targetDir: string;
+  dryRun: boolean;
+  prune: boolean;
+}) {
+  if (!args.prune) return;
+
+  const sourceCommandsDir = path.join(args.sourceDir, "commands");
+  if (isDir(sourceCommandsDir)) return;
+
+  const targetCommandsDir = path.join(args.targetDir, "commands");
+  if (!isDir(targetCommandsDir)) return;
+
+  const deprecatedCommandFiles = ["deep-research.md", "deep-research-status.md"];
+  const removed: string[] = [];
+
+  for (const fileName of deprecatedCommandFiles) {
+    const targetPath = path.join(targetCommandsDir, fileName);
+    if (!isFile(targetPath)) continue;
+    removePath(targetPath, args.dryRun);
+    removed.push(fileName);
+  }
+
+  if (removed.length > 0) {
+    const prefix = args.dryRun ? "[dry]" : "[write]";
+    console.log(`${prefix} pruned deprecated command docs: ${removed.join(", ")}`);
+  }
+}
+
 function migrateLegacyCoreSkills(args: { targetDir: string; dryRun: boolean }) {
   const coreDir = path.join(args.targetDir, "skills", "CORE");
   const paiDir = path.join(args.targetDir, "skills", "PAI");
@@ -1858,6 +1888,8 @@ async function sync(mode: Mode, opts: Options) {
       relBase: `${name}/`,
     });
   }
+
+  pruneDeprecatedDeepResearchCommands({ sourceDir, targetDir, dryRun, prune });
 
   // Sync VoiceServer bundle (managed runtime scripts + server).
   // Source lives in repo Packs so it stays decoupled from .opencode.
