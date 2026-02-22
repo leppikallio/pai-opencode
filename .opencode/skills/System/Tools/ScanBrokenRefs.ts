@@ -24,6 +24,8 @@ type SkillsSelectionManifest = {
   selectedSkills?: unknown;
 };
 
+const ALLOWLIST_SOURCE_SKILLS = new Set(["deep-research"]);
+
 function usage(exitCode = 0): never {
   const msg = `Usage: bun ~/.config/opencode/skills/system/Tools/ScanBrokenRefs.ts [options]
 
@@ -53,7 +55,7 @@ function homedir(): string {
 
 function defaultRoot(): string {
   const env = process.env.PAI_DIR;
-  if (env && env.trim()) return env.trim();
+  if (env?.trim()) return env.trim();
   return path.join(homedir(), ".config", "opencode");
 }
 
@@ -128,11 +130,11 @@ function loadSelectedTopLevelSkills(rootDir: string): Set<string> | null {
   }
 }
 
-function topLevelSkillForResolvedPath(rootDir: string, resolved: string): string | null {
+function topLevelSkillForPathUnderSkills(rootDir: string, absolutePath: string): string | null {
   const skillsRoot = path.join(rootDir, "skills");
-  if (!resolved.startsWith(skillsRoot)) return null;
+  if (!absolutePath.startsWith(skillsRoot)) return null;
 
-  const rel = path.relative(skillsRoot, resolved);
+  const rel = path.relative(skillsRoot, absolutePath);
   if (!rel || rel.startsWith("..")) return null;
 
   const firstSegment = rel.split(path.sep)[0];
@@ -143,12 +145,16 @@ function topLevelSkillForResolvedPath(rootDir: string, resolved: string): string
   return firstSegment.toLowerCase();
 }
 
+function topLevelSkillForResolvedPath(rootDir: string, resolved: string): string | null {
+  return topLevelSkillForPathUnderSkills(rootDir, resolved);
+}
+
 function resolveRef(rootDir: string, sourceFile: string, raw: string): string | null {
   let r = raw.trim();
   if (!isLikelyPathToken(r)) return null;
 
   // Trim common markdown punctuation wrappers.
-  r = r.replace(/^[(*_\[]+/, "");
+  r = r.replace(/^[(*_[]+/, "");
   r = r.replace(/[)\]*_.,;:]+$/, "");
 
   // Strip anchors.
@@ -260,7 +266,7 @@ function extractPathCandidates(text: string): string[] {
   //   (e.g. '$HOME/.config/opencode/...' contains 'config/opencode/...').
   // - Order extensions with longer ones first so '.json' is not matched as '.js'.
   const re =
-    /(^|[\s`"(])(<?(?:~\/\.config\/opencode\/|\/Users\/[^\s]+\/\.config\/opencode\/|skills\/|plugins\/|docs\/|pai-tools\/|PAISECURITYSYSTEM\/|config\/|security\/|MEMORY\/|History\/)[^\s`"')\]]+\.(?:help\.md|jsonl|json|yaml|yml|md|ts|txt|sh|js)(?:#[^\s`"')\]]+)?\>?)/gim;
+    /(^|[\s`"(])(<?(?:~\/\.config\/opencode\/|\/Users\/[^\s]+\/\.config\/opencode\/|skills\/|plugins\/|docs\/|pai-tools\/|PAISECURITYSYSTEM\/|config\/|security\/|MEMORY\/|History\/)[^\s`"')\]]+\.(?:help\.md|jsonl|json|yaml|yml|md|ts|txt|sh|js)(?:#[^\s`"')\]]+)?>?)/gim;
 
   for (const m of text.matchAll(re)) candidates.push(m[2]);
   return candidates;
@@ -290,7 +296,6 @@ function stripFencedCodeBlocks(text: string): string {
     if (fenceToken && trimmed.startsWith(fenceToken)) {
       inFence = false;
       fenceToken = null;
-      continue;
     }
   }
 
@@ -378,6 +383,7 @@ function main() {
   const findings: Finding[] = [];
   const selectedTopLevelSkills = loadSelectedTopLevelSkills(rootDir);
   let skippedUnselected = 0;
+  let skippedAllowlisted = 0;
 
   for (const f of files) {
     let text = "";
@@ -391,6 +397,8 @@ function main() {
       f.includes(`${path.sep}Workflows${path.sep}`) ||
       f.includes(`${path.sep}agents${path.sep}`) ||
       f.endsWith(`${path.sep}SKILL.md`);
+
+    const sourceTopLevelSkill = topLevelSkillForPathUnderSkills(rootDir, f);
 
     // Reduce noise in general docs, but keep fences for workflows (commands are executable instructions).
     const searchable = includeFences ? text : stripFencedCodeBlocks(text);
@@ -414,6 +422,14 @@ function main() {
       seen.add(key);
 
       if (!fs.existsSync(resolved)) {
+        if (
+          sourceTopLevelSkill &&
+          ALLOWLIST_SOURCE_SKILLS.has(sourceTopLevelSkill)
+        ) {
+          skippedAllowlisted++;
+          continue;
+        }
+
         const topLevelSkill = topLevelSkillForResolvedPath(rootDir, resolved);
         if (
           topLevelSkill &&
@@ -437,6 +453,7 @@ function main() {
           rootDir,
           scopeDir,
           count: findings.length,
+          skippedAllowlisted,
           skippedUnselected,
           findings,
         },
@@ -461,6 +478,8 @@ function main() {
       // eslint-disable-next-line no-console
       console.log(`skipped-unselected: ${skippedUnselected}`);
     }
+    // eslint-disable-next-line no-console
+    console.log(`skipped-allowlisted: ${skippedAllowlisted}`);
   }
 
   const toPrint = findings.slice(0, limit);
