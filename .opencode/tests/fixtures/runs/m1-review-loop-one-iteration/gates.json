@@ -74,10 +74,14 @@
       "id": "F",
       "name": "Rollout safety",
       "class": "hard",
-      "status": "not_run",
-      "checked_at": null,
-      "metrics": {},
-      "artifacts": [],
+      "status": "pass",
+      "checked_at": "2026-02-16T00:00:00.000Z",
+      "metrics": {
+        "rollout_ready": 1
+      },
+      "artifacts": [
+        "manifest.json"
+      ],
       "warnings": [],
       "notes": ""
     }
