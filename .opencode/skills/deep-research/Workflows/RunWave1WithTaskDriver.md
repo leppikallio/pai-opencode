@@ -11,7 +11,10 @@ Run Wave 1 with the non-manual task driver loop (`tick --driver task` + `agent-r
 
 If `tick --driver task` fails fast with `WAVE1_PLAN_STALE`, your Wave 1 plan no longer matches `perspectives.json`.
 
-- Fix: regenerate the Wave 1 plan by re-running the perspectives drafting + promotion flow.
+- If you need net-new or re-selected perspectives, rerun the perspectives drafting + promotion flow.
+- If `perspectives.json` already changed (for example from post-promotion curation), the primary fix is:
+  1. `deep_research_cli_perspectives_write` for `<run_root>/perspectives.json` (validation + audit)
+  2. `deep_research_cli_wave1_plan` using the updated perspectives artifact
 - Reference: DraftPerspectivesFromQuery.md
 
 ## Inputs
