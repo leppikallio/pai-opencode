@@ -102,6 +102,15 @@
         ]
       },
       {
+        "matcher": "TodoWrite",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${PAI_DIR}/hooks/AlgorithmTracker.hook.ts"
+          }
+        ]
+      },
+      {
         "matcher": "TaskCreate",
         "hooks": [
           {
