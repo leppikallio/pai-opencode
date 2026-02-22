@@ -270,7 +270,9 @@ function allocateTrackTargets(args: {
     return trackWeight(a.track) - trackWeight(b.track);
   });
 
-  for (let index = 0; index < remainderOrder.length && remaining > 0; index += 1) {
+  if (remainderOrder.length === 0) return result;
+
+  for (let index = 0; remaining > 0; index = (index + 1) % remainderOrder.length) {
     result[remainderOrder[index]!.track] += 1;
     remaining -= 1;
   }
@@ -324,6 +326,17 @@ async function buildPerspectivesDraftFromOutputs(args: {
   mergeReport: PerspectivesDraftMergeReportV1;
   draftDigest: string;
   reviewRequired: boolean;
+  selectionTelemetry: {
+    thresholds: {
+      confidence_min: number;
+      confidence_max: number;
+      ensemble_threshold: number;
+      backup_threshold: number;
+      match_bonus: number;
+    };
+    candidate_count_in: number;
+    candidate_count_out: number;
+  };
 }> {
   const sources = await listNormalizedPerspectivesDraftOutputs({ runRoot: args.runRoot });
   if (sources.length === 0) {
@@ -451,7 +464,7 @@ async function buildPerspectivesDraftFromOutputs(args: {
       return candidate.score >= threshold;
     });
 
-  const targetCount = Math.max(1, Math.min(filteredScored.length, REQUIRED_TASK_DRIVER_PERSPECTIVE_IDS.length));
+  const targetCount = Math.min(filteredScored.length, REQUIRED_TASK_DRIVER_PERSPECTIVE_IDS.length);
   const trackTargets = allocateTrackTargets({
     total: targetCount,
     allocation: trackAllocation,
@@ -516,7 +529,23 @@ async function buildPerspectivesDraftFromOutputs(args: {
   };
 
   const draftDigest = stableDigest(perspectivesDoc as unknown as Record<string, unknown>);
-  return { perspectivesDoc, mergeReport, draftDigest, reviewRequired };
+  return {
+    perspectivesDoc,
+    mergeReport,
+    draftDigest,
+    reviewRequired,
+    selectionTelemetry: {
+      thresholds: {
+        confidence_min: confidenceMin,
+        confidence_max: confidenceMax,
+        ensemble_threshold: ensembleThreshold,
+        backup_threshold: backupThreshold,
+        match_bonus: matchBonus,
+      },
+      candidate_count_in: allCandidates.length,
+      candidate_count_out: merged.length,
+    },
+  };
 }
 
 async function readPromptDigestFromMeta(metaPath: string): Promise<string | null> {
@@ -671,7 +700,9 @@ export async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Prom
 
     stateArtifact = {
       ...stateArtifact,
-      status: draftBuild.reviewRequired ? "awaiting_human_review" : "merging",
+      status: draftBuild.reviewRequired || draftBuild.perspectivesDoc.perspectives.length === 0
+        ? "awaiting_human_review"
+        : "merging",
       draft_digest: draftBuild.draftDigest,
     };
 
@@ -684,6 +715,90 @@ export async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Prom
         await writeJsonFileIfChanged(statePath, stateArtifact);
       },
     });
+
+    if (draftBuild.perspectivesDoc.perspectives.length === 0) {
+      const halt = await writeHaltArtifactForFailure({
+        runRoot: summary.runRoot,
+        runId: summary.runId,
+        stageCurrent: summary.stageCurrent,
+        manifestPath: runHandle.manifestPath,
+        gatesPath: summary.gatesPath,
+        reason: `operator-cli perspectives-draft: ${args.reason}`,
+        error: {
+          code: "PERSPECTIVES_SELECTION_EMPTY",
+          message: "Perspectives selection is empty after deterministic policy filtering",
+          details: {
+            stage: "perspectives",
+            status: "awaiting_human_review",
+            state_path: statePath,
+            policy_path: policyWrite.policyPath,
+            thresholds: draftBuild.selectionTelemetry.thresholds,
+            candidate_count_in: draftBuild.selectionTelemetry.candidate_count_in,
+            candidate_count_out: draftBuild.selectionTelemetry.candidate_count_out,
+            draft_path: draftPath,
+            merge_report_path: mergeReportPath,
+            draft_digest: draftBuild.draftDigest,
+          },
+        },
+        nextStepCliInvocation,
+        nextCommandsOverride: [
+          `${nextStepCliInvocation()} inspect --manifest "${runHandle.manifestPath}"`,
+          `# Review merge report and policy thresholding: ${mergeReportPath}`,
+          `${nextStepCliInvocation()} perspectives-draft --manifest "${runHandle.manifestPath}" --reason "retry perspectives selection" --driver task`,
+        ],
+      });
+
+      if (args.json) {
+        emitJson({
+          ok: false,
+          command: "perspectives-draft",
+          driver: args.driver,
+          run_id: summary.runId,
+          run_root: summary.runRoot,
+          manifest_path: runHandle.manifestPath,
+          gates_path: summary.gatesPath,
+          stage_current: summary.stageCurrent,
+          status: summary.status,
+          error: {
+            code: "PERSPECTIVES_SELECTION_EMPTY",
+            message: "Perspectives selection is empty after deterministic policy filtering",
+            details: {
+              state_path: statePath,
+              policy_path: policyWrite.policyPath,
+              thresholds: draftBuild.selectionTelemetry.thresholds,
+              candidate_count_in: draftBuild.selectionTelemetry.candidate_count_in,
+              candidate_count_out: draftBuild.selectionTelemetry.candidate_count_out,
+              draft_path: draftPath,
+              merge_report_path: mergeReportPath,
+              draft_digest: draftBuild.draftDigest,
+            },
+          },
+          state_path: statePath,
+          halt: {
+            tick_index: halt.tickIndex,
+            tick_path: halt.tickPath,
+            latest_path: halt.latestPath,
+          },
+        });
+        return;
+      }
+
+      printContract({
+        runId: summary.runId,
+        runRoot: summary.runRoot,
+        manifestPath: runHandle.manifestPath,
+        gatesPath: summary.gatesPath,
+        stageCurrent: summary.stageCurrent,
+        status: summary.status,
+      });
+      console.log("perspectives_draft.ok: false");
+      console.log("perspectives_draft.error.code: PERSPECTIVES_SELECTION_EMPTY");
+      console.log(`perspectives_draft.policy_path: ${policyWrite.policyPath}`);
+      console.log(`perspectives_draft.draft_path: ${draftPath}`);
+      console.log(`perspectives_draft.merge_report_path: ${mergeReportPath}`);
+      await printHaltArtifactSummary(halt);
+      return;
+    }
 
     if (draftBuild.reviewRequired) {
       const halt = await writeHaltArtifactForFailure({

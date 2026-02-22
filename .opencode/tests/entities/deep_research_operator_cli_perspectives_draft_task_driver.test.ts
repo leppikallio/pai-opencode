@@ -747,6 +747,156 @@ function sha256Hex(value: string): string {
     });
   });
 
+  test("perspectives-draft fail-closes when policy filters all candidates", async () => {
+    await withTempDir(async (base) => {
+      const requiredPerspectiveIds = [
+        "primary",
+        "ensemble-independent",
+        "ensemble-contrarian",
+      ];
+      const runId = "dr_test_cli_perspectives_draft_006";
+      const initRes = await runCli([
+        "init",
+        "Q",
+        "--run-id",
+        runId,
+        "--runs-root",
+        base,
+        "--no-perspectives",
+      ]);
+      expect(initRes.exit).toBe(0);
+
+      const manifestPath = extractField(initRes.stdout, "manifest_path");
+      const runRoot = extractField(initRes.stdout, "run_root");
+
+      const advanceRes = await runCli([
+        "stage-advance",
+        "--manifest",
+        manifestPath,
+        "--requested-next",
+        "perspectives",
+        "--reason",
+        "test enter perspectives stage",
+      ]);
+      expect(advanceRes.exit).toBe(0);
+
+      const draftRes = await runCli([
+        "perspectives-draft",
+        "--manifest",
+        manifestPath,
+        "--reason",
+        "test fail-closed empty selection",
+        "--driver",
+        "task",
+      ]);
+      expect(draftRes.exit).toBe(0);
+      expect(`${draftRes.stdout}\n${draftRes.stderr}`).toContain("RUN_AGENT_REQUIRED");
+
+      for (const perspectiveId of requiredPerspectiveIds) {
+        const track = perspectiveId === "ensemble-independent"
+          ? "independent"
+          : perspectiveId === "ensemble-contrarian"
+          ? "contrarian"
+          : "standard";
+
+        const perspectivePayload = {
+          schema_version: "perspectives-draft-output.v1",
+          run_id: runId,
+          source: {
+            agent_type: "Engineer",
+            label: `task-driver-empty-selection-test:${perspectiveId}`,
+          },
+          candidates: [
+            {
+              title: `${perspectiveId} low-confidence single-source lens`,
+              questions: ["What weak signal should be ignored for wave selection?"],
+              track,
+              recommended_agent_type: "researcher",
+              domain: "technical",
+              confidence: 10,
+              rationale: "Intentionally below deterministic backup threshold.",
+              platform_requirements: [
+                { name: "none", reason: "No hard platform dependency." },
+              ],
+              tool_policy: {
+                primary: ["websearch"],
+                secondary: [],
+                forbidden: [],
+              },
+              flags: {
+                human_review_required: false,
+                missing_platform_requirements: false,
+                missing_tool_policy: false,
+              },
+            },
+          ],
+        };
+
+        const inputPath = path.join(runRoot, "operator", "outputs", "perspectives", `${perspectiveId}.input.json`);
+        await fs.mkdir(path.dirname(inputPath), { recursive: true });
+        await fs.writeFile(inputPath, `${JSON.stringify(perspectivePayload, null, 2)}\n`, "utf8");
+
+        const ingestRes = await runCli([
+          "agent-result",
+          "--manifest",
+          manifestPath,
+          "--stage",
+          "perspectives",
+          "--perspective",
+          perspectiveId,
+          "--input",
+          inputPath,
+          "--agent-run-id",
+          `agent-run-${perspectiveId}-empty-selection-001`,
+          "--reason",
+          `test ingest perspectives ${perspectiveId} for empty selection`,
+          "--json",
+        ]);
+        expect(ingestRes.exit).toBe(0);
+      }
+
+      const secondDraftRes = await runCli([
+        "perspectives-draft",
+        "--manifest",
+        manifestPath,
+        "--reason",
+        "test deterministic empty selection halt",
+        "--driver",
+        "task",
+        "--json",
+      ]);
+      expect(secondDraftRes.exit).toBe(0);
+
+      const secondDraftPayload = parseJsonStdout(secondDraftRes.stdout);
+      expect(secondDraftPayload.ok).toBe(false);
+      expect(secondDraftPayload.command).toBe("perspectives-draft");
+      const secondDraftError = secondDraftPayload.error as Record<string, unknown>;
+      expect(String(secondDraftError.code ?? "")).toBe("PERSPECTIVES_SELECTION_EMPTY");
+      const secondDraftDetails = (secondDraftError.details ?? {}) as Record<string, unknown>;
+      expect(String(secondDraftDetails.policy_path ?? "").length).toBeGreaterThan(0);
+      expect(String(secondDraftDetails.draft_path ?? "").length).toBeGreaterThan(0);
+      expect(String(secondDraftDetails.merge_report_path ?? "").length).toBeGreaterThan(0);
+      expect(Number(secondDraftDetails.candidate_count_in ?? -1)).toBe(3);
+      expect(Number(secondDraftDetails.candidate_count_out ?? -1)).toBe(0);
+      const thresholds = (secondDraftDetails.thresholds ?? {}) as Record<string, unknown>;
+      expect(Number(thresholds.ensemble_threshold ?? -1)).toBeGreaterThanOrEqual(0);
+      expect(Number(thresholds.backup_threshold ?? -1)).toBeGreaterThanOrEqual(0);
+
+      const manifestAfter = JSON.parse(await fs.readFile(manifestPath, "utf8")) as {
+        stage?: Record<string, unknown>;
+      };
+      expect(String(manifestAfter.stage?.current ?? "")).toBe("perspectives");
+
+      const perspectivesPath = path.join(runRoot, "perspectives.json");
+      await expect(fs.stat(perspectivesPath)).rejects.toBeTruthy();
+
+      const haltLatestPath = path.join(runRoot, "operator", "halt", "latest.json");
+      const haltLatest = JSON.parse(await fs.readFile(haltLatestPath, "utf8")) as Record<string, unknown>;
+      const haltError = (haltLatest.error ?? {}) as Record<string, unknown>;
+      expect(String(haltError.code ?? "")).toBe("PERSPECTIVES_SELECTION_EMPTY");
+    });
+  });
+
   test("agent-result --stage perspectives accepts raw output path as input without --force", async () => {
     await withTempDir(async (base) => {
       const runId = "dr_test_cli_perspectives_draft_003";
