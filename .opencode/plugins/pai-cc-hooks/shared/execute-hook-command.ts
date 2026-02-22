@@ -41,22 +41,106 @@ function findBashPath(): string | null {
   return findShellPath(DEFAULT_BASH_PATHS);
 }
 
-function expandEnvironmentVariables(command: string, env: NodeJS.ProcessEnv): string {
-  return command.replace(/\$\{([A-Z0-9_]+)\}|\$([A-Z0-9_]+)/g, (match, bracedName, bareName) => {
+function expandVariableReferences(value: string, env: NodeJS.ProcessEnv): string {
+  return value.replace(/\$\{([A-Z0-9_]+)\}|\$([A-Z0-9_]+)/g, (match, bracedName, bareName) => {
     const variableName = (bracedName || bareName) as string;
-    const value = env[variableName];
-    return value === undefined ? match : value;
+    const resolvedValue = env[variableName];
+    return resolvedValue === undefined ? match : resolvedValue;
   });
 }
 
-export function expandHookCommand(command: string, cwd: string, settingsEnv?: Record<string, string>): string {
+function isSelfPlaceholder(value: string, key: string): boolean {
+  return value === `\${${key}}` || value === `$${key}`;
+}
+
+function resolveSettingsEnv(settingsEnv?: Record<string, string>): Record<string, string> {
+  if (!settingsEnv) {
+    return {};
+  }
+
+  const resolvedSettingsEnv: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(settingsEnv)) {
+    const resolvedValue = expandVariableReferences(value, process.env);
+
+    if (isSelfPlaceholder(resolvedValue, key)) {
+      continue;
+    }
+
+    resolvedSettingsEnv[key] = resolvedValue;
+  }
+
+  return resolvedSettingsEnv;
+}
+
+function buildHookEnvironment(cwd: string, settingsEnv?: Record<string, string>): NodeJS.ProcessEnv {
   const home = getHomeDirectory();
-  const expansionEnv: NodeJS.ProcessEnv = {
+  const resolvedSettingsEnv = resolveSettingsEnv(settingsEnv);
+
+  return {
     ...process.env,
-    ...(settingsEnv ?? {}),
+    ...resolvedSettingsEnv,
     HOME: home,
     CLAUDE_PROJECT_DIR: cwd,
   };
+}
+
+function expandEnvironmentVariables(command: string, env: NodeJS.ProcessEnv): string {
+  let output = "";
+  let inSingleQuotes = false;
+
+  for (let i = 0; i < command.length; i += 1) {
+    const character = command[i];
+
+    if (character === "'") {
+      inSingleQuotes = !inSingleQuotes;
+      output += character;
+      continue;
+    }
+
+    if (!inSingleQuotes && character === "$") {
+      const nextCharacter = command[i + 1];
+
+      if (nextCharacter === "{") {
+        let variableEnd = i + 2;
+
+        while (variableEnd < command.length && /[A-Z0-9_]/.test(command[variableEnd] ?? "")) {
+          variableEnd += 1;
+        }
+
+        if (variableEnd > i + 2 && command[variableEnd] === "}") {
+          const variableName = command.slice(i + 2, variableEnd);
+          const resolvedValue = env[variableName];
+          output += resolvedValue === undefined ? command.slice(i, variableEnd + 1) : resolvedValue;
+          i = variableEnd;
+          continue;
+        }
+      } else {
+        let variableEnd = i + 1;
+
+        while (variableEnd < command.length && /[A-Z0-9_]/.test(command[variableEnd] ?? "")) {
+          variableEnd += 1;
+        }
+
+        if (variableEnd > i + 1) {
+          const variableName = command.slice(i + 1, variableEnd);
+          const resolvedValue = env[variableName];
+          output += resolvedValue === undefined ? command.slice(i, variableEnd) : resolvedValue;
+          i = variableEnd - 1;
+          continue;
+        }
+      }
+    }
+
+    output += character;
+  }
+
+  return output;
+}
+
+export function expandHookCommand(command: string, cwd: string, settingsEnv?: Record<string, string>): string {
+  const expansionEnv = buildHookEnvironment(cwd, settingsEnv);
+  const home = expansionEnv.HOME ?? getHomeDirectory();
 
   return expandEnvironmentVariables(
     command.replace(/^~(?=\/|$)/g, home).replace(/\s~(?=\/)/g, ` ${home}`),
@@ -70,13 +154,7 @@ export async function executeHookCommand(
   cwd: string,
   options?: ExecuteHookOptions,
 ): Promise<CommandResult> {
-  const home = getHomeDirectory();
-  const mergedEnv: NodeJS.ProcessEnv = {
-    ...process.env,
-    ...(options?.env ?? {}),
-    HOME: home,
-    CLAUDE_PROJECT_DIR: cwd,
-  };
+  const mergedEnv = buildHookEnvironment(cwd, options?.env);
 
   const expandedCommand = expandHookCommand(command, cwd, options?.env);
 
