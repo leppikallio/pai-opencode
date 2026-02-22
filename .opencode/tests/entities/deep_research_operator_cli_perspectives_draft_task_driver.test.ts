@@ -41,13 +41,18 @@ function sha256Hex(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
-describe("deep_research operator CLI perspectives-draft task driver (entity)", () => {
-  test("perspectives-draft --driver task writes prompt and halts with RUN_AGENT_REQUIRED", async () => {
-    await withTempDir(async (base) => {
-      const runId = "dr_test_cli_perspectives_draft_001";
-      const initRes = await runCli([
-        "init",
-        "Q",
+  describe("deep_research operator CLI perspectives-draft task driver (entity)", () => {
+    test("perspectives-draft --driver task writes prompt and halts with RUN_AGENT_REQUIRED", async () => {
+      await withTempDir(async (base) => {
+        const requiredPerspectiveIds = [
+          "primary",
+          "ensemble-independent",
+          "ensemble-contrarian",
+        ];
+        const runId = "dr_test_cli_perspectives_draft_001";
+        const initRes = await runCli([
+          "init",
+          "Q",
         "--run-id",
         runId,
         "--runs-root",
@@ -87,13 +92,15 @@ describe("deep_research operator CLI perspectives-draft task driver (entity)", (
       expect(String(policy.schema_version ?? "")).toBe("perspectives-policy.v1");
 
       const perspectivesStatePath = path.join(runRoot, "operator", "state", "perspectives-state.json");
-      const stateAfterInitialDraft = JSON.parse(await fs.readFile(perspectivesStatePath, "utf8")) as Record<string, unknown>;
-      expect(String(stateAfterInitialDraft.schema_version ?? "")).toBe("perspectives-draft-state.v1");
-      expect(String(stateAfterInitialDraft.status ?? "")).toBe("awaiting_agent_results");
-      expect(String(stateAfterInitialDraft.policy_path ?? "")).toBe(policyPath);
+        const stateAfterInitialDraft = JSON.parse(await fs.readFile(perspectivesStatePath, "utf8")) as Record<string, unknown>;
+        expect(String(stateAfterInitialDraft.schema_version ?? "")).toBe("perspectives-draft-state.v1");
+        expect(String(stateAfterInitialDraft.status ?? "")).toBe("awaiting_agent_results");
+        expect(String(stateAfterInitialDraft.policy_path ?? "")).toBe(policyPath);
 
-      const promptPath = path.join(runRoot, "operator", "prompts", "perspectives", "primary.md");
-      await fs.stat(promptPath);
+        for (const perspectiveId of requiredPerspectiveIds) {
+          const promptPath = path.join(runRoot, "operator", "prompts", "perspectives", `${perspectiveId}.md`);
+          await fs.stat(promptPath);
+        }
 
       const haltLatestPath = path.join(runRoot, "operator", "halt", "latest.json");
       const haltLatest = JSON.parse(await fs.readFile(haltLatestPath, "utf8")) as Record<string, unknown>;
@@ -103,15 +110,25 @@ describe("deep_research operator CLI perspectives-draft task driver (entity)", (
         ? haltDetails.missing_perspectives as Array<Record<string, unknown>>
         : [];
 
-      expect(String(haltLatest.schema_version ?? "")).toBe("halt.v1");
-      expect(String(haltError.code ?? "")).toBe("RUN_AGENT_REQUIRED");
-      expect(String(haltDetails.stage ?? "")).toBe("perspectives");
-      expect(missing.length).toBeGreaterThan(0);
-      expect(String(missing[0]?.perspective_id ?? "")).toBe("primary");
-      expect(String(missing[0]?.prompt_path ?? "")).toBe(promptPath);
-      expect(String(missing[0]?.prompt_digest ?? "")).toMatch(/^sha256:[a-f0-9]{64}$/u);
+        expect(String(haltLatest.schema_version ?? "")).toBe("halt.v1");
+        expect(String(haltError.code ?? "")).toBe("RUN_AGENT_REQUIRED");
+        expect(String(haltDetails.stage ?? "")).toBe("perspectives");
+        expect(missing.length).toBeGreaterThan(0);
+
+        const missingIds = missing
+          .map((item) => String(item.perspective_id ?? "").trim())
+          .filter((id) => id.length > 0)
+          .sort();
+        expect(missingIds).toEqual([...requiredPerspectiveIds].sort());
+
+        for (const entry of missing) {
+          expect(String(entry.prompt_digest ?? "")).toMatch(/^sha256:[a-f0-9]{64}$/u);
+          const perspectiveId = String(entry.perspective_id ?? "").trim();
+          const expectedPromptPath = path.join(runRoot, "operator", "prompts", "perspectives", `${perspectiveId}.md`);
+          expect(String(entry.prompt_path ?? "")).toBe(expectedPromptPath);
+        }
+      });
     });
-  });
 
   test("agent-result --stage perspectives ingest covers success + noop + digest mismatch", async () => {
     await withTempDir(async (base) => {
@@ -211,13 +228,13 @@ describe("deep_research operator CLI perspectives-draft task driver (entity)", (
       const ingestPayload = parseJsonStdout(ingestRes.stdout);
       expect(ingestPayload.ok).toBe(true);
       expect(ingestPayload.command).toBe("agent-result");
-      expect(ingestPayload.stage).toBe("perspectives");
-      expect(ingestPayload.noop).toBe(false);
+      expect((ingestPayload.result as any)?.stage).toBe("perspectives");
+      expect((ingestPayload.result as any)?.noop).toBe(false);
 
       const expectedOutputPath = path.join(runRoot, "operator", "outputs", "perspectives", "primary.json");
       const expectedMetaPath = path.join(runRoot, "operator", "outputs", "perspectives", "primary.meta.json");
-      expect(String(ingestPayload.output_path ?? "")).toBe(expectedOutputPath);
-      expect(String(ingestPayload.meta_path ?? "")).toBe(expectedMetaPath);
+      expect(String((ingestPayload.result as any)?.output_path ?? "")).toBe(expectedOutputPath);
+      expect(String((ingestPayload.result as any)?.meta_path ?? "")).toBe(expectedMetaPath);
 
       const promptPath = path.join(runRoot, "operator", "prompts", "perspectives", "primary.md");
       const promptMarkdown = await fs.readFile(promptPath, "utf8");
@@ -257,8 +274,8 @@ describe("deep_research operator CLI perspectives-draft task driver (entity)", (
 
       const noopPayload = parseJsonStdout(noopRes.stdout);
       expect(noopPayload.ok).toBe(true);
-      expect(noopPayload.noop).toBe(true);
-      expect(noopPayload.stage).toBe("perspectives");
+      expect((noopPayload.result as any)?.noop).toBe(true);
+      expect((noopPayload.result as any)?.stage).toBe("perspectives");
 
       const metaAfter = JSON.parse(await fs.readFile(metaPath, "utf8")) as Record<string, unknown>;
       expect(String(metaAfter.agent_run_id ?? "")).toBe("agent-run-primary-001");
@@ -293,6 +310,11 @@ describe("deep_research operator CLI perspectives-draft task driver (entity)", (
 
   test("perspectives-draft task flow auto-promotes ingested output to wave1 (M6 happy path)", async () => {
     await withTempDir(async (base) => {
+      const requiredPerspectiveIds = [
+        "primary",
+        "ensemble-independent",
+        "ensemble-contrarian",
+      ];
       const runId = "dr_test_cli_perspectives_draft_004";
       const initRes = await runCli([
         "init",
@@ -340,63 +362,70 @@ describe("deep_research operator CLI perspectives-draft task driver (entity)", (
       expect(String(stateAfterInitialDraft.status ?? "")).toBe("awaiting_agent_results");
       expect(String(stateAfterInitialDraft.policy_path ?? "")).toBe(policyPath);
 
-      const perspectivePayload = {
-        schema_version: "perspectives-draft-output.v1",
-        run_id: runId,
-        source: {
-          agent_type: "Engineer",
-          label: "task-driver-transition-test",
-        },
-        candidates: [
-          {
-            title: "Primary perspective",
-            questions: ["What should Wave 1 focus on first?"],
-            track: "standard",
-            recommended_agent_type: "researcher",
-            domain: "technical",
-            confidence: 82,
-            rationale: "Covers M6 auto-promotion from ingested draft output.",
-            platform_requirements: [
-              { name: "none", reason: "No external platform hard requirement for this candidate." },
-            ],
-            tool_policy: {
-              primary: ["websearch"],
-              secondary: [],
-              forbidden: [],
-            },
-            flags: {
-              human_review_required: false,
-              missing_platform_requirements: false,
-              missing_tool_policy: false,
-            },
+      for (const perspectiveId of requiredPerspectiveIds) {
+        const track = perspectiveId === "ensemble-independent"
+          ? "independent"
+          : perspectiveId === "ensemble-contrarian"
+          ? "contrarian"
+          : "standard";
+        const perspectivePayload = {
+          schema_version: "perspectives-draft-output.v1",
+          run_id: runId,
+          source: {
+            agent_type: "Engineer",
+            label: `task-driver-transition-test:${perspectiveId}`,
           },
-        ],
-      };
+          candidates: [
+            {
+              title: `${perspectiveId} perspective`,
+              questions: ["What should Wave 1 focus on first?"],
+              track,
+              recommended_agent_type: "researcher",
+              domain: "technical",
+              confidence: 82,
+              rationale: "Covers M6 auto-promotion from ingested draft output.",
+              platform_requirements: [
+                { name: "none", reason: "No external platform hard requirement for this candidate." },
+              ],
+              tool_policy: {
+                primary: ["websearch"],
+                secondary: [],
+                forbidden: [],
+              },
+              flags: {
+                human_review_required: false,
+                missing_platform_requirements: false,
+                missing_tool_policy: false,
+              },
+            },
+          ],
+        };
 
-      const inputPath = path.join(runRoot, "operator", "outputs", "perspectives", "primary.input.json");
-      await fs.mkdir(path.dirname(inputPath), { recursive: true });
-      await fs.writeFile(inputPath, `${JSON.stringify(perspectivePayload, null, 2)}\n`, "utf8");
+        const inputPath = path.join(runRoot, "operator", "outputs", "perspectives", `${perspectiveId}.input.json`);
+        await fs.mkdir(path.dirname(inputPath), { recursive: true });
+        await fs.writeFile(inputPath, `${JSON.stringify(perspectivePayload, null, 2)}\n`, "utf8");
 
-      const ingestRes = await runCli([
-        "agent-result",
-        "--manifest",
-        manifestPath,
-        "--stage",
-        "perspectives",
-        "--perspective",
-        "primary",
-        "--input",
-        inputPath,
-        "--agent-run-id",
-        "agent-run-primary-transition-001",
-        "--reason",
-        "test ingest perspectives primary for transition",
-        "--json",
-      ]);
-      expect(ingestRes.exit).toBe(0);
-      const ingestPayload = parseJsonStdout(ingestRes.stdout);
-      expect(ingestPayload.ok).toBe(true);
-      expect(ingestPayload.noop).toBe(false);
+        const ingestRes = await runCli([
+          "agent-result",
+          "--manifest",
+          manifestPath,
+          "--stage",
+          "perspectives",
+          "--perspective",
+          perspectiveId,
+          "--input",
+          inputPath,
+          "--agent-run-id",
+          `agent-run-${perspectiveId}-transition-001`,
+          "--reason",
+          `test ingest perspectives ${perspectiveId} for transition`,
+          "--json",
+        ]);
+        expect(ingestRes.exit).toBe(0);
+        const ingestPayload = parseJsonStdout(ingestRes.stdout);
+        expect(ingestPayload.ok).toBe(true);
+        expect((ingestPayload.result as any)?.noop).toBe(false);
+      }
 
       const secondDraftRes = await runCli([
         "perspectives-draft",
@@ -531,7 +560,7 @@ describe("deep_research operator CLI perspectives-draft task driver (entity)", (
       expect(rawInputRes.exit).toBe(0);
       const rawInputPayload = parseJsonStdout(rawInputRes.stdout);
       expect(rawInputPayload.ok).toBe(true);
-      expect(rawInputPayload.noop).toBe(false);
+      expect((rawInputPayload.result as any)?.noop).toBe(false);
 
       const expectedOutputPath = path.join(runRoot, "operator", "outputs", "perspectives", "primary.json");
       const metaPath = path.join(runRoot, "operator", "outputs", "perspectives", "primary.meta.json");
@@ -562,7 +591,7 @@ describe("deep_research operator CLI perspectives-draft task driver (entity)", (
       expect(noopRawInputRes.exit).toBe(0);
       const noopRawInputPayload = parseJsonStdout(noopRawInputRes.stdout);
       expect(noopRawInputPayload.ok).toBe(true);
-      expect(noopRawInputPayload.noop).toBe(true);
+      expect((noopRawInputPayload.result as any)?.noop).toBe(true);
       const finalMeta = JSON.parse(await fs.readFile(metaPath, "utf8")) as Record<string, unknown>;
       expect(String(finalMeta.agent_run_id ?? "")).toBe("agent-run-primary-raw-001");
     });

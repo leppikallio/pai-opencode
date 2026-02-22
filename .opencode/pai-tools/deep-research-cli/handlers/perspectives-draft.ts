@@ -68,12 +68,19 @@ function nextStepCliInvocation(): string {
   return `bun "pai-tools/${cliName}"`;
 }
 
+const REQUIRED_TASK_DRIVER_PERSPECTIVE_IDS = [
+  "primary",
+  "ensemble-independent",
+  "ensemble-contrarian",
+] as const;
+
 async function writeTaskDriverPerspectiveDraftPrompt(args: {
   runRoot: string;
   runId: string;
   queryText: string;
+  perspectiveId: string;
 }): Promise<TaskDriverMissingPerspective> {
-  const perspectiveId = "primary";
+  const perspectiveId = args.perspectiveId;
   const promptPath = path.join(args.runRoot, "operator", "prompts", "perspectives", `${perspectiveId}.md`);
   const outputPath = path.join(args.runRoot, "operator", "outputs", "perspectives", `${perspectiveId}.json`);
   const metaPath = path.join(args.runRoot, "operator", "outputs", "perspectives", `${perspectiveId}.meta.json`);
@@ -404,16 +411,30 @@ export async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Prom
   const query = asObject(runHandle.manifest.query);
   const queryText = String(query.text ?? "");
 
-  const missingPerspective = await writeTaskDriverPerspectiveDraftPrompt({
-    runRoot: summary.runRoot,
-    runId: summary.runId,
-    queryText,
-  });
+  const requiredPerspectives = await Promise.all(
+    REQUIRED_TASK_DRIVER_PERSPECTIVE_IDS.map((perspectiveId) => writeTaskDriverPerspectiveDraftPrompt({
+      runRoot: summary.runRoot,
+      runId: summary.runId,
+      queryText,
+      perspectiveId,
+    }))
+  );
 
-  const statusResolution = await resolvePerspectivesDraftStatus({
-    runId: summary.runId,
-    perspective: missingPerspective,
-  });
+  const statusResolutions = await Promise.all(
+    requiredPerspectives.map((perspective) => resolvePerspectivesDraftStatus({
+      runId: summary.runId,
+      perspective,
+    }))
+  );
+
+  const missing = requiredPerspectives
+    .map((perspective, idx) => ({ perspective, resolution: statusResolutions[idx]! }))
+    .filter(({ resolution }) => resolution.status !== "merging");
+  const statusResolution: {
+    status: PerspectivesDraftStatus;
+  } = {
+    status: missing.length === 0 ? "merging" : "awaiting_agent_results",
+  };
 
   const policyWrite = await writeDefaultPerspectivesPolicy({
     runRoot: summary.runRoot,
@@ -423,12 +444,12 @@ export async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Prom
   const stateInputsDigest = stableDigest({
     schema: "perspectives-draft-state.inputs.v1",
     run_id: summary.runId,
-    perspective_id: missingPerspective.perspectiveId,
-    prompt_digest: missingPerspective.promptDigest,
-    output_exists: statusResolution.outputExists,
-    meta_prompt_digest: statusResolution.metaPromptDigest,
-    prompt_digest_matches: statusResolution.promptDigestMatches,
-    normalized_output_valid: statusResolution.normalizedOutputValid,
+    required_perspectives: requiredPerspectives.map((p) => ({
+      perspective_id: p.perspectiveId,
+      prompt_digest: p.promptDigest,
+    })),
+    missing_count: missing.length,
+    missing_ids: missing.map((m) => m.perspective.perspectiveId),
     policy_path: policyWrite.policyPath,
     policy_digest: policyWrite.policyDigest,
   });
@@ -619,46 +640,65 @@ export async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Prom
   const errorCode = "RUN_AGENT_REQUIRED";
   const errorMessage = "Perspectives drafting requires external agent results via task driver";
 
+  const primaryPerspective = requiredPerspectives[0];
+  const primaryResolution = statusResolutions[0];
+
   const errorDetails: Record<string, unknown> = {
     stage: "perspectives",
     status: statusResolution.status,
     state_path: statePath,
-    prompt_path: missingPerspective.promptPath,
-    output_path: missingPerspective.outputPath,
-    meta_path: missingPerspective.metaPath,
+    prompt_path: primaryPerspective?.promptPath,
+    output_path: primaryPerspective?.outputPath,
+    meta_path: primaryPerspective?.metaPath,
     policy_path: policyWrite.policyPath,
     policy_digest: policyWrite.policyDigest,
     policy_changed: policyWrite.changed,
-    prompt_digest: missingPerspective.promptDigest,
-    checks: {
-      output_exists: statusResolution.outputExists,
-      meta_prompt_digest: statusResolution.metaPromptDigest,
-      prompt_digest_matches: statusResolution.promptDigestMatches,
-      normalized_output_valid: statusResolution.normalizedOutputValid,
-    },
-    ...(statusResolution.normalizedOutputErrorCode
+    prompt_digest: primaryPerspective?.promptDigest,
+    checks: primaryResolution
+      ? {
+        output_exists: primaryResolution.outputExists,
+        meta_prompt_digest: primaryResolution.metaPromptDigest,
+        prompt_digest_matches: primaryResolution.promptDigestMatches,
+        normalized_output_valid: primaryResolution.normalizedOutputValid,
+      }
+      : {},
+    ...(primaryResolution?.normalizedOutputErrorCode
       ? {
         normalized_output_error: {
-          code: statusResolution.normalizedOutputErrorCode,
-          message: statusResolution.normalizedOutputErrorMessage,
+          code: primaryResolution.normalizedOutputErrorCode,
+          message: primaryResolution.normalizedOutputErrorMessage,
         },
       }
       : {}),
-    missing_count: 1,
-    missing_perspectives: [
-      {
-        perspective_id: missingPerspective.perspectiveId,
-        prompt_path: missingPerspective.promptPath,
-        output_path: missingPerspective.outputPath,
-        meta_path: missingPerspective.metaPath,
-        prompt_digest: missingPerspective.promptDigest,
+    missing_count: missing.length,
+    missing_perspectives: missing.map(({ perspective, resolution }) => ({
+      perspective_id: perspective.perspectiveId,
+      prompt_path: perspective.promptPath,
+      output_path: perspective.outputPath,
+      meta_path: perspective.metaPath,
+      prompt_digest: perspective.promptDigest,
+      checks: {
+        output_exists: resolution.outputExists,
+        meta_prompt_digest: resolution.metaPromptDigest,
+        prompt_digest_matches: resolution.promptDigestMatches,
+        normalized_output_valid: resolution.normalizedOutputValid,
       },
-    ],
+      ...(resolution.normalizedOutputErrorCode
+        ? {
+          normalized_output_error: {
+            code: resolution.normalizedOutputErrorCode,
+            message: resolution.normalizedOutputErrorMessage,
+          },
+        }
+        : {}),
+    })),
   };
 
   const nextCommands = [
     `${nextStepCliInvocation()} inspect --manifest "${runHandle.manifestPath}"`,
-    `${nextStepCliInvocation()} agent-result --manifest "${runHandle.manifestPath}" --stage perspectives --perspective "${missingPerspective.perspectiveId}" --input "${path.join(summary.runRoot, "operator", "outputs", "perspectives", `${missingPerspective.perspectiveId}.raw.json`)}" --agent-run-id "<AGENT_RUN_ID>" --reason "operator: ingest perspectives/${missingPerspective.perspectiveId}"`,
+    ...missing.map(({ perspective }) => (
+      `${nextStepCliInvocation()} agent-result --manifest "${runHandle.manifestPath}" --stage perspectives --perspective "${perspective.perspectiveId}" --input "${path.join(summary.runRoot, "operator", "outputs", "perspectives", `${perspective.perspectiveId}.raw.json`)}" --agent-run-id "<AGENT_RUN_ID>" --reason "operator: ingest perspectives/${perspective.perspectiveId}"`
+    )),
     `${nextStepCliInvocation()} stage-advance --manifest "${runHandle.manifestPath}" --requested-next wave1 --reason "perspectives finalized (requires perspectives.json promotion)"`,
   ];
 
@@ -694,7 +734,7 @@ export async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Prom
         message: errorMessage,
         details: errorDetails,
       },
-      prompt_path: missingPerspective.promptPath,
+      prompt_path: primaryPerspective?.promptPath,
       state_path: statePath,
       halt: {
         tick_index: halt.tickIndex,
@@ -718,7 +758,11 @@ export async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Prom
   console.log(`perspectives_draft.error.message: ${errorMessage}`);
   console.log(`perspectives_draft.status: ${statusResolution.status}`);
   console.log(`perspectives_draft.state_path: ${statePath}`);
-  console.log(`perspectives_draft.prompt_path: ${missingPerspective.promptPath}`);
-  console.log(`perspectives_draft.prompt_digest: ${missingPerspective.promptDigest}`);
+  if (primaryPerspective?.promptPath) {
+    console.log(`perspectives_draft.prompt_path: ${primaryPerspective.promptPath}`);
+  }
+  if (primaryPerspective?.promptDigest) {
+    console.log(`perspectives_draft.prompt_digest: ${primaryPerspective.promptDigest}`);
+  }
   await printHaltArtifactSummary(halt);
-}
+  }
