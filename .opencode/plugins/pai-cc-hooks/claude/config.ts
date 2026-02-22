@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ClaudeHooksConfig, HookCommand, HookMatcher } from "./types";
 
@@ -47,9 +47,9 @@ function normalizeHooksConfig(raw: RawClaudeHooksConfig): ClaudeHooksConfig {
 }
 
 export function getClaudeSettingsPaths(customPath?: string): string[] {
-  const openCodeConfigDir = getOpenCodeConfigDir();
+  const opencodeRoot = getOpencodeRoot();
   const paths = [
-    join(openCodeConfigDir, "config", "claude-hooks.settings.json"),
+    join(opencodeRoot, "config", "claude-hooks.settings.json"),
     join(process.cwd(), ".claude", "settings.json"),
     join(process.cwd(), ".claude", "settings.local.json"),
     join(homedir(), ".claude", "settings.json"),
@@ -62,14 +62,26 @@ export function getClaudeSettingsPaths(customPath?: string): string[] {
   return [...new Set(paths)];
 }
 
-function getOpenCodeConfigDir(): string {
-  const envConfigDir = process.env.OPEN_CODE_CONFIG_DIR;
-  if (envConfigDir) {
-    return envConfigDir;
+function getOpencodeRoot(): string {
+  const pluginDir = dirname(fileURLToPath(import.meta.url));
+  const fileDerivedRoot = resolve(pluginDir, "..", "..", "..");
+
+  const overrideRoot = process.env.PAI_CC_HOOKS_CONFIG_ROOT;
+  if (!overrideRoot) {
+    return fileDerivedRoot;
   }
 
-  const pluginDir = dirname(fileURLToPath(import.meta.url));
-  return resolve(pluginDir, "..", "..", "..");
+  const normalizedRoot = resolve(overrideRoot);
+  return basename(normalizedRoot) === "config" ? dirname(normalizedRoot) : normalizedRoot;
+}
+
+function logParseFailure(settingsPath: string, error: unknown): void {
+  if (process.env.PAI_CC_HOOKS_DEBUG !== "1") {
+    return;
+  }
+
+  const reason = error instanceof Error ? error.message : String(error);
+  console.warn(`[pai-cc-hooks] Failed to parse JSON in ${settingsPath}: ${reason}`);
 }
 
 function mergeHooksConfig(base: ClaudeHooksConfig, override: ClaudeHooksConfig): ClaudeHooksConfig {
@@ -98,7 +110,15 @@ export async function loadClaudeHooksConfig(customSettingsPath?: string): Promis
 
     try {
       const content = await readFile(settingsPath, "utf-8");
-      const settings = JSON.parse(content) as { hooks?: RawClaudeHooksConfig };
+      let settings: { hooks?: RawClaudeHooksConfig };
+
+      try {
+        settings = JSON.parse(content) as { hooks?: RawClaudeHooksConfig };
+      } catch (error) {
+        logParseFailure(settingsPath, error);
+        continue;
+      }
+
       if (settings.hooks) {
         const normalizedHooks = normalizeHooksConfig(settings.hooks);
         mergedConfig = mergeHooksConfig(mergedConfig, normalizedHooks);
