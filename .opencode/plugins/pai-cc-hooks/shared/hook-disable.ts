@@ -1,6 +1,8 @@
 import type { ClaudeHookEvent } from "../claude/types";
 
 export interface DisabledHooksConfig {
+  SessionStart?: string[];
+  SessionEnd?: string[];
   Stop?: string[];
   PreToolUse?: string[];
   PostToolUse?: string[];

@@ -15,6 +15,8 @@ interface RawClaudeHooksConfig {
   PreToolUse?: RawHookMatcher[];
   PostToolUse?: RawHookMatcher[];
   UserPromptSubmit?: RawHookMatcher[];
+  SessionStart?: RawHookMatcher[];
+  SessionEnd?: RawHookMatcher[];
   Stop?: RawHookMatcher[];
   PreCompact?: RawHookMatcher[];
 }
@@ -42,6 +44,8 @@ function normalizeHooksConfig(raw: RawClaudeHooksConfig): ClaudeHooksConfig {
     "PreToolUse",
     "PostToolUse",
     "UserPromptSubmit",
+    "SessionStart",
+    "SessionEnd",
     "Stop",
     "PreCompact",
   ];
@@ -115,6 +119,8 @@ function mergeHooksConfig(base: ClaudeHooksConfig, override: ClaudeHooksConfig):
     "PreToolUse",
     "PostToolUse",
     "UserPromptSubmit",
+    "SessionStart",
+    "SessionEnd",
     "Stop",
     "PreCompact",
   ];

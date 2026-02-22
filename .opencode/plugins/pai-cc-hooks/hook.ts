@@ -3,11 +3,20 @@ import { executePreToolUseHooks } from "./claude/pre-tool-use";
 import { executePostToolUseHooks } from "./claude/post-tool-use";
 import { executeUserPromptSubmitHooks } from "./claude/user-prompt-submit";
 import { executeStopHooks, setStopHookActive } from "./claude/stop";
+import type { ClaudeHooksConfig, SessionEndInput, SessionStartInput } from "./claude/types";
+import { executeHookCommand } from "./shared/execute-hook-command";
+import { findMatchingHooks } from "./shared/pattern-matcher";
 
 type EventHookHandler = (input: unknown) => Promise<void>;
 type HookHandler = (input: unknown, output: unknown) => Promise<void>;
 
 type UnknownRecord = Record<string, unknown>;
+type SessionLifecycleEventName = "SessionStart" | "SessionEnd";
+
+const DEFAULT_HOOK_COMMAND_CONFIG = {
+  forceZsh: process.platform !== "win32",
+  zshPath: "/bin/zsh",
+};
 
 function asRecord(value: unknown): UnknownRecord {
   return typeof value === "object" && value !== null ? (value as UnknownRecord) : {};
@@ -26,6 +35,69 @@ function getRecord(obj: UnknownRecord, key: string): UnknownRecord | undefined {
 function getBoolean(obj: UnknownRecord, key: string): boolean | undefined {
   const value = obj[key];
   return typeof value === "boolean" ? value : undefined;
+}
+
+function getSessionIdFromEvent(properties: UnknownRecord, info: UnknownRecord): string {
+  return (
+    getString(properties, "sessionID") ??
+    getString(info, "sessionID") ??
+    getString(info, "id") ??
+    ""
+  );
+}
+
+function getParentSessionIdFromEvent(properties: UnknownRecord, info: UnknownRecord): string | undefined {
+  return (
+    getString(info, "parentID") ??
+    getString(info, "parentId") ??
+    getString(properties, "parentSessionID") ??
+    getString(properties, "parentSessionId")
+  );
+}
+
+async function executeSessionLifecycleHooks(
+  args: {
+    sessionId: string;
+    cwd: string;
+    hookEventName: SessionLifecycleEventName;
+  },
+  config: ClaudeHooksConfig | null,
+  settingsEnv?: Record<string, string>,
+): Promise<void> {
+  if (!config) {
+    return;
+  }
+
+  const matchers = findMatchingHooks(config, args.hookEventName);
+  if (matchers.length === 0) {
+    return;
+  }
+
+  const stdinData: SessionStartInput | SessionEndInput = {
+    session_id: args.sessionId,
+    cwd: args.cwd,
+    hook_event_name: args.hookEventName,
+    hook_source: "opencode-plugin",
+  };
+
+  for (const matcher of matchers) {
+    if (!matcher.hooks || matcher.hooks.length === 0) continue;
+
+    for (const hook of matcher.hooks) {
+      if (hook.type !== "command") continue;
+
+      const result = await executeHookCommand(hook.command, JSON.stringify(stdinData), args.cwd, {
+        forceZsh: DEFAULT_HOOK_COMMAND_CONFIG.forceZsh,
+        zshPath: DEFAULT_HOOK_COMMAND_CONFIG.zshPath,
+        env: settingsEnv,
+      });
+
+      if (result.exitCode !== 0 && process.env.PAI_CC_HOOKS_DEBUG === "1") {
+        const reason = result.stderr || result.stdout || `exit code ${result.exitCode}`;
+        console.warn(`[pai-cc-hooks] ${args.hookEventName} hook command failed: ${reason}`);
+      }
+    }
+  }
 }
 
 let settingsPromise: Promise<LoadedClaudeHookSettings> | null = null;
@@ -51,16 +123,46 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
       const event = getRecord(payload, "event") ?? payload;
       const eventType = getString(event, "type") ?? "";
 
-      if (eventType !== "session.idle" && eventType !== "session.deleted") {
+      if (eventType !== "session.created" && eventType !== "session.idle" && eventType !== "session.deleted") {
         return;
       }
 
       const { hooks: config, env } = await getSettingsPromise();
       const properties = getRecord(event, "properties") ?? {};
       const info = getRecord(properties, "info") ?? {};
-      const sessionId =
-        getString(properties, "sessionID") ?? getString(info, "sessionID") ?? getString(info, "id") ?? "";
+      const sessionId = getSessionIdFromEvent(properties, info);
       if (!sessionId) return;
+
+      if (eventType === "session.created") {
+        const parentSessionId = getParentSessionIdFromEvent(properties, info);
+        if (parentSessionId) {
+          return;
+        }
+
+        await executeSessionLifecycleHooks(
+          {
+            sessionId,
+            cwd: process.cwd(),
+            hookEventName: "SessionStart",
+          },
+          config,
+          env,
+        );
+        return;
+      }
+
+      if (eventType === "session.deleted") {
+        await executeSessionLifecycleHooks(
+          {
+            sessionId,
+            cwd: process.cwd(),
+            hookEventName: "SessionEnd",
+          },
+          config,
+          env,
+        );
+        return;
+      }
 
       const result = await executeStopHooks(
         {
@@ -76,7 +178,6 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
       if (result.stopHookActive !== undefined) {
         setStopHookActive(sessionId, result.stopHookActive);
       }
-
     },
 
     "chat.message": async (input, output) => {

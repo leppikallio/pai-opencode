@@ -7,6 +7,8 @@ export type ClaudeHookEvent =
   | "PreToolUse"
   | "PostToolUse"
   | "UserPromptSubmit"
+  | "SessionStart"
+  | "SessionEnd"
   | "Stop"
   | "PreCompact";
 
@@ -24,8 +26,24 @@ export interface ClaudeHooksConfig {
   PreToolUse?: HookMatcher[];
   PostToolUse?: HookMatcher[];
   UserPromptSubmit?: HookMatcher[];
+  SessionStart?: HookMatcher[];
+  SessionEnd?: HookMatcher[];
   Stop?: HookMatcher[];
   PreCompact?: HookMatcher[];
+}
+
+export interface SessionStartInput {
+  session_id: string;
+  cwd: string;
+  hook_event_name: "SessionStart";
+  hook_source?: HookSource;
+}
+
+export interface SessionEndInput {
+  session_id: string;
+  cwd: string;
+  hook_event_name: "SessionEnd";
+  hook_source?: HookSource;
 }
 
 export interface PreToolUseInput {
