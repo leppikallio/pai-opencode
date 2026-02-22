@@ -1510,6 +1510,7 @@ function copyFile(src: string, dest: string, dryRun: boolean) {
   if (dryRun) return;
   ensureDir(path.dirname(dest), dryRun);
   fs.copyFileSync(src, dest);
+  fs.chmodSync(dest, fs.statSync(src).mode);
 }
 
 function copyDirRecursive(
@@ -1810,6 +1811,7 @@ async function sync(mode: Mode, opts: Options) {
     "config",
     "docs",
     "History",
+    "hooks",
     "mcp",
     "PIPELINES",
     "plugins",

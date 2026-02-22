@@ -139,6 +139,7 @@ export async function loadClaudeHooksConfig(customSettingsPath?: string): Promis
 
 export async function loadClaudeHookSettings(customSettingsPath?: string): Promise<LoadedClaudeHookSettings> {
   const paths = getClaudeSettingsPaths(customSettingsPath);
+  const opencodeRoot = getOpencodeRoot();
   let mergedConfig: ClaudeHooksConfig = {};
   let mergedEnv: Record<string, string> = {};
 
@@ -168,6 +169,15 @@ export async function loadClaudeHookSettings(customSettingsPath?: string): Promi
     } catch {
       continue;
     }
+  }
+
+  const configuredPaiDir = mergedEnv.PAI_DIR?.trim();
+  const hasPlaceholderPaiDir = typeof configuredPaiDir === "string" && configuredPaiDir.includes("${PAI_DIR}");
+  if (!configuredPaiDir || hasPlaceholderPaiDir) {
+    mergedEnv = {
+      ...mergedEnv,
+      PAI_DIR: opencodeRoot,
+    };
   }
 
   return {
