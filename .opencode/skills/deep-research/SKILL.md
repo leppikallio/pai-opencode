@@ -14,6 +14,7 @@ This is the canonical operator skill for Option C deep research. It is the sourc
 - Skill workflows in `Workflows/` (canonical operator guidance)
 - CLI: `bun ".opencode/pai-tools/deep-research-cli.ts" <command> [...flags]`
 - Run artifacts (manifest, gates, stage artifacts) are the source of truth; do not rely on ambient env vars.
+- Default operator happy path: `Workflows/InitIntake.md` → `Workflows/DraftPerspectivesFromQuery.md` → `Workflows/LLMDriverLoop.md`.
 
 ## CLI invocation (repo vs runtime)
 
@@ -39,9 +40,9 @@ bun "pai-tools/deep-research-cli.ts" <command> [...flags]
   - When a command halts, `halt.next_commands` is included **inline** in that JSON.
 - Prefer `--run-id` on `init` for deterministic reproduction/debugging.
 
-## Perspective Drafting (task-driver seam)
+## Perspective Drafting (default LLM seam)
 
-Use this when you want **agent-authored perspectives** instead of the default `init`-generated `perspectives.json`.
+The default operator flow uses **agent-authored perspectives** via `init --no-perspectives`.
 
 ### Why/when to run `init --no-perspectives`
 
@@ -55,7 +56,7 @@ If you do **not** pass `--no-perspectives`, `init` may write `perspectives.json`
 
 ### Canonical happy path (end-to-end)
 
-> Canonical workflow doc: `Workflows/DraftPerspectivesFromQuery.md`
+> Canonical workflow docs: `Workflows/InitIntake.md` and `Workflows/DraftPerspectivesFromQuery.md`
 
 1) Init without perspectives:
 
@@ -64,7 +65,8 @@ bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
   --run-id "<run_id>" \
-  --no-perspectives
+  --no-perspectives \
+  --json
 ```
 
 2) Advance into the perspectives stage:
@@ -86,21 +88,21 @@ bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
   --driver task
 ```
 
-4) Create a JSON output file matching **exactly** `perspectives-draft-output.v1`:
+4) Create one JSON output file per required perspective, each matching **exactly** `perspectives-draft-output.v1`:
 
-- Prompt: `<run_root>/operator/prompts/perspectives/primary.md`
-- Write agent output JSON to: `<run_root>/operator/outputs/perspectives/primary.raw.json`
+- Prompts: `<run_root>/operator/prompts/perspectives/*.md`
+- Write each output JSON to: `<run_root>/operator/outputs/perspectives/<perspective_id>.raw.json`
 
-5) Ingest the JSON output:
+5) Ingest each JSON output (one `agent-result` call per perspective from `halt.next_commands[]`):
 
 ```bash
 bun ".opencode/pai-tools/deep-research-cli.ts" agent-result \
   --manifest "<manifest_abs>" \
   --stage perspectives \
-  --perspective "primary" \
-  --input "<run_root>/operator/outputs/perspectives/primary.raw.json" \
-  --agent-run-id "<agent_run_id>" \
-  --reason "ingest perspectives primary"
+  --perspective "<perspective_id>" \
+  --input "<run_root>/operator/outputs/perspectives/<perspective_id>.raw.json" \
+  --agent-run-id "<agent_run_id_for_perspective>" \
+  --reason "ingest perspectives <perspective_id>"
 ```
 
 6) Rerun `perspectives-draft` to auto-promote + regenerate Wave 1 plan + stage-advance to Wave 1:
@@ -131,7 +133,7 @@ If `wave1` execution fails fast with `WAVE1_PLAN_STALE`, it means the Wave 1 pla
 
 ### Operator surface contract (modes)
 
-This skill is the operator surface. Legacy slashcommand docs are removed.
+This skill is the canonical operator surface.
 
 - **plan (offline-first):** `init` with `--sensitivity no_web`, optionally one `tick --driver fixture`, then stop.
 - **fixture (offline):** `init` with `--sensitivity no_web`, loop `tick --driver fixture` until terminal status or typed blocker; use `triage` when blocked.
@@ -167,6 +169,7 @@ When operating a run (any mode), always capture/print:
 
 ## Workflows
 
+- `Workflows/InitIntake.md`
 - `Workflows/RunPlan.md`
 - `Workflows/LLMDriverLoop.md`
 - `Workflows/DraftPerspectivesFromQuery.md`

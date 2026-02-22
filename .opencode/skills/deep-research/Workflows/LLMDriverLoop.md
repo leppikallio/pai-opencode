@@ -25,7 +25,7 @@ bun "pai-tools/deep-research-cli.ts" <command> [flags]
   - The CLI emits a single-line JSON envelope: `schema_version="dr.cli.v1"`.
   - When a command halts, `halt.next_commands` is included **inline** in that JSON.
 
-## Init (always set `--run-id`)
+## Init (always set `--run-id`, default to LLM drafting seam)
 
 Pick a stable run id so you can reproduce failures deterministically later.
 
@@ -35,6 +35,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
   --run-id "<run_id>" \
+  --no-perspectives \
   --json
 
 # Runtime install (~/.config/opencode)
@@ -43,10 +44,26 @@ bun "pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
   --run-id "<run_id>" \
+  --no-perspectives \
   --json
 ```
 
 The `--json` envelope includes (at minimum) the absolute `contract.manifest_path`.
+
+After init, enter perspectives drafting before normal task-driver ticking:
+
+```bash
+bun ".opencode/pai-tools/deep-research-cli.ts" stage-advance \
+  --manifest "<manifest_abs>" \
+  --gates "<gates_abs>" \
+  --requested-next perspectives \
+  --reason "enter perspectives drafting"
+
+bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
+  --manifest "<manifest_abs>" \
+  --reason "draft perspectives" \
+  --driver task
+```
 
 ## The driver loop (tick → agent-result → tick)
 
@@ -85,10 +102,18 @@ For each required prompt:
 
 1) Read the prompt markdown.
 2) Run your external LLM/agent on that prompt.
-3) Write the agent’s markdown output to:
+3) Write the agent output to the format required by that stage.
+
+Typical task-driver stages use markdown:
 
 ```text
 <run_root>/operator/outputs/<stage>/<perspective>.md
+```
+
+Perspectives drafting uses JSON outputs instead:
+
+```text
+<run_root>/operator/outputs/perspectives/<perspective_id>.raw.json
 ```
 
 Notes:
@@ -108,7 +133,7 @@ bun ".opencode/pai-tools/deep-research-cli.ts" agent-result \
   --manifest "<manifest_abs>" \
   --stage "<stage>" \
   --perspective "<perspective>" \
-  --input "<run_root>/operator/outputs/<stage>/<perspective>.md" \
+  --input "<output_path_for_stage_and_perspective>" \
   --agent-run-id "<agent_run_id>" \
   --reason "ingest <stage> <perspective>" \
   --json
@@ -119,11 +144,13 @@ bun "pai-tools/deep-research-cli.ts" agent-result \
   --manifest "<manifest_abs>" \
   --stage "<stage>" \
   --perspective "<perspective>" \
-  --input "<run_root>/operator/outputs/<stage>/<perspective>.md" \
+  --input "<output_path_for_stage_and_perspective>" \
   --agent-run-id "<agent_run_id>" \
   --reason "ingest <stage> <perspective>" \
   --json
 ```
+
+For perspectives ensemble halts, execute **multiple** `agent-result` calls (one per required perspective in `halt.next_commands[]`) before resuming.
 
 ### Step 4: Tick again
 

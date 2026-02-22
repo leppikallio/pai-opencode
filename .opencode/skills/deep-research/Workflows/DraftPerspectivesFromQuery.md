@@ -2,6 +2,8 @@
 
 Derive a stable `perspectives.json` from a query so Wave 1 can run deterministically.
 
+This is the default LLM-seam path after `Workflows/InitIntake.md`.
+
 ## Inputs
 
 - Query text
@@ -60,14 +62,18 @@ Minimum baseline:
 bun ".opencode/pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
-  --no-perspectives
+  --run-id "<run_id>" \
+  --no-perspectives \
+  --json
 
 # Runtime install (~/.config/opencode)
 cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" init "<query>" \
   --mode standard \
   --sensitivity normal \
-  --no-perspectives
+  --run-id "<run_id>" \
+  --no-perspectives \
+  --json
 ```
 
 2) Advance into `stage.current=perspectives`:
@@ -88,7 +94,7 @@ bun "pai-tools/deep-research-cli.ts" stage-advance \
   --reason "enter perspectives drafting"
 ```
 
-3) Run the task-driver prompt-out command (this **writes prompts and HALTs**):
+3) Run the task-driver prompt-out command (this **writes ensemble prompts and HALTs**):
 
 ```bash
 bun ".opencode/pai-tools/deep-research-cli.ts" perspectives-draft \
@@ -106,38 +112,39 @@ bun "pai-tools/deep-research-cli.ts" perspectives-draft \
 
 On halt (`RUN_AGENT_REQUIRED`), use these artifact paths:
 
-- Prompt to execute: `<run_root>/operator/prompts/perspectives/primary.md`
-- Raw agent output path (YOU create): `<run_root>/operator/outputs/perspectives/primary.raw.json`
+- Prompts to execute: `<run_root>/operator/prompts/perspectives/*.md`
+- Raw agent output path (you create for each perspective):
+  `<run_root>/operator/outputs/perspectives/<perspective_id>.raw.json`
 
-4) Produce the JSON output (no surrounding markdown) matching schema `perspectives-draft-output.v1`.
+4) Produce one JSON output per required perspective (no surrounding markdown), each matching schema `perspectives-draft-output.v1`.
 
-5) Ingest it (normalizes + writes canonical sidecars):
+5) Ingest each output (normalizes + writes canonical sidecars):
 
 ```bash
 bun ".opencode/pai-tools/deep-research-cli.ts" agent-result \
   --manifest "<manifest_abs>" \
   --stage perspectives \
-  --perspective "primary" \
-  --input "<run_root>/operator/outputs/perspectives/primary.raw.json" \
-  --agent-run-id "<agent_run_id>" \
-  --reason "operator: ingest perspectives/primary"
+  --perspective "<perspective_id>" \
+  --input "<run_root>/operator/outputs/perspectives/<perspective_id>.raw.json" \
+  --agent-run-id "<agent_run_id_for_perspective>" \
+  --reason "operator: ingest perspectives/<perspective_id>"
 
 # Runtime install (~/.config/opencode)
 cd "$HOME/.config/opencode"
 bun "pai-tools/deep-research-cli.ts" agent-result \
   --manifest "<manifest_abs>" \
   --stage perspectives \
-  --perspective "primary" \
-  --input "<run_root>/operator/outputs/perspectives/primary.raw.json" \
-  --agent-run-id "<agent_run_id>" \
-  --reason "operator: ingest perspectives/primary"
+  --perspective "<perspective_id>" \
+  --input "<run_root>/operator/outputs/perspectives/<perspective_id>.raw.json" \
+  --agent-run-id "<agent_run_id_for_perspective>" \
+  --reason "operator: ingest perspectives/<perspective_id>"
 ```
 
-This writes:
+This writes for each `<perspective_id>`:
 
-- `<run_root>/operator/outputs/perspectives/primary.raw.json` (raw; verbatim)
-- `<run_root>/operator/outputs/perspectives/primary.json` (normalized)
-- `<run_root>/operator/outputs/perspectives/primary.meta.json` (`schema_version=agent-result-meta.v1`)
+- `<run_root>/operator/outputs/perspectives/<perspective_id>.raw.json` (raw; verbatim)
+- `<run_root>/operator/outputs/perspectives/<perspective_id>.json` (normalized)
+- `<run_root>/operator/outputs/perspectives/<perspective_id>.meta.json` (`schema_version=agent-result-meta.v1`)
 
 6) Rerun `perspectives-draft` to merge + (possibly) halt for human review, or auto-promote:
 
@@ -179,11 +186,12 @@ If Wave 1 fails with `WAVE1_PLAN_STALE`, regenerate the Wave 1 plan by re-runnin
 ## Validation contract
 
 - [ ] `stage-advance --requested-next perspectives` succeeds and `manifest.stage.current == perspectives`.
-- [ ] `perspectives-draft --driver task` writes `<run_root>/operator/prompts/perspectives/primary.md` and halts with `RUN_AGENT_REQUIRED`.
-- [ ] `primary.raw.json` parses as JSON and `schema_version == perspectives-draft-output.v1`.
-- [ ] `agent-result --stage perspectives` writes:
-  - `<run_root>/operator/outputs/perspectives/primary.raw.json`
-  - `<run_root>/operator/outputs/perspectives/primary.json`
-  - `<run_root>/operator/outputs/perspectives/primary.meta.json` with `schema_version == agent-result-meta.v1`
+- [ ] `perspectives-draft --driver task` writes one or more prompts under `<run_root>/operator/prompts/perspectives/*.md` and halts with `RUN_AGENT_REQUIRED`.
+- [ ] Each `*.raw.json` parses as JSON and `schema_version == perspectives-draft-output.v1`.
+- [ ] One `agent-result --stage perspectives` call is executed per required perspective (as indicated by `halt.next_commands[]`).
+- [ ] For each required perspective, `agent-result` writes:
+  - `<run_root>/operator/outputs/perspectives/<perspective_id>.raw.json`
+  - `<run_root>/operator/outputs/perspectives/<perspective_id>.json`
+  - `<run_root>/operator/outputs/perspectives/<perspective_id>.meta.json` with `schema_version == agent-result-meta.v1`
 - [ ] Second `perspectives-draft` run writes `perspectives.json` with `schema_version == perspectives.v1`.
 - [ ] After promotion, Wave 1 plan exists (printed by CLI) and `manifest.stage.current == wave1`.
