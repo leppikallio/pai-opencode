@@ -4,6 +4,7 @@ import { executePostToolUseHooks } from "./claude/post-tool-use";
 import { executeUserPromptSubmitHooks } from "./claude/user-prompt-submit";
 import { executeStopHooks, setStopHookActive } from "./claude/stop";
 
+type EventHookHandler = (input: unknown) => Promise<void>;
 type HookHandler = (input: unknown, output: unknown) => Promise<void>;
 
 type UnknownRecord = Record<string, unknown>;
@@ -37,7 +38,7 @@ function getConfigPromise(): Promise<ClaudeHooksConfig | null> {
 }
 
 export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
-  event: HookHandler;
+  event: EventHookHandler;
   "chat.message": HookHandler;
   "tool.execute.before": HookHandler;
   "tool.execute.after": HookHandler;
@@ -45,9 +46,8 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
   void ctx;
 
   return {
-    event: async (input, output) => {
+    event: async (input) => {
       const payload = asRecord(input);
-      const out = asRecord(output);
       const event = getRecord(payload, "event") ?? payload;
       const eventType = getString(event, "type") ?? "";
 
@@ -75,9 +75,6 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
         setStopHookActive(sessionId, result.stopHookActive);
       }
 
-      if (result.block) {
-        out.error = result.reason ?? "Blocked by Stop hook";
-      }
     },
 
     "chat.message": async (input, output) => {
