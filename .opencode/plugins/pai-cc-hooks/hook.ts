@@ -9,6 +9,7 @@ import { findMatchingHooks } from "./shared/pattern-matcher";
 
 type EventHookHandler = (input: unknown) => Promise<void>;
 type HookHandler = (input: unknown, output: unknown) => Promise<void>;
+type SessionGetFn = (args: { path: { id: string } }) => Promise<unknown>;
 
 type UnknownRecord = Record<string, unknown>;
 type SessionLifecycleEventName = "SessionStart" | "SessionEnd";
@@ -53,6 +54,14 @@ function getParentSessionIdFromEvent(properties: UnknownRecord, info: UnknownRec
     getString(properties, "parentSessionID") ??
     getString(properties, "parentSessionId")
   );
+}
+
+function getSessionGetFromContext(ctx: unknown): SessionGetFn | undefined {
+  const context = asRecord(ctx);
+  const client = asRecord(context.client);
+  const session = asRecord(client.session);
+  const get = session.get;
+  return typeof get === "function" ? (get as SessionGetFn) : undefined;
 }
 
 async function executeSessionLifecycleHooks(
@@ -115,7 +124,38 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
   "tool.execute.before": HookHandler;
   "tool.execute.after": HookHandler;
 } {
-  void ctx;
+  const parentSessionIdCache = new Map<string, string | null>();
+  const sessionGet = getSessionGetFromContext(ctx);
+
+  const resolveParentSessionId = async (
+    sessionId: string,
+    properties: UnknownRecord = {},
+    info: UnknownRecord = {},
+  ): Promise<string | undefined> => {
+    const parentSessionIdFromEvent = getParentSessionIdFromEvent(properties, info);
+    if (parentSessionIdFromEvent) {
+      parentSessionIdCache.set(sessionId, parentSessionIdFromEvent);
+      return parentSessionIdFromEvent;
+    }
+
+    if (parentSessionIdCache.has(sessionId)) {
+      return parentSessionIdCache.get(sessionId) ?? undefined;
+    }
+
+    if (!sessionGet) {
+      return undefined;
+    }
+
+    try {
+      const session = asRecord(await sessionGet({ path: { id: sessionId } }));
+      const sessionInfo = getRecord(session, "info") ?? {};
+      const fetchedParentSessionId = getParentSessionIdFromEvent(session, sessionInfo);
+      parentSessionIdCache.set(sessionId, fetchedParentSessionId ?? null);
+      return fetchedParentSessionId;
+    } catch {
+      return undefined;
+    }
+  };
 
   return {
     event: async (input) => {
@@ -132,9 +172,9 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
       const info = getRecord(properties, "info") ?? {};
       const sessionId = getSessionIdFromEvent(properties, info);
       if (!sessionId) return;
+      const parentSessionId = await resolveParentSessionId(sessionId, properties, info);
 
       if (eventType === "session.created") {
-        const parentSessionId = getParentSessionIdFromEvent(properties, info);
         if (parentSessionId) {
           return;
         }
@@ -152,6 +192,11 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
       }
 
       if (eventType === "session.deleted") {
+        if (parentSessionId) {
+          parentSessionIdCache.delete(sessionId);
+          return;
+        }
+
         await executeSessionLifecycleHooks(
           {
             sessionId,
@@ -161,12 +206,14 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
           config,
           env,
         );
+        parentSessionIdCache.delete(sessionId);
         return;
       }
 
       const result = await executeStopHooks(
         {
           sessionId,
+          parentSessionId,
           cwd: process.cwd(),
           stopHookActive: getBoolean(properties, "stopHookActive"),
         },
@@ -201,10 +248,12 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
 
       const sessionId = getString(payload, "sessionID") ?? getString(payload, "sessionId") ?? "";
       if (!sessionId) return;
+      const parentSessionId = await resolveParentSessionId(sessionId);
 
       const result = await executeUserPromptSubmitHooks(
         {
           sessionId,
+          parentSessionId,
           prompt,
           parts,
           cwd: process.cwd(),
