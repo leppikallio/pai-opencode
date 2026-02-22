@@ -28,7 +28,10 @@ import {
   promptDigestFromPromptMarkdown,
   normalizePromptDigest,
 } from "../utils/digest";
-import { writeDefaultPerspectivesPolicy } from "../perspectives/policy";
+import {
+  buildDefaultPerspectivesPolicyArtifact,
+  writeDefaultPerspectivesPolicy,
+} from "../perspectives/policy";
 import { buildPerspectivesDraftPromptMarkdown } from "../perspectives/prompt";
 import { normalizePerspectivesDraftOutputV1 } from "../perspectives/schema";
 import type {
@@ -185,6 +188,96 @@ function trackWeight(track: string): number {
   return 9;
 }
 
+type PerspectiveTrack = "standard" | "independent" | "contrarian";
+
+type AggregatedPerspectiveCandidate = {
+  key: string;
+  title: string;
+  questions: string[];
+  track: PerspectiveTrack;
+  recommended_agent_type: string;
+  domain: string;
+  platform_requirements: Array<{ name: string; reason: string }>;
+  tool_policy: {
+    primary: string[];
+    secondary: string[];
+    forbidden: string[];
+  };
+  flags: { human_review_required: boolean };
+  confidence: number;
+  agreement: number;
+  score: number;
+};
+
+function asFiniteNumber(value: unknown, fallback: number): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) return fallback;
+  return value;
+}
+
+function clampInteger(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, Math.round(value)));
+}
+
+function compareByScoreThenStable(a: AggregatedPerspectiveCandidate, b: AggregatedPerspectiveCandidate): number {
+  const scoreCmp = b.score - a.score;
+  if (scoreCmp !== 0) return scoreCmp;
+  const domainCmp = String(a.domain).localeCompare(String(b.domain));
+  if (domainCmp !== 0) return domainCmp;
+  const titleCmp = a.title.localeCompare(b.title);
+  if (titleCmp !== 0) return titleCmp;
+  return a.key.localeCompare(b.key);
+}
+
+function compareForFinalOutput(a: AggregatedPerspectiveCandidate, b: AggregatedPerspectiveCandidate): number {
+  const trackCmp = trackWeight(a.track) - trackWeight(b.track);
+  if (trackCmp !== 0) return trackCmp;
+  return compareByScoreThenStable(a, b);
+}
+
+function allocateTrackTargets(args: {
+  total: number;
+  allocation: Record<PerspectiveTrack, number>;
+}): Record<PerspectiveTrack, number> {
+  const tracks: PerspectiveTrack[] = ["standard", "independent", "contrarian"];
+  const result: Record<PerspectiveTrack, number> = {
+    standard: 0,
+    independent: 0,
+    contrarian: 0,
+  };
+
+  if (args.total <= 0) return result;
+
+  const baseAlloc = tracks.map((track) => {
+    const raw = Math.max(0, args.allocation[track]) * args.total;
+    const base = Math.floor(raw);
+    return {
+      track,
+      base,
+      remainder: raw - base,
+    };
+  });
+
+  for (const entry of baseAlloc) {
+    result[entry.track] = entry.base;
+  }
+
+  let remaining = args.total - tracks.reduce((sum, track) => sum + result[track], 0);
+  if (remaining <= 0) return result;
+
+  const remainderOrder = [...baseAlloc].sort((a, b) => {
+    const remainderCmp = b.remainder - a.remainder;
+    if (remainderCmp !== 0) return remainderCmp;
+    return trackWeight(a.track) - trackWeight(b.track);
+  });
+
+  for (let index = 0; index < remainderOrder.length && remaining > 0; index += 1) {
+    result[remainderOrder[index]!.track] += 1;
+    remaining -= 1;
+  }
+
+  return result;
+}
+
 function defaultWave1PromptContract() {
   return {
     max_words: 900,
@@ -225,6 +318,7 @@ async function buildPerspectivesDraftFromOutputs(args: {
   runId: string;
   runRoot: string;
   createdAt: string;
+  policyPath: string;
 }): Promise<{
   perspectivesDoc: PerspectivesV1Payload;
   mergeReport: PerspectivesDraftMergeReportV1;
@@ -236,10 +330,45 @@ async function buildPerspectivesDraftFromOutputs(args: {
     throwWithCode("PERSPECTIVES_DRAFT_OUTPUTS_MISSING", "no normalized perspectives draft outputs found");
   }
 
+  const defaultPolicy = buildDefaultPerspectivesPolicyArtifact();
+  const policyRaw = await readJsonObject(args.policyPath);
+  const thresholdsRaw = asObject(policyRaw.thresholds);
+  const confidenceRangeRaw = asObject(thresholdsRaw.confidence);
+  const trackAllocationRaw = asObject(policyRaw.track_allocation);
+
+  const confidenceMin = clampInteger(
+    asFiniteNumber(confidenceRangeRaw.min, defaultPolicy.thresholds.confidence.min),
+    0,
+    100,
+  );
+  const confidenceMax = clampInteger(
+    asFiniteNumber(confidenceRangeRaw.max, defaultPolicy.thresholds.confidence.max),
+    confidenceMin,
+    100,
+  );
+  const ensembleThreshold = clampInteger(
+    asFiniteNumber(thresholdsRaw.ensemble_threshold, defaultPolicy.thresholds.ensemble_threshold),
+    confidenceMin,
+    confidenceMax,
+  );
+  const backupThreshold = clampInteger(
+    asFiniteNumber(thresholdsRaw.backup_threshold, defaultPolicy.thresholds.backup_threshold),
+    confidenceMin,
+    confidenceMax,
+  );
+  const matchBonus = asFiniteNumber(thresholdsRaw.match_bonus, defaultPolicy.thresholds.match_bonus);
+  const trackAllocation: Record<PerspectiveTrack, number> = {
+    standard: Math.max(0, asFiniteNumber(trackAllocationRaw.standard, defaultPolicy.track_allocation.standard)),
+    independent: Math.max(0, asFiniteNumber(trackAllocationRaw.independent, defaultPolicy.track_allocation.independent)),
+    contrarian: Math.max(0, asFiniteNumber(trackAllocationRaw.contrarian, defaultPolicy.track_allocation.contrarian)),
+  };
+
   const allCandidates: Array<ReturnType<typeof normalizePerspectivesDraftOutputV1>["candidates"][number]> = [];
+  const sourceCandidates = new Map<string, Array<ReturnType<typeof normalizePerspectivesDraftOutputV1>["candidates"][number]>>();
   for (const source of sources) {
     const raw = await readJsonObject(source.absPath);
     const normalized = normalizePerspectivesDraftOutputV1({ value: raw, expectedRunId: args.runId });
+    sourceCandidates.set(source.fileName, normalized.candidates);
     allCandidates.push(...normalized.candidates);
   }
 
@@ -247,7 +376,7 @@ async function buildPerspectivesDraftFromOutputs(args: {
   const dedupedByKey = new Map<string, {
     title: string;
     questions: string[];
-    track: "standard" | "independent" | "contrarian";
+    track: PerspectiveTrack;
     recommended_agent_type: string;
     domain: string;
     platform_requirements: Array<{ name: string; reason: string }>;
@@ -257,46 +386,106 @@ async function buildPerspectivesDraftFromOutputs(args: {
       forbidden: string[];
     };
     flags: { human_review_required: boolean };
+    confidence: number;
+    sources: Set<string>;
   }>();
 
-  for (const candidate of allCandidates) {
-    const title = normalizeWhitespace(candidate.title);
-    const questions = candidate.questions.map((q) => normalizeWhitespace(q));
-    const key = sha256HexLowerUtf8(`${candidate.track}\n${title}\n${questions.join("\n")}`);
-    const candidatePlatformRequirements = stableSortPlatformRequirements(candidate.platform_requirements);
-    const candidateToolPolicy = normalizeToolPolicyValue(candidate.tool_policy);
-    keys.push(key);
-    const existing = dedupedByKey.get(key);
-    if (existing) {
-      existing.platform_requirements = stableSortPlatformRequirements([
-        ...existing.platform_requirements,
-        ...candidatePlatformRequirements,
-      ]);
-      existing.tool_policy = mergeToolPolicyValues(existing.tool_policy, candidateToolPolicy);
-      existing.flags.human_review_required = existing.flags.human_review_required
-        || Boolean(candidate.flags?.human_review_required);
-      continue;
-    }
+  for (const [sourceId, candidates] of sourceCandidates.entries()) {
+    for (const candidate of candidates) {
+      const title = normalizeWhitespace(candidate.title);
+      const questions = candidate.questions.map((q) => normalizeWhitespace(q));
+      const key = sha256HexLowerUtf8(`${candidate.track}\n${title}\n${questions.join("\n")}`);
+      const candidatePlatformRequirements = stableSortPlatformRequirements(candidate.platform_requirements);
+      const candidateToolPolicy = normalizeToolPolicyValue(candidate.tool_policy);
+      keys.push(key);
+      const existing = dedupedByKey.get(key);
+      if (existing) {
+        existing.platform_requirements = stableSortPlatformRequirements([
+          ...existing.platform_requirements,
+          ...candidatePlatformRequirements,
+        ]);
+        existing.tool_policy = mergeToolPolicyValues(existing.tool_policy, candidateToolPolicy);
+        existing.flags.human_review_required = existing.flags.human_review_required
+          || Boolean(candidate.flags?.human_review_required);
+        existing.confidence = Math.max(existing.confidence, candidate.confidence);
+        existing.sources.add(sourceId);
+        continue;
+      }
 
-    dedupedByKey.set(key, {
-      title,
-      questions,
-      track: candidate.track,
-      recommended_agent_type: candidate.recommended_agent_type,
-      domain: candidate.domain,
-      platform_requirements: candidatePlatformRequirements,
-      tool_policy: candidateToolPolicy,
-      flags: { human_review_required: Boolean(candidate.flags?.human_review_required) },
-    });
+      dedupedByKey.set(key, {
+        title,
+        questions,
+        track: candidate.track,
+        recommended_agent_type: candidate.recommended_agent_type,
+        domain: candidate.domain,
+        platform_requirements: candidatePlatformRequirements,
+        tool_policy: candidateToolPolicy,
+        flags: { human_review_required: Boolean(candidate.flags?.human_review_required) },
+        confidence: candidate.confidence,
+        sources: new Set([sourceId]),
+      });
+    }
   }
 
-  const merged = Array.from(dedupedByKey.values()).sort((a, b) => {
-    const tw = trackWeight(a.track) - trackWeight(b.track);
-    if (tw !== 0) return tw;
-    const domainCmp = String(a.domain).localeCompare(String(b.domain));
-    if (domainCmp !== 0) return domainCmp;
-    return a.title.localeCompare(b.title);
+  const filteredScored = Array.from(dedupedByKey.entries())
+    .map(([key, candidate]): AggregatedPerspectiveCandidate => {
+      const agreement = candidate.sources.size;
+      const score = candidate.confidence + (agreement >= 2 ? matchBonus : 0);
+      return {
+        key,
+        title: candidate.title,
+        questions: candidate.questions,
+        track: candidate.track,
+        recommended_agent_type: candidate.recommended_agent_type,
+        domain: candidate.domain,
+        platform_requirements: candidate.platform_requirements,
+        tool_policy: candidate.tool_policy,
+        flags: candidate.flags,
+        confidence: candidate.confidence,
+        agreement,
+        score,
+      };
+    })
+    .filter((candidate) => {
+      const threshold = candidate.agreement >= 2 ? ensembleThreshold : backupThreshold;
+      return candidate.score >= threshold;
+    });
+
+  const targetCount = Math.max(1, Math.min(filteredScored.length, REQUIRED_TASK_DRIVER_PERSPECTIVE_IDS.length));
+  const trackTargets = allocateTrackTargets({
+    total: targetCount,
+    allocation: trackAllocation,
   });
+
+  const selected: AggregatedPerspectiveCandidate[] = [];
+  const selectedKeys = new Set<string>();
+  const tracks: PerspectiveTrack[] = ["standard", "independent", "contrarian"];
+
+  for (const track of tracks) {
+    const trackTarget = trackTargets[track];
+    if (trackTarget <= 0) continue;
+    const trackCandidates = filteredScored
+      .filter((candidate) => candidate.track === track)
+      .sort(compareByScoreThenStable)
+      .slice(0, trackTarget);
+    for (const candidate of trackCandidates) {
+      selected.push(candidate);
+      selectedKeys.add(candidate.key);
+    }
+  }
+
+  if (selected.length < targetCount) {
+    const remaining = filteredScored
+      .filter((candidate) => !selectedKeys.has(candidate.key))
+      .sort(compareByScoreThenStable);
+    for (const candidate of remaining) {
+      selected.push(candidate);
+      selectedKeys.add(candidate.key);
+      if (selected.length >= targetCount) break;
+    }
+  }
+
+  const merged = selected.sort(compareForFinalOutput);
 
   const reviewRequired = merged.some((c) => c.flags.human_review_required);
   const contract = defaultWave1PromptContract();
@@ -474,6 +663,7 @@ export async function runPerspectivesDraft(args: PerspectivesDraftCliArgs): Prom
       runId: summary.runId,
       runRoot: summary.runRoot,
       createdAt,
+      policyPath: policyWrite.policyPath,
     });
 
     const draftPath = path.join(summary.runRoot, "operator", "drafts", "perspectives.draft.json");

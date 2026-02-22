@@ -382,7 +382,7 @@ function sha256Hex(value: string): string {
               track,
               recommended_agent_type: "researcher",
               domain: "technical",
-              confidence: 82,
+              confidence: 86,
               rationale: "Covers M6 auto-promotion from ingested draft output.",
               platform_requirements: [
                 { name: "none", reason: "No external platform hard requirement for this candidate." },
@@ -460,6 +460,290 @@ function sha256Hex(value: string): string {
       expect(String(stateAfterSecondDraft.schema_version ?? "")).toBe("perspectives-draft-state.v1");
       expect(String(stateAfterSecondDraft.status ?? "")).toBe("promoted");
       expect(String(stateAfterSecondDraft.policy_path ?? "")).toBe(policyPath);
+    });
+  });
+
+  test("perspectives-draft applies deterministic vote selection with policy thresholds", async () => {
+    await withTempDir(async (base) => {
+      const requiredPerspectiveIds = [
+        "primary",
+        "ensemble-independent",
+        "ensemble-contrarian",
+      ];
+      const runId = "dr_test_cli_perspectives_draft_005";
+      const initRes = await runCli([
+        "init",
+        "Q",
+        "--run-id",
+        runId,
+        "--runs-root",
+        base,
+        "--no-perspectives",
+      ]);
+      expect(initRes.exit).toBe(0);
+
+      const manifestPath = extractField(initRes.stdout, "manifest_path");
+      const runRoot = extractField(initRes.stdout, "run_root");
+
+      const advanceRes = await runCli([
+        "stage-advance",
+        "--manifest",
+        manifestPath,
+        "--requested-next",
+        "perspectives",
+        "--reason",
+        "test enter perspectives stage",
+      ]);
+      expect(advanceRes.exit).toBe(0);
+
+      const draftRes = await runCli([
+        "perspectives-draft",
+        "--manifest",
+        manifestPath,
+        "--reason",
+        "test deterministic vote draft",
+        "--driver",
+        "task",
+      ]);
+      expect(draftRes.exit).toBe(0);
+      expect(`${draftRes.stdout}\n${draftRes.stderr}`).toContain("RUN_AGENT_REQUIRED");
+
+      for (const perspectiveId of requiredPerspectiveIds) {
+        const candidates = perspectiveId === "primary"
+          ? [
+            {
+              title: "Shared standard lens",
+              questions: ["Which baseline evidence should Wave 1 gather first?"],
+              track: "standard",
+              recommended_agent_type: "researcher",
+              domain: "technical",
+              confidence: 76,
+              rationale: "Shared across multiple sources with moderate confidence.",
+              platform_requirements: [
+                { name: "none", reason: "No hard platform dependency." },
+              ],
+              tool_policy: {
+                primary: ["websearch"],
+                secondary: [],
+                forbidden: [],
+              },
+              flags: {
+                human_review_required: false,
+                missing_platform_requirements: false,
+                missing_tool_policy: false,
+              },
+            },
+            {
+              title: "Primary solo standard lens",
+              questions: ["Which current events should influence prioritization?"],
+              track: "standard",
+              recommended_agent_type: "researcher",
+              domain: "news",
+              confidence: 86,
+              rationale: "Single-source but above backup threshold.",
+              platform_requirements: [
+                { name: "none", reason: "No hard platform dependency." },
+              ],
+              tool_policy: {
+                primary: ["websearch"],
+                secondary: [],
+                forbidden: [],
+              },
+              flags: {
+                human_review_required: false,
+                missing_platform_requirements: false,
+                missing_tool_policy: false,
+              },
+            },
+            {
+              title: "Independent shared lens",
+              questions: ["Which independent checks should validate baseline claims?"],
+              track: "independent",
+              recommended_agent_type: "researcher",
+              domain: "academic",
+              confidence: 87,
+              rationale: "Cross-source independent candidate.",
+              platform_requirements: [
+                { name: "none", reason: "No hard platform dependency." },
+              ],
+              tool_policy: {
+                primary: ["websearch"],
+                secondary: [],
+                forbidden: [],
+              },
+              flags: {
+                human_review_required: false,
+                missing_platform_requirements: false,
+                missing_tool_policy: false,
+              },
+            },
+          ]
+          : perspectiveId === "ensemble-independent"
+          ? [
+            {
+              title: "Shared standard lens",
+              questions: ["Which baseline evidence should Wave 1 gather first?"],
+              track: "standard",
+              recommended_agent_type: "researcher",
+              domain: "technical",
+              confidence: 78,
+              rationale: "Boosts agreement count for shared standard candidate.",
+              platform_requirements: [
+                { name: "none", reason: "No hard platform dependency." },
+              ],
+              tool_policy: {
+                primary: ["websearch"],
+                secondary: [],
+                forbidden: [],
+              },
+              flags: {
+                human_review_required: false,
+                missing_platform_requirements: false,
+                missing_tool_policy: false,
+              },
+            },
+            {
+              title: "Independent shared lens",
+              questions: ["Which independent checks should validate baseline claims?"],
+              track: "independent",
+              recommended_agent_type: "researcher",
+              domain: "academic",
+              confidence: 82,
+              rationale: "Second source for independent candidate agreement.",
+              platform_requirements: [
+                { name: "none", reason: "No hard platform dependency." },
+              ],
+              tool_policy: {
+                primary: ["websearch"],
+                secondary: [],
+                forbidden: [],
+              },
+              flags: {
+                human_review_required: false,
+                missing_platform_requirements: false,
+                missing_tool_policy: false,
+              },
+            },
+          ]
+          : [
+            {
+              title: "Shared standard lens",
+              questions: ["Which baseline evidence should Wave 1 gather first?"],
+              track: "standard",
+              recommended_agent_type: "researcher",
+              domain: "technical",
+              confidence: 74,
+              rationale: "Third source for shared standard candidate agreement.",
+              platform_requirements: [
+                { name: "none", reason: "No hard platform dependency." },
+              ],
+              tool_policy: {
+                primary: ["websearch"],
+                secondary: [],
+                forbidden: [],
+              },
+              flags: {
+                human_review_required: false,
+                missing_platform_requirements: false,
+                missing_tool_policy: false,
+              },
+            },
+            {
+              title: "Contrarian low-confidence lens",
+              questions: ["Which assumptions are likely wrong in the baseline plan?"],
+              track: "contrarian",
+              recommended_agent_type: "researcher",
+              domain: "security",
+              confidence: 84,
+              rationale: "Below backup threshold to validate deterministic filtering.",
+              platform_requirements: [
+                { name: "none", reason: "No hard platform dependency." },
+              ],
+              tool_policy: {
+                primary: ["websearch"],
+                secondary: [],
+                forbidden: [],
+              },
+              flags: {
+                human_review_required: false,
+                missing_platform_requirements: false,
+                missing_tool_policy: false,
+              },
+            },
+          ];
+
+        const perspectivePayload = {
+          schema_version: "perspectives-draft-output.v1",
+          run_id: runId,
+          source: {
+            agent_type: "Engineer",
+            label: `task-driver-vote-test:${perspectiveId}`,
+          },
+          candidates,
+        };
+
+        const inputPath = path.join(runRoot, "operator", "outputs", "perspectives", `${perspectiveId}.input.json`);
+        await fs.mkdir(path.dirname(inputPath), { recursive: true });
+        await fs.writeFile(inputPath, `${JSON.stringify(perspectivePayload, null, 2)}\n`, "utf8");
+
+        const ingestRes = await runCli([
+          "agent-result",
+          "--manifest",
+          manifestPath,
+          "--stage",
+          "perspectives",
+          "--perspective",
+          perspectiveId,
+          "--input",
+          inputPath,
+          "--agent-run-id",
+          `agent-run-${perspectiveId}-vote-001`,
+          "--reason",
+          `test ingest perspectives ${perspectiveId} for vote`,
+          "--json",
+        ]);
+        expect(ingestRes.exit).toBe(0);
+      }
+
+      const secondDraftRes = await runCli([
+        "perspectives-draft",
+        "--manifest",
+        manifestPath,
+        "--reason",
+        "test deterministic vote merge after outputs",
+        "--driver",
+        "task",
+      ]);
+      expect(secondDraftRes.exit).toBe(0);
+      expect(`${secondDraftRes.stdout}\n${secondDraftRes.stderr}`).not.toContain("RUN_AGENT_REQUIRED");
+
+      const mergeReportPath = path.join(runRoot, "operator", "drafts", "perspectives.merge-report.json");
+      const mergeReport = JSON.parse(await fs.readFile(mergeReportPath, "utf8")) as Record<string, unknown>;
+      expect(Number(mergeReport.candidate_count_in ?? 0)).toBeGreaterThan(Number(mergeReport.candidate_count_out ?? 0));
+      expect(Number(mergeReport.candidate_count_out ?? 0)).toBe(3);
+
+      const perspectivesPath = path.join(runRoot, "perspectives.json");
+      const perspectivesDoc = JSON.parse(await fs.readFile(perspectivesPath, "utf8")) as Record<string, unknown>;
+      const perspectives = Array.isArray(perspectivesDoc.perspectives)
+        ? perspectivesDoc.perspectives as Array<Record<string, unknown>>
+        : [];
+      expect(perspectives.length).toBeGreaterThan(0);
+
+      const titles = perspectives.map((entry) => String(entry.title ?? ""));
+      expect(titles).toEqual([
+        "Shared standard lens",
+        "Primary solo standard lens",
+        "Independent shared lens",
+      ]);
+      expect(titles).not.toContain("Contrarian low-confidence lens");
+
+      const tracks = perspectives.map((entry) => String(entry.track ?? ""));
+      expect(tracks).toEqual(["standard", "standard", "independent"]);
+
+      const manifestAfter = JSON.parse(await fs.readFile(manifestPath, "utf8")) as {
+        stage?: Record<string, unknown>;
+      };
+      expect(String(manifestAfter.stage?.current ?? "")).toBe("wave1");
     });
   });
 
