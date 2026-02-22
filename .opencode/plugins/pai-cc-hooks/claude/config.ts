@@ -1,0 +1,189 @@
+import { existsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { ClaudeHooksConfig, HookCommand, HookMatcher } from "./types";
+
+interface RawHookMatcher {
+  matcher?: string;
+  pattern?: string;
+  hooks: HookCommand[];
+}
+
+interface RawClaudeHooksConfig {
+  PreToolUse?: RawHookMatcher[];
+  PostToolUse?: RawHookMatcher[];
+  UserPromptSubmit?: RawHookMatcher[];
+  SessionStart?: RawHookMatcher[];
+  SessionEnd?: RawHookMatcher[];
+  Stop?: RawHookMatcher[];
+  PreCompact?: RawHookMatcher[];
+}
+
+interface RawClaudeSettings {
+  hooks?: RawClaudeHooksConfig;
+  env?: Record<string, unknown>;
+}
+
+export interface LoadedClaudeHookSettings {
+  hooks: ClaudeHooksConfig | null;
+  env: Record<string, string>;
+}
+
+function normalizeHookMatcher(raw: RawHookMatcher): HookMatcher {
+  return {
+    matcher: raw.matcher ?? raw.pattern ?? "*",
+    hooks: Array.isArray(raw.hooks) ? raw.hooks : [],
+  };
+}
+
+function normalizeHooksConfig(raw: RawClaudeHooksConfig): ClaudeHooksConfig {
+  const result: ClaudeHooksConfig = {};
+  const eventTypes: (keyof RawClaudeHooksConfig)[] = [
+    "PreToolUse",
+    "PostToolUse",
+    "UserPromptSubmit",
+    "SessionStart",
+    "SessionEnd",
+    "Stop",
+    "PreCompact",
+  ];
+
+  for (const eventType of eventTypes) {
+    const value = raw[eventType];
+    if (value) {
+      result[eventType] = value.map(normalizeHookMatcher);
+    }
+  }
+
+  return result;
+}
+
+function normalizeEnvConfig(raw: Record<string, unknown> | undefined): Record<string, string> {
+  if (!raw) {
+    return {};
+  }
+
+  const normalized: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value === "string") {
+      normalized[key] = value;
+    }
+  }
+
+  return normalized;
+}
+
+export function getClaudeSettingsPaths(customPath?: string): string[] {
+  const opencodeRoot = getOpencodeRoot();
+  const paths = [
+    join(opencodeRoot, "config", "claude-hooks.settings.json"),
+    join(process.cwd(), ".claude", "settings.json"),
+    join(process.cwd(), ".claude", "settings.local.json"),
+    join(homedir(), ".claude", "settings.json"),
+  ];
+
+  if (customPath && existsSync(customPath)) {
+    paths.push(customPath);
+  }
+
+  return [...new Set(paths)];
+}
+
+function getOpencodeRoot(): string {
+  const pluginDir = dirname(fileURLToPath(import.meta.url));
+  const fileDerivedRoot = resolve(pluginDir, "..", "..", "..");
+
+  const overrideRoot = process.env.PAI_CC_HOOKS_CONFIG_ROOT;
+  if (!overrideRoot) {
+    return fileDerivedRoot;
+  }
+
+  const normalizedRoot = resolve(overrideRoot);
+  return basename(normalizedRoot) === "config" ? dirname(normalizedRoot) : normalizedRoot;
+}
+
+function logParseFailure(settingsPath: string, error: unknown): void {
+  if (process.env.PAI_CC_HOOKS_DEBUG !== "1") {
+    return;
+  }
+
+  const reason = error instanceof Error ? error.message : String(error);
+  console.warn(`[pai-cc-hooks] Failed to parse JSON in ${settingsPath}: ${reason}`);
+}
+
+function mergeHooksConfig(base: ClaudeHooksConfig, override: ClaudeHooksConfig): ClaudeHooksConfig {
+  const result: ClaudeHooksConfig = { ...base };
+  const eventTypes: (keyof ClaudeHooksConfig)[] = [
+    "PreToolUse",
+    "PostToolUse",
+    "UserPromptSubmit",
+    "SessionStart",
+    "SessionEnd",
+    "Stop",
+    "PreCompact",
+  ];
+  for (const eventType of eventTypes) {
+    if (override[eventType]) {
+      result[eventType] = [...(base[eventType] || []), ...override[eventType]];
+    }
+  }
+  return result;
+}
+
+export async function loadClaudeHooksConfig(customSettingsPath?: string): Promise<ClaudeHooksConfig | null> {
+  const settings = await loadClaudeHookSettings(customSettingsPath);
+  return settings.hooks;
+}
+
+export async function loadClaudeHookSettings(customSettingsPath?: string): Promise<LoadedClaudeHookSettings> {
+  const paths = getClaudeSettingsPaths(customSettingsPath);
+  const opencodeRoot = getOpencodeRoot();
+  let mergedConfig: ClaudeHooksConfig = {};
+  let mergedEnv: Record<string, string> = {};
+
+  for (const settingsPath of paths) {
+    if (!existsSync(settingsPath)) continue;
+
+    try {
+      const content = await readFile(settingsPath, "utf-8");
+      let settings: RawClaudeSettings;
+
+      try {
+        settings = JSON.parse(content) as RawClaudeSettings;
+      } catch (error) {
+        logParseFailure(settingsPath, error);
+        continue;
+      }
+
+      if (settings.hooks) {
+        const normalizedHooks = normalizeHooksConfig(settings.hooks);
+        mergedConfig = mergeHooksConfig(mergedConfig, normalizedHooks);
+      }
+
+      mergedEnv = {
+        ...mergedEnv,
+        ...normalizeEnvConfig(settings.env),
+      };
+    } catch {
+      continue;
+    }
+  }
+
+  const configuredPaiDir = mergedEnv.PAI_DIR?.trim();
+  const hasPlaceholderPaiDir = typeof configuredPaiDir === "string" && configuredPaiDir.includes("${PAI_DIR}");
+  if (!configuredPaiDir || hasPlaceholderPaiDir) {
+    mergedEnv = {
+      ...mergedEnv,
+      PAI_DIR: opencodeRoot,
+    };
+  }
+
+  return {
+    hooks: Object.keys(mergedConfig).length > 0 ? mergedConfig : null,
+    env: mergedEnv,
+  };
+}
+
+export type { ClaudeHooksConfig } from "./types";
