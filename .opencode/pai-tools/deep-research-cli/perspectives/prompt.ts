@@ -2,6 +2,7 @@ import { PERSPECTIVES_DRAFT_SCHEMA_VERSION } from "./schema";
 
 export function buildPerspectivesDraftPromptMarkdown(args: {
   runId: string;
+  perspectiveId: string;
   queryText: string;
 }): string {
   const query = args.queryText.trim() || "(query missing)";
@@ -9,6 +10,7 @@ export function buildPerspectivesDraftPromptMarkdown(args: {
     "# Perspectives Draft Request",
     "",
     `Run ID: ${args.runId}`,
+    `Perspective ID: ${args.perspectiveId}`,
     "Stage: perspectives",
     "",
     "## Query",
@@ -51,5 +53,6 @@ export function buildPerspectivesDraftPromptMarkdown(args: {
     "Constraints:",
     "- confidence MUST be an integer 0..100",
     "- candidates must be mutually distinct and actionable",
+    `- source.label MUST include perspective id (${args.perspectiveId}) or equivalent traceability token`,
   ].join("\n");
 }

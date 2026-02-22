@@ -90,6 +90,7 @@ async function writeTaskDriverPerspectiveDraftPrompt(args: {
 
   const promptMd = buildPerspectivesDraftPromptMarkdown({
     runId: args.runId,
+    perspectiveId,
     queryText: args.queryText,
   });
   const promptFileText = `${promptMd.trim()}\n`;
