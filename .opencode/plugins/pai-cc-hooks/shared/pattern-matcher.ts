@@ -36,3 +36,27 @@ export function findMatchingHooks(
     return matchesToolMatcher(toolName, hookMatcher.matcher);
   });
 }
+
+export function collectMatchingHookCommands(
+  config: ClaudeHooksConfig,
+  eventName: "PreToolUse" | "PostToolUse",
+  toolNames: string[],
+): string[] {
+  const commands: string[] = [];
+  const seen = new Set<string>();
+
+  for (const toolName of toolNames) {
+    const matchers = findMatchingHooks(config, eventName, toolName);
+    for (const matcher of matchers) {
+      if (!matcher.hooks || matcher.hooks.length === 0) continue;
+      for (const hook of matcher.hooks) {
+        if (hook.type !== "command") continue;
+        if (seen.has(hook.command)) continue;
+        seen.add(hook.command);
+        commands.push(hook.command);
+      }
+    }
+  }
+
+  return commands;
+}

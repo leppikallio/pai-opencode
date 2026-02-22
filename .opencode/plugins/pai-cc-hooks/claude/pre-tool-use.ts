@@ -1,5 +1,5 @@
 import type { ClaudeHooksConfig, PermissionDecision, PreToolUseInput, PreToolUseOutput } from "./types";
-import { findMatchingHooks } from "../shared/pattern-matcher";
+import { collectMatchingHookCommands } from "../shared/pattern-matcher";
 import { executeHookCommand } from "../shared/execute-hook-command";
 import { objectToSnakeCase } from "../shared/snake-case";
 import { transformToolName } from "../shared/tool-name";
@@ -58,8 +58,8 @@ export async function executePreToolUseHooks(
   const transformedToolName = transformToolName(ctx.toolName);
   const toolNamesToMatch =
     transformedToolName === "ApplyPatch" ? ["ApplyPatch", "Edit", "Write"] : [transformedToolName];
-  const matchers = toolNamesToMatch.flatMap((toolName) => findMatchingHooks(config, "PreToolUse", toolName));
-  if (matchers.length === 0) {
+  const commandsToExecute = collectMatchingHookCommands(config, "PreToolUse", toolNamesToMatch);
+  if (commandsToExecute.length === 0) {
     return { decision: "allow" };
   }
 
@@ -78,102 +78,94 @@ export async function executePreToolUseHooks(
   const startTime = Date.now();
   let firstHookName: string | undefined;
   const inputLines = buildInputLines(ctx.toolInput);
-  const seenHookCommands = new Set<string>();
 
-  for (const matcher of matchers) {
-    if (!matcher.hooks || matcher.hooks.length === 0) continue;
-    for (const hook of matcher.hooks) {
-      if (hook.type !== "command") continue;
-      if (seenHookCommands.has(hook.command)) continue;
-      seenHookCommands.add(hook.command);
-
-      if (isHookCommandDisabled("PreToolUse", hook.command, extendedConfig ?? null)) {
-        log("PreToolUse hook command skipped (disabled by config)", {
-          command: hook.command,
-          toolName: ctx.toolName,
-        });
-        continue;
-      }
-
-      const hookName = hook.command.split("/").pop() || hook.command;
-      if (!firstHookName) firstHookName = hookName;
-
-      const result = await executeHookCommand(hook.command, JSON.stringify(stdinData), ctx.cwd, {
-        forceZsh: DEFAULT_CONFIG.forceZsh,
-        zshPath: DEFAULT_CONFIG.zshPath,
-        env: settingsEnv,
+  for (const command of commandsToExecute) {
+    if (isHookCommandDisabled("PreToolUse", command, extendedConfig ?? null)) {
+      log("PreToolUse hook command skipped (disabled by config)", {
+        command,
+        toolName: ctx.toolName,
       });
+      continue;
+    }
 
-      if (result.exitCode === 2) {
-        return {
-          decision: "deny",
-          reason: result.stderr || result.stdout || "Hook blocked the operation",
-          elapsedMs: Date.now() - startTime,
-          hookName: firstHookName,
-          toolName: transformedToolName,
-          inputLines,
-        };
-      }
+    const hookName = command.split("/").pop() || command;
+    if (!firstHookName) firstHookName = hookName;
 
-      if (result.exitCode === 1) {
-        return {
-          decision: "ask",
-          reason: result.stderr || result.stdout,
-          elapsedMs: Date.now() - startTime,
-          hookName: firstHookName,
-          toolName: transformedToolName,
-          inputLines,
-        };
-      }
+    const result = await executeHookCommand(command, JSON.stringify(stdinData), ctx.cwd, {
+      forceZsh: DEFAULT_CONFIG.forceZsh,
+      zshPath: DEFAULT_CONFIG.zshPath,
+      env: settingsEnv,
+    });
 
-      if (result.stdout) {
-        try {
-          const output = JSON.parse(result.stdout || "{}") as PreToolUseOutput;
+    if (result.exitCode === 2) {
+      return {
+        decision: "deny",
+        reason: result.stderr || result.stdout || "Hook blocked the operation",
+        elapsedMs: Date.now() - startTime,
+        hookName: firstHookName,
+        toolName: transformedToolName,
+        inputLines,
+      };
+    }
 
-          let decision: PermissionDecision | undefined;
-          let reason: string | undefined;
-          let modifiedInput: Record<string, unknown> | undefined;
+    if (result.exitCode === 1) {
+      return {
+        decision: "ask",
+        reason: result.stderr || result.stdout,
+        elapsedMs: Date.now() - startTime,
+        hookName: firstHookName,
+        toolName: transformedToolName,
+        inputLines,
+      };
+    }
 
-          if (output.hookSpecificOutput?.permissionDecision) {
-            decision = output.hookSpecificOutput.permissionDecision;
-            reason = output.hookSpecificOutput.permissionDecisionReason;
-            modifiedInput = output.hookSpecificOutput.updatedInput;
-          } else if (output.decision) {
-            const legacyDecision = output.decision;
-            if (legacyDecision === "approve" || legacyDecision === "allow") {
-              decision = "allow";
-            } else if (legacyDecision === "block" || legacyDecision === "deny") {
-              decision = "deny";
-            } else if (legacyDecision === "ask") {
-              decision = "ask";
-            }
-            reason = output.reason;
+    if (result.stdout) {
+      try {
+        const output = JSON.parse(result.stdout || "{}") as PreToolUseOutput;
+
+        let decision: PermissionDecision | undefined;
+        let reason: string | undefined;
+        let modifiedInput: Record<string, unknown> | undefined;
+
+        if (output.hookSpecificOutput?.permissionDecision) {
+          decision = output.hookSpecificOutput.permissionDecision;
+          reason = output.hookSpecificOutput.permissionDecisionReason;
+          modifiedInput = output.hookSpecificOutput.updatedInput;
+        } else if (output.decision) {
+          const legacyDecision = output.decision;
+          if (legacyDecision === "approve" || legacyDecision === "allow") {
+            decision = "allow";
+          } else if (legacyDecision === "block" || legacyDecision === "deny") {
+            decision = "deny";
+          } else if (legacyDecision === "ask") {
+            decision = "ask";
           }
-
-          const hasCommonFields =
-            output.continue !== undefined ||
-            output.stopReason !== undefined ||
-            output.suppressOutput !== undefined ||
-            output.systemMessage !== undefined;
-
-          if (decision || hasCommonFields) {
-            return {
-              decision: decision ?? "allow",
-              reason,
-              modifiedInput,
-              elapsedMs: Date.now() - startTime,
-              hookName: firstHookName,
-              toolName: transformedToolName,
-              inputLines,
-              continue: output.continue,
-              stopReason: output.stopReason,
-              suppressOutput: output.suppressOutput,
-              systemMessage: output.systemMessage,
-            };
-          }
-        } catch {
-          // Ignore parse errors and continue.
+          reason = output.reason;
         }
+
+        const hasCommonFields =
+          output.continue !== undefined ||
+          output.stopReason !== undefined ||
+          output.suppressOutput !== undefined ||
+          output.systemMessage !== undefined;
+
+        if (decision || hasCommonFields) {
+          return {
+            decision: decision ?? "allow",
+            reason,
+            modifiedInput,
+            elapsedMs: Date.now() - startTime,
+            hookName: firstHookName,
+            toolName: transformedToolName,
+            inputLines,
+            continue: output.continue,
+            stopReason: output.stopReason,
+            suppressOutput: output.suppressOutput,
+            systemMessage: output.systemMessage,
+          };
+        }
+      } catch {
+        // Ignore parse errors and continue.
       }
     }
   }

@@ -1,5 +1,5 @@
 import type { ClaudeHooksConfig, PostToolUseInput, PostToolUseOutput } from "./types";
-import { findMatchingHooks } from "../shared/pattern-matcher";
+import { collectMatchingHookCommands } from "../shared/pattern-matcher";
 import { executeHookCommand } from "../shared/execute-hook-command";
 import { objectToSnakeCase } from "../shared/snake-case";
 import { transformToolName } from "../shared/tool-name";
@@ -50,8 +50,8 @@ export async function executePostToolUseHooks(
   const transformedToolName = transformToolName(ctx.toolName);
   const toolNamesToMatch =
     transformedToolName === "ApplyPatch" ? ["ApplyPatch", "Edit", "Write"] : [transformedToolName];
-  const matchers = toolNamesToMatch.flatMap((toolName) => findMatchingHooks(config, "PostToolUse", toolName));
-  if (matchers.length === 0) {
+  const commandsToExecute = collectMatchingHookCommands(config, "PostToolUse", toolNamesToMatch);
+  if (commandsToExecute.length === 0) {
     return { block: false };
   }
 
@@ -72,109 +72,101 @@ export async function executePostToolUseHooks(
   const warnings: string[] = [];
   let firstHookName: string | undefined;
   const startTime = Date.now();
-  const seenHookCommands = new Set<string>();
 
-  for (const matcher of matchers) {
-    if (!matcher.hooks || matcher.hooks.length === 0) continue;
-    for (const hook of matcher.hooks) {
-      if (hook.type !== "command") continue;
-      if (seenHookCommands.has(hook.command)) continue;
-      seenHookCommands.add(hook.command);
-
-      if (isHookCommandDisabled("PostToolUse", hook.command, extendedConfig ?? null)) {
-        log("PostToolUse hook command skipped (disabled by config)", {
-          command: hook.command,
-          toolName: ctx.toolName,
-        });
-        continue;
-      }
-
-      const hookName = hook.command.split("/").pop() || hook.command;
-      if (!firstHookName) firstHookName = hookName;
-
-      const result = await executeHookCommand(hook.command, JSON.stringify(stdinData), ctx.cwd, {
-        forceZsh: DEFAULT_CONFIG.forceZsh,
-        zshPath: DEFAULT_CONFIG.zshPath,
-        env: settingsEnv,
+  for (const command of commandsToExecute) {
+    if (isHookCommandDisabled("PostToolUse", command, extendedConfig ?? null)) {
+      log("PostToolUse hook command skipped (disabled by config)", {
+        command,
+        toolName: ctx.toolName,
       });
+      continue;
+    }
 
-      if (result.stdout) {
-        messages.push(result.stdout);
+    const hookName = command.split("/").pop() || command;
+    if (!firstHookName) firstHookName = hookName;
+
+    const result = await executeHookCommand(command, JSON.stringify(stdinData), ctx.cwd, {
+      forceZsh: DEFAULT_CONFIG.forceZsh,
+      zshPath: DEFAULT_CONFIG.zshPath,
+      env: settingsEnv,
+    });
+
+    if (result.stdout) {
+      messages.push(result.stdout);
+    }
+
+    if (result.exitCode === 2) {
+      if (result.stderr) {
+        warnings.push(`[${hookName}]\n${result.stderr.trim()}`);
       }
+      continue;
+    }
 
-      if (result.exitCode === 2) {
-        if (result.stderr) {
-          warnings.push(`[${hookName}]\n${result.stderr.trim()}`);
+    if (result.exitCode === 0 && result.stdout) {
+      try {
+        const output = JSON.parse(result.stdout || "{}") as PostToolUseOutput;
+        if (output.decision === "block") {
+          return {
+            block: true,
+            reason: output.reason || result.stderr,
+            message: messages.join("\n"),
+            warnings: warnings.length > 0 ? warnings : undefined,
+            elapsedMs: Date.now() - startTime,
+            hookName: firstHookName,
+            toolName: transformedToolName,
+            additionalContext: output.hookSpecificOutput?.additionalContext,
+            continue: output.continue,
+            stopReason: output.stopReason,
+            suppressOutput: output.suppressOutput,
+            systemMessage: output.systemMessage,
+          };
         }
-        continue;
+
+        if (
+          output.hookSpecificOutput?.additionalContext ||
+          output.continue !== undefined ||
+          output.systemMessage ||
+          output.suppressOutput === true ||
+          output.stopReason !== undefined
+        ) {
+          return {
+            block: false,
+            message: messages.join("\n"),
+            warnings: warnings.length > 0 ? warnings : undefined,
+            elapsedMs: Date.now() - startTime,
+            hookName: firstHookName,
+            toolName: transformedToolName,
+            additionalContext: output.hookSpecificOutput?.additionalContext,
+            continue: output.continue,
+            stopReason: output.stopReason,
+            suppressOutput: output.suppressOutput,
+            systemMessage: output.systemMessage,
+          };
+        }
+      } catch {
+        // Ignore parse errors and continue.
       }
-
-      if (result.exitCode === 0 && result.stdout) {
-        try {
-          const output = JSON.parse(result.stdout || "{}") as PostToolUseOutput;
-          if (output.decision === "block") {
-            return {
-              block: true,
-              reason: output.reason || result.stderr,
-              message: messages.join("\n"),
-              warnings: warnings.length > 0 ? warnings : undefined,
-              elapsedMs: Date.now() - startTime,
-              hookName: firstHookName,
-              toolName: transformedToolName,
-              additionalContext: output.hookSpecificOutput?.additionalContext,
-              continue: output.continue,
-              stopReason: output.stopReason,
-              suppressOutput: output.suppressOutput,
-              systemMessage: output.systemMessage,
-            };
-          }
-
-          if (
-            output.hookSpecificOutput?.additionalContext ||
-            output.continue !== undefined ||
-            output.systemMessage ||
-            output.suppressOutput === true ||
-            output.stopReason !== undefined
-          ) {
-            return {
-              block: false,
-              message: messages.join("\n"),
-              warnings: warnings.length > 0 ? warnings : undefined,
-              elapsedMs: Date.now() - startTime,
-              hookName: firstHookName,
-              toolName: transformedToolName,
-              additionalContext: output.hookSpecificOutput?.additionalContext,
-              continue: output.continue,
-              stopReason: output.stopReason,
-              suppressOutput: output.suppressOutput,
-              systemMessage: output.systemMessage,
-            };
-          }
-        } catch {
-          // Ignore parse errors and continue.
+    } else if (result.exitCode !== 0 && result.exitCode !== 2) {
+      try {
+        const output = JSON.parse(result.stdout || "{}") as PostToolUseOutput;
+        if (output.decision === "block") {
+          return {
+            block: true,
+            reason: output.reason || result.stderr,
+            message: messages.join("\n"),
+            warnings: warnings.length > 0 ? warnings : undefined,
+            elapsedMs: Date.now() - startTime,
+            hookName: firstHookName,
+            toolName: transformedToolName,
+            additionalContext: output.hookSpecificOutput?.additionalContext,
+            continue: output.continue,
+            stopReason: output.stopReason,
+            suppressOutput: output.suppressOutput,
+            systemMessage: output.systemMessage,
+          };
         }
-      } else if (result.exitCode !== 0 && result.exitCode !== 2) {
-        try {
-          const output = JSON.parse(result.stdout || "{}") as PostToolUseOutput;
-          if (output.decision === "block") {
-            return {
-              block: true,
-              reason: output.reason || result.stderr,
-              message: messages.join("\n"),
-              warnings: warnings.length > 0 ? warnings : undefined,
-              elapsedMs: Date.now() - startTime,
-              hookName: firstHookName,
-              toolName: transformedToolName,
-              additionalContext: output.hookSpecificOutput?.additionalContext,
-              continue: output.continue,
-              stopReason: output.stopReason,
-              suppressOutput: output.suppressOutput,
-              systemMessage: output.systemMessage,
-            };
-          }
-        } catch {
-          // Ignore parse errors and continue.
-        }
+      } catch {
+        // Ignore parse errors and continue.
       }
     }
   }
