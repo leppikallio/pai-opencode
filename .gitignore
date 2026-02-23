@@ -6,6 +6,9 @@ node_modules/
 !.opencode/MEMORY/**/
 !.opencode/MEMORY/**/.gitkeep
 
+# Runtime session data (never commit)
+MEMORY/**
+
 # Plugin debug logs
 .opencode/plugins/*.log
 

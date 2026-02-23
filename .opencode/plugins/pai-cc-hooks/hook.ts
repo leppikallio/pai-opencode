@@ -19,6 +19,74 @@ const DEFAULT_HOOK_COMMAND_CONFIG = {
   zshPath: "/bin/zsh",
 };
 
+type AskGateEntry = {
+  confirmId: string;
+  createdAt: number;
+  confirmedAt?: number;
+  key: string;
+  reason?: string;
+  hookName?: string;
+  toolName?: string;
+  inputLines?: string;
+};
+
+// Hook "ask" decisions can't currently trigger OpenCode's permission UI
+// (PermissionNext.ask) from tool.execute.before. Instead, we block the tool and
+// require an explicit user confirmation message.
+const ASK_GATE_TTL_MS = 5 * 60 * 1000;
+const askGateByConfirmId = new Map<string, AskGateEntry>();
+const askGateByKey = new Map<string, AskGateEntry>();
+
+function stableStringify(value: unknown): string {
+  const seen = new WeakSet<object>();
+
+  const stringify = (v: unknown): string => {
+    if (v === null) return "null";
+    const t = typeof v;
+    if (t === "string") return JSON.stringify(v);
+    if (t === "number" || t === "boolean") return String(v);
+    if (t !== "object") return JSON.stringify(String(v));
+
+    if (Array.isArray(v)) {
+      return `[${v.map((x) => stringify(x)).join(",")}]`;
+    }
+
+    const obj = v as Record<string, unknown>;
+    if (seen.has(obj)) return '"[Circular]"';
+    seen.add(obj);
+    const keys = Object.keys(obj).sort();
+    const entries = keys.map((k) => `${JSON.stringify(k)}:${stringify(obj[k])}`);
+    return `{${entries.join(",")}}`;
+  };
+
+  return stringify(value);
+}
+
+function buildAskGateKey(args: { sessionId: string; toolName: string; toolInput: UnknownRecord }): string {
+  return `${args.sessionId}:${args.toolName}:${stableStringify(args.toolInput)}`;
+}
+
+function newConfirmId(): string {
+  return `pai_confirm_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function parseConfirmMessage(text: string): string | undefined {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^(?:PAI_CONFIRM|pai_confirm)\s+([a-zA-Z0-9_-]+)$/);
+  return match?.[1];
+}
+
+function pruneAskGate(now: number): void {
+  for (const [id, entry] of askGateByConfirmId.entries()) {
+    if (now - entry.createdAt > ASK_GATE_TTL_MS) {
+      askGateByConfirmId.delete(id);
+      if (askGateByKey.get(entry.key)?.confirmId === id) {
+        askGateByKey.delete(entry.key);
+      }
+    }
+  }
+}
+
 function asRecord(value: unknown): UnknownRecord {
   return typeof value === "object" && value !== null ? (value as UnknownRecord) : {};
 }
@@ -110,6 +178,10 @@ async function executeSessionLifecycleHooks(
 }
 
 let settingsPromise: Promise<LoadedClaudeHookSettings> | null = null;
+
+export function __resetPaiCcHooksSettingsCacheForTests(): void {
+  settingsPromise = null;
+}
 
 function getSettingsPromise(): Promise<LoadedClaudeHookSettings> {
   if (!settingsPromise) {
@@ -246,6 +318,19 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
           .map((part) => part.text ?? "")
           .join("\n");
 
+      // If the user explicitly confirms a pending hook ask, mark it confirmed.
+      // The next retry of the same tool+args will be allowed once.
+      pruneAskGate(Date.now());
+      const confirmId = parseConfirmMessage(prompt);
+      if (confirmId) {
+        const pending = askGateByConfirmId.get(confirmId);
+        if (pending && !pending.confirmedAt) {
+          pending.confirmedAt = Date.now();
+          askGateByConfirmId.set(confirmId, pending);
+          askGateByKey.set(pending.key, pending);
+        }
+      }
+
       const sessionId = getString(payload, "sessionID") ?? getString(payload, "sessionId") ?? "";
       if (!sessionId) return;
       const parentSessionId = await resolveParentSessionId(sessionId);
@@ -278,8 +363,20 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
       const { hooks: config, env } = await getSettingsPromise();
 
       const toolName = getString(payload, "tool") ?? "";
-      const toolInput = getRecord(payload, "args") ?? {};
+      const toolInput = getRecord(out, "args") ?? getRecord(payload, "args") ?? {};
       const sessionId = getString(payload, "sessionID") ?? getString(payload, "sessionId") ?? "";
+
+      pruneAskGate(Date.now());
+      if (sessionId && toolName) {
+        const key = buildAskGateKey({ sessionId, toolName, toolInput });
+        const existing = askGateByKey.get(key);
+        if (existing?.confirmedAt && Date.now() - existing.confirmedAt < ASK_GATE_TTL_MS) {
+          // One-shot allow: clear the gate for this key.
+          askGateByKey.delete(key);
+          askGateByConfirmId.delete(existing.confirmId);
+          return;
+        }
+      }
 
       const result = await executePreToolUseHooks(
         {
@@ -303,8 +400,30 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
       }
 
       if (result.decision === "ask") {
-        out.permissionDecision = "ask";
-        out.permissionReason = result.reason;
+        const confirmId = newConfirmId();
+        const key = buildAskGateKey({ sessionId, toolName, toolInput });
+
+        const entry: AskGateEntry = {
+          confirmId,
+          createdAt: Date.now(),
+          key,
+          reason: result.reason,
+          hookName: result.hookName,
+          toolName: result.toolName,
+          inputLines: result.inputLines,
+        };
+
+        askGateByConfirmId.set(confirmId, entry);
+        askGateByKey.set(key, entry);
+
+        const reason = result.reason ? `\nReason: ${result.reason}` : "";
+        const hook = result.hookName ? `\nHook: ${result.hookName}` : "";
+        const tool = result.toolName ? `\nTool: ${result.toolName}` : toolName ? `\nTool: ${toolName}` : "";
+        const inputLines = result.inputLines ? `\nInput:\n${result.inputLines}` : "";
+
+        throw new Error(
+          `Blocked pending confirmation (hook asked).${hook}${tool}${reason}${inputLines}\n\nTo proceed, reply exactly: PAI_CONFIRM ${confirmId}`,
+        );
       }
     },
 

@@ -21,6 +21,8 @@ import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
+import { mergeSeedHooksIntoRuntimeSettings } from "../.opencode/tools/pai-install/merge-hooks";
+
 type Mode = "sync";
 
 type SkillsGateProfile = "off" | "advisory" | "block-critical" | "block-high";
@@ -2012,6 +2014,21 @@ async function sync(mode: Mode, opts: Options) {
     const label = exists ? "update" : "copy";
     console.log(`${dryRun ? "[dry]" : "[write]"} file ${label} ${f}`);
     copyFile(src, dest, dryRun);
+  }
+
+  const sourceSeedPath = path.join(sourceDir, "config", "claude-hooks.settings.json");
+  const runtimeSettingsPath = path.join(targetDir, "settings.json");
+  if (dryRun && !isFile(runtimeSettingsPath)) {
+    console.log("[dry] settings merge: would merge seed hooks into settings.json");
+  } else {
+    const mergeResult = mergeSeedHooksIntoRuntimeSettings({
+      targetDir,
+      sourceSeedPath,
+      dryRun,
+    });
+    console.log(
+      `${dryRun ? "[dry]" : "[write]"} settings merge: ${mergeResult.changed ? "updated" : "unchanged"}`
+    );
   }
 
   // Ensure global OpenCode rules exist and are updated safely.
