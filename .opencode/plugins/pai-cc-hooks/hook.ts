@@ -111,6 +111,10 @@ async function executeSessionLifecycleHooks(
 
 let settingsPromise: Promise<LoadedClaudeHookSettings> | null = null;
 
+export function __resetPaiCcHooksSettingsCacheForTests(): void {
+  settingsPromise = null;
+}
+
 function getSettingsPromise(): Promise<LoadedClaudeHookSettings> {
   if (!settingsPromise) {
     settingsPromise = loadClaudeHookSettings();
@@ -278,7 +282,7 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
       const { hooks: config, env } = await getSettingsPromise();
 
       const toolName = getString(payload, "tool") ?? "";
-      const toolInput = getRecord(payload, "args") ?? {};
+      const toolInput = getRecord(out, "args") ?? getRecord(payload, "args") ?? {};
       const sessionId = getString(payload, "sessionID") ?? getString(payload, "sessionId") ?? "";
 
       const result = await executePreToolUseHooks(
