@@ -12,6 +12,7 @@ type TaskToolArgs = {
   description: string;
   prompt: string;
   subagent_type: string;
+  command?: string;
   task_id?: string;
   run_in_background?: boolean;
 };
@@ -126,6 +127,7 @@ export function createPaiTaskTool(input: {
       description: tool.schema.string(),
       prompt: tool.schema.string(),
       subagent_type: tool.schema.string(),
+      command: tool.schema.string().optional(),
       task_id: tool.schema.string().optional(),
       run_in_background: tool.schema.boolean().optional(),
     },

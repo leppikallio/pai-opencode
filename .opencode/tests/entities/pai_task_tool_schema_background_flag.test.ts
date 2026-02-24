@@ -12,6 +12,36 @@ describe("PAI task tool override", () => {
     expect(taskTool.args.run_in_background.safeParse(true).success).toBe(true);
     expect(taskTool.args.run_in_background.safeParse(false).success).toBe(true);
     expect(taskTool.args.run_in_background.safeParse("true").success).toBe(false);
+
+    expect(taskTool.args.command.safeParse("/check-file path/to/file").success).toBe(true);
+    expect(taskTool.args.command.safeParse(undefined).success).toBe(true);
+    expect(taskTool.args.command.safeParse(42).success).toBe(false);
+  });
+
+  test("returns NOT IMPLEMENTED when run_in_background is true", async () => {
+    const taskTool = createPaiTaskTool({
+      client: {
+        session: {
+          create: async () => ({ data: { id: "unused" } }),
+          prompt: async () => ({ data: { parts: [{ type: "text", text: "unused" }] } }),
+        },
+      },
+      $: (() => Promise.resolve(null)) as unknown,
+    });
+
+    const result = await taskTool.execute(
+      {
+        description: "Run subagent",
+        prompt: "Do the thing",
+        subagent_type: "Engineer",
+        run_in_background: true,
+      },
+      {
+        ask: async () => ({ decision: "allow" }),
+      } as any,
+    );
+
+    expect(result).toContain("NOT IMPLEMENTED");
   });
 
   test("runs foreground task when run_in_background is absent or false", async () => {
@@ -62,5 +92,48 @@ describe("PAI task tool override", () => {
 
       expect(calls.map((entry) => entry.method)).toEqual(["ask", "create", "prompt"]);
     }
+  });
+
+  test("resumes task_id via session.get and skips create", async () => {
+    const calls: Array<{ method: string; payload: unknown }> = [];
+
+    const taskTool = createPaiTaskTool({
+      client: {
+        session: {
+          get: async (payload: unknown) => {
+            calls.push({ method: "get", payload });
+            return { data: { id: "existing-child-456" } };
+          },
+          create: async (payload: unknown) => {
+            calls.push({ method: "create", payload });
+            return { data: { id: "new-child-should-not-be-used" } };
+          },
+          prompt: async (payload: unknown) => {
+            calls.push({ method: "prompt", payload });
+            return { data: { parts: [{ type: "text", text: "resumed reply" }] } };
+          },
+        },
+      },
+      $: (() => Promise.resolve(null)) as unknown,
+    });
+
+    const result = await taskTool.execute(
+      {
+        description: "Resume subagent",
+        prompt: "Continue",
+        subagent_type: "Engineer",
+        task_id: "requested-task-id",
+      },
+      {
+        ask: async (payload: unknown) => {
+          calls.push({ method: "ask", payload });
+          return { decision: "allow" };
+        },
+      } as any,
+    );
+
+    expect(result).toContain("task_id: existing-child-456");
+    expect(result).toContain("<task_result>resumed reply</task_result>");
+    expect(calls.map((entry) => entry.method)).toEqual(["ask", "get", "prompt"]);
   });
 });
