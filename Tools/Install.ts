@@ -21,7 +21,7 @@ import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
-import { mergeSeedHooksIntoRuntimeSettings } from "../.opencode/tools/pai-install/merge-hooks";
+import { mergeClaudeHooksSeedIntoSettingsJson } from "./pai-install/merge-claude-hooks";
 
 type Mode = "sync";
 
@@ -2016,18 +2016,16 @@ async function sync(mode: Mode, opts: Options) {
     copyFile(src, dest, dryRun);
   }
 
-  const sourceSeedPath = path.join(sourceDir, "config", "claude-hooks.settings.json");
-  const runtimeSettingsPath = path.join(targetDir, "settings.json");
-  if (dryRun && !isFile(runtimeSettingsPath)) {
+  const sourceSeedPath = path.join(targetDir, "config", "claude-hooks.settings.json");
+  if (dryRun) {
     console.log("[dry] settings merge: would merge seed hooks into settings.json");
   } else {
-    const mergeResult = mergeSeedHooksIntoRuntimeSettings({
+    const mergeResult = mergeClaudeHooksSeedIntoSettingsJson({
       targetDir,
       sourceSeedPath,
-      dryRun,
     });
     console.log(
-      `${dryRun ? "[dry]" : "[write]"} settings merge: ${mergeResult.changed ? "updated" : "unchanged"}`
+      `[write] settings merge: ${mergeResult.changed ? "updated" : "unchanged"}`
     );
   }
 
