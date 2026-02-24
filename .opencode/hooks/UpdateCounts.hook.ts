@@ -1,4 +1,14 @@
 #!/usr/bin/env bun
-import { runHook } from "./lib/hook-stub";
 
-await runHook({ hookName: "UpdateCounts.hook.ts" });
+import { handleUpdateCounts } from "./handlers/UpdateCounts";
+
+async function main(): Promise<void> {
+  try {
+    await handleUpdateCounts();
+  } catch (error) {
+    console.error("[UpdateCounts] Error:", error);
+  }
+}
+
+await main();
+process.exit(0);

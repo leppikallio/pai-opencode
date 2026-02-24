@@ -71,6 +71,90 @@ const RATING_PATTERNS = [
   /^(\d{1,2})\s+(\w.*)$/,
 ];
 
+const EXPLICIT_DEDUPE_WINDOW_MS = 5000;
+const EXPLICIT_DEDUPE_SCAN_LIMIT = 50;
+
+function readString(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeComment(value: string | undefined): string {
+  return value?.trim() ?? "";
+}
+
+function parseTimestampMs(value: unknown): number | null {
+  const raw = readString(value);
+  if (!raw) return null;
+
+  const ts = Date.parse(raw);
+  return Number.isFinite(ts) ? ts : null;
+}
+
+function readExplicitComment(entry: Record<string, unknown>): string {
+  return normalizeComment(readString(entry.comment) ?? readString(entry.sentiment_summary));
+}
+
+async function hasRecentExplicitDuplicate(ratingsFile: string, rating: RatingEntry): Promise<boolean> {
+  try {
+    const content = await fs.promises.readFile(ratingsFile, "utf-8");
+    const lines = content.trim().split("\n").filter(Boolean);
+    const targetComment = normalizeComment(rating.comment || rating.sentiment_summary);
+    const now = Date.now();
+
+    let scanned = 0;
+    for (let index = lines.length - 1; index >= 0; index -= 1) {
+      if (scanned >= EXPLICIT_DEDUPE_SCAN_LIMIT) {
+        break;
+      }
+      scanned += 1;
+
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(lines[index]);
+      } catch {
+        continue;
+      }
+
+      if (typeof parsed !== "object" || parsed === null) {
+        continue;
+      }
+
+      const entry = parsed as Record<string, unknown>;
+      if (entry.source !== "explicit") {
+        continue;
+      }
+
+      if (typeof entry.rating !== "number" || entry.rating !== rating.rating) {
+        continue;
+      }
+
+      if (readExplicitComment(entry) !== targetComment) {
+        continue;
+      }
+
+      const timestampMs = parseTimestampMs(entry.timestamp);
+      if (timestampMs === null) {
+        continue;
+      }
+
+      const ageMs = now - timestampMs;
+      if (ageMs >= 0 && ageMs <= EXPLICIT_DEDUPE_WINDOW_MS) {
+        return true;
+      }
+
+      if (ageMs > EXPLICIT_DEDUPE_WINDOW_MS) {
+        break;
+      }
+    }
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+
 /**
  * Detect rating in user message
  *
@@ -138,6 +222,11 @@ export async function captureRating(
 
     // Append to ratings.jsonl
     const ratingsFile = path.join(signalsDir, "ratings.jsonl");
+    if (await hasRecentExplicitDuplicate(ratingsFile, rating)) {
+      fileLog(`Skipping duplicate explicit rating: ${rating.rating}/10`, "info");
+      return { success: true, rating, learned: false };
+    }
+
     const line = `${JSON.stringify(rating)}\n`;
     await fs.promises.appendFile(ratingsFile, line);
 
