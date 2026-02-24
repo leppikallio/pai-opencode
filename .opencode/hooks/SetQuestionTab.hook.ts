@@ -1,4 +1,75 @@
 #!/usr/bin/env bun
-import { runHook } from "./lib/hook-stub";
+import { readFileSync } from "node:fs";
 
-await runHook({ hookName: "SetQuestionTab.hook.ts" });
+import { notify } from "../plugins/pai-cc-hooks/shared/cmux-adapter";
+
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as JsonRecord;
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function readStdinBestEffort(): JsonRecord {
+  let raw = "";
+  try {
+    raw = readFileSync(0, "utf8");
+  } catch {
+    return {};
+  }
+
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return {};
+  }
+
+  try {
+    return asRecord(JSON.parse(trimmed)) ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function readSessionId(payload: JsonRecord): string {
+  return asString(payload.session_id) ?? asString(payload.sessionId) ?? "unknown-session";
+}
+
+function readQuestionHeader(payload: JsonRecord): string {
+  const toolInput = asRecord(payload.tool_input);
+  if (!toolInput) {
+    return "Question";
+  }
+
+  const questions = toolInput.questions;
+  if (Array.isArray(questions) && questions.length > 0) {
+    const firstQuestion = asRecord(questions[0]);
+    const firstHeader = firstQuestion ? asString(firstQuestion.header) : null;
+    if (firstHeader) {
+      return firstHeader;
+    }
+  }
+
+  return asString(toolInput.header) ?? "Question";
+}
+
+try {
+  const payload = readStdinBestEffort();
+  await notify({
+    sessionId: readSessionId(payload),
+    title: "PAI",
+    subtitle: "Question",
+    body: readQuestionHeader(payload),
+  });
+} catch {
+  // Never throw from hooks.
+} finally {
+  process.stdout.write('{"continue": true}\n');
+  process.exit(0);
+}

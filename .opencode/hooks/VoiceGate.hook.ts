@@ -1,4 +1,9 @@
 #!/usr/bin/env bun
-import { runHook } from "./lib/hook-stub";
 
-await runHook({ hookName: "VoiceGate.hook.ts" });
+try {
+  process.stdout.write('{"continue": true}\n');
+} catch {
+  // Never throw from hooks.
+}
+
+process.exit(0);
