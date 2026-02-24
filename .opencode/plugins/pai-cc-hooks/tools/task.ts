@@ -2,7 +2,9 @@ import { tool, type ToolContext } from "@opencode-ai/plugin";
 
 import {
   recordBackgroundTaskLaunch as recordBackgroundTaskLaunchDefault,
+  recordBackgroundTaskLaunchError as recordBackgroundTaskLaunchErrorDefault,
   type RecordBackgroundTaskLaunchArgs,
+  type RecordBackgroundTaskLaunchErrorArgs,
 } from "./background-task-state";
 
 type CarrierClient = {
@@ -23,6 +25,7 @@ type TaskToolArgs = {
 };
 
 type RecordBackgroundTaskLaunchFn = (args: RecordBackgroundTaskLaunchArgs) => Promise<void>;
+type RecordBackgroundTaskLaunchErrorFn = (args: RecordBackgroundTaskLaunchErrorArgs) => Promise<void>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -137,9 +140,12 @@ export function createPaiTaskTool(input: {
   client: unknown;
   $: unknown;
   recordBackgroundTaskLaunch?: RecordBackgroundTaskLaunchFn;
+  recordBackgroundTaskLaunchError?: RecordBackgroundTaskLaunchErrorFn;
 }) {
   const client = (input.client ?? {}) as CarrierClient;
   const recordBackgroundTaskLaunch = input.recordBackgroundTaskLaunch ?? recordBackgroundTaskLaunchDefault;
+  const recordBackgroundTaskLaunchError =
+    input.recordBackgroundTaskLaunchError ?? recordBackgroundTaskLaunchErrorDefault;
 
   return tool({
     description: "Run a subagent task (supports run_in_background)",
@@ -181,6 +187,12 @@ export function createPaiTaskTool(input: {
           throw new Error("PAI task override: child session creation returned no id");
         }
 
+        await recordBackgroundTaskLaunch({
+          taskId: childSessionId,
+          childSessionId,
+          parentSessionId,
+        });
+
         void session
           .prompt({
             path: { id: childSessionId },
@@ -189,15 +201,24 @@ export function createPaiTaskTool(input: {
               parts: [{ type: "text", text: args.prompt }],
             },
           })
-          .catch(() => {
-            // Best effort launch path. Failures are handled by completion hooks.
-          });
+          .catch(async (promptError) => {
+            const errorMessage =
+              promptError instanceof Error
+                ? promptError.message
+                : typeof promptError === "string"
+                  ? promptError
+                  : String(promptError);
+            const normalizedMessage = errorMessage.trim() || "Unknown background prompt launch error";
 
-        await recordBackgroundTaskLaunch({
-          taskId: childSessionId,
-          childSessionId,
-          parentSessionId,
-        });
+            try {
+              await recordBackgroundTaskLaunchError({
+                taskId: childSessionId,
+                errorMessage: normalizedMessage,
+              });
+            } catch {
+              // Best effort error marker persistence.
+            }
+          });
 
         return { task_id: childSessionId, session_id: childSessionId } as unknown as string;
       }

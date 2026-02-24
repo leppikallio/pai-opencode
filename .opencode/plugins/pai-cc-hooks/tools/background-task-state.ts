@@ -5,6 +5,8 @@ import path from "node:path";
 const DUPLICATE_WINDOW_MS = 2_000;
 const NOTIFIED_TASK_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
 const NOTIFIED_TASK_MAX_ENTRIES = 2_000;
+const BACKGROUND_TASK_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
+const BACKGROUND_TASK_MAX_ENTRIES = 2_000;
 
 const LOCK_STALE_MS = 10_000;
 const LOCK_MAX_RETRIES = 40;
@@ -31,6 +33,8 @@ export type BackgroundTaskRecord = {
   parent_session_id: string;
   launched_at_ms: number;
   updated_at_ms: number;
+  launch_error?: string;
+  launch_error_at_ms?: number;
 };
 
 type BackgroundTaskStateV1 = {
@@ -45,6 +49,12 @@ export type RecordBackgroundTaskLaunchArgs = {
   taskId: string;
   childSessionId: string;
   parentSessionId: string;
+  nowMs?: number;
+};
+
+export type RecordBackgroundTaskLaunchErrorArgs = {
+  taskId: string;
+  errorMessage: string;
   nowMs?: number;
 };
 
@@ -129,12 +139,18 @@ function coerceBackgroundTaskRecord(value: unknown): BackgroundTaskRecord | null
     return null;
   }
 
+  const launchError = asString(value.launch_error) ?? undefined;
+  const launchErrorAtMs = asFiniteNumber(value.launch_error_at_ms) ?? undefined;
+  const hasLaunchErrorPair = launchError !== undefined && launchErrorAtMs !== undefined;
+
   return {
     task_id: taskId,
     child_session_id: childSessionId,
     parent_session_id: parentSessionId,
     launched_at_ms: launchedAtMs,
     updated_at_ms: updatedAtMs,
+    launch_error: hasLaunchErrorPair ? launchError : undefined,
+    launch_error_at_ms: hasLaunchErrorPair ? launchErrorAtMs : undefined,
   };
 }
 
@@ -425,9 +441,36 @@ function pruneNotifiedTaskIds(state: BackgroundTaskStateV1, nowMs: number): void
   }
 }
 
+function pruneBackgroundTasks(state: BackgroundTaskStateV1, nowMs: number): void {
+  for (const [taskId, record] of Object.entries(state.backgroundTasks)) {
+    if (nowMs >= record.updated_at_ms && nowMs - record.updated_at_ms >= BACKGROUND_TASK_RETENTION_MS) {
+      delete state.backgroundTasks[taskId];
+    }
+  }
+
+  const entries = Object.entries(state.backgroundTasks);
+  if (entries.length <= BACKGROUND_TASK_MAX_ENTRIES) {
+    return;
+  }
+
+  const keepTaskIds = new Set(
+    entries
+      .sort((left, right) => right[1].updated_at_ms - left[1].updated_at_ms)
+      .slice(0, BACKGROUND_TASK_MAX_ENTRIES)
+      .map(([taskId]) => taskId),
+  );
+
+  for (const taskId of Object.keys(state.backgroundTasks)) {
+    if (!keepTaskIds.has(taskId)) {
+      delete state.backgroundTasks[taskId];
+    }
+  }
+}
+
 function pruneState(state: BackgroundTaskStateV1, nowMs: number): void {
   pruneDuplicateState(state, nowMs);
   pruneNotifiedTaskIds(state, nowMs);
+  pruneBackgroundTasks(state, nowMs);
 }
 
 export async function markNotified(taskId: string, nowMs?: number): Promise<boolean> {
@@ -510,8 +553,44 @@ export async function recordBackgroundTaskLaunch(args: RecordBackgroundTaskLaunc
       parent_session_id: parentSessionId,
       launched_at_ms: existing?.launched_at_ms ?? nowMs,
       updated_at_ms: nowMs,
+      launch_error: undefined,
+      launch_error_at_ms: undefined,
     };
     state.updatedAtMs = nowMs;
+
+    pruneState(state, nowMs);
+
+    await writeState(statePath, state);
+  });
+}
+
+export async function recordBackgroundTaskLaunchError(args: RecordBackgroundTaskLaunchErrorArgs): Promise<void> {
+  const taskId = args.taskId.trim();
+  const errorMessage = args.errorMessage.trim();
+  if (!taskId || !errorMessage) {
+    throw new Error("recordBackgroundTaskLaunchError requires taskId and errorMessage");
+  }
+
+  const nowMs = normalizeNowMs(args.nowMs);
+  const statePath = getBackgroundTaskStatePath();
+
+  await withStateLock(statePath, async () => {
+    const state = await readState(statePath, nowMs);
+    pruneState(state, nowMs);
+
+    const existing = state.backgroundTasks[taskId];
+    if (!existing) {
+      return;
+    }
+
+    state.backgroundTasks[taskId] = {
+      ...existing,
+      launch_error: errorMessage,
+      launch_error_at_ms: nowMs,
+      updated_at_ms: nowMs,
+    };
+    state.updatedAtMs = nowMs;
+    pruneState(state, nowMs);
 
     await writeState(statePath, state);
   });

@@ -20,6 +20,7 @@ describe("PAI task tool override", () => {
 
   test("launches background task when run_in_background is true", async () => {
     const calls: Array<{ method: string; payload: unknown }> = [];
+    const launchRecords: Array<{ taskId: string; childSessionId: string; parentSessionId: string }> = [];
 
     const taskTool = createPaiTaskTool({
       client: {
@@ -35,6 +36,9 @@ describe("PAI task tool override", () => {
         },
       },
       $: (() => Promise.resolve(null)) as unknown,
+      recordBackgroundTaskLaunch: async (args) => {
+        launchRecords.push(args);
+      },
     });
 
     const result = await taskTool.execute(
@@ -60,6 +64,13 @@ describe("PAI task tool override", () => {
       session_id: "child-session-123",
     });
     expect(calls.map((entry) => entry.method)).toEqual(["create", "prompt"]);
+    expect(launchRecords).toEqual([
+      {
+        taskId: "child-session-123",
+        childSessionId: "child-session-123",
+        parentSessionId: "parent-session-456",
+      },
+    ]);
   });
 
   test("runs foreground task when run_in_background is absent or false", async () => {

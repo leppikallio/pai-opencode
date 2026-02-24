@@ -10,6 +10,17 @@ function createTempPaiDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "pai-task-bg-launch-"));
 }
 
+async function waitFor(predicate: () => boolean, timeoutMs = 500): Promise<boolean> {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (predicate()) {
+      return true;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  return false;
+}
+
 describe("PAI task tool run_in_background", () => {
   test("launch records task_id, child_session_id, and parent_session_id", async () => {
     const paiDir = createTempPaiDir();
@@ -98,6 +109,70 @@ describe("PAI task tool run_in_background", () => {
         child_session_id: "child-session-123",
         parent_session_id: "parent-session-456",
       });
+    } finally {
+      if (originalPaiDir === undefined) {
+        delete process.env.PAI_DIR;
+      } else {
+        process.env.PAI_DIR = originalPaiDir;
+      }
+    }
+  });
+
+  test("records launch_error marker when background prompt send fails", async () => {
+    const paiDir = createTempPaiDir();
+    const originalPaiDir = process.env.PAI_DIR;
+
+    process.env.PAI_DIR = paiDir;
+    try {
+      const taskTool = createPaiTaskTool({
+        client: {
+          session: {
+            create: async () => ({ data: { id: "child-session-err" } }),
+            prompt: async () => {
+              throw new Error("prompt send exploded");
+            },
+          },
+        },
+        $: (() => Promise.resolve(null)) as unknown,
+      });
+
+      await taskTool.execute(
+        {
+          description: "Run in background",
+          prompt: "Do the thing",
+          subagent_type: "Engineer",
+          run_in_background: true,
+        },
+        {
+          sessionID: "parent-session-456",
+          directory: "/tmp/workspace",
+        } as any,
+      );
+
+      const statePath = getBackgroundTaskStatePath();
+      const hasLaunchError = await waitFor(() => {
+        try {
+          const persisted = JSON.parse(fs.readFileSync(statePath, "utf-8")) as {
+            backgroundTasks?: Record<
+              string,
+              {
+                launch_error?: string;
+                launch_error_at_ms?: number;
+              }
+            >;
+          };
+          const record = persisted.backgroundTasks?.["child-session-err"];
+          return (
+            typeof record?.launch_error === "string" &&
+            record.launch_error.includes("prompt send exploded") &&
+            typeof record.launch_error_at_ms === "number"
+          );
+        } catch {
+          return false;
+        }
+      });
+
+      expect(hasLaunchError).toBe(true);
     } finally {
       if (originalPaiDir === undefined) {
         delete process.env.PAI_DIR;

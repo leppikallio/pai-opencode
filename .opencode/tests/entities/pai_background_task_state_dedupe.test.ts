@@ -5,6 +5,7 @@ import path from "node:path";
 
 import {
   markNotified,
+  recordBackgroundTaskLaunch,
   shouldSuppressDuplicate,
 } from "../../plugins/pai-cc-hooks/tools/background-task-state";
 
@@ -213,6 +214,140 @@ describe("background task state dedupe", () => {
       };
       expect(persisted.notifiedTaskIds?.x).toBe(123);
       expect(fs.existsSync(lockPath)).toBe(false);
+    } finally {
+      if (originalPaiDir === undefined) {
+        delete process.env.PAI_DIR;
+      } else {
+        process.env.PAI_DIR = originalPaiDir;
+      }
+    }
+  });
+
+  test("recordBackgroundTaskLaunch prunes stale backgroundTasks by TTL", async () => {
+    const paiDir = createTempPaiDir();
+    const originalPaiDir = process.env.PAI_DIR;
+    const stateDir = path.join(paiDir, "MEMORY", "STATE");
+    const statePath = path.join(stateDir, "background-tasks.json");
+
+    process.env.PAI_DIR = paiDir;
+    try {
+      fs.mkdirSync(stateDir, { recursive: true });
+
+      const nowMs = 8 * 24 * 60 * 60 * 1_000;
+      fs.writeFileSync(
+        statePath,
+        JSON.stringify(
+          {
+            version: 1,
+            updatedAtMs: 1_000,
+            notifiedTaskIds: {},
+            duplicateBySession: {},
+            backgroundTasks: {
+              task_old: {
+                task_id: "task_old",
+                child_session_id: "child_old",
+                parent_session_id: "parent_old",
+                launched_at_ms: 1_000,
+                updated_at_ms: 1_000,
+              },
+              task_recent: {
+                task_id: "task_recent",
+                child_session_id: "child_recent",
+                parent_session_id: "parent_recent",
+                launched_at_ms: nowMs - 100,
+                updated_at_ms: nowMs - 100,
+              },
+            },
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf-8",
+      );
+
+      await recordBackgroundTaskLaunch({
+        taskId: "task_new",
+        childSessionId: "child_new",
+        parentSessionId: "parent_new",
+        nowMs,
+      });
+
+      const persisted = JSON.parse(fs.readFileSync(statePath, "utf-8")) as {
+        backgroundTasks?: Record<string, unknown>;
+      };
+      const backgroundTaskIds = Object.keys(persisted.backgroundTasks ?? {});
+
+      expect(backgroundTaskIds).not.toContain("task_old");
+      expect(backgroundTaskIds).toContain("task_recent");
+      expect(backgroundTaskIds).toContain("task_new");
+    } finally {
+      if (originalPaiDir === undefined) {
+        delete process.env.PAI_DIR;
+      } else {
+        process.env.PAI_DIR = originalPaiDir;
+      }
+    }
+  });
+
+  test("recordBackgroundTaskLaunch enforces backgroundTasks size cap", async () => {
+    const paiDir = createTempPaiDir();
+    const originalPaiDir = process.env.PAI_DIR;
+    const stateDir = path.join(paiDir, "MEMORY", "STATE");
+    const statePath = path.join(stateDir, "background-tasks.json");
+    const nowMs = 10_000;
+
+    process.env.PAI_DIR = paiDir;
+    try {
+      fs.mkdirSync(stateDir, { recursive: true });
+
+      const backgroundTasks: Record<string, unknown> = {};
+      for (let idx = 0; idx < 2_005; idx += 1) {
+        const taskId = `task_${String(idx).padStart(4, "0")}`;
+        const atMs = 1_000 + idx;
+        backgroundTasks[taskId] = {
+          task_id: taskId,
+          child_session_id: `child_${taskId}`,
+          parent_session_id: `parent_${taskId}`,
+          launched_at_ms: atMs,
+          updated_at_ms: atMs,
+        };
+      }
+
+      fs.writeFileSync(
+        statePath,
+        JSON.stringify(
+          {
+            version: 1,
+            updatedAtMs: 1_000,
+            notifiedTaskIds: {},
+            duplicateBySession: {},
+            backgroundTasks,
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf-8",
+      );
+
+      await recordBackgroundTaskLaunch({
+        taskId: "extra",
+        childSessionId: "child_extra",
+        parentSessionId: "parent_extra",
+        nowMs,
+      });
+
+      const persisted = JSON.parse(fs.readFileSync(statePath, "utf-8")) as {
+        backgroundTasks?: Record<string, unknown>;
+      };
+      const backgroundTaskIds = Object.keys(persisted.backgroundTasks ?? {});
+
+      expect(backgroundTaskIds.length).toBe(2_000);
+      expect(backgroundTaskIds).toContain("extra");
+      expect(backgroundTaskIds).not.toContain("task_0000");
+      expect(backgroundTaskIds).not.toContain("task_0001");
+      expect(backgroundTaskIds).not.toContain("task_0005");
+      expect(backgroundTaskIds).toContain("task_0006");
+      expect(backgroundTaskIds).toContain("task_2004");
     } finally {
       if (originalPaiDir === undefined) {
         delete process.env.PAI_DIR;
