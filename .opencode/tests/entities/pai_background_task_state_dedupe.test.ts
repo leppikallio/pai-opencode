@@ -130,4 +130,95 @@ describe("background task state dedupe", () => {
       }
     }
   });
+
+  test("markNotified enforces notifiedTaskIds size cap by pruning oldest entries", async () => {
+    const paiDir = createTempPaiDir();
+    const originalPaiDir = process.env.PAI_DIR;
+    const stateDir = path.join(paiDir, "MEMORY", "STATE");
+    const statePath = path.join(stateDir, "background-tasks.json");
+    const nowMs = 10_000;
+
+    process.env.PAI_DIR = paiDir;
+    try {
+      fs.mkdirSync(stateDir, { recursive: true });
+
+      const notifiedTaskIds: Record<string, number> = {};
+      for (let idx = 0; idx < 2_005; idx += 1) {
+        notifiedTaskIds[`task_${String(idx).padStart(4, "0")}`] = 1_000 + idx;
+      }
+
+      fs.writeFileSync(
+        statePath,
+        JSON.stringify(
+          {
+            version: 1,
+            updatedAtMs: 1_000,
+            notifiedTaskIds,
+            duplicateBySession: {},
+          },
+          null,
+          2,
+        ) + "\n",
+        "utf-8",
+      );
+
+      await expect(markNotified("extra", nowMs)).resolves.toBe(true);
+
+      const persisted = JSON.parse(fs.readFileSync(statePath, "utf-8")) as {
+        notifiedTaskIds?: Record<string, number>;
+      };
+      const keys = Object.keys(persisted.notifiedTaskIds ?? {});
+      expect(keys.length).toBe(2_000);
+      expect(persisted.notifiedTaskIds?.extra).toBe(nowMs);
+
+      expect(persisted.notifiedTaskIds?.task_0000).toBeUndefined();
+      expect(persisted.notifiedTaskIds?.task_0001).toBeUndefined();
+      expect(persisted.notifiedTaskIds?.task_0005).toBeUndefined();
+      expect(persisted.notifiedTaskIds?.task_0006).toBe(1_006);
+      expect(persisted.notifiedTaskIds?.task_2004).toBe(3_004);
+    } finally {
+      if (originalPaiDir === undefined) {
+        delete process.env.PAI_DIR;
+      } else {
+        process.env.PAI_DIR = originalPaiDir;
+      }
+    }
+  });
+
+  test("markNotified evicts stale lock and succeeds", async () => {
+    const paiDir = createTempPaiDir();
+    const originalPaiDir = process.env.PAI_DIR;
+    const stateDir = path.join(paiDir, "MEMORY", "STATE");
+    const statePath = path.join(stateDir, "background-tasks.json");
+    const lockPath = `${statePath}.lock`;
+
+    process.env.PAI_DIR = paiDir;
+    try {
+      fs.mkdirSync(stateDir, { recursive: true });
+      fs.writeFileSync(
+        lockPath,
+        JSON.stringify({ ownerId: "stale-owner", createdAt: Date.now() - 60_000 }) + "\n",
+        "utf-8",
+      );
+
+      await expect(markNotified("x", 123)).resolves.toBe(true);
+
+      const staleArtifacts = fs
+        .readdirSync(stateDir)
+        .filter((name) => name.startsWith("background-tasks.json.lock.stale."));
+      expect(staleArtifacts.length).toBeGreaterThanOrEqual(1);
+
+      const persisted = JSON.parse(fs.readFileSync(statePath, "utf-8")) as {
+        notifiedTaskIds?: Record<string, number>;
+      };
+      expect(persisted.notifiedTaskIds?.x).toBe(123);
+      expect(fs.existsSync(lockPath)).toBe(false);
+    } finally {
+      if (originalPaiDir === undefined) {
+        delete process.env.PAI_DIR;
+      } else {
+        process.env.PAI_DIR = originalPaiDir;
+      }
+    }
+  });
 });
