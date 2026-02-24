@@ -1,5 +1,10 @@
 import { tool, type ToolContext } from "@opencode-ai/plugin";
 
+import {
+  recordBackgroundTaskLaunch as recordBackgroundTaskLaunchDefault,
+  type RecordBackgroundTaskLaunchArgs,
+} from "./background-task-state";
+
 type CarrierClient = {
   session?: {
     get?: (options: unknown) => Promise<unknown>;
@@ -16,6 +21,8 @@ type TaskToolArgs = {
   task_id?: string;
   run_in_background?: boolean;
 };
+
+type RecordBackgroundTaskLaunchFn = (args: RecordBackgroundTaskLaunchArgs) => Promise<void>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -115,11 +122,24 @@ function formatTaskResult(taskId: string, text: string): string {
   return `task_id: ${taskId}\n<task_result>${text}</task_result>`;
 }
 
+function getContextSessionId(ctx: ToolContext): string {
+  const value = (ctx as ToolContext & { sessionID?: unknown; sessionId?: unknown }).sessionID ??
+    (ctx as ToolContext & { sessionID?: unknown; sessionId?: unknown }).sessionId;
+  return typeof value === "string" ? value : "";
+}
+
+function getContextDirectory(ctx: ToolContext): string {
+  const value = (ctx as ToolContext & { directory?: unknown }).directory;
+  return typeof value === "string" ? value : process.cwd();
+}
+
 export function createPaiTaskTool(input: {
   client: unknown;
   $: unknown;
+  recordBackgroundTaskLaunch?: RecordBackgroundTaskLaunchFn;
 }) {
   const client = (input.client ?? {}) as CarrierClient;
+  const recordBackgroundTaskLaunch = input.recordBackgroundTaskLaunch ?? recordBackgroundTaskLaunchDefault;
 
   return tool({
     description: "Run a subagent task (supports run_in_background)",
@@ -133,7 +153,53 @@ export function createPaiTaskTool(input: {
     },
     async execute(args: TaskToolArgs, ctx: ToolContext): Promise<string> {
       if (args.run_in_background === true) {
-        return "NOT IMPLEMENTED: run_in_background=true is not yet implemented in the PAI task override.";
+        const parentSessionId = getContextSessionId(ctx);
+        if (!parentSessionId) {
+          throw new Error("PAI task override: ctx.sessionID is required for run_in_background=true");
+        }
+
+        const session = client.session;
+        if (!session?.create) {
+          throw new Error("PAI task override: client.session.create is unavailable");
+        }
+        if (!session.prompt) {
+          throw new Error("PAI task override: client.session.prompt is unavailable");
+        }
+
+        const childCreateResult = await session.create({
+          body: {
+            parentID: parentSessionId,
+            title: args.description,
+          },
+          query: {
+            directory: getContextDirectory(ctx),
+          },
+        });
+
+        const childSessionId = extractSessionId(childCreateResult);
+        if (!childSessionId) {
+          throw new Error("PAI task override: child session creation returned no id");
+        }
+
+        void session
+          .prompt({
+            path: { id: childSessionId },
+            body: {
+              agent: args.subagent_type,
+              parts: [{ type: "text", text: args.prompt }],
+            },
+          })
+          .catch(() => {
+            // Best effort launch path. Failures are handled by completion hooks.
+          });
+
+        await recordBackgroundTaskLaunch({
+          taskId: childSessionId,
+          childSessionId,
+          parentSessionId,
+        });
+
+        return { task_id: childSessionId, session_id: childSessionId } as unknown as string;
       }
 
       const ask = (ctx as ToolContext & { ask?: (request: unknown) => Promise<unknown> }).ask;

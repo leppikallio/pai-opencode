@@ -1,5 +1,6 @@
 import type { Plugin } from "@opencode-ai/plugin";
 import { createPaiClaudeHooks } from "./pai-cc-hooks/hook";
+import { recordBackgroundTaskLaunch } from "./pai-cc-hooks/tools/background-task-state";
 import { createPaiTaskTool } from "./pai-cc-hooks/tools/task";
 
 const PaiCcHooksPlugin: Plugin = async (ctx) => {
@@ -7,7 +8,11 @@ const PaiCcHooksPlugin: Plugin = async (ctx) => {
 
   return {
     tool: {
-      task: createPaiTaskTool({ client: ctx.client, $: ctx.$ }),
+      task: createPaiTaskTool({
+        client: ctx.client,
+        $: ctx.$,
+        recordBackgroundTaskLaunch,
+      }),
     },
     event: hooks.event,
     "chat.message": hooks["chat.message"],

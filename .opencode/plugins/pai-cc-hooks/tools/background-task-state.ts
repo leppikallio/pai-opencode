@@ -25,11 +25,27 @@ type SessionDuplicateRecord = {
   atMs: number;
 };
 
+export type BackgroundTaskRecord = {
+  task_id: string;
+  child_session_id: string;
+  parent_session_id: string;
+  launched_at_ms: number;
+  updated_at_ms: number;
+};
+
 type BackgroundTaskStateV1 = {
   version: 1;
   updatedAtMs: number;
   notifiedTaskIds: Record<string, number>;
   duplicateBySession: Record<string, SessionDuplicateRecord>;
+  backgroundTasks: Record<string, BackgroundTaskRecord>;
+};
+
+export type RecordBackgroundTaskLaunchArgs = {
+  taskId: string;
+  childSessionId: string;
+  parentSessionId: string;
+  nowMs?: number;
 };
 
 export type ShouldSuppressDuplicateArgs = {
@@ -76,6 +92,7 @@ function createDefaultState(nowMs: number): BackgroundTaskStateV1 {
     updatedAtMs: nowMs,
     notifiedTaskIds: {},
     duplicateBySession: {},
+    backgroundTasks: {},
   };
 }
 
@@ -95,6 +112,30 @@ function asString(value: unknown): string | null {
     return null;
   }
   return value;
+}
+
+function coerceBackgroundTaskRecord(value: unknown): BackgroundTaskRecord | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const taskId = asString(value.task_id);
+  const childSessionId = asString(value.child_session_id);
+  const parentSessionId = asString(value.parent_session_id);
+  const launchedAtMs = asFiniteNumber(value.launched_at_ms);
+  const updatedAtMs = asFiniteNumber(value.updated_at_ms);
+
+  if (!taskId || !childSessionId || !parentSessionId || launchedAtMs == null || updatedAtMs == null) {
+    return null;
+  }
+
+  return {
+    task_id: taskId,
+    child_session_id: childSessionId,
+    parent_session_id: parentSessionId,
+    launched_at_ms: launchedAtMs,
+    updated_at_ms: updatedAtMs,
+  };
 }
 
 function coerceState(value: unknown, nowMs: number): BackgroundTaskStateV1 {
@@ -120,11 +161,21 @@ function coerceState(value: unknown, nowMs: number): BackgroundTaskStateV1 {
     duplicateBySession[sessionId] = { messageKey, atMs };
   }
 
+  const backgroundTasks: Record<string, BackgroundTaskRecord> = {};
+  const rawBackgroundTasks = isRecord(value.backgroundTasks) ? value.backgroundTasks : {};
+  for (const [taskId, record] of Object.entries(rawBackgroundTasks)) {
+    const parsed = coerceBackgroundTaskRecord(record);
+    if (!parsed) continue;
+    if (parsed.task_id !== taskId) continue;
+    backgroundTasks[taskId] = parsed;
+  }
+
   return {
     version: 1,
     updatedAtMs: asFiniteNumber(value.updatedAtMs) ?? nowMs,
     notifiedTaskIds,
     duplicateBySession,
+    backgroundTasks,
   };
 }
 
@@ -434,5 +485,34 @@ export async function shouldSuppressDuplicate(args: ShouldSuppressDuplicateArgs)
     await writeState(statePath, state);
 
     return shouldSuppress;
+  });
+}
+
+export async function recordBackgroundTaskLaunch(args: RecordBackgroundTaskLaunchArgs): Promise<void> {
+  const taskId = args.taskId.trim();
+  const childSessionId = args.childSessionId.trim();
+  const parentSessionId = args.parentSessionId.trim();
+  if (!taskId || !childSessionId || !parentSessionId) {
+    throw new Error("recordBackgroundTaskLaunch requires taskId, childSessionId, and parentSessionId");
+  }
+
+  const nowMs = normalizeNowMs(args.nowMs);
+  const statePath = getBackgroundTaskStatePath();
+
+  await withStateLock(statePath, async () => {
+    const state = await readState(statePath, nowMs);
+    pruneState(state, nowMs);
+
+    const existing = state.backgroundTasks[taskId];
+    state.backgroundTasks[taskId] = {
+      task_id: taskId,
+      child_session_id: childSessionId,
+      parent_session_id: parentSessionId,
+      launched_at_ms: existing?.launched_at_ms ?? nowMs,
+      updated_at_ms: nowMs,
+    };
+    state.updatedAtMs = nowMs;
+
+    await writeState(statePath, state);
   });
 }
