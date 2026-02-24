@@ -235,14 +235,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${PAI_DIR}/hooks/StartupGreeting.hook.ts"
-          },
-          {
-            "type": "command",
-            "command": "${PAI_DIR}/hooks/LoadContext.hook.ts"
-          },
-          {
-            "type": "command",
             "command": "${PAI_DIR}/hooks/CheckVersion.hook.ts"
           }
         ]

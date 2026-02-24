@@ -14,9 +14,17 @@ function isVersionCheckDisabled(): boolean {
 }
 
 function isSubagent(): boolean {
-  const claudeAgentType = process.env.CLAUDE_AGENT_TYPE ?? "";
-  const claudeProjectDir = process.env.CLAUDE_PROJECT_DIR ?? "";
-  return claudeProjectDir.includes("/.claude/Agents/") || claudeAgentType.trim().length > 0;
+  const agentType = (process.env.OPENCODE_AGENT_TYPE ?? process.env.CLAUDE_AGENT_TYPE ?? "").trim();
+  const projectDir = (process.env.OPENCODE_PROJECT_DIR ?? process.env.CLAUDE_PROJECT_DIR ?? "").trim();
+
+  if (agentType.length > 0) {
+    return true;
+  }
+
+  // Claude Code uses "/.claude/Agents/"; keep this for compatibility.
+  // OpenCode does not currently guarantee an agent project dir shape, so we
+  // include a conservative opencode marker as well.
+  return projectDir.includes("/.claude/Agents/") || projectDir.includes("/.opencode/Agents/");
 }
 
 async function readCommandStdout(command: string[]): Promise<string> {
@@ -68,12 +76,12 @@ function extractVersion(raw: string): string | undefined {
 }
 
 async function getCurrentVersion(): Promise<string | undefined> {
-  const output = await readCommandStdout(["claude", "--version"]);
+  const output = await readCommandStdout(["opencode", "--version"]);
   return extractVersion(output);
 }
 
 async function getLatestVersion(): Promise<string | undefined> {
-  const output = await readCommandStdout(["npm", "view", "@anthropic-ai/claude-code", "version"]);
+  const output = await readCommandStdout(["npm", "view", "opencode-ai", "version"]);
   return extractVersion(output);
 }
 
@@ -93,7 +101,7 @@ async function main(): Promise<void> {
     ]);
 
     if (currentVersion && latestVersion && currentVersion !== latestVersion) {
-      console.error(`Update available: CC ${currentVersion} -> ${latestVersion}`);
+      console.error(`Update available: opencode ${currentVersion} -> ${latestVersion}`);
     }
   } catch {
     // Always exit cleanly.

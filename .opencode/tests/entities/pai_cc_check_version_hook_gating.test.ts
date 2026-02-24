@@ -83,12 +83,12 @@ async function runHook(options: HookRunOptions = {}): Promise<{
 
 async function createShimDir(npmScript: string): Promise<string> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "check-version-hook-"));
-  const claudePath = path.join(dir, "claude");
+  const opencodePath = path.join(dir, "opencode");
   const npmPath = path.join(dir, "npm");
 
-  await fs.writeFile(claudePath, "#!/bin/sh\necho \"claude 1.0.0\"\n", { mode: 0o755 });
+  await fs.writeFile(opencodePath, "#!/bin/sh\necho \"opencode 1.0.0\"\n", { mode: 0o755 });
   await fs.writeFile(npmPath, npmScript, { mode: 0o755 });
-  await fs.chmod(claudePath, 0o755);
+  await fs.chmod(opencodePath, 0o755);
   await fs.chmod(npmPath, 0o755);
 
   return dir;
@@ -174,7 +174,7 @@ describe("CheckVersion hook gating", () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toBe("");
-      expect(result.stderr).toContain("Update available: CC 1.0.0 -> 2.0.0");
+      expect(result.stderr).toContain("Update available: opencode 1.0.0 -> 2.0.0");
     } finally {
       await fs.rm(shimDir, { recursive: true, force: true });
     }

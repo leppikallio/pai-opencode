@@ -60,36 +60,6 @@ function readJsonObjectRequired(filePath: string, label: string): JsonRecord {
   return parseJsonObject(raw, filePath);
 }
 
-function stableStringify(value: unknown): string {
-  if (Array.isArray(value)) {
-    return `[${value.map((item) => stableStringify(item)).join(",")}]`;
-  }
-
-  if (isPlainObject(value)) {
-    const keys = Object.keys(value).sort((a, b) => a.localeCompare(b));
-    const body = keys.map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(",");
-    return `{${body}}`;
-  }
-
-  return JSON.stringify(value);
-}
-
-function dedupeEntries<T>(entries: T[]): T[] {
-  const seen = new Set<string>();
-  const out: T[] = [];
-
-  for (const entry of entries) {
-    const key = stableStringify(entry);
-    if (seen.has(key)) {
-      continue;
-    }
-    seen.add(key);
-    out.push(entry);
-  }
-
-  return out;
-}
-
 function rewriteHookCommandPlaceholders(value: unknown, targetDir: string): unknown {
   const normalizedTargetDir = targetDir.replace(/\\/g, "/");
   const paiDirPrefix = "$" + "{PAI_DIR}/";
@@ -125,36 +95,19 @@ function mergeEnv(runtimeEnv: unknown, seedEnv: unknown, targetDir: string): Jso
 }
 
 function mergeHooks(runtimeHooks: unknown, seedHooks: unknown, targetDir: string): JsonRecord {
-  const runtime = isPlainObject(runtimeHooks)
-    ? (rewriteHookCommandPlaceholders(runtimeHooks, targetDir) as JsonRecord)
-    : {};
-  const seed = isPlainObject(seedHooks) ? (rewriteHookCommandPlaceholders(seedHooks, targetDir) as JsonRecord) : {};
-
-  const merged: JsonRecord = {};
-  const keys = new Set([...Object.keys(runtime), ...Object.keys(seed)]);
-
-  for (const key of keys) {
-    const runtimeValue = runtime[key];
-    const seedValue = seed[key];
-
-    if (Array.isArray(runtimeValue) || Array.isArray(seedValue)) {
-      const runtimeEntries = Array.isArray(runtimeValue) ? runtimeValue : [];
-      const seedEntries = Array.isArray(seedValue) ? seedValue : [];
-      merged[key] = dedupeEntries([...runtimeEntries, ...seedEntries]);
-      continue;
-    }
-
-    if (seedValue !== undefined) {
-      merged[key] = seedValue;
-      continue;
-    }
-
-    if (runtimeValue !== undefined) {
-      merged[key] = runtimeValue;
-    }
+  // Repo seed is the source of truth for hooks.
+  // Install must be able to REMOVE hooks that were deleted from the seed.
+  if (seedHooks === undefined) {
+    return isPlainObject(runtimeHooks)
+      ? (rewriteHookCommandPlaceholders(runtimeHooks, targetDir) as JsonRecord)
+      : {};
   }
 
-  return merged;
+  if (!isPlainObject(seedHooks)) {
+    throw new Error("Expected hooks to be a JSON object in settings seed");
+  }
+
+  return rewriteHookCommandPlaceholders(seedHooks, targetDir) as JsonRecord;
 }
 
 export function mergeClaudeHooksSeedIntoSettingsJson(

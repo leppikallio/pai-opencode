@@ -68,6 +68,51 @@ describe("mergeClaudeHooksSeedIntoSettingsJson", () => {
     );
   });
 
+  test("replaces runtime hooks with seed hooks (seed is authoritative)", () => {
+    const root = createRoot();
+    const settingsPath = path.join(root, "settings.json");
+    const seedPath = path.join(root, "seed-settings.json");
+
+    writeFileSync(
+      settingsPath,
+      JSON.stringify(
+        {
+          theme: "dark",
+          hooks: {
+            SessionStart: [{ hooks: [{ type: "command", command: "runtime-only" }] }],
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    writeFileSync(
+      seedPath,
+      JSON.stringify(
+        {
+          env: { PAI_DIR: "$" + "{PAI_DIR}" },
+          hooks: {
+            UserPromptSubmit: [{ hooks: [{ type: "command", command: "$" + "{PAI_DIR}/hooks/seed-only.hook.ts" }] }],
+          },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    mergeClaudeHooksSeedIntoSettingsJson({ targetDir: root, sourceSeedPath: seedPath });
+
+    const merged = readJson(settingsPath);
+    expect(merged.theme).toBe("dark");
+    const hooks = merged.hooks as Record<string, unknown>;
+    expect(hooks.SessionStart).toBeUndefined();
+    expect((hooks.UserPromptSubmit as Array<{ hooks?: Array<{ command?: string }> }>)[0]?.hooks?.[0]?.command).toBe(
+      `${root}/hooks/seed-only.hook.ts`,
+    );
+  });
+
   test("throws when source seed file is missing", () => {
     const root = createRoot();
     const settingsPath = path.join(root, "settings.json");
