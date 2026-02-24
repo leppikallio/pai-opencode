@@ -19,6 +19,10 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
+function writeLockFile(lockPath: string, ownerId: string, createdAt: number): void {
+  fs.writeFileSync(lockPath, JSON.stringify({ ownerId, createdAt }) + "\n", "utf-8");
+}
+
 describe("cmux session map", () => {
   test("default path helper uses provided homeDir", () => {
     const homeDir = "/tmp/cmux-home";
@@ -73,9 +77,7 @@ describe("cmux session map", () => {
     const lockPath = `${statePath}.lock`;
 
     fs.mkdirSync(path.dirname(lockPath), { recursive: true });
-    fs.writeFileSync(lockPath, "stale", "utf-8");
-    const staleSeconds = (Date.now() - 20_000) / 1000;
-    fs.utimesSync(lockPath, staleSeconds, staleSeconds);
+    writeLockFile(lockPath, "stale-owner", Date.now() - 20_000);
 
     await upsertSessionMapping({
       statePath,
@@ -131,7 +133,7 @@ describe("cmux session map", () => {
     }
 
     while (!finished) {
-      fs.writeFileSync(lockPath, "intruder-owner\n", "utf-8");
+      writeLockFile(lockPath, "intruder-owner", Date.now());
       await sleep(2);
     }
 
@@ -139,6 +141,79 @@ describe("cmux session map", () => {
 
     expect(fs.existsSync(lockPath)).toBe(true);
     fs.unlinkSync(lockPath);
+  });
+
+  test("non-stale lock is not evicted and acquire times out quickly", async () => {
+    const root = createTempRoot("cmux-non-stale-");
+    const statePath = path.join(root, "opencode-hook-sessions.json");
+    const lockPath = `${statePath}.lock`;
+    writeLockFile(lockPath, "live-owner", Date.now());
+
+    const previousMaxWait = process.env.PAI_CMUX_SESSION_MAP_LOCK_MAX_WAIT_MS;
+    process.env.PAI_CMUX_SESSION_MAP_LOCK_MAX_WAIT_MS = "60";
+    try {
+      await expect(
+        upsertSessionMapping({
+          statePath,
+          sessionId: "ses_blocked",
+          workspaceId: "workspace-blocked",
+          surfaceId: "surface-blocked",
+        }),
+      ).rejects.toThrow("Failed to acquire cmux session map lock");
+    } finally {
+      if (previousMaxWait === undefined) {
+        delete process.env.PAI_CMUX_SESSION_MAP_LOCK_MAX_WAIT_MS;
+      } else {
+        process.env.PAI_CMUX_SESSION_MAP_LOCK_MAX_WAIT_MS = previousMaxWait;
+      }
+    }
+
+    expect(fs.existsSync(lockPath)).toBe(true);
+    const staleArtifacts = fs
+      .readdirSync(root)
+      .filter((name) => name.startsWith("opencode-hook-sessions.json.lock.stale."));
+    expect(staleArtifacts.length).toBe(0);
+  });
+
+  test("forced non-stale rename rolls lock back", async () => {
+    const root = createTempRoot("cmux-rollback-");
+    const statePath = path.join(root, "opencode-hook-sessions.json");
+    const lockPath = `${statePath}.lock`;
+    const originalCreatedAt = Date.now();
+    writeLockFile(lockPath, "live-owner", originalCreatedAt);
+
+    const previousMaxWait = process.env.PAI_CMUX_SESSION_MAP_LOCK_MAX_WAIT_MS;
+    const previousForceRename = process.env.PAI_CMUX_SESSION_MAP_TEST_FORCE_RENAME_NON_STALE;
+    process.env.PAI_CMUX_SESSION_MAP_LOCK_MAX_WAIT_MS = "60";
+    process.env.PAI_CMUX_SESSION_MAP_TEST_FORCE_RENAME_NON_STALE = "1";
+
+    try {
+      await expect(
+        upsertSessionMapping({
+          statePath,
+          sessionId: "ses_rollback",
+          workspaceId: "workspace-rollback",
+          surfaceId: "surface-rollback",
+        }),
+      ).rejects.toThrow("Failed to acquire cmux session map lock");
+    } finally {
+      if (previousMaxWait === undefined) {
+        delete process.env.PAI_CMUX_SESSION_MAP_LOCK_MAX_WAIT_MS;
+      } else {
+        process.env.PAI_CMUX_SESSION_MAP_LOCK_MAX_WAIT_MS = previousMaxWait;
+      }
+
+      if (previousForceRename === undefined) {
+        delete process.env.PAI_CMUX_SESSION_MAP_TEST_FORCE_RENAME_NON_STALE;
+      } else {
+        process.env.PAI_CMUX_SESSION_MAP_TEST_FORCE_RENAME_NON_STALE = previousForceRename;
+      }
+    }
+
+    const lockRaw = fs.readFileSync(lockPath, "utf-8");
+    const lock = JSON.parse(lockRaw) as { ownerId: string; createdAt: number };
+    expect(lock.ownerId).toBe("live-owner");
+    expect(lock.createdAt).toBe(originalCreatedAt);
   });
 
   test("concurrent upserts keep valid JSON and retain all sessions", async () => {

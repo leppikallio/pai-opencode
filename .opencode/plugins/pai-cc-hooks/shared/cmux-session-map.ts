@@ -19,6 +19,14 @@ export type StoreV1 = {
 const LOCK_STALE_MS = 10_000;
 const LOCK_MAX_RETRIES = 50;
 const LOCK_BASE_DELAY_MS = 10;
+const LOCK_DEFAULT_MAX_WAIT_MS = 5_000;
+const LOCK_MAX_WAIT_ENV = "PAI_CMUX_SESSION_MAP_LOCK_MAX_WAIT_MS";
+const LOCK_FORCE_RENAME_NON_STALE_ENV = "PAI_CMUX_SESSION_MAP_TEST_FORCE_RENAME_NON_STALE";
+
+type LockFileV1 = {
+  ownerId: string;
+  createdAt: number;
+};
 
 type LockHandle = {
   fileHandle: fs.promises.FileHandle;
@@ -37,6 +45,24 @@ function getLockRetryDelay(attempt: number): number {
   return Math.min(100, LOCK_BASE_DELAY_MS * (attempt + 1));
 }
 
+function getLockMaxWaitMs(): number {
+  const raw = process.env[LOCK_MAX_WAIT_ENV];
+  if (!raw) {
+    return LOCK_DEFAULT_MAX_WAIT_MS;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return LOCK_DEFAULT_MAX_WAIT_MS;
+  }
+
+  return parsed;
+}
+
+function shouldForceRenameNonStaleLockForTest(): boolean {
+  return process.env[LOCK_FORCE_RENAME_NON_STALE_ENV] === "1";
+}
+
 function createLockOwnerId(): string {
   return `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -45,17 +71,30 @@ function buildStaleLockPath(lockPath: string, ownerId: string): string {
   return `${lockPath}.stale.${ownerId}.${Date.now()}`;
 }
 
+function isLockFileV1(value: unknown): value is LockFileV1 {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const maybe = value as Partial<LockFileV1>;
+  return typeof maybe.ownerId === "string" && Number.isFinite(maybe.createdAt);
+}
+
+function isStaleLockFile(lockFile: LockFileV1): boolean {
+  return Date.now() - lockFile.createdAt > LOCK_STALE_MS;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
 }
 
-async function readLockOwnerId(lockPath: string): Promise<string | null> {
+async function readLockFile(lockPath: string): Promise<LockFileV1 | null> {
   try {
     const raw = await fs.promises.readFile(lockPath, "utf-8");
-    const ownerId = raw.trim();
-    return ownerId.length > 0 ? ownerId : null;
+    const parsed = JSON.parse(raw);
+    return isLockFileV1(parsed) ? parsed : null;
   } catch (error) {
     if (isMissingFileError(error)) {
       return null;
@@ -64,17 +103,27 @@ async function readLockOwnerId(lockPath: string): Promise<string | null> {
   }
 }
 
-async function maybeEvictStaleLock(lockPath: string, ownerId: string): Promise<void> {
+async function pathExists(filePath: string): Promise<boolean> {
   try {
-    const stat = await fs.promises.stat(lockPath);
-    if (Date.now() - stat.mtimeMs <= LOCK_STALE_MS) {
-      return;
-    }
+    await fs.promises.stat(filePath);
+    return true;
   } catch (error) {
     if (isMissingFileError(error)) {
-      return;
+      return false;
     }
     throw error;
+  }
+}
+
+async function maybeEvictStaleLock(lockPath: string, ownerId: string): Promise<boolean> {
+  const lockFileBeforeRename = await readLockFile(lockPath);
+  if (!lockFileBeforeRename) {
+    return false;
+  }
+
+  const staleBeforeRename = isStaleLockFile(lockFileBeforeRename);
+  if (!staleBeforeRename && !shouldForceRenameNonStaleLockForTest()) {
+    return false;
   }
 
   const stalePath = buildStaleLockPath(lockPath, ownerId);
@@ -82,19 +131,40 @@ async function maybeEvictStaleLock(lockPath: string, ownerId: string): Promise<v
     await fs.promises.rename(lockPath, stalePath);
   } catch (error) {
     if (isErrnoException(error) && (error.code === "ENOENT" || error.code === "EEXIST")) {
-      return;
+      return false;
     }
     throw error;
   }
+
+  const lockFileAfterRename = await readLockFile(stalePath);
+  if (lockFileAfterRename && isStaleLockFile(lockFileAfterRename)) {
+    return true;
+  }
+
+  if (!(await pathExists(lockPath))) {
+    try {
+      await fs.promises.rename(stalePath, lockPath);
+    } catch (error) {
+      if (isMissingFileError(error)) {
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  return false;
 }
 
 async function acquireLock(lockPath: string): Promise<LockHandle> {
   const ownerId = createLockOwnerId();
+  const lockFile: LockFileV1 = { ownerId, createdAt: Date.now() };
+  const startedAt = Date.now();
+  const maxWaitMs = getLockMaxWaitMs();
 
   for (let attempt = 0; attempt <= LOCK_MAX_RETRIES; attempt += 1) {
     try {
       const fileHandle = await fs.promises.open(lockPath, "wx");
-      await fileHandle.writeFile(`${ownerId}\n`, "utf-8");
+      await fileHandle.writeFile(`${JSON.stringify(lockFile)}\n`, "utf-8");
       await fileHandle.sync();
       return { fileHandle, ownerId };
     } catch (error) {
@@ -104,11 +174,12 @@ async function acquireLock(lockPath: string): Promise<LockHandle> {
 
       await maybeEvictStaleLock(lockPath, ownerId);
 
-      if (attempt === LOCK_MAX_RETRIES) {
+      if (attempt === LOCK_MAX_RETRIES || Date.now() - startedAt >= maxWaitMs) {
         throw new Error(`Failed to acquire cmux session map lock: ${lockPath}`);
       }
 
-      await sleep(getLockRetryDelay(attempt));
+      const remainingMs = maxWaitMs - (Date.now() - startedAt);
+      await sleep(Math.min(getLockRetryDelay(attempt), Math.max(1, remainingMs)));
     }
   }
 
@@ -119,8 +190,8 @@ async function releaseLock(lockPath: string, lockHandle: LockHandle): Promise<vo
   try {
     await lockHandle.fileHandle.close();
   } finally {
-    const currentOwner = await readLockOwnerId(lockPath);
-    if (currentOwner !== lockHandle.ownerId) {
+    const currentLockFile = await readLockFile(lockPath);
+    if (!currentLockFile || currentLockFile.ownerId !== lockHandle.ownerId) {
       return;
     }
 
