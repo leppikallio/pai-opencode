@@ -33,6 +33,7 @@ export type BackgroundTaskRecord = {
   parent_session_id: string;
   launched_at_ms: number;
   updated_at_ms: number;
+  completed_at_ms?: number;
   launch_error?: string;
   launch_error_at_ms?: number;
 };
@@ -55,6 +56,16 @@ export type RecordBackgroundTaskLaunchArgs = {
 export type RecordBackgroundTaskLaunchErrorArgs = {
   taskId: string;
   errorMessage: string;
+  nowMs?: number;
+};
+
+export type FindBackgroundTaskByChildSessionIdArgs = {
+  childSessionId: string;
+  nowMs?: number;
+};
+
+export type MarkBackgroundTaskCompletedArgs = {
+  taskId: string;
   nowMs?: number;
 };
 
@@ -134,6 +145,7 @@ function coerceBackgroundTaskRecord(value: unknown): BackgroundTaskRecord | null
   const parentSessionId = asString(value.parent_session_id);
   const launchedAtMs = asFiniteNumber(value.launched_at_ms);
   const updatedAtMs = asFiniteNumber(value.updated_at_ms);
+  const completedAtMs = asFiniteNumber(value.completed_at_ms) ?? undefined;
 
   if (!taskId || !childSessionId || !parentSessionId || launchedAtMs == null || updatedAtMs == null) {
     return null;
@@ -149,6 +161,7 @@ function coerceBackgroundTaskRecord(value: unknown): BackgroundTaskRecord | null
     parent_session_id: parentSessionId,
     launched_at_ms: launchedAtMs,
     updated_at_ms: updatedAtMs,
+    completed_at_ms: completedAtMs,
     launch_error: hasLaunchErrorPair ? launchError : undefined,
     launch_error_at_ms: hasLaunchErrorPair ? launchErrorAtMs : undefined,
   };
@@ -593,5 +606,63 @@ export async function recordBackgroundTaskLaunchError(args: RecordBackgroundTask
     pruneState(state, nowMs);
 
     await writeState(statePath, state);
+  });
+}
+
+export async function findBackgroundTaskByChildSessionId(
+  args: FindBackgroundTaskByChildSessionIdArgs,
+): Promise<BackgroundTaskRecord | null> {
+  const childSessionId = args.childSessionId.trim();
+  if (!childSessionId) {
+    return null;
+  }
+
+  const nowMs = normalizeNowMs(args.nowMs);
+  const statePath = getBackgroundTaskStatePath();
+
+  return withStateLock(statePath, async () => {
+    const state = await readState(statePath, nowMs);
+    pruneState(state, nowMs);
+
+    for (const record of Object.values(state.backgroundTasks)) {
+      if (record.child_session_id === childSessionId) {
+        return { ...record };
+      }
+    }
+
+    return null;
+  });
+}
+
+export async function markBackgroundTaskCompleted(args: MarkBackgroundTaskCompletedArgs): Promise<BackgroundTaskRecord | null> {
+  const taskId = args.taskId.trim();
+  if (!taskId) {
+    return null;
+  }
+
+  const nowMs = normalizeNowMs(args.nowMs);
+  const statePath = getBackgroundTaskStatePath();
+
+  return withStateLock(statePath, async () => {
+    const state = await readState(statePath, nowMs);
+    pruneState(state, nowMs);
+
+    const existing = state.backgroundTasks[taskId];
+    if (!existing) {
+      return null;
+    }
+
+    const updated: BackgroundTaskRecord = {
+      ...existing,
+      completed_at_ms: existing.completed_at_ms ?? nowMs,
+      updated_at_ms: nowMs,
+    };
+
+    state.backgroundTasks[taskId] = updated;
+    state.updatedAtMs = nowMs;
+    pruneState(state, nowMs);
+
+    await writeState(statePath, state);
+    return { ...updated };
   });
 }

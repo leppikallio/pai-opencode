@@ -6,6 +6,13 @@ import { executeStopHooks, setStopHookActive } from "./claude/stop";
 import type { ClaudeHooksConfig, SessionEndInput, SessionStartInput } from "./claude/types";
 import { executeHookCommand } from "./shared/execute-hook-command";
 import { findMatchingHooks } from "./shared/pattern-matcher";
+import { notify as notifyCmuxDefault } from "./shared/cmux-adapter";
+import {
+  findBackgroundTaskByChildSessionId as findBackgroundTaskByChildSessionIdDefault,
+  markBackgroundTaskCompleted as markBackgroundTaskCompletedDefault,
+  markNotified as markNotifiedDefault,
+  type BackgroundTaskRecord,
+} from "./tools/background-task-state";
 
 type EventHookHandler = (input: unknown) => Promise<void>;
 type HookHandler = (input: unknown, output: unknown) => Promise<void>;
@@ -13,6 +20,16 @@ type SessionGetFn = (args: { path: { id: string } }) => Promise<unknown>;
 
 type UnknownRecord = Record<string, unknown>;
 type SessionLifecycleEventName = "SessionStart" | "SessionEnd";
+type CmuxNotifyFn = (args: { sessionId: string; title: string; subtitle: string; body: string }) => Promise<void>;
+type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<unknown>;
+
+type BackgroundCompletionDeps = {
+  findBackgroundTaskByChildSessionId: (args: { childSessionId: string }) => Promise<BackgroundTaskRecord | null>;
+  markBackgroundTaskCompleted: (args: { taskId: string; nowMs?: number }) => Promise<BackgroundTaskRecord | null>;
+  markNotified: (taskId: string, nowMs?: number) => Promise<boolean>;
+  notifyCmux: CmuxNotifyFn;
+  fetchImpl: FetchLike;
+};
 
 const DEFAULT_HOOK_COMMAND_CONFIG = {
   forceZsh: process.platform !== "win32",
@@ -132,6 +149,68 @@ function getSessionGetFromContext(ctx: unknown): SessionGetFn | undefined {
   return typeof get === "function" ? (get as SessionGetFn) : undefined;
 }
 
+async function emitBackgroundTaskCompletionNotifications(args: {
+  taskRecord: BackgroundTaskRecord;
+  deps: BackgroundCompletionDeps;
+}): Promise<void> {
+  const notifySessionId = args.taskRecord.parent_session_id || args.taskRecord.child_session_id;
+  const title = "OpenCode";
+  const subtitle = "Background task";
+  const body = `Task ${args.taskRecord.task_id} completed`;
+
+  try {
+    await args.deps.notifyCmux({
+      sessionId: notifySessionId,
+      title,
+      subtitle,
+      body,
+    });
+  } catch {
+    // Best effort by design.
+  }
+
+  const voiceNotifyUrl = process.env.PAI_VOICE_NOTIFY_URL?.trim();
+  if (!voiceNotifyUrl) {
+    return;
+  }
+
+  try {
+    await args.deps.fetchImpl(voiceNotifyUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        event: "background_task.completed",
+        task_id: args.taskRecord.task_id,
+        child_session_id: args.taskRecord.child_session_id,
+        parent_session_id: args.taskRecord.parent_session_id,
+      }),
+    });
+  } catch {
+    // Best effort by design.
+  }
+}
+
+async function maybeHandleBackgroundTaskCompletion(args: {
+  sessionId: string;
+  deps: BackgroundCompletionDeps;
+}): Promise<void> {
+  const taskRecord = await args.deps.findBackgroundTaskByChildSessionId({ childSessionId: args.sessionId });
+  if (!taskRecord) {
+    return;
+  }
+
+  await args.deps.markBackgroundTaskCompleted({ taskId: taskRecord.task_id });
+
+  const shouldNotify = await args.deps.markNotified(taskRecord.task_id);
+  if (!shouldNotify) {
+    return;
+  }
+
+  await emitBackgroundTaskCompletionNotifications({ taskRecord, deps: args.deps });
+}
+
 async function executeSessionLifecycleHooks(
   args: {
     sessionId: string;
@@ -190,7 +269,13 @@ function getSettingsPromise(): Promise<LoadedClaudeHookSettings> {
   return settingsPromise as Promise<LoadedClaudeHookSettings>;
 }
 
-export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
+export function createPaiClaudeHooks({
+  ctx,
+  deps,
+}: {
+  ctx: unknown;
+  deps?: Partial<BackgroundCompletionDeps>;
+}): {
   event: EventHookHandler;
   "chat.message": HookHandler;
   "tool.execute.before": HookHandler;
@@ -198,6 +283,14 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
 } {
   const parentSessionIdCache = new Map<string, string | null>();
   const sessionGet = getSessionGetFromContext(ctx);
+  const backgroundCompletionDeps: BackgroundCompletionDeps = {
+    findBackgroundTaskByChildSessionId:
+      deps?.findBackgroundTaskByChildSessionId ?? findBackgroundTaskByChildSessionIdDefault,
+    markBackgroundTaskCompleted: deps?.markBackgroundTaskCompleted ?? markBackgroundTaskCompletedDefault,
+    markNotified: deps?.markNotified ?? markNotifiedDefault,
+    notifyCmux: deps?.notifyCmux ?? notifyCmuxDefault,
+    fetchImpl: deps?.fetchImpl ?? ((url, init) => fetch(url, init)),
+  };
 
   const resolveParentSessionId = async (
     sessionId: string,
@@ -281,6 +374,11 @@ export function createPaiClaudeHooks({ ctx }: { ctx: unknown }): {
         parentSessionIdCache.delete(sessionId);
         return;
       }
+
+      await maybeHandleBackgroundTaskCompletion({
+        sessionId,
+        deps: backgroundCompletionDeps,
+      });
 
       const result = await executeStopHooks(
         {
