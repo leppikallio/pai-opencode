@@ -652,6 +652,10 @@ export async function markBackgroundTaskCompleted(args: MarkBackgroundTaskComple
       return null;
     }
 
+    if (existing.completed_at_ms != null) {
+      return { ...existing };
+    }
+
     const updated: BackgroundTaskRecord = {
       ...existing,
       completed_at_ms: existing.completed_at_ms ?? nowMs,

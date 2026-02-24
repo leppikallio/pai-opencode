@@ -21,7 +21,7 @@ type SessionGetFn = (args: { path: { id: string } }) => Promise<unknown>;
 type UnknownRecord = Record<string, unknown>;
 type SessionLifecycleEventName = "SessionStart" | "SessionEnd";
 type CmuxNotifyFn = (args: { sessionId: string; title: string; subtitle: string; body: string }) => Promise<void>;
-type FetchLike = (url: string, init?: { method?: string; headers?: Record<string, string>; body?: string }) => Promise<unknown>;
+type FetchLike = (url: string, init?: RequestInit) => Promise<unknown>;
 
 type BackgroundCompletionDeps = {
   findBackgroundTaskByChildSessionId: (args: { childSessionId: string }) => Promise<BackgroundTaskRecord | null>;
@@ -170,12 +170,13 @@ async function emitBackgroundTaskCompletionNotifications(args: {
   }
 
   const voiceNotifyUrl = process.env.PAI_VOICE_NOTIFY_URL?.trim();
-  if (!voiceNotifyUrl) {
-    return;
-  }
+  if (!voiceNotifyUrl) return;
 
-  try {
-    await args.deps.fetchImpl(voiceNotifyUrl, {
+  const abortController = typeof AbortController === "function" ? new AbortController() : null;
+  const timeout = setTimeout(() => abortController?.abort(), 1_000);
+
+  void args.deps
+    .fetchImpl(voiceNotifyUrl, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -186,10 +187,14 @@ async function emitBackgroundTaskCompletionNotifications(args: {
         child_session_id: args.taskRecord.child_session_id,
         parent_session_id: args.taskRecord.parent_session_id,
       }),
+      signal: abortController?.signal,
+    })
+    .catch(() => {
+      // Best effort by design.
+    })
+    .finally(() => {
+      clearTimeout(timeout);
     });
-  } catch {
-    // Best effort by design.
-  }
 }
 
 async function maybeHandleBackgroundTaskCompletion(args: {
@@ -201,14 +206,17 @@ async function maybeHandleBackgroundTaskCompletion(args: {
     return;
   }
 
-  await args.deps.markBackgroundTaskCompleted({ taskId: taskRecord.task_id });
-
   const shouldNotify = await args.deps.markNotified(taskRecord.task_id);
   if (!shouldNotify) {
     return;
   }
 
-  await emitBackgroundTaskCompletionNotifications({ taskRecord, deps: args.deps });
+  const completedTask = await args.deps.markBackgroundTaskCompleted({ taskId: taskRecord.task_id });
+  if (!completedTask) {
+    return;
+  }
+
+  await emitBackgroundTaskCompletionNotifications({ taskRecord: completedTask, deps: args.deps });
 }
 
 async function executeSessionLifecycleHooks(
@@ -375,10 +383,17 @@ export function createPaiClaudeHooks({
         return;
       }
 
-      await maybeHandleBackgroundTaskCompletion({
-        sessionId,
-        deps: backgroundCompletionDeps,
-      });
+      try {
+        await maybeHandleBackgroundTaskCompletion({
+          sessionId,
+          deps: backgroundCompletionDeps,
+        });
+      } catch (error) {
+        if (process.env.PAI_CC_HOOKS_DEBUG === "1") {
+          const reason = error instanceof Error ? error.message : String(error);
+          console.warn(`[pai-cc-hooks] session.idle background completion failed: ${reason}`);
+        }
+      }
 
       const result = await executeStopHooks(
         {

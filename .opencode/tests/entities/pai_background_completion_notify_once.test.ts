@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -7,7 +7,10 @@ import {
   __resetPaiCcHooksSettingsCacheForTests,
   createPaiClaudeHooks,
 } from "../../plugins/pai-cc-hooks/hook";
-import { recordBackgroundTaskLaunch } from "../../plugins/pai-cc-hooks/tools/background-task-state";
+import {
+  getBackgroundTaskStatePath,
+  recordBackgroundTaskLaunch,
+} from "../../plugins/pai-cc-hooks/tools/background-task-state";
 
 function writeJson(filePath: string, value: unknown): void {
   writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
@@ -81,7 +84,19 @@ describe("pai-cc-hooks background completion notifications", () => {
       };
 
       await hooks.event(idleEvent);
+      const statePath = getBackgroundTaskStatePath();
+      const stateAfterFirstRaw = readFileSync(statePath, "utf-8");
+      const stateAfterFirst = JSON.parse(stateAfterFirstRaw) as {
+        backgroundTasks?: Record<string, { completed_at_ms?: number }>;
+      };
+      const firstCompletedAt = stateAfterFirst.backgroundTasks?.task_child_123?.completed_at_ms;
+      expect(typeof firstCompletedAt).toBe("number");
+
       await hooks.event(idleEvent);
+      const stateAfterSecondRaw = readFileSync(statePath, "utf-8");
+      const stateAfterSecond = JSON.parse(stateAfterSecondRaw) as {
+        backgroundTasks?: Record<string, { completed_at_ms?: number }>;
+      };
 
       expect(cmuxNotifyCalls).toHaveLength(1);
       expect(cmuxNotifyCalls[0]).toMatchObject({
@@ -91,6 +106,9 @@ describe("pai-cc-hooks background completion notifications", () => {
       expect(voiceNotifyCalls).toHaveLength(1);
       expect(voiceNotifyCalls[0].url).toBe("https://voice.example.test/notify");
       expect(voiceNotifyCalls[0].init?.method).toBe("POST");
+
+      expect(stateAfterSecondRaw).toBe(stateAfterFirstRaw);
+      expect(stateAfterSecond.backgroundTasks?.task_child_123?.completed_at_ms).toBe(firstCompletedAt);
     } finally {
       restoreEnv("PAI_CC_HOOKS_CONFIG_ROOT", prevConfigRoot);
       restoreEnv("PAI_DIR", prevPaiDir);
