@@ -7,7 +7,6 @@ import { mergeSeedHooksIntoRuntimeSettings } from "../../tools/pai-install/merge
 
 function createRoot(): string {
   const root = mkdtempSync(path.join(os.tmpdir(), "pai-install-merge-hooks-"));
-  mkdirSync(path.join(root, "config"), { recursive: true });
   mkdirSync(path.join(root, "BACKUPS"), { recursive: true });
   return root;
 }
@@ -23,7 +22,7 @@ function readJson(filePath: string): Record<string, unknown> {
 describe("mergeSeedHooksIntoRuntimeSettings", () => {
   test("merges seed env/hooks, enforces env.PAI_DIR, rewrites commands, and creates backup", () => {
     const targetDir = createRoot();
-    const sourceSeedPath = path.join(targetDir, "config", "claude-hooks.settings.json");
+    const sourceSeedPath = path.join(targetDir, "seed-settings.json");
     const settingsPath = path.join(targetDir, "settings.json");
 
     writeJson(sourceSeedPath, {
@@ -103,7 +102,7 @@ describe("mergeSeedHooksIntoRuntimeSettings", () => {
 
   test("is idempotent across repeated installs (no duplicate hook entries)", () => {
     const targetDir = createRoot();
-    const sourceSeedPath = path.join(targetDir, "config", "claude-hooks.settings.json");
+    const sourceSeedPath = path.join(targetDir, "seed-settings.json");
     const settingsPath = path.join(targetDir, "settings.json");
 
     writeJson(sourceSeedPath, {

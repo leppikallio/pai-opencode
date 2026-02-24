@@ -5,7 +5,7 @@ import { loadClaudeHookSettings } from "../../plugins/pai-cc-hooks/claude/config
 
 describe("loadClaudeHookSettings", () => {
   test("loads SessionStart and SessionEnd hook config entries", async () => {
-    const settingsPath = fileURLToPath(new URL("../../config/claude-hooks.settings.json", import.meta.url));
+    const settingsPath = fileURLToPath(new URL("../../settings.json", import.meta.url));
 
     const settings = await loadClaudeHookSettings(settingsPath);
 

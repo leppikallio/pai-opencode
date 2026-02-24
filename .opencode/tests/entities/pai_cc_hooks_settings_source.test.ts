@@ -45,7 +45,7 @@ async function withConfigRoot<T>(root: string, run: () => Promise<T>): Promise<T
 }
 
 describe("hook settings source", () => {
-  test("does not merge fallback hooks/env when <opencodeRoot>/settings.json is usable", async () => {
+  test("loads hooks/env only from <opencodeRoot>/settings.json (ignores legacy config file)", async () => {
     const root = createConfigRoot();
     writeFallbackSettings(root);
 
@@ -73,7 +73,7 @@ describe("hook settings source", () => {
     });
   });
 
-  test("merges fallback hooks/env when <opencodeRoot>/settings.json is empty JSON", async () => {
+  test("does not load legacy hooks/env when <opencodeRoot>/settings.json is empty JSON", async () => {
     const root = createConfigRoot();
     writeFallbackSettings(root);
     writeFileSync(path.join(root, "settings.json"), "{}", "utf8");
@@ -81,14 +81,12 @@ describe("hook settings source", () => {
     await withConfigRoot(root, async () => {
       const loaded = await loadClaudeHookSettings();
       expect(loaded.env.PAI_DIR).toBe(root);
-      expect(loaded.env.LEGACY_ONLY).toBe("seed");
-      expect(loaded.hooks?.UserPromptSubmit?.length).toBe(1);
-      expect(loaded.hooks?.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe("legacy-submit");
-      expect(loaded.hooks?.Stop?.[0]?.hooks?.[0]?.command).toBe("legacy-stop");
+      expect(loaded.env.LEGACY_ONLY).toBeUndefined();
+      expect(loaded.hooks).toBeNull();
     });
   });
 
-  test("merges fallback hooks/env when <opencodeRoot>/settings.json is malformed JSON", async () => {
+  test("does not load legacy hooks/env when <opencodeRoot>/settings.json is malformed JSON", async () => {
     const root = createConfigRoot();
     writeFallbackSettings(root);
     writeFileSync(path.join(root, "settings.json"), "{", "utf8");
@@ -96,10 +94,8 @@ describe("hook settings source", () => {
     await withConfigRoot(root, async () => {
       const loaded = await loadClaudeHookSettings();
       expect(loaded.env.PAI_DIR).toBe(root);
-      expect(loaded.env.LEGACY_ONLY).toBe("seed");
-      expect(loaded.hooks?.UserPromptSubmit?.length).toBe(1);
-      expect(loaded.hooks?.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe("legacy-submit");
-      expect(loaded.hooks?.Stop?.[0]?.hooks?.[0]?.command).toBe("legacy-stop");
+      expect(loaded.env.LEGACY_ONLY).toBeUndefined();
+      expect(loaded.hooks).toBeNull();
     });
   });
 });

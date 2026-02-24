@@ -1,6 +1,5 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ClaudeHooksConfig, HookCommand, HookMatcher } from "./types";
@@ -75,27 +74,11 @@ function normalizeEnvConfig(raw: Record<string, unknown> | undefined): Record<st
   return normalized;
 }
 
-function isNonArrayObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function hasUsableSettingsPayload(settings: RawClaudeSettings): boolean {
-  const hasHooks = isNonArrayObject(settings.hooks) && Object.keys(settings.hooks).length > 0;
-  const hasEnv = isNonArrayObject(settings.env) && Object.keys(settings.env).length > 0;
-  return hasHooks || hasEnv;
-}
-
 export function getClaudeSettingsPaths(customPath?: string): string[] {
   const opencodeRoot = getOpencodeRoot();
-  const paths = [
-    join(opencodeRoot, "settings.json"),
-    join(opencodeRoot, "config", "claude-hooks.settings.json"),
-    join(process.cwd(), ".claude", "settings.json"),
-    join(process.cwd(), ".claude", "settings.local.json"),
-    join(homedir(), ".claude", "settings.json"),
-  ];
+  const paths = [join(opencodeRoot, "settings.json")];
 
-  if (customPath && existsSync(customPath)) {
+  if (customPath && existsSync(customPath) && basename(customPath) === "settings.json") {
     paths.push(customPath);
   }
 
@@ -122,25 +105,6 @@ function logParseFailure(settingsPath: string, error: unknown): void {
 
   const reason = error instanceof Error ? error.message : String(error);
   console.warn(`[pai-cc-hooks] Failed to parse JSON in ${settingsPath}: ${reason}`);
-}
-
-function mergeHooksConfig(base: ClaudeHooksConfig, override: ClaudeHooksConfig): ClaudeHooksConfig {
-  const result: ClaudeHooksConfig = { ...base };
-  const eventTypes: (keyof ClaudeHooksConfig)[] = [
-    "PreToolUse",
-    "PostToolUse",
-    "UserPromptSubmit",
-    "SessionStart",
-    "SessionEnd",
-    "Stop",
-    "PreCompact",
-  ];
-  for (const eventType of eventTypes) {
-    if (override[eventType]) {
-      result[eventType] = [...(base[eventType] || []), ...override[eventType]];
-    }
-  }
-  return result;
 }
 
 export async function loadClaudeHooksConfig(customSettingsPath?: string): Promise<ClaudeHooksConfig | null> {
@@ -191,44 +155,15 @@ export async function loadClaudeHookSettings(customSettingsPath?: string): Promi
   const opencodeRoot = getOpencodeRoot();
   const opencodeSettingsPath = join(opencodeRoot, "settings.json");
 
-  if (customSettingsPath) {
-    const customSettings = await readRawSettings(customSettingsPath);
-    if (customSettings && hasUsableSettingsPayload(customSettings)) {
-      const hooks = customSettings.hooks ? normalizeHooksConfig(customSettings.hooks) : {};
-      const env = normalizeEnvConfig(customSettings.env);
-      return finalizeLoadedSettings(hooks, env, opencodeRoot);
-    }
-  }
+  const requestedPath =
+    customSettingsPath && basename(customSettingsPath) === "settings.json" ? customSettingsPath : undefined;
 
-  const opencodeSettings = await readRawSettings(opencodeSettingsPath);
-  if (opencodeSettings && hasUsableSettingsPayload(opencodeSettings)) {
-    const hooks = opencodeSettings.hooks ? normalizeHooksConfig(opencodeSettings.hooks) : {};
-    const env = normalizeEnvConfig(opencodeSettings.env);
-    return finalizeLoadedSettings(hooks, env, opencodeRoot);
-  }
+  const settingsPath = requestedPath ?? opencodeSettingsPath;
+  const settings = await readRawSettings(settingsPath);
 
-  const fallbackPaths = getClaudeSettingsPaths(customSettingsPath).filter((settingsPath) => settingsPath !== opencodeSettingsPath);
-  let mergedConfig: ClaudeHooksConfig = {};
-  let mergedEnv: Record<string, string> = {};
-
-  for (const settingsPath of fallbackPaths) {
-    const settings = await readRawSettings(settingsPath);
-    if (!settings) {
-      continue;
-    }
-
-    if (settings.hooks) {
-      const normalizedHooks = normalizeHooksConfig(settings.hooks);
-      mergedConfig = mergeHooksConfig(mergedConfig, normalizedHooks);
-    }
-
-    mergedEnv = {
-      ...mergedEnv,
-      ...normalizeEnvConfig(settings.env),
-    };
-  }
-
-  return finalizeLoadedSettings(mergedConfig, mergedEnv, opencodeRoot);
+  const hooks = settings?.hooks ? normalizeHooksConfig(settings.hooks) : {};
+  const env = normalizeEnvConfig(settings?.env);
+  return finalizeLoadedSettings(hooks, env, opencodeRoot);
 }
 
 export type { ClaudeHooksConfig } from "./types";

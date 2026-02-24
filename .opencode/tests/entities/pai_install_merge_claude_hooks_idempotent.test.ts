@@ -7,7 +7,6 @@ import { mergeClaudeHooksSeedIntoSettingsJson } from "../../../Tools/pai-install
 
 function createRoot(): string {
   const root = mkdtempSync(path.join(os.tmpdir(), "pai-install-"));
-  mkdirSync(path.join(root, "config"), { recursive: true });
   mkdirSync(path.join(root, "BACKUPS"), { recursive: true });
   return root;
 }
@@ -17,10 +16,10 @@ function readJson(p: string): Record<string, unknown> {
 }
 
 describe("mergeClaudeHooksSeedIntoSettingsJson", () => {
-  test("is idempotent and rewrites only ${PAI_DIR}/ occurrences", () => {
+  test("is idempotent and rewrites only PAI_DIR placeholders", () => {
     const root = createRoot();
     const settingsPath = path.join(root, "settings.json");
-    const seedPath = path.join(root, "config", "claude-hooks.settings.json");
+    const seedPath = path.join(root, "seed-settings.json");
     const paiDirPlaceholder = "$" + "{PAI_DIR}";
     const paiDirPrefix = `${paiDirPlaceholder}/`;
 
@@ -74,7 +73,7 @@ describe("mergeClaudeHooksSeedIntoSettingsJson", () => {
     const settingsPath = path.join(root, "settings.json");
     writeFileSync(settingsPath, JSON.stringify({ theme: "dark", hooks: {} }, null, 2));
 
-    const missingSeedPath = path.join(root, "config", "missing-seed.settings.json");
+    const missingSeedPath = path.join(root, "missing-seed.settings.json");
     expect(() => {
       mergeClaudeHooksSeedIntoSettingsJson({ targetDir: root, sourceSeedPath: missingSeedPath });
     }).toThrow(`Claude hooks seed file not found: ${missingSeedPath}`);
@@ -82,7 +81,7 @@ describe("mergeClaudeHooksSeedIntoSettingsJson", () => {
 
   test("reports null backupPath when settings file did not exist", () => {
     const root = createRoot();
-    const seedPath = path.join(root, "config", "claude-hooks.settings.json");
+    const seedPath = path.join(root, "seed-settings.json");
     const paiDirPlaceholder = "$" + "{PAI_DIR}";
     const paiDirPrefix = `${paiDirPlaceholder}/`;
 

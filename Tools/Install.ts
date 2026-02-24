@@ -2016,17 +2016,25 @@ async function sync(mode: Mode, opts: Options) {
     copyFile(src, dest, dryRun);
   }
 
-  const sourceSeedPath = path.join(targetDir, "config", "claude-hooks.settings.json");
+  const sourceSettingsSeedPath = path.join(sourceDir, "settings.json");
   if (dryRun) {
-    console.log("[dry] settings merge: would merge seed hooks into settings.json");
+    console.log("[dry] settings merge: would merge source settings hooks/env into settings.json");
   } else {
     const mergeResult = mergeClaudeHooksSeedIntoSettingsJson({
       targetDir,
-      sourceSeedPath,
+      sourceSeedPath: sourceSettingsSeedPath,
     });
     console.log(
       `[write] settings merge: ${mergeResult.changed ? "updated" : "unchanged"}`
     );
+  }
+
+  // Deprecated: hooks must only be configured in settings.json.
+  // Remove any legacy config seed file that may still exist from older installs.
+  const legacyClaudeHooksConfigPath = path.join(targetDir, "config", "claude-hooks.settings.json");
+  if (fs.existsSync(legacyClaudeHooksConfigPath)) {
+    console.log(`${dryRun ? "[dry]" : "[write]"} remove legacy config/claude-hooks.settings.json`);
+    removePath(legacyClaudeHooksConfigPath, dryRun);
   }
 
   // Ensure global OpenCode rules exist and are updated safely.
