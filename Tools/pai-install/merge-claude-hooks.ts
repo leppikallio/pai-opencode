@@ -47,6 +47,19 @@ function readJsonObjectOrEmpty(filePath: string): JsonRecord {
   return parseJsonObject(raw, filePath);
 }
 
+function readJsonObjectRequired(filePath: string, label: string): JsonRecord {
+  if (!fs.existsSync(filePath)) {
+    throw new Error(`${label} file not found: ${filePath}`);
+  }
+
+  const raw = fs.readFileSync(filePath, "utf8");
+  if (!raw.trim()) {
+    throw new Error(`${label} file is empty: ${filePath}`);
+  }
+
+  return parseJsonObject(raw, filePath);
+}
+
 function stableStringify(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map((item) => stableStringify(item)).join(",")}]`;
@@ -79,6 +92,7 @@ function dedupeEntries<T>(entries: T[]): T[] {
 
 function rewriteHookCommandPlaceholders(value: unknown, targetDir: string): unknown {
   const normalizedTargetDir = targetDir.replace(/\\/g, "/");
+  const paiDirPrefix = "$" + "{PAI_DIR}/";
 
   if (Array.isArray(value)) {
     return value.map((item) => rewriteHookCommandPlaceholders(item, normalizedTargetDir));
@@ -88,9 +102,7 @@ function rewriteHookCommandPlaceholders(value: unknown, targetDir: string): unkn
     const rewritten: JsonRecord = {};
     for (const [key, entry] of Object.entries(value)) {
       if (key === "command" && typeof entry === "string") {
-        rewritten[key] = entry
-          .replace(/\$\{PAI_DIR\}\//g, `${normalizedTargetDir}/`)
-          .replace(/\$\{PAI_DIR\}/g, normalizedTargetDir);
+        rewritten[key] = entry.split(paiDirPrefix).join(`${normalizedTargetDir}/`);
         continue;
       }
       rewritten[key] = rewriteHookCommandPlaceholders(entry, normalizedTargetDir);
@@ -153,7 +165,7 @@ export function mergeClaudeHooksSeedIntoSettingsJson(
   const backupPath = path.join(backupsDir, `settings.json.${Date.now()}.bak`);
 
   const settings = readJsonObjectOrEmpty(settingsPath);
-  const seed = readJsonObjectOrEmpty(args.sourceSeedPath);
+  const seed = readJsonObjectRequired(args.sourceSeedPath, "Claude hooks seed");
 
   const merged: JsonRecord = {
     ...settings,
@@ -164,18 +176,20 @@ export function mergeClaudeHooksSeedIntoSettingsJson(
   const currentContent = `${JSON.stringify(settings, null, 2)}\n`;
   const nextContent = `${JSON.stringify(merged, null, 2)}\n`;
   const changed = currentContent !== nextContent;
+  let writtenBackupPath: string | null = null;
 
   if (changed) {
     fs.mkdirSync(backupsDir, { recursive: true });
     if (fs.existsSync(settingsPath)) {
       fs.copyFileSync(settingsPath, backupPath);
+      writtenBackupPath = backupPath;
     }
     fs.writeFileSync(settingsPath, nextContent, "utf8");
   }
 
   return {
     settingsPath,
-    backupPath: changed ? backupPath : null,
+    backupPath: writtenBackupPath,
     changed,
   };
 }
