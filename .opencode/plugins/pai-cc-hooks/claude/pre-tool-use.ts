@@ -5,6 +5,7 @@ import { objectToSnakeCase } from "../shared/snake-case";
 import { transformToolName } from "../shared/tool-name";
 import { log } from "../shared/logger";
 import { isHookCommandDisabled, type PluginExtendedConfig } from "../shared/hook-disable";
+import { shouldAskForForegroundTask } from "./agent-execution-guard";
 
 const DEFAULT_CONFIG = {
   forceZsh: process.platform !== "win32",
@@ -56,6 +57,26 @@ export async function executePreToolUseHooks(
   }
 
   const transformedToolName = transformToolName(ctx.toolName);
+
+  if (transformedToolName === "Task") {
+    const runInBackground =
+      ctx.toolInput.run_in_background === true || ctx.toolInput.runInBackground === true;
+    const subagentType =
+      typeof ctx.toolInput.subagent_type === "string"
+        ? ctx.toolInput.subagent_type
+        : typeof ctx.toolInput.subagentType === "string"
+          ? ctx.toolInput.subagentType
+          : undefined;
+    const prompt = typeof ctx.toolInput.prompt === "string" ? ctx.toolInput.prompt : undefined;
+
+    if (!runInBackground && shouldAskForForegroundTask({ subagent_type: subagentType, prompt })) {
+      return {
+        decision: "ask",
+        reason: "This will block foreground execution; use task(run_in_background:true).",
+      };
+    }
+  }
+
   const toolNamesToMatch =
     transformedToolName === "ApplyPatch" ? ["ApplyPatch", "Edit", "Write"] : [transformedToolName];
   const commandsToExecute = collectMatchingHookCommands(config, "PreToolUse", toolNamesToMatch);
