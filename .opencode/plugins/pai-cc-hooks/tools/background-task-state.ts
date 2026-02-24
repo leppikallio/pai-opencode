@@ -3,13 +3,16 @@ import { homedir } from "node:os";
 import path from "node:path";
 
 const DUPLICATE_WINDOW_MS = 2_000;
+const NOTIFIED_TASK_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
+const NOTIFIED_TASK_MAX_ENTRIES = 2_000;
+
 const LOCK_STALE_MS = 10_000;
 const LOCK_MAX_RETRIES = 40;
 const LOCK_BASE_DELAY_MS = 10;
 
 type LockFile = {
   ownerId: string;
-  createdAtMs: number;
+  createdAt: number;
 };
 
 type LockHandle = {
@@ -103,7 +106,7 @@ function coerceState(value: unknown, nowMs: number): BackgroundTaskStateV1 {
   const rawNotified = isRecord(value.notifiedTaskIds) ? value.notifiedTaskIds : {};
   for (const [taskId, atMs] of Object.entries(rawNotified)) {
     const parsedAtMs = asFiniteNumber(atMs);
-    if (!parsedAtMs) continue;
+    if (parsedAtMs == null) continue;
     notifiedTaskIds[taskId] = parsedAtMs;
   }
 
@@ -113,7 +116,7 @@ function coerceState(value: unknown, nowMs: number): BackgroundTaskStateV1 {
     if (!isRecord(record)) continue;
     const messageKey = asString(record.messageKey);
     const atMs = asFiniteNumber(record.atMs);
-    if (!messageKey || !atMs) continue;
+    if (!messageKey || atMs == null) continue;
     duplicateBySession[sessionId] = { messageKey, atMs };
   }
 
@@ -129,36 +132,78 @@ function createLockOwnerId(): string {
   return `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function buildStaleLockPath(lockPath: string, ownerId: string): string {
+  return `${lockPath}.stale.${ownerId}.${Date.now()}`;
+}
+
+function isStaleLockFile(lockFile: LockFile): boolean {
+  return Date.now() - lockFile.createdAt > LOCK_STALE_MS;
+}
+
 async function readLockFile(lockPath: string): Promise<LockFile | null> {
   try {
     const raw = await fs.promises.readFile(lockPath, "utf-8");
     const parsed = JSON.parse(raw) as Partial<LockFile>;
     if (typeof parsed.ownerId !== "string") return null;
-    if (!Number.isFinite(parsed.createdAtMs)) return null;
+    if (!Number.isFinite(parsed.createdAt)) return null;
     return {
       ownerId: parsed.ownerId,
-      createdAtMs: Number(parsed.createdAtMs),
+      createdAt: Number(parsed.createdAt),
     };
   } catch (error) {
     if (isMissingFileError(error)) {
       return null;
     }
-    return null;
+    throw error;
+  }
+}
+
+async function pathExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.promises.stat(filePath);
+    return true;
+  } catch (error) {
+    if (isMissingFileError(error)) {
+      return false;
+    }
+    throw error;
   }
 }
 
 async function maybeEvictStaleLock(lockPath: string, ownerId: string): Promise<void> {
-  const lock = await readLockFile(lockPath);
-  if (!lock) return;
-  if (Date.now() - lock.createdAtMs <= LOCK_STALE_MS) return;
+  const lockFileBeforeRename = await readLockFile(lockPath);
+  if (!lockFileBeforeRename) {
+    return;
+  }
 
+  if (!isStaleLockFile(lockFileBeforeRename)) {
+    return;
+  }
+
+  const stalePath = buildStaleLockPath(lockPath, ownerId);
   try {
-    await fs.promises.rename(lockPath, `${lockPath}.stale.${ownerId}.${Date.now()}`);
+    await fs.promises.rename(lockPath, stalePath);
   } catch (error) {
     if (isErrnoException(error) && (error.code === "ENOENT" || error.code === "EEXIST")) {
       return;
     }
     throw error;
+  }
+
+  const lockFileAfterRename = await readLockFile(stalePath);
+  if (lockFileAfterRename && isStaleLockFile(lockFileAfterRename)) {
+    return;
+  }
+
+  if (!(await pathExists(lockPath))) {
+    try {
+      await fs.promises.rename(stalePath, lockPath);
+    } catch (error) {
+      if (isMissingFileError(error)) {
+        return;
+      }
+      throw error;
+    }
   }
 }
 
@@ -166,7 +211,7 @@ async function acquireLock(lockPath: string): Promise<LockHandle> {
   const ownerId = createLockOwnerId();
   const lockPayload: LockFile = {
     ownerId,
-    createdAtMs: Date.now(),
+    createdAt: Date.now(),
   };
 
   await fs.promises.mkdir(path.dirname(lockPath), { recursive: true });
@@ -224,11 +269,37 @@ async function withStateLock<T>(statePath: string, fn: () => Promise<T>): Promis
   }
 }
 
-async function readState(statePath: string, nowMs: number): Promise<BackgroundTaskStateV1> {
+function createCorruptStatePath(statePath: string): string {
+  return `${statePath}.corrupt.${Date.now()}-${process.pid}-${Math.random().toString(16).slice(2)}`;
+}
+
+async function archiveCorruptStateFile(statePath: string): Promise<void> {
+  const corruptPath = createCorruptStatePath(statePath);
   try {
-    const raw = await fs.promises.readFile(statePath, "utf-8");
+    await fs.promises.rename(statePath, corruptPath);
+  } catch (error) {
+    if (isErrnoException(error) && (error.code === "ENOENT" || error.code === "EEXIST")) {
+      return;
+    }
+    throw error;
+  }
+}
+
+async function readState(statePath: string, nowMs: number): Promise<BackgroundTaskStateV1> {
+  let raw: string;
+  try {
+    raw = await fs.promises.readFile(statePath, "utf-8");
+  } catch (error) {
+    if (isMissingFileError(error)) {
+      return createDefaultState(nowMs);
+    }
+    throw error;
+  }
+
+  try {
     return coerceState(JSON.parse(raw), nowMs);
   } catch {
+    await archiveCorruptStateFile(statePath);
     return createDefaultState(nowMs);
   }
 }
@@ -277,6 +348,37 @@ function pruneDuplicateState(state: BackgroundTaskStateV1, nowMs: number): void 
   }
 }
 
+function pruneNotifiedTaskIds(state: BackgroundTaskStateV1, nowMs: number): void {
+  for (const [taskId, notifiedAtMs] of Object.entries(state.notifiedTaskIds)) {
+    if (nowMs >= notifiedAtMs && nowMs - notifiedAtMs >= NOTIFIED_TASK_RETENTION_MS) {
+      delete state.notifiedTaskIds[taskId];
+    }
+  }
+
+  const entries = Object.entries(state.notifiedTaskIds);
+  if (entries.length <= NOTIFIED_TASK_MAX_ENTRIES) {
+    return;
+  }
+
+  const keepTaskIds = new Set(
+    entries
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, NOTIFIED_TASK_MAX_ENTRIES)
+      .map(([taskId]) => taskId),
+  );
+
+  for (const taskId of Object.keys(state.notifiedTaskIds)) {
+    if (!keepTaskIds.has(taskId)) {
+      delete state.notifiedTaskIds[taskId];
+    }
+  }
+}
+
+function pruneState(state: BackgroundTaskStateV1, nowMs: number): void {
+  pruneDuplicateState(state, nowMs);
+  pruneNotifiedTaskIds(state, nowMs);
+}
+
 export async function markNotified(taskId: string, nowMs?: number): Promise<boolean> {
   const normalizedTaskId = taskId.trim();
   if (!normalizedTaskId) {
@@ -288,13 +390,15 @@ export async function markNotified(taskId: string, nowMs?: number): Promise<bool
 
   return withStateLock(statePath, async () => {
     const state = await readState(statePath, atMs);
+    pruneState(state, atMs);
+
     if (state.notifiedTaskIds[normalizedTaskId] != null) {
       return false;
     }
 
     state.notifiedTaskIds[normalizedTaskId] = atMs;
     state.updatedAtMs = atMs;
-    pruneDuplicateState(state, atMs);
+    pruneState(state, atMs);
     await writeState(statePath, state);
     return true;
   });
@@ -312,8 +416,9 @@ export async function shouldSuppressDuplicate(args: ShouldSuppressDuplicateArgs)
 
   return withStateLock(statePath, async () => {
     const state = await readState(statePath, nowMs);
-    const existing = state.duplicateBySession[sessionId];
+    pruneState(state, nowMs);
 
+    const existing = state.duplicateBySession[sessionId];
     const shouldSuppress =
       existing != null &&
       existing.messageKey === messageKey &&
@@ -325,7 +430,7 @@ export async function shouldSuppressDuplicate(args: ShouldSuppressDuplicateArgs)
       atMs: nowMs,
     };
     state.updatedAtMs = nowMs;
-    pruneDuplicateState(state, nowMs);
+    pruneState(state, nowMs);
     await writeState(statePath, state);
 
     return shouldSuppress;
