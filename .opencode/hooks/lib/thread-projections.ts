@@ -53,7 +53,13 @@ function takeLastLines(text: string, maxLines: number): string {
 }
 
 function formatMarkdownEntry(excerpt: string): string {
-  const timestamp = new Date().toISOString();
+  const fixedTimestamp = process.env.PAI_HOOK_FIXED_TIME_ISO;
+  const timestamp =
+    typeof fixedTimestamp === "string" &&
+      fixedTimestamp.trim().length > 0 &&
+      Number.isFinite(Date.parse(fixedTimestamp))
+      ? fixedTimestamp
+      : new Date().toISOString();
   return [`## ${timestamp}`, "", "```md", excerpt, "```", ""].join("\n");
 }
 
