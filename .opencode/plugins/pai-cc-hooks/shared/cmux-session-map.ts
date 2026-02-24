@@ -93,8 +93,12 @@ function sleep(ms: number): Promise<void> {
 async function readLockFile(lockPath: string): Promise<LockFileV1 | null> {
   try {
     const raw = await fs.promises.readFile(lockPath, "utf-8");
-    const parsed = JSON.parse(raw);
-    return isLockFileV1(parsed) ? parsed : null;
+    try {
+      const parsed = JSON.parse(raw);
+      return isLockFileV1(parsed) ? parsed : null;
+    } catch {
+      return null;
+    }
   } catch (error) {
     if (isMissingFileError(error)) {
       return null;
