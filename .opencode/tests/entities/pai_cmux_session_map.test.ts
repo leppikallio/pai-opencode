@@ -13,6 +13,12 @@ function createTempRoot(prefix: string): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 describe("cmux session map", () => {
   test("default path helper uses provided homeDir", () => {
     const homeDir = "/tmp/cmux-home";
@@ -61,7 +67,7 @@ describe("cmux session map", () => {
     }
   });
 
-  test("replaces stale lock and performs atomic write", async () => {
+  test("stale lock eviction uses rename and performs atomic write", async () => {
     const root = createTempRoot("cmux-lock-");
     const statePath = path.join(root, "opencode-hook-sessions.json");
     const lockPath = `${statePath}.lock`;
@@ -82,6 +88,57 @@ describe("cmux session map", () => {
     const parsed = JSON.parse(raw) as { sessions?: Record<string, { surfaceId?: string }> };
     expect(parsed.sessions?.ses_stale?.surfaceId).toBe("surface-stale");
     expect(fs.existsSync(lockPath)).toBe(false);
+
+    const staleArtifacts = fs
+      .readdirSync(root)
+      .filter((name) => name.startsWith("opencode-hook-sessions.json.lock.stale."));
+    expect(staleArtifacts.length).toBe(1);
+  });
+
+  test("release does not delete lock when owner mismatches", async () => {
+    const root = createTempRoot("cmux-owner-");
+    const statePath = path.join(root, "opencode-hook-sessions.json");
+    const lockPath = `${statePath}.lock`;
+
+    const sessions: Record<string, unknown> = {};
+    for (let idx = 0; idx < 10_000; idx += 1) {
+      sessions[`seed_${idx}`] = {
+        sessionId: `seed_${idx}`,
+        workspaceId: `workspace_${idx}`,
+        surfaceId: `surface_${idx}`,
+        startedAt: idx,
+        updatedAt: idx,
+      };
+    }
+    fs.writeFileSync(statePath, JSON.stringify({ version: 1, sessions }, null, 2), "utf-8");
+
+    let finished = false;
+    const run = upsertSessionMapping({
+      statePath,
+      sessionId: "ses_owner",
+      workspaceId: "workspace-owner",
+      surfaceId: "surface-owner",
+    }).finally(() => {
+      finished = true;
+    });
+
+    const timeoutAt = Date.now() + 2_000;
+    while (!fs.existsSync(lockPath)) {
+      if (Date.now() >= timeoutAt) {
+        throw new Error("Timed out waiting for lock acquisition");
+      }
+      await sleep(2);
+    }
+
+    while (!finished) {
+      fs.writeFileSync(lockPath, "intruder-owner\n", "utf-8");
+      await sleep(2);
+    }
+
+    await run;
+
+    expect(fs.existsSync(lockPath)).toBe(true);
+    fs.unlinkSync(lockPath);
   });
 
   test("concurrent upserts keep valid JSON and retain all sessions", async () => {

@@ -20,6 +20,11 @@ const LOCK_STALE_MS = 10_000;
 const LOCK_MAX_RETRIES = 50;
 const LOCK_BASE_DELAY_MS = 10;
 
+type LockHandle = {
+  fileHandle: fs.promises.FileHandle;
+  ownerId: string;
+};
+
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
   return typeof error === "object" && error !== null && "code" in error;
 }
@@ -32,13 +37,34 @@ function getLockRetryDelay(attempt: number): number {
   return Math.min(100, LOCK_BASE_DELAY_MS * (attempt + 1));
 }
 
+function createLockOwnerId(): string {
+  return `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function buildStaleLockPath(lockPath: string, ownerId: string): string {
+  return `${lockPath}.stale.${ownerId}.${Date.now()}`;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
 }
 
-async function maybeClearStaleLock(lockPath: string): Promise<void> {
+async function readLockOwnerId(lockPath: string): Promise<string | null> {
+  try {
+    const raw = await fs.promises.readFile(lockPath, "utf-8");
+    const ownerId = raw.trim();
+    return ownerId.length > 0 ? ownerId : null;
+  } catch (error) {
+    if (isMissingFileError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+async function maybeEvictStaleLock(lockPath: string, ownerId: string): Promise<void> {
   try {
     const stat = await fs.promises.stat(lockPath);
     if (Date.now() - stat.mtimeMs <= LOCK_STALE_MS) {
@@ -51,25 +77,32 @@ async function maybeClearStaleLock(lockPath: string): Promise<void> {
     throw error;
   }
 
+  const stalePath = buildStaleLockPath(lockPath, ownerId);
   try {
-    await fs.promises.unlink(lockPath);
+    await fs.promises.rename(lockPath, stalePath);
   } catch (error) {
-    if (!isMissingFileError(error)) {
-      throw error;
+    if (isErrnoException(error) && (error.code === "ENOENT" || error.code === "EEXIST")) {
+      return;
     }
+    throw error;
   }
 }
 
-async function acquireLock(lockPath: string): Promise<fs.promises.FileHandle> {
+async function acquireLock(lockPath: string): Promise<LockHandle> {
+  const ownerId = createLockOwnerId();
+
   for (let attempt = 0; attempt <= LOCK_MAX_RETRIES; attempt += 1) {
     try {
-      return await fs.promises.open(lockPath, "wx");
+      const fileHandle = await fs.promises.open(lockPath, "wx");
+      await fileHandle.writeFile(`${ownerId}\n`, "utf-8");
+      await fileHandle.sync();
+      return { fileHandle, ownerId };
     } catch (error) {
       if (!isErrnoException(error) || error.code !== "EEXIST") {
         throw error;
       }
 
-      await maybeClearStaleLock(lockPath);
+      await maybeEvictStaleLock(lockPath, ownerId);
 
       if (attempt === LOCK_MAX_RETRIES) {
         throw new Error(`Failed to acquire cmux session map lock: ${lockPath}`);
@@ -82,10 +115,15 @@ async function acquireLock(lockPath: string): Promise<fs.promises.FileHandle> {
   throw new Error(`Failed to acquire cmux session map lock: ${lockPath}`);
 }
 
-async function releaseLock(lockPath: string, lockHandle: fs.promises.FileHandle): Promise<void> {
+async function releaseLock(lockPath: string, lockHandle: LockHandle): Promise<void> {
   try {
-    await lockHandle.close();
+    await lockHandle.fileHandle.close();
   } finally {
+    const currentOwner = await readLockOwnerId(lockPath);
+    if (currentOwner !== lockHandle.ownerId) {
+      return;
+    }
+
     try {
       await fs.promises.unlink(lockPath);
     } catch (error) {
