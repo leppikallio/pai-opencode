@@ -1,4 +1,4 @@
 #!/usr/bin/env bun
-import { runHook } from "./lib/hook-stub";
+import { runThreadProjectionHook } from "./lib/thread-projections";
 
-await runHook({ hookName: "RelationshipMemory.hook.ts" });
+await runThreadProjectionHook({ outputFileName: "RELATIONSHIP_HOOK.md" });
