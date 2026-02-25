@@ -80,7 +80,7 @@ describe("UpdateTabTitle hook two-phase behavior", () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe("");
-      expect(result.stdout).toBe('{"continue": true}\n');
+      expect(JSON.parse(result.stdout)).toMatchObject({ continue: true });
 
       const snapshotRaw = await fs.readFile(tabStatePath(runtimeRoot, "S1"), "utf8");
       const snapshot = JSON.parse(snapshotRaw) as { title?: string; state?: string };
@@ -105,7 +105,7 @@ describe("UpdateTabTitle hook two-phase behavior", () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe("");
-      expect(result.stdout).toBe('{"continue": true}\n');
+      expect(JSON.parse(result.stdout)).toMatchObject({ continue: true });
       expect(await fs.stat(tabStatePath(runtimeRoot, "S-rating")).then(() => true).catch(() => false)).toBe(false);
     } finally {
       await fs.rm(runtimeRoot, { recursive: true, force: true });

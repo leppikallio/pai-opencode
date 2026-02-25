@@ -4,6 +4,7 @@ import { recordBackgroundTaskLaunch } from "./pai-cc-hooks/tools/background-task
 import { createPaiBackgroundCancelTool } from "./pai-cc-hooks/tools/background-cancel";
 import { createPaiBackgroundOutputTool } from "./pai-cc-hooks/tools/background-output";
 import { createPaiTaskTool } from "./pai-cc-hooks/tools/task";
+import { createPaiVoiceNotifyTool } from "./pai-cc-hooks/tools/voice-notify";
 
 const PaiCcHooksPlugin: Plugin = async (ctx) => {
   const hooks = createPaiClaudeHooks({ ctx });
@@ -14,6 +15,9 @@ const PaiCcHooksPlugin: Plugin = async (ctx) => {
         client: ctx.client,
         $: ctx.$,
         recordBackgroundTaskLaunch,
+      }),
+      voice_notify: createPaiVoiceNotifyTool({
+        client: ctx.client,
       }),
       background_output: createPaiBackgroundOutputTool({
         client: ctx.client,

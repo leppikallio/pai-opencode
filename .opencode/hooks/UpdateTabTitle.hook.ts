@@ -12,6 +12,10 @@ type JsonRecord = Record<string, unknown>;
 const PURE_RATING_RE = /^(?:10|[1-9])$/;
 const MIN_PROMPT_LENGTH = 3;
 
+function stripTrailingPeriod(value: string): string {
+  return value.replace(/\.+$/, "").trim();
+}
+
 function asRecord(value: unknown): JsonRecord | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -65,6 +69,7 @@ async function updateTabTitle(payload: JsonRecord): Promise<void> {
   });
 
   let finalTitle = thinkingTitle;
+  let inferredWorkingTitle: string | null = null;
   const inferredTitle = await summarizePromptViaInference(prompt);
   if (
     inferredTitle &&
@@ -72,6 +77,7 @@ async function updateTabTitle(payload: JsonRecord): Promise<void> {
     isTitleRelevantToPrompt(inferredTitle, prompt)
   ) {
     finalTitle = inferredTitle;
+    inferredWorkingTitle = inferredTitle;
   }
 
   await setTabState({
@@ -79,9 +85,24 @@ async function updateTabTitle(payload: JsonRecord): Promise<void> {
     state: "working",
     sessionId,
   });
+
+  // Prompt-time voice (upstream parity): when inference yields a clean working title,
+  // nudge the assistant to call the voice_notify tool.
+  if (inferredWorkingTitle) {
+    const voiceMessage = stripTrailingPeriod(inferredWorkingTitle);
+    if (voiceMessage) {
+      const reminder = `<system-reminder>\nCall tool voice_notify with: {"message": ${JSON.stringify(
+        voiceMessage,
+      )}}\n</system-reminder>`;
+      throw Object.assign(new Error("__PAI_UPDATE_TAB_TITLE_SYSTEM_MESSAGE__"), {
+        __paiSystemMessage: reminder,
+      });
+    }
+  }
 }
 
 async function main(): Promise<void> {
+  let systemMessage: string | undefined;
   try {
     const stdin = await readStdinWithTimeout({ timeoutMs: 1500 });
     if (!stdin.trim()) {
@@ -94,10 +115,14 @@ async function main(): Promise<void> {
     }
 
     await updateTabTitle(payload);
-  } catch {
+  } catch (error) {
     // Never throw from hooks.
+    const maybeMsg = error && typeof error === "object" ? (error as any).__paiSystemMessage : undefined;
+    if (typeof maybeMsg === "string" && maybeMsg.trim()) {
+      systemMessage = maybeMsg;
+    }
   } finally {
-    process.stdout.write('{"continue": true}\n');
+    process.stdout.write(JSON.stringify({ continue: true, systemMessage }) + "\n");
     process.exit(0);
   }
 }

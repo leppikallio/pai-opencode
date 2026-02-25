@@ -54,6 +54,15 @@
   "hooks": {
     "PreToolUse": [
       {
+        "matcher": "VoiceNotify",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${PAI_DIR}/hooks/VoiceGate.hook.ts"
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {
