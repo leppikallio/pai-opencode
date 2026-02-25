@@ -20,7 +20,10 @@
    - `task(run_in_background:true)` returns a **string** (plugin tool contract) and launches via `promptAsync` when available.
    - `background_output(task_id="bg_<sessionId>")` retrieves messages from the child session.
    - `background_cancel(task_id=...)` aborts the child session.
-   - Background completion notifications are handled via `session.idle` event hooks + persisted state.
+   - Background completion is detected via `session.idle` **and** a polling fallback (`client.session.status()`), backed by persisted state.
+   - Completion “bubbles up” to the parent session via `client.session.promptAsync`:
+     - per-task completion: `noReply: true`
+     - when all tasks for that parent are complete: `noReply: false`
 
 ---
 
@@ -53,11 +56,16 @@ System notifies on completion. Use `background_output` with task_id="bg_<childSe
 
 - Call: `background_output(task_id="bg_<childSessionId>")`
 - Defaults: `full_session=true`, `message_limit=50`
+- Defaults: `full_session=true`, `message_limit=50`
 - Uses `client.session.messages({ path: { id: <childSessionId> }, query: { limit } })`
 - Useful args:
   - `full_session`: return a readable transcript (role + text)
   - `since_message_id`: only return messages after a known message id
+    - If `since_message_id` is provided but not found in the fetched messages, the tool returns an explicit error.
   - `block=true`: wait until state shows completion (rarely needed; completion is notified)
+
+**Active task defaults (parity with oh-my-opencode):**
+- If the task is still running, `include_thinking` and `include_tool_results` default to **true** (unless explicitly disabled).
 
 ### `background_cancel`
 
