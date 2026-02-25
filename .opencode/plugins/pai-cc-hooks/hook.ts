@@ -17,6 +17,8 @@ import {
   type BackgroundTaskRecord,
 } from "./tools/background-task-state";
 
+import { createPaiVoiceNotifyTool } from "./tools/voice-notify";
+
 import { BackgroundTaskPoller } from "./background/poller";
 import { notifyParentSessionBackgroundCompletion } from "./background/parent-notifier";
 
@@ -36,6 +38,7 @@ type BackgroundCompletionDeps = {
   markNotified: (taskId: string, nowMs?: number) => Promise<boolean>;
   listBackgroundTasksByParent: (args: { parentSessionId: string; nowMs?: number }) => Promise<BackgroundTaskRecord[]>;
   shouldSuppressDuplicate: (args: { sessionId: string; title: string; body: string; nowMs?: number }) => Promise<boolean>;
+  sessionGet?: SessionGetFn;
   promptParentSessionAsync?: SessionPromptAsyncFn;
   notifyCmux: CmuxNotifyFn;
   fetchImpl: FetchLike;
@@ -191,32 +194,22 @@ async function emitBackgroundTaskCompletionNotifications(args: {
     // Best effort by design.
   }
 
-  const voiceNotifyUrl = process.env.PAI_VOICE_NOTIFY_URL?.trim();
-  if (!voiceNotifyUrl) return;
-
-  const abortController = typeof AbortController === "function" ? new AbortController() : null;
-  const timeout = setTimeout(() => abortController?.abort(), 1_000);
-
-  void args.deps
-    .fetchImpl(voiceNotifyUrl, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
+  // Route voice through the same `voice_notify` implementation.
+  // This will no-op when voice is disabled, networking is disabled,
+  // or the target session is a subagent.
+  try {
+    const toolDef = createPaiVoiceNotifyTool({
+      client: {
+        session: {
+          get: args.deps.sessionGet,
+        },
       },
-      body: JSON.stringify({
-        event: "background_task.completed",
-        task_id: args.taskRecord.task_id,
-        child_session_id: args.taskRecord.child_session_id,
-        parent_session_id: args.taskRecord.parent_session_id,
-      }),
-      signal: abortController?.signal,
-    })
-    .catch(() => {
-      // Best effort by design.
-    })
-    .finally(() => {
-      clearTimeout(timeout);
+      fetchImpl: args.deps.fetchImpl,
     });
+    await toolDef.execute({ message: body, title }, { sessionID: notifySessionId } as any);
+  } catch {
+    // Best effort by design.
+  }
 }
 
 async function maybeHandleBackgroundTaskCompletion(args: {
@@ -331,6 +324,7 @@ export function createPaiClaudeHooks({
     listBackgroundTasksByParent: deps?.listBackgroundTasksByParent ?? listBackgroundTasksByParentDefault,
     shouldSuppressDuplicate: deps?.shouldSuppressDuplicate ?? shouldSuppressDuplicateDefault,
     promptParentSessionAsync: deps?.promptParentSessionAsync ?? promptParentSessionAsyncFromContext,
+    sessionGet,
     notifyCmux: deps?.notifyCmux ?? notifyCmuxDefault,
     fetchImpl: deps?.fetchImpl ?? ((url, init) => fetch(url, init)),
   };

@@ -12,6 +12,10 @@ type JsonRecord = Record<string, unknown>;
 const PURE_RATING_RE = /^(?:10|[1-9])$/;
 const MIN_PROMPT_LENGTH = 3;
 
+function stripTrailingPeriod(value: string): string {
+  return value.replace(/\.+$/, "").trim();
+}
+
 function asRecord(value: unknown): JsonRecord | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -41,20 +45,26 @@ function titlePrefix(sessionId: string): string {
   return oneWord ? `${oneWord}: ` : "";
 }
 
-async function updateTabTitle(payload: JsonRecord): Promise<void> {
+function renderPromptTimeVoiceReminder(message: string): string {
+  return `<user-prompt-submit-hook>\n<system-reminder>\nCall tool voice_notify with: {"message": ${JSON.stringify(
+    message,
+  )}}\n</system-reminder>\n</user-prompt-submit-hook>\n`;
+}
+
+async function updateTabTitle(payload: JsonRecord): Promise<string | null> {
   const sessionId = readSessionId(payload);
   if (!sessionId || sessionId === "unknown-session") {
-    return;
+    return null;
   }
 
   const prompt = readPrompt(payload);
   if (!prompt || prompt.length < MIN_PROMPT_LENGTH || isPureRating(prompt)) {
-    return;
+    return null;
   }
 
   const thinkingTitle = extractPromptTitle(prompt);
   if (!thinkingTitle) {
-    return;
+    return null;
   }
 
   const prefix = titlePrefix(sessionId);
@@ -65,6 +75,7 @@ async function updateTabTitle(payload: JsonRecord): Promise<void> {
   });
 
   let finalTitle = thinkingTitle;
+  let inferredWorkingTitle: string | null = null;
   const inferredTitle = await summarizePromptViaInference(prompt);
   if (
     inferredTitle &&
@@ -72,6 +83,7 @@ async function updateTabTitle(payload: JsonRecord): Promise<void> {
     isTitleRelevantToPrompt(inferredTitle, prompt)
   ) {
     finalTitle = inferredTitle;
+    inferredWorkingTitle = inferredTitle;
   }
 
   await setTabState({
@@ -79,6 +91,17 @@ async function updateTabTitle(payload: JsonRecord): Promise<void> {
     state: "working",
     sessionId,
   });
+
+  // Prompt-time voice (upstream parity): when inference yields a clean working title,
+  // nudge the assistant to call the voice_notify tool.
+  if (inferredWorkingTitle) {
+    const voiceMessage = stripTrailingPeriod(inferredWorkingTitle);
+    if (voiceMessage) {
+      return renderPromptTimeVoiceReminder(voiceMessage);
+    }
+  }
+
+  return null;
 }
 
 async function main(): Promise<void> {
@@ -93,11 +116,13 @@ async function main(): Promise<void> {
       return;
     }
 
-    await updateTabTitle(payload);
+    const reminder = await updateTabTitle(payload);
+    if (reminder) {
+      process.stdout.write(reminder);
+    }
   } catch {
     // Never throw from hooks.
   } finally {
-    process.stdout.write('{"continue": true}\n');
     process.exit(0);
   }
 }

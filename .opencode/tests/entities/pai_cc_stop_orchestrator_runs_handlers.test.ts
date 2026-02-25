@@ -165,7 +165,7 @@ describe("StopOrchestrator hook", () => {
       });
 
       expect(result.exitCode).toBe(0);
-      expect(result.stderr).toContain("[VoiceNotification] Skipping network request: PAI_NO_NETWORK=1");
+      expect(result.stderr).not.toContain("[VoiceNotification]");
       expect(result.stderr.toLowerCase()).not.toContain("fetch");
     } finally {
       await fs.rm(paiDir, { recursive: true, force: true });

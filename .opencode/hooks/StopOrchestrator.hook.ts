@@ -12,7 +12,6 @@ import { handleAlgorithmEnrichment } from "./handlers/AlgorithmEnrichment";
 import { handleDocCrossRefIntegrity } from "./handlers/DocCrossRefIntegrity";
 import { handleRebuildSkill } from "./handlers/RebuildSkill";
 import { handleTabState } from "./handlers/TabState";
-import { handleVoice } from "./handlers/VoiceNotification";
 import { getPaiDir } from "./lib/paths";
 import { readStdinWithTimeout } from "./lib/stdin";
 
@@ -85,7 +84,6 @@ function resolveTranscriptPath(transcriptPath: string | undefined): string | nul
 async function runHandlers(parsed: ParsedTranscript, hookInput: HookInput): Promise<void> {
   const sessionId = hookInput.session_id ?? "unknown-session";
   const handlers: Array<Promise<void>> = [
-    handleVoice(parsed, sessionId),
     handleTabState(parsed, sessionId),
     handleRebuildSkill(),
     handleAlgorithmEnrichment(parsed, sessionId),
@@ -93,7 +91,6 @@ async function runHandlers(parsed: ParsedTranscript, hookInput: HookInput): Prom
   ];
 
   const handlerNames = [
-    "VoiceNotification",
     "TabState",
     "RebuildSkill",
     "AlgorithmEnrichment",

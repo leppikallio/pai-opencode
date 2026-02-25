@@ -62,7 +62,13 @@ describe("pai-cc-hooks background completion notifications", () => {
       });
 
       const hooks = createPaiClaudeHooks({
-        ctx: {},
+        ctx: {
+          client: {
+            session: {
+              get: async () => ({ info: {} }),
+            },
+          },
+        },
         deps: {
           notifyCmux: async (args) => {
             cmuxNotifyCalls.push(args);

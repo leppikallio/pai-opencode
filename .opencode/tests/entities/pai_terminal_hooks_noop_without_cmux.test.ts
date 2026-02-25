@@ -74,7 +74,7 @@ describe("terminal UX hooks with missing cmux socket", () => {
       const result = await runHook(hookRun);
       expect(result.exitCode).toBe(0);
       expect(result.stderr).toBe("");
-      expect(result.stdout).toBe('{"continue": true}\n');
+      expect(JSON.parse(result.stdout)).toMatchObject({ continue: true });
     }
   });
 });

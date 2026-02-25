@@ -98,7 +98,11 @@ async function extractAssistantText(promptResult: unknown): Promise<string> {
   }
 }
 
-async function resolveChildSessionId(args: TaskToolArgs, client: CarrierClient): Promise<string> {
+async function resolveChildSessionId(
+  args: TaskToolArgs,
+  client: CarrierClient,
+  opts?: { parentSessionId?: string; directory?: string },
+): Promise<string> {
   const session = client.session;
   if (!session?.create) {
     throw new Error("PAI task override: client.session.create is unavailable");
@@ -120,7 +124,20 @@ async function resolveChildSessionId(args: TaskToolArgs, client: CarrierClient):
     }
   }
 
-  const createResult = await session.create({ body: { title: args.description } });
+  const createBody: Record<string, unknown> = {
+    title: args.description,
+  };
+
+  const parentSessionId = opts?.parentSessionId?.trim();
+  if (parentSessionId) {
+    createBody.parentID = parentSessionId;
+  }
+
+  const directory = opts?.directory?.trim();
+  const createResult = await session.create({
+    body: createBody,
+    ...(directory ? { query: { directory } } : {}),
+  });
   const createdId = extractSessionId(createResult);
   if (!createdId) {
     throw new Error("PAI task override: child session creation returned no id");
@@ -250,7 +267,10 @@ export function createPaiTaskTool(input: {
         },
       });
 
-      const childSessionId = await resolveChildSessionId(args, client);
+      const childSessionId = await resolveChildSessionId(args, client, {
+        parentSessionId: getContextSessionId(ctx),
+        directory: getContextDirectory(ctx),
+      });
       const session = client.session;
       if (!session?.prompt) {
         throw new Error("PAI task override: client.session.prompt is unavailable");
