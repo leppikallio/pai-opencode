@@ -35,7 +35,7 @@ async function runStopOrchestrator(args: {
   envOverrides?: Record<string, string | undefined>;
 }): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const env = withEnv({
-    PAI_DIR: args.paiDir,
+    OPENCODE_ROOT: args.paiDir,
     PAI_DISABLE_VOICE: "1",
     PAI_NO_NETWORK: undefined,
     CMUX_SOCKET_PATH: "",

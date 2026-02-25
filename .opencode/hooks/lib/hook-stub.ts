@@ -29,11 +29,18 @@ function parsePayload(raw: string): HookPayload {
 }
 
 function resolvePaiDir(): string {
-  const value = process.env.PAI_DIR?.trim();
-  if (!value || value.includes("${PAI_DIR}")) {
-    return process.cwd();
+  const envKeys = ["OPENCODE_ROOT", "OPENCODE_CONFIG_ROOT"] as const;
+
+  for (const key of envKeys) {
+    const value = process.env[key]?.trim();
+    if (!value || value.includes("${")) {
+      continue;
+    }
+
+    return value;
   }
-  return value;
+
+  return process.cwd();
 }
 
 function inferHookEventName(payload: HookPayload): string {

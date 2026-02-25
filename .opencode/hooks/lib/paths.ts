@@ -27,10 +27,25 @@ function inferPaiDirFromRuntime(): string | null {
   return null;
 }
 
+function getRuntimeRootFromEnv(): string | null {
+  const envKeys = ["OPENCODE_ROOT", "OPENCODE_CONFIG_ROOT"] as const;
+
+  for (const key of envKeys) {
+    const value = process.env[key]?.trim();
+    if (!value || value.includes("${")) {
+      continue;
+    }
+
+    return resolve(expandPath(value));
+  }
+
+  return null;
+}
+
 export function getPaiDir(): string {
-  const fromEnv = process.env.PAI_DIR?.trim();
-  if (fromEnv && !fromEnv.includes("${PAI_DIR}")) {
-    return resolve(expandPath(fromEnv));
+  const fromEnv = getRuntimeRootFromEnv();
+  if (fromEnv) {
+    return fromEnv;
   }
 
   const fromRuntime = inferPaiDirFromRuntime();

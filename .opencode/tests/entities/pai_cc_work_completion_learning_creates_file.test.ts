@@ -37,7 +37,7 @@ async function runHook(args: {
     cmd: ["bun", ".opencode/hooks/WorkCompletionLearning.hook.ts"],
     cwd: repoRoot,
     env: withEnv({
-      PAI_DIR: args.paiDir,
+      OPENCODE_ROOT: args.paiDir,
     }),
     stdin: "pipe",
     stdout: "pipe",

@@ -61,7 +61,7 @@ async function runRatingCaptureHook(args: {
     cmd: ["bun", ".opencode/hooks/RatingCapture.hook.ts"],
     cwd: repoRoot,
     env: withEnv({
-      PAI_DIR: args.paiDir,
+      OPENCODE_ROOT: args.paiDir,
       PAI_DISABLE_IMPLICIT_SENTIMENT: "1",
       PAI_NO_NETWORK: undefined,
     }),

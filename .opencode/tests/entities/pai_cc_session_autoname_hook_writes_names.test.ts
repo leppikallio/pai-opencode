@@ -41,7 +41,7 @@ async function runSessionAutoNameHook(args: {
     cwd: repoRoot,
     env: withEnv({
       ...args.env,
-      PAI_DIR: args.paiDir,
+      OPENCODE_ROOT: args.paiDir,
     }),
     stdin: "pipe",
     stdout: "pipe",

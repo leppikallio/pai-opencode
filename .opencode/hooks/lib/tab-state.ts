@@ -1,40 +1,16 @@
-import { notify } from "../../plugins/pai-cc-hooks/shared/cmux-adapter";
+import { renameCurrentCmuxSurfaceTitle } from "./cmux-v2";
+import {
+  normalizeTabSessionId,
+  readTabSnapshot,
+  type AlgorithmTabPhase,
+  type TabSnapshot,
+  type TabState,
+  writeTabSnapshotAtomic,
+} from "./tab-state-store";
 
 const TAB_TITLE_PREFIX_RE = /^(?:🧠|⚙️|⚙|✓|❓|👁️|📋|🔨|⚡|✅|📚)\s*/;
 
-export type TabState = "idle" | "thinking" | "working" | "question" | "completed";
-
-export type AlgorithmTabPhase =
-  | "OBSERVE"
-  | "THINK"
-  | "PLAN"
-  | "BUILD"
-  | "EXECUTE"
-  | "VERIFY"
-  | "LEARN"
-  | "COMPLETE"
-  | "IDLE";
-
-interface TabSnapshot {
-  title: string;
-  state: TabState;
-  previousTitle?: string;
-  phase?: AlgorithmTabPhase;
-}
-
-const snapshots = new Map<string, TabSnapshot>();
-
-function normalizeSessionId(sessionId?: string): string | null {
-  if (!sessionId) {
-    return null;
-  }
-  const trimmed = sessionId.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function shouldUseCmux(): boolean {
-  return Boolean(process.env.CMUX_SOCKET_PATH?.trim());
-}
+export type { AlgorithmTabPhase, TabState };
 
 export async function setTabState(args: {
   title: string;
@@ -42,41 +18,32 @@ export async function setTabState(args: {
   previousTitle?: string;
   sessionId?: string;
 }): Promise<void> {
-  const sessionId = normalizeSessionId(args.sessionId);
+  const sessionId = normalizeTabSessionId(args.sessionId);
   if (!sessionId) {
     return;
   }
 
   const title = args.title.trim();
-  snapshots.set(sessionId, {
+  await writeTabSnapshotAtomic(sessionId, {
     title,
     state: args.state,
     previousTitle: args.previousTitle,
   });
 
-  if (!title || !shouldUseCmux()) {
+  if (!title) {
     return;
   }
 
-  try {
-    await notify({
-      sessionId,
-      title: "PAI",
-      subtitle: "Tab",
-      body: title,
-    });
-  } catch {
-    // Defensive no-op by contract.
-  }
+  await renameCurrentCmuxSurfaceTitle(title);
 }
 
 export function readTabState(sessionId?: string): TabSnapshot | null {
-  const key = normalizeSessionId(sessionId);
+  const key = normalizeTabSessionId(sessionId);
   if (!key) {
     return null;
   }
 
-  return snapshots.get(key) ?? null;
+  return readTabSnapshot(key);
 }
 
 export function stripPrefix(title: string): string {
@@ -119,7 +86,7 @@ export async function setPhaseTab(
     await setTabState({ title: `✅ ${fallbackSummary}`, state: "completed", sessionId });
     const current = readTabState(sessionId);
     if (current) {
-      snapshots.set(sessionId, { ...current, phase });
+      await writeTabSnapshotAtomic(sessionId, { ...current, phase });
     }
     return;
   }
@@ -128,7 +95,7 @@ export async function setPhaseTab(
     await setTabState({ title: oneWord, state: "idle", sessionId });
     const current = readTabState(sessionId);
     if (current) {
-      snapshots.set(sessionId, { ...current, phase });
+      await writeTabSnapshotAtomic(sessionId, { ...current, phase });
     }
     return;
   }
@@ -142,6 +109,6 @@ export async function setPhaseTab(
 
   const current = readTabState(sessionId);
   if (current) {
-    snapshots.set(sessionId, { ...current, phase });
+    await writeTabSnapshotAtomic(sessionId, { ...current, phase });
   }
 }

@@ -54,3 +54,51 @@ export async function notify(args: {
     // No-op by design.
   }
 }
+
+export async function renameSurface(args: {
+  sessionId: string;
+  title: string;
+}): Promise<void> {
+  const socketPath = resolveSocketPath();
+  if (!socketPath) {
+    return;
+  }
+
+  try {
+    const surfaceId = await resolveSurfaceId({ sessionId: args.sessionId });
+    if (!surfaceId) {
+      return;
+    }
+
+    const client = new CmuxV2Client({ socketPath });
+    await client.call("surface.action", {
+      surface_id: surfaceId,
+      action: "rename",
+      title: args.title,
+    });
+  } catch {
+    // No-op by design.
+  }
+}
+
+export async function clearSurfaceTitle(args: { sessionId: string }): Promise<void> {
+  const socketPath = resolveSocketPath();
+  if (!socketPath) {
+    return;
+  }
+
+  try {
+    const surfaceId = await resolveSurfaceId({ sessionId: args.sessionId });
+    if (!surfaceId) {
+      return;
+    }
+
+    const client = new CmuxV2Client({ socketPath });
+    await client.call("surface.action", {
+      surface_id: surfaceId,
+      action: "clear_name",
+    });
+  } catch {
+    // No-op by design.
+  }
+}

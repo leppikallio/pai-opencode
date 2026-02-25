@@ -8,10 +8,12 @@ if (process.execArgv.includes("--check")) {
 }
 
 function resolvePaiDir(): string {
-  const envPaiDir = process.env.PAI_DIR?.trim();
-  const paiDirPlaceholder = "$" + "{PAI_DIR}";
-  if (envPaiDir && !envPaiDir.includes(paiDirPlaceholder)) {
-    return envPaiDir;
+  const envKeys = ["OPENCODE_ROOT", "OPENCODE_CONFIG_ROOT"] as const;
+  for (const key of envKeys) {
+    const envRuntimeRoot = process.env[key]?.trim();
+    if (envRuntimeRoot && !envRuntimeRoot.includes("${")) {
+      return envRuntimeRoot;
+    }
   }
 
   const scriptFile = fileURLToPath(import.meta.url);
@@ -28,7 +30,8 @@ try {
     stdio: ["ignore", "ignore", "ignore"],
     env: {
       ...process.env,
-      PAI_DIR: paiDir,
+      OPENCODE_ROOT: paiDir,
+      OPENCODE_CONFIG_ROOT: paiDir,
     },
   });
 

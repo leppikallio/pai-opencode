@@ -6,24 +6,24 @@ import { readStdinWithTimeout } from "../../hooks/lib/stdin";
 import { getISOTimestamp, getPSTComponents } from "../../hooks/lib/time";
 
 describe("cc hook shared libs contract", () => {
-  test("getPaiDir resolves from PAI_DIR and infers runtime root fallback", () => {
-    const previousPaiDir = process.env.PAI_DIR;
+  test("getPaiDir resolves from OPENCODE_ROOT and infers runtime root fallback", () => {
+    const previousOpenCodeRoot = process.env.OPENCODE_ROOT;
     const inferredPaiDir = resolve(import.meta.dir, "..", "..");
 
     try {
-      process.env.PAI_DIR = "/tmp/pai-config";
+      process.env.OPENCODE_ROOT = "/tmp/pai-config";
       expect(getPaiDir()).toBe("/tmp/pai-config");
 
-      delete process.env.PAI_DIR;
+      delete process.env.OPENCODE_ROOT;
       expect(getPaiDir()).toBe(inferredPaiDir);
 
-      process.env.PAI_DIR = "${PAI_DIR}";
+      process.env.OPENCODE_ROOT = "${OPENCODE_ROOT}";
       expect(getPaiDir()).toBe(inferredPaiDir);
     } finally {
-      if (previousPaiDir === undefined) {
-        delete process.env.PAI_DIR;
+      if (previousOpenCodeRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
       } else {
-        process.env.PAI_DIR = previousPaiDir;
+        process.env.OPENCODE_ROOT = previousOpenCodeRoot;
       }
     }
   });

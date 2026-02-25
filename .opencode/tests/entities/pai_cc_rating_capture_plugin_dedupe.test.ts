@@ -39,7 +39,8 @@ async function runRatingCaptureHook(args: {
     cmd: ["bun", ".opencode/hooks/RatingCapture.hook.ts"],
     cwd: repoRoot,
     env: withEnv({
-      PAI_DIR: args.paiDir,
+      // Hook-side runtime root override (hooks must not use PAI_DIR)
+      OPENCODE_ROOT: args.paiDir,
       PAI_DISABLE_IMPLICIT_SENTIMENT: "1",
       PAI_NO_NETWORK: undefined,
     }),
@@ -69,9 +70,11 @@ describe("rating-capture plugin dedupe", () => {
     const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-rating-dedupe-"));
     const ratingsFile = path.join(paiDir, "MEMORY", "LEARNING", "SIGNALS", "ratings.jsonl");
     const originalPaiDir = process.env.PAI_DIR;
+    const originalOpencodeRoot = process.env.OPENCODE_ROOT;
 
     try {
       process.env.PAI_DIR = paiDir;
+      process.env.OPENCODE_ROOT = paiDir;
 
       const hookResult = await runRatingCaptureHook({
         paiDir,
@@ -95,6 +98,12 @@ describe("rating-capture plugin dedupe", () => {
         delete process.env.PAI_DIR;
       } else {
         process.env.PAI_DIR = originalPaiDir;
+      }
+
+      if (originalOpencodeRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
+      } else {
+        process.env.OPENCODE_ROOT = originalOpencodeRoot;
       }
 
       await fs.rm(paiDir, { recursive: true, force: true });

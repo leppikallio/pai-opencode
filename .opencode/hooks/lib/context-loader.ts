@@ -64,7 +64,7 @@ function ensureInsidePaiDir(paiDir: string, candidatePath: string, sourcePath: s
 
   if (relativeFromPai.startsWith("..") || isAbsolute(relativeFromPai)) {
     throw new Error(
-      `[LoadContext] Invalid settings.json.contextFiles entry (outside PAI_DIR): ${sourcePath}`,
+      `[LoadContext] Invalid settings.json.contextFiles entry (outside runtime root): ${sourcePath}`,
     );
   }
 }

@@ -118,8 +118,10 @@ function cloneJsonValue<T>(value: T): T {
 }
 
 function resolvePaiDir(paiDir?: string): string {
-  const resolved = paiDir?.trim() || process.env.PAI_DIR?.trim();
-  if (!resolved || resolved.includes("${PAI_DIR}")) {
+  const resolved = paiDir?.trim()
+    || process.env.OPENCODE_ROOT?.trim()
+    || process.env.OPENCODE_CONFIG_ROOT?.trim();
+  if (!resolved || resolved.includes("${")) {
     return process.cwd();
   }
   return resolved;

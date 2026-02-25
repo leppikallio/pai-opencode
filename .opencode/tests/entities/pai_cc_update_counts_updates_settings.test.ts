@@ -35,7 +35,7 @@ async function runUpdateCountsHook(args: {
     cmd: ["bun", ".opencode/hooks/UpdateCounts.hook.ts"],
     cwd: repoRoot,
     env: withEnv({
-      PAI_DIR: args.paiDir,
+      OPENCODE_ROOT: args.paiDir,
       PAI_NO_NETWORK: "1",
     }),
     stdin: "pipe",
