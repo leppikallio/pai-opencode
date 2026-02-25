@@ -15,8 +15,8 @@ Compatibility:
 
 ## Where It Runs
 
-- Entry point: `~/.config/opencode/plugins/pai-unified.ts`
-- Validator: `~/.config/opencode/plugins/handlers/security-validator.ts`
+- Plugin entry point: `~/.config/opencode/plugins/pai-cc-hooks.ts`
+- Validator hook script: `~/.config/opencode/hooks/SecurityValidator.hook.ts`
 
 ---
 

@@ -484,7 +484,7 @@ export default function securityValidator(context: HookContext) {
 
 ### Files Involved
 - `~/.config/opencode/plugins/handlers/security-validator.ts` (updated)
-- `~/.config/opencode/plugins/pai-unified.ts` (event capture)
+- `~/.config/opencode/plugins/pai-cc-hooks.ts` (event capture)
 - Plugin configuration (runtime config file)
 
 ### Tests Run

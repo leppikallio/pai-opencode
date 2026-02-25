@@ -4,8 +4,8 @@ In the OpenCode port, security validation is implemented as a **plugin**, not a 
 
 ## Where It Runs
 
-- Plugin entrypoint: `~/.config/opencode/plugins/pai-unified.ts`
-- Validator implementation: `~/.config/opencode/plugins/handlers/security-validator.ts`
+- Plugin entrypoint: `~/.config/opencode/plugins/pai-cc-hooks.ts`
+- Validator hook script: `~/.config/opencode/hooks/SecurityValidator.hook.ts`
 - Pattern registry (YAML): `PAISECURITYSYSTEM/patterns.example.yaml` (USER override → SYSTEM fallback)
 
 ## What It Does

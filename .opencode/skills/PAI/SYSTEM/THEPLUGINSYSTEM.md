@@ -37,8 +37,8 @@ PAI-OpenCode translates Claude Code hook concepts to OpenCode plugin hooks:
 | Stop | `event` | Filter `session.deleted` / `session.status` idle |
 | SubagentStop | `tool.execute.after` | Filter `tool === "Task"` |
 
-**Reference Implementation:** `plugins/pai-unified.ts`
-**Type Definitions:** `plugins/adapters/types.ts` (includes `PAI_TO_OPENCODE_HOOKS` mapping)
+**Reference Implementation:** `plugins/pai-cc-hooks.ts`
+**Implementation Notes:** This runtime uses the `pai-cc-hooks` plugin to run hook scripts under `hooks/`.
 
 ---
 
@@ -195,24 +195,14 @@ event: async (input) => {
 
 ```
 plugins/
-├── pai-unified.ts          # Main plugin (combines all functionality)
-├── handlers/
-│   ├── context-loader.ts   # SessionStart → PAI context injection
-│   ├── security-validator.ts  # PreToolUse → Security validation
-│   ├── history-capture.ts   # message.* + session.* → WORK/RAW/ISC
-│   ├── isc-parser.ts        # Parse ISC from assistant response
-│   └── work-tracker.ts      # Work session lifecycle + ISC snapshots
-├── adapters/
-│   └── types.ts            # Shared types + PAI_TO_OPENCODE_HOOKS mapping
-└── lib/
-    ├── file-logger.ts      # Logging (avoids TUI corruption)
-    └── model-config.ts     # Model configuration
+├── pai-cc-hooks.ts         # Main plugin (Claude-hooks adapter)
+└── pai-cc-hooks/           # Implementation (hook runner, tools)
 ```
 
 **Key Design Decisions:**
 
-1. **Single Plugin File** - `pai-unified.ts` exports all hooks from one plugin
-2. **Handler Separation** - Complex logic in `handlers/` for maintainability
+1. **Single Plugin File** - `pai-cc-hooks.ts` exports one OpenCode plugin
+2. **Hook Separation** - Most behavior lives in `hooks/` scripts for portability
 3. **File Logging** - Never use `console.log` (corrupts OpenCode TUI), use `file-logger.ts`
 4. **Fail-Safe Security** - On validator error, require confirmation
 
@@ -227,7 +217,7 @@ OpenCode **automatically discovers** plugins from the `plugins/` directory - **n
 ```
 ~/.config/opencode/
   plugins/
-    pai-unified.ts    # ✅ Auto-discovered and loaded
+    pai-cc-hooks.ts   # ✅ Auto-discovered and loaded
     my-plugin.ts      # ✅ Also auto-discovered
 ```
 
@@ -310,7 +300,7 @@ See `~/.config/opencode/skills/PAI/SYSTEM/PAISECURITYSYSTEM/patterns.example.yam
 
 **Check:**
 1. Is the plugin file in `~/.config/opencode/plugins/`? (Auto-discovery location)
-2. Can Bun parse the TypeScript? `bun run ~/.config/opencode/plugins/pai-unified.ts`
+2. Can Bun parse the TypeScript? `bun --check ~/.config/opencode/plugins/pai-cc-hooks.ts`
 3. Are there TypeScript errors? Check `~/.config/opencode/plugins/debug.log`
 4. If using `opencode.json`: Use `plugin` (singular), not `plugins` (plural)
 5. If using explicit paths: Use `file://` URL format, not relative paths
