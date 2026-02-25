@@ -9,14 +9,21 @@ import { findMatchingHooks } from "./shared/pattern-matcher";
 import { notify as notifyCmuxDefault } from "./shared/cmux-adapter";
 import {
   findBackgroundTaskByChildSessionId as findBackgroundTaskByChildSessionIdDefault,
+  listActiveBackgroundTasks as listActiveBackgroundTasksDefault,
+  listBackgroundTasksByParent as listBackgroundTasksByParentDefault,
   markBackgroundTaskCompleted as markBackgroundTaskCompletedDefault,
   markNotified as markNotifiedDefault,
+  shouldSuppressDuplicate as shouldSuppressDuplicateDefault,
   type BackgroundTaskRecord,
 } from "./tools/background-task-state";
+
+import { BackgroundTaskPoller } from "./background/poller";
+import { notifyParentSessionBackgroundCompletion } from "./background/parent-notifier";
 
 type EventHookHandler = (input: unknown) => Promise<void>;
 type HookHandler = (input: unknown, output: unknown) => Promise<void>;
 type SessionGetFn = (args: { path: { id: string } }) => Promise<unknown>;
+type SessionPromptAsyncFn = (args: unknown) => Promise<unknown>;
 
 type UnknownRecord = Record<string, unknown>;
 type SessionLifecycleEventName = "SessionStart" | "SessionEnd";
@@ -27,6 +34,9 @@ type BackgroundCompletionDeps = {
   findBackgroundTaskByChildSessionId: (args: { childSessionId: string }) => Promise<BackgroundTaskRecord | null>;
   markBackgroundTaskCompleted: (args: { taskId: string; nowMs?: number }) => Promise<BackgroundTaskRecord | null>;
   markNotified: (taskId: string, nowMs?: number) => Promise<boolean>;
+  listBackgroundTasksByParent: (args: { parentSessionId: string; nowMs?: number }) => Promise<BackgroundTaskRecord[]>;
+  shouldSuppressDuplicate: (args: { sessionId: string; title: string; body: string; nowMs?: number }) => Promise<boolean>;
+  promptParentSessionAsync?: SessionPromptAsyncFn;
   notifyCmux: CmuxNotifyFn;
   fetchImpl: FetchLike;
 };
@@ -149,6 +159,18 @@ function getSessionGetFromContext(ctx: unknown): SessionGetFn | undefined {
   return typeof get === "function" ? (get as SessionGetFn) : undefined;
 }
 
+function getSessionPromptAsyncFromContext(ctx: unknown): SessionPromptAsyncFn | undefined {
+  const context = asRecord(ctx);
+  const client = asRecord(context.client);
+  const session = asRecord(client.session);
+  const promptAsync = session.promptAsync;
+  if (typeof promptAsync !== "function") {
+    return undefined;
+  }
+
+  return (args) => (promptAsync as (this: unknown, args: unknown) => Promise<unknown>).call(session, args);
+}
+
 async function emitBackgroundTaskCompletionNotifications(args: {
   taskRecord: BackgroundTaskRecord;
   deps: BackgroundCompletionDeps;
@@ -217,6 +239,15 @@ async function maybeHandleBackgroundTaskCompletion(args: {
   }
 
   await emitBackgroundTaskCompletionNotifications({ taskRecord: completedTask, deps: args.deps });
+
+  await notifyParentSessionBackgroundCompletion({
+    taskRecord: completedTask,
+    deps: {
+      promptAsync: args.deps.promptParentSessionAsync,
+      listBackgroundTasksByParent: args.deps.listBackgroundTasksByParent,
+      shouldSuppressDuplicate: args.deps.shouldSuppressDuplicate,
+    },
+  });
 }
 
 async function executeSessionLifecycleHooks(
@@ -291,14 +322,41 @@ export function createPaiClaudeHooks({
 } {
   const parentSessionIdCache = new Map<string, string | null>();
   const sessionGet = getSessionGetFromContext(ctx);
+  const promptParentSessionAsyncFromContext = getSessionPromptAsyncFromContext(ctx);
   const backgroundCompletionDeps: BackgroundCompletionDeps = {
     findBackgroundTaskByChildSessionId:
       deps?.findBackgroundTaskByChildSessionId ?? findBackgroundTaskByChildSessionIdDefault,
     markBackgroundTaskCompleted: deps?.markBackgroundTaskCompleted ?? markBackgroundTaskCompletedDefault,
     markNotified: deps?.markNotified ?? markNotifiedDefault,
+    listBackgroundTasksByParent: deps?.listBackgroundTasksByParent ?? listBackgroundTasksByParentDefault,
+    shouldSuppressDuplicate: deps?.shouldSuppressDuplicate ?? shouldSuppressDuplicateDefault,
+    promptParentSessionAsync: deps?.promptParentSessionAsync ?? promptParentSessionAsyncFromContext,
     notifyCmux: deps?.notifyCmux ?? notifyCmuxDefault,
     fetchImpl: deps?.fetchImpl ?? ((url, init) => fetch(url, init)),
   };
+
+  const poller = new BackgroundTaskPoller({
+    client: getRecord(asRecord(ctx), "client"),
+    listActiveBackgroundTasks: listActiveBackgroundTasksDefault,
+    markNotified: backgroundCompletionDeps.markNotified,
+    markBackgroundTaskCompleted: ({ taskId, nowMs }) => backgroundCompletionDeps.markBackgroundTaskCompleted({ taskId, nowMs }),
+    onTaskCompleted: async (taskRecord) => {
+      await emitBackgroundTaskCompletionNotifications({
+        taskRecord,
+        deps: backgroundCompletionDeps,
+      });
+
+      await notifyParentSessionBackgroundCompletion({
+        taskRecord,
+        deps: {
+          promptAsync: backgroundCompletionDeps.promptParentSessionAsync,
+          listBackgroundTasksByParent: backgroundCompletionDeps.listBackgroundTasksByParent,
+          shouldSuppressDuplicate: backgroundCompletionDeps.shouldSuppressDuplicate,
+        },
+      });
+    },
+  });
+  poller.start();
 
   const resolveParentSessionId = async (
     sessionId: string,
