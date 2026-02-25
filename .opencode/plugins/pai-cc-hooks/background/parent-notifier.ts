@@ -4,7 +4,7 @@ type PromptAsyncFn = (args: {
   path: { id: string };
   body: {
     noReply: boolean;
-    parts: Array<{ type: "text"; text: string }>;
+    parts: Array<{ type: "text"; text: string; synthetic?: boolean }>;
   };
 }) => Promise<unknown>;
 
@@ -100,7 +100,8 @@ export async function notifyParentSessionBackgroundCompletion(args: {
       path: { id: parentSessionId },
       body: {
         noReply: !allComplete,
-        parts: [{ type: "text", text: notificationText }],
+        // Mark synthetic so OpenCode TUI can keep these reminders hidden.
+        parts: [{ type: "text", text: notificationText, synthetic: true }],
       },
     });
   } catch {

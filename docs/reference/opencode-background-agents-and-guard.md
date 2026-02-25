@@ -24,6 +24,7 @@
    - Completion “bubbles up” to the parent session via `client.session.promptAsync`:
      - per-task completion: `noReply: true`
      - when all tasks for that parent are complete: `noReply: false`
+   - These bubble-up reminders are sent as **synthetic text parts** so the OpenCode TUI can keep them hidden.
 
 ---
 

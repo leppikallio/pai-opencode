@@ -64,6 +64,7 @@ describe("PAI parent-session background completion notifier", () => {
       expect(promptCalls).toHaveLength(1);
       expect(promptCalls[0]?.path?.id).toBe(parentSessionId);
       expect(promptCalls[0]?.body?.noReply).toBe(true);
+      expect(promptCalls[0]?.body?.parts?.[0]?.synthetic).toBe(true);
       expect(String(promptCalls[0]?.body?.parts?.[0]?.text ?? "")).toContain("[BACKGROUND TASK COMPLETED]");
       expect(String(promptCalls[0]?.body?.parts?.[0]?.text ?? "")).toContain("**ID:** `bg_ses_child_a`");
       expect(String(promptCalls[0]?.body?.parts?.[0]?.text ?? "")).toContain(
@@ -86,6 +87,7 @@ describe("PAI parent-session background completion notifier", () => {
       expect(promptCalls).toHaveLength(2);
       expect(promptCalls[1]?.path?.id).toBe(parentSessionId);
       expect(promptCalls[1]?.body?.noReply).toBe(false);
+      expect(promptCalls[1]?.body?.parts?.[0]?.synthetic).toBe(true);
       expect(String(promptCalls[1]?.body?.parts?.[0]?.text ?? "")).toContain("[ALL BACKGROUND TASKS COMPLETE]");
       expect(String(promptCalls[1]?.body?.parts?.[0]?.text ?? "")).toContain("`bg_ses_child_a`");
       expect(String(promptCalls[1]?.body?.parts?.[0]?.text ?? "")).toContain("`bg_ses_child_b`");
