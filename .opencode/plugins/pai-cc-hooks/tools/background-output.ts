@@ -106,13 +106,13 @@ function roleLabel(info: JsonRecord): string {
 function sliceSinceMessageId(
   messages: Array<{ info: JsonRecord; parts: unknown[] }>,
   sinceMessageId?: string,
-): Array<{ info: JsonRecord; parts: unknown[] }> {
+): { sliced: Array<{ info: JsonRecord; parts: unknown[] }>; found: boolean } {
   const marker = sinceMessageId?.trim();
-  if (!marker) return messages;
+  if (!marker) return { sliced: messages, found: true };
 
   const idx = messages.findIndex((m) => asString(m.info.id) === marker);
-  if (idx === -1) return messages;
-  return messages.slice(idx + 1);
+  if (idx === -1) return { sliced: messages, found: false };
+  return { sliced: messages.slice(idx + 1), found: true };
 }
 
 async function waitForCompletion(args: { taskId: string; timeoutMs: number }): Promise<BackgroundTaskRecord | null> {
@@ -162,8 +162,10 @@ export function createPaiBackgroundOutputTool(input: { client: unknown }) {
       const status = record.completed_at_ms != null ? "completed" : "running";
       const fullSession = args.full_session ?? true;
       const messageLimit = Math.min(Math.max(asNumber(args.message_limit) ?? 50, 1), 100);
-      const includeThinking = args.include_thinking === true;
-      const includeToolResults = args.include_tool_results === true;
+      const taskActive = record.completed_at_ms == null;
+      const includeThinking = typeof args.include_thinking === "boolean" ? args.include_thinking : taskActive;
+      const includeToolResults =
+        typeof args.include_tool_results === "boolean" ? args.include_tool_results : taskActive;
       const thinkingMaxChars = Math.min(Math.max(asNumber(args.thinking_max_chars) ?? 2000, 200), 10_000);
 
       const headerLines = [
@@ -195,7 +197,12 @@ export function createPaiBackgroundOutputTool(input: { client: unknown }) {
       }
 
       let messages = extractMessages(messagesResult);
-      messages = sliceSinceMessageId(messages, args.since_message_id);
+      const sliced = sliceSinceMessageId(messages, args.since_message_id);
+      if (!sliced.found) {
+        const marker = args.since_message_id?.trim() ?? "";
+        return `${headerLines.join("\n")}\n\nError: since_message_id not found in fetched messages: ${marker}`;
+      }
+      messages = sliced.sliced;
 
       if (!fullSession) {
         for (let i = messages.length - 1; i >= 0; i -= 1) {
