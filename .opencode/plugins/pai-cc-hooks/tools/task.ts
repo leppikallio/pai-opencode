@@ -12,8 +12,15 @@ type CarrierClient = {
     get?: (options: unknown) => Promise<unknown>;
     create?: (options?: unknown) => Promise<unknown>;
     prompt?: (options: unknown) => Promise<unknown>;
+    promptAsync?: (options: unknown) => Promise<unknown>;
+    abort?: (options: unknown) => Promise<unknown>;
+    messages?: (options: unknown) => Promise<unknown>;
   };
 };
+
+function buildBackgroundTaskId(childSessionId: string): string {
+  return `bg_${childSessionId}`;
+}
 
 type TaskToolArgs = {
   description: string;
@@ -168,8 +175,11 @@ export function createPaiTaskTool(input: {
         if (!session?.create) {
           throw new Error("PAI task override: client.session.create is unavailable");
         }
-        if (!session.prompt) {
-          throw new Error("PAI task override: client.session.prompt is unavailable");
+        const promptAsync = session.promptAsync;
+        const promptSync = session.prompt;
+        const promptLaunch = promptAsync ?? promptSync;
+        if (!promptLaunch) {
+          throw new Error("PAI task override: client.session.promptAsync/prompt is unavailable");
         }
 
         const childCreateResult = await session.create({
@@ -187,14 +197,16 @@ export function createPaiTaskTool(input: {
           throw new Error("PAI task override: child session creation returned no id");
         }
 
+        const taskId = buildBackgroundTaskId(childSessionId);
+
         await recordBackgroundTaskLaunch({
-          taskId: childSessionId,
+          taskId,
           childSessionId,
           parentSessionId,
         });
 
-        void session
-          .prompt({
+        void promptLaunch
+          .call(session, {
             path: { id: childSessionId },
             body: {
               agent: args.subagent_type,
@@ -212,7 +224,7 @@ export function createPaiTaskTool(input: {
 
             try {
               await recordBackgroundTaskLaunchError({
-                taskId: childSessionId,
+                taskId,
                 errorMessage: normalizedMessage,
               });
             } catch {
@@ -220,7 +232,7 @@ export function createPaiTaskTool(input: {
             }
           });
 
-        return { task_id: childSessionId, session_id: childSessionId } as unknown as string;
+        return `Background task launched.\n\nTask ID: ${taskId}\nSession ID: ${childSessionId}\nAgent: ${args.subagent_type}\n\nSystem notifies on completion. Use \`background_output\` with task_id=\"${taskId}\" to check.`;
       }
 
       const ask = (ctx as ToolContext & { ask?: (request: unknown) => Promise<unknown> }).ask;

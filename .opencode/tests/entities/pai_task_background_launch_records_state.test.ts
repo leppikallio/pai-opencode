@@ -58,15 +58,10 @@ describe("PAI task tool run_in_background", () => {
         } as any,
       );
 
-      const backgroundResult = result as unknown as {
-        task_id: string;
-        session_id: string;
-      };
-
-      expect(backgroundResult).toEqual({
-        task_id: "child-session-123",
-        session_id: "child-session-123",
-      });
+      expect(typeof result).toBe("string");
+      expect(result).toContain("Background task launched");
+      expect(result).toContain("Task ID: bg_child-session-123");
+      expect(result).toContain("Session ID: child-session-123");
 
       expect(calls).toHaveLength(2);
       expect(calls[0]).toEqual({
@@ -104,8 +99,8 @@ describe("PAI task tool run_in_background", () => {
         >;
       };
 
-      expect(persisted.backgroundTasks?.["child-session-123"]).toMatchObject({
-        task_id: "child-session-123",
+      expect(persisted.backgroundTasks?.["bg_child-session-123"]).toMatchObject({
+        task_id: "bg_child-session-123",
         child_session_id: "child-session-123",
         parent_session_id: "parent-session-456",
       });
@@ -161,7 +156,7 @@ describe("PAI task tool run_in_background", () => {
               }
             >;
           };
-          const record = persisted.backgroundTasks?.["child-session-err"];
+          const record = persisted.backgroundTasks?.["bg_child-session-err"];
           return (
             typeof record?.launch_error === "string" &&
             record.launch_error.includes("prompt send exploded") &&

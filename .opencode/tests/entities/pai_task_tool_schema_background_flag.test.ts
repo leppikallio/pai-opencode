@@ -18,6 +18,38 @@ describe("PAI task tool override", () => {
     expect(taskTool.args.command.safeParse(42).success).toBe(false);
   });
 
+  test("background task returns string output (tool contract)", async () => {
+    const taskTool = createPaiTaskTool({
+      client: {
+        session: {
+          create: async () => ({ data: { id: "child-session-123" } }),
+          prompt: async () => ({ data: { parts: [{ type: "text", text: "unused" }] } }),
+          promptAsync: async () => ({ data: true }),
+        },
+      },
+      $: (() => Promise.resolve(null)) as unknown,
+      recordBackgroundTaskLaunch: async () => {},
+    });
+
+    const res = await taskTool.execute(
+      {
+        description: "Run subagent",
+        prompt: "Do the thing",
+        subagent_type: "Engineer",
+        run_in_background: true,
+      },
+      {
+        sessionID: "parent-session-456",
+        directory: "/tmp/workspace",
+      } as any,
+    );
+
+    expect(typeof res).toBe("string");
+    expect(res).toContain("Background task launched");
+    expect(res).toContain("Task ID:");
+    expect(res).toContain("Session ID:");
+  });
+
   test("launches background task when run_in_background is true", async () => {
     const calls: Array<{ method: string; payload: unknown }> = [];
     const launchRecords: Array<{ taskId: string; childSessionId: string; parentSessionId: string }> = [];
@@ -54,19 +86,14 @@ describe("PAI task tool override", () => {
       } as any,
     );
 
-    const backgroundResult = result as unknown as {
-      task_id: string;
-      session_id: string;
-    };
-
-    expect(backgroundResult).toEqual({
-      task_id: "child-session-123",
-      session_id: "child-session-123",
-    });
+    expect(typeof result).toBe("string");
+    expect(result).toContain("Background task launched");
+    expect(result).toContain("Task ID: bg_child-session-123");
+    expect(result).toContain("Session ID: child-session-123");
     expect(calls.map((entry) => entry.method)).toEqual(["create", "prompt"]);
     expect(launchRecords).toEqual([
       {
-        taskId: "child-session-123",
+        taskId: "bg_child-session-123",
         childSessionId: "child-session-123",
         parentSessionId: "parent-session-456",
       },

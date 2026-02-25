@@ -64,8 +64,19 @@ export type FindBackgroundTaskByChildSessionIdArgs = {
   nowMs?: number;
 };
 
+export type FindBackgroundTaskByTaskIdArgs = {
+  taskId: string;
+  nowMs?: number;
+};
+
 export type MarkBackgroundTaskCompletedArgs = {
   taskId: string;
+  nowMs?: number;
+};
+
+export type MarkBackgroundTaskCancelledArgs = {
+  taskId: string;
+  reason?: string;
   nowMs?: number;
 };
 
@@ -634,6 +645,30 @@ export async function findBackgroundTaskByChildSessionId(
   });
 }
 
+export async function findBackgroundTaskByTaskId(
+  args: FindBackgroundTaskByTaskIdArgs,
+): Promise<BackgroundTaskRecord | null> {
+  const taskId = args.taskId.trim();
+  if (!taskId) {
+    return null;
+  }
+
+  const nowMs = normalizeNowMs(args.nowMs);
+  const statePath = getBackgroundTaskStatePath();
+
+  return withStateLock(statePath, async () => {
+    const state = await readState(statePath, nowMs);
+    pruneState(state, nowMs);
+
+    const record = state.backgroundTasks[taskId];
+    if (!record) {
+      return null;
+    }
+
+    return { ...record };
+  });
+}
+
 export async function markBackgroundTaskCompleted(args: MarkBackgroundTaskCompletedArgs): Promise<BackgroundTaskRecord | null> {
   const taskId = args.taskId.trim();
   if (!taskId) {
@@ -660,6 +695,44 @@ export async function markBackgroundTaskCompleted(args: MarkBackgroundTaskComple
       ...existing,
       completed_at_ms: existing.completed_at_ms ?? nowMs,
       updated_at_ms: nowMs,
+    };
+
+    state.backgroundTasks[taskId] = updated;
+    state.updatedAtMs = nowMs;
+    pruneState(state, nowMs);
+
+    await writeState(statePath, state);
+    return { ...updated };
+  });
+}
+
+export async function markBackgroundTaskCancelled(
+  args: MarkBackgroundTaskCancelledArgs,
+): Promise<BackgroundTaskRecord | null> {
+  const taskId = args.taskId.trim();
+  if (!taskId) {
+    return null;
+  }
+
+  const nowMs = normalizeNowMs(args.nowMs);
+  const statePath = getBackgroundTaskStatePath();
+  const reason = (args.reason ?? "cancelled").trim() || "cancelled";
+
+  return withStateLock(statePath, async () => {
+    const state = await readState(statePath, nowMs);
+    pruneState(state, nowMs);
+
+    const existing = state.backgroundTasks[taskId];
+    if (!existing) {
+      return null;
+    }
+
+    const updated: BackgroundTaskRecord = {
+      ...existing,
+      completed_at_ms: existing.completed_at_ms ?? nowMs,
+      updated_at_ms: nowMs,
+      launch_error: reason,
+      launch_error_at_ms: nowMs,
     };
 
     state.backgroundTasks[taskId] = updated;

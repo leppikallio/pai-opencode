@@ -1,6 +1,8 @@
 import type { Plugin } from "@opencode-ai/plugin";
 import { createPaiClaudeHooks } from "./pai-cc-hooks/hook";
 import { recordBackgroundTaskLaunch } from "./pai-cc-hooks/tools/background-task-state";
+import { createPaiBackgroundCancelTool } from "./pai-cc-hooks/tools/background-cancel";
+import { createPaiBackgroundOutputTool } from "./pai-cc-hooks/tools/background-output";
 import { createPaiTaskTool } from "./pai-cc-hooks/tools/task";
 
 const PaiCcHooksPlugin: Plugin = async (ctx) => {
@@ -12,6 +14,12 @@ const PaiCcHooksPlugin: Plugin = async (ctx) => {
         client: ctx.client,
         $: ctx.$,
         recordBackgroundTaskLaunch,
+      }),
+      background_output: createPaiBackgroundOutputTool({
+        client: ctx.client,
+      }),
+      background_cancel: createPaiBackgroundCancelTool({
+        client: ctx.client,
       }),
     },
     event: hooks.event,

@@ -16,6 +16,55 @@
 
 3) **oh-my-opencode already implements this pattern**: it adds delegate/background tools, a `BackgroundManager`, and a `run_in_background` boolean to choose async vs sync behavior.
 
+4) **PAI now implements a minimal parity surface** (without a full BackgroundManager port yet):
+   - `task(run_in_background:true)` returns a **string** (plugin tool contract) and launches via `promptAsync` when available.
+   - `background_output(task_id="bg_<sessionId>")` retrieves messages from the child session.
+   - `background_cancel(task_id=...)` aborts the child session.
+   - Background completion notifications are handled via `session.idle` event hooks + persisted state.
+
+---
+
+## Current implementation (PAI plugin) — practical notes
+
+### `task` (background mode)
+
+- Call: `task(description="...", prompt="...", subagent_type="...", run_in_background=true)`
+- Creates a child session with `parentID=<current session>`
+- Launches the prompt using `client.session.promptAsync(...)` (falls back to `prompt(...)` if needed)
+- Persists state under `${PAI_DIR}/MEMORY/STATE/background-tasks.json` (defaults to `~/.config/opencode/...`)
+- Returns a **string** like:
+
+```text
+Background task launched.
+
+Task ID: bg_<childSessionId>
+Session ID: <childSessionId>
+Agent: <subagent_type>
+
+System notifies on completion. Use `background_output` with task_id="bg_<childSessionId>" to check.
+```
+
+**Important:** `Task ID` and `Session ID` are intentionally different.
+
+- `task_id` format: `bg_<childSessionId>`
+- `child_session_id` format: `ses_...` (OpenCode session id)
+
+### `background_output`
+
+- Call: `background_output(task_id="bg_<childSessionId>")`
+- Defaults: `full_session=true`, `message_limit=50`
+- Uses `client.session.messages({ path: { id: <childSessionId> }, query: { limit } })`
+- Useful args:
+  - `full_session`: return a readable transcript (role + text)
+  - `since_message_id`: only return messages after a known message id
+  - `block=true`: wait until state shows completion (rarely needed; completion is notified)
+
+### `background_cancel`
+
+- Call: `background_cancel(task_id="bg_<childSessionId>")`
+- Uses `client.session.abort({ path: { id: <childSessionId> } })`
+- Marks the state record as completed with `launch_error="cancelled"` for observability.
+
 ---
 
 ## Evidence (OpenCode plugin supports custom tools)
@@ -47,6 +96,8 @@ OpenCode Task tool awaits the sub-session prompt:
 
 Implication: CC v3.0’s `AgentExecutionGuard` expectation (`run_in_background: true`) cannot be met by the built-in `task` tool alone.
 
+Practical implication for PAI: you must use the **plugin tool override** (which adds `run_in_background`) to get non-blocking delegation.
+
 ---
 
 ## Evidence (oh-my-opencode background model)
@@ -75,11 +126,11 @@ Guard can enforce **policy** at `tool.execute.before` (tool=="task"):
 - require opt-in markers in task description/prompt
 - enforce max prompt size / max parallelism
 
-But it cannot make `task` non-blocking.
+But without a background-capable tool override, it cannot make `task` non-blocking.
 
-### Recommended (for CC parity): add a plugin background-capable task tool
+### Implemented (PAI): plugin background-capable `task` tool
 
-Add a plugin tool based on **oh-my-opencode** (preferred): expose it as tool id **`task`** (override builtin) with inputs:
+Implemented as a plugin tool based on **oh-my-opencode** (preferred): exposed as tool id **`task`** (override builtin) with inputs:
 
 ```ts
 {
@@ -93,9 +144,9 @@ Add a plugin tool based on **oh-my-opencode** (preferred): expose it as tool id 
 Behaviors:
 - If `run_in_background: true`:
   - create a child session (parentID)
-  - call `prompt_async` (or equivalent client call)
-  - return immediately with a `task_id` + metadata
-  - completion is handled by a background manager listening to `event` (`session.idle`, etc.)
+  - call `promptAsync` (or equivalent client call)
+  - return immediately with a **string** containing `Task ID` + `Session ID`
+  - completion is detected via `session.idle` event hooks + persisted state (cmux/voice notification)
 - If false:
   - optionally run synchronous path (not the priority for parity)
 
@@ -112,7 +163,8 @@ Then AgentExecutionGuard changes meaning:
 
 ## Decision captured
 
-- We will **port oh-my-opencode’s delegate-task + BackgroundManager approach** into the PAI plugin (planning only; implement later).
+- Implemented: minimal parity surface (background-capable `task` tool override + `background_output` + `background_cancel`).
+- Deferred: full `BackgroundManager` port (queueing, concurrency controls, richer status formatting) — implement later if needed.
 
 ---
 
@@ -146,7 +198,7 @@ Then AgentExecutionGuard changes meaning:
 Inputs available at `tool.execute.before` (`task`):
 - `subagent_type`
 - `prompt`
-- `run_in_background` (`task` args only; builtin TaskTool does not support it)
+- `run_in_background` (PAI tool override arg; OpenCode builtin TaskTool does not expose it)
 
 Decision tree:
 
