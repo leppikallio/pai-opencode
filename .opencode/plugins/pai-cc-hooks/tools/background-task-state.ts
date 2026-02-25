@@ -743,3 +743,42 @@ export async function markBackgroundTaskCancelled(
     return { ...updated };
   });
 }
+
+export async function listActiveBackgroundTasks(
+  args?: { nowMs?: number },
+): Promise<BackgroundTaskRecord[]> {
+  const nowMs = normalizeNowMs(args?.nowMs);
+  const statePath = getBackgroundTaskStatePath();
+
+  return withStateLock(statePath, async () => {
+    const state = await readState(statePath, nowMs);
+    pruneState(state, nowMs);
+
+    return Object.values(state.backgroundTasks)
+      .filter((record) => record.completed_at_ms == null && record.launch_error == null)
+      .map((record) => ({ ...record }));
+  });
+}
+
+export async function listBackgroundTasksByParent(args: {
+  parentSessionId: string;
+  nowMs?: number;
+}): Promise<BackgroundTaskRecord[]> {
+  const parentSessionId = args.parentSessionId.trim();
+  if (!parentSessionId) {
+    return [];
+  }
+
+  const nowMs = normalizeNowMs(args.nowMs);
+  const statePath = getBackgroundTaskStatePath();
+
+  return withStateLock(statePath, async () => {
+    const state = await readState(statePath, nowMs);
+    pruneState(state, nowMs);
+
+    return Object.values(state.backgroundTasks)
+      .filter((record) => record.parent_session_id === parentSessionId)
+      .sort((left, right) => left.launched_at_ms - right.launched_at_ms)
+      .map((record) => ({ ...record }));
+  });
+}
