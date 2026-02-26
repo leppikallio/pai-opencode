@@ -96,6 +96,30 @@ The CC v3 hooks that currently assume Kitty + `localhost:8888` can be re-express
 - `set-progress 0..1 --label "BUILD"` (or similar)
 - status key to show current phase
 
+## Attention taxonomy + routing chain (current contract)
+
+The canonical event model now lives in:
+
+- `docs/reference/cmux-attention-taxonomy.md`
+
+Routing order for attention events is deterministic:
+
+1. `notification.create_for_target`
+2. fallback `notification.create_for_surface`
+3. fallback `notification.create`
+
+Fallback mirror behavior keeps attention glanceable in status/progress:
+
+- status mirror (`oc_attention`, `oc_phase`) remains enabled by default
+- progress mirror follows `PAI_CMUX_PROGRESS_ENABLED`
+- `P0` flash nudges follow `PAI_CMUX_FLASH_ON_P0`
+
+Rollout defaults (non-breaking):
+
+- `PAI_CMUX_ATTENTION_ENABLED=1`
+- `PAI_CMUX_PROGRESS_ENABLED=1`
+- `PAI_CMUX_FLASH_ON_P0=1`
+
 ## Safety requirements (for our hook integration)
 
 Non-negotiables:

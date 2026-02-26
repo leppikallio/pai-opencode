@@ -1,4 +1,4 @@
-import { renameCurrentCmuxSurfaceTitle } from "./cmux-v2";
+import { mirrorCurrentCmuxPhase, renameCurrentCmuxSurfaceTitle } from "./cmux-v2";
 import {
   normalizeTabSessionId,
   readTabSnapshot,
@@ -11,12 +11,23 @@ import {
 const TAB_TITLE_PREFIX_RE = /^(?:🧠|⚙️|⚙|✓|❓|👁️|📋|🔨|⚡|✅|📚)\s*/;
 
 export type { AlgorithmTabPhase, TabState };
+export type TabPhaseMirrorToken =
+  | "OBSERVE"
+  | "THINK"
+  | "PLAN"
+  | "BUILD"
+  | "WORK"
+  | "EXECUTE"
+  | "QUESTION"
+  | "LEARN"
+  | "DONE";
 
 export async function setTabState(args: {
   title: string;
   state: TabState;
   previousTitle?: string;
   sessionId?: string;
+  phaseToken?: TabPhaseMirrorToken;
 }): Promise<void> {
   const sessionId = normalizeTabSessionId(args.sessionId);
   if (!sessionId) {
@@ -35,6 +46,10 @@ export async function setTabState(args: {
   }
 
   await renameCurrentCmuxSurfaceTitle(title);
+
+  if (args.phaseToken) {
+    await mirrorCurrentCmuxPhase({ phaseToken: args.phaseToken });
+  }
 }
 
 export function readTabState(sessionId?: string): TabSnapshot | null {

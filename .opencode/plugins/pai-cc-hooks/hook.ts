@@ -7,6 +7,7 @@ import type { ClaudeHooksConfig, SessionEndInput, SessionStartInput } from "./cl
 import { executeHookCommand } from "./shared/execute-hook-command";
 import { findMatchingHooks } from "./shared/pattern-matcher";
 import { notify as notifyCmuxDefault } from "./shared/cmux-adapter";
+import { emitAmbient } from "../../hooks/lib/cmux-attention";
 import {
   findBackgroundTaskByChildSessionId as findBackgroundTaskByChildSessionIdDefault,
   listActiveBackgroundTasks as listActiveBackgroundTasksDefault,
@@ -30,6 +31,11 @@ type SessionPromptAsyncFn = (args: unknown) => Promise<unknown>;
 type UnknownRecord = Record<string, unknown>;
 type SessionLifecycleEventName = "SessionStart" | "SessionEnd";
 type CmuxNotifyFn = (args: { sessionId: string; title: string; subtitle: string; body: string }) => Promise<void>;
+type CompletionAttentionNotifyFn = (event: {
+  eventKey: "AGENT_COMPLETED";
+  sessionId: string;
+  reasonShort: string;
+}) => Promise<void>;
 type FetchLike = (url: string, init?: RequestInit) => Promise<unknown>;
 
 type BackgroundCompletionDeps = {
@@ -41,6 +47,7 @@ type BackgroundCompletionDeps = {
   sessionGet?: SessionGetFn;
   promptParentSessionAsync?: SessionPromptAsyncFn;
   notifyCmux: CmuxNotifyFn;
+  emitCompletionAttention: CompletionAttentionNotifyFn;
   fetchImpl: FetchLike;
 };
 
@@ -174,21 +181,47 @@ function getSessionPromptAsyncFromContext(ctx: unknown): SessionPromptAsyncFn | 
   return (args) => (promptAsync as (this: unknown, args: unknown) => Promise<unknown>).call(session, args);
 }
 
+function buildBackgroundCompletionReason(taskRecord: BackgroundTaskRecord): string {
+  const taskId = taskRecord.task_id.trim();
+  if (!taskId) {
+    return "Done: background task";
+  }
+
+  return `Done: ${taskId}`;
+}
+
+async function emitCompletionAttentionDefault(event: {
+  eventKey: "AGENT_COMPLETED";
+  sessionId: string;
+  reasonShort: string;
+}): Promise<void> {
+  await emitAmbient(event);
+}
+
+function createLegacyCompletionNotifyAdapter(notifyCmux: CmuxNotifyFn): CompletionAttentionNotifyFn {
+  return async (event) => {
+    await notifyCmux({
+      sessionId: event.sessionId,
+      title: "OpenCode",
+      subtitle: "Background task",
+      body: event.reasonShort,
+    });
+  };
+}
+
 async function emitBackgroundTaskCompletionNotifications(args: {
   taskRecord: BackgroundTaskRecord;
   deps: BackgroundCompletionDeps;
 }): Promise<void> {
   const notifySessionId = args.taskRecord.parent_session_id || args.taskRecord.child_session_id;
   const title = "OpenCode";
-  const subtitle = "Background task";
-  const body = `Task ${args.taskRecord.task_id} completed`;
+  const body = buildBackgroundCompletionReason(args.taskRecord);
 
   try {
-    await args.deps.notifyCmux({
+    await args.deps.emitCompletionAttention({
+      eventKey: "AGENT_COMPLETED",
       sessionId: notifySessionId,
-      title,
-      subtitle,
-      body,
+      reasonShort: body,
     });
   } catch {
     // Best effort by design.
@@ -316,6 +349,12 @@ export function createPaiClaudeHooks({
   const parentSessionIdCache = new Map<string, string | null>();
   const sessionGet = getSessionGetFromContext(ctx);
   const promptParentSessionAsyncFromContext = getSessionPromptAsyncFromContext(ctx);
+  const notifyCmux = deps?.notifyCmux ?? notifyCmuxDefault;
+  const emitCompletionAttention =
+    deps?.emitCompletionAttention ??
+    (deps?.notifyCmux
+      ? createLegacyCompletionNotifyAdapter(notifyCmux)
+      : emitCompletionAttentionDefault);
   const backgroundCompletionDeps: BackgroundCompletionDeps = {
     findBackgroundTaskByChildSessionId:
       deps?.findBackgroundTaskByChildSessionId ?? findBackgroundTaskByChildSessionIdDefault,
@@ -325,7 +364,8 @@ export function createPaiClaudeHooks({
     shouldSuppressDuplicate: deps?.shouldSuppressDuplicate ?? shouldSuppressDuplicateDefault,
     promptParentSessionAsync: deps?.promptParentSessionAsync ?? promptParentSessionAsyncFromContext,
     sessionGet,
-    notifyCmux: deps?.notifyCmux ?? notifyCmuxDefault,
+    notifyCmux,
+    emitCompletionAttention,
     fetchImpl: deps?.fetchImpl ?? ((url, init) => fetch(url, init)),
   };
 

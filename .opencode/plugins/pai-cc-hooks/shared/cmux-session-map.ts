@@ -218,6 +218,11 @@ function resolveStatePath(statePath?: string): string {
   return statePath ?? getDefaultCmuxSessionMapPath();
 }
 
+function trimEnv(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 async function withLock<T>(lockPath: string, fn: () => Promise<T>): Promise<T> {
   await fs.promises.mkdir(path.dirname(lockPath), { recursive: true });
   const lockHandle = await acquireLock(lockPath);
@@ -302,4 +307,26 @@ export async function lookupSessionMapping(args: {
 }): Promise<RecordV1 | null> {
   const store = await readStore(resolveStatePath(args.statePath));
   return store.sessions[args.sessionId] ?? null;
+}
+
+export async function syncSessionMappingFromEnv(
+  sessionId: string,
+  cwd?: string,
+  statePath?: string,
+): Promise<void> {
+  const normalizedSessionId = sessionId.trim();
+  const workspaceId = trimEnv(process.env.CMUX_WORKSPACE_ID);
+  const surfaceId = trimEnv(process.env.CMUX_SURFACE_ID);
+
+  if (!normalizedSessionId || !workspaceId || !surfaceId) {
+    return;
+  }
+
+  await upsertSessionMapping({
+    statePath,
+    sessionId: normalizedSessionId,
+    workspaceId,
+    surfaceId,
+    cwd,
+  });
 }

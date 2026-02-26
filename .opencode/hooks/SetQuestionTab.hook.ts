@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { readFileSync } from "node:fs";
 
-import { notify } from "../plugins/pai-cc-hooks/shared/cmux-adapter";
+import { emitInterrupt } from "./lib/cmux-attention";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -61,11 +61,10 @@ function readQuestionHeader(payload: JsonRecord): string {
 
 try {
   const payload = readStdinBestEffort();
-  await notify({
+  await emitInterrupt({
+    eventKey: "QUESTION_PENDING",
     sessionId: readSessionId(payload),
-    title: "PAI",
-    subtitle: "Question",
-    body: readQuestionHeader(payload),
+    reasonShort: readQuestionHeader(payload),
   });
 } catch {
   // Never throw from hooks.

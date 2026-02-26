@@ -72,6 +72,7 @@ async function updateTabTitle(payload: JsonRecord): Promise<string | null> {
     title: `🧠 ${prefix}${thinkingTitle}`,
     state: "thinking",
     sessionId,
+    phaseToken: "THINK",
   });
 
   let finalTitle = thinkingTitle;
@@ -90,6 +91,7 @@ async function updateTabTitle(payload: JsonRecord): Promise<string | null> {
     title: `⚙️ ${prefix}${finalTitle}`,
     state: "working",
     sessionId,
+    phaseToken: "WORK",
   });
 
   // Prompt-time voice (upstream parity): when inference yields a clean working title,
