@@ -61,8 +61,16 @@ function dirExists(p: string): boolean {
  * 4) ~/.opencode (legacy fallback)
  */
 export function getPaiDir(): string {
+  // OpenCode-native config root env vars (used by hooks + tests).
+  const fromOpenCodeRoot = process.env.OPENCODE_ROOT || process.env.OPENCODE_CONFIG_ROOT;
+  if (fromOpenCodeRoot?.trim() && !fromOpenCodeRoot.includes("${")) {
+    return resolve(expandTilde(fromOpenCodeRoot.trim()));
+  }
+
   const fromEnv = process.env.PAI_DIR;
-  if (fromEnv?.trim()) return resolve(expandTilde(fromEnv.trim()));
+  if (fromEnv?.trim() && !fromEnv.includes("${")) {
+    return resolve(expandTilde(fromEnv.trim()));
+  }
 
   // This file lives at: <paiDir>/plugins/lib/pai-runtime.ts (installed)
   // or: <repo>/.opencode/plugins/lib/pai-runtime.ts (source tree)

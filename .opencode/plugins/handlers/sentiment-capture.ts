@@ -30,6 +30,13 @@ type SentimentResult = {
 const DEFAULT_MIN_CONFIDENCE = 0.5;
 const ENABLE_FALLBACK = process.env.PAI_IMPLICIT_SENTIMENT_FALLBACK !== "0";
 
+function enableCarrierImplicitSentiment(): boolean {
+  const v = (process.env.PAI_ENABLE_CARRIER_IMPLICIT_SENTIMENT ?? "").trim().toLowerCase();
+  // Default ON (internal sessions are acceptable; must still cleanup).
+  if (!v) return true;
+  return v === "1" || v === "true" || v === "on" || v === "yes";
+}
+
 function getMinConfidence(): number {
   const raw = process.env.PAI_IMPLICIT_SENTIMENT_MIN_CONFIDENCE;
   if (!raw) return DEFAULT_MIN_CONFIDENCE;
@@ -405,12 +412,17 @@ async function runCarrierJson(args: {
       return JSON.parse(candidate);
     } finally {
       collector?.abort();
-      void args.client.session
-        .delete({
-          path: { id: sid },
-          query: directory ? { directory } : undefined,
-        })
-        .catch(() => {});
+      try {
+        await Promise.race([
+          args.client.session.delete({
+            path: { id: sid },
+            query: directory ? { directory } : undefined,
+          }) as unknown as Promise<unknown>,
+          new Promise<void>((resolve) => setTimeout(resolve, 500)),
+        ]);
+      } catch {
+        // best-effort
+      }
       args.unignoreSession?.(sid);
     }
   }
@@ -476,10 +488,18 @@ async function runCarrierJson(args: {
     if (!candidate) throw new Error("carrier returned non-JSON output");
     return JSON.parse(candidate);
   } finally {
-    void fetch(`${base}/session/${sid}`, {
-      method: "DELETE",
-      headers: { ...(auth ? { Authorization: auth } : {}) },
-    }).catch(() => {});
+    try {
+      await fetchWithTimeout(
+        `${base}/session/${sid}`,
+        {
+          method: "DELETE",
+          headers: { ...(auth ? { Authorization: auth } : {}) },
+        },
+        500,
+      );
+    } catch {
+      // best-effort
+    }
   }
 }
 
@@ -562,6 +582,42 @@ export async function maybeCaptureImplicitSentiment(opts: {
         userMessageId,
         step: "skipped:heuristic",
         text: trimmed,
+      });
+      return;
+    }
+
+    // Default: do NOT create carrier sessions.
+    // When disabled, we fall back to a conservative local heuristic.
+    if (!enableCarrierImplicitSentiment()) {
+      const fallback = classifyHeuristic(trimmed);
+      if (!fallback) {
+        await writeImplicitSentimentDebug({
+          ts: new Date().toISOString(),
+          sessionId,
+          userMessageId,
+          step: "skipped:no_carrier_no_signal",
+        });
+        return;
+      }
+
+      const rating = clampRating(fallback.rating);
+      const entry: ImplicitSentimentEntry = {
+        timestamp: new Date().toISOString(),
+        rating,
+        score: rating,
+        session_id: sessionId,
+        source: "implicit",
+        sentiment_summary: fallback.summary,
+        confidence: Math.max(getMinConfidence(), 0.7),
+        user_message_id: userMessageId,
+      };
+      await writeImplicitSentiment(entry);
+      await writeImplicitSentimentDebug({
+        ts: new Date().toISOString(),
+        sessionId,
+        userMessageId,
+        step: "written:heuristic_no_carrier",
+        entry,
       });
       return;
     }

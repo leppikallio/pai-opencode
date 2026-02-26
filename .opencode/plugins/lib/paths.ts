@@ -138,8 +138,12 @@ function readString(obj: Record<string, unknown>, key: string): string | undefin
 }
 
 function sanitizeSessionId(sessionId: string): string {
+  const trimmed = sessionId.trim();
+  if (!trimmed) return "";
+  if (trimmed.length > 128) return "";
   // Allow only safe path characters.
-  return sessionId.replace(/[^a-zA-Z0-9_-]/g, "");
+  if (!/^[A-Za-z0-9_-]+$/.test(trimmed)) return "";
+  return trimmed;
 }
 
 async function readCurrentWorkState(stateFile: string): Promise<CurrentWorkStateV2> {
@@ -184,7 +188,16 @@ export async function getCurrentWorkPathForSession(sessionIdRaw: string): Promis
 
   const state = await readCurrentWorkState(stateFile);
   const entry = state.sessions[sessionId];
-  if (entry?.work_dir) return entry.work_dir;
+  if (entry?.work_dir) {
+    // Guard against tampered STATE: only allow paths inside MEMORY/WORK.
+    const workRoot = path.resolve(getWorkDir());
+    const candidate = path.resolve(entry.work_dir);
+    const rel = path.relative(workRoot, candidate);
+    if (rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel))) {
+      return candidate;
+    }
+    return null;
+  }
 
   return null;
 }
@@ -194,8 +207,16 @@ export async function setCurrentWorkPathForSession(sessionIdRaw: string, workPat
   const sessionId = sanitizeSessionId(sessionIdRaw);
   if (!sessionId) return;
 
+  // Guard: refuse to persist paths outside MEMORY/WORK.
+  const workRoot = path.resolve(getWorkDir());
+  const candidate = path.resolve(workPath);
+  const rel = path.relative(workRoot, candidate);
+  if (!(rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel)))) {
+    return;
+  }
+
   const state = await readCurrentWorkState(stateFile);
-  state.sessions[sessionId] = { work_dir: workPath, started_at: new Date().toISOString() };
+  state.sessions[sessionId] = { work_dir: candidate, started_at: new Date().toISOString() };
   state.updated_at = new Date().toISOString();
   await writeCurrentWorkState(stateFile, state);
 }

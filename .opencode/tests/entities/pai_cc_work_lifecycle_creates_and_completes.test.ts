@@ -83,31 +83,32 @@ describe("cc work lifecycle hooks", () => {
       expect(createResult.stdout).toBe("");
       expect(createResult.stderr).toBe("");
 
-      const statePath = path.join(paiDir, "MEMORY", "STATE", `current-work-${sessionId}.json`);
+      const statePath = path.join(paiDir, "MEMORY", "STATE", "current-work.json");
       expect(await fileExists(statePath)).toBe(true);
 
       const state = JSON.parse(await fs.readFile(statePath, "utf8")) as {
-        session_dir: string;
-        current_task: string;
+        v?: string;
+        sessions?: Record<string, { work_dir?: string }>;
       };
 
-      const workRoot = path.join(paiDir, "MEMORY", "WORK");
-      expect(await fileExists(workRoot)).toBe(true);
+      expect(state.v).toBe("0.2");
+      const workDir = state.sessions?.[sessionId]?.work_dir;
+      expect(typeof workDir).toBe("string");
+      expect(await fileExists(workDir as string)).toBe(true);
 
-      const sessionDirPath = path.join(workRoot, state.session_dir);
-      const metaPath = path.join(sessionDirPath, "META.yaml");
-      const tasksDir = path.join(sessionDirPath, "tasks");
-      const taskDirPath = path.join(tasksDir, state.current_task);
+      const metaPath = path.join(workDir as string, "META.yaml");
+      const iscPath = path.join(workDir as string, "ISC.json");
+      const threadPath = path.join(workDir as string, "THREAD.md");
+
+      expect(await fileExists(metaPath)).toBe(true);
+      expect(await fileExists(iscPath)).toBe(true);
+      expect(await fileExists(threadPath)).toBe(true);
+      expect(await fileExists(path.join(workDir as string, "tasks"))).toBe(true);
+      expect(await fileExists(path.join(workDir as string, "scratch"))).toBe(true);
 
       const metaContentBefore = await fs.readFile(metaPath, "utf8");
-      expect(metaContentBefore).toContain('status: "ACTIVE"');
-      expect(metaContentBefore).toContain("completed_at: null");
-
-      expect(await fileExists(path.join(taskDirPath, "ISC.json"))).toBe(true);
-      expect(await fileExists(path.join(taskDirPath, "THREAD.md"))).toBe(true);
-
-      const currentLinkTarget = await fs.readlink(path.join(tasksDir, "current"));
-      expect(currentLinkTarget).toBe(state.current_task);
+      expect(metaContentBefore).toContain("status: ACTIVE");
+      expect(metaContentBefore).toContain("started_at:");
 
       const completeResult = await runHook({
         hookPath: ".opencode/hooks/SessionSummary.hook.ts",
@@ -122,9 +123,13 @@ describe("cc work lifecycle hooks", () => {
       expect(completeResult.stderr).toBe("");
 
       const metaContentAfter = await fs.readFile(metaPath, "utf8");
-      expect(metaContentAfter).toContain('status: "COMPLETED"');
-      expect(metaContentAfter).toMatch(/completed_at: "[^\"]+"/);
-      expect(await fileExists(statePath)).toBe(false);
+      expect(metaContentAfter).toContain("status: COMPLETED");
+      expect(metaContentAfter).toMatch(/completed_at: [^\n]+/);
+
+      const stateAfter = JSON.parse(await fs.readFile(statePath, "utf8")) as {
+        sessions?: Record<string, unknown>;
+      };
+      expect(stateAfter.sessions?.[sessionId]).toBeUndefined();
     } finally {
       await fs.rm(paiDir, { recursive: true, force: true });
     }
@@ -171,17 +176,13 @@ describe("cc work lifecycle hooks", () => {
       expect(createResult.stdout).toBe("");
       expect(createResult.stderr).toBe("");
 
-      const statePath = path.join(paiDir, "MEMORY", "STATE", `current-work-${sessionId}.json`);
+      const statePath = path.join(paiDir, "MEMORY", "STATE", "current-work.json");
       const originalState = JSON.parse(await fs.readFile(statePath, "utf8")) as {
-        session_dir: string;
+        sessions?: Record<string, { work_dir?: string }>;
       };
-      const originalMetaPath = path.join(
-        paiDir,
-        "MEMORY",
-        "WORK",
-        originalState.session_dir,
-        "META.yaml",
-      );
+      const originalWorkDir = originalState.sessions?.[sessionId]?.work_dir;
+      expect(typeof originalWorkDir).toBe("string");
+      const originalMetaPath = path.join(originalWorkDir as string, "META.yaml");
 
       const outsideMetaPath = path.join(outsideDir, "META.yaml");
       const outsideMetaBefore = 'status: "ACTIVE"\ncompleted_at: null\n';
@@ -189,7 +190,17 @@ describe("cc work lifecycle hooks", () => {
 
       await fs.writeFile(
         statePath,
-        `${JSON.stringify({ ...originalState, session_dir: outsideDir }, null, 2)}\n`,
+        `${JSON.stringify(
+          {
+            ...originalState,
+            sessions: {
+              ...(originalState.sessions || {}),
+              [sessionId]: { work_dir: outsideDir },
+            },
+          },
+          null,
+          2,
+        )}\n`,
         "utf8",
       );
 
@@ -209,8 +220,8 @@ describe("cc work lifecycle hooks", () => {
       expect(outsideMetaAfter).toBe(outsideMetaBefore);
 
       const originalMetaAfter = await fs.readFile(originalMetaPath, "utf8");
-      expect(originalMetaAfter).toContain('status: "ACTIVE"');
-      expect(originalMetaAfter).toContain("completed_at: null");
+      expect(originalMetaAfter).toContain("status: ACTIVE");
+      expect(originalMetaAfter).not.toContain("completed_at:");
       expect(await fileExists(statePath)).toBe(true);
     } finally {
       await fs.rm(paiDir, { recursive: true, force: true });

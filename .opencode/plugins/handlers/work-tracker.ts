@@ -54,7 +54,11 @@ export interface CompleteWorkResult {
 const currentSessions = new Map<string, WorkSession>();
 
 function normalizeSessionId(sessionId: string): string {
-  return sessionId.replace(/[^a-zA-Z0-9_-]/g, "");
+  const trimmed = sessionId.trim();
+  if (!trimmed) return "";
+  if (trimmed.length > 128) return "";
+  if (!/^[A-Za-z0-9_-]+$/.test(trimmed)) return "";
+  return trimmed;
 }
 
 export interface IscCriterion {

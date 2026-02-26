@@ -40,6 +40,11 @@ type CarrierClient = {
   };
 };
 
+function enableCarrierPromptHints(): boolean {
+  const v = (process.env.PAI_ENABLE_CARRIER_PROMPT_HINTS ?? "").trim().toLowerCase();
+  return v === "1" || v === "true" || v === "on" || v === "yes";
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -112,6 +117,27 @@ async function pollForAssistantText(
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
   return "";
+}
+
+async function bestEffortDeleteCarrierSession(args: {
+  client: CarrierClient;
+  sessionId: string;
+  directory?: string;
+  timeoutMs?: number;
+}): Promise<void> {
+  const timeoutMs = args.timeoutMs ?? 500;
+  if (!args.client.session?.delete) return;
+  try {
+    await Promise.race([
+      args.client.session.delete({
+        path: { id: args.sessionId },
+        query: args.directory ? { directory: args.directory } : undefined,
+      }) as unknown as Promise<unknown>,
+      new Promise<void>((resolve) => setTimeout(resolve, timeoutMs)),
+    ]);
+  } catch {
+    // best-effort
+  }
 }
 
 function basicAuthHeader(): string | null {
@@ -367,12 +393,7 @@ async function openCodeClassify(
     } catch {
       return null;
     } finally {
-      void opts.client.session
-        .delete({
-          path: { id: sid },
-          query: directory ? { directory } : undefined,
-        })
-        .catch(() => {});
+      await bestEffortDeleteCarrierSession({ client: opts.client, sessionId: sid, directory });
       opts.unignoreSession?.(sid);
     }
   }
@@ -467,10 +488,18 @@ async function openCodeClassify(
   };
   } finally {
     // Best-effort cleanup.
-    void fetch(`${base}/session/${sid}`, {
-      method: 'DELETE',
-      headers: { ...(auth ? { Authorization: auth } : {}) },
-    }).catch(() => {});
+    try {
+      await fetchWithTimeout(
+        `${base}/session/${sid}`,
+        {
+          method: 'DELETE',
+          headers: { ...(auth ? { Authorization: auth } : {}) },
+        },
+        500,
+      );
+    } catch {
+      // best-effort
+    }
     opts.unignoreSession?.(sid);
   }
 }
@@ -489,7 +518,7 @@ export async function classifyPromptHint(
   // Always provide a fast heuristic hint immediately.
   const base = heuristic(prompt, userMessageId);
   try {
-    if (opts?.serverUrl) {
+    if (opts?.serverUrl && enableCarrierPromptHints()) {
       const refined = await openCodeClassify(opts.serverUrl, prompt, userMessageId, {
         ignoreSession: opts.ignoreSession,
         unignoreSession: opts.unignoreSession,
@@ -504,4 +533,3 @@ export async function classifyPromptHint(
     return base;
   }
 }
-

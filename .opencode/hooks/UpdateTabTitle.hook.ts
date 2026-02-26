@@ -78,6 +78,7 @@ async function updateTabTitle(payload: JsonRecord): Promise<string | null> {
   }
 
   const prefix = thinkingTitle === carryForwardTitle ? "" : titlePrefix(sessionId);
+
   await setTabState({
     title: `🧠 ${prefix}${thinkingTitle}`,
     state: "thinking",
