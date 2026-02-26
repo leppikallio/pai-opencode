@@ -15,6 +15,10 @@ type V2Request = {
   params: Record<string, unknown>;
 };
 
+type V2Response =
+  | { ok: true; result: unknown }
+  | { ok: false; error: { code?: string; message: string } };
+
 async function closeServer(server: net.Server): Promise<void> {
   if (!server.listening) {
     return;
@@ -62,7 +66,10 @@ async function createSocketFixture(prefix: string): Promise<{
   return { socketDir, socketPath };
 }
 
-function createCaptureServer(capturedRequests: V2Request[]): net.Server {
+function createCaptureServer(args: {
+  capturedRequests: V2Request[];
+  responder?: (request: V2Request) => V2Response;
+}): net.Server {
   return net.createServer((connection) => {
     connection.setEncoding("utf8");
     let buffer = "";
@@ -79,8 +86,9 @@ function createCaptureServer(capturedRequests: V2Request[]): net.Server {
         }
 
         const request = JSON.parse(line) as V2Request;
-        capturedRequests.push(request);
-        connection.write(JSON.stringify({ id: request.id, ok: true, result: {} }) + "\n");
+        args.capturedRequests.push(request);
+        const response = args.responder?.(request) ?? { ok: true, result: {} };
+        connection.write(`${JSON.stringify({ id: request.id, ...response })}\n`);
       }
     });
   });
@@ -110,7 +118,7 @@ describe("cmux surface.action rename", () => {
     cleanupSocket(socketPath);
 
     const capturedRequests: V2Request[] = [];
-    const server = createCaptureServer(capturedRequests);
+    const server = createCaptureServer({ capturedRequests });
 
     await listenServer(server, socketPath);
 
@@ -144,7 +152,7 @@ describe("cmux surface.action rename", () => {
     cleanupSocket(socketPath);
 
     const capturedRequests: V2Request[] = [];
-    const server = createCaptureServer(capturedRequests);
+    const server = createCaptureServer({ capturedRequests });
 
     await listenServer(server, socketPath);
 
@@ -161,6 +169,105 @@ describe("cmux surface.action rename", () => {
       expect(capturedRequests[0]?.method).toBe("surface.action");
       expect(capturedRequests[0]?.params).toEqual({
         surface_id: "surface-456",
+        action: "clear_name",
+      });
+    } finally {
+      await closeServer(server);
+      cleanupSocket(socketPath);
+      cleanupSocketDir(socketDir);
+      restoreEnv("CMUX_SOCKET_PATH", previousSocketPath);
+      restoreEnv("CMUX_SURFACE_ID", previousSurfaceId);
+    }
+  });
+
+  test("renameSurface falls back to tab.action when surface.action is unsupported", async () => {
+    const { socketDir, socketPath } = await createSocketFixture("cmux-surface-rename-fallback");
+    cleanupSocket(socketPath);
+
+    const capturedRequests: V2Request[] = [];
+    const server = createCaptureServer({
+      capturedRequests,
+      responder: (request) => {
+        if (request.method === "surface.action") {
+          return {
+            ok: false,
+            error: {
+              code: "method_not_found",
+              message: "Unknown method",
+            },
+          };
+        }
+
+        return { ok: true, result: {} };
+      },
+    });
+
+    await listenServer(server, socketPath);
+
+    const previousSocketPath = process.env.CMUX_SOCKET_PATH;
+    const previousSurfaceId = process.env.CMUX_SURFACE_ID;
+
+    process.env.CMUX_SOCKET_PATH = socketPath;
+    process.env.CMUX_SURFACE_ID = "surface-789";
+
+    try {
+      await renameSurface({ sessionId: "ses_rename_fallback", title: "Fallback Title" });
+
+      expect(capturedRequests).toHaveLength(2);
+      expect(capturedRequests[0]?.method).toBe("surface.action");
+      expect(capturedRequests[1]?.method).toBe("tab.action");
+      expect(capturedRequests[1]?.params).toEqual({
+        tab_id: "surface-789",
+        action: "rename",
+        title: "Fallback Title",
+      });
+    } finally {
+      await closeServer(server);
+      cleanupSocket(socketPath);
+      cleanupSocketDir(socketDir);
+      restoreEnv("CMUX_SOCKET_PATH", previousSocketPath);
+      restoreEnv("CMUX_SURFACE_ID", previousSurfaceId);
+    }
+  });
+
+  test("clearSurfaceTitle falls back to tab.action when surface.action is unsupported", async () => {
+    const { socketDir, socketPath } = await createSocketFixture("cmux-surface-clear-fallback");
+    cleanupSocket(socketPath);
+
+    const capturedRequests: V2Request[] = [];
+    const server = createCaptureServer({
+      capturedRequests,
+      responder: (request) => {
+        if (request.method === "surface.action") {
+          return {
+            ok: false,
+            error: {
+              code: "method_not_found",
+              message: "Unknown method",
+            },
+          };
+        }
+
+        return { ok: true, result: {} };
+      },
+    });
+
+    await listenServer(server, socketPath);
+
+    const previousSocketPath = process.env.CMUX_SOCKET_PATH;
+    const previousSurfaceId = process.env.CMUX_SURFACE_ID;
+
+    process.env.CMUX_SOCKET_PATH = socketPath;
+    process.env.CMUX_SURFACE_ID = "surface-790";
+
+    try {
+      await clearSurfaceTitle({ sessionId: "ses_clear_fallback" });
+
+      expect(capturedRequests).toHaveLength(2);
+      expect(capturedRequests[0]?.method).toBe("surface.action");
+      expect(capturedRequests[1]?.method).toBe("tab.action");
+      expect(capturedRequests[1]?.params).toEqual({
+        tab_id: "surface-790",
         action: "clear_name",
       });
     } finally {

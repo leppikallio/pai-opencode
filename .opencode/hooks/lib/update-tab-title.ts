@@ -39,6 +39,18 @@ const GENERIC_TITLES = new Set(["session", "task", "working", "chat", "conversat
 const PURE_RATING_RE = /^(?:10|[1-9])$/;
 const MAX_WORDS = 5;
 const MAX_TITLE_LENGTH = 60;
+const LEADING_PHASE_LABEL_RE = /^(?:OBSERVE|THINK|PLAN|BUILD|WORK|EXECUTE|QUESTION|LEARN|DONE|COMPLETE|IDLE)\s*:\s*/i;
+const LOW_SIGNAL_PROMPT_PATTERNS: RegExp[] = [
+  /^continue$/i,
+  /^go on$/i,
+  /^next(?:\s+steps?)?$/i,
+  /^what(?:\s+are)?\s+next\s+steps\??$/i,
+  /^keep going$/i,
+  /^proceed$/i,
+  /^status\??$/i,
+  /^update\??$/i,
+  /^what did we do(?:\s+so far)?\??$/i,
+];
 
 function cleanPrompt(prompt: string): string {
   return prompt
@@ -48,6 +60,10 @@ function cleanPrompt(prompt: string): string {
     .replace(/https?:\/\/\S+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizeWhitespace(value: string): string {
+  return value.replace(/\s+/g, " ").trim();
 }
 
 function tokenize(value: string): string[] {
@@ -142,6 +158,35 @@ export function isTitleRelevantToPrompt(title: string, prompt: string): boolean 
   }
 
   return titleTokens.some((token) => promptTokens.has(token));
+}
+
+export function isLowSignalPrompt(prompt: string): boolean {
+  const cleaned = normalizeWhitespace(cleanPrompt(prompt).toLowerCase());
+  if (!cleaned) {
+    return true;
+  }
+
+  return LOW_SIGNAL_PROMPT_PATTERNS.some((pattern) => pattern.test(cleaned));
+}
+
+export function extractCarryForwardTitle(previousTitle: string): string | null {
+  const withoutEmojiPrefix = normalizeWhitespace(previousTitle.replace(/^(?:[\p{Extended_Pictographic}]|\uFE0F|\u200D)+\s*/u, ""));
+  if (!withoutEmojiPrefix) {
+    return null;
+  }
+
+  const withoutLeadingPhase = normalizeWhitespace(withoutEmojiPrefix.replace(LEADING_PHASE_LABEL_RE, ""));
+  if (!withoutLeadingPhase) {
+    return null;
+  }
+
+  const tokens = tokenize(withoutLeadingPhase).slice(0, MAX_WORDS);
+  if (tokens.length === 0) {
+    return null;
+  }
+
+  const title = tokens.map(toTitleCase).join(" ");
+  return isValidWorkingTitle(title) ? title : null;
 }
 
 export async function summarizePromptViaInference(prompt: string): Promise<string | null> {

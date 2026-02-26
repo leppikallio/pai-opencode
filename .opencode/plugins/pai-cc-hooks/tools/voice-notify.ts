@@ -1,6 +1,9 @@
 import { tool, type ToolContext } from "@opencode-ai/plugin";
+import fs from "node:fs";
+import path from "node:path";
 
 import { getIdentity } from "../../lib/identity";
+import { getPaiDir } from "../../lib/pai-runtime";
 
 type CarrierClient = {
   session?: {
@@ -14,6 +17,13 @@ type VoiceNotifyArgs = {
   message: string;
   title?: string;
   voice_id?: string;
+};
+
+type VoiceNotifyResult = {
+  ok: true;
+  sent?: true;
+  skipped?: string;
+  status?: number;
 };
 
 type UnknownRecord = Record<string, unknown>;
@@ -33,6 +43,37 @@ function getContextSessionId(ctx: ToolContext): string {
   return typeof value === "string" ? value : "";
 }
 
+function getContextDirectory(ctx: ToolContext): string {
+  const value = (ctx as ToolContext & { directory?: unknown }).directory;
+  return typeof value === "string" ? value : "";
+}
+
+function getBackgroundTaskStatePath(): string {
+  return path.join(getPaiDir(), "MEMORY", "STATE", "background-tasks.json");
+}
+
+function isKnownBackgroundChildSession(sessionId: string): boolean {
+  try {
+    const statePath = getBackgroundTaskStatePath();
+    if (!fs.existsSync(statePath)) {
+      return false;
+    }
+
+    const raw = fs.readFileSync(statePath, "utf-8");
+    const parsed = asRecord(JSON.parse(raw));
+    const tasks = asRecord(parsed.backgroundTasks);
+    for (const record of Object.values(tasks)) {
+      const task = asRecord(record);
+      if (getString(task, "child_session_id") === sessionId || getString(task, "childSessionId") === sessionId) {
+        return true;
+      }
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 function getVoiceNotifyUrl(): string | null {
   const notifyUrl = process.env.PAI_VOICE_NOTIFY_URL?.trim();
   if (notifyUrl) {
@@ -40,37 +81,74 @@ function getVoiceNotifyUrl(): string | null {
   }
 
   const serverUrl = process.env.PAI_VOICE_SERVER_URL?.trim();
-  if (!serverUrl) {
-    return null;
+  if (serverUrl) {
+    return serverUrl.endsWith("/notify") ? serverUrl : `${serverUrl.replace(/\/$/, "")}/notify`;
   }
 
-  return serverUrl.endsWith("/notify") ? serverUrl : `${serverUrl.replace(/\/$/, "")}/notify`;
+  // Backward-compatible default used by the local VoiceServer.
+  return "http://localhost:8888/notify";
 }
 
 function extractParentSessionId(sessionGetResult: unknown): string | undefined {
-  const session = asRecord(sessionGetResult);
-  const info = asRecord(session.info);
+  const result = asRecord(sessionGetResult);
+  const data = asRecord(result.data);
+  const info = asRecord(data.info ?? result.info);
 
   return (
     getString(info, "parentID") ??
     getString(info, "parentId") ??
-    getString(session, "parentID") ??
-    getString(session, "parentId")
+    getString(data, "parentID") ??
+    getString(data, "parentId") ??
+    getString(result, "parentID") ??
+    getString(result, "parentId")
   );
 }
 
-async function isSubagentSession(sessionId: string, client: CarrierClient): Promise<boolean> {
+type SessionGateResult = {
+  isSubagent: boolean;
+  reason?: string;
+};
+
+async function classifySession(sessionId: string, directory: string, client: CarrierClient): Promise<SessionGateResult> {
   const get = client.session?.get;
   if (typeof get !== "function") {
-    return true; // fail closed
+    return isKnownBackgroundChildSession(sessionId)
+      ? { isSubagent: true, reason: "known_background_child" }
+      : { isSubagent: false, reason: "session_get_unavailable_root_assumed" };
   }
 
   try {
-    const session = await get({ path: { id: sessionId } });
-    return Boolean(extractParentSessionId(session));
+    const options: Record<string, unknown> = {
+      path: { id: sessionId },
+    };
+    if (directory) {
+      options.query = { directory };
+    }
+    const session = await get(options);
+
+    const resultRecord = asRecord(session);
+    const hasError = resultRecord.error != null;
+    const dataRecord = asRecord(resultRecord.data);
+    const hasData = Object.keys(dataRecord).length > 0;
+    if (hasError && !hasData) {
+      return isKnownBackgroundChildSession(sessionId)
+        ? { isSubagent: true, reason: "known_background_child" }
+        : { isSubagent: false, reason: "session_lookup_failed_root_assumed" };
+    }
+
+    if (extractParentSessionId(session)) {
+      return { isSubagent: true, reason: "session_has_parent" };
+    }
+    return { isSubagent: false };
   } catch {
-    return true; // fail closed
+    return isKnownBackgroundChildSession(sessionId)
+      ? { isSubagent: true, reason: "known_background_child" }
+      : { isSubagent: false, reason: "session_lookup_failed_root_assumed" };
   }
+}
+
+function result(value: VoiceNotifyResult): string {
+  return JSON.stringify(value);
 }
 
 export function createPaiVoiceNotifyTool(input: { client: unknown; fetchImpl?: FetchLike }) {
@@ -86,30 +164,33 @@ export function createPaiVoiceNotifyTool(input: { client: unknown; fetchImpl?: F
     },
     async execute(args: VoiceNotifyArgs, ctx: ToolContext): Promise<string> {
       if (process.env.PAI_DISABLE_VOICE === "1") {
-        return JSON.stringify({ ok: true });
+        return result({ ok: true, skipped: "voice_disabled" });
       }
 
       if (process.env.PAI_NO_NETWORK === "1") {
-        return JSON.stringify({ ok: true });
+        return result({ ok: true, skipped: "no_network" });
       }
 
       const sessionId = getContextSessionId(ctx);
       if (!sessionId) {
-        return JSON.stringify({ ok: true });
+        return result({ ok: true, skipped: "missing_session_id" });
       }
 
-      if (await isSubagentSession(sessionId, client)) {
-        return JSON.stringify({ ok: true });
+      const directory = getContextDirectory(ctx);
+
+      const sessionGate = await classifySession(sessionId, directory, client);
+      if (sessionGate.isSubagent) {
+        return result({ ok: true, skipped: sessionGate.reason ?? "subagent_session" });
       }
 
       const url = getVoiceNotifyUrl();
       if (!url) {
-        return JSON.stringify({ ok: true });
+        return result({ ok: true, skipped: "missing_notify_url" });
       }
 
       const message = args.message?.trim();
       if (!message) {
-        return JSON.stringify({ ok: true });
+        return result({ ok: true, skipped: "empty_message" });
       }
 
       const identity = getIdentity();
@@ -128,7 +209,7 @@ export function createPaiVoiceNotifyTool(input: { client: unknown; fetchImpl?: F
       const timeout = setTimeout(() => abortController?.abort(), 1_000);
 
       try {
-        await fetchImpl(url, {
+        const response = await fetchImpl(url, {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -136,13 +217,22 @@ export function createPaiVoiceNotifyTool(input: { client: unknown; fetchImpl?: F
           body: JSON.stringify(payload),
           signal: abortController?.signal,
         });
+
+        const status =
+          typeof (response as { status?: unknown })?.status === "number"
+            ? Number((response as { status: number }).status)
+            : undefined;
+        if (status !== undefined && status >= 400) {
+          return result({ ok: true, skipped: `notify_http_${status}`, status });
+        }
+
+        return status !== undefined ? result({ ok: true, sent: true, status }) : result({ ok: true, sent: true });
       } catch {
         // Best-effort by design.
+        return result({ ok: true, skipped: "fetch_error" });
       } finally {
         clearTimeout(timeout);
       }
-
-      return JSON.stringify({ ok: true });
     },
   });
 }

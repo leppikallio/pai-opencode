@@ -111,4 +111,36 @@ describe("UpdateTabTitle hook two-phase behavior", () => {
       await fs.rm(runtimeRoot, { recursive: true, force: true });
     }
   });
+
+  test("low-signal follow-up prompt carries forward prior task title", async () => {
+    const runtimeRoot = await makeRuntimeRoot("pai-update-tab-title-");
+
+    try {
+      await fs.mkdir(path.join(runtimeRoot, "MEMORY", "STATE"), { recursive: true });
+      await fs.writeFile(
+        tabStatePath(runtimeRoot, "S-followup"),
+        `${JSON.stringify({ title: "✅ Fix Auth Refresh", state: "completed" }, null, 2)}\n`,
+        "utf8",
+      );
+
+      const result = await runUpdateTabTitleHook({
+        runtimeRoot,
+        payload: {
+          session_id: "S-followup",
+          prompt: "continue",
+        },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toBe("");
+
+      const snapshotRaw = await fs.readFile(tabStatePath(runtimeRoot, "S-followup"), "utf8");
+      const snapshot = JSON.parse(snapshotRaw) as { title?: string; state?: string };
+      expect(snapshot.state).toBe("working");
+      expect(snapshot.title).toBe("⚙️ Fix Auth Refresh");
+    } finally {
+      await fs.rm(runtimeRoot, { recursive: true, force: true });
+    }
+  });
 });

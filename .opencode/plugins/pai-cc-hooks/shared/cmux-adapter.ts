@@ -9,9 +9,15 @@ export type NotifyRoute =
   | "notification.create"
   | "none";
 
+type CmuxClientError = Error & { code?: string };
+
 function trimEnv(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+function isMethodNotFoundError(error: unknown): boolean {
+  return Boolean((error as CmuxClientError | undefined)?.code === "method_not_found");
 }
 
 export function resolveSocketPath(): string | null {
@@ -309,11 +315,28 @@ export async function renameSurface(args: {
     }
 
     const client = new CmuxV2Client({ socketPath });
-    await client.call("surface.action", {
-      surface_id: surfaceId,
-      action: "rename",
-      title: args.title,
-    });
+    try {
+      await client.call("surface.action", {
+        surface_id: surfaceId,
+        action: "rename",
+        title: args.title,
+      });
+      return;
+    } catch (error) {
+      if (!isMethodNotFoundError(error)) {
+        return;
+      }
+    }
+
+    try {
+      await client.call("tab.action", {
+        tab_id: surfaceId,
+        action: "rename",
+        title: args.title,
+      });
+    } catch {
+      // No-op by design.
+    }
   } catch {
     // No-op by design.
   }
@@ -332,10 +355,26 @@ export async function clearSurfaceTitle(args: { sessionId: string }): Promise<vo
     }
 
     const client = new CmuxV2Client({ socketPath });
-    await client.call("surface.action", {
-      surface_id: surfaceId,
-      action: "clear_name",
-    });
+    try {
+      await client.call("surface.action", {
+        surface_id: surfaceId,
+        action: "clear_name",
+      });
+      return;
+    } catch (error) {
+      if (!isMethodNotFoundError(error)) {
+        return;
+      }
+    }
+
+    try {
+      await client.call("tab.action", {
+        tab_id: surfaceId,
+        action: "clear_name",
+      });
+    } catch {
+      // No-op by design.
+    }
   } catch {
     // No-op by design.
   }

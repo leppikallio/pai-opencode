@@ -1,8 +1,10 @@
 #!/usr/bin/env bun
 import { readStdinWithTimeout } from "./lib/stdin";
-import { getSessionOneWord, setTabState } from "./lib/tab-state";
+import { getSessionOneWord, readTabState, setTabState } from "./lib/tab-state";
 import {
+  extractCarryForwardTitle,
   extractPromptTitle,
+  isLowSignalPrompt,
   isTitleRelevantToPrompt,
   isValidWorkingTitle,
   summarizePromptViaInference,
@@ -62,12 +64,20 @@ async function updateTabTitle(payload: JsonRecord): Promise<string | null> {
     return null;
   }
 
-  const thinkingTitle = extractPromptTitle(prompt);
+  const currentSnapshot = readTabState(sessionId);
+  const carryForwardTitle = currentSnapshot?.title ? extractCarryForwardTitle(currentSnapshot.title) : null;
+  const lowSignalPrompt = isLowSignalPrompt(prompt);
+
+  let thinkingTitle = extractPromptTitle(prompt);
+  if ((!thinkingTitle || lowSignalPrompt) && carryForwardTitle) {
+    thinkingTitle = carryForwardTitle;
+  }
+
   if (!thinkingTitle) {
     return null;
   }
 
-  const prefix = titlePrefix(sessionId);
+  const prefix = thinkingTitle === carryForwardTitle ? "" : titlePrefix(sessionId);
   await setTabState({
     title: `🧠 ${prefix}${thinkingTitle}`,
     state: "thinking",

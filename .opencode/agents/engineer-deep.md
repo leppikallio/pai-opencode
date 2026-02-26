@@ -4,7 +4,6 @@ mode: subagent
 model: openai/gpt-5.3-codex
 reasoningEffort: xhigh
 textVerbosity: medium
-steps: 28
 color: "#1D4ED8"
 tools:
   read: true
