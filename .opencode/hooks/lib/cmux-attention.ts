@@ -101,14 +101,14 @@ async function shouldEmit(event: AttentionEvent): Promise<boolean> {
 async function mirrorInterruptFallback(event: AttentionEvent): Promise<void> {
   const stateToken = toStateToken(event.eventKey);
 
-  await setStatus({ key: "oc_attention", value: stateToken });
-  await setStatus({ key: "oc_phase", value: stateToken });
+  await setStatus({ key: "oc_attention", value: stateToken, sessionId: event.sessionId });
+  await setStatus({ key: "oc_phase", value: stateToken, sessionId: event.sessionId });
 
   if (!isProgressMirrorEnabled()) {
     return;
   }
 
-  await setProgress({ value: 1, label: stateToken });
+  await setProgress({ value: 1, label: stateToken, sessionId: event.sessionId });
 }
 
 export async function emitInterrupt(event: AttentionEvent): Promise<void> {
@@ -153,11 +153,11 @@ export async function resolveInterrupt(event: AttentionEvent): Promise<void> {
       body: payload.body,
     });
 
-    await clearStatus({ key: "oc_attention" });
-    await setStatus({ key: "oc_phase", value: "DONE" });
+    await clearStatus({ key: "oc_attention", sessionId: event.sessionId });
+    await setStatus({ key: "oc_phase", value: "DONE", sessionId: event.sessionId });
 
     if (isProgressMirrorEnabled()) {
-      await clearProgress();
+      await clearProgress({ sessionId: event.sessionId });
     }
   } catch {
     // Best effort only.
@@ -183,13 +183,17 @@ export async function emitAmbient(event: AttentionEvent): Promise<void> {
     });
 
     const stateToken = toStateToken(event.eventKey);
-    await setStatus({ key: "oc_phase", value: stateToken });
+    await setStatus({ key: "oc_phase", value: stateToken, sessionId: event.sessionId });
 
     if (!isProgressMirrorEnabled()) {
       return;
     }
 
-    await setProgress({ value: stateToken === "DONE" ? 1 : 0.6, label: stateToken });
+    await setProgress({
+      value: stateToken === "DONE" ? 1 : 0.6,
+      label: stateToken,
+      sessionId: event.sessionId,
+    });
   } catch {
     // Best effort only.
   }

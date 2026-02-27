@@ -15,9 +15,10 @@ Evidence: `/Users/zuul/Projects/cmux/README.md:22-61,93-104`
 
 ## Interfaces we can use from PAI/OpenCode
 
-### 1) CLI (good fallback)
+### 1) CLI (authoritative for current adapters)
 
-cmux provides a CLI intended to be wired into agent hooks.
+cmux provides a CLI intended to be wired into agent hooks, and this is the
+current authoritative transport for hook-side adapter operations.
 
 Key detection pattern:
 
@@ -27,11 +28,14 @@ command -v cmux &>/dev/null && cmux notify --title "Done" --body "Task complete"
 
 Evidence + examples: `/Users/zuul/Projects/cmux/docs/notifications.md:7-27,42-53`
 
-### 2) Socket API (recommended for adapters)
+### 2) Socket API (optional/future optimization)
 
 cmux supports a socket control API. The repo includes tests using a Python client (`tests_v2/cmux.py`) and docs discussing the v2 API migration.
 
-Practical note: for a PAI-owned TypeScript adapter (status/progress/sidebar), prefer the **socket API** for lower latency and fewer process spawns; keep CLI as a fallback.
+Practical note: keep the adapter **CLI-first** for current runtime behavior.
+Socket v2 remains optional for targeted operations (currently surface title
+rename/clear when `CMUX_SOCKET_PATH` is present) and can be revisited later as
+an optimization path.
 
 ## Environment variables (targeting)
 
@@ -39,6 +43,8 @@ cmux sets env vars in child shells:
 - `CMUX_SOCKET_PATH`
 - `CMUX_TAB_ID`
 - `CMUX_PANEL_ID`
+- `CMUX_WORKSPACE_ID` (workspace targeting context for adapter operations)
+- `CMUX_SURFACE_ID` (surface targeting context for adapter operations)
 
 Evidence: `/Users/zuul/Projects/cmux/docs/notifications.md:133-142`
 
@@ -120,6 +126,15 @@ Rollout defaults (non-breaking):
 - `PAI_CMUX_PROGRESS_ENABLED=1`
 - `PAI_CMUX_FLASH_ON_P0=1`
 
+## Current runtime transport + debugging
+
+- **Transport: CLI-first (current runtime path)**
+  - Hook-side cmux operations run through `runCmuxCli` in `.opencode/plugins/pai-cc-hooks/shared/cmux-cli.ts`.
+  - `notify`, `set-status`, `clear-status`, `set-progress`, `clear-progress`, and `trigger-flash` are routed through CLI calls in `.opencode/plugins/pai-cc-hooks/shared/cmux-adapter.ts`.
+  - Socket v2 calls are still used for surface title operations (`renameSurface`, `clearSurfaceTitle`) when `CMUX_SOCKET_PATH` is present.
+- **Debug breadcrumbs:** `PAI_CMUX_DEBUG=1` enables best-effort breadcrumb writes to `MEMORY/STATE/cmux-last-error.json` (under `PAI_DIR`) via `.opencode/plugins/pai-cc-hooks/shared/cmux-debug.ts`.
+- **Human health tool:** `bun Tools/cmux-health.ts` prints a focused diagnosis: cmux version, `CMUX_*` env values, `cmux ping`, `cmux capabilities --json` parse/access mode, `cmux sidebar-state`, and `cmux-last-error.json` path + latest breadcrumb summary.
+
 ## Safety requirements (for our hook integration)
 
 Non-negotiables:
@@ -142,9 +157,9 @@ cmux docs explicitly recommend availability checks + fallbacks:
 - **Voice:** keep both always
   - requires strong gating/debouncing to avoid spam
 
-- **Adapter transport:** socket-first (v2 JSON)
-  - Implement a small TS Unix-socket client using `CMUX_SOCKET_PATH` and the v2 JSON line protocol.
-  - Keep CLI as a fallback for minimal notifications or debugging.
+- **Adapter transport:** CLI-first runner (current)
+  - Use `runCmuxCli` as the default transport for notifications/status/progress/flash in hooks.
+  - Keep socket v2 calls for surface title rename/clear operations when `CMUX_SOCKET_PATH` is available.
 - **Targeting:** env-var driven
   - If `CMUX_SOCKET_PATH` is missing → no-op (never block hooks).
   - If present, prefer `CMUX_WORKSPACE_ID` + `CMUX_SURFACE_ID` to target the current surface.

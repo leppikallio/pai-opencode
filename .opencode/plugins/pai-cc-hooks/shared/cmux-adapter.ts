@@ -1,6 +1,7 @@
-import net from "node:net";
-
-import { lookupSessionMapping, syncSessionMappingFromEnv } from "./cmux-session-map";
+import { runCmuxCli } from "./cmux-cli";
+import { writeCmuxRouteDecision } from "./cmux-debug";
+import { lookupSessionMapping } from "./cmux-session-map";
+import { resolveCmuxTarget, type CmuxTarget } from "./cmux-target";
 import { CmuxV2Client } from "./cmux-v2-client";
 
 export type NotifyRoute =
@@ -10,6 +11,7 @@ export type NotifyRoute =
   | "none";
 
 type CmuxClientError = Error & { code?: string };
+const CMUX_NOTIFY_TIMEOUT_MS = 1_000;
 
 function trimEnv(value: string | null | undefined): string | null {
   const trimmed = value?.trim();
@@ -24,14 +26,6 @@ export function resolveSocketPath(): string | null {
   return trimEnv(process.env.CMUX_SOCKET_PATH);
 }
 
-async function refreshSessionMapping(sessionId: string): Promise<void> {
-  try {
-    await syncSessionMappingFromEnv(sessionId);
-  } catch {
-    // Best effort only.
-  }
-}
-
 export async function resolveSurfaceId(args: { sessionId: string }): Promise<string | null> {
   const envSurfaceId = trimEnv(process.env.CMUX_SURFACE_ID);
   if (envSurfaceId) {
@@ -42,73 +36,34 @@ export async function resolveSurfaceId(args: { sessionId: string }): Promise<str
   return trimEnv(mapping?.surfaceId);
 }
 
-async function resolveTarget(args: {
-  sessionId: string;
-  workspaceId?: string | null;
-  surfaceId?: string | null;
-}): Promise<{ workspaceId: string | null; surfaceId: string | null }> {
-  const workspaceFromArgs = trimEnv(args.workspaceId);
-  const surfaceFromArgs = trimEnv(args.surfaceId);
+type CmuxCommandTarget = {
+  workspaceId: string | null;
+  surfaceId: string | null;
+};
 
-  if (workspaceFromArgs && surfaceFromArgs) {
-    return { workspaceId: workspaceFromArgs, surfaceId: surfaceFromArgs };
-  }
-
-  const workspaceFromEnv = trimEnv(process.env.CMUX_WORKSPACE_ID);
-  const surfaceFromEnv = trimEnv(process.env.CMUX_SURFACE_ID);
-
-  if ((workspaceFromArgs ?? workspaceFromEnv) && (surfaceFromArgs ?? surfaceFromEnv)) {
+async function resolveCommandTarget(args: { sessionId?: string }): Promise<CmuxCommandTarget> {
+  const envWorkspaceId = trimEnv(process.env.CMUX_WORKSPACE_ID);
+  const envSurfaceId = trimEnv(process.env.CMUX_SURFACE_ID);
+  if (envWorkspaceId || envSurfaceId) {
     return {
-      workspaceId: workspaceFromArgs ?? workspaceFromEnv,
-      surfaceId: surfaceFromArgs ?? surfaceFromEnv,
+      workspaceId: envWorkspaceId,
+      surfaceId: envSurfaceId,
     };
   }
 
-  const mapping = await lookupSessionMapping({ sessionId: args.sessionId });
-
-  return {
-    workspaceId: workspaceFromArgs ?? workspaceFromEnv ?? trimEnv(mapping?.workspaceId),
-    surfaceId: surfaceFromArgs ?? surfaceFromEnv ?? trimEnv(mapping?.surfaceId),
-  };
-}
-
-async function writeSocketLine(args: {
-  socketPath: string;
-  line: string;
-  timeoutMs?: number;
-}): Promise<void> {
-  await new Promise<void>((resolve) => {
-    const socket = net.createConnection({ path: args.socketPath });
-    const timeoutMs = args.timeoutMs ?? 500;
-    let settled = false;
-
-    const timer = setTimeout(() => {
-      finish();
-    }, timeoutMs);
-
-    const finish = () => {
-      if (settled) {
-        return;
-      }
-
-      settled = true;
-      clearTimeout(timer);
-      socket.destroy();
-      resolve();
+  const sessionId = trimEnv(args.sessionId);
+  if (!sessionId) {
+    return {
+      workspaceId: null,
+      surfaceId: null,
     };
+  }
 
-    socket.on("connect", () => {
-      socket.end(`${args.line}\n`);
-    });
-
-    socket.on("error", () => {
-      finish();
-    });
-
-    socket.on("close", () => {
-      finish();
-    });
-  });
+  const mapping = await lookupSessionMapping({ sessionId });
+  return {
+    workspaceId: trimEnv(mapping?.workspaceId),
+    surfaceId: trimEnv(mapping?.surfaceId),
+  };
 }
 
 function normalizeLegacyToken(value: string): string {
@@ -126,49 +81,213 @@ function normalizeProgressValue(value: number | undefined): string {
   return rounded.toFixed(2).replace(/\.?0+$/, "");
 }
 
-async function sendLegacyCommand(line: string): Promise<void> {
-  const socketPath = resolveSocketPath();
-  if (!socketPath) {
-    return;
-  }
-
+async function runCmuxCommandBestEffort(args: string[]): Promise<void> {
   try {
-    await writeSocketLine({ socketPath, line });
+    await runCmuxCli({
+      args,
+      timeoutMs: CMUX_NOTIFY_TIMEOUT_MS,
+    });
   } catch {
     // No-op by design.
   }
 }
 
-export async function setStatus(args: { key: string; value: string }): Promise<void> {
+async function writeNotifyRouteNoneBreadcrumb(args: {
+  sessionId: string;
+  title: string;
+  subtitle: string;
+  body: string;
+  reason: string;
+}): Promise<void> {
+  await writeCmuxRouteDecision({
+    route: "none",
+    sessionId: args.sessionId,
+    reason: args.reason,
+    argv: ["notify", "--title", args.title, "--subtitle", args.subtitle, "--body", args.body],
+  });
+}
+
+type NotifyDeliveryRoute = Exclude<NotifyRoute, "none">;
+
+function buildNotifyArgs(args: {
+  title: string;
+  subtitle: string;
+  body: string;
+  workspaceId?: string;
+  surfaceId?: string;
+}): string[] {
+  const cliArgs = ["notify", "--title", args.title, "--subtitle", args.subtitle, "--body", args.body];
+
+  if (args.workspaceId && args.surfaceId) {
+    cliArgs.push("--workspace", args.workspaceId, "--surface", args.surfaceId);
+    return cliArgs;
+  }
+
+  if (args.surfaceId) {
+    cliArgs.push("--surface", args.surfaceId);
+  }
+
+  return cliArgs;
+}
+
+async function attemptNotifyRoute(args: {
+  route: NotifyDeliveryRoute;
+  cliArgs: string[];
+  failures: string[];
+}): Promise<boolean> {
+  const result = await runCmuxCli({
+    args: args.cliArgs,
+    timeoutMs: CMUX_NOTIFY_TIMEOUT_MS,
+  });
+
+  if (result.kind === "ok") {
+    return true;
+  }
+
+  args.failures.push(`${args.route}:${result.kind}`);
+  return false;
+}
+
+async function notifyViaCli(args: {
+  sessionId: string;
+  title: string;
+  subtitle: string;
+  body: string;
+  target: CmuxTarget;
+}): Promise<NotifyRoute> {
+  const failures: string[] = [];
+
+  if (args.target.kind === "workspace_surface") {
+    if (
+      await attemptNotifyRoute({
+        route: "notification.create_for_target",
+        cliArgs: buildNotifyArgs({
+          title: args.title,
+          subtitle: args.subtitle,
+          body: args.body,
+          workspaceId: args.target.workspaceId,
+          surfaceId: args.target.surfaceId,
+        }),
+        failures,
+      })
+    ) {
+      return "notification.create_for_target";
+    }
+
+    if (
+      await attemptNotifyRoute({
+        route: "notification.create_for_surface",
+        cliArgs: buildNotifyArgs({
+          title: args.title,
+          subtitle: args.subtitle,
+          body: args.body,
+          surfaceId: args.target.surfaceId,
+        }),
+        failures,
+      })
+    ) {
+      return "notification.create_for_surface";
+    }
+  } else if (args.target.kind === "surface") {
+    if (
+      await attemptNotifyRoute({
+        route: "notification.create_for_surface",
+        cliArgs: buildNotifyArgs({
+          title: args.title,
+          subtitle: args.subtitle,
+          body: args.body,
+          surfaceId: args.target.surfaceId,
+        }),
+        failures,
+      })
+    ) {
+      return "notification.create_for_surface";
+    }
+  } else {
+    failures.push(`target:none:${args.target.reason}`);
+  }
+
+  if (
+    await attemptNotifyRoute({
+      route: "notification.create",
+      cliArgs: buildNotifyArgs({
+        title: args.title,
+        subtitle: args.subtitle,
+        body: args.body,
+      }),
+      failures,
+    })
+  ) {
+    return "notification.create";
+  }
+
+  await writeNotifyRouteNoneBreadcrumb({
+    sessionId: args.sessionId,
+    title: args.title,
+    subtitle: args.subtitle,
+    body: args.body,
+    reason: `notification routing exhausted (${failures.join(", ")})`,
+  });
+  return "none";
+}
+
+export async function setStatus(args: { key: string; value: string; sessionId?: string }): Promise<void> {
   const key = normalizeLegacyToken(args.key);
   const value = normalizeLegacyToken(args.value);
   if (!key || !value) {
     return;
   }
 
-  await sendLegacyCommand(`set_status ${key} ${value}`);
+  const target = await resolveCommandTarget({ sessionId: args.sessionId });
+  if (!target.workspaceId) {
+    return;
+  }
+
+  await runCmuxCommandBestEffort(["set-status", key, value, "--workspace", target.workspaceId]);
 }
 
-export async function clearStatus(args: { key: string }): Promise<void> {
+export async function clearStatus(args: { key: string; sessionId?: string }): Promise<void> {
   const key = normalizeLegacyToken(args.key);
   if (!key) {
     return;
   }
 
-  await sendLegacyCommand(`clear_status ${key}`);
+  const target = await resolveCommandTarget({ sessionId: args.sessionId });
+  if (!target.workspaceId) {
+    return;
+  }
+
+  await runCmuxCommandBestEffort(["clear-status", key, "--workspace", target.workspaceId]);
 }
 
-export async function setProgress(args: { label: string; value?: number }): Promise<void> {
+export async function setProgress(args: { label: string; value?: number; sessionId?: string }): Promise<void> {
   const label = normalizeLegacyToken(args.label);
   if (!label) {
     return;
   }
 
-  await sendLegacyCommand(`set_progress ${normalizeProgressValue(args.value)} ${label}`);
+  const target = await resolveCommandTarget({ sessionId: args.sessionId });
+  if (!target.workspaceId) {
+    return;
+  }
+
+  await runCmuxCommandBestEffort([
+    "set-progress",
+    normalizeProgressValue(args.value),
+    "--label",
+    label,
+    "--workspace",
+    target.workspaceId,
+  ]);
 }
 
-export async function clearProgress(): Promise<void> {
-  await sendLegacyCommand("clear_progress");
+export async function clearProgress(args: { sessionId?: string } = {}): Promise<void> {
+  const target = await resolveCommandTarget({ sessionId: args.sessionId });
+  if (!target.workspaceId) {
+    return;
+  }
+
+  await runCmuxCommandBestEffort(["clear-progress", "--workspace", target.workspaceId]);
 }
 
 export async function notifyTargeted(args: {
@@ -179,59 +298,19 @@ export async function notifyTargeted(args: {
   subtitle: string;
   body: string;
 }): Promise<NotifyRoute> {
-  const socketPath = resolveSocketPath();
-  if (!socketPath) {
-    return "none";
-  }
-
-  await refreshSessionMapping(args.sessionId);
-
-  const client = new CmuxV2Client({ socketPath });
-  const target = await resolveTarget({
+  const target = await resolveCmuxTarget({
     sessionId: args.sessionId,
-    workspaceId: args.workspaceId,
-    surfaceId: args.surfaceId,
+    explicitWorkspaceId: args.workspaceId,
+    explicitSurfaceId: args.surfaceId,
   });
 
-  if (target.workspaceId && target.surfaceId) {
-    try {
-      await client.call("notification.create_for_target", {
-        workspace_id: target.workspaceId,
-        surface_id: target.surfaceId,
-        title: args.title,
-        subtitle: args.subtitle,
-        body: args.body,
-      });
-      return "notification.create_for_target";
-    } catch {
-      // Fall through to next fallback.
-    }
-  }
-
-  if (target.surfaceId) {
-    try {
-      await client.call("notification.create_for_surface", {
-        surface_id: target.surfaceId,
-        title: args.title,
-        subtitle: args.subtitle,
-        body: args.body,
-      });
-      return "notification.create_for_surface";
-    } catch {
-      // Fall through to untargeted notify.
-    }
-  }
-
-  try {
-    await client.call("notification.create", {
-      title: args.title,
-      subtitle: args.subtitle,
-      body: args.body,
-    });
-    return "notification.create";
-  } catch {
-    return "none";
-  }
+  return await notifyViaCli({
+    sessionId: args.sessionId,
+    title: args.title,
+    subtitle: args.subtitle,
+    body: args.body,
+    target,
+  });
 }
 
 export async function notify(args: {
@@ -240,63 +319,28 @@ export async function notify(args: {
   subtitle: string;
   body: string;
 }): Promise<void> {
-  const socketPath = resolveSocketPath();
-  if (!socketPath) {
-    return;
-  }
-
-  await refreshSessionMapping(args.sessionId);
-
-  const client = new CmuxV2Client({ socketPath });
-  const surfaceId = await resolveSurfaceId({ sessionId: args.sessionId });
-
-  if (surfaceId) {
-    try {
-      await client.call("notification.create_for_surface", {
-        surface_id: surfaceId,
-        title: args.title,
-        subtitle: args.subtitle,
-        body: args.body,
-      });
-      return;
-    } catch {
-      // Fall through to untargeted notify.
-    }
-  }
-
-  try {
-    await client.call("notification.create", {
-      title: args.title,
-      subtitle: args.subtitle,
-      body: args.body,
-    });
-  } catch {
-    // No-op by design.
-  }
+  const target = await resolveCmuxTarget({ sessionId: args.sessionId });
+  await notifyViaCli({
+    sessionId: args.sessionId,
+    title: args.title,
+    subtitle: args.subtitle,
+    body: args.body,
+    target,
+  });
 }
 
 export async function triggerFlashForSession(args: { sessionId: string }): Promise<void> {
-  const socketPath = resolveSocketPath();
-  if (!socketPath) {
+  const target = await resolveCommandTarget({ sessionId: args.sessionId });
+  if (!target.surfaceId) {
     return;
   }
 
-  await refreshSessionMapping(args.sessionId);
-
-  const surfaceId = await resolveSurfaceId({ sessionId: args.sessionId });
-  if (!surfaceId) {
-    return;
+  const cliArgs = ["trigger-flash", "--surface", target.surfaceId];
+  if (target.workspaceId) {
+    cliArgs.push("--workspace", target.workspaceId);
   }
 
-  const client = new CmuxV2Client({ socketPath });
-
-  try {
-    await client.call("surface.trigger_flash", {
-      surface_id: surfaceId,
-    });
-  } catch {
-    // No-op by design.
-  }
+  await runCmuxCommandBestEffort(cliArgs);
 }
 
 export async function renameSurface(args: {

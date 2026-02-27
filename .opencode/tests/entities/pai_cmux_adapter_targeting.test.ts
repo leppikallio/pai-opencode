@@ -1,31 +1,15 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
-import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 
+import {
+  __testOnlyResetCmuxCliState,
+  __testOnlySetCmuxCliExec,
+} from "../../plugins/pai-cc-hooks/shared/cmux-cli";
+import { notify, notifyTargeted } from "../../plugins/pai-cc-hooks/shared/cmux-adapter";
 import { upsertSessionMapping } from "../../plugins/pai-cc-hooks/shared/cmux-session-map";
-import { notify } from "../../plugins/pai-cc-hooks/shared/cmux-adapter";
-
-type V2Request = {
-  id: string;
-  method: string;
-  params: Record<string, unknown>;
-};
-
-type V2ResponseBody =
-  | { ok: true; result: unknown }
-  | { ok: false; error: { code?: string; message: string } };
-
-async function closeServer(server: net.Server): Promise<void> {
-  await new Promise<void>((resolve) => server.close(() => resolve()));
-}
-
-function cleanupSocket(socketPath: string): void {
-  try {
-    fs.unlinkSync(socketPath);
-  } catch {}
-}
+import { createQueuedCmuxCliExecStub } from "../helpers/cmux-cli-exec-stub";
 
 function cleanupDir(directoryPath: string): void {
   try {
@@ -42,52 +26,29 @@ function restoreEnv(key: string, previousValue: string | undefined): void {
   process.env[key] = previousValue;
 }
 
-async function startFakeCmuxServer(args: {
-  socketPath: string;
-  onRequest?: (request: V2Request, requestIndex: number) => V2ResponseBody;
-}): Promise<{ server: net.Server; captured: V2Request[] }> {
-  const captured: V2Request[] = [];
-  const server = net.createServer((connection) => {
-    connection.setEncoding("utf8");
-    let buffer = "";
-
-    connection.on("data", (chunk) => {
-      buffer += chunk;
-      while (buffer.includes("\n")) {
-        const newlineIndex = buffer.indexOf("\n");
-        const line = buffer.slice(0, newlineIndex);
-        buffer = buffer.slice(newlineIndex + 1);
-        if (!line.trim()) {
-          continue;
-        }
-
-        const request = JSON.parse(line) as V2Request;
-        captured.push(request);
-        const response =
-          args.onRequest?.(request, captured.length - 1) ?? { ok: true as const, result: { created: true } };
-        connection.write(JSON.stringify({ id: request.id, ...response }) + "\n");
-      }
-    });
+describe("cmux adapter", () => {
+  beforeEach(() => {
+    __testOnlyResetCmuxCliState();
   });
 
-  await new Promise<void>((resolve) => server.listen(args.socketPath, resolve));
-  return { server, captured };
-}
+  afterEach(() => {
+    __testOnlyResetCmuxCliState();
+  });
 
-describe("cmux adapter", () => {
   test("targets mapped surface when env surface is missing", async () => {
-    const sock = path.join(os.tmpdir(), `cmux-adapter-${Date.now()}.sock`);
     const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "cmux-adapter-home-"));
-    cleanupSocket(sock);
-    const { server, captured } = await startFakeCmuxServer({ socketPath: sock });
-
     const previousHome = process.env.HOME;
-    const previousSocketPath = process.env.CMUX_SOCKET_PATH;
+    const previousWorkspaceId = process.env.CMUX_WORKSPACE_ID;
     const previousSurfaceId = process.env.CMUX_SURFACE_ID;
+    const stub = createQueuedCmuxCliExecStub(
+      [{ exitCode: 0, stdout: "", stderr: "", signal: null, timedOut: false }],
+      { onEmpty: "throw" },
+    );
 
     process.env.HOME = homeDir;
-    process.env.CMUX_SOCKET_PATH = sock;
+    delete process.env.CMUX_WORKSPACE_ID;
     delete process.env.CMUX_SURFACE_ID;
+    __testOnlySetCmuxCliExec(stub.exec);
 
     try {
       await upsertSessionMapping({
@@ -103,132 +64,193 @@ describe("cmux adapter", () => {
         body: "Approval needed",
       });
 
-      expect(captured).toHaveLength(1);
-      expect(captured[0].method).toBe("notification.create_for_surface");
-      expect(captured[0].params).toEqual({
-        surface_id: "surface-123",
+      expect(stub.calls).toHaveLength(1);
+      expect(stub.calls[0]?.args).toEqual([
+        "notify",
+        "--title",
+        "OpenCode",
+        "--subtitle",
+        "Question",
+        "--body",
+        "Approval needed",
+        "--workspace",
+        "workspace-123",
+        "--surface",
+        "surface-123",
+      ]);
+    } finally {
+      cleanupDir(homeDir);
+      restoreEnv("HOME", previousHome);
+      restoreEnv("CMUX_WORKSPACE_ID", previousWorkspaceId);
+      restoreEnv("CMUX_SURFACE_ID", previousSurfaceId);
+    }
+  });
+
+  test("uses untargeted notification when no mapping target exists", async () => {
+    const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "cmux-adapter-home-empty-"));
+    const previousHome = process.env.HOME;
+    const previousWorkspaceId = process.env.CMUX_WORKSPACE_ID;
+    const previousSurfaceId = process.env.CMUX_SURFACE_ID;
+    const stub = createQueuedCmuxCliExecStub(
+      [{ exitCode: 0, stdout: "", stderr: "", signal: null, timedOut: false }],
+      { onEmpty: "throw" },
+    );
+
+    process.env.HOME = homeDir;
+    delete process.env.CMUX_WORKSPACE_ID;
+    delete process.env.CMUX_SURFACE_ID;
+    __testOnlySetCmuxCliExec(stub.exec);
+
+    try {
+      const route = await notifyTargeted({
+        sessionId: "ses_no_map",
         title: "OpenCode",
         subtitle: "Question",
         body: "Approval needed",
       });
+
+      expect(route).toBe("notification.create");
+      expect(stub.calls).toHaveLength(1);
+      expect(stub.calls[0]?.args).toEqual([
+        "notify",
+        "--title",
+        "OpenCode",
+        "--subtitle",
+        "Question",
+        "--body",
+        "Approval needed",
+      ]);
     } finally {
-      await closeServer(server);
-      cleanupSocket(sock);
       cleanupDir(homeDir);
       restoreEnv("HOME", previousHome);
-      restoreEnv("CMUX_SOCKET_PATH", previousSocketPath);
+      restoreEnv("CMUX_WORKSPACE_ID", previousWorkspaceId);
       restoreEnv("CMUX_SURFACE_ID", previousSurfaceId);
     }
   });
 
-  test("no-ops when CMUX_SOCKET_PATH is missing", async () => {
-    const previousSocketPath = process.env.CMUX_SOCKET_PATH;
-
-    delete process.env.CMUX_SOCKET_PATH;
-    try {
-      await expect(
-        notify({
-          sessionId: "ses_no_socket",
-          title: "OpenCode",
-          subtitle: "Question",
-          body: "Approval needed",
-        }),
-      ).resolves.toBeUndefined();
-    } finally {
-      restoreEnv("CMUX_SOCKET_PATH", previousSocketPath);
-    }
-  });
-
-  test("uses untargeted notification when mapping and env surface are missing", async () => {
-    const sock = path.join(os.tmpdir(), `cmux-adapter-no-map-${Date.now()}.sock`);
-    const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "cmux-adapter-home-empty-"));
-    cleanupSocket(sock);
-    const { server, captured } = await startFakeCmuxServer({ socketPath: sock });
-
-    const previousHome = process.env.HOME;
-    const previousSocketPath = process.env.CMUX_SOCKET_PATH;
-    const previousSurfaceId = process.env.CMUX_SURFACE_ID;
-
-    process.env.HOME = homeDir;
-    process.env.CMUX_SOCKET_PATH = sock;
-    delete process.env.CMUX_SURFACE_ID;
-
-    try {
-      await notify({
-        sessionId: "ses_missing_map",
-        title: "OpenCode",
-        subtitle: "Session",
-        body: "Background complete",
-      });
-
-      expect(captured).toHaveLength(1);
-      expect(captured[0].method).toBe("notification.create");
-      expect(captured[0].params).toEqual({
-        title: "OpenCode",
-        subtitle: "Session",
-        body: "Background complete",
-      });
-    } finally {
-      await closeServer(server);
-      cleanupSocket(sock);
-      cleanupDir(homeDir);
-      restoreEnv("HOME", previousHome);
-      restoreEnv("CMUX_SOCKET_PATH", previousSocketPath);
-      restoreEnv("CMUX_SURFACE_ID", previousSurfaceId);
-    }
-  });
-
-  test("falls back to untargeted notification when targeted create fails", async () => {
-    const sock = path.join(os.tmpdir(), `cmux-adapter-fallback-${Date.now()}.sock`);
+  test("falls back through workspace+surface, surface, then untargeted", async () => {
     const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "cmux-adapter-home-fallback-"));
-    cleanupSocket(sock);
-    const { server, captured } = await startFakeCmuxServer({
-      socketPath: sock,
-      onRequest: (request) => {
-        if (request.method === "notification.create_for_surface") {
-          return { ok: false, error: { code: "ENO_SURFACE", message: "surface missing" } };
-        }
-
-        return { ok: true, result: { created: true } };
-      },
-    });
-
     const previousHome = process.env.HOME;
-    const previousSocketPath = process.env.CMUX_SOCKET_PATH;
+    const previousWorkspaceId = process.env.CMUX_WORKSPACE_ID;
     const previousSurfaceId = process.env.CMUX_SURFACE_ID;
+    const stub = createQueuedCmuxCliExecStub(
+      [
+        { exitCode: 2, stdout: "", stderr: "target failed", signal: null, timedOut: false },
+        { exitCode: 3, stdout: "", stderr: "surface failed", signal: null, timedOut: false },
+        { exitCode: 0, stdout: "", stderr: "", signal: null, timedOut: false },
+      ],
+      { onEmpty: "throw" },
+    );
 
     process.env.HOME = homeDir;
-    process.env.CMUX_SOCKET_PATH = sock;
+    delete process.env.CMUX_WORKSPACE_ID;
     delete process.env.CMUX_SURFACE_ID;
+    __testOnlySetCmuxCliExec(stub.exec);
 
     try {
       await upsertSessionMapping({
-        sessionId: "ses_surface_fail",
+        sessionId: "ses_fallback",
+        workspaceId: "workspace-fallback",
+        surfaceId: "surface-fallback",
+      });
+
+      await notify({
+        sessionId: "ses_fallback",
+        title: "OpenCode",
+        subtitle: "Question",
+        body: "Need fallback",
+      });
+
+      expect(stub.calls).toHaveLength(3);
+      expect(stub.calls[0]?.args).toEqual([
+        "notify",
+        "--title",
+        "OpenCode",
+        "--subtitle",
+        "Question",
+        "--body",
+        "Need fallback",
+        "--workspace",
+        "workspace-fallback",
+        "--surface",
+        "surface-fallback",
+      ]);
+      expect(stub.calls[1]?.args).toEqual([
+        "notify",
+        "--title",
+        "OpenCode",
+        "--subtitle",
+        "Question",
+        "--body",
+        "Need fallback",
+        "--surface",
+        "surface-fallback",
+      ]);
+      expect(stub.calls[2]?.args).toEqual([
+        "notify",
+        "--title",
+        "OpenCode",
+        "--subtitle",
+        "Question",
+        "--body",
+        "Need fallback",
+      ]);
+    } finally {
+      cleanupDir(homeDir);
+      restoreEnv("HOME", previousHome);
+      restoreEnv("CMUX_WORKSPACE_ID", previousWorkspaceId);
+      restoreEnv("CMUX_SURFACE_ID", previousSurfaceId);
+    }
+  });
+
+  test("returns none when all notification routes fail", async () => {
+    const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "cmux-adapter-home-none-"));
+    const previousHome = process.env.HOME;
+    const previousWorkspaceId = process.env.CMUX_WORKSPACE_ID;
+    const previousSurfaceId = process.env.CMUX_SURFACE_ID;
+    const stub = createQueuedCmuxCliExecStub(
+      [
+        { exitCode: 2, stdout: "", stderr: "target failed", signal: null, timedOut: false },
+        { exitCode: 3, stdout: "", stderr: "surface failed", signal: null, timedOut: false },
+        { exitCode: 4, stdout: "", stderr: "notify failed", signal: null, timedOut: false },
+      ],
+      { onEmpty: "throw" },
+    );
+
+    process.env.HOME = homeDir;
+    delete process.env.CMUX_WORKSPACE_ID;
+    delete process.env.CMUX_SURFACE_ID;
+    __testOnlySetCmuxCliExec(stub.exec);
+
+    try {
+      await upsertSessionMapping({
+        sessionId: "ses_all_fail",
         workspaceId: "workspace-fail",
         surfaceId: "surface-fail",
       });
 
-      await notify({
-        sessionId: "ses_surface_fail",
+      const route = await notifyTargeted({
+        sessionId: "ses_all_fail",
         title: "OpenCode",
-        subtitle: "Question",
-        body: "Need fallback",
+        subtitle: "Session",
+        body: "Background complete",
       });
 
-      expect(captured).toHaveLength(2);
-      expect(captured[0].method).toBe("notification.create_for_surface");
-      expect(captured[1].method).toBe("notification.create");
-      expect(captured[1].params).toEqual({
-        title: "OpenCode",
-        subtitle: "Question",
-        body: "Need fallback",
-      });
+      expect(route).toBe("none");
+      expect(stub.calls).toHaveLength(3);
+      expect(stub.calls[2]?.args).toEqual([
+        "notify",
+        "--title",
+        "OpenCode",
+        "--subtitle",
+        "Session",
+        "--body",
+        "Background complete",
+      ]);
     } finally {
-      await closeServer(server);
-      cleanupSocket(sock);
       cleanupDir(homeDir);
       restoreEnv("HOME", previousHome);
-      restoreEnv("CMUX_SOCKET_PATH", previousSocketPath);
+      restoreEnv("CMUX_WORKSPACE_ID", previousWorkspaceId);
       restoreEnv("CMUX_SURFACE_ID", previousSurfaceId);
     }
   });

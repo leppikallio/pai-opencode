@@ -45,10 +45,10 @@ export async function setTabState(args: {
     return;
   }
 
-  await renameCurrentCmuxSurfaceTitle(title);
+  await renameCurrentCmuxSurfaceTitle(title, { sessionId });
 
   if (args.phaseToken) {
-    await mirrorCurrentCmuxPhase({ phaseToken: args.phaseToken });
+    await mirrorCurrentCmuxPhase({ phaseToken: args.phaseToken, sessionId });
   }
 }
 

@@ -1,16 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import fs from "node:fs";
-import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 
 import { setTabState } from "../../hooks/lib/tab-state";
-
-type V2Request = {
-  id: string;
-  method: string;
-  params: Record<string, unknown>;
-};
+import {
+  __testOnlyResetCmuxCliState,
+  __testOnlySetCmuxCliExec,
+} from "../../plugins/pai-cc-hooks/shared/cmux-cli";
+import { createQueuedCmuxCliExecStub } from "../helpers/cmux-cli-exec-stub";
 
 function restoreEnv(key: string, previousValue: string | undefined): void {
   if (previousValue === undefined) {
@@ -21,109 +19,35 @@ function restoreEnv(key: string, previousValue: string | undefined): void {
   process.env[key] = previousValue;
 }
 
-function cleanupSocket(socketPath: string): void {
-  try {
-    fs.unlinkSync(socketPath);
-  } catch {}
-}
-
-async function closeServer(server: net.Server): Promise<void> {
-  if (!server.listening) {
-    return;
-  }
-
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve();
-    });
-  });
-}
-
-async function listenServer(server: net.Server, socketPath: string): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const onListening = () => {
-      server.off("error", onError);
-      resolve();
-    };
-
-    const onError = (error: Error) => {
-      server.off("listening", onListening);
-      reject(error);
-    };
-
-    server.once("listening", onListening);
-    server.once("error", onError);
-    server.listen(socketPath);
-  });
-}
-
 describe("pai_cc_tab_state cmux rename", () => {
   test("setTabState renames the current cmux surface", async () => {
     const runtimeRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pai-tab-state-cmux-"));
     fs.mkdirSync(path.join(runtimeRoot, "hooks"), { recursive: true });
     fs.mkdirSync(path.join(runtimeRoot, "skills"), { recursive: true });
-
-    const socketPath = path.join(runtimeRoot, "cmux.sock");
-    cleanupSocket(socketPath);
-
-    const capturedRequests: V2Request[] = [];
-    const server = net.createServer((connection) => {
-      connection.setEncoding("utf8");
-      let buffer = "";
-
-      connection.on("data", (chunk) => {
-        buffer += chunk;
-
-        while (buffer.includes("\n")) {
-          const newlineIndex = buffer.indexOf("\n");
-          const line = buffer.slice(0, newlineIndex);
-          buffer = buffer.slice(newlineIndex + 1);
-
-          if (!line.trim()) {
-            continue;
-          }
-
-          const request = JSON.parse(line) as V2Request;
-          capturedRequests.push(request);
-          connection.write(JSON.stringify({ id: request.id, ok: true, result: {} }) + "\n");
-        }
-      });
-    });
-
-    await listenServer(server, socketPath);
+    const stub = createQueuedCmuxCliExecStub(
+      [{ exitCode: 0, stdout: "", stderr: "", signal: null, timedOut: false }],
+      { onEmpty: "throw" },
+    );
 
     const previousOpenCodeRoot = process.env.OPENCODE_ROOT;
-    const previousSocketPath = process.env.CMUX_SOCKET_PATH;
+    const previousWorkspaceId = process.env.CMUX_WORKSPACE_ID;
     const previousSurfaceId = process.env.CMUX_SURFACE_ID;
 
     process.env.OPENCODE_ROOT = runtimeRoot;
-    process.env.CMUX_SOCKET_PATH = socketPath;
+    delete process.env.CMUX_WORKSPACE_ID;
     process.env.CMUX_SURFACE_ID = "surface-S1";
+    __testOnlySetCmuxCliExec(stub.exec);
 
     try {
       await setTabState({ sessionId: "S1", title: "🧠 X", state: "thinking" });
 
-      expect(capturedRequests).toHaveLength(1);
-      expect(capturedRequests[0]).toEqual({
-        id: "1",
-        method: "surface.action",
-        params: {
-          surface_id: "surface-S1",
-          action: "rename",
-          title: "🧠 X",
-        },
-      });
+      expect(stub.calls).toHaveLength(1);
+      expect(stub.calls[0]?.args).toEqual(["rename-tab", "--surface", "surface-S1", "--", "🧠 X"]);
     } finally {
-      await closeServer(server);
-      cleanupSocket(socketPath);
+      __testOnlyResetCmuxCliState();
       fs.rmSync(runtimeRoot, { recursive: true, force: true });
       restoreEnv("OPENCODE_ROOT", previousOpenCodeRoot);
-      restoreEnv("CMUX_SOCKET_PATH", previousSocketPath);
+      restoreEnv("CMUX_WORKSPACE_ID", previousWorkspaceId);
       restoreEnv("CMUX_SURFACE_ID", previousSurfaceId);
     }
   });

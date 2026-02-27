@@ -1,73 +1,15 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { promises as fs } from "node:fs";
-import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 
-const repoRoot = path.basename(process.cwd()) === ".opencode"
-  ? path.resolve(process.cwd(), "..")
-  : process.cwd();
-
-type V2Request = {
-  id: string;
-  method: string;
-  params: Record<string, unknown>;
-};
-
-function withEnv(overrides: Record<string, string | undefined>): Record<string, string> {
-  const env: Record<string, string> = {};
-
-  for (const [key, value] of Object.entries(process.env)) {
-    if (value !== undefined) {
-      env[key] = value;
-    }
-  }
-
-  for (const [key, value] of Object.entries(overrides)) {
-    if (value === undefined) {
-      delete env[key];
-    } else {
-      env[key] = value;
-    }
-  }
-
-  return env;
-}
-
-async function closeServer(server: net.Server): Promise<void> {
-  if (!server.listening) {
-    return;
-  }
-
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve();
-    });
-  });
-}
-
-async function listenServer(server: net.Server, socketPath: string): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const onListening = () => {
-      server.off("error", onError);
-      resolve();
-    };
-
-    const onError = (error: Error) => {
-      server.off("listening", onListening);
-      reject(error);
-    };
-
-    server.once("listening", onListening);
-    server.once("error", onError);
-    server.listen(socketPath);
-  });
-}
+import { setTabState } from "../../hooks/lib/tab-state";
+import {
+  __testOnlyResetCmuxCliState,
+  __testOnlySetCmuxCliExec,
+} from "../../plugins/pai-cc-hooks/shared/cmux-cli";
+import { upsertSessionMapping } from "../../plugins/pai-cc-hooks/shared/cmux-session-map";
+import { createQueuedCmuxCliExecStub } from "../helpers/cmux-cli-exec-stub";
 
 function tabStatePath(runtimeRoot: string, sessionId: string): string {
   return path.join(runtimeRoot, "MEMORY", "STATE", `tab-state-${sessionId}.json`);
@@ -80,111 +22,111 @@ async function makeRuntimeRoot(prefix: string): Promise<string> {
   return runtimeRoot;
 }
 
-async function runUpdateTabTitleHook(args: {
-  runtimeRoot: string;
-  socketPath: string;
-  payload: Record<string, unknown>;
-}): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-  const proc = Bun.spawn({
-    cmd: ["bun", ".opencode/hooks/UpdateTabTitle.hook.ts"],
-    cwd: repoRoot,
-    env: withEnv({
-      OPENCODE_ROOT: args.runtimeRoot,
-      PAI_DISABLE_UPDATE_TAB_TITLE_INFERENCE: "1",
-      CMUX_SOCKET_PATH: args.socketPath,
-      CMUX_SURFACE_ID: "surface-phase-mirror",
-      CMUX_WORKSPACE_ID: "workspace-phase-mirror",
-    }),
-    stdin: "pipe",
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+function restoreEnv(key: string, previousValue: string | undefined): void {
+  if (previousValue === undefined) {
+    delete process.env[key];
+    return;
+  }
 
-  proc.stdin.write(JSON.stringify(args.payload));
-  proc.stdin.end();
-
-  const stdout = await new Response(proc.stdout).text();
-  const stderr = await new Response(proc.stderr).text();
-  const exitCode = await proc.exited;
-
-  return { exitCode, stdout, stderr };
+  process.env[key] = previousValue;
 }
 
 describe("UpdateTabTitle attention phase mirror", () => {
-  test("normal prompt keeps title updates and emits oc_phase mirror with matching progress labels", async () => {
+  beforeEach(() => {
+    __testOnlyResetCmuxCliState();
+  });
+
+  afterEach(() => {
+    __testOnlyResetCmuxCliState();
+  });
+
+  test("normal prompt keeps title updates and emits CLI oc_phase mirror with progress labels", async () => {
     const runtimeRoot = await makeRuntimeRoot("pai-update-title-phase-");
-    const socketDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-update-title-cmux-"));
-    const socketPath = path.join(socketDir, "cmux.sock");
+    const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-update-title-home-"));
+    const previousHome = process.env.HOME;
+    const previousOpenCodeRoot = process.env.OPENCODE_ROOT;
+    const previousWorkspaceId = process.env.CMUX_WORKSPACE_ID;
+    const previousSurfaceId = process.env.CMUX_SURFACE_ID;
+    const stub = createQueuedCmuxCliExecStub(
+      Array.from({ length: 6 }, () => ({ exitCode: 0, stdout: "", stderr: "", signal: null, timedOut: false })),
+      { onEmpty: "throw" },
+    );
 
-    const capturedV2: V2Request[] = [];
-    const capturedLegacy: string[] = [];
-
-    const server = net.createServer((connection) => {
-      connection.setEncoding("utf8");
-      let buffer = "";
-
-      connection.on("data", (chunk) => {
-        buffer += chunk;
-
-        while (buffer.includes("\n")) {
-          const newlineIndex = buffer.indexOf("\n");
-          const line = buffer.slice(0, newlineIndex).trim();
-          buffer = buffer.slice(newlineIndex + 1);
-
-          if (!line) {
-            continue;
-          }
-
-          if (line.startsWith("{")) {
-            const request = JSON.parse(line) as V2Request;
-            capturedV2.push(request);
-            connection.write(JSON.stringify({ id: request.id, ok: true, result: {} }) + "\n");
-            continue;
-          }
-
-          capturedLegacy.push(line);
-          connection.write("OK\n");
-        }
-      });
-    });
-
-    await listenServer(server, socketPath);
+    process.env.HOME = homeDir;
+    process.env.OPENCODE_ROOT = runtimeRoot;
+    process.env.CMUX_WORKSPACE_ID = "workspace-env";
+    process.env.CMUX_SURFACE_ID = "surface-env";
+    __testOnlySetCmuxCliExec(stub.exec);
 
     try {
-      const result = await runUpdateTabTitleHook({
-        runtimeRoot,
-        socketPath,
-        payload: {
-          session_id: "S-phase",
-          prompt: "fix auth refresh token rotation",
-        },
+      await upsertSessionMapping({
+        sessionId: "S-phase",
+        workspaceId: "workspace-map",
+        surfaceId: "surface-map",
       });
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stderr).toBe("");
-      expect(result.stdout).toBe("");
+      await setTabState({
+        title: "🧠 fix auth refresh token rotation",
+        state: "thinking",
+        sessionId: "S-phase",
+        phaseToken: "THINK",
+      });
+
+      await setTabState({
+        title: "⚙️ fix auth refresh token rotation",
+        state: "working",
+        sessionId: "S-phase",
+        phaseToken: "WORK",
+      });
 
       const snapshotRaw = await fs.readFile(tabStatePath(runtimeRoot, "S-phase"), "utf8");
       const snapshot = JSON.parse(snapshotRaw) as { title?: string; state?: string };
       expect(snapshot.state).toBe("working");
       expect(snapshot.title?.startsWith("⚙️")).toBe(true);
 
-      const renameRequests = capturedV2.filter((request) => request.method === "surface.action");
-      expect(renameRequests).toHaveLength(2);
-      expect((renameRequests[0]?.params.title as string | undefined) ?? "").toContain("🧠");
-      expect((renameRequests[1]?.params.title as string | undefined) ?? "").toContain("⚙️");
+      const capturedArgv = stub.calls.map((call) => call.args);
+      expect(capturedArgv).toHaveLength(6);
 
-      const phaseCommands = capturedLegacy.filter((line) => line.startsWith("set_status oc_phase "));
-      expect(phaseCommands).toContain("set_status oc_phase THINK --tab=workspace-phase-mirror");
-      expect(phaseCommands).toContain("set_status oc_phase WORK --tab=workspace-phase-mirror");
+      const renameArgv = capturedArgv.filter((argv) => argv[0] === "rename-tab");
+      expect(renameArgv).toEqual([
+        [
+          "rename-tab",
+          "--workspace",
+          "workspace-map",
+          "--surface",
+          "surface-map",
+          "--",
+          "🧠 fix auth refresh token rotation",
+        ],
+        [
+          "rename-tab",
+          "--workspace",
+          "workspace-map",
+          "--surface",
+          "surface-map",
+          "--",
+          "⚙️ fix auth refresh token rotation",
+        ],
+      ]);
 
-      const progressCommands = capturedLegacy.filter((line) => line.startsWith("set_progress "));
-      expect(progressCommands.some((line) => line.includes("\"THINK\""))).toBe(true);
-      expect(progressCommands.some((line) => line.includes("\"WORK\""))).toBe(true);
+      const phaseStatusArgv = capturedArgv.filter((argv) => argv[0] === "set-status");
+      expect(phaseStatusArgv).toEqual([
+        ["set-status", "oc_phase", "THINK", "--workspace", "workspace-map"],
+        ["set-status", "oc_phase", "WORK", "--workspace", "workspace-map"],
+      ]);
+
+      const progressArgv = capturedArgv.filter((argv) => argv[0] === "set-progress");
+      expect(progressArgv).toEqual([
+        ["set-progress", "0.2", "--label", "THINK", "--workspace", "workspace-map"],
+        ["set-progress", "0.6", "--label", "WORK", "--workspace", "workspace-map"],
+      ]);
     } finally {
-      await closeServer(server);
       await fs.rm(runtimeRoot, { recursive: true, force: true });
-      await fs.rm(socketDir, { recursive: true, force: true });
+      await fs.rm(homeDir, { recursive: true, force: true });
+      restoreEnv("HOME", previousHome);
+      restoreEnv("OPENCODE_ROOT", previousOpenCodeRoot);
+      restoreEnv("CMUX_WORKSPACE_ID", previousWorkspaceId);
+      restoreEnv("CMUX_SURFACE_ID", previousSurfaceId);
     }
   });
 });

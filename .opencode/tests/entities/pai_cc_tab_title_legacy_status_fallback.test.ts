@@ -1,16 +1,21 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import fs from "node:fs";
-import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 
 import { renameCurrentCmuxSurfaceTitle } from "../../hooks/lib/cmux-v2";
+import {
+  __testOnlyResetCmuxCliState,
+  __testOnlySetCmuxCliExec,
+} from "../../plugins/pai-cc-hooks/shared/cmux-cli";
+import { upsertSessionMapping } from "../../plugins/pai-cc-hooks/shared/cmux-session-map";
+import { createQueuedCmuxCliExecStub } from "../helpers/cmux-cli-exec-stub";
 
-type V2Request = {
-  id: string;
-  method: string;
-  params: Record<string, unknown>;
-};
+function cleanupDir(directoryPath: string): void {
+  try {
+    fs.rmSync(directoryPath, { recursive: true, force: true });
+  } catch {}
+}
 
 function restoreEnv(key: string, previousValue: string | undefined): void {
   if (previousValue === undefined) {
@@ -21,134 +26,126 @@ function restoreEnv(key: string, previousValue: string | undefined): void {
   process.env[key] = previousValue;
 }
 
-function cleanupSocket(socketPath: string): void {
-  try {
-    fs.unlinkSync(socketPath);
-  } catch {}
-}
-
-function cleanupSocketDir(socketDir: string): void {
-  try {
-    fs.rmSync(socketDir, { recursive: true, force: true });
-  } catch {}
-}
-
-async function closeServer(server: net.Server): Promise<void> {
-  if (!server.listening) {
-    return;
-  }
-
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => {
-      if (error) {
-        reject(error);
-        return;
-      }
-
-      resolve();
-    });
+describe("cmux tab title rename", () => {
+  beforeEach(() => {
+    __testOnlyResetCmuxCliState();
   });
-}
 
-async function listenServer(server: net.Server, socketPath: string): Promise<void> {
-  await new Promise<void>((resolve, reject) => {
-    const onListening = () => {
-      server.off("error", onError);
-      resolve();
-    };
-
-    const onError = (error: Error) => {
-      server.off("listening", onListening);
-      reject(error);
-    };
-
-    server.once("listening", onListening);
-    server.once("error", onError);
-    server.listen(socketPath);
+  afterEach(() => {
+    __testOnlyResetCmuxCliState();
   });
-}
 
-describe("cmux title legacy fallback", () => {
-  test("falls back to set_status when rename actions are unavailable", async () => {
-    const socketDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), "cmux-title-fallback-"));
-    const socketPath = path.join(socketDir, "cmux.sock");
-    cleanupSocket(socketPath);
-
-    const capturedV2Requests: V2Request[] = [];
-    const capturedV1Commands: string[] = [];
-
-    const server = net.createServer((connection) => {
-      connection.setEncoding("utf8");
-      let buffer = "";
-
-      connection.on("data", (chunk) => {
-        buffer += chunk;
-
-        while (buffer.includes("\n")) {
-          const newlineIndex = buffer.indexOf("\n");
-          const line = buffer.slice(0, newlineIndex).trim();
-          buffer = buffer.slice(newlineIndex + 1);
-
-          if (!line) {
-            continue;
-          }
-
-          if (line.startsWith("{")) {
-            const request = JSON.parse(line) as V2Request;
-            capturedV2Requests.push(request);
-
-            if (request.method === "surface.action" || request.method === "tab.action") {
-              connection.write(
-                JSON.stringify({
-                  id: request.id,
-                  ok: false,
-                  error: {
-                    code: "method_not_found",
-                    message: "Unknown method",
-                  },
-                }) + "\n",
-              );
-              continue;
-            }
-
-            connection.write(JSON.stringify({ id: request.id, ok: true, result: {} }) + "\n");
-            continue;
-          }
-
-          capturedV1Commands.push(line);
-          connection.write("OK\n");
-        }
-      });
-    });
-
-    await listenServer(server, socketPath);
-
-    const previousSocketPath = process.env.CMUX_SOCKET_PATH;
-    const previousSurfaceId = process.env.CMUX_SURFACE_ID;
+  test("renames via CLI using map target before env target", async () => {
+    const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "cmux-title-rename-cli-"));
+    const previousHome = process.env.HOME;
     const previousWorkspaceId = process.env.CMUX_WORKSPACE_ID;
+    const previousSurfaceId = process.env.CMUX_SURFACE_ID;
+    const stub = createQueuedCmuxCliExecStub(
+      [{ exitCode: 0, stdout: "", stderr: "", signal: null, timedOut: false }],
+      { onEmpty: "throw" },
+    );
 
-    process.env.CMUX_SOCKET_PATH = socketPath;
-    process.env.CMUX_SURFACE_ID = "surface-legacy";
-    process.env.CMUX_WORKSPACE_ID = "workspace-legacy";
+    process.env.HOME = homeDir;
+    process.env.CMUX_WORKSPACE_ID = "workspace-env";
+    process.env.CMUX_SURFACE_ID = "surface-env";
+    __testOnlySetCmuxCliExec(stub.exec);
 
     try {
-      await renameCurrentCmuxSurfaceTitle("🧠 Legacy Title");
+      await upsertSessionMapping({
+        sessionId: "ses_rename",
+        workspaceId: "workspace-map",
+        surfaceId: "surface-map",
+      });
 
-      expect(capturedV2Requests).toHaveLength(2);
-      expect(capturedV2Requests[0]?.method).toBe("surface.action");
-      expect(capturedV2Requests[1]?.method).toBe("tab.action");
+      await renameCurrentCmuxSurfaceTitle("🧠 Legacy Title", { sessionId: "ses_rename" });
 
-      expect(capturedV1Commands).toEqual([
-        'set_status opencode_tab_title "THINK: Legacy Title" --icon=brain.head.profile --color=#4C8DFF --tab=workspace-legacy',
-        'set_progress 0.2 --label="THINK" --tab=workspace-legacy',
+      expect(stub.calls).toHaveLength(1);
+      expect(stub.calls[0]?.args).toEqual([
+        "rename-tab",
+        "--workspace",
+        "workspace-map",
+        "--surface",
+        "surface-map",
+        "--",
+        "🧠 Legacy Title",
       ]);
     } finally {
-      await closeServer(server);
-      cleanupSocket(socketPath);
-      cleanupSocketDir(socketDir);
-      restoreEnv("CMUX_SOCKET_PATH", previousSocketPath);
-      restoreEnv("CMUX_SURFACE_ID", previousSurfaceId);
+      cleanupDir(homeDir);
+      restoreEnv("HOME", previousHome);
       restoreEnv("CMUX_WORKSPACE_ID", previousWorkspaceId);
+      restoreEnv("CMUX_SURFACE_ID", previousSurfaceId);
+    }
+  });
+
+  test("renames via CLI using surface-only env target when session is absent", async () => {
+    const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "cmux-title-rename-cli-surface-only-"));
+    const previousHome = process.env.HOME;
+    const previousWorkspaceId = process.env.CMUX_WORKSPACE_ID;
+    const previousSurfaceId = process.env.CMUX_SURFACE_ID;
+    const stub = createQueuedCmuxCliExecStub(
+      [{ exitCode: 0, stdout: "", stderr: "", signal: null, timedOut: false }],
+      { onEmpty: "throw" },
+    );
+
+    process.env.HOME = homeDir;
+    delete process.env.CMUX_WORKSPACE_ID;
+    process.env.CMUX_SURFACE_ID = "surface-env-only";
+    __testOnlySetCmuxCliExec(stub.exec);
+
+    try {
+      await renameCurrentCmuxSurfaceTitle("Surface-only title");
+
+      expect(stub.calls).toHaveLength(1);
+      expect(stub.calls[0]?.args).toEqual([
+        "rename-tab",
+        "--surface",
+        "surface-env-only",
+        "--",
+        "Surface-only title",
+      ]);
+    } finally {
+      cleanupDir(homeDir);
+      restoreEnv("HOME", previousHome);
+      restoreEnv("CMUX_WORKSPACE_ID", previousWorkspaceId);
+      restoreEnv("CMUX_SURFACE_ID", previousSurfaceId);
+    }
+  });
+
+  test("best-effort rename swallows nonzero, timeout, and spawn errors", async () => {
+    const homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "cmux-title-rename-cli-failure-modes-"));
+    const previousHome = process.env.HOME;
+    const previousWorkspaceId = process.env.CMUX_WORKSPACE_ID;
+    const previousSurfaceId = process.env.CMUX_SURFACE_ID;
+    const stub = createQueuedCmuxCliExecStub(
+      [
+        { exitCode: 9, stdout: "", stderr: "rename failed", signal: null, timedOut: false },
+        { exitCode: null, stdout: "", stderr: "timed out", signal: "SIGTERM", timedOut: true },
+        new Error("spawn exploded"),
+      ],
+      { onEmpty: "throw" },
+    );
+
+    process.env.HOME = homeDir;
+    process.env.CMUX_WORKSPACE_ID = "workspace-env";
+    process.env.CMUX_SURFACE_ID = "surface-env";
+    __testOnlySetCmuxCliExec(stub.exec);
+
+    try {
+      await expect(renameCurrentCmuxSurfaceTitle("title one")).resolves.toBeUndefined();
+      await expect(renameCurrentCmuxSurfaceTitle("title two")).resolves.toBeUndefined();
+      await expect(renameCurrentCmuxSurfaceTitle("title three")).resolves.toBeUndefined();
+
+      expect(stub.calls).toHaveLength(3);
+      expect(stub.calls.map((call) => call.args)).toEqual([
+        ["rename-tab", "--workspace", "workspace-env", "--surface", "surface-env", "--", "title one"],
+        ["rename-tab", "--workspace", "workspace-env", "--surface", "surface-env", "--", "title two"],
+        ["rename-tab", "--workspace", "workspace-env", "--surface", "surface-env", "--", "title three"],
+      ]);
+    } finally {
+      cleanupDir(homeDir);
+      restoreEnv("HOME", previousHome);
+      restoreEnv("CMUX_WORKSPACE_ID", previousWorkspaceId);
+      restoreEnv("CMUX_SURFACE_ID", previousSurfaceId);
     }
   });
 });
