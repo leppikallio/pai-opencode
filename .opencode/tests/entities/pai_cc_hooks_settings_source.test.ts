@@ -54,7 +54,7 @@ describe("hook settings source", () => {
       path.join(root, "settings.json"),
       JSON.stringify(
         {
-          env: { PAI_DIR: root },
+          env: { OPENCODE_ROOT: "$" + "{PAI_DIR}", RUNTIME_ONLY: "runtime" },
           hooks: { UserPromptSubmit: [{ hooks: [{ type: "command", command: "x" }] }] },
         },
         null,
@@ -65,7 +65,9 @@ describe("hook settings source", () => {
 
     await withConfigRoot(root, async () => {
       const loaded = await loadClaudeHookSettings();
-      expect(loaded.env.PAI_DIR).toBe(root);
+      expect(loaded.env.OPENCODE_ROOT).toBe(root);
+      expect(loaded.env.PAI_DIR).toBeUndefined();
+      expect(loaded.env.RUNTIME_ONLY).toBe("runtime");
       expect(loaded.env.LEGACY_ONLY).toBeUndefined();
       expect(loaded.hooks?.UserPromptSubmit?.length).toBe(1);
       expect(loaded.hooks?.UserPromptSubmit?.[0]?.hooks?.[0]?.command).toBe("x");
@@ -80,7 +82,8 @@ describe("hook settings source", () => {
 
     await withConfigRoot(root, async () => {
       const loaded = await loadClaudeHookSettings();
-      expect(loaded.env.PAI_DIR).toBe(root);
+      expect(loaded.env.OPENCODE_ROOT).toBe(root);
+      expect(loaded.env.PAI_DIR).toBeUndefined();
       expect(loaded.env.LEGACY_ONLY).toBeUndefined();
       expect(loaded.hooks).toBeNull();
     });
@@ -93,7 +96,8 @@ describe("hook settings source", () => {
 
     await withConfigRoot(root, async () => {
       const loaded = await loadClaudeHookSettings();
-      expect(loaded.env.PAI_DIR).toBe(root);
+      expect(loaded.env.OPENCODE_ROOT).toBe(root);
+      expect(loaded.env.PAI_DIR).toBeUndefined();
       expect(loaded.env.LEGACY_ONLY).toBeUndefined();
       expect(loaded.hooks).toBeNull();
     });

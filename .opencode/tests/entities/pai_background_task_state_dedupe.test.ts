@@ -16,26 +16,26 @@ function createTempPaiDir(): string {
 describe("background task state dedupe", () => {
   test("markNotified prevents notifying same task id twice", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
 
-    process.env.PAI_DIR = paiDir;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       await expect(markNotified("task_123")).resolves.toBe(true);
       await expect(markNotified("task_123")).resolves.toBe(false);
     } finally {
-      if (originalPaiDir === undefined) {
-        delete process.env.PAI_DIR;
+      if (originalOpenCodeRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
       } else {
-        process.env.PAI_DIR = originalPaiDir;
+        process.env.OPENCODE_ROOT = originalOpenCodeRoot;
       }
     }
   });
 
   test("shouldSuppressDuplicate is true for same session/title/body within 2000ms", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
 
-    process.env.PAI_DIR = paiDir;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       const first = await shouldSuppressDuplicate({
         sessionId: "ses_123",
@@ -61,20 +61,20 @@ describe("background task state dedupe", () => {
       });
       expect(third).toBe(false);
     } finally {
-      if (originalPaiDir === undefined) {
-        delete process.env.PAI_DIR;
+      if (originalOpenCodeRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
       } else {
-        process.env.PAI_DIR = originalPaiDir;
+        process.env.OPENCODE_ROOT = originalOpenCodeRoot;
       }
     }
   });
 
   test("markNotified prunes stale notified task ids", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
     const statePath = path.join(paiDir, "MEMORY", "STATE", "background-tasks.json");
 
-    process.env.PAI_DIR = paiDir;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       const oldTimestamp = 1_000;
       const freshTimestamp = oldTimestamp + 366 * 24 * 60 * 60 * 1_000;
@@ -90,22 +90,22 @@ describe("background task state dedupe", () => {
 
       await expect(markNotified("task_old", freshTimestamp + 1)).resolves.toBe(true);
     } finally {
-      if (originalPaiDir === undefined) {
-        delete process.env.PAI_DIR;
+      if (originalOpenCodeRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
       } else {
-        process.env.PAI_DIR = originalPaiDir;
+        process.env.OPENCODE_ROOT = originalOpenCodeRoot;
       }
     }
   });
 
   test("invalid JSON state is archived before writing fresh state", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
     const stateDir = path.join(paiDir, "MEMORY", "STATE");
     const statePath = path.join(stateDir, "background-tasks.json");
     const corruptPayload = "{ invalid json";
 
-    process.env.PAI_DIR = paiDir;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       fs.mkdirSync(stateDir, { recursive: true });
       fs.writeFileSync(statePath, corruptPayload, "utf-8");
@@ -124,22 +124,22 @@ describe("background task state dedupe", () => {
       };
       expect(freshState.notifiedTaskIds?.task_after_corrupt).toBe(1234);
     } finally {
-      if (originalPaiDir === undefined) {
-        delete process.env.PAI_DIR;
+      if (originalOpenCodeRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
       } else {
-        process.env.PAI_DIR = originalPaiDir;
+        process.env.OPENCODE_ROOT = originalOpenCodeRoot;
       }
     }
   });
 
   test("markNotified enforces notifiedTaskIds size cap by pruning oldest entries", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
     const stateDir = path.join(paiDir, "MEMORY", "STATE");
     const statePath = path.join(stateDir, "background-tasks.json");
     const nowMs = 10_000;
 
-    process.env.PAI_DIR = paiDir;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       fs.mkdirSync(stateDir, { recursive: true });
 
@@ -178,22 +178,22 @@ describe("background task state dedupe", () => {
       expect(persisted.notifiedTaskIds?.task_0006).toBe(1_006);
       expect(persisted.notifiedTaskIds?.task_2004).toBe(3_004);
     } finally {
-      if (originalPaiDir === undefined) {
-        delete process.env.PAI_DIR;
+      if (originalOpenCodeRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
       } else {
-        process.env.PAI_DIR = originalPaiDir;
+        process.env.OPENCODE_ROOT = originalOpenCodeRoot;
       }
     }
   });
 
   test("markNotified evicts stale lock and succeeds", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
     const stateDir = path.join(paiDir, "MEMORY", "STATE");
     const statePath = path.join(stateDir, "background-tasks.json");
     const lockPath = `${statePath}.lock`;
 
-    process.env.PAI_DIR = paiDir;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       fs.mkdirSync(stateDir, { recursive: true });
       fs.writeFileSync(
@@ -215,21 +215,21 @@ describe("background task state dedupe", () => {
       expect(persisted.notifiedTaskIds?.x).toBe(123);
       expect(fs.existsSync(lockPath)).toBe(false);
     } finally {
-      if (originalPaiDir === undefined) {
-        delete process.env.PAI_DIR;
+      if (originalOpenCodeRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
       } else {
-        process.env.PAI_DIR = originalPaiDir;
+        process.env.OPENCODE_ROOT = originalOpenCodeRoot;
       }
     }
   });
 
   test("recordBackgroundTaskLaunch prunes stale backgroundTasks by TTL", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
     const stateDir = path.join(paiDir, "MEMORY", "STATE");
     const statePath = path.join(stateDir, "background-tasks.json");
 
-    process.env.PAI_DIR = paiDir;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       fs.mkdirSync(stateDir, { recursive: true });
 
@@ -281,22 +281,22 @@ describe("background task state dedupe", () => {
       expect(backgroundTaskIds).toContain("task_recent");
       expect(backgroundTaskIds).toContain("task_new");
     } finally {
-      if (originalPaiDir === undefined) {
-        delete process.env.PAI_DIR;
+      if (originalOpenCodeRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
       } else {
-        process.env.PAI_DIR = originalPaiDir;
+        process.env.OPENCODE_ROOT = originalOpenCodeRoot;
       }
     }
   });
 
   test("recordBackgroundTaskLaunch enforces backgroundTasks size cap", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
     const stateDir = path.join(paiDir, "MEMORY", "STATE");
     const statePath = path.join(stateDir, "background-tasks.json");
     const nowMs = 10_000;
 
-    process.env.PAI_DIR = paiDir;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       fs.mkdirSync(stateDir, { recursive: true });
 
@@ -349,10 +349,10 @@ describe("background task state dedupe", () => {
       expect(backgroundTaskIds).toContain("task_0006");
       expect(backgroundTaskIds).toContain("task_2004");
     } finally {
-      if (originalPaiDir === undefined) {
-        delete process.env.PAI_DIR;
+      if (originalOpenCodeRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
       } else {
-        process.env.PAI_DIR = originalPaiDir;
+        process.env.OPENCODE_ROOT = originalOpenCodeRoot;
       }
     }
   });

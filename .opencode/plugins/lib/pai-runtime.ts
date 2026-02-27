@@ -10,7 +10,7 @@
  * After installation, these plugin files live under:
  *   ~/.config/opencode/plugins/
  *
- * This helper resolves the *active runtime root* (PAI_DIR) without assuming
+ * This helper resolves the active runtime root without assuming
  * the current working directory.
  */
 
@@ -55,21 +55,20 @@ function dirExists(p: string): boolean {
  * Resolve PAI runtime root directory.
  *
  * Order:
- * 1) $PAI_DIR (explicit override)
+ * 1) OPENCODE_ROOT / OPENCODE_CONFIG_ROOT (explicit override)
  * 2) Parent of this plugin tree (installed runtime)
- * 3) ~/.config/opencode (OpenCode global config)
- * 4) ~/.opencode (legacy fallback)
+ * 3) Source-tree inference (<repo>/.opencode)
+ * 4) ~/.config/opencode (OpenCode global config)
  */
 export function getPaiDir(): string {
-  // OpenCode-native config root env vars (used by hooks + tests).
-  const fromOpenCodeRoot = process.env.OPENCODE_ROOT || process.env.OPENCODE_CONFIG_ROOT;
-  if (fromOpenCodeRoot?.trim() && !fromOpenCodeRoot.includes("${")) {
-    return resolve(expandTilde(fromOpenCodeRoot.trim()));
-  }
+  const envKeys = ["OPENCODE_ROOT", "OPENCODE_CONFIG_ROOT"] as const;
+  for (const key of envKeys) {
+    const value = process.env[key]?.trim();
+    if (!value || value.includes("${")) {
+      continue;
+    }
 
-  const fromEnv = process.env.PAI_DIR;
-  if (fromEnv?.trim() && !fromEnv.includes("${")) {
-    return resolve(expandTilde(fromEnv.trim()));
+    return resolve(expandTilde(value));
   }
 
   // This file lives at: <paiDir>/plugins/lib/pai-runtime.ts (installed)
@@ -87,12 +86,6 @@ export function getPaiDir(): string {
   }
 
   const xdg = defaultPaiDir();
-  if (dirExists(xdg)) return xdg;
-
-  const legacy = join(os.homedir(), ".opencode");
-  if (dirExists(legacy)) return legacy;
-
-  // Last resort: return the default path even if it does not exist.
   return xdg;
 }
 

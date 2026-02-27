@@ -19,9 +19,9 @@ function createTempPaiDir(): string {
 describe("PAI background task state list helpers", () => {
   test("listActiveBackgroundTasks returns only incomplete tasks without launch_error", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
 
-    process.env.PAI_DIR = paiDir;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       await recordBackgroundTaskLaunch({
         taskId: "bg_child_1",
@@ -57,16 +57,16 @@ describe("PAI background task state list helpers", () => {
       const statePath = getBackgroundTaskStatePath();
       expect(fs.existsSync(statePath)).toBe(true);
     } finally {
-      if (originalPaiDir === undefined) delete process.env.PAI_DIR;
-      else process.env.PAI_DIR = originalPaiDir;
+      if (originalOpenCodeRoot === undefined) delete process.env.OPENCODE_ROOT;
+      else process.env.OPENCODE_ROOT = originalOpenCodeRoot;
     }
   });
 
   test("listBackgroundTasksByParent returns tasks sorted by launched_at_ms", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
 
-    process.env.PAI_DIR = paiDir;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       await recordBackgroundTaskLaunch({
         taskId: "bg_child_2",
@@ -90,8 +90,8 @@ describe("PAI background task state list helpers", () => {
       const parent1 = await listBackgroundTasksByParent({ parentSessionId: "parent_1", nowMs: 4_000 });
       expect(parent1.map((x) => x.task_id)).toEqual(["bg_child_1", "bg_child_2"]);
     } finally {
-      if (originalPaiDir === undefined) delete process.env.PAI_DIR;
-      else process.env.PAI_DIR = originalPaiDir;
+      if (originalOpenCodeRoot === undefined) delete process.env.OPENCODE_ROOT;
+      else process.env.OPENCODE_ROOT = originalOpenCodeRoot;
     }
   });
 });

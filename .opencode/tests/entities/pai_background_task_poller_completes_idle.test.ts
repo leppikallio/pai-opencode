@@ -19,9 +19,9 @@ function createTempPaiDir(): string {
 describe("PAI BackgroundTaskPoller", () => {
   test("pollOnce completes idle tasks and calls onTaskCompleted", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
 
-    process.env.PAI_DIR = paiDir;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       const nowMs = Date.now();
       await recordBackgroundTaskLaunch({
@@ -57,8 +57,8 @@ describe("PAI BackgroundTaskPoller", () => {
       const updated = await findBackgroundTaskByTaskId({ taskId: "bg_ses_child" });
       expect(updated?.completed_at_ms).toBeTypeOf("number");
     } finally {
-      if (originalPaiDir === undefined) delete process.env.PAI_DIR;
-      else process.env.PAI_DIR = originalPaiDir;
+      if (originalOpenCodeRoot === undefined) delete process.env.OPENCODE_ROOT;
+      else process.env.OPENCODE_ROOT = originalOpenCodeRoot;
     }
   });
 });

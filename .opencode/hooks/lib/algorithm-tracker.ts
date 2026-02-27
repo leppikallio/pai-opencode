@@ -1,6 +1,8 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import crypto from "node:crypto";
+
+import { getPaiDir } from "./paths";
 
 export interface AlgorithmTrackerState {
   sessionId: string;
@@ -118,13 +120,12 @@ function cloneJsonValue<T>(value: T): T {
 }
 
 function resolvePaiDir(paiDir?: string): string {
-  const resolved = paiDir?.trim()
-    || process.env.OPENCODE_ROOT?.trim()
-    || process.env.OPENCODE_CONFIG_ROOT?.trim();
-  if (!resolved || resolved.includes("${")) {
-    return process.cwd();
+  const fromOptions = paiDir?.trim();
+  if (fromOptions && !fromOptions.includes("${")) {
+    return resolve(fromOptions);
   }
-  return resolved;
+
+  return getPaiDir();
 }
 
 function statePathForSession(paiDir: string, sessionId: string): string {

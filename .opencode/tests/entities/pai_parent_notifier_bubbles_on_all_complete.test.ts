@@ -17,9 +17,9 @@ function createTempPaiDir(): string {
 describe("PAI parent-session background completion notifier", () => {
   test("bubbles silently per-task and wakes parent when all complete", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
 
-    process.env.PAI_DIR = paiDir;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       const parentSessionId = "ses_parent";
       const nowMs = Date.now();
@@ -99,8 +99,8 @@ describe("PAI parent-session background completion notifier", () => {
       const tasks = await listBackgroundTasksByParent({ parentSessionId, nowMs: nowMs + 30 });
       expect(tasks.map((t) => t.task_id)).toEqual(["bg_ses_child_a", "bg_ses_child_b"]);
     } finally {
-      if (originalPaiDir === undefined) delete process.env.PAI_DIR;
-      else process.env.PAI_DIR = originalPaiDir;
+      if (originalOpenCodeRoot === undefined) delete process.env.OPENCODE_ROOT;
+      else process.env.OPENCODE_ROOT = originalOpenCodeRoot;
     }
   });
 });

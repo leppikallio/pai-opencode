@@ -1,7 +1,8 @@
 /**
  * Scratchpad session workspace
  *
- * Creates a per-session scratchpad dir under <PAI_DIR>/scratchpad/sessions/
+ * Creates a per-session scratchpad dir under the OpenCode runtime scratchpad
+ * directory (typically `~/.config/opencode/scratchpad/sessions/`).
  * and deletes it when the OpenCode session ends.
  */
 

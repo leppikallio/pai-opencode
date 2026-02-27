@@ -1,6 +1,7 @@
 import fs from "node:fs";
-import { homedir } from "node:os";
 import path from "node:path";
+
+import { getPaiDir } from "../../lib/pai-runtime";
 
 const DUPLICATE_WINDOW_MS = 2_000;
 const NOTIFIED_TASK_RETENTION_MS = 7 * 24 * 60 * 60 * 1_000;
@@ -106,12 +107,7 @@ function lockRetryDelay(attempt: number): number {
 }
 
 function resolvePaiDir(): string {
-  const fromEnv = process.env.PAI_DIR?.trim();
-  if (fromEnv && !fromEnv.includes("${PAI_DIR}")) {
-    return fromEnv;
-  }
-
-  return path.join(homedir(), ".config", "opencode");
+  return getPaiDir();
 }
 
 export function getBackgroundTaskStatePath(): string {

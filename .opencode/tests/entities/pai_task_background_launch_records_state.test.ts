@@ -24,10 +24,10 @@ async function waitFor(predicate: () => boolean, timeoutMs = 500): Promise<boole
 describe("PAI task tool run_in_background", () => {
   test("launch records task_id, child_session_id, and parent_session_id", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
     const calls: Array<{ method: string; payload: unknown }> = [];
 
-    process.env.PAI_DIR = paiDir;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       const taskTool = createPaiTaskTool({
         client: {
@@ -105,19 +105,19 @@ describe("PAI task tool run_in_background", () => {
         parent_session_id: "parent-session-456",
       });
     } finally {
-      if (originalPaiDir === undefined) {
-        delete process.env.PAI_DIR;
+      if (originalOpenCodeRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
       } else {
-        process.env.PAI_DIR = originalPaiDir;
+        process.env.OPENCODE_ROOT = originalOpenCodeRoot;
       }
     }
   });
 
   test("records launch_error marker when background prompt send fails", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
 
-    process.env.PAI_DIR = paiDir;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       const taskTool = createPaiTaskTool({
         client: {
@@ -169,10 +169,10 @@ describe("PAI task tool run_in_background", () => {
 
       expect(hasLaunchError).toBe(true);
     } finally {
-      if (originalPaiDir === undefined) {
-        delete process.env.PAI_DIR;
+      if (originalOpenCodeRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
       } else {
-        process.env.PAI_DIR = originalPaiDir;
+        process.env.OPENCODE_ROOT = originalOpenCodeRoot;
       }
     }
   });

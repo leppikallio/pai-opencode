@@ -22,8 +22,8 @@ describe("PAI background_cancel tool", () => {
 
   test("calls session.abort and marks task cancelled", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
-    process.env.PAI_DIR = paiDir;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
+    process.env.OPENCODE_ROOT = paiDir;
 
     const abortCalls: unknown[] = [];
     try {
@@ -60,8 +60,8 @@ describe("PAI background_cancel tool", () => {
       expect(record?.launch_error).toBe("cancelled");
       expect(record?.launch_error_at_ms).toBeTypeOf("number");
     } finally {
-      if (originalPaiDir === undefined) delete process.env.PAI_DIR;
-      else process.env.PAI_DIR = originalPaiDir;
+      if (originalOpenCodeRoot === undefined) delete process.env.OPENCODE_ROOT;
+      else process.env.OPENCODE_ROOT = originalOpenCodeRoot;
     }
   });
 });

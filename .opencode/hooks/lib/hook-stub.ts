@@ -2,6 +2,8 @@
 import { appendFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
+import { getPaiDir } from "./paths";
+
 type HookPayload = Record<string, unknown> | null;
 
 function readStdinBestEffort(): string {
@@ -28,21 +30,6 @@ function parsePayload(raw: string): HookPayload {
   return { raw_stdin: raw };
 }
 
-function resolvePaiDir(): string {
-  const envKeys = ["OPENCODE_ROOT", "OPENCODE_CONFIG_ROOT"] as const;
-
-  for (const key of envKeys) {
-    const value = process.env[key]?.trim();
-    if (!value || value.includes("${")) {
-      continue;
-    }
-
-    return value;
-  }
-
-  return process.cwd();
-}
-
 function inferHookEventName(payload: HookPayload): string {
   if (!payload) return "unknown";
 
@@ -60,7 +47,7 @@ function inferHookEventName(payload: HookPayload): string {
 
 export async function runHook(args: { hookName: string }): Promise<void> {
   const payload = parsePayload(readStdinBestEffort());
-  const paiDir = resolvePaiDir();
+  const paiDir = getPaiDir();
   const logPath = join(paiDir, "MEMORY", "WORK", "pai-cc-hooks-smoke.jsonl");
 
   const record = {

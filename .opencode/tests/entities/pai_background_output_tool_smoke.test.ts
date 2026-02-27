@@ -19,8 +19,8 @@ describe("PAI background_output tool", () => {
 
   test("renders header even when session.messages unavailable", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
-    process.env.PAI_DIR = paiDir;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       await recordBackgroundTaskLaunch({
         taskId: "bg_child-session-123",
@@ -35,15 +35,15 @@ describe("PAI background_output tool", () => {
       expect(out).toContain("Status:");
       expect(out).toContain("no client.session.messages");
     } finally {
-      if (originalPaiDir === undefined) delete process.env.PAI_DIR;
-      else process.env.PAI_DIR = originalPaiDir;
+      if (originalOpenCodeRoot === undefined) delete process.env.OPENCODE_ROOT;
+      else process.env.OPENCODE_ROOT = originalOpenCodeRoot;
     }
   });
 
   test("renders full_session transcript when messages exist", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
-    process.env.PAI_DIR = paiDir;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       await recordBackgroundTaskLaunch({
         taskId: "bg_child-session-123",
@@ -87,8 +87,8 @@ describe("PAI background_output tool", () => {
       expect(out).toContain("[assistant]");
       expect(out).toContain("ok");
     } finally {
-      if (originalPaiDir === undefined) delete process.env.PAI_DIR;
-      else process.env.PAI_DIR = originalPaiDir;
+      if (originalOpenCodeRoot === undefined) delete process.env.OPENCODE_ROOT;
+      else process.env.OPENCODE_ROOT = originalOpenCodeRoot;
     }
   });
 });

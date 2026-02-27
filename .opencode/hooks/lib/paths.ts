@@ -13,15 +13,25 @@ function isRuntimeRoot(candidate: string): boolean {
   return existsSync(join(candidate, "hooks")) && existsSync(join(candidate, "skills"));
 }
 
-function inferPaiDirFromRuntime(): string | null {
-  const fromHooksLib = resolve(import.meta.dir, "..", "..");
-  if (isRuntimeRoot(fromHooksLib)) {
-    return fromHooksLib;
+function defaultPaiDir(): string {
+  const xdgConfigHome = process.env.XDG_CONFIG_HOME?.trim();
+  if (xdgConfigHome && !xdgConfigHome.includes("${")) {
+    return resolve(expandPath(xdgConfigHome), "opencode");
   }
 
-  const fromRepo = resolve(fromHooksLib, "..", ".opencode");
-  if (isRuntimeRoot(fromRepo)) {
-    return fromRepo;
+  return join(homedir(), ".config", "opencode");
+}
+
+function inferPaiDirFromRuntime(): string | null {
+  const fromInstalledRuntime = resolve(import.meta.dir, "..", "..");
+  if (isRuntimeRoot(fromInstalledRuntime)) {
+    return fromInstalledRuntime;
+  }
+
+  const fromRepoRoot = resolve(import.meta.dir, "..", "..", "..");
+  const fromSourceRuntime = resolve(fromRepoRoot, ".opencode");
+  if (isRuntimeRoot(fromSourceRuntime)) {
+    return fromSourceRuntime;
   }
 
   return null;
@@ -53,12 +63,7 @@ export function getPaiDir(): string {
     return fromRuntime;
   }
 
-  const fromCwd = resolve(process.cwd(), ".opencode");
-  if (isRuntimeRoot(fromCwd)) {
-    return fromCwd;
-  }
-
-  return process.cwd();
+  return defaultPaiDir();
 }
 
 export function paiPath(...parts: string[]): string {

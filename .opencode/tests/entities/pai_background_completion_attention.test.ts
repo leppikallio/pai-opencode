@@ -28,7 +28,7 @@ describe("pai-cc-hooks background completion attention", () => {
     const paiDir = mkdtempSync(path.join(os.tmpdir(), "pai-cc-hooks-bg-attention-pai-"));
 
     const prevConfigRoot = process.env.PAI_CC_HOOKS_CONFIG_ROOT;
-    const prevPaiDir = process.env.PAI_DIR;
+    const prevOpenCodeRoot = process.env.OPENCODE_ROOT;
     const prevVoiceNotifyUrl = process.env.PAI_VOICE_NOTIFY_URL;
 
     const attentionCalls: Array<{
@@ -46,7 +46,7 @@ describe("pai-cc-hooks background completion attention", () => {
 
     try {
       process.env.PAI_CC_HOOKS_CONFIG_ROOT = tmpRoot;
-      process.env.PAI_DIR = paiDir;
+      process.env.OPENCODE_ROOT = paiDir;
       process.env.PAI_VOICE_NOTIFY_URL = "https://voice.example.test/notify";
 
       writeJson(path.join(tmpRoot, "settings.json"), {
@@ -111,7 +111,7 @@ describe("pai-cc-hooks background completion attention", () => {
       expect(voiceNotifyCalls[0].init?.method).toBe("POST");
     } finally {
       restoreEnv("PAI_CC_HOOKS_CONFIG_ROOT", prevConfigRoot);
-      restoreEnv("PAI_DIR", prevPaiDir);
+      restoreEnv("OPENCODE_ROOT", prevOpenCodeRoot);
       restoreEnv("PAI_VOICE_NOTIFY_URL", prevVoiceNotifyUrl);
       rmSync(tmpRoot, { recursive: true, force: true });
       rmSync(paiDir, { recursive: true, force: true });

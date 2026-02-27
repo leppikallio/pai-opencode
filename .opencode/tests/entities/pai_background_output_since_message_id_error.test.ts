@@ -13,8 +13,8 @@ function createTempPaiDir(): string {
 describe("PAI background_output since_message_id behavior", () => {
   test("returns explicit error when since_message_id is not found", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
-    process.env.PAI_DIR = paiDir;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       await recordBackgroundTaskLaunch({
         taskId: "bg_child-session-123",
@@ -49,15 +49,15 @@ describe("PAI background_output since_message_id behavior", () => {
       expect(out).toContain("Error: since_message_id not found");
       expect(out).toContain("missing");
     } finally {
-      if (originalPaiDir === undefined) delete process.env.PAI_DIR;
-      else process.env.PAI_DIR = originalPaiDir;
+      if (originalOpenCodeRoot === undefined) delete process.env.OPENCODE_ROOT;
+      else process.env.OPENCODE_ROOT = originalOpenCodeRoot;
     }
   });
 
   test("running tasks default to include thinking and tool results", async () => {
     const paiDir = createTempPaiDir();
-    const originalPaiDir = process.env.PAI_DIR;
-    process.env.PAI_DIR = paiDir;
+    const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
+    process.env.OPENCODE_ROOT = paiDir;
     try {
       await recordBackgroundTaskLaunch({
         taskId: "bg_child-session-123",
@@ -98,8 +98,8 @@ describe("PAI background_output since_message_id behavior", () => {
       expect(out).toContain("TOOL_RESULT");
       expect(out).toContain("OK");
     } finally {
-      if (originalPaiDir === undefined) delete process.env.PAI_DIR;
-      else process.env.PAI_DIR = originalPaiDir;
+      if (originalOpenCodeRoot === undefined) delete process.env.OPENCODE_ROOT;
+      else process.env.OPENCODE_ROOT = originalOpenCodeRoot;
     }
   });
 });

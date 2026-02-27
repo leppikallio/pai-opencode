@@ -135,13 +135,15 @@ function finalizeLoadedSettings(
   env: Record<string, string>,
   opencodeRoot: string,
 ): LoadedClaudeHookSettings {
-  const configuredPaiDir = env.PAI_DIR?.trim();
-  const paiDirPlaceholder = "$" + "{PAI_DIR}";
-  const hasPlaceholderPaiDir = typeof configuredPaiDir === "string" && configuredPaiDir.includes(paiDirPlaceholder);
-  if (!configuredPaiDir || hasPlaceholderPaiDir) {
+  // Prefer OpenCode-native runtime root env vars.
+  // This keeps all hook/plugin state global (typically ~/.config/opencode) and
+  // prevents accidental writes into the current project directory.
+  const configuredRuntimeRoot = (env.OPENCODE_ROOT ?? env.OPENCODE_CONFIG_ROOT)?.trim();
+  const hasPlaceholder = typeof configuredRuntimeRoot === "string" && configuredRuntimeRoot.includes("${");
+  if (!configuredRuntimeRoot || hasPlaceholder) {
     env = {
       ...env,
-      PAI_DIR: opencodeRoot,
+      OPENCODE_ROOT: opencodeRoot,
     };
   }
 

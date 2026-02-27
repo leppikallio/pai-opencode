@@ -44,7 +44,7 @@ function maybeRotate(): void {
  * Log a message to file (TUI-safe)
  *
  * IMPORTANT: This function NEVER uses console.log
- * All output goes to $PAI_DIR/plugins/debug.log
+ * All output goes to the OpenCode runtime `plugins/debug.log`
  *
  * @param message - The message to log
  * @param level - Log level (info, warn, error, debug)
