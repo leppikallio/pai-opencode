@@ -105,6 +105,43 @@ describe("thread-based hook projections", () => {
     }
   });
 
+  test("RelationshipMemory hook also triggers relationship daily capture", async () => {
+    const root = createTempRoot();
+    try {
+      const workDir = path.join(root, "MEMORY", "WORK", "2099-01", "ses_capture");
+      fs.mkdirSync(workDir, { recursive: true });
+      writeCurrentWorkState(root, { ses_capture: { work_dir: workDir } });
+
+      const thread = [
+        "# THREAD",
+        "",
+        "**User:** I prefer direct updates and clear progress.",
+        "**Assistant:** 📋 SUMMARY: Closed Task 7 implementation for relationship capture.",
+      ].join("\n");
+      fs.writeFileSync(path.join(workDir, "THREAD.md"), thread, "utf-8");
+
+      await runHook({
+        script: ".opencode/hooks/RelationshipMemory.hook.ts",
+        payload: { session_id: "ses_capture" },
+        paiDir: root,
+      });
+
+      const relationshipPath = path.join(workDir, "RELATIONSHIP_HOOK.md");
+      expect(fs.existsSync(relationshipPath)).toBe(true);
+
+      const now = new Date();
+      const yearMonth = now.toISOString().slice(0, 7);
+      const date = now.toISOString().slice(0, 10);
+      const dailyPath = path.join(root, "MEMORY", "RELATIONSHIP", yearMonth, `${date}.md`);
+
+      expect(fs.existsSync(dailyPath)).toBe(true);
+      const dailyContent = fs.readFileSync(dailyPath, "utf-8");
+      expect(dailyContent).toContain("Closed Task 7 implementation for relationship capture.");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("RelationshipMemory no-ops when session mapping is missing", async () => {
     const root = createTempRoot();
     try {

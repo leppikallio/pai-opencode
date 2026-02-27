@@ -203,10 +203,6 @@
           },
           {
             "type": "command",
-            "command": "${PAI_DIR}/hooks/SessionSummary.hook.ts"
-          },
-          {
-            "type": "command",
             "command": "${PAI_DIR}/hooks/RelationshipMemory.hook.ts"
           },
           {
@@ -216,6 +212,10 @@
           {
             "type": "command",
             "command": "${PAI_DIR}/hooks/IntegrityCheck.hook.ts"
+          },
+          {
+            "type": "command",
+            "command": "${PAI_DIR}/hooks/SessionSummary.hook.ts"
           }
         ]
       }

@@ -1,7 +1,11 @@
 #!/usr/bin/env bun
 import { readStdinWithTimeout } from "./lib/stdin";
 
-import { extractLearningsFromWork } from "../plugins/handlers/learning-capture";
+import {
+  captureWorkCompletionSummary,
+  extractLearningsFromWork,
+} from "../plugins/handlers/learning-capture";
+import { isEnvFlagEnabled } from "../plugins/lib/env-flags";
 
 if (process.execArgv.includes("--check")) {
   process.exit(0);
@@ -44,8 +48,11 @@ async function main(): Promise<void> {
       return;
     }
 
-    // Consolidation: use the OpenCode-native learning capture.
-    await extractLearningsFromWork(sessionId);
+    await captureWorkCompletionSummary(sessionId);
+
+    if (isEnvFlagEnabled("PAI_ENABLE_FINE_GRAIN_LEARNINGS", false)) {
+      await extractLearningsFromWork(sessionId);
+    }
   } catch {
     // Hooks must never throw.
   }

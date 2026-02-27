@@ -2,6 +2,7 @@
 import { readStdinWithTimeout } from "./lib/stdin";
 
 import { createWorkSession } from "../plugins/handlers/work-tracker";
+import { ensurePrdForSession } from "../plugins/handlers/auto-prd";
 
 if (process.execArgv.includes("--check")) {
   process.exit(0);
@@ -52,7 +53,16 @@ async function main(): Promise<void> {
 
     // Consolidation: delegate to the OpenCode-native work tracker.
     // This ensures we only have ONE WORK layout and ONE STATE/current-work.json.
-    await createWorkSession(sessionId, prompt);
+    const createResult = await createWorkSession(sessionId, prompt);
+    if (!createResult.success) {
+      return;
+    }
+
+    try {
+      await ensurePrdForSession(sessionId, prompt);
+    } catch {
+      // Best effort only.
+    }
   } catch {
     // Hooks must never throw.
   }

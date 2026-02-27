@@ -20,6 +20,8 @@ import {
   getCurrentWorkPathForSession,
   slugify,
 } from "../lib/paths";
+import { isEnvFlagEnabled, isMemoryParityEnabled } from "../lib/env-flags";
+import { getLearningCategory } from "../lib/learning-utils";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -55,6 +57,28 @@ export interface CaptureLearningResult {
 }
 
 /**
+ * Work completion summary capture result
+ */
+export interface CaptureWorkCompletionSummaryResult {
+  success: boolean;
+  written: boolean;
+  filePath?: string;
+  reason?: string;
+  error?: string;
+}
+
+type WorkSummarySignals = {
+  verifiedIscCount: number;
+  applyPatchCount: number;
+  writeCount: number;
+  editCount: number;
+};
+
+type WorkMeta = {
+  title: string;
+};
+
+/**
  * Learning categories
  */
 const CATEGORIES = {
@@ -64,6 +88,132 @@ const CATEGORIES = {
   RESPONSE: "RESPONSE", // Response format
   GENERAL: "GENERAL", // General learnings
 } as const;
+
+function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
+  return typeof error === "object" && error !== null && "code" in error;
+}
+
+function parseMetaValue(content: string, key: string): string | null {
+  const matcher = new RegExp(`^${key}:\\s*(.+)\\s*$`, "m");
+  const match = content.match(matcher);
+  if (!match?.[1]) return null;
+
+  const raw = match[1].trim();
+  if (!raw) return null;
+
+  const quoted = raw.match(/^"([\s\S]*)"$/) || raw.match(/^'([\s\S]*)'$/);
+  return quoted?.[1] ?? raw;
+}
+
+async function readWorkMeta(workPath: string): Promise<WorkMeta> {
+  const metaPath = path.join(workPath, "META.yaml");
+  let content = "";
+
+  try {
+    content = await fs.promises.readFile(metaPath, "utf8");
+  } catch {
+    return { title: "work-session" };
+  }
+
+  const title = parseMetaValue(content, "title")?.trim();
+  if (!title) return { title: "work-session" };
+  return { title };
+}
+
+function countVerifiedIscCriteria(iscRaw: unknown): number {
+  if (!isRecord(iscRaw)) return 0;
+  const criteria = iscRaw.criteria;
+  if (!Array.isArray(criteria)) return 0;
+
+  let count = 0;
+  for (const criterion of criteria) {
+    const status = getStringProp(criterion, "status")?.trim().toUpperCase() ?? "";
+    if (status === "VERIFIED" || status === "DONE") count += 1;
+  }
+  return count;
+}
+
+async function readSummarySignals(workPath: string): Promise<WorkSummarySignals> {
+  let verifiedIscCount = 0;
+  let applyPatchCount = 0;
+  let writeCount = 0;
+  let editCount = 0;
+
+  try {
+    const iscContent = await fs.promises.readFile(path.join(workPath, "ISC.json"), "utf8");
+    verifiedIscCount = countVerifiedIscCriteria(JSON.parse(iscContent));
+  } catch {
+    // best effort
+  }
+
+  try {
+    const lineageContent = await fs.promises.readFile(path.join(workPath, "LINEAGE.json"), "utf8");
+    const lineageRaw = JSON.parse(lineageContent);
+    if (isRecord(lineageRaw)) {
+      const toolsUsed = lineageRaw.tools_used;
+      if (isRecord(toolsUsed)) {
+        const applyPatch = toolsUsed.apply_patch;
+        const write = toolsUsed.write;
+        const edit = toolsUsed.edit;
+        applyPatchCount = typeof applyPatch === "number" && Number.isFinite(applyPatch) ? Math.max(0, applyPatch) : 0;
+        writeCount = typeof write === "number" && Number.isFinite(write) ? Math.max(0, write) : 0;
+        editCount = typeof edit === "number" && Number.isFinite(edit) ? Math.max(0, edit) : 0;
+      }
+    }
+  } catch {
+    // best effort
+  }
+
+  return {
+    verifiedIscCount,
+    applyPatchCount,
+    writeCount,
+    editCount,
+  };
+}
+
+function isSignificantCompletion(signals: WorkSummarySignals): boolean {
+  if (signals.verifiedIscCount > 0) return true;
+  if (signals.applyPatchCount > 0) return true;
+  if (signals.writeCount > 0) return true;
+  if (signals.editCount > 0) return true;
+  return false;
+}
+
+function buildWorkCompletionSummaryText(meta: WorkMeta, signals: WorkSummarySignals): string {
+  return [
+    `Work session title: ${meta.title}`,
+    `Verified ISC criteria: ${signals.verifiedIscCount}`,
+    `Lineage edit tools: apply_patch=${signals.applyPatchCount}, write=${signals.writeCount}, edit=${signals.editCount}`,
+  ].join("\n");
+}
+
+function fingerprintForWorkCompletionSummary(sessionId: string, category: string, summaryText: string): string {
+  const normalized = summaryText.replace(/\s+/g, " ").trim();
+  return createHash("sha1")
+    .update([sessionId, category, normalized].join("|"))
+    .digest("hex")
+    .slice(0, 10);
+}
+
+async function writeFileAtomicOnce(filePath: string, content: string): Promise<boolean> {
+  await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+  let handle: fs.promises.FileHandle | null = null;
+
+  try {
+    handle = await fs.promises.open(filePath, "wx");
+    await handle.writeFile(content, "utf8");
+    await handle.sync();
+    return true;
+  } catch (error) {
+    if (isErrnoException(error) && error.code === "EEXIST") {
+      return false;
+    }
+    throw error;
+  } finally {
+    if (handle) await handle.close();
+  }
+}
 
 /**
  * Detect learning category from content
@@ -146,8 +296,77 @@ function extractLearnPhasesFromThread(threadMarkdown: string): string[] {
   return out;
 }
 
+export async function captureWorkCompletionSummary(
+  sessionIdRaw: string
+): Promise<CaptureWorkCompletionSummaryResult> {
+  try {
+    if (!isMemoryParityEnabled()) {
+      return { success: true, written: false, reason: "memory-parity-disabled" };
+    }
+    if (!isEnvFlagEnabled("PAI_ENABLE_WORK_COMPLETION_SUMMARY", false)) {
+      return { success: true, written: false, reason: "work-completion-summary-disabled" };
+    }
+
+    const sessionId = normalizeSessionId(sessionIdRaw);
+    if (!sessionId) {
+      return { success: true, written: false, reason: "invalid-session-id" };
+    }
+
+    const workPath = await getCurrentWorkPathForSession(sessionId);
+    if (!workPath) {
+      return { success: true, written: false, reason: "no-active-work-session" };
+    }
+
+    const [meta, signals] = await Promise.all([
+      readWorkMeta(workPath),
+      readSummarySignals(workPath),
+    ]);
+
+    if (!isSignificantCompletion(signals)) {
+      return { success: true, written: false, reason: "insignificant-work" };
+    }
+
+    const summaryText = buildWorkCompletionSummaryText(meta, signals);
+    const category = getLearningCategory(summaryText, meta.title);
+    const yearMonth = getYearMonth();
+    const categoryDir = path.join(getLearningDir(), category, yearMonth);
+    const fingerprint = fingerprintForWorkCompletionSummary(sessionId, category, summaryText);
+    const filePath = path.join(categoryDir, `work_completion_summary_${fingerprint}.md`);
+
+    const content = `# Work Completion Summary
+
+**Timestamp:** ${new Date().toISOString()}
+**Session:** ${sessionId}
+**Category:** ${category}
+**Source:** WORK_COMPLETION
+
+---
+
+${summaryText}
+
+---
+
+*Auto-captured from completed significant work*
+`;
+
+    const written = await writeFileAtomicOnce(filePath, content);
+    return { success: true, written, filePath };
+  } catch (error) {
+    fileLogError("Failed to capture work completion summary", error);
+    return {
+      success: false,
+      written: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
 export async function extractLearningsFromWork(sessionIdRaw: string): Promise<CaptureLearningResult> {
   try {
+    if (!isEnvFlagEnabled("PAI_ENABLE_FINE_GRAIN_LEARNINGS", false)) {
+      return { success: true, learnings: [] };
+    }
+
     const sessionId = normalizeSessionId(sessionIdRaw);
     if (!sessionId) return { success: true, learnings: [] };
 

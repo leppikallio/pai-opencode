@@ -2,6 +2,7 @@
 import { readStdinWithTimeout } from "./lib/stdin";
 
 import { completeWorkSession } from "../plugins/handlers/work-tracker";
+import { captureWorkCompletionSummary } from "../plugins/handlers/learning-capture";
 
 if (process.execArgv.includes("--check")) {
   process.exit(0);
@@ -43,6 +44,8 @@ async function main(): Promise<void> {
     if (!sessionId) {
       return;
     }
+
+    await captureWorkCompletionSummary(sessionId);
 
     // Consolidation: use the OpenCode-native work tracker completion.
     await completeWorkSession(sessionId);
