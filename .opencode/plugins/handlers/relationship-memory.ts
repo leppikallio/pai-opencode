@@ -4,6 +4,7 @@ import { fileLog, fileLogError } from "../lib/file-logger";
 import { ensureDir, getDateString, getMemoryDir, getYearMonth } from "../lib/paths";
 import { getDAName, getPrincipalName } from "../lib/identity";
 import { getCurrentWorkPathForSession } from "../lib/paths";
+import { isEnvFlagEnabled, isMemoryParityEnabled } from "../lib/env-flags";
 
 export type RelationshipNoteType = "W" | "B" | "O";
 
@@ -20,6 +21,26 @@ function capText(text: string, max: number): string {
 }
 
 type ThreadBlock = { role: "user" | "assistant"; text: string };
+
+const MAX_WORLD_NOTES = 2;
+const MAX_WORLD_SNIPPET_LENGTH = 180;
+const MAX_ASSISTANT_MARKER_SNIPPET_LENGTH = 220;
+
+function extractAssistantMarkerSnippets(text: string): string[] {
+  const snippets: string[] = [];
+  const markerPatterns = [/📋 SUMMARY:\s*([^\n]+)/g, /🗣️\s*Marvin:\s*([^\n]+)/gi];
+
+  for (const pattern of markerPatterns) {
+    for (const match of text.matchAll(pattern)) {
+      const snippet = (match[1] ?? "").trim();
+      if (snippet) {
+        snippets.push(capText(snippet, MAX_ASSISTANT_MARKER_SNIPPET_LENGTH));
+      }
+    }
+  }
+
+  return snippets;
+}
 
 function parseThreadBlocks(thread: string): ThreadBlock[] {
   const lines = thread.split("\n");
@@ -54,7 +75,7 @@ function parseThreadBlocks(thread: string): ThreadBlock[] {
   return blocks;
 }
 
-function analyzeForRelationship(users: string[], assistants: string[]): RelationshipNote[] {
+function analyzeForRelationship(users: string[], assistants: string[], includeWorldNotes: boolean): RelationshipNote[] {
   const notes: RelationshipNote[] = [];
 
   const da = getDAName();
@@ -68,19 +89,31 @@ function analyzeForRelationship(users: string[], assistants: string[]): Relation
 
   const sessionSummary: string[] = [];
   const preferenceSnippets: string[] = [];
+  const worldSnippets: string[] = [];
   let positiveCount = 0;
   let frustrationCount = 0;
 
   for (const a of assistants.slice(-10)) {
-    // Extract summary lines if present.
-    const m = a.match(/📋 SUMMARY:\s*([^\n]+)/);
-    if (m?.[1]) sessionSummary.push(m[1].trim());
+    for (const snippet of extractAssistantMarkerSnippets(a)) {
+      sessionSummary.push(snippet);
+    }
   }
 
   for (const u of users.slice(-12)) {
     if (patterns.preference.test(u)) preferenceSnippets.push(capText(u, 180));
     if (patterns.positive.test(u)) positiveCount++;
     if (patterns.frustration.test(u)) frustrationCount++;
+
+    if (includeWorldNotes) {
+      for (const pattern of [/(?:^|\n)\s*world\s*(?:note|fact)\s*:\s*([^\n]+)/gi]) {
+        for (const match of u.matchAll(pattern)) {
+          const snippet = (match[1] ?? "").trim();
+          if (snippet) {
+            worldSnippets.push(capText(snippet, MAX_WORLD_SNIPPET_LENGTH));
+          }
+        }
+      }
+    }
   }
 
   // B (Biographical) notes: what happened this session.
@@ -117,6 +150,15 @@ function analyzeForRelationship(users: string[], assistants: string[]): Relation
       entities: [`@${principal}`],
       content: "Showed frustration during this session (likely process/tooling)",
       confidence: 0.75,
+    });
+  }
+
+  for (const w of [...new Set(worldSnippets)].slice(0, MAX_WORLD_NOTES)) {
+    notes.push({
+      type: "W",
+      entities: ["@WORLD"],
+      content: w,
+      confidence: 0.85,
     });
   }
 
@@ -158,6 +200,10 @@ function ensureDailyRelationshipFile(filepath: string): void {
 
 export async function captureRelationshipMemory(sessionId: string): Promise<void> {
   try {
+    if (!(isMemoryParityEnabled() && isEnvFlagEnabled("PAI_ENABLE_RELATIONSHIP_MEMORY", true))) {
+      return;
+    }
+
     const workPath = await getCurrentWorkPathForSession(sessionId);
     if (!workPath) return;
 
@@ -169,7 +215,11 @@ export async function captureRelationshipMemory(sessionId: string): Promise<void
     const blocks = parseThreadBlocks(thread);
     const users = blocks.filter((b) => b.role === "user").map((b) => b.text);
     const assistants = blocks.filter((b) => b.role === "assistant").map((b) => b.text);
-    const notes = analyzeForRelationship(users, assistants);
+    const notes = analyzeForRelationship(
+      users,
+      assistants,
+      isEnvFlagEnabled("PAI_ENABLE_RELATIONSHIP_WORLD_NOTES", false),
+    );
     if (notes.length === 0) return;
 
     // Dedup per-session based on note content.

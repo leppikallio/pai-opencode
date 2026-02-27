@@ -19,7 +19,6 @@ import {
   getOrLoadCurrentSession,
   pauseWorkSessionForSession,
   resumeWorkSessionForSession,
-  completeWorkSession,
   type IscState,
   type IscCriterion,
 } from "./work-tracker";
@@ -32,6 +31,9 @@ import { classifyPromptHint, type PromptHint } from "./prompt-hints";
 import { maybeCaptureImplicitSentiment } from "./sentiment-capture";
 import { captureRelationshipMemory } from "./relationship-memory";
 import { captureSoulEvolution } from "./soul-evolution";
+import { isEnvFlagEnabled } from "../lib/env-flags";
+import { ensurePrdForSession } from "./auto-prd";
+import { recordAgentSpawn, recordToolUse } from "./lineage-tracker";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -43,7 +45,7 @@ type UnknownRecord = Record<string, unknown>;
  * - Prevents timestamp inversions caused by parallel handler scheduling.
  *
  * Opt-out (disable serialization):
- *   PAI_SERIALIZE_EVENTS=0|false|off opencode ...
+ *   PAI_SERIALIZE_EVENTS=0|false|off|no opencode ...
  */
 const ENABLE_SERIAL_EVENT_QUEUE = (() => {
   const v = (process.env.PAI_SERIALIZE_EVENTS ?? "").trim().toLowerCase();
@@ -223,7 +225,12 @@ const RAW_ROTATE_BYTES = 10 * 1024 * 1024;
 const FORMAT_HINTS_ROTATE_BYTES = 1 * 1024 * 1024;
 const PROMPT_HINTS_ROTATE_BYTES = 1 * 1024 * 1024;
 const COMMIT_DEBOUNCE_MS = 250;
-const SOFT_FINALIZE_MS = 30 * 60 * 1000;
+function getSoftFinalizeMs(): number {
+  const raw = (process.env.PAI_SOFT_FINALIZE_MS ?? "").trim();
+  if (!raw) return 30 * 60 * 1000;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? n : 30 * 60 * 1000;
+}
 
 class LruSet {
   private limit: number;
@@ -386,6 +393,14 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
   if (!session) {
     const createResult = await createWorkSession(storage, capped);
     if (!createResult.success) return;
+  }
+
+  if (!isSubagent) {
+    try {
+      await ensurePrdForSession(storage, capped);
+    } catch (error) {
+      fileLogError("Auto PRD ensure failed", error);
+    }
   }
 
   await appendToThreadForSession(storage, `${isSubagent ? `**Subagent User (${sessionId}):** ` : "**User:** "}${capped}`);
@@ -588,16 +603,19 @@ async function scheduleIdleCommit(sessionId: string) {
 async function scheduleSoftFinalize(sessionId: string) {
   const state = getSessionState(sessionId);
   if (state.softTimer) clearTimeout(state.softTimer);
+  const softFinalizeMs = getSoftFinalizeMs();
   state.softTimer = setTimeout(async () => {
     const now = Date.now();
     if (!state.idleAt) return;
-    if (now - state.lastActivityAt < SOFT_FINALIZE_MS) return;
+    if (now - state.lastActivityAt < softFinalizeMs) return;
     if (state.paused) return;
     state.paused = true;
     await pauseWorkSessionForSession(sessionId);
-    await extractLearningsFromWork(sessionId);
+    if (isEnvFlagEnabled("PAI_ENABLE_FINE_GRAIN_LEARNINGS", false)) {
+      await extractLearningsFromWork(sessionId);
+    }
     await appendToThreadForSession(sessionId, `**Status:** PAUSED (idle > 30m)`);
-  }, SOFT_FINALIZE_MS + 50);
+  }, softFinalizeMs + 50);
 }
 
 async function markActive(sessionId: string) {
@@ -835,9 +853,9 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
 
         // v2.5 parity: Stop hooks are closer to "assistant finished" than "session deleted".
         // Run relationship + soul capture best-effort at idle.
-        // Default-on per Petteri: disable only when explicitly set to "0".
-        const enableRelationship = process.env.PAI_ENABLE_RELATIONSHIP_MEMORY !== '0';
-        const enableSoul = process.env.PAI_ENABLE_SOUL_EVOLUTION !== '0';
+        // Default-on per Petteri: disable only when explicitly set to 0|false|off|no.
+        const enableRelationship = isEnvFlagEnabled("PAI_ENABLE_RELATIONSHIP_MEMORY", true);
+        const enableSoul = isEnvFlagEnabled("PAI_ENABLE_SOUL_EVOLUTION", true);
         if (enableRelationship || enableSoul) {
           const now = Date.now();
           if (!state.lastLongHorizonCaptureAt || now - state.lastLongHorizonCaptureAt > 10_000) {
@@ -892,6 +910,9 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
         if (sessionId) {
           const mapped = storageSessionIdFor(sessionId);
           await createWorkSession(mapped.storage, title);
+          if (parentId) {
+            await recordAgentSpawn(mapped.storage, sessionId);
+          }
           await appendToThreadForSession(
             mapped.storage,
             mapped.isSubagent
@@ -915,12 +936,6 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
             {},
             { sourceSessionId: sessionId }
           );
-
-          // Never finalize or complete work on subagent session deletion.
-          if (!mapped.isSubagent) {
-            await extractLearningsFromWork(sessionId);
-            await completeWorkSession(sessionId);
-          }
         }
         return;
       }
@@ -973,6 +988,8 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
       const run = async () => {
         if (sessionId) {
           const mapped = storageSessionIdFor(sessionId);
+          const state = getSessionState(sessionId);
+          const toolArgs = callId ? state.toolArgsByCallId.get(callId) : undefined;
           const eventId = `tool.after:${mapped.storage}:${input.tool}:${callId || "no-call"}`;
 
           await appendRawEvent(
@@ -988,6 +1005,8 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
             { sourceSessionId: sessionId }
           );
 
+          await recordToolUse(mapped.storage, input.tool, toolArgs);
+
           // ISC persistence fix: if the assistant used todowrite, persist criteria into ISC.json
           // from tool args (preferred) or tool output (fallback), instead of relying on response text parsing.
           if (!mapped.isSubagent && input.tool === "todowrite") {
@@ -998,8 +1017,7 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
                 await createWorkSession(mapped.storage, "todowrite");
               }
 
-              const state = getSessionState(sessionId);
-              const args = callId ? state.toolArgsByCallId.get(callId) : undefined;
+              const args = toolArgs;
               const todosFromArgs = args && isRecord(args) ? (args as UnknownRecord).todos : undefined;
               const todosFromOutput = typeof output.output === "string" ? parseJsonBestEffort(output.output) : undefined;
 

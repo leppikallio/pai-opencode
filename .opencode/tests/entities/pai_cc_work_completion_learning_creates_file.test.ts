@@ -30,12 +30,14 @@ function withEnv(overrides: Record<string, string | undefined>): Record<string, 
 async function runHook(args: {
   paiDir: string;
   payload: Record<string, unknown>;
+  env?: Record<string, string | undefined>;
 }): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const proc = Bun.spawn({
     cmd: ["bun", ".opencode/hooks/WorkCompletionLearning.hook.ts"],
     cwd: repoRoot,
     env: withEnv({
       OPENCODE_ROOT: args.paiDir,
+      ...args.env,
     }),
     stdin: "pipe",
     stdout: "pipe",
@@ -117,7 +119,13 @@ describe("WorkCompletionLearning hook", () => {
         `${JSON.stringify({
           v: "0.1",
           ideal: "",
-          criteria: [],
+          criteria: [
+            {
+              id: "isc-1",
+              text: "Verified criterion",
+              status: "VERIFIED",
+            },
+          ],
           antiCriteria: [],
           updatedAt: new Date().toISOString(),
         }, null, 2)}\n`,
@@ -139,6 +147,10 @@ describe("WorkCompletionLearning hook", () => {
       const firstResult = await runHook({
         paiDir,
         payload: { session_id: sessionId },
+        env: {
+          PAI_ENABLE_WORK_COMPLETION_SUMMARY: "1",
+          PAI_ENABLE_FINE_GRAIN_LEARNINGS: "0",
+        },
       });
 
       expect(firstResult.exitCode).toBe(0);
@@ -148,6 +160,10 @@ describe("WorkCompletionLearning hook", () => {
       const secondResult = await runHook({
         paiDir,
         payload: { session_id: sessionId },
+        env: {
+          PAI_ENABLE_WORK_COMPLETION_SUMMARY: "1",
+          PAI_ENABLE_FINE_GRAIN_LEARNINGS: "0",
+        },
       });
 
       expect(secondResult.exitCode).toBe(0);
@@ -159,9 +175,9 @@ describe("WorkCompletionLearning hook", () => {
       expect(allFiles).toHaveLength(1);
 
       const content = await fs.readFile(allFiles[0], "utf8");
-      expect(content).toContain("# LEARN Phase Notes");
+      expect(content).toContain("# Work Completion Summary");
       expect(content).toContain(`**Session:** ${sessionId}`);
-      expect(content).toContain("Delete internal sessions reliably");
+      expect(content).toContain("Verified ISC criteria: 1");
     } finally {
       await fs.rm(paiDir, { recursive: true, force: true });
     }
@@ -216,6 +232,10 @@ describe("WorkCompletionLearning hook", () => {
       const result = await runHook({
         paiDir,
         payload: { session_id: sessionId },
+        env: {
+          PAI_ENABLE_WORK_COMPLETION_SUMMARY: "1",
+          PAI_ENABLE_FINE_GRAIN_LEARNINGS: "0",
+        },
       });
 
       expect(result.exitCode).toBe(0);
