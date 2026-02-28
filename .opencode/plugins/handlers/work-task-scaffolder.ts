@@ -346,14 +346,60 @@ async function ensureTaskPrdLink(args: {
 
   const canonicalPrdName = path.basename(args.canonicalPrdPath);
   const entries = await fs.promises.readdir(args.taskDirPath, { withFileTypes: true });
-  let canonicalSymlinkKept = false;
+  const prdNames = entries
+    .filter((entry) => PRD_FILE_NAME_PATTERN.test(entry.name))
+    .map((entry) => entry.name)
+    .sort((left, right) => left.localeCompare(right));
 
-  for (const entry of entries) {
-    if (!PRD_FILE_NAME_PATTERN.test(entry.name)) {
+  const canonicalTaskPrdPath = path.join(args.taskDirPath, canonicalPrdName);
+  const canonicalTaskPrdStat = await lstatOrNull(canonicalTaskPrdPath);
+  const canUseCanonicalPrdName = !canonicalTaskPrdStat || canonicalTaskPrdStat.isSymbolicLink();
+
+  const canonicalTargetSymlinkNames: string[] = [];
+  for (const prdName of prdNames) {
+    const entryPath = path.join(args.taskDirPath, prdName);
+    const entryStat = await lstatOrNull(entryPath);
+    if (!entryStat?.isSymbolicLink()) {
       continue;
     }
 
-    const entryPath = path.join(args.taskDirPath, entry.name);
+    try {
+      const currentTarget = await fs.promises.readlink(entryPath);
+      const resolvedTarget = path.resolve(path.dirname(entryPath), currentTarget);
+      const resolvedRealPath = await resolveInsideWorkRoot(resolvedTarget, args.workDir);
+      if (resolvedRealPath && path.resolve(resolvedRealPath) === path.resolve(canonicalRealPath)) {
+        canonicalTargetSymlinkNames.push(prdName);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  let desiredLinkName = canonicalPrdName;
+  if (!canUseCanonicalPrdName) {
+    const alternateCanonicalTargetSymlink = canonicalTargetSymlinkNames.find(
+      (prdName) => prdName !== canonicalPrdName,
+    );
+    if (alternateCanonicalTargetSymlink) {
+      desiredLinkName = alternateCanonicalTargetSymlink;
+    } else {
+      let attempt = 1;
+      while (true) {
+        const candidateName = buildTaskPrdLinkName(canonicalPrdName, attempt);
+        const candidatePath = path.join(args.taskDirPath, candidateName);
+        const candidateStat = await lstatOrNull(candidatePath);
+        if (!candidateStat || candidateStat.isSymbolicLink()) {
+          desiredLinkName = candidateName;
+          break;
+        }
+        attempt += 1;
+      }
+    }
+  }
+
+  let desiredSymlinkKept = false;
+  for (const prdName of prdNames) {
+    const entryPath = path.join(args.taskDirPath, prdName);
     const entryStat = await lstatOrNull(entryPath);
     if (!entryStat?.isSymbolicLink()) {
       continue;
@@ -367,14 +413,14 @@ async function ensureTaskPrdLink(args: {
       shouldKeep =
         resolvedRealPath !== null &&
         path.resolve(resolvedRealPath) === path.resolve(canonicalRealPath) &&
-        entry.name === canonicalPrdName &&
-        !canonicalSymlinkKept;
+        prdName === desiredLinkName &&
+        !desiredSymlinkKept;
     } catch {
       shouldKeep = false;
     }
 
     if (shouldKeep) {
-      canonicalSymlinkKept = true;
+      desiredSymlinkKept = true;
       continue;
     }
 
@@ -384,23 +430,11 @@ async function ensureTaskPrdLink(args: {
     await fs.promises.unlink(entryPath).catch(() => undefined);
   }
 
-  if (canonicalSymlinkKept) {
+  if (desiredSymlinkKept) {
     return;
   }
 
-  let desiredLinkPath = path.join(args.taskDirPath, canonicalPrdName);
-  const desiredLinkStat = await lstatOrNull(desiredLinkPath);
-  if (desiredLinkStat && !desiredLinkStat.isSymbolicLink()) {
-    let attempt = 1;
-    while (true) {
-      const candidateName = buildTaskPrdLinkName(canonicalPrdName, attempt);
-      desiredLinkPath = path.join(args.taskDirPath, candidateName);
-      if (!(await lstatOrNull(desiredLinkPath))) {
-        break;
-      }
-      attempt += 1;
-    }
-  }
+  const desiredLinkPath = path.join(args.taskDirPath, desiredLinkName);
 
   if (!(await args.validateTasksDir())) {
     return;
