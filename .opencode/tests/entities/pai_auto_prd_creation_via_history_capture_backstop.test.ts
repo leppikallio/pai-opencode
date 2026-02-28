@@ -706,6 +706,64 @@ describe("auto PRD creation via history-capture backstop", () => {
     }
   });
 
+  test("todowrite tool-after bootstraps missing work session and task scaffold", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-history-todowrite-bootstrap-"));
+    const sessionId = "session-todowrite-bootstrap";
+
+    try {
+      await withEnv(
+        {
+          OPENCODE_ROOT: root,
+          PAI_ENABLE_MEMORY_PARITY: "1",
+          PAI_ENABLE_AUTO_PRD: "1",
+          PAI_ENABLE_AUTO_PRD_PROMPT_CLASSIFICATION: "1",
+        },
+        async () => {
+          const capture = createHistoryCapture({ directory: root });
+          await capture.handleToolAfter(
+            {
+              tool: "todowrite",
+              sessionID: sessionId,
+              callID: `call-${Date.now()}`,
+            },
+            {
+              title: "todowrite",
+              output: JSON.stringify([
+                {
+                  content: "Bootstrap task scaffold parity from todowrite",
+                  status: "pending",
+                },
+              ]),
+            },
+          );
+        },
+      );
+
+      const workDir = await readCurrentWorkDir(root, sessionId);
+      expect(typeof workDir).toBe("string");
+      if (!workDir) {
+        throw new Error("expected current work directory after todowrite bootstrap");
+      }
+
+      const tasksDirPath = path.join(workDir, "tasks");
+      const currentTaskPath = path.join(tasksDirPath, "current");
+      expect(await exists(currentTaskPath)).toBe(true);
+      expect((await fs.lstat(currentTaskPath)).isSymbolicLink()).toBe(true);
+
+      const taskDirs = await findTaskDirs(tasksDirPath);
+      const firstTaskDir = taskDirs.find((entry) => entry.startsWith("001_"));
+      expect(typeof firstTaskDir).toBe("string");
+      if (!firstTaskDir) {
+        throw new Error("expected a 001_* task directory after todowrite bootstrap");
+      }
+
+      const resolvedCurrentTaskPath = await fs.realpath(currentTaskPath);
+      expect(resolvedCurrentTaskPath).toBe(await fs.realpath(path.join(tasksDirPath, firstTaskDir)));
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
   test("auto work creation and history-capture backstop are commutative for identical session input", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-history-commutativity-"));
     const sessionId = "session-commutativity-fixed";

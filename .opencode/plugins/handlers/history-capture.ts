@@ -29,6 +29,7 @@ import { getPermissionRequestId, getSessionStatusType, type UnknownRecord as Nor
 import { classifyFormatHint, type FormatHint } from "./format-reminder";
 import { classifyPromptHint, type PromptHint } from "./prompt-hints";
 import { isTrivialPrompt } from "../lib/prompt-classification";
+import { normalizePromptForArtifacts } from "../lib/prompt-normalization";
 import { maybeCaptureImplicitSentiment } from "./sentiment-capture";
 import { captureRelationshipMemory } from "./relationship-memory";
 import { captureSoulEvolution } from "./soul-evolution";
@@ -388,13 +389,14 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
   // between message.updated and message.part.updated.
   state.committedMessages.add(messageId);
 
-  const capped = capText(text, MAX_TEXT);
-  const shouldSkipWorkCreation = isTrivialPrompt(capped);
+  const rawUserMessage = capText(text, MAX_TEXT);
+  const normalized = normalizePromptForArtifacts(rawUserMessage);
+  const shouldSkipWorkCreation = isTrivialPrompt(normalized);
 
   const { storage, isSubagent } = storageSessionIdFor(sessionId);
   let session = await getOrLoadCurrentSession(storage);
   if (!shouldSkipWorkCreation && !session) {
-    const createResult = await createWorkSession(storage, capped);
+    const createResult = await createWorkSession(storage, normalized);
     if (createResult.success) {
       session = createResult.session ?? (await getOrLoadCurrentSession(storage));
     }
@@ -403,19 +405,19 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
   if (!isSubagent) {
     if (!shouldSkipWorkCreation) {
       try {
-        await ensurePrdForSession(storage, capped);
+        await ensurePrdForSession(storage, normalized);
       } catch (error) {
         fileLogError("Auto PRD ensure failed", error);
       }
 
       try {
-        await ensureTaskScaffoldForSession(storage, capped);
+        await ensureTaskScaffoldForSession(storage, normalized);
       } catch (error) {
         fileLogError("Task scaffold ensure failed", error);
       }
     } else if (session) {
       try {
-        await ensureTaskScaffoldForSession(storage, capped);
+        await ensureTaskScaffoldForSession(storage, normalized);
       } catch (error) {
         fileLogError("Task scaffold repair failed", error);
       }
@@ -423,7 +425,7 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
   }
 
   if (session) {
-    await appendToThreadForSession(storage, `${isSubagent ? `**Subagent User (${sessionId}):** ` : "**User:** "}${capped}`);
+    await appendToThreadForSession(storage, `${isSubagent ? `**Subagent User (${sessionId}):** ` : "**User:** "}${rawUserMessage}`);
   }
 
   // === PASS-1 PROMPT HINT (v2.5-inspired) ===
@@ -436,7 +438,7 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
   if (isSubagent) return;
 
   try {
-    const hint = await classifyPromptHint(capped, messageId, {
+    const hint = await classifyPromptHint(rawUserMessage, messageId, {
       serverUrl: carrier.serverUrl,
       client: carrier.client,
       directory: carrier.directory,
@@ -481,9 +483,9 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
     fileLogError("Prompt hint failed", error);
   }
 
-  const rating = detectRating(capped);
+  const rating = detectRating(rawUserMessage);
   if (rating) {
-    await captureRating(capped, "user message");
+    await captureRating(rawUserMessage, "user message");
     return;
   }
 
@@ -493,7 +495,7 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
   void maybeCaptureImplicitSentiment({
     sessionId: storage,
     userMessageId: messageId,
-    userText: capped,
+    userText: rawUserMessage,
     serverUrl: carrier.serverUrl,
     client: carrier.client,
     directory: carrier.directory,
@@ -1042,16 +1044,17 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
               // Ensure work session exists (tool calls can happen before session.created event).
               const existing = await getCurrentWorkPathForSession(mapped.storage);
               if (!existing) {
-                const createResult = await createWorkSession(mapped.storage, "todowrite");
+                const normalized = normalizePromptForArtifacts("todowrite");
+                const createResult = await createWorkSession(mapped.storage, normalized);
                 if (createResult.success) {
                   try {
-                    await ensurePrdForSession(mapped.storage, "todowrite");
+                    await ensurePrdForSession(mapped.storage, normalized);
                   } catch (error) {
                     fileLogError("Auto PRD ensure failed after todowrite work creation", error);
                   }
 
                   try {
-                    await ensureTaskScaffoldForSession(mapped.storage, "todowrite");
+                    await ensureTaskScaffoldForSession(mapped.storage, normalized);
                   } catch (error) {
                     fileLogError("Task scaffold ensure failed after todowrite work creation", error);
                   }
