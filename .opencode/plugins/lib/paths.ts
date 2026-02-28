@@ -138,6 +138,11 @@ type CurrentWorkLockHandle = {
   token: string;
 };
 
+type CurrentWorkLockReadResult = {
+  record: CurrentWorkLockRecordV1 | null;
+  metadataReadable: boolean;
+};
+
 const CURRENT_WORK_STATE_FILE = "current-work.json";
 const CURRENT_WORK_LOCK_DIR = "current-work.lock";
 const CURRENT_WORK_LOCK_INFO_FILE = "lock.json";
@@ -197,17 +202,36 @@ function isCurrentWorkLockRecordV1(value: unknown): value is CurrentWorkLockReco
 }
 
 async function readCurrentWorkLockRecord(lockDir: string): Promise<CurrentWorkLockRecordV1 | null> {
+  const result = await readCurrentWorkLockRecordResult(lockDir);
+  return result.record;
+}
+
+async function readCurrentWorkLockRecordResult(lockDir: string): Promise<CurrentWorkLockReadResult> {
   const lockInfoPath = getCurrentWorkLockInfoPath(lockDir);
   try {
     const raw = await fs.promises.readFile(lockInfoPath, "utf-8");
     const parsed = JSON.parse(raw);
-    if (!isCurrentWorkLockRecordV1(parsed)) return null;
-    return parsed;
+    if (!isCurrentWorkLockRecordV1(parsed)) {
+      return {
+        record: null,
+        metadataReadable: false,
+      };
+    }
+    return {
+      record: parsed,
+      metadataReadable: true,
+    };
   } catch (error) {
     if (isMissingPathError(error)) {
-      return null;
+      return {
+        record: null,
+        metadataReadable: false,
+      };
     }
-    return null;
+    return {
+      record: null,
+      metadataReadable: false,
+    };
   }
 }
 
@@ -219,17 +243,71 @@ async function writeCurrentWorkLockRecord(
   await fs.promises.writeFile(lockInfoPath, `${JSON.stringify(lockRecord)}\n`, "utf-8");
 }
 
-function isCurrentWorkLockStale(lockRecord: CurrentWorkLockRecordV1): boolean {
+function getCurrentWorkLockCreatedAtMs(lockRecord: CurrentWorkLockRecordV1): number | null {
   const createdAtMs = Date.parse(lockRecord.created_at);
   if (!Number.isFinite(createdAtMs)) {
+    return null;
+  }
+  return createdAtMs;
+}
+
+function isCurrentWorkLockStale(lockRecord: CurrentWorkLockRecordV1): boolean {
+  const createdAtMs = getCurrentWorkLockCreatedAtMs(lockRecord);
+  if (createdAtMs === null) {
     return false;
   }
   return Date.now() - createdAtMs > CURRENT_WORK_LOCK_STALE_TTL_MS;
 }
 
-async function breakCurrentWorkLockIfStale(lockDir: string, contenderToken: string): Promise<boolean> {
-  const current = await readCurrentWorkLockRecord(lockDir);
-  if (!current || !isCurrentWorkLockStale(current)) {
+async function getCurrentWorkLockAgeMs(lockDir: string): Promise<number | null> {
+  try {
+    const stats = await fs.promises.stat(lockDir);
+    if (!Number.isFinite(stats.mtimeMs)) {
+      return null;
+    }
+    return Math.max(0, Date.now() - stats.mtimeMs);
+  } catch (error) {
+    if (isMissingPathError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+async function shouldBreakUnreadableCurrentWorkLock(
+  lockDir: string,
+  maxWaitElapsed: boolean,
+): Promise<boolean> {
+  const lockAgeMs = await getCurrentWorkLockAgeMs(lockDir);
+  if (lockAgeMs === null) {
+    return false;
+  }
+  if (lockAgeMs > CURRENT_WORK_LOCK_STALE_TTL_MS) {
+    return true;
+  }
+  return maxWaitElapsed;
+}
+
+async function breakCurrentWorkLockIfStale(
+  lockDir: string,
+  contenderToken: string,
+  maxWaitElapsed: boolean,
+): Promise<boolean> {
+  const lockReadResult = await readCurrentWorkLockRecordResult(lockDir);
+  let shouldBreak = false;
+
+  if (lockReadResult.record) {
+    const createdAtMs = getCurrentWorkLockCreatedAtMs(lockReadResult.record);
+    if (createdAtMs === null) {
+      shouldBreak = await shouldBreakUnreadableCurrentWorkLock(lockDir, maxWaitElapsed);
+    } else {
+      shouldBreak = isCurrentWorkLockStale(lockReadResult.record);
+    }
+  } else if (!lockReadResult.metadataReadable) {
+    shouldBreak = await shouldBreakUnreadableCurrentWorkLock(lockDir, maxWaitElapsed);
+  }
+
+  if (!shouldBreak) {
     return false;
   }
 
@@ -260,7 +338,7 @@ async function acquireCurrentWorkLock(stateDir: string): Promise<CurrentWorkLock
   const startedAt = Date.now();
 
   let attempt = 0;
-  while (Date.now() - startedAt < CURRENT_WORK_LOCK_MAX_WAIT_MS) {
+  while (true) {
     try {
       await fs.promises.mkdir(lockDir);
       await writeCurrentWorkLockRecord(lockDir, lockRecord);
@@ -270,9 +348,15 @@ async function acquireCurrentWorkLock(stateDir: string): Promise<CurrentWorkLock
         throw error;
       }
 
-      await breakCurrentWorkLockIfStale(lockDir, token);
+      const elapsedMs = Date.now() - startedAt;
+      const maxWaitElapsed = elapsedMs >= CURRENT_WORK_LOCK_MAX_WAIT_MS;
+      const staleLockBroken = await breakCurrentWorkLockIfStale(lockDir, token, maxWaitElapsed);
+      if (staleLockBroken) {
+        attempt = 0;
+        continue;
+      }
 
-      const remainingMs = CURRENT_WORK_LOCK_MAX_WAIT_MS - (Date.now() - startedAt);
+      const remainingMs = CURRENT_WORK_LOCK_MAX_WAIT_MS - elapsedMs;
       if (remainingMs <= 0) {
         break;
       }

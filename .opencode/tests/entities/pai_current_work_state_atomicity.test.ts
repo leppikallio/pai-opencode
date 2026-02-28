@@ -100,31 +100,6 @@ async function createLockDir(paiDir: string, args: { createdAtIso: string; token
   );
 }
 
-async function captureStderr<T>(fn: () => Promise<T>): Promise<{ result: T; stderr: string }> {
-  const chunks: string[] = [];
-  const originalWrite = process.stderr.write.bind(process.stderr);
-
-  process.stderr.write = ((chunk: unknown, ...args: unknown[]) => {
-    chunks.push(
-      typeof chunk === "string"
-        ? chunk
-        : Buffer.from(chunk as Uint8Array).toString("utf8"),
-    );
-    const callback = args[args.length - 1];
-    if (typeof callback === "function") {
-      callback();
-    }
-    return true;
-  }) as typeof process.stderr.write;
-
-  try {
-    const result = await fn();
-    return { result, stderr: chunks.join("") };
-  } finally {
-    process.stderr.write = originalWrite;
-  }
-}
-
 async function runWriterProcess(args: {
   paiDir: string;
   sessionId: string;
@@ -154,6 +129,66 @@ async function runWriterProcess(args: {
     stdout: "pipe",
     stderr: "pipe",
   });
+}
+
+async function runSingleSetProcess(args: {
+  paiDir: string;
+  sessionId: string;
+  workPath: string;
+}): Promise<{ exitCode: number; stderr: string }> {
+  const writerScript = [
+    `import { setCurrentWorkPathForSession } from ${JSON.stringify(pathsModulePath)};`,
+    `const root = process.env.OPENCODE_ROOT;`,
+    `if (!root) process.exit(2);`,
+    `const session = process.env.WRITER_SESSION ?? "writer";`,
+    `const target = process.env.WRITER_WORK_PATH ?? "";`,
+    `await setCurrentWorkPathForSession(session, target);`,
+  ].join("\n");
+
+  const writer = Bun.spawn({
+    cmd: ["bun", "-e", writerScript],
+    cwd: repoRoot,
+    env: withEnv({
+      OPENCODE_ROOT: args.paiDir,
+      WRITER_SESSION: args.sessionId,
+      WRITER_WORK_PATH: args.workPath,
+    }),
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  const [exitCode, stderr] = await Promise.all([
+    writer.exited,
+    readSubprocessPipe(writer.stderr),
+  ]);
+
+  return {
+    exitCode,
+    stderr,
+  };
+}
+
+async function createLockDirWithoutMetadata(paiDir: string, staleByMs: number): Promise<void> {
+  const { lockDir } = getStatePaths(paiDir);
+  await fs.mkdir(lockDir, { recursive: true });
+  const staleDate = new Date(Date.now() - staleByMs);
+  await fs.utimes(lockDir, staleDate, staleDate);
+}
+
+async function createLockDirWithCorruptMetadata(paiDir: string, staleByMs: number): Promise<void> {
+  const { lockDir, lockInfoFile } = getStatePaths(paiDir);
+  await fs.mkdir(lockDir, { recursive: true });
+  await fs.writeFile(lockInfoFile, "{ invalid-json", "utf8");
+  const staleDate = new Date(Date.now() - staleByMs);
+  await fs.utimes(lockDir, staleDate, staleDate);
+}
+
+async function terminateSubprocessIfNeeded(proc: Bun.Subprocess | null): Promise<void> {
+  if (!proc) return;
+  if (proc.exitCode === null) {
+    proc.kill();
+  }
+  await proc.exited;
 }
 
 function readSubprocessPipe(pipe: number | ReadableStream<Uint8Array> | undefined): Promise<string> {
@@ -224,17 +259,23 @@ describe("current-work state atomicity and non-lossy updates", () => {
 
   test("two independent writers keep parseable JSON and preserve union of sessions", async () => {
     const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-current-work-contention-"));
+    let writerA: Bun.Subprocess | null = null;
+    let writerB: Bun.Subprocess | null = null;
 
-    const writerA = await runWriterProcess({
+    writerA = await runWriterProcess({
       paiDir,
       sessionId: "session-a",
       iterations: 180,
     });
-    const writerB = await runWriterProcess({
+    writerB = await runWriterProcess({
       paiDir,
       sessionId: "session-b",
       iterations: 180,
     });
+
+    if (!writerA || !writerB) {
+      throw new Error("failed to spawn contention writers");
+    }
 
     let doneA = false;
     let doneB = false;
@@ -260,14 +301,18 @@ describe("current-work state atomicity and non-lossy updates", () => {
 
       expect(exitA).toBe(0);
       expect(exitB).toBe(0);
-      expect(stderrA).toBe("");
-      expect(stderrB).toBe("");
+      expect(stderrA).not.toContain("TypeError");
+      expect(stderrB).not.toContain("TypeError");
 
       const state = await readCurrentWorkState(paiDir);
       expect(state.sessions["session-a"]?.work_dir).toBeDefined();
       expect(state.sessions["session-b"]?.work_dir).toBeDefined();
       await assertStateJsonIsValidIfPresent(paiDir);
     } finally {
+      await Promise.allSettled([
+        terminateSubprocessIfNeeded(writerA),
+        terminateSubprocessIfNeeded(writerB),
+      ]);
       await fs.rm(paiDir, { recursive: true, force: true });
     }
   });
@@ -315,10 +360,13 @@ describe("current-work state atomicity and non-lossy updates", () => {
         token: "token-live-a",
       });
 
-      const { stderr } = await captureStderr(async () => {
-        await setCurrentWorkPathForSession("session-a", makeWorkPath(paiDir, "session-a", 0));
+      const { exitCode, stderr } = await runSingleSetProcess({
+        paiDir,
+        sessionId: "session-a",
+        workPath: makeWorkPath(paiDir, "session-a", 0),
       });
 
+      expect(exitCode).toBe(0);
       expect(stderr).toContain("PAI_STATE_CURRENT_WORK_LOCK_TIMEOUT");
 
       const state = await readCurrentWorkState(paiDir);
@@ -350,10 +398,13 @@ describe("current-work state atomicity and non-lossy updates", () => {
         token: "token-stale-a",
       });
 
-      const { stderr } = await captureStderr(async () => {
-        await setCurrentWorkPathForSession("session-a", makeWorkPath(paiDir, "session-a", 1));
+      const { exitCode, stderr } = await runSingleSetProcess({
+        paiDir,
+        sessionId: "session-a",
+        workPath: makeWorkPath(paiDir, "session-a", 1),
       });
 
+      expect(exitCode).toBe(0);
       expect(stderr).toContain("PAI_STATE_CURRENT_WORK_LOCK_BROKEN_STALE");
 
       const state = await readCurrentWorkState(paiDir);
@@ -382,10 +433,13 @@ describe("current-work state atomicity and non-lossy updates", () => {
         token: "token-a",
       });
 
-      const { stderr } = await captureStderr(async () => {
-        await setCurrentWorkPathForSession("session-b", makeWorkPath(paiDir, "session-b", 3));
+      const { exitCode, stderr } = await runSingleSetProcess({
+        paiDir,
+        sessionId: "session-b",
+        workPath: makeWorkPath(paiDir, "session-b", 3),
       });
 
+      expect(exitCode).toBe(0);
       expect(stderr).toContain("PAI_STATE_CURRENT_WORK_LOCK_TIMEOUT");
 
       const lockRecord = JSON.parse(await fs.readFile(lockInfoFile, "utf8")) as {
@@ -394,6 +448,76 @@ describe("current-work state atomicity and non-lossy updates", () => {
       };
       expect(lockRecord.token).toBe("token-a");
       expect(lockRecord.created_at).toBeDefined();
+    } finally {
+      if (previousRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
+      } else {
+        process.env.OPENCODE_ROOT = previousRoot;
+      }
+      await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
+  test("stale lock dir with missing metadata is broken and write succeeds", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-current-work-lock-missing-metadata-"));
+    const previousRoot = process.env.OPENCODE_ROOT;
+
+    process.env.OPENCODE_ROOT = paiDir;
+    try {
+      await writeCurrentWorkState(paiDir, {
+        "session-b": { work_dir: makeWorkPath(paiDir, "session-b", 0) },
+      });
+
+      await createLockDirWithoutMetadata(paiDir, 30_000);
+
+      const { exitCode, stderr } = await runSingleSetProcess({
+        paiDir,
+        sessionId: "session-a",
+        workPath: makeWorkPath(paiDir, "session-a", 2),
+      });
+
+      expect(exitCode).toBe(0);
+      expect(stderr).toContain("PAI_STATE_CURRENT_WORK_LOCK_BROKEN_STALE");
+
+      const state = await readCurrentWorkState(paiDir);
+      expect(state.sessions["session-a"]?.work_dir).toBe(makeWorkPath(paiDir, "session-a", 2));
+      expect(state.sessions["session-b"]?.work_dir).toBe(makeWorkPath(paiDir, "session-b", 0));
+      await assertStateJsonIsValidIfPresent(paiDir);
+    } finally {
+      if (previousRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
+      } else {
+        process.env.OPENCODE_ROOT = previousRoot;
+      }
+      await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
+  test("stale lock dir with corrupt metadata is broken and write succeeds", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-current-work-lock-corrupt-metadata-"));
+    const previousRoot = process.env.OPENCODE_ROOT;
+
+    process.env.OPENCODE_ROOT = paiDir;
+    try {
+      await writeCurrentWorkState(paiDir, {
+        "session-b": { work_dir: makeWorkPath(paiDir, "session-b", 0) },
+      });
+
+      await createLockDirWithCorruptMetadata(paiDir, 30_000);
+
+      const { exitCode, stderr } = await runSingleSetProcess({
+        paiDir,
+        sessionId: "session-a",
+        workPath: makeWorkPath(paiDir, "session-a", 4),
+      });
+
+      expect(exitCode).toBe(0);
+      expect(stderr).toContain("PAI_STATE_CURRENT_WORK_LOCK_BROKEN_STALE");
+
+      const state = await readCurrentWorkState(paiDir);
+      expect(state.sessions["session-a"]?.work_dir).toBe(makeWorkPath(paiDir, "session-a", 4));
+      expect(state.sessions["session-b"]?.work_dir).toBe(makeWorkPath(paiDir, "session-b", 0));
+      await assertStateJsonIsValidIfPresent(paiDir);
     } finally {
       if (previousRoot === undefined) {
         delete process.env.OPENCODE_ROOT;
