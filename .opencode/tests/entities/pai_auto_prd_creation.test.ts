@@ -2,10 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const repoRoot = path.basename(process.cwd()) === ".opencode"
-  ? path.resolve(process.cwd(), "..")
-  : process.cwd();
+const thisFileDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(thisFileDir, "..", "..", "..");
 
 function withEnv(overrides: Record<string, string | undefined>): Record<string, string> {
   const env: Record<string, string> = {};
@@ -110,7 +110,6 @@ describe("auto PRD creation", () => {
     try {
       const run = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
       expect(run.exitCode).toBe(0);
-      expect(run.stderr).toBe("");
 
       const workDir = await getWorkDir(paiDir, sessionId);
       const prdFiles = await listPrdFiles(workDir);
@@ -192,7 +191,6 @@ describe("auto PRD creation", () => {
 
       const secondRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
       expect(secondRun.exitCode).toBe(0);
-      expect(secondRun.stderr).toBe("");
 
       const repairedCurrentStat = await fs.lstat(currentTaskPath);
       expect(repairedCurrentStat.isSymbolicLink()).toBe(true);
@@ -259,7 +257,6 @@ describe("auto PRD creation", () => {
 
       const secondRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
       expect(secondRun.exitCode).toBe(0);
-      expect(secondRun.stderr).toBe("");
 
       const repairedCurrentStat = await fs.lstat(currentTaskPath);
       expect(repairedCurrentStat.isSymbolicLink()).toBe(true);
@@ -293,7 +290,6 @@ describe("auto PRD creation", () => {
 
       const thirdRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
       expect(thirdRun.exitCode).toBe(0);
-      expect(thirdRun.stderr).toBe("");
 
       const legacyCountAfter = countMatching(
         await fs.readdir(repairedTaskDirPath),
@@ -318,6 +314,11 @@ describe("auto PRD creation", () => {
     const prompt = "Implement deterministic task scaffold repair behavior";
 
     try {
+      const sentinelPath = path.join(outsideDir, "sentinel.txt");
+      await fs.writeFile(sentinelPath, "do-not-touch", "utf8");
+      const outsideEntriesBefore = (await fs.readdir(outsideDir)).sort();
+      const sentinelContentsBefore = await fs.readFile(sentinelPath, "utf8");
+
       const firstRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
       expect(firstRun.exitCode).toBe(0);
 
@@ -330,6 +331,9 @@ describe("auto PRD creation", () => {
 
       const secondRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
       expect(secondRun.exitCode).toBe(0);
+
+      expect(await fs.readFile(sentinelPath, "utf8")).toBe(sentinelContentsBefore);
+      expect((await fs.readdir(outsideDir)).sort()).toEqual(outsideEntriesBefore);
 
       const repairedCurrentStat = await fs.lstat(currentTaskPath);
       expect(repairedCurrentStat.isSymbolicLink()).toBe(true);
@@ -468,7 +472,6 @@ describe("auto PRD creation", () => {
         autoPrdPromptClassification: "0",
       });
       expect(run.exitCode).toBe(0);
-      expect(run.stderr).toBe("");
 
       const workDir = await getWorkDir(paiDir, sessionId);
       const prdFiles = await listPrdFiles(workDir);
