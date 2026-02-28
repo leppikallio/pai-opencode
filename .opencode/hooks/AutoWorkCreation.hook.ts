@@ -58,7 +58,17 @@ async function main(): Promise<void> {
 
     const existingSession = await getOrLoadCurrentSession(sessionId);
     if (isTrivialPrompt(normalizedPrompt)) {
-      if (!existingSession) {
+      let sessionForRepair = existingSession;
+      if (!sessionForRepair) {
+        const repairResult = await createWorkSession(sessionId, normalizedPrompt, {
+          createIfMissing: false,
+        });
+        if (repairResult.success) {
+          sessionForRepair = repairResult.session ?? (await getOrLoadCurrentSession(sessionId));
+        }
+      }
+
+      if (!sessionForRepair) {
         return;
       }
 

@@ -333,4 +333,20 @@ describe("createWorkSession non-clobber and recovery", () => {
       await fs.rm(outsideDir, { recursive: true, force: true });
     }
   });
+
+  test("does nothing for trivial prompt when no mapping and no recoverable session exist", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-work-trivial-no-recovery-"));
+    const sessionId = "session-trivial-no-recovery";
+
+    try {
+      const statePath = path.join(paiDir, "MEMORY", "STATE", "current-work.json");
+      const run = await runAutoWorkCreationHook({ paiDir, sessionId, prompt: "ok" });
+      expect(run.exitCode).toBe(0);
+
+      await expect(fs.stat(statePath)).rejects.toMatchObject({ code: "ENOENT" });
+      expect(await countSessionDirs(paiDir, sessionId)).toBe(0);
+    } finally {
+      await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
 });

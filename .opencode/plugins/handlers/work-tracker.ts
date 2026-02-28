@@ -42,6 +42,10 @@ export interface CreateWorkResult {
   error?: string;
 }
 
+export interface CreateWorkOptions {
+  createIfMissing?: boolean;
+}
+
 /**
  * Complete work session result
  */
@@ -259,7 +263,8 @@ async function hasOutOfRootStateMapping(sessionId: string): Promise<boolean> {
  */
 export async function createWorkSession(
   sessionIdRaw: string,
-  seed: string
+  seed: string,
+  options: CreateWorkOptions = {}
 ): Promise<CreateWorkResult> {
   try {
     const sessionId = normalizeSessionId(sessionIdRaw);
@@ -294,6 +299,9 @@ export async function createWorkSession(
     }
 
     if (!sessionPath) {
+      if (options.createIfMissing === false) {
+        return { success: false, error: "No recoverable work session found" };
+      }
       sessionPath = path.join(workDir, getYearMonth(), sessionId);
     }
 
