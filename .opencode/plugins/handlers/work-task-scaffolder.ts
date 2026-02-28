@@ -8,6 +8,8 @@ const PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR = "PAI_TASK_SCAFFOLD_SKIPPED_UNSAFE_TAS
 const PAI_TASK_SCAFFOLD_UNSAFE_CANONICAL_TARGET =
   "PAI_TASK_SCAFFOLD_SKIPPED_UNSAFE_CANONICAL_TARGET\n";
 
+type MarkerEmitter = (marker: string) => void;
+
 type WorkMeta = {
   title: string;
   startedAt: string;
@@ -130,7 +132,18 @@ async function createTimestampedRename(originalPath: string, suffix: string): Pr
   }
 }
 
-async function ensureSafeTasksDir(workDir: string): Promise<string | null> {
+function createRunMarkerEmitter(): MarkerEmitter {
+  const emittedMarkers = new Set<string>();
+  return (marker: string): void => {
+    if (emittedMarkers.has(marker)) {
+      return;
+    }
+    emittedMarkers.add(marker);
+    process.stderr.write(marker);
+  };
+}
+
+async function ensureSafeTasksDir(workDir: string, emitMarker: MarkerEmitter): Promise<string | null> {
   const tasksDir = path.join(workDir, "tasks");
   const current = await lstatOrNull(tasksDir);
 
@@ -139,7 +152,7 @@ async function ensureSafeTasksDir(workDir: string): Promise<string | null> {
   }
 
   if (!(await ensureTasksDirSafeForMutation(tasksDir))) {
-    process.stderr.write(PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR);
+    emitMarker(PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR);
     return null;
   }
 
@@ -182,13 +195,30 @@ async function getValidCurrentTaskDirName(
   currentLinkPath: string,
   tasksDir: string,
   workDir: string,
+  validateTasksDir: () => Promise<boolean>,
 ): Promise<string | null> {
+  const unlinkCurrentLink = async (): Promise<boolean> => {
+    if (!(await validateTasksDir())) {
+      return false;
+    }
+
+    await fs.promises.unlink(currentLinkPath).catch(() => undefined);
+    return true;
+  };
+
+  if (!(await validateTasksDir())) {
+    return null;
+  }
+
   const currentStat = await lstatOrNull(currentLinkPath);
   if (!currentStat) {
     return null;
   }
 
   if (!currentStat.isSymbolicLink()) {
+    if (!(await validateTasksDir())) {
+      return null;
+    }
     await createTimestampedRename(currentLinkPath, "invalid");
     return null;
   }
@@ -197,19 +227,25 @@ async function getValidCurrentTaskDirName(
   try {
     linkTarget = await fs.promises.readlink(currentLinkPath);
   } catch {
-    await fs.promises.unlink(currentLinkPath).catch(() => undefined);
+    if (!(await unlinkCurrentLink())) {
+      return null;
+    }
     return null;
   }
 
   const resolvedTarget = path.resolve(path.dirname(currentLinkPath), linkTarget);
   if (!isInsideRoot(tasksDir, resolvedTarget)) {
-    await fs.promises.unlink(currentLinkPath).catch(() => undefined);
+    if (!(await unlinkCurrentLink())) {
+      return null;
+    }
     return null;
   }
 
   const taskDirName = path.basename(resolvedTarget);
   if (!TASK_DIR_NAME_PATTERN.test(taskDirName)) {
-    await fs.promises.unlink(currentLinkPath).catch(() => undefined);
+    if (!(await unlinkCurrentLink())) {
+      return null;
+    }
     return null;
   }
 
@@ -217,18 +253,24 @@ async function getValidCurrentTaskDirName(
   try {
     targetStat = await fs.promises.stat(resolvedTarget);
   } catch {
-    await fs.promises.unlink(currentLinkPath).catch(() => undefined);
+    if (!(await unlinkCurrentLink())) {
+      return null;
+    }
     return null;
   }
 
   if (!targetStat.isDirectory()) {
-    await fs.promises.unlink(currentLinkPath).catch(() => undefined);
+    if (!(await unlinkCurrentLink())) {
+      return null;
+    }
     return null;
   }
 
   const targetRealPath = await resolveSafeRealPath(resolvedTarget, workDir);
   if (!targetRealPath || !isInsideRoot(tasksDir, targetRealPath)) {
-    await fs.promises.unlink(currentLinkPath).catch(() => undefined);
+    if (!(await unlinkCurrentLink())) {
+      return null;
+    }
     return null;
   }
 
@@ -240,19 +282,11 @@ async function ensureTaskLink(args: {
   linkTarget: string;
   expectedResolvedTarget: string;
   workDir: string;
-  tasksDir: string;
+  validateTasksDir: () => Promise<boolean>;
 }): Promise<void> {
-  const validateTasksDir = async (): Promise<boolean> => {
-    if (await ensureTasksDirSafeForMutation(args.tasksDir)) {
-      return true;
-    }
-    process.stderr.write(PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR);
-    return false;
-  };
-
   const currentStat = await lstatOrNull(args.linkPath);
   if (!currentStat) {
-    if (!(await validateTasksDir())) {
+    if (!(await args.validateTasksDir())) {
       return;
     }
     await fs.promises.symlink(args.linkTarget, args.linkPath);
@@ -260,11 +294,11 @@ async function ensureTaskLink(args: {
   }
 
   if (!currentStat.isSymbolicLink()) {
-    if (!(await validateTasksDir())) {
+    if (!(await args.validateTasksDir())) {
       return;
     }
     await createTimestampedRename(args.linkPath, "legacy");
-    if (!(await validateTasksDir())) {
+    if (!(await args.validateTasksDir())) {
       return;
     }
     await fs.promises.symlink(args.linkTarget, args.linkPath);
@@ -275,11 +309,11 @@ async function ensureTaskLink(args: {
   try {
     currentTarget = await fs.promises.readlink(args.linkPath);
   } catch {
-    if (!(await validateTasksDir())) {
+    if (!(await args.validateTasksDir())) {
       return;
     }
     await fs.promises.unlink(args.linkPath).catch(() => undefined);
-    if (!(await validateTasksDir())) {
+    if (!(await args.validateTasksDir())) {
       return;
     }
     await fs.promises.symlink(args.linkTarget, args.linkPath);
@@ -292,11 +326,11 @@ async function ensureTaskLink(args: {
   const isExpectedTarget = path.resolve(resolvedTarget) === expectedTargetPath;
 
   if (!resolvedRealPath || !isExpectedTarget) {
-    if (!(await validateTasksDir())) {
+    if (!(await args.validateTasksDir())) {
       return;
     }
     await fs.promises.unlink(args.linkPath).catch(() => undefined);
-    if (!(await validateTasksDir())) {
+    if (!(await args.validateTasksDir())) {
       return;
     }
     await fs.promises.symlink(args.linkTarget, args.linkPath);
@@ -336,8 +370,14 @@ async function ensureCurrentTaskDirName(
   currentLinkPath: string,
   workDir: string,
   prompt: string,
+  validateTasksDir: () => Promise<boolean>,
 ): Promise<string | null> {
-  const authoritative = await getValidCurrentTaskDirName(currentLinkPath, tasksDir, workDir);
+  const authoritative = await getValidCurrentTaskDirName(
+    currentLinkPath,
+    tasksDir,
+    workDir,
+    validateTasksDir,
+  );
   if (authoritative) {
     return authoritative;
   }
@@ -345,8 +385,7 @@ async function ensureCurrentTaskDirName(
   const taskDirs = await listTaskDirs(tasksDir);
   if (taskDirs.length > 0) {
     const chosen = taskDirs[taskDirs.length - 1];
-    if (!(await ensureTasksDirSafeForMutation(tasksDir))) {
-      process.stderr.write(PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR);
+    if (!(await validateTasksDir())) {
       return null;
     }
     await fs.promises.symlink(chosen, currentLinkPath);
@@ -358,13 +397,11 @@ async function ensureCurrentTaskDirName(
   const slug = slugify(fallbackTitle) || "task";
   const firstTaskDirName = `001_${slug}`;
   const firstTaskPath = path.join(tasksDir, firstTaskDirName);
-  if (!(await ensureTasksDirSafeForMutation(tasksDir))) {
-    process.stderr.write(PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR);
+  if (!(await validateTasksDir())) {
     return null;
   }
   await fs.promises.mkdir(firstTaskPath, { recursive: true });
-  if (!(await ensureTasksDirSafeForMutation(tasksDir))) {
-    process.stderr.write(PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR);
+  if (!(await validateTasksDir())) {
     return null;
   }
   await fs.promises.symlink(firstTaskDirName, currentLinkPath);
@@ -373,6 +410,7 @@ async function ensureCurrentTaskDirName(
 
 export async function ensureTaskScaffoldForSession(sessionId: string, prompt: string): Promise<void> {
   try {
+    const emitMarker = createRunMarkerEmitter();
     const workDir = await getCurrentWorkPathForSession(sessionId);
     if (!workDir) {
       return;
@@ -384,15 +422,23 @@ export async function ensureTaskScaffoldForSession(sessionId: string, prompt: st
       return;
     }
 
-    const tasksDir = await ensureSafeTasksDir(resolvedWorkDir);
+    const tasksDir = await ensureSafeTasksDir(resolvedWorkDir, emitMarker);
     if (!tasksDir) {
       return;
     }
 
+    const validateTasksDir = async (): Promise<boolean> => {
+      if (await ensureTasksDirSafeForMutation(tasksDir)) {
+        return true;
+      }
+      emitMarker(PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR);
+      return false;
+    };
+
     const meta = await readWorkMeta(resolvedWorkDir);
     await ensureCanonicalFiles(resolvedWorkDir, meta);
     if (!(await ensureCanonicalTargetsSafe(resolvedWorkDir))) {
-      process.stderr.write(PAI_TASK_SCAFFOLD_UNSAFE_CANONICAL_TARGET);
+      emitMarker(PAI_TASK_SCAFFOLD_UNSAFE_CANONICAL_TARGET);
       return;
     }
 
@@ -402,14 +448,14 @@ export async function ensureTaskScaffoldForSession(sessionId: string, prompt: st
       currentLinkPath,
       resolvedWorkDir,
       prompt,
+      validateTasksDir,
     );
     if (!currentTaskDirName) {
       return;
     }
 
     const currentTaskDirPath = path.join(tasksDir, currentTaskDirName);
-    if (!(await ensureTasksDirSafeForMutation(tasksDir))) {
-      process.stderr.write(PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR);
+    if (!(await validateTasksDir())) {
       return;
     }
     await fs.promises.mkdir(currentTaskDirPath, { recursive: true });
@@ -419,7 +465,7 @@ export async function ensureTaskScaffoldForSession(sessionId: string, prompt: st
       linkTarget: "../../ISC.json",
       expectedResolvedTarget: path.join(resolvedWorkDir, "ISC.json"),
       workDir: resolvedWorkDir,
-      tasksDir,
+      validateTasksDir,
     });
 
     await ensureTaskLink({
@@ -427,7 +473,7 @@ export async function ensureTaskScaffoldForSession(sessionId: string, prompt: st
       linkTarget: "../../THREAD.md",
       expectedResolvedTarget: path.join(resolvedWorkDir, "THREAD.md"),
       workDir: resolvedWorkDir,
-      tasksDir,
+      validateTasksDir,
     });
   } catch {
     // Best effort only. Hook callers must never throw.

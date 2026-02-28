@@ -278,6 +278,44 @@ describe("auto PRD creation", () => {
     }
   });
 
+  test("unsafe canonical THREAD symlink is skipped with marker", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-unsafe-thread-"));
+    const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-unsafe-thread-target-"));
+    const sessionId = "session-auto-prd-unsafe-thread";
+    const prompt = "Implement deterministic task scaffold repair behavior";
+
+    try {
+      const firstRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
+      expect(firstRun.exitCode).toBe(0);
+
+      const workDir = await getWorkDir(paiDir, sessionId);
+      const tasksDirPath = path.join(workDir, "tasks");
+      const currentTaskName = await fs.readlink(path.join(tasksDirPath, "current"));
+      expect(isTaskDirName(currentTaskName)).toBe(true);
+
+      const taskThreadPath = path.join(tasksDirPath, currentTaskName, "THREAD.md");
+      await fs.unlink(taskThreadPath);
+      await fs.writeFile(taskThreadPath, "legacy thread", "utf8");
+
+      const canonicalThreadPath = path.join(workDir, "THREAD.md");
+      const outsideThreadPath = path.join(outsideDir, "outside-thread.md");
+      await fs.unlink(canonicalThreadPath);
+      await fs.symlink(outsideThreadPath, canonicalThreadPath);
+
+      const secondRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
+      expect(secondRun.exitCode).toBe(0);
+      expect(secondRun.stderr).toContain("PAI_TASK_SCAFFOLD_SKIPPED_UNSAFE_CANONICAL_TARGET");
+
+      const taskThreadStat = await fs.lstat(taskThreadPath);
+      expect(taskThreadStat.isSymbolicLink()).toBe(false);
+      expect(await fs.readFile(taskThreadPath, "utf8")).toBe("legacy thread");
+      expect(await exists(outsideThreadPath)).toBe(false);
+    } finally {
+      await fs.rm(paiDir, { recursive: true, force: true });
+      await fs.rm(outsideDir, { recursive: true, force: true });
+    }
+  });
+
   test("classification artifact is skipped when prompt classification flag is disabled", async () => {
     const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-classification-off-"));
     const sessionId = "session-auto-prd-classification-off";
