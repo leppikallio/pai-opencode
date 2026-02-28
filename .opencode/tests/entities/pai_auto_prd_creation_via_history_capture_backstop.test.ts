@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createHash } from "node:crypto";
-import { promises as fs } from "node:fs";
+import { existsSync, promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +9,24 @@ import { createHistoryCapture } from "../../plugins/handlers/history-capture";
 
 const PRD_FILENAME_PATTERN = /^PRD-\d{8}-[a-z0-9-]+\.md$/;
 const thisFileDir = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(thisFileDir, "..", "..", "..");
+const repoRoot = resolveRepoRoot(thisFileDir);
+
+function resolveRepoRoot(startDir: string): string {
+  let currentDir = startDir;
+
+  while (true) {
+    const hookPath = path.join(currentDir, ".opencode", "hooks", "AutoWorkCreation.hook.ts");
+    if (existsSync(hookPath)) {
+      return currentDir;
+    }
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      throw new Error(`could not resolve repo root from ${startDir}`);
+    }
+    currentDir = parentDir;
+  }
+}
 
 type SnapshotRecord = {
   relPath: string;
@@ -19,9 +36,11 @@ type SnapshotRecord = {
 };
 
 function buildSpawnEnv(overrides: Record<string, string | undefined>): Record<string, string> {
+  const passthroughKeys = ["PATH", "HOME", "TMPDIR", "TMP", "TEMP", "CI", "LANG", "LC_ALL"];
   const env: Record<string, string> = {};
 
-  for (const [key, value] of Object.entries(process.env)) {
+  for (const key of passthroughKeys) {
+    const value = process.env[key];
     if (value !== undefined) {
       env[key] = value;
     }
