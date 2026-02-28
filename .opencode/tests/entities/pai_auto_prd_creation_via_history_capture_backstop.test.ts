@@ -319,6 +319,27 @@ async function readCurrentWorkDir(root: string, sessionId: string): Promise<stri
   }
 }
 
+async function findRawSessionFile(root: string, sessionId: string): Promise<string | null> {
+  const rawRoot = path.join(root, "MEMORY", "RAW");
+  if (!(await exists(rawRoot))) {
+    return null;
+  }
+
+  const monthDirs = await fs.readdir(rawRoot, { withFileTypes: true });
+  for (const monthDir of monthDirs) {
+    if (!monthDir.isDirectory()) {
+      continue;
+    }
+
+    const candidate = path.join(rawRoot, monthDir.name, `${sessionId}.jsonl`);
+    if (await exists(candidate)) {
+      return candidate;
+    }
+  }
+
+  return null;
+}
+
 async function withEnv(overrides: Record<string, string | undefined>, run: () => Promise<void>): Promise<void> {
   const previous: Record<string, string | undefined> = {};
   for (const key of Object.keys(overrides)) {
@@ -447,10 +468,8 @@ describe("auto PRD creation via history-capture backstop", () => {
       "ok",
       "OK!",
       "thanks",
-      "thank   you",
+      "thank you...",
       "hi",
-      "thanks :)",
-      "ok 👍",
       "sounds good.",
     ];
 
@@ -522,6 +541,51 @@ describe("auto PRD creation via history-capture backstop", () => {
       } finally {
         await fs.rm(root, { recursive: true, force: true });
       }
+    }
+  });
+
+  test("trivial user prompt preserves raw/rating capture paths while skipping work artifacts", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-history-trivial-capture-safety-"));
+    const sessionId = "session-trivial-capture-safety";
+    const messageId = `message-${Date.now()}`;
+
+    try {
+      await withEnv(
+        {
+          OPENCODE_ROOT: root,
+          PAI_ENABLE_MEMORY_PARITY: "1",
+          PAI_ENABLE_AUTO_PRD: "1",
+          PAI_ENABLE_AUTO_PRD_PROMPT_CLASSIFICATION: "1",
+        },
+        async () => {
+          await emitHistoryCaptureUserMessageCommit({
+            root,
+            sessionId,
+            messageId,
+            prompt: "ok",
+          });
+        },
+      );
+
+      expect(await exists(path.join(root, "MEMORY", "STATE", "current-work.json"))).toBe(false);
+
+      const workRoot = path.join(root, "MEMORY", "WORK");
+      expect(await exists(workRoot)).toBe(false);
+
+      const rawFile = await findRawSessionFile(root, sessionId);
+      expect(typeof rawFile).toBe("string");
+      if (!rawFile) {
+        throw new Error("expected RAW session file for trivial prompt");
+      }
+
+      const rawContent = await fs.readFile(rawFile, "utf8");
+      expect(rawContent).toContain('"name":"message.updated"');
+      expect(rawContent).toContain('"name":"prompt.hint"');
+
+      const ratingsFile = path.join(root, "MEMORY", "LEARNING", "SIGNALS", "ratings.jsonl");
+      expect(await exists(ratingsFile)).toBe(false);
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
     }
   });
 

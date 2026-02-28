@@ -15,6 +15,26 @@ const QUESTION_START = /^(what|why|how|when|where|who|which|does|do|did|is|are|c
 const CONVERSATIONAL_SHORT = /^(ok|okay|k|thanks|thank you|thx|cool|nice|great|yep|yes|no|sure|hi|hello|hey|got it|sounds good)[.!?]*$/i;
 const WORK_CUE = /\b(implement|build|create|fix|add|update|write|refactor|optimize|debug|test|design|migrate|configure|set up|setup|integrate|modify|change)\b/i;
 const CONTINUATION_CUE = /\b(continue|again|next|same|that|it|follow up|follow-up|as above)\b/i;
+const TRIVIAL_PROMPTS = new Set([
+  "ok",
+  "okay",
+  "k",
+  "thanks",
+  "thank you",
+  "thx",
+  "cool",
+  "nice",
+  "great",
+  "yep",
+  "yes",
+  "no",
+  "sure",
+  "hi",
+  "hello",
+  "hey",
+  "got it",
+  "sounds good",
+]);
 
 function normalizeWhitespace(value: string): string {
   return value.replace(/\s+/g, " ").trim();
@@ -43,6 +63,19 @@ function inferEffort(prompt: string): PromptEffort {
     return "low";
   }
   return "standard";
+}
+
+function normalizePromptForTrivialCheck(prompt: string): string {
+  return prompt.trim().toLowerCase().replace(/[\p{P}]+$/gu, "").trim();
+}
+
+export function isTrivialPrompt(prompt: string): boolean {
+  const normalized = normalizePromptForTrivialCheck(prompt);
+  if (!normalized) {
+    return false;
+  }
+
+  return TRIVIAL_PROMPTS.has(normalized);
 }
 
 export function classifyPrompt(prompt: string): PromptClassification {

@@ -28,6 +28,7 @@ import { extractLearningsFromWork } from "./learning-capture";
 import { getPermissionRequestId, getSessionStatusType, type UnknownRecord as NormRecord } from "../lib/event-normalize";
 import { classifyFormatHint, type FormatHint } from "./format-reminder";
 import { classifyPromptHint, type PromptHint } from "./prompt-hints";
+import { isTrivialPrompt } from "../lib/prompt-classification";
 import { maybeCaptureImplicitSentiment } from "./sentiment-capture";
 import { captureRelationshipMemory } from "./relationship-memory";
 import { captureSoulEvolution } from "./soul-evolution";
@@ -216,39 +217,6 @@ function capText(text: string, max: number): string {
   return text.slice(0, max);
 }
 
-const TRIVIAL_ACK_PROMPTS = new Set([
-  "ok",
-  "okay",
-  "k",
-  "thanks",
-  "thank you",
-  "thx",
-  "cool",
-  "nice",
-  "great",
-  "yep",
-  "yes",
-  "no",
-  "sure",
-  "hi",
-  "hello",
-  "hey",
-  "got it",
-  "sounds good",
-]);
-
-function isTrivialAcknowledgementPrompt(text: string): boolean {
-  const normalized = text
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!normalized) return true;
-  return TRIVIAL_ACK_PROMPTS.has(normalized);
-}
-
 function hashShort(value: string): string {
   return createHash("sha1").update(value).digest("hex").slice(0, 10);
 }
@@ -421,28 +389,36 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
   state.committedMessages.add(messageId);
 
   const capped = capText(text, MAX_TEXT);
-  const shouldEnsureWorkArtifacts = !isTrivialAcknowledgementPrompt(capped);
+  const shouldSkipWorkCreation = isTrivialPrompt(capped);
 
   const { storage, isSubagent } = storageSessionIdFor(sessionId);
   let session = await getOrLoadCurrentSession(storage);
-  if (shouldEnsureWorkArtifacts && !session) {
+  if (!shouldSkipWorkCreation && !session) {
     const createResult = await createWorkSession(storage, capped);
     if (createResult.success) {
       session = createResult.session ?? (await getOrLoadCurrentSession(storage));
     }
   }
 
-  if (shouldEnsureWorkArtifacts && !isSubagent) {
-    try {
-      await ensurePrdForSession(storage, capped);
-    } catch (error) {
-      fileLogError("Auto PRD ensure failed", error);
-    }
+  if (!isSubagent) {
+    if (!shouldSkipWorkCreation) {
+      try {
+        await ensurePrdForSession(storage, capped);
+      } catch (error) {
+        fileLogError("Auto PRD ensure failed", error);
+      }
 
-    try {
-      await ensureTaskScaffoldForSession(storage, capped);
-    } catch (error) {
-      fileLogError("Task scaffold ensure failed", error);
+      try {
+        await ensureTaskScaffoldForSession(storage, capped);
+      } catch (error) {
+        fileLogError("Task scaffold ensure failed", error);
+      }
+    } else if (session) {
+      try {
+        await ensureTaskScaffoldForSession(storage, capped);
+      } catch (error) {
+        fileLogError("Task scaffold repair failed", error);
+      }
     }
   }
 
@@ -1066,7 +1042,20 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
               // Ensure work session exists (tool calls can happen before session.created event).
               const existing = await getCurrentWorkPathForSession(mapped.storage);
               if (!existing) {
-                await createWorkSession(mapped.storage, "todowrite");
+                const createResult = await createWorkSession(mapped.storage, "todowrite");
+                if (createResult.success) {
+                  try {
+                    await ensurePrdForSession(mapped.storage, "todowrite");
+                  } catch (error) {
+                    fileLogError("Auto PRD ensure failed after todowrite work creation", error);
+                  }
+
+                  try {
+                    await ensureTaskScaffoldForSession(mapped.storage, "todowrite");
+                  } catch (error) {
+                    fileLogError("Task scaffold ensure failed after todowrite work creation", error);
+                  }
+                }
               }
 
               const args = toolArgs;

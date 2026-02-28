@@ -873,7 +873,7 @@ describe("auto PRD creation", () => {
     }
   });
 
-  test('prompt "ok" creates neither PRD nor classification artifact', async () => {
+  test('prompt "ok" exits without creating current-work state', async () => {
     const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-ok-"));
     const sessionId = "session-auto-prd-ok";
 
@@ -881,9 +881,30 @@ describe("auto PRD creation", () => {
       const run = await runAutoWorkCreationHook({ paiDir, sessionId, prompt: "ok" });
       expect(run.exitCode).toBe(0);
 
+      const statePath = path.join(paiDir, "MEMORY", "STATE", "current-work.json");
+      expect(await exists(statePath)).toBe(false);
+    } finally {
+      await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
+  test('near-miss prompt "ok I need help" is not treated as trivial', async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-ok-near-miss-"));
+    const sessionId = "session-auto-prd-ok-near-miss";
+
+    try {
+      const run = await runAutoWorkCreationHook({
+        paiDir,
+        sessionId,
+        prompt: "ok I need help",
+      });
+      expect(run.exitCode).toBe(0);
+
+      const statePath = path.join(paiDir, "MEMORY", "STATE", "current-work.json");
+      expect(await exists(statePath)).toBe(true);
+
       const workDir = await getWorkDir(paiDir, sessionId);
-      expect((await listPrdFiles(workDir)).length).toBe(0);
-      expect(await exists(path.join(workDir, "PROMPT_CLASSIFICATION.json"))).toBe(false);
+      expect(await exists(path.join(workDir, "tasks", "current"))).toBe(true);
     } finally {
       await fs.rm(paiDir, { recursive: true, force: true });
     }

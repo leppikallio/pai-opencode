@@ -2,8 +2,10 @@
 import { readStdinWithTimeout } from "./lib/stdin";
 
 import { createWorkSession } from "../plugins/handlers/work-tracker";
+import { getOrLoadCurrentSession } from "../plugins/handlers/work-tracker";
 import { ensurePrdForSession } from "../plugins/handlers/auto-prd";
 import { ensureTaskScaffoldForSession } from "../plugins/handlers/work-task-scaffolder";
+import { isTrivialPrompt } from "../plugins/lib/prompt-classification";
 import { normalizePromptForArtifacts } from "../plugins/lib/prompt-normalization";
 
 if (process.execArgv.includes("--check")) {
@@ -51,6 +53,20 @@ async function main(): Promise<void> {
     const normalizedPrompt = normalizePromptForArtifacts(prompt);
 
     if (!sessionId || !normalizedPrompt) {
+      return;
+    }
+
+    const existingSession = await getOrLoadCurrentSession(sessionId);
+    if (isTrivialPrompt(normalizedPrompt)) {
+      if (!existingSession) {
+        return;
+      }
+
+      try {
+        await ensureTaskScaffoldForSession(sessionId, normalizedPrompt);
+      } catch {
+        // Best effort only.
+      }
       return;
     }
 
