@@ -1,11 +1,232 @@
 import { describe, expect, test } from "bun:test";
+import { createHash } from "node:crypto";
 import { promises as fs } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { createHistoryCapture } from "../../plugins/handlers/history-capture";
 
 const PRD_FILENAME_PATTERN = /^PRD-\d{8}-[a-z0-9-]+\.md$/;
+const thisFileDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(thisFileDir, "..", "..", "..");
+
+type SnapshotRecord = {
+  relPath: string;
+  kind: "dir" | "file" | "symlink";
+  linkText?: string;
+  sha256?: string;
+};
+
+function buildSpawnEnv(overrides: Record<string, string | undefined>): Record<string, string> {
+  const env: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(process.env)) {
+    if (value !== undefined) {
+      env[key] = value;
+    }
+  }
+
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined) {
+      delete env[key];
+    } else {
+      env[key] = value;
+    }
+  }
+
+  return env;
+}
+
+async function runAutoWorkCreationHook(args: {
+  root: string;
+  sessionId: string;
+  prompt: string;
+}): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+  const proc = Bun.spawn({
+    cmd: ["bun", ".opencode/hooks/AutoWorkCreation.hook.ts"],
+    cwd: repoRoot,
+    env: buildSpawnEnv({
+      OPENCODE_ROOT: args.root,
+      PAI_ENABLE_MEMORY_PARITY: "1",
+      PAI_ENABLE_AUTO_PRD: "1",
+      PAI_ENABLE_AUTO_PRD_PROMPT_CLASSIFICATION: "1",
+    }),
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+
+  proc.stdin.write(
+    JSON.stringify({
+      session_id: args.sessionId,
+      prompt: args.prompt,
+    }),
+  );
+  proc.stdin.end();
+
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(proc.stdout).text(),
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
+
+  return { exitCode, stdout, stderr };
+}
+
+async function emitHistoryCaptureUserMessageCommit(args: {
+  root: string;
+  sessionId: string;
+  messageId: string;
+  prompt: string;
+}): Promise<void> {
+  const capture = createHistoryCapture({ directory: args.root });
+
+  await capture.handleEvent({
+    type: "message.updated",
+    properties: {
+      info: {
+        id: args.messageId,
+        sessionID: args.sessionId,
+        role: "user",
+      },
+    },
+  });
+
+  await capture.handleEvent({
+    type: "message.part.updated",
+    properties: {
+      part: {
+        sessionID: args.sessionId,
+        messageID: args.messageId,
+        type: "text",
+        text: args.prompt,
+      },
+    },
+  });
+}
+
+function sha256Hex(bytes: Uint8Array): string {
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+async function addSnapshotRecordIfPresent(
+  workDir: string,
+  relPath: string,
+  records: SnapshotRecord[],
+): Promise<void> {
+  const absPath = path.join(workDir, relPath);
+  if (!(await exists(absPath))) {
+    return;
+  }
+
+  const stat = await fs.lstat(absPath);
+  if (stat.isDirectory()) {
+    records.push({
+      relPath: relPath.endsWith("/") ? relPath : `${relPath}/`,
+      kind: "dir",
+    });
+    return;
+  }
+
+  if (stat.isSymbolicLink()) {
+    records.push({
+      relPath,
+      kind: "symlink",
+      linkText: await fs.readlink(absPath),
+    });
+    return;
+  }
+
+  if (stat.isFile()) {
+    records.push({
+      relPath,
+      kind: "file",
+      sha256: sha256Hex(await fs.readFile(absPath)),
+    });
+  }
+}
+
+async function snapshotSessionArtifacts(workDir: string): Promise<SnapshotRecord[]> {
+  const records: SnapshotRecord[] = [];
+
+  for (const relPath of ["META.yaml", "ISC.json", "THREAD.md", "PROMPT_CLASSIFICATION.json"]) {
+    await addSnapshotRecordIfPresent(workDir, relPath, records);
+  }
+
+  const rootEntries = await fs.readdir(workDir, { withFileTypes: true });
+  for (const entry of rootEntries) {
+    if (!entry.isFile() || !PRD_FILENAME_PATTERN.test(entry.name)) {
+      continue;
+    }
+    await addSnapshotRecordIfPresent(workDir, entry.name, records);
+  }
+
+  const tasksDirPath = path.join(workDir, "tasks");
+  if (await exists(tasksDirPath)) {
+    await addSnapshotRecordIfPresent(workDir, "tasks/current", records);
+
+    const taskDirs = await findTaskDirs(tasksDirPath);
+    for (const taskDir of taskDirs) {
+      const taskRelDir = `tasks/${taskDir}/`;
+      await addSnapshotRecordIfPresent(workDir, taskRelDir, records);
+      await addSnapshotRecordIfPresent(workDir, `tasks/${taskDir}/ISC.json`, records);
+      await addSnapshotRecordIfPresent(workDir, `tasks/${taskDir}/THREAD.md`, records);
+
+      const taskAbsPath = path.join(tasksDirPath, taskDir);
+      const taskEntries = await fs.readdir(taskAbsPath, { withFileTypes: true });
+      for (const entry of taskEntries) {
+        if (!PRD_FILENAME_PATTERN.test(entry.name)) {
+          continue;
+        }
+        await addSnapshotRecordIfPresent(workDir, `tasks/${taskDir}/${entry.name}`, records);
+      }
+    }
+  }
+
+  records.sort((a, b) => {
+    if (a.relPath === b.relPath) {
+      return a.kind.localeCompare(b.kind);
+    }
+    return a.relPath.localeCompare(b.relPath);
+  });
+  return records;
+}
+
+async function bootstrapWorkSession(root: string, sessionId: string, workDir: string): Promise<void> {
+  await fs.mkdir(workDir, { recursive: true });
+  await writeCurrentWorkState(root, sessionId, workDir);
+
+  await fs.writeFile(
+    path.join(workDir, "META.yaml"),
+    `${[
+      "status: ACTIVE",
+      "started_at: 2026-01-01T00:00:00.000Z",
+      'title: "Commutativity regression test"',
+      `opencode_session_id: ${sessionId}`,
+      "work_id: 2026-01-01T00-00-00_commutativity-regression-test",
+    ].join("\n")}\n`,
+    "utf8",
+  );
+
+  await fs.writeFile(
+    path.join(workDir, "ISC.json"),
+    `${JSON.stringify(
+      {
+        v: "0.1",
+        ideal: "",
+        criteria: [],
+        antiCriteria: [],
+        updatedAt: "2026-01-01T00:00:00.000Z",
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+
+  await fs.writeFile(path.join(workDir, "THREAD.md"), "# Commutativity regression test\n\n---\n\n", "utf8");
+}
 
 function writeCurrentWorkState(root: string, sessionId: string, workDir: string): Promise<void> {
   const stateDir = path.join(root, "MEMORY", "STATE");
@@ -356,6 +577,81 @@ describe("auto PRD creation via history-capture backstop", () => {
 
       const resolvedCurrentTaskPath = await fs.realpath(currentTaskPath);
       expect(resolvedCurrentTaskPath).toBe(await fs.realpath(path.join(tasksDirPath, firstTaskDir)));
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("auto work creation and history-capture backstop are commutative for identical session input", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-history-commutativity-"));
+    const sessionId = "session-commutativity-fixed";
+    const prompt = "Plan a deterministic migration strategy for task scaffold commutativity checks";
+    const workDir = path.join(root, "MEMORY", "WORK", "2099-01", sessionId);
+
+    try {
+      const envOverrides = {
+        OPENCODE_ROOT: root,
+        PAI_ENABLE_MEMORY_PARITY: "1",
+        PAI_ENABLE_AUTO_PRD: "1",
+        PAI_ENABLE_AUTO_PRD_PROMPT_CLASSIFICATION: "1",
+        PAI_ENABLE_CARRIER_PROMPT_HINTS: "0",
+      };
+
+      await withEnv(envOverrides, async () => {
+        await bootstrapWorkSession(root, sessionId, workDir);
+
+        const hookFirst = await runAutoWorkCreationHook({
+          root,
+          sessionId,
+          prompt,
+        });
+        expect(hookFirst.exitCode).toBe(0);
+
+        await emitHistoryCaptureUserMessageCommit({
+          root,
+          sessionId,
+          messageId: "message-commutativity-a",
+          prompt,
+        });
+      });
+
+      const hookThenBackstopWorkDir = await readCurrentWorkDir(root, sessionId);
+      expect(hookThenBackstopWorkDir).toBe(workDir);
+      if (!hookThenBackstopWorkDir) {
+        throw new Error("expected work dir after hook-first scenario");
+      }
+      const hookThenBackstopArtifacts = await snapshotSessionArtifacts(hookThenBackstopWorkDir);
+
+      await fs.rm(root, { recursive: true, force: true });
+      await fs.mkdir(root, { recursive: true });
+
+      await withEnv(envOverrides, async () => {
+        await bootstrapWorkSession(root, sessionId, workDir);
+
+        await emitHistoryCaptureUserMessageCommit({
+          root,
+          sessionId,
+          messageId: "message-commutativity-b",
+          prompt,
+        });
+
+        const backstopFirst = await runAutoWorkCreationHook({
+          root,
+          sessionId,
+          prompt,
+        });
+        expect(backstopFirst.exitCode).toBe(0);
+      });
+
+      const backstopThenHookWorkDir = await readCurrentWorkDir(root, sessionId);
+      expect(backstopThenHookWorkDir).toBe(workDir);
+      if (!backstopThenHookWorkDir) {
+        throw new Error("expected work dir after backstop-first scenario");
+      }
+
+      const backstopThenHookArtifacts = await snapshotSessionArtifacts(backstopThenHookWorkDir);
+
+      expect(hookThenBackstopArtifacts).toEqual(backstopThenHookArtifacts);
     } finally {
       await fs.rm(root, { recursive: true, force: true });
     }
