@@ -936,21 +936,22 @@ describe("auto PRD creation", () => {
 
       const taskEntries = await fs.readdir(tasksDirPath, { withFileTypes: true });
       const taskDirs = taskEntries
-        .filter((entry) => entry.isDirectory() && /^001_/.test(entry.name))
+        .filter((entry) => entry.isDirectory() && isTaskDirName(entry.name))
         .map((entry) => entry.name);
       expect(taskDirs).toHaveLength(1);
 
       const onlyTaskDir = taskDirs[0];
       if (!onlyTaskDir) {
-        throw new Error("expected exactly one 001_ task directory");
+        throw new Error("expected exactly one task directory");
       }
+      expect(onlyTaskDir.startsWith("001_")).toBe(true);
 
       const currentTaskStat = await fs.lstat(currentTaskPath);
       expect(currentTaskStat.isSymbolicLink()).toBe(true);
       const currentTaskTarget = await fs.readlink(currentTaskPath);
-      expect(currentTaskTarget).toBe(onlyTaskDir);
 
       const resolvedCurrentTaskPath = path.resolve(tasksDirPath, currentTaskTarget);
+      expect(resolvedCurrentTaskPath.startsWith(`${tasksDirPath}${path.sep}`)).toBe(true);
       expect(resolvedCurrentTaskPath).toBe(path.join(tasksDirPath, onlyTaskDir));
       expect((await fs.lstat(resolvedCurrentTaskPath)).isDirectory()).toBe(true);
 
