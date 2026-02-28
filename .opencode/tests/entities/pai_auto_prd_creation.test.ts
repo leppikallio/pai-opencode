@@ -122,6 +122,24 @@ describe("auto PRD creation", () => {
       expect(typeof classification.title).toBe("string");
       expect(classification.title?.length ?? 0).toBeGreaterThan(0);
       expect(raw).not.toContain(prompt);
+
+      const tasksDirPath = path.join(workDir, "tasks");
+      const currentTaskPath = path.join(tasksDirPath, "current");
+      const currentTaskStat = await fs.lstat(currentTaskPath);
+      expect(currentTaskStat.isSymbolicLink()).toBe(true);
+
+      const taskEntries = await fs.readdir(tasksDirPath, { withFileTypes: true });
+      const taskDirs = taskEntries.filter((entry) => entry.isDirectory() && /^001_/.test(entry.name));
+      expect(taskDirs.length).toBe(1);
+
+      const taskDir = taskDirs[0];
+      if (!taskDir) {
+        throw new Error("expected exactly one 001_ task directory");
+      }
+
+      const taskDirPath = path.join(tasksDirPath, taskDir.name);
+      expect(await exists(path.join(taskDirPath, "ISC.json"))).toBe(true);
+      expect(await exists(path.join(taskDirPath, "THREAD.md"))).toBe(true);
     } finally {
       await fs.rm(paiDir, { recursive: true, force: true });
     }
