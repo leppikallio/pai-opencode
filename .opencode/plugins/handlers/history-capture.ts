@@ -35,7 +35,6 @@ import { isEnvFlagEnabled } from "../lib/env-flags";
 import { ensurePrdForSession } from "./auto-prd";
 import { recordAgentSpawn, recordToolUse } from "./lineage-tracker";
 import { ensureTaskScaffoldForSession } from "./work-task-scaffolder";
-import { classifyPrompt } from "../lib/prompt-classification";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -217,6 +216,23 @@ function capText(text: string, max: number): string {
   return text.slice(0, max);
 }
 
+const TRIVIAL_ACK_PROMPTS = new Set([
+  "ok",
+  "okay",
+  "k",
+  "thanks",
+  "thank you",
+  "thx",
+  "got it",
+  "sounds good",
+]);
+
+function isTrivialAcknowledgementPrompt(text: string): boolean {
+  const normalized = text.trim().toLowerCase().replace(/[.!?]+$/g, "");
+  if (!normalized) return true;
+  return TRIVIAL_ACK_PROMPTS.has(normalized);
+}
+
 function hashShort(value: string): string {
   return createHash("sha1").update(value).digest("hex").slice(0, 10);
 }
@@ -389,16 +405,15 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
   state.committedMessages.add(messageId);
 
   const capped = capText(text, MAX_TEXT);
-  const shouldEnsureWorkArtifacts = classifyPrompt(capped).type === "work";
+  const shouldEnsureWorkArtifacts = !isTrivialAcknowledgementPrompt(capped);
 
   const { storage, isSubagent } = storageSessionIdFor(sessionId);
   let session = await getOrLoadCurrentSession(storage);
   if (shouldEnsureWorkArtifacts && !session) {
     const createResult = await createWorkSession(storage, capped);
-    if (!createResult.success) {
-      return;
+    if (createResult.success) {
+      session = createResult.session ?? (await getOrLoadCurrentSession(storage));
     }
-    session = createResult.session ?? (await getOrLoadCurrentSession(storage));
   }
 
   if (shouldEnsureWorkArtifacts && !isSubagent) {

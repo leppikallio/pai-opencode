@@ -65,6 +65,20 @@ async function exists(filePath: string): Promise<boolean> {
   }
 }
 
+async function readCurrentWorkDir(root: string, sessionId: string): Promise<string | null> {
+  const currentWorkPath = path.join(root, "MEMORY", "STATE", "current-work.json");
+  try {
+    const raw = await fs.readFile(currentWorkPath, "utf8");
+    const parsed = JSON.parse(raw) as {
+      sessions?: Record<string, { work_dir?: string }>;
+    };
+    const workDir = parsed.sessions?.[sessionId]?.work_dir;
+    return typeof workDir === "string" && workDir.length > 0 ? workDir : null;
+  } catch {
+    return null;
+  }
+}
+
 async function withEnv(overrides: Record<string, string | undefined>, run: () => Promise<void>): Promise<void> {
   const previous: Record<string, string | undefined> = {};
   for (const key of Object.keys(overrides)) {
@@ -253,6 +267,82 @@ describe("auto PRD creation via history-capture backstop", () => {
         });
         expect(createdTaskArtifact).toBe(false);
       }
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test("session.created followed by non-trivial question bootstraps work session and task scaffold", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-history-session-created-question-"));
+    const sessionId = "session-created-question";
+    const messageId = `message-${Date.now()}`;
+
+    try {
+      await withEnv(
+        {
+          OPENCODE_ROOT: root,
+          PAI_ENABLE_MEMORY_PARITY: "1",
+          PAI_ENABLE_AUTO_PRD: "1",
+          PAI_ENABLE_AUTO_PRD_PROMPT_CLASSIFICATION: "1",
+        },
+        async () => {
+          const capture = createHistoryCapture({ directory: root });
+
+          await capture.handleEvent({
+            type: "session.created",
+            properties: {
+              info: {
+                id: sessionId,
+                title: "work-session",
+              },
+            },
+          });
+
+          await capture.handleEvent({
+            type: "message.updated",
+            properties: {
+              info: {
+                id: messageId,
+                sessionID: sessionId,
+                role: "user",
+              },
+            },
+          });
+
+          await capture.handleEvent({
+            type: "message.part.updated",
+            properties: {
+              part: {
+                sessionID: sessionId,
+                messageID: messageId,
+                type: "text",
+                text: "What does git status do?",
+              },
+            },
+          });
+        },
+      );
+
+      const workDir = await readCurrentWorkDir(root, sessionId);
+      expect(typeof workDir).toBe("string");
+      if (!workDir) {
+        throw new Error("expected current work directory for non-trivial question");
+      }
+
+      const tasksDirPath = path.join(workDir, "tasks");
+      const currentTaskPath = path.join(tasksDirPath, "current");
+      expect(await exists(currentTaskPath)).toBe(true);
+      expect((await fs.lstat(currentTaskPath)).isSymbolicLink()).toBe(true);
+
+      const taskDirs = await findTaskDirs(tasksDirPath);
+      const firstTaskDir = taskDirs.find((entry) => entry.startsWith("001_"));
+      expect(typeof firstTaskDir).toBe("string");
+      if (!firstTaskDir) {
+        throw new Error("expected a 001_* task directory");
+      }
+
+      const resolvedCurrentTaskPath = await fs.realpath(currentTaskPath);
+      expect(resolvedCurrentTaskPath).toBe(await fs.realpath(path.join(tasksDirPath, firstTaskDir)));
     } finally {
       await fs.rm(root, { recursive: true, force: true });
     }
