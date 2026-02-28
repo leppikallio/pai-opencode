@@ -166,10 +166,8 @@ describe("auto PRD creation", () => {
       expect(await exists(classificationPath)).toBe(true);
 
       const raw = await fs.readFile(classificationPath, "utf8");
-      const classification = JSON.parse(raw) as {
-        type?: string;
-        source?: string;
-      };
+      const classification = JSON.parse(raw) as Record<string, unknown>;
+      expect(classification).not.toHaveProperty("ts");
       expect(classification.type).toBe("work");
       expect(classification.source).toBe("heuristic");
       expect(raw).not.toContain(prompt);

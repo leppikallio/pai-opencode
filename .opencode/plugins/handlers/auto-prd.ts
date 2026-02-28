@@ -87,7 +87,6 @@ async function writeClassificationArtifact(
   const artifactPath = path.join(workPath, "PROMPT_CLASSIFICATION.json");
   const payload = {
     v: classification.v,
-    ts: classification.ts,
     type: classification.type,
     effort: classification.effort,
     is_new_topic: classification.is_new_topic,
