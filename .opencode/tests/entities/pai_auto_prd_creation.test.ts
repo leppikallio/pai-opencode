@@ -929,21 +929,66 @@ describe("auto PRD creation", () => {
     }
   });
 
-  test("question prompts create neither PRD nor classification artifact", async () => {
+  test("question prompts create PRD and prompt classification artifact", async () => {
     const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-question-"));
     const sessionId = "session-auto-prd-question";
+    const prompt = "What does git status do?";
 
     try {
       const run = await runAutoWorkCreationHook({
         paiDir,
         sessionId,
-        prompt: "What does git status do?",
+        prompt,
       });
       expect(run.exitCode).toBe(0);
 
       const workDir = await getWorkDir(paiDir, sessionId);
-      expect((await listPrdFiles(workDir)).length).toBe(0);
-      expect(await exists(path.join(workDir, "PROMPT_CLASSIFICATION.json"))).toBe(false);
+      expect((await listPrdFiles(workDir)).length).toBe(1);
+
+      const classificationPath = path.join(workDir, "PROMPT_CLASSIFICATION.json");
+      expect(await exists(classificationPath)).toBe(true);
+
+      const raw = await fs.readFile(classificationPath, "utf8");
+      const classification = JSON.parse(raw) as {
+        type?: string;
+        source?: string;
+      };
+      expect(classification.type).toBe("question");
+      expect(classification.source).toBe("heuristic");
+      expect(raw).not.toContain(prompt);
+    } finally {
+      await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
+  test("conversational non-question prompts still create PRD and classification artifact", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-conversational-"));
+    const sessionId = "session-auto-prd-conversational";
+    const prompt =
+      "I have a long-running release issue in staging where deployments intermittently hang after migrations and the team needs a clear next-step direction for the incident handoff.";
+
+    try {
+      const run = await runAutoWorkCreationHook({
+        paiDir,
+        sessionId,
+        prompt,
+      });
+      expect(run.exitCode).toBe(0);
+
+      const workDir = await getWorkDir(paiDir, sessionId);
+      expect((await listPrdFiles(workDir)).length).toBe(1);
+
+      const classificationPath = path.join(workDir, "PROMPT_CLASSIFICATION.json");
+      expect(await exists(classificationPath)).toBe(true);
+
+      const raw = await fs.readFile(classificationPath, "utf8");
+      const classification = JSON.parse(raw) as {
+        type?: string;
+        source?: string;
+      };
+      expect(classification.type).toBe("conversational");
+      expect(classification.source).toBe("heuristic");
+      expect(raw).not.toContain(prompt);
     } finally {
       await fs.rm(paiDir, { recursive: true, force: true });
     }

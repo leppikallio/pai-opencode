@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 
-import { classifyPrompt, type PromptClassification } from "../lib/prompt-classification";
+import { classifyPrompt, isTrivialPrompt, type PromptClassification } from "../lib/prompt-classification";
 import { isEnvFlagEnabled, isMemoryParityEnabled } from "../lib/env-flags";
 import { getCurrentWorkPathForSession, slugify } from "../lib/paths";
 import { generatePRDFilename, generatePRDTemplate } from "../lib/prd-template";
@@ -105,8 +105,9 @@ export async function ensurePrdForSession(sessionId: string, prompt: string): Pr
   const workPath = await getCurrentWorkPathForSession(sessionId);
   if (!workPath) return;
 
+  if (isTrivialPrompt(prompt)) return;
+
   const classification = classifyPrompt(prompt);
-  if (classification.type !== "work") return;
 
   const meta = await readMeta(workPath);
   if (!meta) return;
