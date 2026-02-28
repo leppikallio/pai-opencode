@@ -3,6 +3,8 @@ import { readStdinWithTimeout } from "./lib/stdin";
 
 import { createWorkSession } from "../plugins/handlers/work-tracker";
 import { ensurePrdForSession } from "../plugins/handlers/auto-prd";
+import { ensureTaskScaffoldForSession } from "../plugins/handlers/work-task-scaffolder";
+import { normalizePromptForArtifacts } from "../plugins/lib/prompt-normalization";
 
 if (process.execArgv.includes("--check")) {
   process.exit(0);
@@ -46,20 +48,27 @@ async function main(): Promise<void> {
     const input = parseHookInput(rawInput);
     const sessionId = asString(input.session_id) ?? "";
     const prompt = input.prompt ?? input.user_prompt ?? "";
+    const normalizedPrompt = normalizePromptForArtifacts(prompt);
 
-    if (!sessionId || !prompt) {
+    if (!sessionId || !normalizedPrompt) {
       return;
     }
 
     // Consolidation: delegate to the OpenCode-native work tracker.
     // This ensures we only have ONE WORK layout and ONE STATE/current-work.json.
-    const createResult = await createWorkSession(sessionId, prompt);
+    const createResult = await createWorkSession(sessionId, normalizedPrompt);
     if (!createResult.success) {
       return;
     }
 
     try {
-      await ensurePrdForSession(sessionId, prompt);
+      await ensurePrdForSession(sessionId, normalizedPrompt);
+    } catch {
+      // Best effort only.
+    }
+
+    try {
+      await ensureTaskScaffoldForSession(sessionId, normalizedPrompt);
     } catch {
       // Best effort only.
     }
