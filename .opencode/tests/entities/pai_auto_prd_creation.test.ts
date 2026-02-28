@@ -97,6 +97,10 @@ function isTaskDirName(name: string): boolean {
   return /^\d{3}_[a-z0-9-]+$/.test(name);
 }
 
+function countMatching(entries: string[], pattern: RegExp): number {
+  return entries.filter((entry) => pattern.test(entry)).length;
+}
+
 describe("auto PRD creation", () => {
   test("work-like prompt creates PRD and prompt classification artifact", async () => {
     const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-work-"));
@@ -210,6 +214,122 @@ describe("auto PRD creation", () => {
       expect(tasksEntries.some((entry) => /^current\.invalid\.\d+$/.test(entry))).toBe(true);
     } finally {
       await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
+  test("repairs missing task artifacts when current symlink stays valid and remains idempotent", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-repair-missing-files-"));
+    const sessionId = "session-auto-prd-repair-missing-files";
+    const prompt = "Implement deterministic task scaffold repair behavior";
+
+    try {
+      const firstRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
+      expect(firstRun.exitCode).toBe(0);
+
+      const workDir = await getWorkDir(paiDir, sessionId);
+      const tasksDirPath = path.join(workDir, "tasks");
+      const currentTaskPath = path.join(tasksDirPath, "current");
+
+      const firstCurrentStat = await fs.lstat(currentTaskPath);
+      expect(firstCurrentStat.isSymbolicLink()).toBe(true);
+      const firstCurrentTarget = await fs.readlink(currentTaskPath);
+      expect(isTaskDirName(firstCurrentTarget)).toBe(true);
+
+      const taskDirPath = path.join(tasksDirPath, firstCurrentTarget);
+      const taskIscPath = path.join(taskDirPath, "ISC.json");
+      const taskThreadPath = path.join(taskDirPath, "THREAD.md");
+
+      await fs.unlink(taskIscPath);
+      await fs.unlink(taskThreadPath);
+
+      const secondRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
+      expect(secondRun.exitCode).toBe(0);
+      expect(secondRun.stderr).toBe("");
+
+      const repairedCurrentStat = await fs.lstat(currentTaskPath);
+      expect(repairedCurrentStat.isSymbolicLink()).toBe(true);
+      const repairedCurrentTarget = await fs.readlink(currentTaskPath);
+      expect(isTaskDirName(repairedCurrentTarget)).toBe(true);
+
+      const repairedTaskDirPath = path.join(tasksDirPath, repairedCurrentTarget);
+      expect((await fs.lstat(repairedTaskDirPath)).isDirectory()).toBe(true);
+
+      const repairedTaskIscPath = path.join(repairedTaskDirPath, "ISC.json");
+      const repairedTaskThreadPath = path.join(repairedTaskDirPath, "THREAD.md");
+      expect(await exists(repairedTaskIscPath)).toBe(true);
+      expect(await exists(repairedTaskThreadPath)).toBe(true);
+      expect((await fs.lstat(repairedTaskIscPath)).isSymbolicLink()).toBe(true);
+      expect((await fs.lstat(repairedTaskThreadPath)).isSymbolicLink()).toBe(true);
+      expect(await fs.readlink(repairedTaskIscPath)).toBe("../../ISC.json");
+      expect(await fs.readlink(repairedTaskThreadPath)).toBe("../../THREAD.md");
+
+      const legacyCountBefore = countMatching(
+        await fs.readdir(repairedTaskDirPath),
+        /^(ISC\.json|THREAD\.md)\.legacy\.\d+$/,
+      );
+      const invalidCountBefore = countMatching(
+        await fs.readdir(tasksDirPath),
+        /^current\.invalid\.\d+$/,
+      );
+
+      const thirdRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
+      expect(thirdRun.exitCode).toBe(0);
+      expect(thirdRun.stderr).toBe("");
+
+      const legacyCountAfter = countMatching(
+        await fs.readdir(repairedTaskDirPath),
+        /^(ISC\.json|THREAD\.md)\.legacy\.\d+$/,
+      );
+      const invalidCountAfter = countMatching(
+        await fs.readdir(tasksDirPath),
+        /^current\.invalid\.\d+$/,
+      );
+
+      expect(legacyCountAfter).toBe(legacyCountBefore);
+      expect(invalidCountAfter).toBe(invalidCountBefore);
+    } finally {
+      await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
+  test("repairs escaped current symlink target back into tasks root", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-unsafe-current-"));
+    const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-unsafe-current-target-"));
+    const sessionId = "session-auto-prd-unsafe-current";
+    const prompt = "Implement deterministic task scaffold repair behavior";
+
+    try {
+      const firstRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
+      expect(firstRun.exitCode).toBe(0);
+
+      const workDir = await getWorkDir(paiDir, sessionId);
+      const tasksDirPath = path.join(workDir, "tasks");
+      const currentTaskPath = path.join(tasksDirPath, "current");
+
+      await fs.unlink(currentTaskPath);
+      await fs.symlink(outsideDir, currentTaskPath, "dir");
+
+      const secondRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
+      expect(secondRun.exitCode).toBe(0);
+
+      const repairedCurrentStat = await fs.lstat(currentTaskPath);
+      expect(repairedCurrentStat.isSymbolicLink()).toBe(true);
+      const repairedCurrentTarget = await fs.readlink(currentTaskPath);
+      expect(isTaskDirName(repairedCurrentTarget)).toBe(true);
+
+      const repairedTaskDirPath = path.resolve(tasksDirPath, repairedCurrentTarget);
+      expect(repairedTaskDirPath.startsWith(`${tasksDirPath}${path.sep}`)).toBe(true);
+      expect((await fs.lstat(repairedTaskDirPath)).isDirectory()).toBe(true);
+
+      const repairedTaskIscPath = path.join(repairedTaskDirPath, "ISC.json");
+      const repairedTaskThreadPath = path.join(repairedTaskDirPath, "THREAD.md");
+      expect((await fs.lstat(repairedTaskIscPath)).isSymbolicLink()).toBe(true);
+      expect((await fs.lstat(repairedTaskThreadPath)).isSymbolicLink()).toBe(true);
+      expect(await fs.readlink(repairedTaskIscPath)).toBe("../../ISC.json");
+      expect(await fs.readlink(repairedTaskThreadPath)).toBe("../../THREAD.md");
+    } finally {
+      await fs.rm(paiDir, { recursive: true, force: true });
+      await fs.rm(outsideDir, { recursive: true, force: true });
     }
   });
 
