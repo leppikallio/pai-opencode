@@ -12,6 +12,7 @@ import * as path from "node:path";
 import { fileLog, fileLogError } from "../lib/file-logger";
 import {
   getWorkDir,
+  getStateDir,
   getYearMonth,
   getTimestamp,
   ensureDir,
@@ -126,6 +127,130 @@ function inferTitle(prompt: string): string {
   return words.join(" ");
 }
 
+type SessionCandidate = {
+  sessionPath: string;
+  yearMonth: string;
+  startedAtMs: number | null;
+};
+
+function parseMetaValue(metaContent: string, key: string): string | null {
+  const match = metaContent.match(new RegExp(`^${key}:\\s*(.+)$`, "m"));
+  if (!match) return null;
+  return match[1]?.trim() ?? null;
+}
+
+function parseStartedAtMs(metaContent: string): number | null {
+  const raw = parseMetaValue(metaContent, "started_at");
+  if (!raw) return null;
+  const ms = Date.parse(raw.replace(/^"|"$/g, ""));
+  return Number.isFinite(ms) ? ms : null;
+}
+
+async function pathIsDirectory(targetPath: string): Promise<boolean> {
+  try {
+    const stat = await fs.promises.stat(targetPath);
+    return stat.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+async function writeFileIfMissing(filePath: string, content: string): Promise<void> {
+  try {
+    await fs.promises.writeFile(filePath, content, { flag: "wx" });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "EEXIST") {
+      throw error;
+    }
+  }
+}
+
+async function readSessionFromPath(sessionId: string, sessionPath: string): Promise<WorkSession | null> {
+  const metaPath = path.join(sessionPath, "META.yaml");
+  try {
+    const metaContent = await fs.promises.readFile(metaPath, "utf-8");
+    const title = (parseMetaValue(metaContent, "title") || "work-session").replace(/^"|"$/g, "");
+    const status = (parseMetaValue(metaContent, "status") || "ACTIVE").replace(/^"|"$/g, "");
+    const started_at =
+      (parseMetaValue(metaContent, "started_at") || new Date().toISOString()).replace(/^"|"$/g, "");
+
+    return {
+      id: sessionId,
+      path: sessionPath,
+      title,
+      started_at,
+      status: status as WorkSession["status"],
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function scanSessionCandidates(sessionId: string): Promise<SessionCandidate[]> {
+  const workDir = getWorkDir();
+  let monthEntries: Array<{ isDirectory: () => boolean; name: string }> = [];
+  try {
+    monthEntries = await fs.promises.readdir(workDir, { withFileTypes: true, encoding: "utf8" });
+  } catch {
+    return [];
+  }
+
+  const candidates: SessionCandidate[] = [];
+  for (const monthEntry of monthEntries) {
+    if (!monthEntry.isDirectory()) continue;
+    const yearMonth = monthEntry.name;
+    const sessionPath = path.join(workDir, yearMonth, sessionId);
+    if (!(await pathIsDirectory(sessionPath))) continue;
+
+    let startedAtMs: number | null = null;
+    try {
+      const metaContent = await fs.promises.readFile(path.join(sessionPath, "META.yaml"), "utf-8");
+      startedAtMs = parseStartedAtMs(metaContent);
+    } catch {
+      startedAtMs = null;
+    }
+
+    candidates.push({ sessionPath, yearMonth, startedAtMs });
+  }
+
+  return candidates;
+}
+
+function pickBestSessionCandidate(candidates: SessionCandidate[]): SessionCandidate | null {
+  if (candidates.length === 0) return null;
+
+  const startedAtCandidates = candidates.filter((candidate) => candidate.startedAtMs !== null);
+  if (startedAtCandidates.length > 0) {
+    return startedAtCandidates.sort((a, b) => {
+      const aMs = a.startedAtMs ?? Number.NEGATIVE_INFINITY;
+      const bMs = b.startedAtMs ?? Number.NEGATIVE_INFINITY;
+      if (bMs !== aMs) return bMs - aMs;
+      return b.yearMonth.localeCompare(a.yearMonth);
+    })[0] ?? null;
+  }
+
+  return candidates.sort((a, b) => b.yearMonth.localeCompare(a.yearMonth))[0] ?? null;
+}
+
+async function hasOutOfRootStateMapping(sessionId: string): Promise<boolean> {
+  const statePath = path.join(getStateDir(), "current-work.json");
+  try {
+    const raw = await fs.promises.readFile(statePath, "utf-8");
+    const parsed = JSON.parse(raw) as {
+      sessions?: Record<string, { work_dir?: string }>;
+    };
+    const mappedPath = parsed.sessions?.[sessionId]?.work_dir;
+    if (typeof mappedPath !== "string" || mappedPath.length === 0) return false;
+
+    const workRoot = path.resolve(getWorkDir());
+    const candidate = path.resolve(mappedPath);
+    const rel = path.relative(workRoot, candidate);
+    return !(rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel)));
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Create a new work session
  *
@@ -142,28 +267,36 @@ export async function createWorkSession(
       return { success: false, error: "Invalid session id" };
     }
 
-    // Check if session already exists
-    const existingPath = await getCurrentWorkPathForSession(sessionId);
-    const cached = currentSessions.get(sessionId);
-    if (existingPath && cached) {
-      fileLog("Work session already exists, reusing", "debug");
-      return { success: true, session: cached };
-    }
-
-    if (existingPath && !cached) {
-      const loaded = await getOrLoadCurrentSession(sessionId);
-      if (loaded) return { success: true, session: loaded };
-    }
-
-    // Create session directory
+    // Resolve existing/recoverable session directory first.
     const workDir = getWorkDir();
-    const yearMonth = getYearMonth();
     const timestamp = getTimestamp();
     const title = inferTitle(seed);
     const slug = slugify(title);
     const workId = `${timestamp}_${slug}`;
+    const nowIso = new Date().toISOString();
 
-    const sessionPath = path.join(workDir, yearMonth, sessionId);
+    let sessionPath: string | null = null;
+    const mappedPath = await getCurrentWorkPathForSession(sessionId);
+    if (mappedPath && (await pathIsDirectory(mappedPath))) {
+      sessionPath = mappedPath;
+    }
+
+    if (!mappedPath && (await hasOutOfRootStateMapping(sessionId))) {
+      process.stderr.write("PAI_STATE_CURRENT_WORK_MAPPING_OUT_OF_ROOT\n");
+    }
+
+    if (!sessionPath) {
+      const candidates = await scanSessionCandidates(sessionId);
+      const best = pickBestSessionCandidate(candidates);
+      if (best) {
+        sessionPath = best.sessionPath;
+      }
+    }
+
+    if (!sessionPath) {
+      sessionPath = path.join(workDir, getYearMonth(), sessionId);
+    }
+
     await ensureDir(sessionPath);
 
     // Create subdirectories
@@ -173,25 +306,25 @@ export async function createWorkSession(
     // Create META.yaml
     const meta = {
       status: "ACTIVE",
-      started_at: new Date().toISOString(),
+      started_at: nowIso,
       title: title,
       opencode_session_id: sessionId,
       work_id: workId,
     };
 
-    await fs.promises.writeFile(
+    await writeFileIfMissing(
       path.join(sessionPath, "META.yaml"),
       `status: ${meta.status}\nstarted_at: ${meta.started_at}\ntitle: "${meta.title}"\nopencode_session_id: ${meta.opencode_session_id}\nwork_id: ${meta.work_id}\n`
     );
 
     // Create empty ISC.json (v0.1)
-    await fs.promises.writeFile(
+    await writeFileIfMissing(
       path.join(sessionPath, "ISC.json"),
       JSON.stringify(createEmptyIscState(), null, 2)
     );
 
     // Create THREAD.md
-    await fs.promises.writeFile(
+    await writeFileIfMissing(
       path.join(sessionPath, "THREAD.md"),
       `# ${title}\n\n**Started:** ${meta.started_at}\n**Status:** ACTIVE\n\n---\n\n`
     );
@@ -199,17 +332,23 @@ export async function createWorkSession(
     // Update state
     await setCurrentWorkPathForSession(sessionId, sessionPath);
 
-    const session: WorkSession = {
-      id: sessionId,
-      path: sessionPath,
-      title: title,
-      started_at: meta.started_at,
-      status: "ACTIVE",
-    };
+    const cached = currentSessions.get(sessionId);
+    const loaded = await readSessionFromPath(sessionId, sessionPath);
+
+    const session: WorkSession =
+      cached && cached.path === sessionPath
+        ? cached
+        : (loaded ?? {
+            id: sessionId,
+            path: sessionPath,
+            title: title,
+            started_at: meta.started_at,
+            status: "ACTIVE",
+          });
 
     currentSessions.set(sessionId, session);
 
-    fileLog(`Work session created: ${sessionId}`, "info");
+    fileLog(`Work session ready: ${sessionId}`, "info");
 
     return { success: true, session };
   } catch (error) {
@@ -242,28 +381,16 @@ export async function getOrLoadCurrentSession(sessionIdRaw: string): Promise<Wor
   const sessionPath = await getCurrentWorkPathForSession(sessionId);
   if (!sessionPath) return null;
 
-  const metaPath = path.join(sessionPath, "META.yaml");
-  try {
-    const metaContent = await fs.promises.readFile(metaPath, "utf-8");
-    const title = (metaContent.match(/title:\s*"?(.+?)"?\s*$/m) || [])[1];
-    const status =
-      (metaContent.match(/status:\s*(\w+)/) || [])[1] || "ACTIVE";
-    const started_at =
-      (metaContent.match(/started_at:\s*(.+)/) || [])[1] || new Date().toISOString();
+  if (!(await pathIsDirectory(sessionPath))) return null;
 
-    const session: WorkSession = {
-      id: sessionId,
-      path: sessionPath,
-      title: title || "work-session",
-      started_at,
-      status: status as WorkSession["status"],
-    };
-    currentSessions.set(sessionId, session);
-    return session;
-  } catch (error) {
-    fileLogError("Failed to load current session", error);
+  const session = await readSessionFromPath(sessionId, sessionPath);
+  if (!session) {
+    fileLogError("Failed to load current session", `Missing or unreadable META.yaml for ${sessionId}`);
     return null;
   }
+
+  currentSessions.set(sessionId, session);
+  return session;
 }
 
 /**
