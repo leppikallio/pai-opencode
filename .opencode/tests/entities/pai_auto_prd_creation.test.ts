@@ -230,10 +230,25 @@ describe("auto PRD creation", () => {
       const tasksDirPath = path.join(workDir, "tasks");
       const currentTaskPath = path.join(tasksDirPath, "current");
 
+      const taskEntriesBeforeRepair = await fs.readdir(tasksDirPath, { withFileTypes: true });
+      const taskDirs001 = taskEntriesBeforeRepair
+        .filter((entry) => entry.isDirectory() && /^001_/.test(entry.name))
+        .map((entry) => entry.name);
+      expect(taskDirs001).toHaveLength(1);
+
+      const expectedTaskDir = taskDirs001[0];
+      if (!expectedTaskDir) {
+        throw new Error("expected exactly one 001_ task directory");
+      }
+
       const firstCurrentStat = await fs.lstat(currentTaskPath);
       expect(firstCurrentStat.isSymbolicLink()).toBe(true);
       const firstCurrentTarget = await fs.readlink(currentTaskPath);
-      expect(isTaskDirName(firstCurrentTarget)).toBe(true);
+      expect(firstCurrentTarget).toBe(expectedTaskDir);
+
+      const firstCurrentResolvedPath = path.resolve(tasksDirPath, firstCurrentTarget);
+      expect(firstCurrentResolvedPath).toBe(path.join(tasksDirPath, expectedTaskDir));
+      expect((await fs.lstat(firstCurrentResolvedPath)).isDirectory()).toBe(true);
 
       const taskDirPath = path.join(tasksDirPath, firstCurrentTarget);
       const taskIscPath = path.join(taskDirPath, "ISC.json");
@@ -249,7 +264,11 @@ describe("auto PRD creation", () => {
       const repairedCurrentStat = await fs.lstat(currentTaskPath);
       expect(repairedCurrentStat.isSymbolicLink()).toBe(true);
       const repairedCurrentTarget = await fs.readlink(currentTaskPath);
-      expect(isTaskDirName(repairedCurrentTarget)).toBe(true);
+      expect(repairedCurrentTarget).toBe(expectedTaskDir);
+
+      const repairedCurrentResolvedPath = path.resolve(tasksDirPath, repairedCurrentTarget);
+      expect(repairedCurrentResolvedPath).toBe(path.join(tasksDirPath, expectedTaskDir));
+      expect((await fs.lstat(repairedCurrentResolvedPath)).isDirectory()).toBe(true);
 
       const repairedTaskDirPath = path.join(tasksDirPath, repairedCurrentTarget);
       expect((await fs.lstat(repairedTaskDirPath)).isDirectory()).toBe(true);
