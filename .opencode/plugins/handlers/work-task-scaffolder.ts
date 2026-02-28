@@ -2,17 +2,26 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 import { getCurrentWorkPathForSession, slugify } from "../lib/paths";
+import { generatePRDFilename } from "../lib/prd-template";
 
 const TASK_DIR_NAME_PATTERN = /^\d{3}_[a-z0-9-]+$/;
+const PRD_FILE_NAME_PATTERN = /^PRD-\d{8}-[a-z0-9-]+\.md$/;
 const PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR = "PAI_TASK_SCAFFOLD_SKIPPED_UNSAFE_TASKS_DIR\n";
 const PAI_TASK_SCAFFOLD_UNSAFE_CANONICAL_TARGET =
   "PAI_TASK_SCAFFOLD_SKIPPED_UNSAFE_CANONICAL_TARGET\n";
+const PAI_TASK_SCAFFOLD_PRD_LINK_SKIPPED_NO_CANDIDATE =
+  "PAI_TASK_SCAFFOLD_PRD_LINK_SKIPPED_NO_CANDIDATE\n";
 
 type MarkerEmitter = (marker: string) => void;
 
 type WorkMeta = {
   title: string;
   startedAt: string;
+};
+
+type ParsedWorkMeta = {
+  title: string;
+  startedAt: Date;
 };
 
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
@@ -59,6 +68,38 @@ async function readWorkMeta(workDir: string): Promise<WorkMeta> {
       startedAt: now,
     };
   }
+}
+
+async function readParsedWorkMeta(workDir: string): Promise<ParsedWorkMeta | null> {
+  const metaPath = path.join(workDir, "META.yaml");
+  let content = "";
+
+  try {
+    content = await fs.promises.readFile(metaPath, "utf-8");
+  } catch {
+    return null;
+  }
+
+  const titleRaw = parseMetaValue(content, "title")?.trim();
+  const startedAtRaw = parseMetaValue(content, "started_at")?.trim();
+  if (!titleRaw || !startedAtRaw) {
+    return null;
+  }
+
+  const startedAt = new Date(startedAtRaw);
+  if (Number.isNaN(startedAt.getTime())) {
+    return null;
+  }
+
+  return {
+    title: titleRaw,
+    startedAt,
+  };
+}
+
+function dateStampFor(date: Date): string {
+  const markerFilename = generatePRDFilename("marker", date);
+  return markerFilename.slice("PRD-".length, "PRD-".length + 8);
 }
 
 async function lstatOrNull(targetPath: string): Promise<fs.Stats | null> {
@@ -189,6 +230,182 @@ async function resolveSafeRealPath(targetPath: string, workDir: string): Promise
   } catch {
     return null;
   }
+}
+
+type SessionPrdCandidate = {
+  name: string;
+  absolutePath: string;
+};
+
+async function resolveInsideWorkRoot(targetPath: string, workDir: string): Promise<string | null> {
+  try {
+    const [resolvedRealPath, workRootRealPath] = await Promise.all([
+      fs.promises.realpath(targetPath),
+      fs.promises.realpath(workDir).catch(() => path.resolve(workDir)),
+    ]);
+
+    if (!isInsideRoot(workRootRealPath, resolvedRealPath)) {
+      return null;
+    }
+
+    return resolvedRealPath;
+  } catch {
+    return null;
+  }
+}
+
+async function listSessionPrdCandidates(workDir: string): Promise<SessionPrdCandidate[]> {
+  const entries = await fs.promises.readdir(workDir, { withFileTypes: true });
+  const candidates: SessionPrdCandidate[] = [];
+
+  for (const entry of entries) {
+    if (!PRD_FILE_NAME_PATTERN.test(entry.name)) {
+      continue;
+    }
+
+    const absolutePath = path.join(workDir, entry.name);
+    const stat = await lstatOrNull(absolutePath);
+    if (!stat || stat.isDirectory()) {
+      continue;
+    }
+
+    const resolvedRealPath = await resolveInsideWorkRoot(absolutePath, workDir);
+    if (!resolvedRealPath) {
+      continue;
+    }
+
+    candidates.push({
+      name: entry.name,
+      absolutePath,
+    });
+  }
+
+  candidates.sort((left, right) => left.name.localeCompare(right.name));
+  return candidates;
+}
+
+async function chooseCanonicalSessionPrdPath(workDir: string): Promise<string | null> {
+  const parsedMeta = await readParsedWorkMeta(workDir);
+  if (parsedMeta) {
+    const slug = slugify(parsedMeta.title) || "work-session";
+    const expectedName = generatePRDFilename(slug, parsedMeta.startedAt);
+    const expectedPath = path.join(workDir, expectedName);
+    const expectedStat = await lstatOrNull(expectedPath);
+    if (expectedStat && !expectedStat.isDirectory()) {
+      const expectedRealPath = await resolveInsideWorkRoot(expectedPath, workDir);
+      if (expectedRealPath) {
+        return expectedPath;
+      }
+    }
+  }
+
+  const candidates = await listSessionPrdCandidates(workDir);
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  if (candidates.length === 1) {
+    return candidates[0]?.absolutePath ?? null;
+  }
+
+  if (!parsedMeta) {
+    return candidates[0]?.absolutePath ?? null;
+  }
+
+  const expectedDateStamp = dateStampFor(parsedMeta.startedAt);
+  const dateMatchedCandidates = candidates.filter(
+    (candidate) => candidate.name.slice("PRD-".length, "PRD-".length + 8) === expectedDateStamp,
+  );
+
+  if (dateMatchedCandidates.length > 0) {
+    return dateMatchedCandidates[0]?.absolutePath ?? null;
+  }
+
+  return candidates[0]?.absolutePath ?? null;
+}
+
+function buildTaskPrdLinkName(basePrdName: string, attempt: number): string {
+  if (attempt <= 0) {
+    return basePrdName;
+  }
+
+  const suffix = `-link-${attempt}.md`;
+  return basePrdName.endsWith(".md") ? `${basePrdName.slice(0, -3)}${suffix}` : `${basePrdName}${suffix}`;
+}
+
+async function ensureTaskPrdLink(args: {
+  taskDirPath: string;
+  canonicalPrdPath: string;
+  workDir: string;
+  validateTasksDir: () => Promise<boolean>;
+}): Promise<void> {
+  const canonicalRealPath = await resolveInsideWorkRoot(args.canonicalPrdPath, args.workDir);
+  if (!canonicalRealPath) {
+    return;
+  }
+
+  const canonicalPrdName = path.basename(args.canonicalPrdPath);
+  const entries = await fs.promises.readdir(args.taskDirPath, { withFileTypes: true });
+  let canonicalSymlinkKept = false;
+
+  for (const entry of entries) {
+    if (!PRD_FILE_NAME_PATTERN.test(entry.name)) {
+      continue;
+    }
+
+    const entryPath = path.join(args.taskDirPath, entry.name);
+    const entryStat = await lstatOrNull(entryPath);
+    if (!entryStat?.isSymbolicLink()) {
+      continue;
+    }
+
+    let shouldKeep = false;
+    try {
+      const currentTarget = await fs.promises.readlink(entryPath);
+      const resolvedTarget = path.resolve(path.dirname(entryPath), currentTarget);
+      const resolvedRealPath = await resolveInsideWorkRoot(resolvedTarget, args.workDir);
+      shouldKeep =
+        resolvedRealPath !== null &&
+        path.resolve(resolvedRealPath) === path.resolve(canonicalRealPath) &&
+        entry.name === canonicalPrdName &&
+        !canonicalSymlinkKept;
+    } catch {
+      shouldKeep = false;
+    }
+
+    if (shouldKeep) {
+      canonicalSymlinkKept = true;
+      continue;
+    }
+
+    if (!(await args.validateTasksDir())) {
+      return;
+    }
+    await fs.promises.unlink(entryPath).catch(() => undefined);
+  }
+
+  if (canonicalSymlinkKept) {
+    return;
+  }
+
+  let desiredLinkPath = path.join(args.taskDirPath, canonicalPrdName);
+  const desiredLinkStat = await lstatOrNull(desiredLinkPath);
+  if (desiredLinkStat && !desiredLinkStat.isSymbolicLink()) {
+    let attempt = 1;
+    while (true) {
+      const candidateName = buildTaskPrdLinkName(canonicalPrdName, attempt);
+      desiredLinkPath = path.join(args.taskDirPath, candidateName);
+      if (!(await lstatOrNull(desiredLinkPath))) {
+        break;
+      }
+      attempt += 1;
+    }
+  }
+
+  if (!(await args.validateTasksDir())) {
+    return;
+  }
+  await fs.promises.symlink(path.relative(args.taskDirPath, args.canonicalPrdPath), desiredLinkPath);
 }
 
 async function getValidCurrentTaskDirName(
@@ -472,6 +689,19 @@ export async function ensureTaskScaffoldForSession(sessionId: string, prompt: st
       linkPath: path.join(currentTaskDirPath, "THREAD.md"),
       linkTarget: "../../THREAD.md",
       expectedResolvedTarget: path.join(resolvedWorkDir, "THREAD.md"),
+      workDir: resolvedWorkDir,
+      validateTasksDir,
+    });
+
+    const canonicalPrdPath = await chooseCanonicalSessionPrdPath(resolvedWorkDir);
+    if (!canonicalPrdPath) {
+      emitMarker(PAI_TASK_SCAFFOLD_PRD_LINK_SKIPPED_NO_CANDIDATE);
+      return;
+    }
+
+    await ensureTaskPrdLink({
+      taskDirPath: currentTaskDirPath,
+      canonicalPrdPath,
       workDir: resolvedWorkDir,
       validateTasksDir,
     });

@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 const thisFileDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(thisFileDir, "..", "..", "..");
+const PRD_FILENAME_PATTERN = /^PRD-\d{8}-[a-z0-9-]+\.md$/;
 
 function withEnv(overrides: Record<string, string | undefined>): Record<string, string> {
   const env: Record<string, string> = {};
@@ -31,6 +32,7 @@ async function runAutoWorkCreationHook(args: {
   paiDir: string;
   sessionId: string;
   prompt: string;
+  autoPrdEnabled?: string;
   autoPrdPromptClassification?: string;
 }): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const proc = Bun.spawn({
@@ -39,7 +41,7 @@ async function runAutoWorkCreationHook(args: {
     env: withEnv({
       OPENCODE_ROOT: args.paiDir,
       PAI_ENABLE_MEMORY_PARITY: "1",
-      PAI_ENABLE_AUTO_PRD: "1",
+      PAI_ENABLE_AUTO_PRD: args.autoPrdEnabled ?? "1",
       PAI_ENABLE_AUTO_PRD_PROMPT_CLASSIFICATION: args.autoPrdPromptClassification ?? "1",
     }),
     stdin: "pipe",
@@ -79,9 +81,46 @@ async function getWorkDir(paiDir: string, sessionId: string): Promise<string> {
 async function listPrdFiles(workDir: string): Promise<string[]> {
   const entries = await fs.readdir(workDir, { withFileTypes: true });
   return entries
-    .filter((entry) => entry.isFile() && /^PRD-\d{8}-[a-z0-9-]+\.md$/.test(entry.name))
+    .filter((entry) => entry.isFile() && PRD_FILENAME_PATTERN.test(entry.name))
     .map((entry) => entry.name)
     .sort();
+}
+
+async function getCurrentTaskDirPath(workDir: string): Promise<string> {
+  const tasksDirPath = path.join(workDir, "tasks");
+  const currentTaskName = await fs.readlink(path.join(tasksDirPath, "current"));
+  return path.join(tasksDirPath, currentTaskName);
+}
+
+async function listTaskPrdFiles(taskDirPath: string): Promise<string[]> {
+  const entries = await fs.readdir(taskDirPath, { withFileTypes: true });
+  return entries
+    .filter((entry) => PRD_FILENAME_PATTERN.test(entry.name))
+    .map((entry) => entry.name)
+    .sort();
+}
+
+function formatUtcDateStamp(date: Date): string {
+  const year = String(date.getUTCFullYear());
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
+  return `${year}${month}${day}`;
+}
+
+async function readMetaStartedAtDateStamp(workDir: string): Promise<string> {
+  const rawMeta = await fs.readFile(path.join(workDir, "META.yaml"), "utf8");
+  const match = rawMeta.match(/^started_at:\s*(.+)\s*$/m);
+  if (!match?.[1]) {
+    throw new Error("META.yaml is missing started_at");
+  }
+
+  const startedAtRaw = match[1].trim().replace(/^"([\s\S]*)"$/, "$1").replace(/^'([\s\S]*)'$/, "$1");
+  const startedAt = new Date(startedAtRaw);
+  if (Number.isNaN(startedAt.getTime())) {
+    throw new Error("META.yaml started_at is unparseable");
+  }
+
+  return formatUtcDateStamp(startedAt);
 }
 
 async function exists(filePath: string): Promise<boolean> {
@@ -159,6 +198,228 @@ describe("auto PRD creation", () => {
       expect(taskThreadStat.isSymbolicLink()).toBe(true);
       expect(await fs.readlink(taskIscPath)).toBe("../../ISC.json");
       expect(await fs.readlink(taskThreadPath)).toBe("../../THREAD.md");
+
+      const taskPrdFiles = await listTaskPrdFiles(taskDirPath);
+      expect(taskPrdFiles).toHaveLength(1);
+      const taskPrdName = taskPrdFiles[0];
+      if (!taskPrdName) {
+        throw new Error("expected one task-level PRD symlink");
+      }
+
+      const canonicalPrdPath = path.join(workDir, prdFiles[0] ?? "");
+      const taskPrdPath = path.join(taskDirPath, taskPrdName);
+      expect((await fs.lstat(taskPrdPath)).isSymbolicLink()).toBe(true);
+      expect(await fs.realpath(taskPrdPath)).toBe(await fs.realpath(canonicalPrdPath));
+      expect(run.stderr).not.toContain("PAI_TASK_SCAFFOLD_PRD_LINK_SKIPPED_NO_CANDIDATE");
+    } finally {
+      await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
+  test("repairs task-level PRD symlinks and preserves regular PRD files", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-task-link-repair-"));
+    const sessionId = "session-auto-prd-task-link-repair";
+    const prompt = "Implement deterministic auto PRD creation for memory parity handlers";
+
+    try {
+      const firstRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
+      expect(firstRun.exitCode).toBe(0);
+
+      const workDir = await getWorkDir(paiDir, sessionId);
+      const canonicalPrdFiles = await listPrdFiles(workDir);
+      expect(canonicalPrdFiles).toHaveLength(1);
+
+      const canonicalPrdName = canonicalPrdFiles[0];
+      if (!canonicalPrdName) {
+        throw new Error("expected one canonical PRD at session root");
+      }
+
+      const taskDirPath = await getCurrentTaskDirPath(workDir);
+      const staleSessionPrdName = "PRD-19990101-stale-session-prd.md";
+      const staleTaskSymlinkName = "PRD-19990101-stale-task-link.md";
+      const regularTaskPrdName = "PRD-19990101-keep-regular.md";
+
+      await fs.writeFile(path.join(workDir, staleSessionPrdName), "# stale\n", "utf8");
+      await fs.rm(path.join(taskDirPath, canonicalPrdName), { force: true });
+      await fs.symlink(`../../${canonicalPrdName}`, path.join(taskDirPath, canonicalPrdName));
+      await fs.rm(path.join(taskDirPath, staleTaskSymlinkName), { force: true });
+      await fs.symlink(`../../${staleSessionPrdName}`, path.join(taskDirPath, staleTaskSymlinkName));
+      await fs.writeFile(path.join(taskDirPath, regularTaskPrdName), "keep me\n", "utf8");
+
+      const secondRun = await runAutoWorkCreationHook({
+        paiDir,
+        sessionId,
+        prompt,
+        autoPrdEnabled: "0",
+      });
+      expect(secondRun.exitCode).toBe(0);
+      expect(secondRun.stderr).not.toContain("PAI_TASK_SCAFFOLD_PRD_LINK_SKIPPED_NO_CANDIDATE");
+
+      const taskPrdFiles = await listTaskPrdFiles(taskDirPath);
+      const symlinkPrdFiles: string[] = [];
+
+      for (const fileName of taskPrdFiles) {
+        const stat = await fs.lstat(path.join(taskDirPath, fileName));
+        if (stat.isSymbolicLink()) {
+          symlinkPrdFiles.push(fileName);
+        }
+      }
+
+      expect(symlinkPrdFiles).toEqual([canonicalPrdName]);
+      expect(await fs.realpath(path.join(taskDirPath, canonicalPrdName))).toBe(
+        await fs.realpath(path.join(workDir, canonicalPrdName)),
+      );
+
+      const regularPath = path.join(taskDirPath, regularTaskPrdName);
+      expect((await fs.lstat(regularPath)).isSymbolicLink()).toBe(false);
+      expect(await fs.readFile(regularPath, "utf8")).toBe("keep me\n");
+      expect(await exists(path.join(taskDirPath, staleTaskSymlinkName))).toBe(false);
+    } finally {
+      await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
+  test("multi-candidate PRD selection prefers META date match", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-meta-winner-"));
+    const sessionId = "session-auto-prd-meta-winner";
+    const prompt = "Implement deterministic auto PRD creation for memory parity handlers";
+
+    try {
+      const firstRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
+      expect(firstRun.exitCode).toBe(0);
+
+      const workDir = await getWorkDir(paiDir, sessionId);
+      const existingPrdFiles = await listPrdFiles(workDir);
+      for (const fileName of existingPrdFiles) {
+        await fs.rm(path.join(workDir, fileName), { force: true });
+      }
+
+      const metaDateStamp = await readMetaStartedAtDateStamp(workDir);
+      const expectedWinner = `PRD-${metaDateStamp}-aaa-date-match.md`;
+      const otherCandidateA = "PRD-19990101-zzz-older.md";
+      const otherCandidateB = "PRD-20990101-bbb-newer.md";
+
+      await fs.writeFile(path.join(workDir, expectedWinner), "# winner\n", "utf8");
+      await fs.writeFile(path.join(workDir, otherCandidateA), "# older\n", "utf8");
+      await fs.writeFile(path.join(workDir, otherCandidateB), "# newer\n", "utf8");
+
+      const secondRun = await runAutoWorkCreationHook({
+        paiDir,
+        sessionId,
+        prompt,
+        autoPrdEnabled: "0",
+      });
+      expect(secondRun.exitCode).toBe(0);
+      expect(secondRun.stderr).not.toContain("PAI_TASK_SCAFFOLD_PRD_LINK_SKIPPED_NO_CANDIDATE");
+
+      const taskDirPath = await getCurrentTaskDirPath(workDir);
+      const taskPrdFiles = await listTaskPrdFiles(taskDirPath);
+      const symlinkPrdFiles: string[] = [];
+
+      for (const fileName of taskPrdFiles) {
+        const stat = await fs.lstat(path.join(taskDirPath, fileName));
+        if (stat.isSymbolicLink()) {
+          symlinkPrdFiles.push(fileName);
+        }
+      }
+
+      expect(symlinkPrdFiles).toEqual([expectedWinner]);
+      expect(await fs.realpath(path.join(taskDirPath, expectedWinner))).toBe(
+        await fs.realpath(path.join(workDir, expectedWinner)),
+      );
+    } finally {
+      await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
+  test("multi-candidate PRD selection falls back to lexicographic winner when META is unparseable", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-lexical-winner-"));
+    const sessionId = "session-auto-prd-lexical-winner";
+    const prompt = "Implement deterministic auto PRD creation for memory parity handlers";
+
+    try {
+      const firstRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
+      expect(firstRun.exitCode).toBe(0);
+
+      const workDir = await getWorkDir(paiDir, sessionId);
+      const existingPrdFiles = await listPrdFiles(workDir);
+      for (const fileName of existingPrdFiles) {
+        await fs.rm(path.join(workDir, fileName), { force: true });
+      }
+
+      await fs.writeFile(path.join(workDir, "META.yaml"), "title: Broken\nstarted_at: not-a-date\n", "utf8");
+
+      const expectedWinner = "PRD-20230101-aaa-first.md";
+      const candidateB = "PRD-20230101-bbb-second.md";
+      const candidateC = "PRD-20240101-ccc-third.md";
+
+      await fs.writeFile(path.join(workDir, expectedWinner), "# first\n", "utf8");
+      await fs.writeFile(path.join(workDir, candidateB), "# second\n", "utf8");
+      await fs.writeFile(path.join(workDir, candidateC), "# third\n", "utf8");
+
+      const secondRun = await runAutoWorkCreationHook({
+        paiDir,
+        sessionId,
+        prompt,
+        autoPrdEnabled: "0",
+      });
+      expect(secondRun.exitCode).toBe(0);
+      expect(secondRun.stderr).not.toContain("PAI_TASK_SCAFFOLD_PRD_LINK_SKIPPED_NO_CANDIDATE");
+
+      const taskDirPath = await getCurrentTaskDirPath(workDir);
+      const taskPrdFiles = await listTaskPrdFiles(taskDirPath);
+      const symlinkPrdFiles: string[] = [];
+
+      for (const fileName of taskPrdFiles) {
+        const stat = await fs.lstat(path.join(taskDirPath, fileName));
+        if (stat.isSymbolicLink()) {
+          symlinkPrdFiles.push(fileName);
+        }
+      }
+
+      expect(symlinkPrdFiles).toEqual([expectedWinner]);
+      expect(await fs.realpath(path.join(taskDirPath, expectedWinner))).toBe(
+        await fs.realpath(path.join(workDir, expectedWinner)),
+      );
+    } finally {
+      await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
+  test("no-candidate PRD path emits marker and leaves task PRD files unchanged", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-no-candidate-"));
+    const sessionId = "session-auto-prd-no-candidate";
+    const prompt = "Implement deterministic auto PRD creation for memory parity handlers";
+
+    try {
+      const firstRun = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
+      expect(firstRun.exitCode).toBe(0);
+
+      const workDir = await getWorkDir(paiDir, sessionId);
+      const taskDirPath = await getCurrentTaskDirPath(workDir);
+      const sessionPrdFiles = await listPrdFiles(workDir);
+      for (const fileName of sessionPrdFiles) {
+        await fs.rm(path.join(workDir, fileName), { force: true });
+      }
+
+      const regularTaskPrdName = "PRD-20991231-keep-regular.md";
+      const regularTaskPrdPath = path.join(taskDirPath, regularTaskPrdName);
+      await fs.writeFile(regularTaskPrdPath, "regular stays\n", "utf8");
+
+      const beforePrdEntries = await listTaskPrdFiles(taskDirPath);
+      const secondRun = await runAutoWorkCreationHook({
+        paiDir,
+        sessionId,
+        prompt,
+        autoPrdEnabled: "0",
+      });
+      expect(secondRun.exitCode).toBe(0);
+      expect(secondRun.stderr).toContain("PAI_TASK_SCAFFOLD_PRD_LINK_SKIPPED_NO_CANDIDATE");
+
+      const afterPrdEntries = await listTaskPrdFiles(taskDirPath);
+      expect(afterPrdEntries).toEqual(beforePrdEntries);
+      expect((await fs.lstat(regularTaskPrdPath)).isSymbolicLink()).toBe(false);
+      expect(await fs.readFile(regularTaskPrdPath, "utf8")).toBe("regular stays\n");
     } finally {
       await fs.rm(paiDir, { recursive: true, force: true });
     }
