@@ -261,32 +261,32 @@ describe("current-work state atomicity and non-lossy updates", () => {
     const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-current-work-contention-"));
     let writerA: Bun.Subprocess | null = null;
     let writerB: Bun.Subprocess | null = null;
-
-    writerA = await runWriterProcess({
-      paiDir,
-      sessionId: "session-a",
-      iterations: 180,
-    });
-    writerB = await runWriterProcess({
-      paiDir,
-      sessionId: "session-b",
-      iterations: 180,
-    });
-
-    if (!writerA || !writerB) {
-      throw new Error("failed to spawn contention writers");
-    }
-
     let doneA = false;
     let doneB = false;
-    writerA.exited.then(() => {
-      doneA = true;
-    });
-    writerB.exited.then(() => {
-      doneB = true;
-    });
 
     try {
+      writerA = await runWriterProcess({
+        paiDir,
+        sessionId: "session-a",
+        iterations: 180,
+      });
+      writerB = await runWriterProcess({
+        paiDir,
+        sessionId: "session-b",
+        iterations: 180,
+      });
+
+      if (!writerA || !writerB) {
+        throw new Error("failed to spawn contention writers");
+      }
+
+      writerA.exited.then(() => {
+        doneA = true;
+      });
+      writerB.exited.then(() => {
+        doneB = true;
+      });
+
       while (!doneA || !doneB) {
         await assertStateJsonIsValidIfPresent(paiDir);
         await sleep(2);
