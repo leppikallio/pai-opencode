@@ -214,7 +214,7 @@ describe("cc work lifecycle hooks", () => {
 
       expect(completeResult.exitCode).toBe(0);
       expect(completeResult.stdout).toBe("");
-      expect(completeResult.stderr).toBe("");
+      expect(completeResult.stderr).toContain("PAI_STATE_CURRENT_WORK_MAPPING_OUT_OF_ROOT");
 
       const outsideMetaAfter = await fs.readFile(outsideMetaPath, "utf8");
       expect(outsideMetaAfter).toBe(outsideMetaBefore);
