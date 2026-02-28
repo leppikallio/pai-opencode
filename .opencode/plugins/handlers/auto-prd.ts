@@ -89,7 +89,6 @@ async function writeClassificationArtifact(
     v: classification.v,
     ts: classification.ts,
     type: classification.type,
-    title: classification.title,
     effort: classification.effort,
     is_new_topic: classification.is_new_topic,
     source: classification.source,

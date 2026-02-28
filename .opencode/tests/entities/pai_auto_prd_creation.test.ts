@@ -140,6 +140,10 @@ function countMatching(entries: string[], pattern: RegExp): number {
   return entries.filter((entry) => pattern.test(entry)).length;
 }
 
+function normalizePromptForLeakCheck(prompt: string): string {
+  return prompt.replace(/[\r\n]+/g, " ").replace(/\s+/g, " ").trim();
+}
+
 describe("auto PRD creation", () => {
   test("work-like prompt creates PRD and prompt classification artifact", async () => {
     const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-work-"));
@@ -161,12 +165,9 @@ describe("auto PRD creation", () => {
       const classification = JSON.parse(raw) as {
         type?: string;
         source?: string;
-        title?: string;
       };
       expect(classification.type).toBe("work");
       expect(classification.source).toBe("heuristic");
-      expect(typeof classification.title).toBe("string");
-      expect(classification.title?.length ?? 0).toBeGreaterThan(0);
       expect(raw).not.toContain(prompt);
 
       const tasksDirPath = path.join(workDir, "tasks");
@@ -211,6 +212,31 @@ describe("auto PRD creation", () => {
       expect((await fs.lstat(taskPrdPath)).isSymbolicLink()).toBe(true);
       expect(await fs.realpath(taskPrdPath)).toBe(await fs.realpath(canonicalPrdPath));
       expect(run.stderr).not.toContain("PAI_TASK_SCAFFOLD_PRD_LINK_SKIPPED_NO_CANDIDATE");
+    } finally {
+      await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
+  test("classification artifact never stores short prompt text or normalized equivalent", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-no-title-leak-"));
+    const sessionId = "session-auto-prd-no-title-leak";
+    const prompt = "Need help now";
+
+    try {
+      const run = await runAutoWorkCreationHook({ paiDir, sessionId, prompt });
+      expect(run.exitCode).toBe(0);
+
+      const workDir = await getWorkDir(paiDir, sessionId);
+      expect((await listPrdFiles(workDir)).length).toBe(1);
+
+      const classificationPath = path.join(workDir, "PROMPT_CLASSIFICATION.json");
+      expect(await exists(classificationPath)).toBe(true);
+
+      const raw = await fs.readFile(classificationPath, "utf8");
+      const normalizedPrompt = normalizePromptForLeakCheck(prompt);
+
+      expect(raw).not.toContain(prompt);
+      expect(raw).not.toContain(normalizedPrompt);
     } finally {
       await fs.rm(paiDir, { recursive: true, force: true });
     }
