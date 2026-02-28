@@ -34,6 +34,8 @@ import { captureSoulEvolution } from "./soul-evolution";
 import { isEnvFlagEnabled } from "../lib/env-flags";
 import { ensurePrdForSession } from "./auto-prd";
 import { recordAgentSpawn, recordToolUse } from "./lineage-tracker";
+import { ensureTaskScaffoldForSession } from "./work-task-scaffolder";
+import { classifyPrompt } from "../lib/prompt-classification";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -387,23 +389,35 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
   state.committedMessages.add(messageId);
 
   const capped = capText(text, MAX_TEXT);
+  const shouldEnsureWorkArtifacts = classifyPrompt(capped).type === "work";
 
   const { storage, isSubagent } = storageSessionIdFor(sessionId);
-  const session = await getOrLoadCurrentSession(storage);
-  if (!session) {
+  let session = await getOrLoadCurrentSession(storage);
+  if (shouldEnsureWorkArtifacts && !session) {
     const createResult = await createWorkSession(storage, capped);
-    if (!createResult.success) return;
+    if (!createResult.success) {
+      return;
+    }
+    session = createResult.session ?? (await getOrLoadCurrentSession(storage));
   }
 
-  if (!isSubagent) {
+  if (shouldEnsureWorkArtifacts && !isSubagent) {
     try {
       await ensurePrdForSession(storage, capped);
     } catch (error) {
       fileLogError("Auto PRD ensure failed", error);
     }
+
+    try {
+      await ensureTaskScaffoldForSession(storage, capped);
+    } catch (error) {
+      fileLogError("Task scaffold ensure failed", error);
+    }
   }
 
-  await appendToThreadForSession(storage, `${isSubagent ? `**Subagent User (${sessionId}):** ` : "**User:** "}${capped}`);
+  if (session) {
+    await appendToThreadForSession(storage, `${isSubagent ? `**Subagent User (${sessionId}):** ` : "**User:** "}${capped}`);
+  }
 
   // === PASS-1 PROMPT HINT (v2.5-inspired) ===
   // OpenCode cannot inject pre-response system text on the same turn.
@@ -909,7 +923,14 @@ export function createHistoryCapture(opts?: { serverUrl?: string; client?: Carri
         }
         if (sessionId) {
           const mapped = storageSessionIdFor(sessionId);
-          await createWorkSession(mapped.storage, title);
+          await appendRawEvent(
+            mapped.storage,
+            `session.created:${mapped.storage}:${sessionId}`,
+            "session",
+            "session.created",
+            { sessionId, title, parentId },
+            { sourceSessionId: sessionId }
+          );
           if (parentId) {
             await recordAgentSpawn(mapped.storage, sessionId);
           }
