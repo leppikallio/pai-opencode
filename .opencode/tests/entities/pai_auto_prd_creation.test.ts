@@ -888,6 +888,25 @@ describe("auto PRD creation", () => {
     }
   });
 
+  test("whitespace-only prompt exits without creating current-work state", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-whitespace-"));
+    const sessionId = "session-auto-prd-whitespace";
+
+    try {
+      const run = await runAutoWorkCreationHook({
+        paiDir,
+        sessionId,
+        prompt: "   \n\t  ",
+      });
+      expect(run.exitCode).toBe(0);
+
+      const statePath = path.join(paiDir, "MEMORY", "STATE", "current-work.json");
+      expect(await exists(statePath)).toBe(false);
+    } finally {
+      await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
   test('near-miss prompt "ok I need help" is not treated as trivial', async () => {
     const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-ok-near-miss-"));
     const sessionId = "session-auto-prd-ok-near-miss";

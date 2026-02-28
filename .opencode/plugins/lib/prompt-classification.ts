@@ -72,7 +72,7 @@ function normalizePromptForTrivialCheck(prompt: string): string {
 export function isTrivialPrompt(prompt: string): boolean {
   const normalized = normalizePromptForTrivialCheck(prompt);
   if (!normalized) {
-    return false;
+    return true;
   }
 
   return TRIVIAL_PROMPTS.has(normalized);

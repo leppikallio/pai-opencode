@@ -589,6 +589,47 @@ describe("auto PRD creation via history-capture backstop", () => {
     }
   });
 
+  test("whitespace-only user prompt skips work artifacts while preserving raw capture", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-history-whitespace-capture-safety-"));
+    const sessionId = "session-whitespace-capture-safety";
+    const messageId = `message-${Date.now()}`;
+
+    try {
+      await withEnv(
+        {
+          OPENCODE_ROOT: root,
+          PAI_ENABLE_MEMORY_PARITY: "1",
+          PAI_ENABLE_AUTO_PRD: "1",
+          PAI_ENABLE_AUTO_PRD_PROMPT_CLASSIFICATION: "1",
+        },
+        async () => {
+          await emitHistoryCaptureUserMessageCommit({
+            root,
+            sessionId,
+            messageId,
+            prompt: "   \n\t  ",
+          });
+        },
+      );
+
+      expect(await exists(path.join(root, "MEMORY", "STATE", "current-work.json"))).toBe(false);
+
+      const workRoot = path.join(root, "MEMORY", "WORK");
+      expect(await exists(workRoot)).toBe(false);
+
+      const rawFile = await findRawSessionFile(root, sessionId);
+      expect(typeof rawFile).toBe("string");
+      if (!rawFile) {
+        throw new Error("expected RAW session file for whitespace-only prompt");
+      }
+
+      const rawContent = await fs.readFile(rawFile, "utf8");
+      expect(rawContent).toContain('"name":"message.updated"');
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
   test("session.created followed by non-trivial question bootstraps work session and task scaffold", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-history-session-created-question-"));
     const sessionId = "session-created-question";
