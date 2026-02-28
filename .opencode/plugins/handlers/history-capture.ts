@@ -223,12 +223,28 @@ const TRIVIAL_ACK_PROMPTS = new Set([
   "thanks",
   "thank you",
   "thx",
+  "cool",
+  "nice",
+  "great",
+  "yep",
+  "yes",
+  "no",
+  "sure",
+  "hi",
+  "hello",
+  "hey",
   "got it",
   "sounds good",
 ]);
 
 function isTrivialAcknowledgementPrompt(text: string): boolean {
-  const normalized = text.trim().toLowerCase().replace(/[.!?]+$/g, "");
+  const normalized = text
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!normalized) return true;
   return TRIVIAL_ACK_PROMPTS.has(normalized);
 }

@@ -202,73 +202,86 @@ describe("auto PRD creation via history-capture backstop", () => {
     }
   });
 
-  test("session.created followed by trivial user message does not persist work artifacts", async () => {
-    const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-history-session-created-trivial-"));
-    const sessionId = "session-created-trivial";
-    const messageId = `message-${Date.now()}`;
+  test("session.created followed by trivial user variants does not persist work artifacts", async () => {
+    const trivialPrompts = [
+      "ok",
+      "OK!",
+      "thanks",
+      "thank   you",
+      "hi",
+      "thanks :)",
+      "ok 👍",
+      "sounds good.",
+    ];
 
-    try {
-      await withEnv(
-        {
-          OPENCODE_ROOT: root,
-          PAI_ENABLE_MEMORY_PARITY: "1",
-          PAI_ENABLE_AUTO_PRD: "1",
-          PAI_ENABLE_AUTO_PRD_PROMPT_CLASSIFICATION: "1",
-        },
-        async () => {
-          const capture = createHistoryCapture({ directory: root });
+    for (const [index, prompt] of trivialPrompts.entries()) {
+      const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-history-session-created-trivial-"));
+      const sessionId = `session-created-trivial-${index}`;
+      const messageId = `message-${Date.now()}-${index}`;
 
-          await capture.handleEvent({
-            type: "session.created",
-            properties: {
-              info: {
-                id: sessionId,
-                title: "work-session",
+      try {
+        await withEnv(
+          {
+            OPENCODE_ROOT: root,
+            PAI_ENABLE_MEMORY_PARITY: "1",
+            PAI_ENABLE_AUTO_PRD: "1",
+            PAI_ENABLE_AUTO_PRD_PROMPT_CLASSIFICATION: "1",
+          },
+          async () => {
+            const capture = createHistoryCapture({ directory: root });
+
+            await capture.handleEvent({
+              type: "session.created",
+              properties: {
+                info: {
+                  id: sessionId,
+                  title: "work-session",
+                },
               },
-            },
-          });
+            });
 
-          await capture.handleEvent({
-            type: "message.updated",
-            properties: {
-              info: {
-                id: messageId,
-                sessionID: sessionId,
-                role: "user",
+            await capture.handleEvent({
+              type: "message.updated",
+              properties: {
+                info: {
+                  id: messageId,
+                  sessionID: sessionId,
+                  role: "user",
+                },
               },
-            },
-          });
+            });
 
-          await capture.handleEvent({
-            type: "message.part.updated",
-            properties: {
-              part: {
-                sessionID: sessionId,
-                messageID: messageId,
-                type: "text",
-                text: "ok",
+            await capture.handleEvent({
+              type: "message.part.updated",
+              properties: {
+                part: {
+                  sessionID: sessionId,
+                  messageID: messageId,
+                  type: "text",
+                  text: prompt,
+                },
               },
-            },
+            });
+          },
+        );
+
+        expect(await exists(path.join(root, "MEMORY", "STATE", "current-work.json"))).toBe(false);
+
+        const workRoot = path.join(root, "MEMORY", "WORK");
+        const hasWorkRoot = await exists(workRoot);
+        if (hasWorkRoot) {
+          const workEntries = await fs.readdir(workRoot, { recursive: true });
+          const createdTaskArtifact = workEntries.some((entry) => {
+            if (typeof entry !== "string") {
+              return false;
+            }
+            return entry.includes("tasks") || PRD_FILENAME_PATTERN.test(path.basename(entry));
           });
-        },
-      );
-
-      expect(await exists(path.join(root, "MEMORY", "STATE", "current-work.json"))).toBe(false);
-
-      const workRoot = path.join(root, "MEMORY", "WORK");
-      const hasWorkRoot = await exists(workRoot);
-      if (hasWorkRoot) {
-        const workEntries = await fs.readdir(workRoot, { recursive: true });
-        const createdTaskArtifact = workEntries.some((entry) => {
-          if (typeof entry !== "string") {
-            return false;
-          }
-          return entry.includes("tasks") || PRD_FILENAME_PATTERN.test(path.basename(entry));
-        });
-        expect(createdTaskArtifact).toBe(false);
+          expect(createdTaskArtifact).toBe(false);
+        }
+      } finally {
+        await fs.rm(root, { recursive: true, force: true });
       }
-    } finally {
-      await fs.rm(root, { recursive: true, force: true });
     }
   });
 
