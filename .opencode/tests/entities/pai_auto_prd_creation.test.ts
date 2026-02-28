@@ -922,7 +922,49 @@ describe("auto PRD creation", () => {
       expect(second.exitCode).toBe(0);
 
       const workDir = await getWorkDir(paiDir, sessionId);
-      expect((await listPrdFiles(workDir)).length).toBe(1);
+      const canonicalPrdFiles = await listPrdFiles(workDir);
+      expect(canonicalPrdFiles).toHaveLength(1);
+
+      const canonicalPrdName = canonicalPrdFiles[0];
+      if (!canonicalPrdName) {
+        throw new Error("expected one canonical PRD at session root");
+      }
+
+      const tasksDirPath = path.join(workDir, "tasks");
+      const currentTaskPath = path.join(tasksDirPath, "current");
+      expect(await exists(currentTaskPath)).toBe(true);
+
+      const taskEntries = await fs.readdir(tasksDirPath, { withFileTypes: true });
+      const taskDirs = taskEntries
+        .filter((entry) => entry.isDirectory() && /^001_/.test(entry.name))
+        .map((entry) => entry.name);
+      expect(taskDirs).toHaveLength(1);
+
+      const onlyTaskDir = taskDirs[0];
+      if (!onlyTaskDir) {
+        throw new Error("expected exactly one 001_ task directory");
+      }
+
+      const currentTaskStat = await fs.lstat(currentTaskPath);
+      expect(currentTaskStat.isSymbolicLink()).toBe(true);
+      const currentTaskTarget = await fs.readlink(currentTaskPath);
+      expect(currentTaskTarget).toBe(onlyTaskDir);
+
+      const resolvedCurrentTaskPath = path.resolve(tasksDirPath, currentTaskTarget);
+      expect(resolvedCurrentTaskPath).toBe(path.join(tasksDirPath, onlyTaskDir));
+      expect((await fs.lstat(resolvedCurrentTaskPath)).isDirectory()).toBe(true);
+
+      const taskPrdFiles = await listTaskPrdFiles(resolvedCurrentTaskPath);
+      expect(taskPrdFiles).toHaveLength(1);
+
+      const taskPrdName = taskPrdFiles[0];
+      if (!taskPrdName) {
+        throw new Error("expected one task-level PRD symlink");
+      }
+
+      const taskPrdPath = path.join(resolvedCurrentTaskPath, taskPrdName);
+      expect((await fs.lstat(taskPrdPath)).isSymbolicLink()).toBe(true);
+      expect(await fs.realpath(taskPrdPath)).toBe(await fs.realpath(path.join(workDir, canonicalPrdName)));
     } finally {
       await fs.rm(paiDir, { recursive: true, force: true });
     }
