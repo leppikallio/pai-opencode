@@ -160,12 +160,14 @@ describe("createWorkSession non-clobber and recovery", () => {
 
       await writeCurrentWorkState(paiDir, {});
 
-      const run = await runAutoWorkCreationHook({ paiDir, sessionId, prompt: "ok" });
+      const run = await runAutoWorkCreationHook({ paiDir, sessionId, prompt: "   \n\t  " });
       expect(run.exitCode).toBe(0);
 
       expect(await fs.readFile(path.join(existingPath, "META.yaml"), "utf8")).toBe(sentinelMeta);
       expect(await fs.readFile(path.join(existingPath, "ISC.json"), "utf8")).toBe(sentinelIsc);
       expect(await fs.readFile(path.join(existingPath, "THREAD.md"), "utf8")).toBe(sentinelThread);
+      const currentTaskLink = await fs.lstat(path.join(existingPath, "tasks", "current"));
+      expect(currentTaskLink.isSymbolicLink()).toBe(true);
       expect(await getMappedWorkDir(paiDir, sessionId)).toBe(existingPath);
       expect(await countSessionDirs(paiDir, sessionId)).toBe(1);
     } finally {

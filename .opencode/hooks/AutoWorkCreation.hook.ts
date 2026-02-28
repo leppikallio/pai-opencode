@@ -52,7 +52,7 @@ async function main(): Promise<void> {
     const prompt = input.prompt ?? input.user_prompt ?? "";
     const normalizedPrompt = normalizePromptForArtifacts(prompt);
 
-    if (!sessionId || !normalizedPrompt) {
+    if (!sessionId) {
       return;
     }
 

@@ -630,6 +630,47 @@ describe("auto PRD creation via history-capture backstop", () => {
     }
   });
 
+  test("long prompt suffix drives work creation while THREAD capture remains capped", async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-history-long-suffix-"));
+    const sessionId = "session-long-suffix-decision";
+    const messageId = `message-${Date.now()}`;
+    const suffix = "Implement deterministic suffix-sensitive work creation classification now";
+    const prompt = `ok${" ".repeat(20010)}${suffix}`;
+
+    try {
+      await withEnv(
+        {
+          OPENCODE_ROOT: root,
+          PAI_ENABLE_MEMORY_PARITY: "1",
+          PAI_ENABLE_AUTO_PRD: "1",
+          PAI_ENABLE_AUTO_PRD_PROMPT_CLASSIFICATION: "1",
+        },
+        async () => {
+          await emitHistoryCaptureUserMessageCommit({
+            root,
+            sessionId,
+            messageId,
+            prompt,
+          });
+        },
+      );
+
+      const workDir = await readCurrentWorkDir(root, sessionId);
+      expect(typeof workDir).toBe("string");
+      if (!workDir) {
+        throw new Error("expected work dir for long prompt with non-trivial suffix");
+      }
+
+      expect(await exists(path.join(workDir, "PROMPT_CLASSIFICATION.json"))).toBe(true);
+
+      const threadContent = await fs.readFile(path.join(workDir, "THREAD.md"), "utf8");
+      expect(threadContent).toContain("**User:** ok");
+      expect(threadContent).not.toContain(suffix);
+    } finally {
+      await fs.rm(root, { recursive: true, force: true });
+    }
+  });
+
   test("session.created followed by non-trivial question bootstraps work session and task scaffold", async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-auto-prd-history-session-created-question-"));
     const sessionId = "session-created-question";

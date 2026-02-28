@@ -389,14 +389,14 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
   // between message.updated and message.part.updated.
   state.committedMessages.add(messageId);
 
+  const normalizedPrompt = normalizePromptForArtifacts(text);
+  const shouldSkipWorkCreation = isTrivialPrompt(normalizedPrompt);
   const rawUserMessage = capText(text, MAX_TEXT);
-  const normalized = normalizePromptForArtifacts(rawUserMessage);
-  const shouldSkipWorkCreation = isTrivialPrompt(normalized);
 
   const { storage, isSubagent } = storageSessionIdFor(sessionId);
   let session = await getOrLoadCurrentSession(storage);
   if (!shouldSkipWorkCreation && !session) {
-    const createResult = await createWorkSession(storage, normalized);
+    const createResult = await createWorkSession(storage, normalizedPrompt);
     if (createResult.success) {
       session = createResult.session ?? (await getOrLoadCurrentSession(storage));
     }
@@ -405,19 +405,19 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
   if (!isSubagent) {
     if (!shouldSkipWorkCreation) {
       try {
-        await ensurePrdForSession(storage, normalized);
+        await ensurePrdForSession(storage, normalizedPrompt);
       } catch (error) {
         fileLogError("Auto PRD ensure failed", error);
       }
 
       try {
-        await ensureTaskScaffoldForSession(storage, normalized);
+        await ensureTaskScaffoldForSession(storage, normalizedPrompt);
       } catch (error) {
         fileLogError("Task scaffold ensure failed", error);
       }
     } else if (session) {
       try {
-        await ensureTaskScaffoldForSession(storage, normalized);
+        await ensureTaskScaffoldForSession(storage, normalizedPrompt);
       } catch (error) {
         fileLogError("Task scaffold repair failed", error);
       }
@@ -698,7 +698,7 @@ async function handleMessagePartUpdated(eventProps: UnknownRecord, carrier: Carr
   if (partType === "text") {
     const text = getStringProp(part, "text");
     if (typeof text === "string") {
-      state.messageText.set(messageId, capText(text, MAX_TEXT));
+      state.messageText.set(messageId, text);
       await commitUserMessage(sessionId, messageId, carrier);
     }
     return;

@@ -711,6 +711,8 @@ export async function ensureTaskScaffoldForSession(sessionId: string, prompt: st
     }
     await fs.promises.mkdir(currentTaskDirPath, { recursive: true });
 
+    // Option A ownership: task-level `ISC.json` and `THREAD.md` are symlinks
+    // to the session-level canonical files until the Algorithm update lands.
     await ensureTaskLink({
       linkPath: path.join(currentTaskDirPath, "ISC.json"),
       linkTarget: "../../ISC.json",
