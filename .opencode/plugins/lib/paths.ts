@@ -128,6 +128,23 @@ export type CurrentWorkStateV2 = {
   sessions: Record<string, { work_dir: string; started_at?: string }>;
 };
 
+type CurrentWorkLockRecordV1 = {
+  created_at: string;
+  token: string;
+};
+
+type CurrentWorkLockHandle = {
+  lockDir: string;
+  token: string;
+};
+
+const CURRENT_WORK_STATE_FILE = "current-work.json";
+const CURRENT_WORK_LOCK_DIR = "current-work.lock";
+const CURRENT_WORK_LOCK_INFO_FILE = "lock.json";
+const CURRENT_WORK_LOCK_STALE_TTL_MS = 10_000;
+const CURRENT_WORK_LOCK_MAX_WAIT_MS = 2_000;
+const CURRENT_WORK_LOCK_BASE_DELAY_MS = 10;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -144,6 +161,145 @@ function sanitizeSessionId(sessionId: string): string {
   // Allow only safe path characters.
   if (!/^[A-Za-z0-9_-]+$/.test(trimmed)) return "";
   return trimmed;
+}
+
+function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
+  return typeof error === "object" && error !== null && "code" in error;
+}
+
+function isMissingPathError(error: unknown): boolean {
+  return isErrnoException(error) && error.code === "ENOENT";
+}
+
+function createCurrentWorkLockToken(): string {
+  return `${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function getCurrentWorkLockInfoPath(lockDir: string): string {
+  return path.join(lockDir, CURRENT_WORK_LOCK_INFO_FILE);
+}
+
+function getCurrentWorkLockRetryDelay(attempt: number): number {
+  const base = Math.min(100, CURRENT_WORK_LOCK_BASE_DELAY_MS * (attempt + 1));
+  const jitter = Math.floor(Math.random() * 7);
+  return base + jitter;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function isCurrentWorkLockRecordV1(value: unknown): value is CurrentWorkLockRecordV1 {
+  if (!isRecord(value)) return false;
+  return typeof value.created_at === "string" && typeof value.token === "string";
+}
+
+async function readCurrentWorkLockRecord(lockDir: string): Promise<CurrentWorkLockRecordV1 | null> {
+  const lockInfoPath = getCurrentWorkLockInfoPath(lockDir);
+  try {
+    const raw = await fs.promises.readFile(lockInfoPath, "utf-8");
+    const parsed = JSON.parse(raw);
+    if (!isCurrentWorkLockRecordV1(parsed)) return null;
+    return parsed;
+  } catch (error) {
+    if (isMissingPathError(error)) {
+      return null;
+    }
+    return null;
+  }
+}
+
+async function writeCurrentWorkLockRecord(
+  lockDir: string,
+  lockRecord: CurrentWorkLockRecordV1,
+): Promise<void> {
+  const lockInfoPath = getCurrentWorkLockInfoPath(lockDir);
+  await fs.promises.writeFile(lockInfoPath, `${JSON.stringify(lockRecord)}\n`, "utf-8");
+}
+
+function isCurrentWorkLockStale(lockRecord: CurrentWorkLockRecordV1): boolean {
+  const createdAtMs = Date.parse(lockRecord.created_at);
+  if (!Number.isFinite(createdAtMs)) {
+    return false;
+  }
+  return Date.now() - createdAtMs > CURRENT_WORK_LOCK_STALE_TTL_MS;
+}
+
+async function breakCurrentWorkLockIfStale(lockDir: string, contenderToken: string): Promise<boolean> {
+  const current = await readCurrentWorkLockRecord(lockDir);
+  if (!current || !isCurrentWorkLockStale(current)) {
+    return false;
+  }
+
+  const quarantinePath = `${lockDir}.quarantine.${Date.now()}.${contenderToken}`;
+  try {
+    await fs.promises.rename(lockDir, quarantinePath);
+  } catch (error) {
+    if (isErrnoException(error) && (error.code === "ENOENT" || error.code === "EEXIST")) {
+      return false;
+    }
+    throw error;
+  }
+
+  await fs.promises.rm(quarantinePath, { recursive: true, force: true });
+  process.stderr.write("PAI_STATE_CURRENT_WORK_LOCK_BROKEN_STALE\n");
+  return true;
+}
+
+async function acquireCurrentWorkLock(stateDir: string): Promise<CurrentWorkLockHandle | null> {
+  await ensureDir(stateDir);
+
+  const lockDir = path.join(stateDir, CURRENT_WORK_LOCK_DIR);
+  const token = createCurrentWorkLockToken();
+  const lockRecord: CurrentWorkLockRecordV1 = {
+    created_at: new Date().toISOString(),
+    token,
+  };
+  const startedAt = Date.now();
+
+  let attempt = 0;
+  while (Date.now() - startedAt < CURRENT_WORK_LOCK_MAX_WAIT_MS) {
+    try {
+      await fs.promises.mkdir(lockDir);
+      await writeCurrentWorkLockRecord(lockDir, lockRecord);
+      return { lockDir, token };
+    } catch (error) {
+      if (!isErrnoException(error) || error.code !== "EEXIST") {
+        throw error;
+      }
+
+      await breakCurrentWorkLockIfStale(lockDir, token);
+
+      const remainingMs = CURRENT_WORK_LOCK_MAX_WAIT_MS - (Date.now() - startedAt);
+      if (remainingMs <= 0) {
+        break;
+      }
+
+      const delay = Math.min(getCurrentWorkLockRetryDelay(attempt), remainingMs);
+      await sleep(Math.max(1, delay));
+      attempt += 1;
+    }
+  }
+
+  process.stderr.write("PAI_STATE_CURRENT_WORK_LOCK_TIMEOUT\n");
+  return null;
+}
+
+async function releaseCurrentWorkLock(lockHandle: CurrentWorkLockHandle): Promise<void> {
+  const current = await readCurrentWorkLockRecord(lockHandle.lockDir);
+  if (!current || current.token !== lockHandle.token) {
+    return;
+  }
+
+  try {
+    await fs.promises.rm(lockHandle.lockDir, { recursive: true });
+  } catch (error) {
+    if (!isMissingPathError(error)) {
+      throw error;
+    }
+  }
 }
 
 async function readCurrentWorkState(stateFile: string): Promise<CurrentWorkStateV2> {
@@ -177,12 +333,31 @@ async function readCurrentWorkState(stateFile: string): Promise<CurrentWorkState
 }
 
 async function writeCurrentWorkState(stateFile: string, state: CurrentWorkStateV2): Promise<void> {
-  await ensureDir(getStateDir());
-  await fs.promises.writeFile(stateFile, JSON.stringify(state, null, 2));
+  const directory = path.dirname(stateFile);
+  await ensureDir(directory);
+
+  const tempFile = path.join(
+    directory,
+    `.${path.basename(stateFile)}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  );
+
+  await fs.promises.writeFile(tempFile, `${JSON.stringify(state, null, 2)}\n`, "utf-8");
+  try {
+    await fs.promises.rename(tempFile, stateFile);
+  } catch (error) {
+    try {
+      await fs.promises.unlink(tempFile);
+    } catch (cleanupError) {
+      if (!isMissingPathError(cleanupError)) {
+        throw cleanupError;
+      }
+    }
+    throw error;
+  }
 }
 
 export async function getCurrentWorkPathForSession(sessionIdRaw: string): Promise<string | null> {
-  const stateFile = path.join(getStateDir(), "current-work.json");
+  const stateFile = path.join(getStateDir(), CURRENT_WORK_STATE_FILE);
   const sessionId = sanitizeSessionId(sessionIdRaw);
   if (!sessionId) return null;
 
@@ -196,6 +371,7 @@ export async function getCurrentWorkPathForSession(sessionIdRaw: string): Promis
     if (rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel))) {
       return candidate;
     }
+    process.stderr.write("PAI_STATE_CURRENT_WORK_MAPPING_OUT_OF_ROOT\n");
     return null;
   }
 
@@ -203,7 +379,8 @@ export async function getCurrentWorkPathForSession(sessionIdRaw: string): Promis
 }
 
 export async function setCurrentWorkPathForSession(sessionIdRaw: string, workPath: string): Promise<void> {
-  const stateFile = path.join(getStateDir(), "current-work.json");
+  const stateDir = getStateDir();
+  const stateFile = path.join(stateDir, CURRENT_WORK_STATE_FILE);
   const sessionId = sanitizeSessionId(sessionIdRaw);
   if (!sessionId) return;
 
@@ -212,22 +389,38 @@ export async function setCurrentWorkPathForSession(sessionIdRaw: string, workPat
   const candidate = path.resolve(workPath);
   const rel = path.relative(workRoot, candidate);
   if (!(rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel)))) {
+    process.stderr.write("PAI_STATE_CURRENT_WORK_MAPPING_OUT_OF_ROOT\n");
     return;
   }
 
-  const state = await readCurrentWorkState(stateFile);
-  state.sessions[sessionId] = { work_dir: candidate, started_at: new Date().toISOString() };
-  state.updated_at = new Date().toISOString();
-  await writeCurrentWorkState(stateFile, state);
+  const lockHandle = await acquireCurrentWorkLock(stateDir);
+  if (!lockHandle) {
+    return;
+  }
+
+  try {
+    const state = await readCurrentWorkState(stateFile);
+    state.sessions[sessionId] = { work_dir: candidate, started_at: new Date().toISOString() };
+    state.updated_at = new Date().toISOString();
+    await writeCurrentWorkState(stateFile, state);
+  } finally {
+    await releaseCurrentWorkLock(lockHandle);
+  }
 }
 
 /**
  * Clear current work session
  */
 export async function clearCurrentWorkForSession(sessionIdRaw: string): Promise<void> {
-  const stateFile = path.join(getStateDir(), "current-work.json");
+  const stateDir = getStateDir();
+  const stateFile = path.join(stateDir, CURRENT_WORK_STATE_FILE);
   const sessionId = sanitizeSessionId(sessionIdRaw);
   if (!sessionId) return;
+
+  const lockHandle = await acquireCurrentWorkLock(stateDir);
+  if (!lockHandle) {
+    return;
+  }
 
   try {
     const state = await readCurrentWorkState(stateFile);
@@ -236,6 +429,8 @@ export async function clearCurrentWorkForSession(sessionIdRaw: string): Promise<
     await writeCurrentWorkState(stateFile, state);
   } catch {
     // Best effort
+  } finally {
+    await releaseCurrentWorkLock(lockHandle);
   }
 }
 
