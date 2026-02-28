@@ -113,10 +113,12 @@ export async function ensurePrdForSession(sessionId: string, prompt: string): Pr
 
   const slug = slugify(meta.title) || "work-session";
   const prdPath = path.join(workPath, generatePRDFilename(slug, meta.startedAt));
+  const promptExcerpt = prompt.slice(0, 500);
   const prdContent = generatePRDTemplate({
     title: meta.title,
     slug,
     effortLevel: toEffortLabel(classification.effort),
+    prompt: promptExcerpt,
     now: meta.startedAt,
   });
 

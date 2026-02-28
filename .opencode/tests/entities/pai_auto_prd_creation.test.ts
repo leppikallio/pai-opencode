@@ -158,6 +158,10 @@ describe("auto PRD creation", () => {
       const prdFiles = await listPrdFiles(workDir);
       expect(prdFiles.length).toBe(1);
 
+      const prdPath = path.join(workDir, prdFiles[0] ?? "");
+      const prdBody = await fs.readFile(prdPath, "utf8");
+      expect(prdBody).toContain(`### Problem Space\n${prompt}\n`);
+
       const classificationPath = path.join(workDir, "PROMPT_CLASSIFICATION.json");
       expect(await exists(classificationPath)).toBe(true);
 
