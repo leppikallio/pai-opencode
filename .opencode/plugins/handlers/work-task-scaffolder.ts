@@ -5,6 +5,8 @@ import { getCurrentWorkPathForSession, slugify } from "../lib/paths";
 
 const TASK_DIR_NAME_PATTERN = /^\d{3}_[a-z0-9-]+$/;
 const PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR = "PAI_TASK_SCAFFOLD_SKIPPED_UNSAFE_TASKS_DIR\n";
+const PAI_TASK_SCAFFOLD_UNSAFE_CANONICAL_TARGET =
+  "PAI_TASK_SCAFFOLD_SKIPPED_UNSAFE_CANONICAL_TARGET\n";
 
 type WorkMeta = {
   title: string;
@@ -136,13 +138,17 @@ async function ensureSafeTasksDir(workDir: string): Promise<string | null> {
     await fs.promises.mkdir(tasksDir, { recursive: true });
   }
 
-  const statAfter = await lstatOrNull(tasksDir);
-  if (!statAfter || statAfter.isSymbolicLink() || !statAfter.isDirectory()) {
+  if (!(await ensureTasksDirSafeForMutation(tasksDir))) {
     process.stderr.write(PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR);
     return null;
   }
 
   return tasksDir;
+}
+
+async function ensureTasksDirSafeForMutation(tasksDir: string): Promise<boolean> {
+  const tasksDirStat = await lstatOrNull(tasksDir);
+  return Boolean(tasksDirStat && tasksDirStat.isDirectory() && !tasksDirStat.isSymbolicLink());
 }
 
 async function listTaskDirs(tasksDir: string): Promise<string[]> {
@@ -234,15 +240,33 @@ async function ensureTaskLink(args: {
   linkTarget: string;
   expectedResolvedTarget: string;
   workDir: string;
+  tasksDir: string;
 }): Promise<void> {
+  const validateTasksDir = async (): Promise<boolean> => {
+    if (await ensureTasksDirSafeForMutation(args.tasksDir)) {
+      return true;
+    }
+    process.stderr.write(PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR);
+    return false;
+  };
+
   const currentStat = await lstatOrNull(args.linkPath);
   if (!currentStat) {
+    if (!(await validateTasksDir())) {
+      return;
+    }
     await fs.promises.symlink(args.linkTarget, args.linkPath);
     return;
   }
 
   if (!currentStat.isSymbolicLink()) {
+    if (!(await validateTasksDir())) {
+      return;
+    }
     await createTimestampedRename(args.linkPath, "legacy");
+    if (!(await validateTasksDir())) {
+      return;
+    }
     await fs.promises.symlink(args.linkTarget, args.linkPath);
     return;
   }
@@ -251,7 +275,13 @@ async function ensureTaskLink(args: {
   try {
     currentTarget = await fs.promises.readlink(args.linkPath);
   } catch {
+    if (!(await validateTasksDir())) {
+      return;
+    }
     await fs.promises.unlink(args.linkPath).catch(() => undefined);
+    if (!(await validateTasksDir())) {
+      return;
+    }
     await fs.promises.symlink(args.linkTarget, args.linkPath);
     return;
   }
@@ -262,7 +292,13 @@ async function ensureTaskLink(args: {
   const isExpectedTarget = path.resolve(resolvedTarget) === expectedTargetPath;
 
   if (!resolvedRealPath || !isExpectedTarget) {
+    if (!(await validateTasksDir())) {
+      return;
+    }
     await fs.promises.unlink(args.linkPath).catch(() => undefined);
+    if (!(await validateTasksDir())) {
+      return;
+    }
     await fs.promises.symlink(args.linkTarget, args.linkPath);
   }
 }
@@ -270,6 +306,29 @@ async function ensureTaskLink(args: {
 async function ensureCanonicalFiles(workDir: string, meta: WorkMeta): Promise<void> {
   await writeFileAtomicOnce(path.join(workDir, "ISC.json"), iscTemplate(new Date().toISOString()));
   await writeFileAtomicOnce(path.join(workDir, "THREAD.md"), threadTemplate(meta));
+}
+
+async function isCanonicalTargetSafe(workDir: string, canonicalPath: string): Promise<boolean> {
+  const canonicalStat = await lstatOrNull(canonicalPath);
+  if (!canonicalStat) {
+    return false;
+  }
+
+  if (!canonicalStat.isSymbolicLink()) {
+    return true;
+  }
+
+  const canonicalRealPath = await resolveSafeRealPath(canonicalPath, workDir);
+  return canonicalRealPath !== null;
+}
+
+async function ensureCanonicalTargetsSafe(workDir: string): Promise<boolean> {
+  const iscPath = path.join(workDir, "ISC.json");
+  const threadPath = path.join(workDir, "THREAD.md");
+  return (
+    (await isCanonicalTargetSafe(workDir, iscPath)) &&
+    (await isCanonicalTargetSafe(workDir, threadPath))
+  );
 }
 
 async function ensureCurrentTaskDirName(
@@ -286,6 +345,10 @@ async function ensureCurrentTaskDirName(
   const taskDirs = await listTaskDirs(tasksDir);
   if (taskDirs.length > 0) {
     const chosen = taskDirs[taskDirs.length - 1];
+    if (!(await ensureTasksDirSafeForMutation(tasksDir))) {
+      process.stderr.write(PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR);
+      return null;
+    }
     await fs.promises.symlink(chosen, currentLinkPath);
     return chosen;
   }
@@ -295,7 +358,15 @@ async function ensureCurrentTaskDirName(
   const slug = slugify(fallbackTitle) || "task";
   const firstTaskDirName = `001_${slug}`;
   const firstTaskPath = path.join(tasksDir, firstTaskDirName);
+  if (!(await ensureTasksDirSafeForMutation(tasksDir))) {
+    process.stderr.write(PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR);
+    return null;
+  }
   await fs.promises.mkdir(firstTaskPath, { recursive: true });
+  if (!(await ensureTasksDirSafeForMutation(tasksDir))) {
+    process.stderr.write(PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR);
+    return null;
+  }
   await fs.promises.symlink(firstTaskDirName, currentLinkPath);
   return firstTaskDirName;
 }
@@ -318,6 +389,13 @@ export async function ensureTaskScaffoldForSession(sessionId: string, prompt: st
       return;
     }
 
+    const meta = await readWorkMeta(resolvedWorkDir);
+    await ensureCanonicalFiles(resolvedWorkDir, meta);
+    if (!(await ensureCanonicalTargetsSafe(resolvedWorkDir))) {
+      process.stderr.write(PAI_TASK_SCAFFOLD_UNSAFE_CANONICAL_TARGET);
+      return;
+    }
+
     const currentLinkPath = path.join(tasksDir, "current");
     const currentTaskDirName = await ensureCurrentTaskDirName(
       tasksDir,
@@ -330,16 +408,18 @@ export async function ensureTaskScaffoldForSession(sessionId: string, prompt: st
     }
 
     const currentTaskDirPath = path.join(tasksDir, currentTaskDirName);
+    if (!(await ensureTasksDirSafeForMutation(tasksDir))) {
+      process.stderr.write(PAI_TASK_SCAFFOLD_UNSAFE_TASKS_DIR);
+      return;
+    }
     await fs.promises.mkdir(currentTaskDirPath, { recursive: true });
-
-    const meta = await readWorkMeta(resolvedWorkDir);
-    await ensureCanonicalFiles(resolvedWorkDir, meta);
 
     await ensureTaskLink({
       linkPath: path.join(currentTaskDirPath, "ISC.json"),
       linkTarget: "../../ISC.json",
       expectedResolvedTarget: path.join(resolvedWorkDir, "ISC.json"),
       workDir: resolvedWorkDir,
+      tasksDir,
     });
 
     await ensureTaskLink({
@@ -347,6 +427,7 @@ export async function ensureTaskScaffoldForSession(sessionId: string, prompt: st
       linkTarget: "../../THREAD.md",
       expectedResolvedTarget: path.join(resolvedWorkDir, "THREAD.md"),
       workDir: resolvedWorkDir,
+      tasksDir,
     });
   } catch {
     // Best effort only. Hook callers must never throw.
