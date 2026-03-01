@@ -467,7 +467,7 @@ export async function captureWorkCompletionSummary(
     if (!isMemoryParityEnabled()) {
       return { success: true, written: false, reason: "memory-parity-disabled" };
     }
-    if (!isEnvFlagEnabled("PAI_ENABLE_WORK_COMPLETION_SUMMARY", false)) {
+    if (!isEnvFlagEnabled("PAI_ENABLE_WORK_COMPLETION_SUMMARY", true)) {
       return { success: true, written: false, reason: "work-completion-summary-disabled" };
     }
 
