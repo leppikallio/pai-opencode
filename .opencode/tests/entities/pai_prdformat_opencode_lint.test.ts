@@ -19,7 +19,8 @@ describe("PRDFORMAT opencode lint", () => {
 
     expect(content.includes("~/.claude")).toBe(false);
     expect(content.includes(".claude/")).toBe(false);
-    expect(content.includes("work.json")).toBe(false);
+    expect(content.includes("STATE/work.json")).toBe(false);
+    expect(content.includes("/work.json")).toBe(false);
     expect(content.includes("PRDSync")).toBe(false);
     expect(content.includes("~/.config/opencode")).toBe(true);
     expect(content.includes("MEMORY/STATE/current-work.json")).toBe(true);

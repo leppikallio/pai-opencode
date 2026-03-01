@@ -25,7 +25,8 @@ describe("algorithm v3.5.0 opencode binding lint", () => {
     // Forbidden Claude-only references.
     expect(text).not.toContain("~/.claude/");
     expect(text).not.toContain("CLAUDE.md");
-    expect(text).not.toContain("work.json");
+    expect(text).not.toContain("STATE/work.json");
+    expect(text).not.toContain("/work.json");
     expect(text).not.toContain("PRDSync");
     expect(text).not.toContain("PRDSync.hook.ts");
 
