@@ -5,6 +5,7 @@ import { createWorkSession } from "../plugins/handlers/work-tracker";
 import { getOrLoadCurrentSession } from "../plugins/handlers/work-tracker";
 import { ensurePrdForSession } from "../plugins/handlers/auto-prd";
 import { ensureTaskScaffoldForSession } from "../plugins/handlers/work-task-scaffolder";
+import { isMemoryParityEnabled } from "../plugins/lib/env-flags";
 import { isTrivialPrompt } from "../plugins/lib/prompt-classification";
 import { normalizePromptForArtifacts } from "../plugins/lib/prompt-normalization";
 
@@ -51,6 +52,7 @@ async function main(): Promise<void> {
     const sessionId = asString(input.session_id) ?? "";
     const prompt = input.prompt ?? input.user_prompt ?? "";
     const normalizedPrompt = normalizePromptForArtifacts(prompt);
+    const memoryParityEnabled = isMemoryParityEnabled();
 
     if (!sessionId) {
       return;
@@ -72,6 +74,10 @@ async function main(): Promise<void> {
         return;
       }
 
+      if (!memoryParityEnabled) {
+        return;
+      }
+
       try {
         await ensureTaskScaffoldForSession(sessionId, normalizedPrompt);
       } catch {
@@ -84,6 +90,10 @@ async function main(): Promise<void> {
     // This ensures we only have ONE WORK layout and ONE STATE/current-work.json.
     const createResult = await createWorkSession(sessionId, normalizedPrompt);
     if (!createResult.success) {
+      return;
+    }
+
+    if (!memoryParityEnabled) {
       return;
     }
 
