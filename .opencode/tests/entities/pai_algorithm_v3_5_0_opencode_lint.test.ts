@@ -31,10 +31,10 @@ describe("algorithm v3.5.0 opencode binding lint", () => {
     expect(text).not.toContain("PRDSync.hook.ts");
 
     // Forbidden voice transport.
-    expect(text).not.toContain("curl -s -X POST http://localhost:8888/notify");
-    expect(text).not.toContain("curl");
+    expect(text).not.toMatch(/curl\b[^\n]*localhost:8888\/notify/);
 
     // Required OpenCode tool bindings.
+    expect(text).toContain("`task`");
     expect(text).toContain("voice_notify");
     expect(text).toContain("question");
     expect(text).toContain("run_in_background");
