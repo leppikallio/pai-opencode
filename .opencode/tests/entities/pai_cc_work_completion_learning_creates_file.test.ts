@@ -175,9 +175,9 @@ describe("WorkCompletionLearning hook", () => {
       expect(allFiles).toHaveLength(1);
 
       const content = await fs.readFile(allFiles[0], "utf8");
-      expect(content).toContain("# Work Completion Summary");
+      expect(content).toContain("# Work Completion Learning");
       expect(content).toContain(`**Session:** ${sessionId}`);
-      expect(content).toContain("Verified ISC criteria: 1");
+      expect(content).toContain("## What Was Done");
     } finally {
       await fs.rm(paiDir, { recursive: true, force: true });
     }

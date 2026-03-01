@@ -121,7 +121,7 @@ describe("work completion summary learning", () => {
           expect(files).toHaveLength(1);
 
           const content = await fs.readFile(files[0], "utf8");
-          expect(content).toContain("# Work Completion Summary");
+          expect(content).toContain("# Work Completion Learning");
           expect(content).toContain(`**Session:** ${sessionId}`);
           expect(content).toContain("Verified ISC criteria: 1");
         },

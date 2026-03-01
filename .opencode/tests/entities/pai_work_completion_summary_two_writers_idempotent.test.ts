@@ -128,7 +128,7 @@ describe("work completion summary idempotency", () => {
           expect(files).toHaveLength(1);
 
           const content = await fs.readFile(files[0], "utf8");
-          expect(content).toContain("# Work Completion Summary");
+          expect(content).toContain("# Work Completion Learning");
           expect(content).toContain("apply_patch=1");
         },
       );
