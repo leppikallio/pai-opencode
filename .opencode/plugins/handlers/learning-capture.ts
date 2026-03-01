@@ -69,6 +69,8 @@ export interface CaptureWorkCompletionSummaryResult {
 
 type WorkSummarySignals = {
   verifiedIscCount: number;
+  criteriaSummary: string;
+  antiCriteriaSummary: string;
   applyPatchCount: number;
   writeCount: number;
   editCount: number;
@@ -76,6 +78,15 @@ type WorkSummarySignals = {
 
 type WorkMeta = {
   title: string;
+  startedAt?: string;
+  completedAt?: string;
+  workId?: string;
+};
+
+type IscSnapshot = {
+  criteria: string[] | null;
+  antiCriteria: string[] | null;
+  verifiedIscCount: number;
 };
 
 /**
@@ -115,33 +126,160 @@ async function readWorkMeta(workPath: string): Promise<WorkMeta> {
     return { title: "work-session" };
   }
 
-  const title = parseMetaValue(content, "title")?.trim();
-  if (!title) return { title: "work-session" };
-  return { title };
+  const title = parseMetaValue(content, "title")?.trim() || "work-session";
+  const startedAt = parseMetaValue(content, "started_at")?.trim();
+  const completedAt = parseMetaValue(content, "completed_at")?.trim();
+  const workId = parseMetaValue(content, "work_id")?.trim();
+
+  return {
+    title,
+    ...(startedAt ? { startedAt } : {}),
+    ...(completedAt ? { completedAt } : {}),
+    ...(workId ? { workId } : {}),
+  };
 }
 
-function countVerifiedIscCriteria(iscRaw: unknown): number {
-  if (!isRecord(iscRaw)) return 0;
-  const criteria = iscRaw.criteria;
-  if (!Array.isArray(criteria)) return 0;
+function normalizeSummaryList(items: string[] | null): string {
+  if (items === null) return "Not specified";
+  if (items.length === 0) return "(none)";
+  return items.join("; ");
+}
 
-  let count = 0;
-  for (const criterion of criteria) {
-    const status = getStringProp(criterion, "status")?.trim().toUpperCase() ?? "";
-    if (status === "VERIFIED" || status === "DONE") count += 1;
+function parseIscTextList(items: unknown[], allowStatusObjects: boolean): { values: string[]; verifiedCount: number } {
+  const values: string[] = [];
+  let verifiedCount = 0;
+
+  for (const item of items) {
+    if (typeof item === "string") {
+      const text = item.trim();
+      if (text) values.push(text);
+      continue;
+    }
+
+    if (!allowStatusObjects || !isRecord(item)) continue;
+
+    const text = (getStringProp(item, "text") ?? getStringProp(item, "description") ?? "").trim();
+    if (text) values.push(text);
+
+    const status = getStringProp(item, "status")?.trim().toUpperCase() ?? "";
+    if (status === "VERIFIED" || status === "DONE") verifiedCount += 1;
   }
-  return count;
+
+  return { values, verifiedCount };
+}
+
+function parseIscSnapshot(iscRaw: unknown): IscSnapshot {
+  if (!isRecord(iscRaw)) {
+    return {
+      criteria: null,
+      antiCriteria: null,
+      verifiedIscCount: 0,
+    };
+  }
+
+  const criteriaRaw = iscRaw.criteria;
+  const antiCriteriaRaw = iscRaw.antiCriteria;
+
+  if (Array.isArray(criteriaRaw) || Array.isArray(antiCriteriaRaw)) {
+    const criteriaResult = Array.isArray(criteriaRaw)
+      ? parseIscTextList(criteriaRaw, true)
+      : { values: [], verifiedCount: 0 };
+    const antiCriteriaResult = Array.isArray(antiCriteriaRaw)
+      ? parseIscTextList(antiCriteriaRaw, true)
+      : { values: [] };
+
+    return {
+      criteria: Array.isArray(criteriaRaw) ? criteriaResult.values : null,
+      antiCriteria: Array.isArray(antiCriteriaRaw) ? antiCriteriaResult.values : null,
+      verifiedIscCount: criteriaResult.verifiedCount,
+    };
+  }
+
+  const currentRaw = iscRaw.current;
+  if (isRecord(currentRaw)) {
+    const currentCriteriaRaw = currentRaw.criteria;
+    const currentAntiCriteriaRaw = currentRaw.antiCriteria;
+    if (Array.isArray(currentCriteriaRaw) || Array.isArray(currentAntiCriteriaRaw)) {
+      const criteriaValues = Array.isArray(currentCriteriaRaw)
+        ? parseIscTextList(currentCriteriaRaw, false).values
+        : null;
+      const antiCriteriaValues = Array.isArray(currentAntiCriteriaRaw)
+        ? parseIscTextList(currentAntiCriteriaRaw, false).values
+        : null;
+
+      return {
+        criteria: criteriaValues,
+        antiCriteria: antiCriteriaValues,
+        verifiedIscCount: 0,
+      };
+    }
+  }
+
+  return {
+    criteria: null,
+    antiCriteria: null,
+    verifiedIscCount: 0,
+  };
+}
+
+function deriveYearMonthFromIso(isoTimestamp: string | undefined): string | null {
+  if (!isoTimestamp) return null;
+  const parsedMs = Date.parse(isoTimestamp);
+  if (!Number.isFinite(parsedMs)) return null;
+  const date = new Date(parsedMs);
+  const year = String(date.getUTCFullYear()).padStart(4, "0");
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function deriveYearMonthFromWorkPath(workPath: string): string | null {
+  const normalized = path.resolve(workPath).replace(/\\/g, "/");
+  const match = normalized.match(/\/MEMORY\/WORK\/([0-9]{4}-(?:0[1-9]|1[0-2]))(?:\/|$)/);
+  return match?.[1] ?? null;
+}
+
+function deriveWorkYearMonth(meta: WorkMeta, workPath: string): string {
+  return (
+    deriveYearMonthFromIso(meta.startedAt)
+    ?? deriveYearMonthFromIso(meta.completedAt)
+    ?? deriveYearMonthFromWorkPath(workPath)
+    ?? "1970-01"
+  );
+}
+
+function firstValid(...values: Array<string | undefined>): string {
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (trimmed) return trimmed;
+  }
+  return "";
+}
+
+function toDeterministicPrefix(rawPrefix: string): string {
+  const normalized = rawPrefix
+    .trim()
+    .replace(/\s+/g, "-")
+    .replace(/[^A-Za-z0-9._-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+  return normalized || "session";
 }
 
 async function readSummarySignals(workPath: string): Promise<WorkSummarySignals> {
   let verifiedIscCount = 0;
+  let criteriaSummary = "Not specified";
+  let antiCriteriaSummary = "Not specified";
   let applyPatchCount = 0;
   let writeCount = 0;
   let editCount = 0;
 
   try {
     const iscContent = await fs.promises.readFile(path.join(workPath, "ISC.json"), "utf8");
-    verifiedIscCount = countVerifiedIscCriteria(JSON.parse(iscContent));
+    const iscSnapshot = parseIscSnapshot(JSON.parse(iscContent));
+    verifiedIscCount = iscSnapshot.verifiedIscCount;
+    criteriaSummary = normalizeSummaryList(iscSnapshot.criteria);
+    antiCriteriaSummary = normalizeSummaryList(iscSnapshot.antiCriteria);
   } catch {
     // best effort
   }
@@ -166,6 +304,8 @@ async function readSummarySignals(workPath: string): Promise<WorkSummarySignals>
 
   return {
     verifiedIscCount,
+    criteriaSummary,
+    antiCriteriaSummary,
     applyPatchCount,
     writeCount,
     editCount,
@@ -184,16 +324,40 @@ function buildWorkCompletionSummaryText(meta: WorkMeta, signals: WorkSummarySign
   return [
     `Work session title: ${meta.title}`,
     `Verified ISC criteria: ${signals.verifiedIscCount}`,
+    `ISC criteria: ${signals.criteriaSummary}`,
+    `ISC anti-criteria: ${signals.antiCriteriaSummary}`,
     `Lineage edit tools: apply_patch=${signals.applyPatchCount}, write=${signals.writeCount}, edit=${signals.editCount}`,
   ].join("\n");
 }
 
-function fingerprintForWorkCompletionSummary(sessionId: string, category: string, summaryText: string): string {
-  const normalized = summaryText.replace(/\s+/g, " ").trim();
+function fingerprintForWorkCompletionSummary(
+  sessionId: string,
+  stableWorkId: string,
+  stableStartedAt: string,
+  stableYearMonth: string,
+): string {
   return createHash("sha1")
-    .update([sessionId, category, normalized].join("|"))
+    .update([sessionId, stableWorkId, stableStartedAt, stableYearMonth].join("|"))
     .digest("hex")
     .slice(0, 10);
+}
+
+async function findExistingCategoryDriftMatch(
+  learningDir: string,
+  yearMonth: string,
+  fingerprint: string,
+): Promise<string | null> {
+  for (const category of [CATEGORIES.SYSTEM, CATEGORIES.ALGORITHM]) {
+    const categoryDir = path.join(learningDir, category, yearMonth);
+    try {
+      const entries = await fs.promises.readdir(categoryDir);
+      const match = entries.find((entry) => entry.endsWith(`_${fingerprint}.md`));
+      if (match) return path.join(categoryDir, match);
+    } catch {
+      // best effort
+    }
+  }
+  return null;
 }
 
 async function writeFileAtomicOnce(filePath: string, content: string): Promise<boolean> {
@@ -328,19 +492,42 @@ export async function captureWorkCompletionSummary(
 
     const summaryText = buildWorkCompletionSummaryText(meta, signals);
     const category = getLearningCategory(summaryText, meta.title);
-    const yearMonth = getYearMonth();
-    const categoryDir = path.join(getLearningDir(), category, yearMonth);
-    const fingerprint = fingerprintForWorkCompletionSummary(sessionId, category, summaryText);
-    const filePath = path.join(categoryDir, `work_completion_summary_${fingerprint}.md`);
+    const yearMonth = deriveWorkYearMonth(meta, workPath);
+    const stableWorkId = firstValid(meta.workId, sessionId) || sessionId;
+    const stableStartedAt = firstValid(meta.startedAt, meta.completedAt, "unknown-started-at") || "unknown-started-at";
+    const fingerprint = fingerprintForWorkCompletionSummary(
+      sessionId,
+      stableWorkId,
+      stableStartedAt,
+      yearMonth,
+    );
 
-    const content = `# Work Completion Summary
+    const learningDir = getLearningDir();
+    const existingCategoryDriftFile = await findExistingCategoryDriftMatch(
+      learningDir,
+      yearMonth,
+      fingerprint,
+    );
+    if (existingCategoryDriftFile) {
+      return {
+        success: true,
+        written: false,
+        filePath: existingCategoryDriftFile,
+        reason: "already-exists",
+      };
+    }
 
-**Timestamp:** ${new Date().toISOString()}
+    const categoryDir = path.join(learningDir, category, yearMonth);
+    const prefix = toDeterministicPrefix(firstValid(meta.workId, sessionId) || sessionId);
+    const filePath = path.join(categoryDir, `${prefix}_work_completion_learning_${fingerprint}.md`);
+
+    const content = `# Work Completion Learning
+
 **Session:** ${sessionId}
 **Category:** ${category}
 **Source:** WORK_COMPLETION
 
----
+## What Was Done
 
 ${summaryText}
 
@@ -350,7 +537,12 @@ ${summaryText}
 `;
 
     const written = await writeFileAtomicOnce(filePath, content);
-    return { success: true, written, filePath };
+    return {
+      success: true,
+      written,
+      filePath,
+      ...(written ? {} : { reason: "already-exists" }),
+    };
   } catch (error) {
     fileLogError("Failed to capture work completion summary", error);
     return {
