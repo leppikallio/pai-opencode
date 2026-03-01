@@ -21,7 +21,12 @@ describe("PAI SKILL markdown drift gate", () => {
     const algorithmText = normalizeNewlines(readFileSync(algorithmPath, "utf8"));
     const skillText = normalizeNewlines(readFileSync(skillPath, "utf8"));
     const top16 = algorithmText.split("\n").slice(0, 16).join("\n");
+    const top16Trimmed = top16.trim();
 
-    expect(skillText.includes(top16)).toBe(true);
+    // Guard against empty-string false positives.
+    expect(top16Trimmed.length).toBeGreaterThan(0);
+    expect(top16Trimmed.length).toBeGreaterThan(20);
+
+    expect(skillText).toContain(top16Trimmed);
   });
 });
