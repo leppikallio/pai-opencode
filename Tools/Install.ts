@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
 import { mergeClaudeHooksSeedIntoSettingsJson } from "./pai-install/merge-claude-hooks";
+import { guessNwaveRoot } from "./lib/nwave/paths";
 
 type Mode = "sync";
 
@@ -62,6 +63,9 @@ type SkillsSecurityScanCache = {
 const SKILLS_SELECTION_CONFIG_REL_PATH = path.join("config", "skills-selection.json");
 const SKILLS_SECURITY_SCAN_CACHE_REL_PATH = path.join("config", "skills-security-scan-cache.json");
 
+const NWAVE_SKILL_NAME = "nwave";
+const NWAVE_AGENT_FILE_RE = /^nw-.*\.md$/i;
+
 // Force-selected/non-removable core skills.
 const MANDATORY_SKILLS: string[] = [
   "PAI",
@@ -79,6 +83,10 @@ type Options = {
   targetDir: string;
   sourceDir: string;
   dryRun: boolean;
+  withNwave: boolean;
+  withoutNwave: boolean;
+  uninstallNwave: boolean;
+  nwaveRoot: string;
   migrateFromRepo: boolean;
   applyProfile: boolean;
   prune: boolean;
@@ -435,6 +443,360 @@ function persistSkillSelection(args: { plan: SkillSelectionPlan; dryRun: boolean
   const prefix = args.dryRun ? "[dry]" : "[write]";
   console.log(`${prefix} skills selection config: ${args.plan.configPath}`);
   writeFileSafe(args.plan.configPath, `${JSON.stringify(payload, null, 2)}\n`, args.dryRun);
+}
+
+function listNwaveAgentFiles(agentsDir: string): string[] {
+  if (!isDir(agentsDir)) return [];
+  return fs
+    .readdirSync(agentsDir, { withFileTypes: true })
+    .filter((ent) => ent.isFile() && NWAVE_AGENT_FILE_RE.test(ent.name))
+    .map((ent) => ent.name)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function removeNwaveAgentFiles(args: { agentsDir: string; dryRun: boolean }) {
+  for (const fileName of listNwaveAgentFiles(args.agentsDir)) {
+    removePath(path.join(args.agentsDir, fileName), args.dryRun);
+  }
+}
+
+function removeNwaveFromSelectionConfig(args: { targetDir: string; dryRun: boolean }): boolean {
+  const configPath = path.join(args.targetDir, SKILLS_SELECTION_CONFIG_REL_PATH);
+  const saved = loadSkillSelectionConfig(configPath);
+  if (!saved) return false;
+
+  const selectedSkills = saved.selectedSkills.filter((s) => s.toLowerCase() !== NWAVE_SKILL_NAME);
+  const mandatorySkills = saved.mandatorySkills.filter((s) => s.toLowerCase() !== NWAVE_SKILL_NAME);
+
+  const changed =
+    selectedSkills.length !== saved.selectedSkills.length ||
+    mandatorySkills.length !== saved.mandatorySkills.length;
+  if (!changed) return false;
+
+  const payload: SkillSelectionConfig = {
+    version: 1,
+    updatedAt: new Date().toISOString(),
+    mandatorySkills: [...mandatorySkills].sort((a, b) => a.localeCompare(b)),
+    selectedSkills: [...selectedSkills].sort((a, b) => a.localeCompare(b)),
+    source: saved.source,
+  };
+
+  const prefix = args.dryRun ? "[dry]" : "[write]";
+  console.log(`${prefix} skills selection config: removed ${NWAVE_SKILL_NAME} (${configPath})`);
+  writeFileSafe(configPath, `${JSON.stringify(payload, null, 2)}\n`, args.dryRun);
+  return true;
+}
+
+function removeNwaveFromSkillsGateCache(args: { targetDir: string; dryRun: boolean }): boolean {
+  const cachePath = path.join(args.targetDir, SKILLS_SECURITY_SCAN_CACHE_REL_PATH);
+  if (!isFile(cachePath)) return false;
+
+  const cache = loadSkillsSecurityScanCache(cachePath);
+  const keys = Object.keys(cache.entries);
+  let changed = false;
+
+  for (const key of keys) {
+    const lower = key.toLowerCase();
+    if (lower === NWAVE_SKILL_NAME || lower.startsWith(`${NWAVE_SKILL_NAME}/`)) {
+      delete cache.entries[key];
+      changed = true;
+    }
+  }
+
+  if (!changed) return false;
+  persistSkillsSecurityScanCache({ cachePath, cache, dryRun: args.dryRun });
+  return true;
+}
+
+function uninstallNwaveFromTarget(args: { targetDir: string; dryRun: boolean }) {
+  const prefix = args.dryRun ? "[dry]" : "[write]";
+  console.log(`${prefix} nwave uninstall: target=${args.targetDir}`);
+
+  if (!fs.existsSync(args.targetDir)) {
+    console.log(`${prefix} nwave uninstall: target missing; nothing to remove`);
+    return;
+  }
+
+  removePath(path.join(args.targetDir, "commands", "nw"), args.dryRun);
+  removeNwaveAgentFiles({ agentsDir: path.join(args.targetDir, "agents"), dryRun: args.dryRun });
+  removePath(path.join(args.targetDir, "skills", NWAVE_SKILL_NAME), args.dryRun);
+
+  removeNwaveFromSelectionConfig({ targetDir: args.targetDir, dryRun: args.dryRun });
+  removeNwaveFromSkillsGateCache({ targetDir: args.targetDir, dryRun: args.dryRun });
+
+  // Best-effort: keep skill index in sync with the resulting skill set.
+  maybeGenerateSkillIndex({ targetDir: args.targetDir, dryRun: args.dryRun });
+
+  if (args.dryRun) return;
+
+  const commandsDir = path.join(args.targetDir, "commands", "nw");
+  if (fs.existsSync(commandsDir)) {
+    throw new Error(`nwave uninstall failed: still present: ${commandsDir}`);
+  }
+
+  const skillDir = path.join(args.targetDir, "skills", NWAVE_SKILL_NAME);
+  if (fs.existsSync(skillDir)) {
+    throw new Error(`nwave uninstall failed: still present: ${skillDir}`);
+  }
+
+  const remainingAgents = listNwaveAgentFiles(path.join(args.targetDir, "agents"));
+  if (remainingAgents.length > 0) {
+    throw new Error(
+      `nwave uninstall failed: remaining agent file(s): ${remainingAgents.join(", ")}`
+    );
+  }
+
+  const selectionPath = path.join(args.targetDir, SKILLS_SELECTION_CONFIG_REL_PATH);
+  const selection = loadSkillSelectionConfig(selectionPath);
+  if (selection?.selectedSkills.some((s) => s.toLowerCase() === NWAVE_SKILL_NAME)) {
+    throw new Error(`nwave uninstall failed: still selected in ${selectionPath}`);
+  }
+
+  const cachePath = path.join(args.targetDir, SKILLS_SECURITY_SCAN_CACHE_REL_PATH);
+  if (isFile(cachePath)) {
+    const cache = loadSkillsSecurityScanCache(cachePath);
+    const nwaveKeys = Object.keys(cache.entries).filter((k) => {
+      const lower = k.toLowerCase();
+      return lower === NWAVE_SKILL_NAME || lower.startsWith(`${NWAVE_SKILL_NAME}/`);
+    });
+    if (nwaveKeys.length > 0) {
+      throw new Error(`nwave uninstall failed: cache keys remain: ${nwaveKeys.join(", ")}`);
+    }
+  }
+
+  console.log("[write] nwave uninstall: ok");
+}
+
+function resolveNwaveSkillName(availableSkills: string[]): string | null {
+  return availableSkills.find((skill) => skill.toLowerCase() === NWAVE_SKILL_NAME) ?? null;
+}
+
+function maybeRunNwaveGenerator(args: {
+  repoRoot: string;
+  sourceDir: string;
+  dryRun: boolean;
+  enabled: boolean;
+  nwaveRoot: string;
+}) {
+  if (!args.enabled) return;
+
+  const generatorPath = path.join(args.repoRoot, "Tools", "GenerateNWave.ts");
+  if (!isFile(generatorPath)) {
+    throw new Error(`--with-nwave requested but generator not found: ${generatorPath}`);
+  }
+  if (!args.nwaveRoot) {
+    throw new Error("--with-nwave requested but --nwave-root is empty");
+  }
+
+  const commandParts = [
+    `bun "${generatorPath}"`,
+    `--nwave-root "${args.nwaveRoot}"`,
+    `--opencode-root "${args.sourceDir}"`,
+  ];
+  if (args.dryRun) {
+    commandParts.push("--dry-run");
+  } else {
+    commandParts.push("--clean");
+  }
+
+  const command = commandParts.join(" ");
+  const prefix = args.dryRun ? "[dry]" : "[write]";
+  const verb = args.dryRun ? "would run" : "running";
+  console.log(`${prefix} nwave generator: ${verb} ${command}`);
+
+  execSync(command, {
+    stdio: "inherit",
+    env: { ...process.env, PAI_DIR: args.sourceDir },
+  });
+}
+
+function applyNwaveSkillOverrides(args: {
+  plan: SkillSelectionPlan;
+  withNwave: boolean;
+  withoutNwave: boolean;
+  dryRun: boolean;
+}): SkillSelectionPlan {
+  const selectedSkills = [...args.plan.selectedSkills];
+  const nwaveSkillName = resolveNwaveSkillName(args.plan.availableSkills);
+
+  if (args.withNwave) {
+    if (!nwaveSkillName) {
+      if (!args.dryRun) {
+        throw new Error(
+          "--with-nwave requested but skill 'nwave' is missing from source; " +
+            "run generator with a valid --nwave-root"
+        );
+      }
+      console.log(
+        "[warn] --with-nwave requested but skill 'nwave' is missing from source (dry-run); continuing"
+      );
+      return args.plan;
+    }
+
+    if (!selectedSkills.includes(nwaveSkillName)) {
+      selectedSkills.push(nwaveSkillName);
+      console.log(`[write] skills selection: forced include ${nwaveSkillName} (--with-nwave)`);
+    }
+  }
+
+  if (args.withoutNwave) {
+    const before = selectedSkills.length;
+    const filtered = selectedSkills.filter((skill) => skill.toLowerCase() !== NWAVE_SKILL_NAME);
+    if (filtered.length !== before) {
+      console.log("[write] skills selection: forced exclude nwave (--without-nwave)");
+    }
+    selectedSkills.length = 0;
+    selectedSkills.push(...filtered);
+  }
+
+  selectedSkills.sort((a, b) => a.localeCompare(b));
+  return {
+    ...args.plan,
+    selectedSkills,
+  };
+}
+
+function enableNwaveInstall(args: {
+  selectedSkills: string[];
+  withNwave: boolean;
+  withoutNwave: boolean;
+}): boolean {
+  if (args.withoutNwave) return false;
+  if (args.withNwave) return true;
+  return args.selectedSkills.some((skill) => skill.toLowerCase() === NWAVE_SKILL_NAME);
+}
+
+function copyCommandsDirWithNwaveGate(args: {
+  sourceCommandsDir: string;
+  targetCommandsDir: string;
+  dryRun: boolean;
+  prune: boolean;
+  preserveIfExistsPrefixes: string[];
+  enableNwave: boolean;
+}) {
+  ensureDir(args.targetCommandsDir, args.dryRun);
+
+  if (args.prune) {
+    const pruneResult = pruneDirRecursive(args.sourceCommandsDir, args.targetCommandsDir, {
+      dryRun: args.dryRun,
+      preserveIfExistsPrefixes: args.preserveIfExistsPrefixes,
+      relBase: "commands/",
+    });
+    if (pruneResult.deleted > 0) {
+      console.log(`${args.dryRun ? "[dry]" : "[write]"} pruned ${pruneResult.deleted} path(s) under commands`);
+    }
+  }
+
+  const entries = fs.readdirSync(args.sourceCommandsDir, { withFileTypes: true });
+  for (const ent of entries) {
+    if (!args.enableNwave && ent.isDirectory() && ent.name === "nw") {
+      continue;
+    }
+
+    const srcPath = path.join(args.sourceCommandsDir, ent.name);
+    const destPath = path.join(args.targetCommandsDir, ent.name);
+
+    if (ent.isDirectory()) {
+      ensureDir(destPath, args.dryRun);
+      copyDirRecursive(srcPath, destPath, {
+        dryRun: args.dryRun,
+        overwrite: true,
+        preserveIfExistsPrefixes: args.preserveIfExistsPrefixes,
+        relBase: `commands/${ent.name}/`,
+      });
+      continue;
+    }
+
+    if (ent.isSymbolicLink()) {
+      const linkTarget = fs.readlinkSync(srcPath);
+      if (!args.dryRun) {
+        ensureDir(path.dirname(destPath), args.dryRun);
+        try {
+          fs.rmSync(destPath, { recursive: true, force: true });
+        } catch {
+          // ignore
+        }
+        fs.symlinkSync(linkTarget, destPath);
+      }
+      continue;
+    }
+
+    if (ent.isFile()) {
+      copyFile(srcPath, destPath, args.dryRun);
+    }
+  }
+
+  if (!args.enableNwave && args.prune) {
+    const nwCommandsDir = path.join(args.targetCommandsDir, "nw");
+    if (fs.existsSync(nwCommandsDir)) {
+      removePath(nwCommandsDir, args.dryRun);
+    }
+  }
+}
+
+function copyAgentsDirWithNwaveGate(args: {
+  sourceAgentsDir: string;
+  targetAgentsDir: string;
+  dryRun: boolean;
+  prune: boolean;
+  preserveIfExistsPrefixes: string[];
+  enableNwave: boolean;
+}) {
+  ensureDir(args.targetAgentsDir, args.dryRun);
+
+  if (args.prune) {
+    const pruneResult = pruneDirRecursive(args.sourceAgentsDir, args.targetAgentsDir, {
+      dryRun: args.dryRun,
+      preserveIfExistsPrefixes: args.preserveIfExistsPrefixes,
+      relBase: "agents/",
+    });
+    if (pruneResult.deleted > 0) {
+      console.log(`${args.dryRun ? "[dry]" : "[write]"} pruned ${pruneResult.deleted} path(s) under agents`);
+    }
+  }
+
+  const entries = fs.readdirSync(args.sourceAgentsDir, { withFileTypes: true });
+  for (const ent of entries) {
+    if (!args.enableNwave && ent.isFile() && NWAVE_AGENT_FILE_RE.test(ent.name)) {
+      continue;
+    }
+
+    const srcPath = path.join(args.sourceAgentsDir, ent.name);
+    const destPath = path.join(args.targetAgentsDir, ent.name);
+
+    if (ent.isDirectory()) {
+      ensureDir(destPath, args.dryRun);
+      copyDirRecursive(srcPath, destPath, {
+        dryRun: args.dryRun,
+        overwrite: true,
+        preserveIfExistsPrefixes: args.preserveIfExistsPrefixes,
+        relBase: `agents/${ent.name}/`,
+      });
+      continue;
+    }
+
+    if (ent.isSymbolicLink()) {
+      const linkTarget = fs.readlinkSync(srcPath);
+      if (!args.dryRun) {
+        ensureDir(path.dirname(destPath), args.dryRun);
+        try {
+          fs.rmSync(destPath, { recursive: true, force: true });
+        } catch {
+          // ignore
+        }
+        fs.symlinkSync(linkTarget, destPath);
+      }
+      continue;
+    }
+
+    if (ent.isFile()) {
+      copyFile(srcPath, destPath, args.dryRun);
+    }
+  }
+
+  if (!args.enableNwave && args.prune) {
+    removeNwaveAgentFiles({ agentsDir: args.targetAgentsDir, dryRun: args.dryRun });
+  }
 }
 
 function shouldIgnoreSkillFile(args: { skillRel: string; relInSkillPosix: string }): boolean {
@@ -917,11 +1279,16 @@ function defaultSourceDir(): string {
 function usage(opts: Partial<Options> = {}) {
   const target = opts.targetDir || defaultTargetDir();
   const source = opts.sourceDir || defaultSourceDir();
+  const nwaveRoot = opts.nwaveRoot || guessNwaveRoot({ cwd: repoRootFromThisFile() }) || "<auto>";
   console.log("Usage: bun Tools/Install.ts [options]");
   console.log("");
   console.log("Options:");
   console.log(`  --target <dir>         Install/upgrade into this dir (default: ${target})`);
   console.log(`  --source <dir>         Source .opencode dir (default: ${source})`);
+  console.log("  --with-nwave           Generate and force-enable nWave skill artifacts");
+  console.log("  --without-nwave        Force-disable nWave skill/artifacts and remove runtime copies");
+  console.log("  --uninstall-nwave      Uninstall nWave from target and exit");
+  console.log(`  --nwave-root <dir>     Upstream nWave root for generator (default: ${nwaveRoot})`);
   console.log("  --migrate-from-repo    Seed runtime USER/MEMORY from source tree");
   console.log("  --apply-profile        Rewrite agent model frontmatter (disabled by default)");
   console.log("  --prune                Delete unmanaged files from target (safe)");
@@ -943,6 +1310,10 @@ function parseArgs(argv: string[]): Options | null {
   let targetDir = defaultTargetDir();
   let sourceDir = defaultSourceDir();
   let dryRun = false;
+  let withNwave = false;
+  let withoutNwave = false;
+  let uninstallNwave = false;
+  let nwaveRoot = guessNwaveRoot({ cwd: repoRootFromThisFile() }) ?? "";
   let migrateFromRepo = false;
   let applyProfile = false;
   let prune = false;
@@ -959,6 +1330,25 @@ function parseArgs(argv: string[]): Options | null {
     if (arg === "-h" || arg === "--help") return null;
     if (arg === "--dry-run") {
       dryRun = true;
+      continue;
+    }
+    if (arg === "--with-nwave") {
+      withNwave = true;
+      continue;
+    }
+    if (arg === "--without-nwave") {
+      withoutNwave = true;
+      continue;
+    }
+    if (arg === "--uninstall-nwave") {
+      uninstallNwave = true;
+      continue;
+    }
+    if (arg === "--nwave-root") {
+      const v = argv[i + 1];
+      if (!v) throw new Error("Missing value for --nwave-root");
+      nwaveRoot = path.resolve(v);
+      i++;
       continue;
     }
     if (arg === "--migrate-from-repo") {
@@ -1034,10 +1424,27 @@ function parseArgs(argv: string[]): Options | null {
     throw new Error(`Unknown option: ${arg}`);
   }
 
+  if (withNwave && withoutNwave) {
+    throw new Error("--with-nwave and --without-nwave cannot be used together");
+  }
+  if (uninstallNwave && withNwave) {
+    throw new Error("--uninstall-nwave cannot be used together with --with-nwave");
+  }
+  if (withNwave && !nwaveRoot) {
+    throw new Error(
+      "--with-nwave requested but --nwave-root could not be auto-detected. " +
+        "Pass --nwave-root explicitly, or set NWAVE_ROOT/NWAVE_REPO_ROOT."
+    );
+  }
+
   return {
     targetDir,
     sourceDir,
     dryRun,
+    withNwave,
+    withoutNwave,
+    uninstallNwave,
+    nwaveRoot,
     migrateFromRepo,
     applyProfile,
     prune,
@@ -1751,6 +2158,10 @@ async function sync(mode: Mode, opts: Options) {
     sourceDir,
     targetDir,
     dryRun,
+    withNwave,
+    withoutNwave,
+    uninstallNwave,
+    nwaveRoot,
     migrateFromRepo,
     applyProfile,
     prune,
@@ -1762,6 +2173,16 @@ async function sync(mode: Mode, opts: Options) {
     nonInteractive,
     skillsArg,
   } = opts;
+
+  if (uninstallNwave) {
+    console.log("PAI-OpenCode nWave Uninstall");
+    console.log(`  target: ${targetDir}`);
+    console.log(`  mode:   ${dryRun ? "dry-run" : "write"}`);
+    console.log("");
+    uninstallNwaveFromTarget({ targetDir, dryRun });
+    return;
+  }
+
   if (!isDir(sourceDir)) {
     throw new Error(`Source directory not found: ${sourceDir}`);
   }
@@ -1776,6 +2197,10 @@ async function sync(mode: Mode, opts: Options) {
   console.log(`  skills-gate: ${skillsGateProfile}`);
   console.log(`  skills-gate-scope: ${skillsGateScanAll ? "all" : "changed"}`);
   console.log(`  skills-ui: ${nonInteractive ? "disabled" : "enabled"}`);
+  console.log(
+    `  nwave: ${withoutNwave ? "disabled (--without-nwave)" : withNwave ? "enabled (--with-nwave)" : "auto"}`
+  );
+  console.log(`  nwave-root: ${nwaveRoot || "<auto>"}`);
   console.log("");
 
   ensureDir(targetDir, dryRun);
@@ -1783,15 +2208,53 @@ async function sync(mode: Mode, opts: Options) {
   // Migrate legacy CORE layout before syncing in PAI layout.
   migrateLegacyCoreSkills({ targetDir, dryRun });
 
+  // Optional nWave generator pass must happen before skill selection discovery.
+  maybeRunNwaveGenerator({
+    repoRoot,
+    sourceDir,
+    dryRun,
+    enabled: withNwave,
+    nwaveRoot,
+  });
+
   // Resolve selected skills (interactive by default on TTY) and persist the selection manifest.
-  const skillSelectionPlan = await resolveSkillSelectionPlan({
+  const resolvedSkillSelectionPlan = await resolveSkillSelectionPlan({
     sourceDir,
     targetDir,
     dryRun,
     nonInteractive,
     skillsArg,
   });
+  const skillSelectionPlan = applyNwaveSkillOverrides({
+    plan: resolvedSkillSelectionPlan,
+    withNwave,
+    withoutNwave,
+    dryRun,
+  });
   persistSkillSelection({ plan: skillSelectionPlan, dryRun });
+
+  const enableNwave = enableNwaveInstall({
+    selectedSkills: skillSelectionPlan.selectedSkills,
+    withNwave,
+    withoutNwave,
+  });
+  console.log(
+    `[write] nwave install gate: ${enableNwave ? "enabled" : "disabled"} (selected=${skillSelectionPlan.selectedSkills.some((skill) => skill.toLowerCase() === NWAVE_SKILL_NAME) ? "yes" : "no"})`
+  );
+
+  if (enableNwave) {
+    const srcSkillDir = path.join(sourceDir, "skills", NWAVE_SKILL_NAME);
+    if (!isDir(srcSkillDir)) {
+      const msg =
+        `nWave is enabled but missing from source: ${srcSkillDir}. ` +
+        `Run install with --with-nwave (or run bun Tools/GenerateNWave.ts first).`;
+      if (dryRun) {
+        console.log(`[warn] ${msg}`);
+      } else {
+        throw new Error(msg);
+      }
+    }
+  }
 
   // Pre-install skills security gate (runs against selected source skills before runtime copy).
   maybeRunSkillsSecurityGate({
@@ -1868,6 +2331,30 @@ async function sync(mode: Mode, opts: Options) {
       "skills/PAI/WORK/",
     ];
 
+    if (name === "commands") {
+      copyCommandsDirWithNwaveGate({
+        sourceCommandsDir: src,
+        targetCommandsDir: dest,
+        dryRun,
+        prune,
+        preserveIfExistsPrefixes: preserve,
+        enableNwave,
+      });
+      continue;
+    }
+
+    if (name === "agents") {
+      copyAgentsDirWithNwaveGate({
+        sourceAgentsDir: src,
+        targetAgentsDir: dest,
+        dryRun,
+        prune,
+        preserveIfExistsPrefixes: preserve,
+        enableNwave,
+      });
+      continue;
+    }
+
     // Optional: delete target files/dirs that are not present in source.
     // This is intentionally limited to the managed directories listed in copyAlways.
     if (prune) {
@@ -1890,6 +2377,10 @@ async function sync(mode: Mode, opts: Options) {
       preserveIfExistsPrefixes: preserve,
       relBase: `${name}/`,
     });
+  }
+
+  if (withoutNwave) {
+    uninstallNwaveFromTarget({ targetDir, dryRun });
   }
 
   pruneDeprecatedDeepResearchCommands({ sourceDir, targetDir, dryRun, prune });

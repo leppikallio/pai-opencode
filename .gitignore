@@ -38,3 +38,8 @@ Components_backup/
 
 # Git worktrees (local only)
 .worktrees/
+
+# nWave generated outputs
+.opencode/agents/nw-*.md
+.opencode/commands/nw/
+.opencode/skills/nwave/
