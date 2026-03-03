@@ -11,6 +11,29 @@ This document focuses on failure modes that can make OpenCode appear stuck, and 
 tail -f ~/.config/opencode/plugins/debug.log
 ```
 
+## Symptom: juggling separate server and TUI commands
+
+Use the `pai-tui` wrapper so OpenCode always starts in network mode on a free local port.
+
+```bash
+bun ./.opencode/pai-tools/pai-tui.ts --dir /path/to/project
+```
+
+What it does:
+
+- Picks the first free port starting at `4096` (or from `--port`)
+- Sets `OPENCODE_SERVER_URL`, `OPENCODE_CONFIG_DIR`, `OPENCODE_ROOT`, `OPENCODE_CONFIG_ROOT`, and `PAI_DIR`
+- Sets `PAI_BACKGROUND_COMPLETION_VISIBLE_FALLBACK=1` when `CMUX_SOCKET_PATH` is missing (`--completion-visible-fallback auto`)
+- Launches `opencode --port <port> --hostname 127.0.0.1`
+- Retries on rapid bind-race exits (`--bind-retries`)
+- Writes state to `<opencodeRoot>/MEMORY/STATE/pai-tui.<childPid>.json` and updates `pai-tui.json`
+
+Pass OpenCode arguments after `--`:
+
+```bash
+bun ./.opencode/pai-tools/pai-tui.ts -- --model gpt-5.3-codex
+```
+
 ## Symptom: Agent appears frozen during a tool call
 
 OpenCode tool calls are a handshake: the model emits a tool call, OpenCode executes it, and only then the model continues.

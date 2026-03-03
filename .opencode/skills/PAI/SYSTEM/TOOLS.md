@@ -13,6 +13,7 @@ This file documents single-purpose CLI utilities that have been consolidated fro
 **Location:** `~/.config/opencode/skills/PAI/Tools/Inference.ts`
 
 Single inference tool with three run levels for different speed/capability trade-offs.
+The level changes timeout + system guidance; model defaults are shared unless explicitly overridden.
 
 **Usage:**
 ```bash
@@ -33,15 +34,15 @@ bun ~/.config/opencode/skills/PAI/Tools/Inference.ts --level standard --timeout 
 ```
 
 **Run Levels:**
-| Level | Model | Default Timeout | Use Case |
-|-------|-------|-----------------|----------|
-| **fast** | Runtime profile mapping | 15s | Quick tasks, simple generation, basic classification |
-| **standard** | Runtime profile mapping | 30s | Balanced reasoning, typical analysis, decisions |
-| **smart** | Runtime profile mapping | 90s | Deep reasoning, strategic decisions, complex analysis |
+| Level | System Guidance | Model | Default Timeout | Use Case |
+|-------|------------------|-------|-----------------|----------|
+| **fast** | Maximally concise, direct | `openai/gpt-5.2` default (override optional) | 15s | Quick tasks, simple generation, basic classification |
+| **standard** | Clear, balanced detail | `openai/gpt-5.2` default (override optional) | 30s | Balanced reasoning, typical analysis, decisions |
+| **smart** | Careful reasoning, best answer | `openai/gpt-5.2` default (override optional) | 90s | Deep reasoning, strategic decisions, complex analysis |
 
-**Programmatic Usage:**
+**Programmatic Usage (scripts colocated with `Inference.ts`):**
 ```typescript
-import { inference } from '../skills/PAI/Tools/Inference';
+import { inference } from './Inference';
 
 const result = await inference({
   systemPrompt: 'Analyze this',
@@ -57,14 +58,19 @@ if (result.success) {
 }
 ```
 
+If your caller is in a different directory, adjust the relative import from that file's location.
+
 **When to Use:**
 - "quick inference" → fast
 - "analyze this" → standard
 - "deep analysis" → smart
 - Hooks use this for sentiment analysis, tab titles, work classification
+- Internal callers should set `level` explicitly at each call site
+- Only set `model` when intentionally pinning behavior (for example, PromptClassifier)
 
 **Technical Details:**
 - Uses the runtime-configured inference backend/profile
+- `reasoningEffort`, `textVerbosity`, and `steps` are not set by this tool; OpenCode/provider defaults apply unless another layer overrides them
 - Disables tools and hooks to prevent recursion
 - Returns latency metrics for monitoring
 

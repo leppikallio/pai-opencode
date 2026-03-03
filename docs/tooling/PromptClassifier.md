@@ -23,3 +23,14 @@ Prints JSON to stdout, including:
 ## Backend
 
 Uses `openai/gpt-5.2` through the shared [Inference](./Inference.md) backend.
+
+Current classifier call settings:
+
+- `level: fast`
+- `timeout: 2000ms` (intentional quick-pass budget)
+
+Inference transport/auth behavior:
+
+- Carrier-only inference via OpenCode server
+- No direct `OPENAI_API_KEY` fallback path in `PromptClassifier.ts`
+- OpenCode server handles provider auth from `opencode auth login`
