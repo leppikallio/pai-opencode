@@ -321,6 +321,7 @@ export function buildChildEnv(
 ): Record<string, string> {
 	const env = envToRecord(input.baseEnv);
 	const serverUrl = `http://${LOOPBACK_HOST}:${input.port}`;
+	const cmuxSocketPath = (env.CMUX_SOCKET_PATH ?? "").trim();
 
 	env.OPENCODE_SERVER_URL = serverUrl;
 	env.OPENCODE_CONFIG_DIR = input.opencodeRoot;
@@ -328,13 +329,17 @@ export function buildChildEnv(
 	env.OPENCODE_CONFIG_ROOT = input.opencodeRoot;
 	env.PAI_DIR = input.opencodeRoot;
 
+	// In cmux environments, capture cmux failures to MEMORY/STATE/cmux-last-error.json.
+	if (!String(env.PAI_CMUX_DEBUG ?? "").trim() && cmuxSocketPath) {
+		env.PAI_CMUX_DEBUG = "1";
+	}
+
 	if (input.completionVisibleFallback === "on") {
 		env.PAI_BACKGROUND_COMPLETION_VISIBLE_FALLBACK = "1";
 	} else if (input.completionVisibleFallback === "off") {
 		delete env.PAI_BACKGROUND_COMPLETION_VISIBLE_FALLBACK;
 	} else {
-		const socketPath = (env.CMUX_SOCKET_PATH ?? "").trim();
-		if (!socketPath) {
+		if (!cmuxSocketPath) {
 			env.PAI_BACKGROUND_COMPLETION_VISIBLE_FALLBACK = "1";
 		}
 	}

@@ -1,4 +1,5 @@
 import { runCmuxCli } from "../../plugins/pai-cc-hooks/shared/cmux-cli";
+import { writeCmuxRouteDecision } from "../../plugins/pai-cc-hooks/shared/cmux-debug";
 import { resolveCmuxTarget, type CmuxTarget } from "../../plugins/pai-cc-hooks/shared/cmux-target";
 
 const PHASE_STATUS_KEY = "oc_phase";
@@ -31,14 +32,12 @@ function normalizeProgressValue(value: number): string {
 }
 
 async function runCmuxCliBestEffort(args: string[]): Promise<void> {
-  try {
-    await runCmuxCli({
-      args,
-      timeoutMs: CMUX_TIMEOUT_MS,
-    });
-  } catch {
-    // Best-effort by contract.
-  }
+  // runCmuxCli() returns structured failure kinds and persists best-effort
+  // breadcrumbs for diagnosability.
+  await runCmuxCli({
+    args,
+    timeoutMs: CMUX_TIMEOUT_MS,
+  });
 }
 
 async function resolveTabTarget(sessionId?: string): Promise<CmuxTarget> {
@@ -77,6 +76,15 @@ export async function mirrorCurrentCmuxPhase(args: {
     const target = await resolveTabTarget(args.sessionId);
     // set-status/set-progress are currently workspace-scoped, so surface-only targets intentionally no-op.
     if (target.kind !== "workspace_surface") {
+      await writeCmuxRouteDecision({
+        route: "none",
+        sessionId: args.sessionId,
+        reason:
+          target.kind === "none"
+            ? `mirrorCurrentCmuxPhase skipped (no target): ${target.reason}`
+            : "mirrorCurrentCmuxPhase skipped (surface-only target)",
+        argv: ["set-status", PHASE_STATUS_KEY, phaseToken],
+      });
       return;
     }
 
@@ -91,8 +99,14 @@ export async function mirrorCurrentCmuxPhase(args: {
       "--workspace",
       target.workspaceId,
     ]);
-  } catch {
-    // Best-effort by contract.
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await writeCmuxRouteDecision({
+      route: "none",
+      sessionId: args.sessionId,
+      reason: `mirrorCurrentCmuxPhase threw: ${message}`,
+      argv: ["set-status", PHASE_STATUS_KEY, phaseToken],
+    });
   }
 }
 
@@ -112,12 +126,27 @@ export async function renameCurrentCmuxSurfaceTitle(
     const cliArgs = ["rename-tab"];
 
     if (!appendRenameTargetArgs(cliArgs, target)) {
+      await writeCmuxRouteDecision({
+        route: "none",
+        sessionId: args.sessionId,
+        reason:
+          target.kind === "none"
+            ? `renameCurrentCmuxSurfaceTitle skipped (no target): ${target.reason}`
+            : "renameCurrentCmuxSurfaceTitle skipped (workspace without surface)",
+        argv: ["rename-tab"],
+      });
       return;
     }
 
     cliArgs.push("--", normalizedTitle);
     await runCmuxCliBestEffort(cliArgs);
-  } catch {
-    // Best-effort by contract.
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await writeCmuxRouteDecision({
+      route: "none",
+      sessionId: args.sessionId,
+      reason: `renameCurrentCmuxSurfaceTitle threw: ${message}`,
+      argv: ["rename-tab"],
+    });
   }
 }

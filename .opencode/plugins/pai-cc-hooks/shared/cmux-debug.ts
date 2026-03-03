@@ -10,7 +10,12 @@ const STDIO_MAX_BYTES = 2_048;
 const ARG_MAX_CHARS = 256;
 const WRITE_THROTTLE_MS = 2_000;
 
-type CmuxDebugKind = "route_none" | "nonzero_exit" | "timeout";
+type CmuxDebugKind =
+  | "route_none"
+  | "nonzero_exit"
+  | "timeout"
+  | "not_found"
+  | "spawn_error";
 
 type CmuxDebugBreadcrumbV1 = {
   version: 1;
@@ -29,7 +34,7 @@ type CmuxDebugBreadcrumbV1 = {
 };
 
 export type WriteCmuxLastErrorArgs = {
-  kind: "nonzero_exit" | "timeout";
+  kind: "nonzero_exit" | "timeout" | "not_found" | "spawn_error";
   argv: string[];
   message?: string;
   exitCode?: number | null;

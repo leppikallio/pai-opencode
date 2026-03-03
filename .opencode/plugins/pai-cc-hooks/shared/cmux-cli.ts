@@ -283,24 +283,40 @@ export async function runCmuxCli(args: RunCmuxCliArgs): Promise<CmuxCliRunResult
   const normalizedArgs = normalizeArgs(args.args);
 
   if (!resolvedBin.ok) {
-    return makeResult({
+    const result = makeResult({
       kind: "spawn_error",
       startedAt,
       argv: [CMUX_DEFAULT_BIN, ...normalizedArgs],
       message: resolvedBin.message,
     });
+
+    await writeCmuxLastError({
+      kind: "spawn_error",
+      argv: result.argv,
+      message: result.message,
+    });
+
+    return result;
   }
 
   const argv = [resolvedBin.value.bin, ...normalizedArgs];
   const cachedNotFoundUntil = getCachedNotFound(resolvedBin.value.identity, startedAt);
   if (cachedNotFoundUntil !== null) {
     const remainingMs = Math.max(0, cachedNotFoundUntil - startedAt);
-    return makeResult({
+    const result = makeResult({
       kind: "not_found",
       startedAt,
       argv,
       message: `cmux binary unavailable (cached ENOENT, ${remainingMs}ms remaining): ${resolvedBin.value.bin}`,
     });
+
+    await writeCmuxLastError({
+      kind: "not_found",
+      argv: result.argv,
+      message: result.message,
+    });
+
+    return result;
   }
 
   const timeoutMs = normalizeTimeoutMs(args.timeoutMs);
@@ -379,21 +395,37 @@ export async function runCmuxCli(args: RunCmuxCliArgs): Promise<CmuxCliRunResult
   } catch (error) {
     if (isErrnoException(error) && error.code === "ENOENT") {
       unavailableUntilByBinIdentity.set(resolvedBin.value.identity, nowProvider() + CMUX_NOT_FOUND_TTL_MS);
-      return makeResult({
+      const result = makeResult({
         kind: "not_found",
         startedAt,
         argv,
         message: `cmux binary not found: ${resolvedBin.value.bin}`,
       });
+
+      await writeCmuxLastError({
+        kind: "not_found",
+        argv: result.argv,
+        message: result.message,
+      });
+
+      return result;
     }
 
     const message = error instanceof Error ? error.message : String(error);
-    return makeResult({
+    const result = makeResult({
       kind: "spawn_error",
       startedAt,
       argv,
       message: `cmux spawn failed: ${message}`,
     });
+
+    await writeCmuxLastError({
+      kind: "spawn_error",
+      argv: result.argv,
+      message: result.message,
+    });
+
+    return result;
   }
 }
 

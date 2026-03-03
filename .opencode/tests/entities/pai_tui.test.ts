@@ -111,6 +111,18 @@ describe("pai-tui wrapper", () => {
 		expect(env.TEST_FLAG).toBe("1");
 	});
 
+	test("enables PAI_CMUX_DEBUG when CMUX_SOCKET_PATH is present", () => {
+		const env = buildChildEnv({
+			baseEnv: { CMUX_SOCKET_PATH: "/tmp/cmux.sock" },
+			opencodeRoot: "/tmp/opencode-root",
+			port: 4222,
+			completionVisibleFallback: "auto",
+		});
+
+		expect(env.PAI_CMUX_DEBUG).toBe("1");
+		expect(env.PAI_BACKGROUND_COMPLETION_VISIBLE_FALLBACK).toBeUndefined();
+	});
+
 	test("retries on bind-race failures and is bounded", async () => {
 		const attemptedPorts: number[] = [];
 		let launches = 0;
