@@ -4,7 +4,7 @@ This file documents single-purpose CLI utilities that have been consolidated fro
 
 **Philosophy:** Simple utilities don't need separate skills. Document them here, execute them directly.
 
-**Model:** Similar to Fabric patterns: many prompts live under `~/.config/opencode/skills/fabric/Patterns/`.
+**Model:** Similar to Fabric patterns: many prompts live under `~/.config/opencode/skills/utilities/fabric/Patterns/`.
 
 ---
 
@@ -189,7 +189,7 @@ Use the `voice_notify` tool:
 - "perform this"
 
 **Technical Details:**
-- Voice server must be running (`~/.config/opencode/skills/voice-server/`)
+- Voice server must be running (`~/.config/opencode/skills/utilities/voice-server/`)
 - Segments longer than 450 chars should be split
 - Natural 2-second pauses between segments for storytelling flow
 - Uses ElevenLabs API under the hood

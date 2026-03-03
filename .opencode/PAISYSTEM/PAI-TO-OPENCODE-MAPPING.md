@@ -123,7 +123,7 @@ Canonical doc paths:
 
 ```
 PAI 2.4:        .claude/skills/fabric/Patterns/
-PAI-OpenCode:   ~/.config/opencode/skills/fabric/Patterns/
+PAI-OpenCode:   ~/.config/opencode/skills/utilities/fabric/Patterns/
 
 ⚠️ DO NOT copy to PAI/Tools/fabric/ - that creates duplicates!
 ```

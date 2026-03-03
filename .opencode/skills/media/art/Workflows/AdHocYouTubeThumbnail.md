@@ -115,7 +115,7 @@ Topic context: [EXTRACTED TOPIC]
 ### Generate Command
 
 ```bash
-bun run ~/.config/opencode/skills/art/Tools/Generate.ts \
+bun run ~/.config/opencode/skills/media/art/Tools/Generate.ts \
   --model nano-banana-pro \
   --prompt "[BACKGROUND PROMPT]" \
   --size 2K \
@@ -223,7 +223,7 @@ bun ~/.config/opencode/skills/PAI/Tools/RemoveBg.ts ~/Downloads/yt-headshot-${TI
 ### Compose Command
 
 ```bash
-bun ~/.config/opencode/skills/art/Tools/ComposeThumbnail.ts \
+bun ~/.config/opencode/skills/media/art/Tools/ComposeThumbnail.ts \
   --background ~/Downloads/yt-bg-${TIMESTAMP}.png \
   --headshot ~/Downloads/yt-headshot-${TIMESTAMP}.png \
   --title "[TITLE]" \

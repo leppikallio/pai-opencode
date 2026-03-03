@@ -7,7 +7,7 @@ Progressive disclosure interface for web scraping and automation via the Apify p
 ## Quick Start
 
 ```typescript
-import { Apify } from '~/.config/opencode/skills/apify/index.ts'
+import { Apify } from '~/.config/opencode/skills/scraping/apify/index.ts'
 
 const apify = new Apify(process.env.APIFY_TOKEN)
 
@@ -290,7 +290,7 @@ Get your token from: https://console.apify.com/account/integrations
 All types are exported from the main module:
 
 ```typescript
-import { Actor, ActorRun, DatasetOptions } from '~/.config/opencode/skills/apify/index.ts'
+import { Actor, ActorRun, DatasetOptions } from '~/.config/opencode/skills/scraping/apify/index.ts'
 ```
 
 ## Error Handling

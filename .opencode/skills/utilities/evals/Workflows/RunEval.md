@@ -24,7 +24,7 @@ Running the **RunEval** workflow in the **evals** skill to execute evaluation...
 
 ```bash
 # Check use case exists
-ls ~/.config/opencode/skills/evals/UseCases/<use-case>/config.yaml
+ls ~/.config/opencode/skills/utilities/evals/UseCases/<use-case>/config.yaml
 ```
 
 If missing, redirect to `CreateUseCase.md` workflow.
@@ -37,13 +37,13 @@ For now, run a suite-based eval through the Evals toolchain:
 
 ```bash
 # Run an eval suite (regression/capability)
-bun run ~/.config/opencode/skills/evals/Tools/AlgorithmBridge.ts -s <suite>
+bun run ~/.config/opencode/skills/utilities/evals/Tools/AlgorithmBridge.ts -s <suite>
 ```
 
 ### Step 4: Collect Results
 
 Results are stored in:
-- `~/.config/opencode/skills/evals/Results/<suite>/<run-id>/run.json`
+- `~/.config/opencode/skills/utilities/evals/Results/<suite>/<run-id>/run.json`
 
 ### Step 5: Report Summary
 

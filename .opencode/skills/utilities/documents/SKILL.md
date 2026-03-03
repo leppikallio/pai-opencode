@@ -79,21 +79,21 @@ User: "Create a revenue projection spreadsheet"
 ## 📚 Full Reference Documentation
 
 **Word Documents (DOCX):**
-- Main Guide: `~/.config/opencode/skills/documents/docx/SKILL.md`
+- Main Guide: `~/.config/opencode/skills/utilities/documents/docx/SKILL.md`
 
 **PDF Processing:**
-- Main Guide: `~/.config/opencode/skills/documents/pdf/SKILL.md`
-- Forms Guide: `~/.config/opencode/skills/documents/pdf/forms.md`
-- Advanced Reference: `~/.config/opencode/skills/documents/pdf/reference.md`
+- Main Guide: `~/.config/opencode/skills/utilities/documents/pdf/SKILL.md`
+- Forms Guide: `~/.config/opencode/skills/utilities/documents/pdf/forms.md`
+- Advanced Reference: `~/.config/opencode/skills/utilities/documents/pdf/reference.md`
 
 **PowerPoint Presentations (PPTX):**
-- Main Guide: `~/.config/opencode/skills/documents/pptx/SKILL.md`
-- Creation Reference: `~/.config/opencode/skills/documents/pptx/html2pptx.md`
-- Editing Reference: `~/.config/opencode/skills/documents/pptx/ooxml.md`
+- Main Guide: `~/.config/opencode/skills/utilities/documents/pptx/SKILL.md`
+- Creation Reference: `~/.config/opencode/skills/utilities/documents/pptx/html2pptx.md`
+- Editing Reference: `~/.config/opencode/skills/utilities/documents/pptx/ooxml.md`
 
 **Excel Spreadsheets (XLSX):**
-- Main Guide: `~/.config/opencode/skills/documents/xlsx/SKILL.md`
-- Recalc Script: `~/.config/opencode/skills/documents/xlsx/recalc.py`
+- Main Guide: `~/.config/opencode/skills/utilities/documents/xlsx/SKILL.md`
+- Recalc Script: `~/.config/opencode/skills/utilities/documents/xlsx/recalc.py`
 
 ---
 

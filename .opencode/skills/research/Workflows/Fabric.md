@@ -21,7 +21,7 @@ This provides access to:
 **IMPORTANT: Before using this skill, verify patterns exist:**
 
 ```bash
-test -d ~/.config/opencode/skills/fabric/Patterns || echo "Missing patterns: ~/.config/opencode/skills/fabric/Patterns"
+test -d ~/.config/opencode/skills/utilities/fabric/Patterns || echo "Missing patterns: ~/.config/opencode/skills/utilities/fabric/Patterns"
 ```
 
 ## When to Activate This Skill
@@ -271,7 +271,7 @@ fabric "your text here" -p [pattern]
 
 ## 🔄 Updating Patterns
 
-fabric patterns shipped with this runtime live at `~/.config/opencode/skills/fabric/Patterns/`.
+fabric patterns shipped with this runtime live at `~/.config/opencode/skills/utilities/fabric/Patterns/`.
 
 **To update patterns:**
 
@@ -286,7 +286,7 @@ bun Tools/Install.ts
 **To see all available patterns:**
 
 ```bash
-ls ~/.config/opencode/skills/fabric/Patterns/
+ls ~/.config/opencode/skills/utilities/fabric/Patterns/
 # OR from your local Fabric install:
 ls ~/.config/fabric/Patterns/
 ```
@@ -363,10 +363,10 @@ cat wisdom.txt | fabric -p create_5_sentence_summary
 
 ## 📖 Supplementary Resources
 
-**Full Pattern List:** `ls ~/.config/opencode/skills/fabric/Patterns/`
-**Pattern Directory:** `~/.config/opencode/skills/fabric/Patterns/`
+**Full Pattern List:** `ls ~/.config/opencode/skills/utilities/fabric/Patterns/`
+**Pattern Directory:** `~/.config/opencode/skills/utilities/fabric/Patterns/`
 **Fabric Documentation:** https://github.com/fabric-project/fabric
-**Pattern Templates:** See `~/.config/opencode/skills/fabric/Patterns/`.
+**Pattern Templates:** See `~/.config/opencode/skills/utilities/fabric/Patterns/`.
 
 ## 🔑 Key Insight
 

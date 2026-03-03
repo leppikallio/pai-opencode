@@ -29,7 +29,7 @@ voice_notify({
 
 **When user requests scraping/fetching URL content:**
 Examples: "scrape this URL", "fetch this page", "get content from [URL]", "pull content from this site", "retrieve [URL]", "can't access this site", "this site is blocking me", "use Bright Data to fetch"
-→ **READ:** ~/.config/opencode/skills/bright-data/Workflows/FourTierScrape.md
+→ **READ:** ~/.config/opencode/skills/scraping/bright-data/Workflows/FourTierScrape.md
 → **EXECUTE:** Four-tier progressive scraping workflow (WebFetch → Curl → Browser Automation → Bright Data MCP)
 
 ---

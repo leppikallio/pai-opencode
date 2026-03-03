@@ -8,14 +8,14 @@
 
 This repo ships a **code-first** Apify interface under:
 
-- `~/.config/opencode/skills/apify/`
+- `~/.config/opencode/skills/scraping/apify/`
 
 The key integration pattern is: run Apify actors in code, then filter results BEFORE anything reaches model context.
 
 ### Example: Use apify from another skill/tool
 
 ```typescript
-// Run from: ~/.config/opencode/skills/apify/
+// Run from: ~/.config/opencode/skills/scraping/apify/
 import { searchGoogleMaps } from "./actors";
 
 const places = await searchGoogleMaps({ query: "coffee vienna", maxResults: 50 });
@@ -49,7 +49,7 @@ mcp__Apify__get-actor-output(runId)
 
 ```typescript
 // All in one script, filtering in code
-bun run ~/.config/opencode/skills/apify/examples/instagram-scraper.ts
+bun run ~/.config/opencode/skills/scraping/apify/examples/instagram-scraper.ts
 
 // Returns only filtered result set
 // Savings: typically 90%+ vs unfiltered
@@ -136,7 +136,7 @@ Other Apify actors worth implementing:
 ## Documentation
 
 **For Users:**
-- Apify skill: `~/.config/opencode/skills/apify/SKILL.md`
+- Apify skill: `~/.config/opencode/skills/scraping/apify/SKILL.md`
 
 ## Support
 
@@ -149,7 +149,7 @@ Q: What if script fails?
 A: Check `APIFY_TOKEN` in `~/.config/opencode/.env`, verify network, check Apify status.
 
 Q: Can I add new actors?
-A: Yes! Add a wrapper in `~/.config/opencode/skills/apify/actors/` and filter in code.
+A: Yes! Add a wrapper in `~/.config/opencode/skills/scraping/apify/actors/` and filter in code.
 
 Q: How do I debug?
 A: Start with the actor wrapper output, then log/filter in code.

@@ -25,7 +25,7 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 ## Quick Example
 
 ```typescript
-// Run from: ~/.config/opencode/skills/apify/
+// Run from: ~/.config/opencode/skills/scraping/apify/
 import { scrapeInstagramProfile, searchGoogleMaps } from "./actors";
 
 const profile = await scrapeInstagramProfile({ username: "target_username", maxPosts: 50 });

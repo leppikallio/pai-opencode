@@ -164,7 +164,7 @@ Within each category, rank items by:
 ### Step 1: Check State
 ```bash
 # Read last check timestamp
-cat ~/.config/opencode/skills/sec-updates/State/last-check.json
+cat ~/.config/opencode/skills/security/sec-updates/State/last-check.json
 ```
 
 ### Step 2: Fetch Sources (Parallel)

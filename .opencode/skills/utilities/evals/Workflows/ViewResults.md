@@ -31,17 +31,17 @@ Ask the user:
 
 ```bash
 # List suites with results
-ls -la ~/.config/opencode/skills/evals/Results
+ls -la ~/.config/opencode/skills/utilities/evals/Results
 
 # List runs for a suite
-ls -la ~/.config/opencode/skills/evals/Results/<suite>
+ls -la ~/.config/opencode/skills/utilities/evals/Results/<suite>
 ```
 
 ### Step 3: View Detailed Results (File-Based)
 
 ```bash
 # View the raw run payload
-cat ~/.config/opencode/skills/evals/Results/<suite>/<run-id>/run.json
+cat ~/.config/opencode/skills/utilities/evals/Results/<suite>/<run-id>/run.json
 ```
 
 ### Step 4: Generate Report
@@ -49,7 +49,7 @@ cat ~/.config/opencode/skills/evals/Results/<suite>/<run-id>/run.json
 This is not yet standardized in the repo. If you have a report template, render it with:
 
 ```bash
-bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts --help
+bun run ~/.config/opencode/skills/utilities/prompting/Tools/RenderTemplate.ts --help
 ```
 
 ### Step 5: Query Database
@@ -62,8 +62,8 @@ Manual comparison for now:
 
 ```bash
 diff -u \
-  ~/.config/opencode/skills/evals/Results/<suite>/<run-a>/run.json \
-  ~/.config/opencode/skills/evals/Results/<suite>/<run-b>/run.json
+  ~/.config/opencode/skills/utilities/evals/Results/<suite>/<run-a>/run.json \
+  ~/.config/opencode/skills/utilities/evals/Results/<suite>/<run-b>/run.json
 ```
 
 ### Step 7: Report Summary
@@ -203,17 +203,17 @@ Use the on-disk results in `Results/`:
 
 ```bash
 # List runs (newest last if you sort)
-ls -la ~/.config/opencode/skills/evals/Results/<suite>
+ls -la ~/.config/opencode/skills/utilities/evals/Results/<suite>
 
 # Inspect a run
-cat ~/.config/opencode/skills/evals/Results/<suite>/<run-id>/run.json
+cat ~/.config/opencode/skills/utilities/evals/Results/<suite>/<run-id>/run.json
 ```
 
 If you have `jq`, you can quickly extract headline metrics:
 
 ```bash
 jq -r '.pass_rate, .mean_score, .n_trials' \
-  ~/.config/opencode/skills/evals/Results/<suite>/<run-id>/run.json
+  ~/.config/opencode/skills/utilities/evals/Results/<suite>/<run-id>/run.json
 ```
 
 ## Common Queries (File-Based)
@@ -221,13 +221,13 @@ jq -r '.pass_rate, .mean_score, .n_trials' \
 ### "How did the last eval go?"
 
 ```bash
-ls -la ~/.config/opencode/skills/evals/Results/<suite> | tail -n 5
+ls -la ~/.config/opencode/skills/utilities/evals/Results/<suite> | tail -n 5
 ```
 
 ### "Show me the summary for a run"
 
 ```bash
-cat ~/.config/opencode/skills/evals/Results/<suite>/<run-id>/run.json
+cat ~/.config/opencode/skills/utilities/evals/Results/<suite>/<run-id>/run.json
 ```
 
 ## Done

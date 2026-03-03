@@ -31,12 +31,12 @@ Ask the user:
 ### Step 2: Create Use Case Directory
 
 ```bash
-mkdir -p ~/.config/opencode/skills/evals/UseCases/<name>/{test-cases,golden-outputs,prompts}
+mkdir -p ~/.config/opencode/skills/utilities/evals/UseCases/<name>/{test-cases,golden-outputs,prompts}
 ```
 
 ### Step 3: Create Config File
 
-Create `~/.config/opencode/skills/evals/UseCases/<name>/config.yaml`:
+Create `~/.config/opencode/skills/utilities/evals/UseCases/<name>/config.yaml`:
 
 ```yaml
 name: <use_case_name>
@@ -94,7 +94,7 @@ models:
 
 ### Step 4: Create Initial Prompt Version
 
-Create `~/.config/opencode/skills/evals/UseCases/<name>/prompts/v1.0.0.md`:
+Create `~/.config/opencode/skills/utilities/evals/UseCases/<name>/prompts/v1.0.0.md`:
 
 ```markdown
 # <Task Name> Prompt v1.0.0
@@ -118,7 +118,7 @@ Create `~/.config/opencode/skills/evals/UseCases/<name>/prompts/v1.0.0.md`:
 
 ### Step 5: Create Test Cases
 
-Create test cases in `~/.config/opencode/skills/evals/UseCases/<name>/test-cases/`:
+Create test cases in `~/.config/opencode/skills/utilities/evals/UseCases/<name>/test-cases/`:
 
 Each test case is a YAML file:
 
@@ -170,7 +170,7 @@ Golden outputs serve as:
 
 ### Step 7: Create README
 
-Create `~/.config/opencode/skills/evals/UseCases/<name>/README.md`:
+Create `~/.config/opencode/skills/utilities/evals/UseCases/<name>/README.md`:
 
 ```markdown
 # <Use Case Name>
@@ -207,7 +207,7 @@ Create `~/.config/opencode/skills/evals/UseCases/<name>/README.md`:
 \`\`\`bash
 # This repo does not ship the EvalServer runner yet.
 # If you have a suite, run:
-bun run ~/.config/opencode/skills/evals/Tools/AlgorithmBridge.ts -s <suite>
+bun run ~/.config/opencode/skills/utilities/evals/Tools/AlgorithmBridge.ts -s <suite>
 \`\`\`
 
 ## Version History
@@ -219,10 +219,10 @@ bun run ~/.config/opencode/skills/evals/Tools/AlgorithmBridge.ts -s <suite>
 
 ```bash
 # Check structure
-ls -la ~/.config/opencode/skills/evals/UseCases/<name>/
+ls -la ~/.config/opencode/skills/utilities/evals/UseCases/<name>/
 
 # Validate config (manual for now)
-cat ~/.config/opencode/skills/evals/UseCases/<name>/config.yaml
+cat ~/.config/opencode/skills/utilities/evals/UseCases/<name>/config.yaml
 ```
 
 ### Step 9: Run Initial Eval
@@ -230,7 +230,7 @@ cat ~/.config/opencode/skills/evals/UseCases/<name>/config.yaml
 ```bash
 # This repo does not ship the EvalServer runner yet.
 # If you have a suite, run:
-bun run ~/.config/opencode/skills/evals/Tools/AlgorithmBridge.ts -s <suite>
+bun run ~/.config/opencode/skills/utilities/evals/Tools/AlgorithmBridge.ts -s <suite>
 ```
 
 Review:

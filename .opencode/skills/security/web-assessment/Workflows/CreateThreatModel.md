@@ -210,7 +210,7 @@ Risk Score ranges: 1-3 (Low), 4-6 (Medium), 7-9 (High), 10-12 (Critical)
 ## Output Location
 
 Save threat model to:
-`~/.config/opencode/skills/web-assessment/Data/{client}/threat-model.md`
+`~/.config/opencode/skills/security/web-assessment/Data/{client}/threat-model.md`
 
 Or return inline for immediate use in testing.
 

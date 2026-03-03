@@ -7,8 +7,8 @@ Scope:
 - Defines what the importer **may change** vs **must not change**.
 
 Related docs (runtime paths):
-- Import workflow: `/Users/zuul/.config/opencode/skills/create-skill/workflows/ImportSkill.md`
-- Import tool help: `/Users/zuul/.config/opencode/skills/create-skill/Tools/ImportSkill.help.md`
+- Import workflow: `/Users/zuul/.config/opencode/skills/utilities/create-skill/workflows/ImportSkill.md`
+- Import tool help: `/Users/zuul/.config/opencode/skills/utilities/create-skill/Tools/ImportSkill.help.md`
 - Skill structure: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Structure.md`
 - Skill frontmatter: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Frontmatter.md`
 - Validation checklist: `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Validation.md`
@@ -32,7 +32,7 @@ Canonicalization is any transformation that makes an imported skill conform bett
 | Failure behavior | If minimal cannot satisfy mandatory constraints, abort with a specific reason | Attempt to fix mandatory constraints within strict scope |
 
 Notes:
-- The tool exposes a third mode, `none`, which is pure copy (no canonicalization). See: `/Users/zuul/.config/opencode/skills/create-skill/Tools/ImportSkill.help.md`.
+- The tool exposes a third mode, `none`, which is pure copy (no canonicalization). See: `/Users/zuul/.config/opencode/skills/utilities/create-skill/Tools/ImportSkill.help.md`.
 - The meaning of “minimal” is defined by the **Allowed edits** list below, not by “whatever seems helpful”.
 
 ## Import procedure (author in base repo, then install)

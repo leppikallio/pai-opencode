@@ -229,10 +229,10 @@ application logic and potential additional attack vectors.
 ## Complete Attack Reference
 
 **Full attack taxonomy with 100+ techniques:**
-`~/.config/opencode/skills/prompt-injection/COMPREHENSIVE-ATTACK-TAXONOMY.md`
+`~/.config/opencode/skills/security/prompt-injection/COMPREHENSIVE-ATTACK-TAXONOMY.md`
 
 **Attack payload library:**
-`~/.config/opencode/skills/prompt-injection/attack-payloads/direct-injection/`
+`~/.config/opencode/skills/security/prompt-injection/attack-payloads/direct-injection/`
 
 ## Integration with Other Workflows
 

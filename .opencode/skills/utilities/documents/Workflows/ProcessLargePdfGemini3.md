@@ -654,7 +654,7 @@ cat raw.json | sed 's/```json//g' | sed 's/```//g' | jq '.' > clean.json
 
 ## Next Steps
 
-- If you need a separate PDF workflow, add it under `~/.config/opencode/skills/documents/Workflows/`.
+- If you need a separate PDF workflow, add it under `~/.config/opencode/skills/utilities/documents/Workflows/`.
 - If you need database import, wire the JSON output into your own code.
 
 ## Summary

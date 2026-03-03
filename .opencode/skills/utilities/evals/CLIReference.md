@@ -22,7 +22,7 @@ Test cases are file-backed under `UseCases/<name>/test-cases/`.
 
 ```bash
 # Run an eval suite and optionally update ISC
-bun run ~/.config/opencode/skills/evals/Tools/AlgorithmBridge.ts -s <suite>
+bun run ~/.config/opencode/skills/utilities/evals/Tools/AlgorithmBridge.ts -s <suite>
 ```
 
 ---
@@ -38,7 +38,7 @@ Not shipped in this repo.
 ### Files (Source of Truth)
 
 ```
-~/.config/opencode/skills/evals/
+~/.config/opencode/skills/utilities/evals/
 ├── UseCases/
 │   └── <name>/
 │       ├── config.yaml         # Criteria, thresholds

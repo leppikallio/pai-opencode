@@ -35,7 +35,7 @@ Convert Markdown content to professionally formatted Word documents using compan
 
 The docx CLI is stored at:
 
-`~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts`
+`~/.config/opencode/skills/utilities/documents/docx/Tools/DocxCli.ts`
 
 Run with bun (examples below).
 
@@ -111,21 +111,21 @@ User: "Extract this report.docx into markdown"
 
 ```bash
 # Basic conversion
-bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" create report.md -o report.docx
+bun "~/.config/opencode/skills/utilities/documents/docx/Tools/DocxCli.ts" create report.md -o report.docx
 
 # With metadata
-bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" create report.md -o report.docx \
+bun "~/.config/opencode/skills/utilities/documents/docx/Tools/DocxCli.ts" create report.md -o report.docx \
   --title "Report Title" \
   --author "Author Name" \
   --date "2025-01-15" \
   --doc-version "1.0"
 
 # From stdin
-echo "# Title\n\nContent..." | bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" create - -o output.docx
+echo "# Title\n\nContent..." | bun "~/.config/opencode/skills/utilities/documents/docx/Tools/DocxCli.ts" create - -o output.docx
 
 # Edit existing document
-bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" edit existing.docx --append additions.md
+bun "~/.config/opencode/skills/utilities/documents/docx/Tools/DocxCli.ts" edit existing.docx --append additions.md
 
 # Read document into markdown
-bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" read report.docx -o report.md
+bun "~/.config/opencode/skills/utilities/documents/docx/Tools/DocxCli.ts" read report.docx -o report.md
 ```

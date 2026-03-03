@@ -13,7 +13,7 @@ Runs:
 - SkillSystem router/section invariants:
   - `/Users/zuul/.config/opencode/skills/system/Tools/ValidateSkillSystemDocs.ts`
 - Budget-line checks for key skills (examples excluded):
-  - `/Users/zuul/.config/opencode/skills/create-skill/Tools/CountSkillBudgetLines.ts`
+  - `/Users/zuul/.config/opencode/skills/utilities/create-skill/Tools/CountSkillBudgetLines.ts`
 
 Run:
 

@@ -30,7 +30,7 @@ Ask the user:
 
 ### Step 2: Create Judge Config
 
-Create `~/.config/opencode/skills/evals/UseCases/<name>/judge-config.yaml`:
+Create `~/.config/opencode/skills/utilities/evals/UseCases/<name>/judge-config.yaml`:
 
 ```yaml
 judge:
@@ -62,10 +62,10 @@ output:
 ### Step 3: Render Judge Prompt
 
 ```bash
-bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/utilities/prompting/Tools/RenderTemplate.ts \
   -t Evals/Judge.hbs \
-  -d ~/.config/opencode/skills/evals/UseCases/<name>/judge-config.yaml \
-  -o ~/.config/opencode/skills/evals/UseCases/<name>/judge-prompt.md \
+  -d ~/.config/opencode/skills/utilities/evals/UseCases/<name>/judge-config.yaml \
+  -o ~/.config/opencode/skills/utilities/evals/UseCases/<name>/judge-prompt.md \
   --preview
 ```
 
