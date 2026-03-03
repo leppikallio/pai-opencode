@@ -114,10 +114,10 @@ const DEFAULT_PROSODY: ProsodySettings = {
   use_speaker_boost: true,
 };
 
-// Load voices configuration from CORE skill (canonical source for agent voices)
+// Load agent voice personalities from the agents skill
 let voicesConfig: VoicesConfig | null = null;
 try {
-  const corePersonalitiesPath = join(getOpenCodeDir(), 'skills', 'Agents', 'AgentPersonalities.md');
+  const corePersonalitiesPath = join(getOpenCodeDir(), 'skills', 'agents', 'AgentPersonalities.md');
   if (existsSync(corePersonalitiesPath)) {
     const markdownContent = readFileSync(corePersonalitiesPath, 'utf-8');
     // Extract JSON block from markdown
@@ -134,7 +134,7 @@ try {
 // Load user pronunciation customizations
 let pronunciations: Record<string, string> = {};
 try {
-  const pronunciationsPath = join(getOpenCodeDir(), 'skills', 'CORE', 'USER', 'pronunciations.json');
+  const pronunciationsPath = join(getOpenCodeDir(), 'skills', 'PAI', 'USER', 'pronunciations.json');
   if (existsSync(pronunciationsPath)) {
     const content = readFileSync(pronunciationsPath, 'utf-8');
     pronunciations = JSON.parse(content);

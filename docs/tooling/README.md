@@ -45,17 +45,17 @@ These tools live under the **System** skill and are intended to validate runtime
 - **ValidateSkillSystemDocs** — static validation of SkillSystem split docs (router + section invariants)
   - Run:
     ```bash
-    bun "$HOME/.config/opencode/skills/System/Tools/ValidateSkillSystemDocs.ts"
+    bun "$HOME/.config/opencode/skills/system/Tools/ValidateSkillSystemDocs.ts"
     ```
 
 - **SmokeTestSkillSystem** — pragmatic smoke tests for SkillSystem/CreateSkill behavior
   - Static (no LLM calls):
     ```bash
-    bun "$HOME/.config/opencode/skills/System/Tools/SmokeTestSkillSystem.ts" --mode static
+    bun "$HOME/.config/opencode/skills/system/Tools/SmokeTestSkillSystem.ts" --mode static
     ```
   - Behavior (LLM calls via `opencode run` in fresh sessions):
     ```bash
-    bun "$HOME/.config/opencode/skills/System/Tools/SmokeTestSkillSystem.ts" \
+    bun "$HOME/.config/opencode/skills/system/Tools/SmokeTestSkillSystem.ts" \
       --mode behavior \
       --model openai/gpt-5.3-codex
     ```

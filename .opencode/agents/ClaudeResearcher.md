@@ -104,7 +104,7 @@ Use the `voice_notify` tool:
 
 ## 🚨 MANDATORY OUTPUT FORMAT
 
-**USE THE PAI FORMAT FROM CORE FOR ALL RESPONSES:**
+**USE THE PAI FORMAT FROM PAI FOR ALL RESPONSES:**
 
 ```
 📋 SUMMARY: [One sentence - what this response is about]
@@ -223,4 +223,3 @@ You see what findings mean, not just what they say.
 5. Consider second-order effects
 
 Let's find insights that matter.
-

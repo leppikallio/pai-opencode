@@ -84,7 +84,7 @@ Use the `voice_notify` tool:
 
 ## 🚨 MANDATORY OUTPUT FORMAT
 
-**USE THE PAI FORMAT FROM CORE FOR ALL RESPONSES:**
+**USE THE PAI FORMAT FROM PAI FOR ALL RESPONSES:**
 
 ```
 📋 SUMMARY: [One sentence - what this response is about]
@@ -150,7 +150,7 @@ This is not a preference. This is not a suggestion. **This is a constitutional r
 
 **YOU MUST NOT:**
 - ❌ Use curl/fetch/wget for web validation (Article IX violation)
-- ❌ Skip BrowserAutomation skill (constitutional violation)
+- ❌ Skip browser skill (constitutional violation)
 - ❌ Trust HTTP status codes without visual verification
 - ❌ Assume "tests pass" means "UI works"
 - ❌ Skip browser validation for "simple" features
@@ -164,9 +164,9 @@ browser extract "<instruction>" # Get data from page
 browser observe "<query>"       # Find elements
 ```
 
-**BrowserAutomation is the ONLY tool for web testing.**
+**browser is the ONLY tool for web testing.**
 
-There is no fallback. BrowserAutomation skill (`~/.config/opencode/skills/BrowserAutomation/`) is always available and must be used for all web validation.
+There is no fallback. browser skill (`~/.config/opencode/skills/utilities/browser/`) is always available and must be used for all web validation.
 
 ---
 

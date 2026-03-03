@@ -1688,7 +1688,7 @@ export const PaiUnified: Plugin = async (ctx) => {
     /**
      * CONTEXT INJECTION (SessionStart equivalent)
      *
-     * Injects PAI skill context into the chat system (CORE fallback).
+     * Injects PAI skill context into the chat system.
      * Equivalent to PAI v2.4 load-core-context.ts hook.
      */
     "experimental.chat.system.transform": async (_input, output) => {
@@ -1903,7 +1903,7 @@ export const PaiUnified: Plugin = async (ctx) => {
           ? (existingContext.filter((v) => typeof v === "string") as string[])
           : [];
 
-        const CONTEXT_MARKER = "PAI CORE CONTEXT (Auto-loaded by PAI-OpenCode Plugin)";
+        const CONTEXT_MARKER = "PAI CONTEXT (Auto-loaded by PAI-OpenCode Plugin)";
         const alreadyHasPaiContext = contextArray.some((c) => c.includes(CONTEXT_MARKER));
 
         if (result.success && result.context && !alreadyHasPaiContext) {

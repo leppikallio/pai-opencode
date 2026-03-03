@@ -62,7 +62,7 @@ After tuning prompt extraction and using realistic opencode timeout values, sema
 
 - Total findings: 3
 - Opencode findings: 3
-  - HIGH: unnecessary CORE context loading exposure
+  - HIGH: unnecessary PAI context loading exposure
   - MEDIUM: possible PII leakage in stdout validation paths
   - LOW: password-like literal in example command
 
