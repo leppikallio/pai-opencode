@@ -35,6 +35,7 @@ session-ses_*.md
 # Local backup artifacts (never commit)
 .opencode/BACKUPS/
 Components_backup/
+opencode.json.tui-migration.bak
 
 # Git worktrees (local only)
 .worktrees/

@@ -1,6 +1,5 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "theme": "dark",
   "model": "openai/gpt-4o",
   "snapshot": true,
   "username": "User"
