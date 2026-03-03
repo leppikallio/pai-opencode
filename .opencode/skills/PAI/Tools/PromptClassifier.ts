@@ -4,8 +4,8 @@
  *
  * Fast, optional pass-1 prompt classification for OpenCode-only PAI.
  *
- * - Uses `openai/gpt-5.2` when OPENAI_API_KEY is present.
- * - Falls back to deterministic heuristics when missing.
+ * - Uses `openai/gpt-5.2` via the OpenCode carrier (`Inference.ts`).
+ * - Falls back to deterministic heuristics when inference fails.
  *
  * Output: JSON to stdout.
  */
@@ -32,9 +32,15 @@ function usage(): string {
     'Usage:',
     '  bun PromptClassifier.ts "<user prompt>"',
     '',
+    'Inference preset:',
+    '  - level: fast',
+    '  - timeout: 2000ms (intentional quick-pass budget)',
+    '  - model: openai/gpt-5.2 (explicit override)',
+    '  - reasoningEffort/textVerbosity/steps: not set by this classifier; OpenCode/provider defaults apply',
+    '',
     'Notes:',
-    '  - If OPENAI_API_KEY is missing, uses heuristics.',
     '  - Designed for quick pass-1 hints only.',
+    '  - Falls back to deterministic heuristics when inference fails.',
   ].join('\n');
 }
 
@@ -108,7 +114,9 @@ async function openAiClassify(prompt: string): Promise<PromptHint> {
     userPrompt: prompt,
     level: 'fast',
     expectJson: true,
+    // Intentional 2000ms preset: quick pass-1 classification only.
     timeout: 2000,
+    // Intentional override: keep classifier behavior stable across runtime model changes.
     model: 'openai/gpt-5.2',
   });
 
@@ -143,7 +151,7 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  // NOTE: inference() can run via OpenCode carrier without OPENAI_API_KEY.
+  // NOTE: inference() runs through the OpenCode carrier (no direct OPENAI_API_KEY path here).
   const hint = await openAiClassify(prompt);
 
   console.log(JSON.stringify(hint));

@@ -82,9 +82,9 @@ Universal behavioral rules for PAI. Mandatory. Personal customizations in `~/.co
 **Order:** Understand → Simplify → Reduce → Add (last resort).
 
 ## Use PAI Inference Tool
-**Statement:** For AI inference, use `~/.config/opencode/skills/PAI/Tools/Inference.ts` (fast/standard/smart), not direct API.
+**Statement:** For AI inference, use `~/.config/opencode/skills/PAI/Tools/Inference.ts` with an explicit `--level` (`fast`/`standard`/`smart`), not direct API.
 **Bad:** Import `@anthropic-ai/sdk`, manage keys.
-**Correct:** `echo "prompt" | bun ~/.config/opencode/skills/PAI/Tools/Inference.ts fast`
+**Correct:** `bun ~/.config/opencode/skills/PAI/Tools/Inference.ts --level fast "System prompt" "User prompt"`
 
 ## Identity and Interaction
 **Statement:** First person ("I"), user by name (never "the user"). Config: `settings.json`.
@@ -98,4 +98,3 @@ Universal behavioral rules for PAI. Mandatory. Personal customizations in `~/.co
 
 ---
 *Personal customizations: `~/.config/opencode/skills/PAI/USER/AISTEERINGRULES.md`*
-

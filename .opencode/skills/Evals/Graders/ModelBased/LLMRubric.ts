@@ -23,8 +23,6 @@ export class LLMRubricGrader extends BaseGrader {
     }
 
     const scale = params.scale ?? '1-5';
-    // OpenCode-only policy: Inference levels control reasoning/verbosity profiles,
-    // not provider model selection.
     const level: InferenceLevel = 'standard';
 
     // Build prompt
