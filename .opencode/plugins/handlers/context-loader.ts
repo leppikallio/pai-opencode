@@ -4,7 +4,7 @@
  * Loads PAI skill context for injection into chat system.
  * Equivalent to PAI's load-core-context.ts hook.
  *
- * Compatible with PAI v2.4 (The Algorithm embedded in CORE/PAI).
+ * Compatible with PAI v2.4+ (The Algorithm embedded in PAI).
  *
  * @module context-loader
  */
@@ -49,7 +49,7 @@ function applyRuntimeTemplateVars(content: string): string {
 }
 
 /**
- * Load PAI skill context (fallback to CORE alias)
+ * Load PAI skill context
  *
  * Reads:
  * - SKILL.md (skill definition)
@@ -62,13 +62,12 @@ export async function loadContext(): Promise<ContextResult> {
   try {
     const paiDir = getRuntimeDir();
     const paiSkillDir = join(paiDir, "skills", "PAI");
-    const coreSkillDir = join(paiDir, "skills", "CORE");
-    const skillDir = existsSync(paiSkillDir) ? paiSkillDir : coreSkillDir;
-    const skillLabel = existsSync(paiSkillDir) ? "PAI" : "CORE";
+    const skillDir = paiSkillDir;
+    const skillLabel = "PAI";
 
     fileLog(`Loading context from: ${skillDir}`);
 
-    // Check if PAI (or CORE fallback) skill exists
+    // Check if PAI skill exists
     if (!existsSync(skillDir)) {
       fileLog("PAI skill directory not found", "warn");
       return {
@@ -162,7 +161,7 @@ export async function loadContext(): Promise<ContextResult> {
     }
 
     const context = `<system-reminder>
-PAI CORE CONTEXT (Auto-loaded by PAI-OpenCode Plugin)
+PAI CONTEXT (Auto-loaded by PAI-OpenCode Plugin)
 
 ${contextParts.join("\n\n")}
 

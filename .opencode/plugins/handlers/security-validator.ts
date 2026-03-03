@@ -278,7 +278,6 @@ function parsePatternsYaml(content: string): {
           const val = stripQuotes(match[2]);
           if (key === "enabled") (rules as UnknownRecord).enabled = val !== "false";
         }
-        continue;
       }
     }
 
@@ -398,8 +397,6 @@ function loadSecurityConfig(): SecurityConfig {
   const overridePaths = [
     // Preferred: preserved user tier (not overwritten by installer).
     path.join(paiDir, "skills", "PAI", "USER", "PAISECURITYSYSTEM", "patterns.yaml"),
-    // Back-compat: legacy CORE user tier.
-    path.join(paiDir, "skills", "CORE", "USER", "PAISECURITYSYSTEM", "patterns.yaml"),
     // Back-compat: legacy top-level USER dir (may not exist in runtime).
     path.join(paiDir, "USER", "PAISECURITYSYSTEM", "patterns.yaml"),
   ];
@@ -530,7 +527,7 @@ function matchesPathPattern(filePath: string, pattern: string): boolean {
   for (const pat of patterns) {
     // glob support: ** and *
     if (pat.includes("*")) {
-      let regexPattern = pat
+      const regexPattern = pat
         .replace(/\*\*/g, "<<<DOUBLESTAR>>>")
         .replace(/\*/g, "<<<SINGLESTAR>>>")
         .replace(/[.+^${}()|[\]\\]/g, "\\$&")
@@ -547,10 +544,8 @@ function matchesPathPattern(filePath: string, pattern: string): boolean {
     }
 
     const expandedPat = expandHome(pat);
-    if (
-      expandedPath === expandedPat ||
-      expandedPath.startsWith(expandedPat.endsWith("/") ? expandedPat : expandedPat + "/")
-    ) {
+    const expandedPrefix = expandedPat.endsWith("/") ? expandedPat : `${expandedPat}/`;
+    if (expandedPath === expandedPat || expandedPath.startsWith(expandedPrefix)) {
       return true;
     }
 

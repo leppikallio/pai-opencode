@@ -157,12 +157,12 @@ description: Multi-model research. USE WHEN research, investigate.
 
 **PAI v2.4:**
 ```typescript
-const skillDir = `${process.env.HOME}/.claude/skills/Research`;
+const skillDir = `${process.env.HOME}/.claude/skills/research`;
 ```
 
 **pai-opencode:**
 ```typescript
-const skillDir = `${process.env.PAI_DIR}/skills/Research`;
+const skillDir = `${process.env.PAI_DIR}/skills/research`;
 ```
 
 *Same logic, environment variable handles platform difference.*

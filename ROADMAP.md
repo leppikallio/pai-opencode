@@ -11,7 +11,7 @@ This roadmap outlines the development path from v1.0 to v2.0 and beyond.
 **Status:** Released
 
 **What's Included:**
-- Skills system with 29 skills (CORE, Algorithm, Fabric, Research, etc.)
+- Skills system with 29 skills (PAI, Algorithm, Fabric, Research, etc.)
 - Plugin system (security validator, context loader)
 - Memory system (projects, sessions, learning)
 - Agent system (14 agents, PascalCase naming)

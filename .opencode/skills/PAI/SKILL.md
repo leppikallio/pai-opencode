@@ -2,11 +2,11 @@
   🔨 GENERATED FILE - Do not edit directly
   Edit:   ~/Projects/pai-opencode/.opencode/skills/PAI/Components/
   Build:  bun ~/Projects/pai-opencode/.opencode/skills/PAI/Tools/CreateDynamicCore.ts
-  Built:  1 March 2026 19:47:33
+  Built:  3 March 2026 16:12:22
 -->
 ---
-name: CORE
-description: Personal AI Infrastructure core. The authoritative reference for how PAI works.
+name: PAI
+description: Personal AI Infrastructure system. USE WHEN you need the PAI Algorithm and system rules.
 ---
 
 # Intro to PAI
