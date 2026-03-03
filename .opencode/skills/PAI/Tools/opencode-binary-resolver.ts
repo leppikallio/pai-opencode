@@ -38,22 +38,14 @@ export function collectCandidateBinaryPaths(
 	return [...new Set(out)];
 }
 
-export interface ResolveServeCapableOpencodeBinaryOptions {
-	env?: NodeJS.ProcessEnv;
-	preferredBinary?: string;
-	pathEnv?: string;
-	probeFn?: (binaryPath: string) => Promise<boolean>;
-	whichFn?: (cmd: string) => string | null;
-	platform?: NodeJS.Platform;
-}
-
 function uniqueNonEmpty(values: Array<string | null | undefined>): string[] {
+	const seen = new Set<string>();
 	const out: string[] = [];
 	for (const value of values) {
 		if (!value) continue;
 		const trimmed = value.trim();
-		if (!trimmed) continue;
-		if (out.includes(trimmed)) continue;
+		if (!trimmed || seen.has(trimmed)) continue;
+		seen.add(trimmed);
 		out.push(trimmed);
 	}
 	return out;
@@ -92,35 +84,9 @@ export async function canServe(binaryPath: string): Promise<boolean> {
 	return runBinary(binaryPath, ["serve", "--help"]);
 }
 
-export async function isServeCapableOpencode(
-	binaryPath: string,
-): Promise<boolean> {
+export async function isServeCapableOpencode(binaryPath: string): Promise<boolean> {
 	if (!(await canExecuteBinary(binaryPath))) return false;
 	return canServe(binaryPath);
-}
-
-export async function resolveServeCapableOpencodeBinary(
-	options: ResolveServeCapableOpencodeBinaryOptions = {},
-): Promise<string> {
-	const env = options.env ?? process.env;
-	const pathEnv = options.pathEnv ?? env.PATH;
-	const probeFn = options.probeFn ?? isServeCapableOpencode;
-	const whichFn = options.whichFn ?? Bun.which;
-	const platform = options.platform ?? process.platform;
-
-	const candidates = uniqueNonEmpty([
-		options.preferredBinary,
-		env.PAI_OPENCODE_BIN,
-		env.OPENCODE_BIN,
-		...collectCandidateBinaryPaths(pathEnv, whichFn, platform),
-		"opencode",
-	]);
-
-	for (const candidate of candidates) {
-		if (await probeFn(candidate)) return candidate;
-	}
-
-	throw new Error("No serve-capable 'opencode' binary found");
 }
 
 export async function findWorkingOpencodeBinary(
@@ -149,8 +115,7 @@ export async function withWorkingOpencodePath<T>(
 	},
 ): Promise<T> {
 	const pathEnv = opts?.pathEnv ?? process.env.PATH;
-	const findBinary =
-		opts?.findBinary ?? ((env) => findWorkingOpencodeBinary(env));
+	const findBinary = opts?.findBinary ?? ((env) => findWorkingOpencodeBinary(env));
 	const binaryPath = await findBinary(pathEnv);
 
 	if (!binaryPath) {
@@ -159,4 +124,39 @@ export async function withWorkingOpencodePath<T>(
 
 	const nextPath = buildPathWithBinaryFirst(pathEnv, binaryPath);
 	return withScopedProcessEnv({ PATH: nextPath }, fn);
+}
+
+export interface ResolveServeCapableOpencodeBinaryOptions {
+	env?: NodeJS.ProcessEnv;
+	preferredBinary?: string;
+	pathEnv?: string;
+	probeFn?: (binaryPath: string) => Promise<boolean>;
+	whichFn?: (cmd: string) => string | null;
+	platform?: NodeJS.Platform;
+}
+
+export async function resolveServeCapableOpencodeBinary(
+	options: ResolveServeCapableOpencodeBinaryOptions = {},
+): Promise<string> {
+	const env = options.env ?? process.env;
+	const pathEnv = options.pathEnv ?? env.PATH;
+	const probeFn = options.probeFn ?? isServeCapableOpencode;
+	const whichFn = options.whichFn ?? Bun.which;
+	const platform = options.platform ?? process.platform;
+
+	const candidates = uniqueNonEmpty([
+		options.preferredBinary,
+		env.PAI_OPENCODE_BIN,
+		env.OPENCODE_BIN,
+		...collectCandidateBinaryPaths(pathEnv, whichFn, platform),
+		"opencode",
+	]);
+
+	for (const candidate of candidates) {
+		if (await probeFn(candidate)) return candidate;
+	}
+
+	throw new Error(
+		"Unable to resolve a serve-capable opencode binary (missing 'serve' support).",
+	);
 }
