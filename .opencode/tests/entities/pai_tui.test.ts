@@ -231,7 +231,68 @@ describe("pai-tui wrapper", () => {
 		expect(stdout).toContain("--bind-retries <n>");
 		expect(stdout).toContain("--write-state <on|off>");
 		expect(stdout).toContain("Defaults:");
-		expect(stdout).toContain("Pass extra OpenCode args after --");
+		expect(stdout).toContain("Pass extra OpenCode args after wrapper options.");
+	});
+
+	test("forwards unknown args to opencode (e.g. -s SESSION)", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-tui-fwd-"));
+		const binPath = path.join(root, "opencode");
+		const stateDir = path.join(root, "state");
+		await fs.mkdir(stateDir, { recursive: true });
+
+		await fs.writeFile(
+			binPath,
+			[
+				"#!/usr/bin/env node",
+				"const args = process.argv.slice(2);",
+				"if (args.includes('--version')) process.exit(0);",
+				"if (args[0] === 'serve' && args.includes('--help')) process.exit(0);",
+				"process.stdout.write('FAKE_OPENCODE_ARGS=' + JSON.stringify(args) + '\\n');",
+				"process.exit(0);",
+			].join("\n"),
+			"utf8",
+		);
+		await fs.chmod(binPath, 0o755);
+
+		const proc = Bun.spawn({
+			cmd: [
+				"bun",
+				cliPath,
+				"--opencode-root",
+				stateDir,
+				"--write-state",
+				"off",
+				"-s",
+				"ses_test_123",
+			],
+			cwd: repoRoot,
+			env: {
+				...process.env,
+				PAI_OPENCODE_BIN: binPath,
+			},
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+
+		const stdout = await new Response(proc.stdout).text();
+		const stderr = await new Response(proc.stderr).text();
+		const exit = await proc.exited;
+
+		try {
+			expect(exit).toBe(0);
+			expect(stderr.trim()).toBe("");
+			const marker = stdout
+				.split("\n")
+				.find((line) => line.startsWith("FAKE_OPENCODE_ARGS="));
+			expect(marker).toBeDefined();
+			const raw = (marker ?? "").slice("FAKE_OPENCODE_ARGS=".length);
+			const argv = JSON.parse(raw) as unknown;
+			expect(argv).toBeInstanceOf(Array);
+			expect(argv).toContain("-s");
+			expect(argv).toContain("ses_test_123");
+		} finally {
+			await fs.rm(root, { recursive: true, force: true });
+		}
 	});
 
 	test("rejects --bind-retries when value is missing", async () => {

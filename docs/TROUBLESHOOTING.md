@@ -28,10 +28,10 @@ What it does:
 - Retries on rapid bind-race exits (`--bind-retries`)
 - Writes state to `<opencodeRoot>/MEMORY/STATE/pai-tui.<childPid>.json` and updates `pai-tui.json`
 
-Pass OpenCode arguments after `--`:
+Pass OpenCode arguments after wrapper options:
 
 ```bash
-bun ./.opencode/pai-tools/pai-tui.ts -- --model gpt-5.3-codex
+bun ./.opencode/pai-tools/pai-tui.ts --model gpt-5.3-codex
 ```
 
 ## Symptom: Agent appears frozen during a tool call

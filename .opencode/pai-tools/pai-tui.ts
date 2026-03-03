@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import * as net from "node:net";
 import * as path from "node:path";
-import { command, oneOf, option, optional, runSafely, string } from "cmd-ts";
+import { command, oneOf, option, optional, rest, runSafely, string } from "cmd-ts";
 
 import { resolveServeCapableOpencodeBinary } from "../skills/PAI/Tools/opencode-binary-resolver";
 import { resolveRuntimeRootFromMainScript } from "./resolveRuntimeRootFromMainScript";
@@ -103,7 +103,7 @@ const HELP_TEXT = [
 	"pai-tui - start OpenCode TUI in network mode on a free port",
 	"",
 	"Usage:",
-	"  pai-tui [wrapper options] [-- passthrough args]",
+	"  pai-tui [wrapper options] [opencode args...]",
 	"",
 	"Wrapper options:",
 	"  --dir <path>                                   Working directory for child OpenCode process",
@@ -121,8 +121,8 @@ const HELP_TEXT = [
 	`  --bind-retries ${DEFAULT_BIND_RETRIES}`,
 	"  --write-state on",
 	"",
-	"Pass extra OpenCode args after --",
-	"Example: pai-tui --dir /repo -- --model gpt-5.3-codex",
+	"Pass extra OpenCode args after wrapper options.",
+	"Example: pai-tui --dir /repo -s ses_abc123",
 ].join("\n");
 
 function envToRecord(baseEnv: NodeJS.ProcessEnv): Record<string, string> {
@@ -151,20 +151,6 @@ function normalizeInteger(
 function isLikelyValueToken(token: string | undefined): boolean {
 	if (!token) return false;
 	return !token.startsWith("-");
-}
-
-function parseCliArgv(argv: string[]): {
-	wrapperArgv: string[];
-	passthroughArgs: string[];
-} {
-	const separator = argv.indexOf("--");
-	if (separator === -1) {
-		return { wrapperArgv: [...argv], passthroughArgs: [] };
-	}
-	return {
-		wrapperArgv: argv.slice(0, separator),
-		passthroughArgs: argv.slice(separator + 1),
-	};
 }
 
 function helpRequested(argv: string[]): boolean {
@@ -585,6 +571,10 @@ function createCliCommand() {
 				long: "write-state",
 				type: optional(oneOf(["on", "off"])),
 			}),
+			opencodeArgs: rest({
+				displayName: "opencode-args",
+				description: "arguments passed to opencode",
+			}),
 		},
 		handler: async (args) => {
 			const parsedPort = normalizeInteger(
@@ -597,8 +587,6 @@ function createCliCommand() {
 				0,
 			);
 
-			const { passthroughArgs } = parseCliArgv(process.argv.slice(2));
-
 			const exitCode = await runPaiTui({
 				dir: path.resolve(args.dir ?? process.cwd()),
 				startPort: parsedPort,
@@ -610,7 +598,7 @@ function createCliCommand() {
 					"auto") as CompletionVisibleFallbackMode,
 				bindRetries: parsedBindRetries,
 				writeState: (args.writeState ?? "on") === "on",
-				passthroughArgs,
+				passthroughArgs: args.opencodeArgs,
 			});
 
 			if (exitCode !== 0) {
@@ -622,15 +610,14 @@ function createCliCommand() {
 
 if (import.meta.main) {
 	const argv = process.argv.slice(2);
-	const { wrapperArgv } = parseCliArgv(argv);
 
-	if (helpRequested(wrapperArgv)) {
+	if (helpRequested(argv)) {
 		console.log(HELP_TEXT);
 		process.exit(0);
 	}
 
 	try {
-		assertOptionValueProvided(wrapperArgv, "--bind-retries");
+		assertOptionValueProvided(argv, "--bind-retries");
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		console.error(`ERROR: ${message}`);
@@ -638,7 +625,7 @@ if (import.meta.main) {
 	}
 
 	const app = createCliCommand();
-	runSafely(app, wrapperArgv)
+	runSafely(app, argv)
 		.then((result) => {
 			if (result._tag === "ok") return;
 			result.error.run();
