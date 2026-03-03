@@ -18,7 +18,6 @@ const LITERAL_REWRITES: Array<[string, string]> = [
   ["~/.claude/scripts/", "{NWAVE_REPO_ROOT}/scripts/"],
   ["$HOME/.claude/scripts/", "{NWAVE_REPO_ROOT}/scripts/"],
   ["CLAUDE.md", "AGENTS.md"],
-  ["AskUserQuestion", "use the question tool"],
   ["~/.claude/", "~/.config/opencode/"],
   ["$HOME/.claude/", "$HOME/.config/opencode/"],
 ];
@@ -39,7 +38,14 @@ const NWAVE_MIRROR_TEMPLATES_REWRITE = /(^|[^\w/.-])nWave\/templates\//g;
 const PROJECT_DOCS_REWRITE = /(^|[^\w/.-])docs\//g;
 const PROJECT_CONFIG_REWRITE = /(^|[^\w/.-])config\//g;
 
-export function rewriteText(input: string): string {
+export function rewriteText(
+  input: string,
+  opts?: {
+    // If "keep", do not rewrite `docs/` and `config/` into placeholders.
+    // This is used for OpenCode commands/agents where those paths are project-local.
+    projectPaths?: "keep" | "placeholder";
+  },
+): string {
   let out = input.replace(COMMAND_REWRITE, "/nw/$1");
 
   for (const [from, to] of LITERAL_REWRITES) {
@@ -91,10 +97,12 @@ export function rewriteText(input: string): string {
   out = out.replace(NWAVE_MIRROR_DATA_REWRITE, "$1skills/nwave/nWave/data/");
   out = out.replace(NWAVE_MIRROR_TEMPLATES_REWRITE, "$1skills/nwave/nWave/templates/");
 
-  // Project-local paths in nWave content should not be integrity-checked.
-  // Wrapping with a placeholder prefix makes ScanBrokenRefs ignore them.
-  out = out.replace(PROJECT_DOCS_REWRITE, "$1{PROJECT_ROOT}/docs/");
-  out = out.replace(PROJECT_CONFIG_REWRITE, "$1{PROJECT_ROOT}/config/");
+  if ((opts?.projectPaths ?? "placeholder") !== "keep") {
+    // Project-local paths in nWave content should not be integrity-checked.
+    // Wrapping with a placeholder prefix makes ScanBrokenRefs ignore them.
+    out = out.replace(PROJECT_DOCS_REWRITE, "$1{PROJECT_ROOT}/docs/");
+    out = out.replace(PROJECT_CONFIG_REWRITE, "$1{PROJECT_ROOT}/config/");
+  }
 
   return out;
 }

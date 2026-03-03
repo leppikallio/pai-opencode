@@ -6,15 +6,6 @@ import { emitMdWithFrontmatter, parseMdWithFrontmatter } from "./lib/nwave/markd
 import { guessNwaveRoot } from "./lib/nwave/paths";
 import { rewriteText } from "./lib/nwave/rewrite";
 
-const INTERACTIVE_SECTION_MARKER = "## Interactive Decision Points";
-const ASK_USER_QUESTION_MARKER = "AskUserQuestion";
-const INTERACTION_PREAMBLE = [
-  "## Interaction Mode Requirements",
-  "- Use PAI Brainstorming Mode while collecting decision answers.",
-  "- Use the `question` tool for one decision per turn.",
-  "- After decisions are captured, proceed in FULL mode.",
-].join("\n");
-
 type Options = {
   nwaveRoot: string;
   opencodeRoot: string;
@@ -31,7 +22,6 @@ type PlannedCommand = {
   sourcePath: string;
   outputPath: string;
   sourceContent: string;
-  injectInteractionPreamble: boolean;
 };
 
 type PlannedAgent = {
@@ -223,13 +213,22 @@ function listFilesRecursive(dirPath: string): string[] {
   return files;
 }
 
-function shouldInjectInteractionPreamble(input: string): boolean {
-  return input.includes(INTERACTIVE_SECTION_MARKER) || input.includes(ASK_USER_QUESTION_MARKER);
+function extractCommandAgentId(body: string): string | null {
+  const m = body.match(/\*\*Agent\*\*:\s*[^|\n\r]*\(([^)]+)\)/);
+  const candidate = m?.[1]?.trim();
+  if (!candidate) return null;
+  if (!/^nw-[a-z0-9-]+$/i.test(candidate)) return null;
+  return candidate;
 }
 
-function prependInteractionPreamble(body: string): string {
+function commandAcceptsArguments(frontmatter: Record<string, unknown>): boolean {
+  const hint = frontmatter["argument-hint"];
+  return typeof hint === "string" && hint.trim().length > 0;
+}
+
+function injectArgumentsBlock(body: string): string {
   const withoutLeadingNewlines = body.replace(/^\n+/, "");
-  return `${INTERACTION_PREAMBLE}\n\n${withoutLeadingNewlines}`;
+  return `## Input\n\n$ARGUMENTS\n\n${withoutLeadingNewlines}`;
 }
 
 function substituteRewriteContext(input: string, ctx: RewriteContext): string {
@@ -252,7 +251,6 @@ function buildCommandsPlan(nwaveRoot: string, opencodeRoot: string): PlannedComm
       sourcePath,
       outputPath: path.join(outputDir, fileName),
       sourceContent,
-      injectInteractionPreamble: shouldInjectInteractionPreamble(sourceContent),
     };
   });
 }
@@ -369,17 +367,30 @@ function cleanGeneratedOutputs(args: { opencodeRoot: string; dryRun: boolean }) 
 
 function mapAgentTools(tools: unknown): ToolMap {
   const out: ToolMap = {};
-  if (!Array.isArray(tools)) return out;
 
-  for (const item of tools) {
-    if (typeof item !== "string") continue;
-    const key = item.trim().toLowerCase();
-    if (AGENT_TOOL_KEYS.includes(key)) {
-      out[key] = true;
+  const items: string[] = [];
+  if (Array.isArray(tools)) {
+    for (const v of tools) {
+      if (typeof v === "string") items.push(v);
+    }
+  } else if (typeof tools === "string") {
+    // Upstream nWave uses "Read, Write, Edit, ...".
+    for (const token of tools.split(/[,\s]+/g)) {
+      if (token.trim()) items.push(token.trim());
     }
   }
 
+  for (const item of items) {
+    const key = item.trim().toLowerCase();
+    if (AGENT_TOOL_KEYS.includes(key)) out[key] = true;
+  }
+
   return out;
+}
+
+function mapAgentMode(agentId: string): "primary" | "subagent" {
+  if (agentId.toLowerCase().endsWith("-reviewer")) return "subagent";
+  return "primary";
 }
 
 function mapAgentModel(model: unknown): { model?: string; options?: Record<string, unknown> } {
@@ -491,7 +502,7 @@ function main() {
 
   console.log("planned-command-outputs:");
   for (const cmd of commandsPlan) {
-    console.log(`- ${cmd.outputPath}${cmd.injectInteractionPreamble ? " [interactive-preamble]" : ""}`);
+    console.log(`- ${cmd.outputPath}`);
   }
 
   console.log("planned-agent-outputs:");
@@ -520,12 +531,23 @@ function main() {
   for (const cmd of commandsPlan) {
     const parsed = parseMdWithFrontmatter(cmd.sourceContent);
     const rawDescription = parsed.data.description;
-    const description = typeof rawDescription === "string" ? rewriteText(rawDescription) : "";
-    const data = description ? { description } : {};
+    const description =
+      typeof rawDescription === "string"
+        ? rewriteText(rawDescription, { projectPaths: "keep" })
+        : "";
+    const agentId = extractCommandAgentId(parsed.body);
+    const acceptsArgs = commandAcceptsArguments(parsed.data);
 
-    let body = substituteRewriteContext(rewriteText(parsed.body), ctx);
-    if (cmd.injectInteractionPreamble) {
-      body = prependInteractionPreamble(body);
+    const data: Record<string, unknown> = {};
+    if (description) data.description = description;
+    if (agentId) {
+      data.agent = agentId;
+      data.subtask = false;
+    }
+
+    let body = substituteRewriteContext(rewriteText(parsed.body, { projectPaths: "keep" }), ctx);
+    if (acceptsArgs) {
+      body = injectArgumentsBlock(body);
     }
 
     const out = emitMdWithFrontmatter({ data, body });
@@ -536,15 +558,37 @@ function main() {
   for (const agent of agentsPlan) {
     const parsed = parseMdWithFrontmatter(agent.sourceContent);
     const rawDescription = parsed.data.description;
-    const description = typeof rawDescription === "string" ? rewriteText(rawDescription) : "";
+    const description =
+      typeof rawDescription === "string"
+        ? rewriteText(rawDescription, { projectPaths: "keep" })
+        : "";
 
     const mappedModel = mapAgentModel(parsed.data.model);
     const tools = mapAgentTools(parsed.data.tools);
 
+    const agentId = path.basename(agent.outputPath, ".md");
+    const mode = mapAgentMode(agentId);
+
+    const rawMaxTurns = parsed.data.maxTurns;
+    const maxTurns = typeof rawMaxTurns === "number" ? rawMaxTurns : undefined;
+
+    const rawSkills = parsed.data.skills;
+    const skills = Array.isArray(rawSkills)
+      ? rawSkills.filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+      : undefined;
+
     const data: Record<string, unknown> = {
+      name: agentId,
       description,
-      mode: "subagent",
+      mode,
     };
+
+    if (maxTurns !== undefined) {
+      data.maxTurns = maxTurns;
+    }
+    if (skills && skills.length > 0) {
+      data.skills = skills;
+    }
 
     if (mappedModel.model) {
       data.model = mappedModel.model;
@@ -556,7 +600,7 @@ function main() {
       data.tools = tools;
     }
 
-    const body = substituteRewriteContext(rewriteText(parsed.body), ctx);
+    const body = substituteRewriteContext(rewriteText(parsed.body, { projectPaths: "keep" }), ctx);
     const out = emitMdWithFrontmatter({ data, body });
     writeTextFile(agent.outputPath, out, false);
   }
