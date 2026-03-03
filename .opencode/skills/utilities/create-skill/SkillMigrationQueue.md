@@ -25,8 +25,8 @@ Runtime install destination: `/Users/zuul/.config/opencode/skills/`
    - Prefer: `/Users/zuul/.config/opencode/skills/...`
 
 4) Use these two create-skill docs as your guardrails:
-   - Minimal canonicalization policy: `/Users/zuul/.config/opencode/skills/create-skill/MinimalCanonicalizationPolicy.md`
-   - 30-second rubric: `/Users/zuul/.config/opencode/skills/create-skill/SkillQualityRubric.md`
+    - Minimal canonicalization policy: `/Users/zuul/.config/opencode/skills/utilities/create-skill/MinimalCanonicalizationPolicy.md`
+    - 30-second rubric: `/Users/zuul/.config/opencode/skills/utilities/create-skill/SkillQualityRubric.md`
 
 ## Execution loop per skill (repeatable)
 
@@ -37,7 +37,7 @@ Runtime install destination: `/Users/zuul/.config/opencode/skills/`
    - Make `SKILL.md` a router (procedural: default ≤80 lines)
    - Move deep content into root docs (`Examples.md`, `ApiReference.md`, `StyleGuide.md`, `Templates.md`)
 3) Validate:
-   - Use: `/Users/zuul/Projects/pai-opencode/.opencode/skills/create-skill/Workflows/ValidateSkill.md`
+    - Use: `/Users/zuul/Projects/pai-opencode/.opencode/skills/utilities/create-skill/Workflows/ValidateSkill.md`
 4) Install:
    - `bun Tools/Install.ts --target "/Users/zuul/.config/opencode"`
 5) Spot-check:
@@ -71,5 +71,4 @@ Runtime install destination: `/Users/zuul/.config/opencode/skills/`
 - IncidentResponse — severity triage + comms + postmortem templates
 
 When promoting a placeholder to a real skill, prefer create-skill’s Procedural archetype unless the domain is inherently creative.
-
 
