@@ -76,7 +76,7 @@ If you want stricter canonicalization (more intrusive), use:
 
 ## Step 3: Install Into Runtime
 
-From the repo root, install into runtime (this also regenerates `skills/skill-index.json`):
+From the repo root, install into runtime (this also regenerates `~/.config/opencode/skills/skill-index.json`):
 
 ```bash
 cd "/Users/zuul/Projects/pai-opencode" && bun "Tools/Install.ts" --target "/Users/zuul/.config/opencode"
@@ -90,7 +90,7 @@ cd "/Users/zuul/Projects/pai-opencode" && bun "Tools/Install.ts" --target "/User
 - Import tool post-checks passed (frontmatter + no `SkillSearch(` in `SKILL.md`)
 
 Optional post-import gate:
-- Apply the 30-second rubric: `/Users/zuul/.config/opencode/skills/create-skill/SkillQualityRubric.md`
+- Apply the 30-second rubric: `/Users/zuul/.config/opencode/skills/utilities/create-skill/SkillQualityRubric.md`
 
 ## Step 5: Security vetting + allowlist (if needed)
 
@@ -105,6 +105,6 @@ uv run python "/Users/zuul/Projects/pai-opencode/.opencode/skills/security/skill
 
 If findings are contextual and non-exploitable, add scoped, expiring suppressions using:
 
-`/Users/zuul/Projects/pai-opencode/.opencode/skills/create-skill/Tools/ManageSkillScannerAllowlist.py`
+`/Users/zuul/Projects/pai-opencode/.opencode/skills/utilities/create-skill/Tools/ManageSkillScannerAllowlist.py`
 
 Always keep `reason`, `owner`, and `expires_at`.
