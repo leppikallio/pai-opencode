@@ -84,7 +84,9 @@ export async function canServe(binaryPath: string): Promise<boolean> {
 	return runBinary(binaryPath, ["serve", "--help"]);
 }
 
-export async function isServeCapableOpencode(binaryPath: string): Promise<boolean> {
+export async function isServeCapableOpencode(
+	binaryPath: string,
+): Promise<boolean> {
 	if (!(await canExecuteBinary(binaryPath))) return false;
 	return canServe(binaryPath);
 }
@@ -115,7 +117,8 @@ export async function withWorkingOpencodePath<T>(
 	},
 ): Promise<T> {
 	const pathEnv = opts?.pathEnv ?? process.env.PATH;
-	const findBinary = opts?.findBinary ?? ((env) => findWorkingOpencodeBinary(env));
+	const findBinary =
+		opts?.findBinary ?? ((env) => findWorkingOpencodeBinary(env));
 	const binaryPath = await findBinary(pathEnv);
 
 	if (!binaryPath) {
