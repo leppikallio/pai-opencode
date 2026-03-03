@@ -18,7 +18,7 @@ Read /Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem/Structure.md
 
 The context loader explicitly loads the following SYSTEM docs (plus PAI `SKILL.md` and some USER/TELOS + USER identity docs). SYSTEM set:
 
-- `/Users/zuul/.config/opencode/skills/PAI/SKILL.md` (or CORE fallback)
+- `/Users/zuul/.config/opencode/skills/PAI/SKILL.md`
 - `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/SkillSystem.md` (this file)
 - `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/PAIAGENTSYSTEM.md`
 - `/Users/zuul/.config/opencode/skills/PAI/SYSTEM/THEPLUGINSYSTEM.md`

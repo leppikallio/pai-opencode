@@ -220,7 +220,7 @@ If you already have a PAI installation on Claude Code, see our [Migration Guide]
 After installation, verify everything works:
 
 1. **Check Skills Loading**
-   - On first message, CORE skill should auto-load
+   - On first message, PAI skill should auto-load
    - Ask: "What skills do I have?"
 
 2. **Test an Agent**
@@ -238,12 +238,12 @@ After installation, verify everything works:
 
    **Static checks (no LLM calls):**
    ```bash
-   bun "~/.config/opencode/skills/System/Tools/SmokeTestSkillSystem.ts" --mode static
+   bun "~/.config/opencode/skills/system/Tools/SmokeTestSkillSystem.ts" --mode static
    ```
 
    **Behavior checks (LLM calls via `opencode run`):**
    ```bash
-   bun "~/.config/opencode/skills/System/Tools/SmokeTestSkillSystem.ts" \
+   bun "~/.config/opencode/skills/system/Tools/SmokeTestSkillSystem.ts" \
      --mode behavior \
      --model openai/gpt-5.3-codex
    ```

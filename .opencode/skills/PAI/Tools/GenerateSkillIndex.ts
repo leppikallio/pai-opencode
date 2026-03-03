@@ -97,7 +97,7 @@ async function findSkillFiles(dir: string): Promise<string[]> {
       const fullPath = join(dir, entry.name);
 
       if (entry.isSymbolicLink()) {
-        // Avoid duplicate skill indexing via aliases (e.g., CORE -> PAI).
+        // Avoid duplicate skill indexing via symlink aliases.
         continue;
       }
 
@@ -303,5 +303,4 @@ async function main() {
 }
 
 main().catch(console.error);
-
 
