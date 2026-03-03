@@ -111,4 +111,4 @@ bun Tools/Install.ts --target "~/.config/opencode"
 
 ## When upstream adds new skills
 
-If upstream adds a new skill directory, import it as well and ensure it’s selected in `~/.config/opencode/config/skills-selection.json` (or re-run the installer interactively once).
+If upstream adds a new skill directory, import it as well and ensure it’s selected in your runtime skill selection config (or re-run the installer interactively once).
