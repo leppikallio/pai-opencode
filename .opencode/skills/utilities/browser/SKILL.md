@@ -41,7 +41,7 @@ open -a "$BROWSER" "<url>"  # BROWSER from tech stack prefs
 
 ```bash
 # Navigate with full diagnostics (PRIMARY COMMAND)
-bun run ~/.config/opencode/skills/browser/Tools/Browse.ts https://example.com
+bun run ~/.config/opencode/skills/utilities/browser/Tools/Browse.ts https://example.com
 
 # Output:
 # 📸 Screenshot: /tmp/browse-TIMESTAMP.png
@@ -189,7 +189,7 @@ Session auto-closes after 30 minutes of inactivity:
 
 ### CLI Tool
 
-**Location:** `~/.config/opencode/skills/browser/Tools/Browse.ts`
+**Location:** `~/.config/opencode/skills/utilities/browser/Tools/Browse.ts`
 
 | Command | Description |
 |---------|-------------|
@@ -212,7 +212,7 @@ Session auto-closes after 30 minutes of inactivity:
 
 ### Server Endpoints
 
-**Location:** `~/.config/opencode/skills/browser/Tools/BrowserSession.ts`
+**Location:** `~/.config/opencode/skills/utilities/browser/Tools/BrowserSession.ts`
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -235,7 +235,7 @@ Session auto-closes after 30 minutes of inactivity:
 For complex automation, use the TypeScript API directly:
 
 ```typescript
-import { PlaywrightBrowser } from '~/.config/opencode/skills/browser/index.ts'
+import { PlaywrightBrowser } from '~/.config/opencode/skills/utilities/browser/index.ts'
 
 const browser = new PlaywrightBrowser()
 await browser.launch({ headless: true })

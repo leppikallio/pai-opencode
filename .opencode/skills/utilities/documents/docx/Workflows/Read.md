@@ -4,7 +4,7 @@ Extract markdown-like text from an existing Word document using the docx CLI.
 
 ## Prerequisites
 
-- docx CLI available at `~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts`
+- docx CLI available at `~/.config/opencode/skills/utilities/documents/docx/Tools/DocxCli.ts`
 - Existing .docx file to read
 - Bun runtime available
 
@@ -20,12 +20,12 @@ ls -la <existing.docx>
 
 **Write to file:**
 ```bash
-bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" read <existing.docx> -o <output.md>
+bun "~/.config/opencode/skills/utilities/documents/docx/Tools/DocxCli.ts" read <existing.docx> -o <output.md>
 ```
 
 **Print to stdout:**
 ```bash
-bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" read <existing.docx>
+bun "~/.config/opencode/skills/utilities/documents/docx/Tools/DocxCli.ts" read <existing.docx>
 ```
 
 ### Step 3: Verify Output
@@ -50,7 +50,7 @@ Report:
 ## Example Execution
 
 ```bash
-bun "~/.config/opencode/skills/documents/docx/Tools/DocxCli.ts" read report.docx -o report.md
+bun "~/.config/opencode/skills/utilities/documents/docx/Tools/DocxCli.ts" read report.docx -o report.md
 ```
 
 ## Notes

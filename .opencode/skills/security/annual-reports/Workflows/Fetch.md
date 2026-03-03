@@ -7,13 +7,13 @@ Download a specific report (PDF or web URL) from the sources list.
 1. List sources to find vendor/report name:
 
 ```bash
-bun run ~/.config/opencode/skills/annual-reports/Tools/ListSources.ts
+bun run ~/.config/opencode/skills/security/annual-reports/Tools/ListSources.ts
 ```
 
 2. Fetch report:
 
 ```bash
-bun run ~/.config/opencode/skills/annual-reports/Tools/FetchReport.ts <vendor> <report-name>
+bun run ~/.config/opencode/skills/security/annual-reports/Tools/FetchReport.ts <vendor> <report-name>
 ```
 
 ## Output

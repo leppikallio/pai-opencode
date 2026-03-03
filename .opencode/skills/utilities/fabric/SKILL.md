@@ -158,10 +158,10 @@ Each pattern's `system.md` contains the full prompt that defines:
 
 | Path | Purpose |
 |------|---------|
-| `~/.config/opencode/skills/fabric/Patterns/` | Local pattern storage (240+) |
-| `~/.config/opencode/skills/fabric/PatternCatalog.md` | Full pattern documentation |
-| `~/.config/opencode/skills/fabric/Workflows/` | Execution workflows |
-| `~/.config/opencode/skills/fabric/Tools/` | CLI utilities |
+| `~/.config/opencode/skills/utilities/fabric/Patterns/` | Local pattern storage (240+) |
+| `~/.config/opencode/skills/utilities/fabric/PatternCatalog.md` | Full pattern documentation |
+| `~/.config/opencode/skills/utilities/fabric/Workflows/` | Execution workflows |
+| `~/.config/opencode/skills/utilities/fabric/Tools/` | CLI utilities |
 
 ---
 

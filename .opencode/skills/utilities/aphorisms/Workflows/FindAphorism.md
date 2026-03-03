@@ -24,7 +24,7 @@ Running **FindAphorism** in **aphorisms**...
 - Working on newsletter and needs opening/closing wisdom quote
 
 **Prerequisites:**
-- Aphorism database exists at `~/.config/opencode/skills/aphorisms/Database/aphorisms.md`
+- Aphorism database exists at `~/.config/opencode/skills/utilities/aphorisms/Database/aphorisms.md`
 - Newsletter content or URL provided by user
 - Clear understanding of newsletter theme (if not provided, extract from content)
 
@@ -100,7 +100,7 @@ Use deep thinking for deep thematic analysis. Identify:
 
 **Load database:**
 ```bash
-Read ~/.config/opencode/skills/aphorisms/Database/aphorisms.md
+Read ~/.config/opencode/skills/utilities/aphorisms/Database/aphorisms.md
 ```
 
 **Review relevant sections:**
@@ -227,7 +227,7 @@ Usage tracking is automatic: recommendation batch is cached, and selected quote 
 
 After presenting recommendations, update:
 
-`~/.config/opencode/skills/aphorisms/Database/aphorisms.md`
+`~/.config/opencode/skills/utilities/aphorisms/Database/aphorisms.md`
 
 #### 7.1 Always append recommendation cache entry
 

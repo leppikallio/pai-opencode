@@ -14,11 +14,11 @@ If this directory exists, load and apply any PREFERENCES.md or configs found the
 
 ## Quick Reference (M3)
 
-- Import policy: `/Users/zuul/.config/opencode/skills/create-skill/MinimalCanonicalizationPolicy.md`
-- Review rubric: `/Users/zuul/.config/opencode/skills/create-skill/SkillQualityRubric.md`
-- Migration queue: `/Users/zuul/.config/opencode/skills/create-skill/SkillMigrationQueue.md`
-- Budget-line counter (examples excluded): `/Users/zuul/.config/opencode/skills/create-skill/Tools/CountSkillBudgetLines.ts`
-- Scanner allowlist manager: `/Users/zuul/.config/opencode/skills/create-skill/Tools/ManageSkillScannerAllowlist.py`
+- Import policy: `/Users/zuul/.config/opencode/skills/utilities/create-skill/MinimalCanonicalizationPolicy.md`
+- Review rubric: `/Users/zuul/.config/opencode/skills/utilities/create-skill/SkillQualityRubric.md`
+- Migration queue: `/Users/zuul/.config/opencode/skills/utilities/create-skill/SkillMigrationQueue.md`
+- Budget-line counter (examples excluded): `/Users/zuul/.config/opencode/skills/utilities/create-skill/Tools/CountSkillBudgetLines.ts`
+- Scanner allowlist manager: `/Users/zuul/.config/opencode/skills/utilities/create-skill/Tools/ManageSkillScannerAllowlist.py`
 
 ## Authoritative SkillSystem docs (runtime, read-gated)
 

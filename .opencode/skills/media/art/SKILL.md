@@ -40,7 +40,7 @@ These override default behavior. If the directory does not exist, proceed with s
 
 - `message`: "Running the WORKFLOWNAME workflow from the art skill"bash
 # CORRECT - Output to Downloads for preview
-bun run ~/.config/opencode/skills/art/Tools/Generate.ts \
+bun run ~/.config/opencode/skills/media/art/Tools/Generate.ts \
   --model nano-banana-pro \
   --prompt "[PROMPT]" \
   --size 2K \
@@ -59,7 +59,7 @@ For improved character or style consistency, use multiple `--reference-image` fl
 
 ```bash
 # Multiple reference images for better likeness
-bun run ~/.config/opencode/skills/art/Tools/Generate.ts \
+bun run ~/.config/opencode/skills/media/art/Tools/Generate.ts \
   --model nano-banana-pro \
   --prompt "Person from references at a party..." \
   --reference-image face1.jpg \

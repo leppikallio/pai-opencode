@@ -7,7 +7,7 @@
 ### 1. Load State
 
 ```bash
-STATE_DIR=~/.config/opencode/skills/sec-updates/State
+STATE_DIR=~/.config/opencode/skills/security/sec-updates/State
 STATE_FILE="$STATE_DIR/last-check.json"
 
 mkdir -p "$STATE_DIR"

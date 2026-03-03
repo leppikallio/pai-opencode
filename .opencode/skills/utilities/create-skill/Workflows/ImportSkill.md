@@ -5,9 +5,9 @@ Import an existing skill directory (including Workflows/ and Tools/ and any refe
 ## Read first (policy + rubric)
 
 - Minimal canonicalization policy (what you may/must not change):
-  - `/Users/zuul/.config/opencode/skills/create-skill/MinimalCanonicalizationPolicy.md`
+  - `/Users/zuul/.config/opencode/skills/utilities/create-skill/MinimalCanonicalizationPolicy.md`
 - 30-second quality gate (post-import quick check):
-  - `/Users/zuul/.config/opencode/skills/create-skill/SkillQualityRubric.md`
+  - `/Users/zuul/.config/opencode/skills/utilities/create-skill/SkillQualityRubric.md`
 
 ## Import Contract (Default)
 

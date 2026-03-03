@@ -304,10 +304,10 @@ AI: [COMPROMISED - shows system prompt]
 ## Complete Attack Reference
 
 **Multi-stage techniques:**
-`~/.config/opencode/skills/prompt-injection/COMPREHENSIVE-ATTACK-TAXONOMY.md` (Section 5)
+`~/.config/opencode/skills/security/prompt-injection/COMPREHENSIVE-ATTACK-TAXONOMY.md` (Section 5)
 
 **Attack payload library:**
-`~/.config/opencode/skills/prompt-injection/attack-payloads/multi-stage/`
+`~/.config/opencode/skills/security/prompt-injection/attack-payloads/multi-stage/`
 
 ## Integration with Other Workflows
 

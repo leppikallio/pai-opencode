@@ -51,16 +51,16 @@ Official Playwright MCP tools (core):
 ### 4. Update FileMCP if Needed
 
 For missing critical functionality:
-1. Add method to `~/.config/opencode/skills/browser/index.ts`
-2. Add CLI command to `~/.config/opencode/skills/browser/Tools/Browse.ts`
+1. Add method to `~/.config/opencode/skills/utilities/browser/index.ts`
+2. Add CLI command to `~/.config/opencode/skills/utilities/browser/Tools/Browse.ts`
 3. Update SKILL.md documentation
 
 ### 5. Test
 
 ```bash
 # Verify basic operations
-bun run ~/.config/opencode/skills/browser/Tools/Browse.ts screenshot https://example.com /tmp/test.png
-bun run ~/.config/opencode/skills/browser/Tools/Browse.ts verify https://example.com "body"
+bun run ~/.config/opencode/skills/utilities/browser/Tools/Browse.ts screenshot https://example.com /tmp/test.png
+bun run ~/.config/opencode/skills/utilities/browser/Tools/Browse.ts verify https://example.com "body"
 ```
 
 ## Version Tracking

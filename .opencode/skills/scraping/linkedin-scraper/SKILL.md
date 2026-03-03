@@ -116,7 +116,7 @@ If user asks about cost/reliability, fetch live values with:
 
 ## References
 
-- Detailed operational templates: `/Users/zuul/.config/opencode/skills/linkedin-scraper/REFERENCE.md`
+- Detailed operational templates: `/Users/zuul/.config/opencode/skills/scraping/linkedin-scraper/REFERENCE.md`
 
 <negative_constraints>
 - MUST NOT use `mcp__apify__...` tool names.

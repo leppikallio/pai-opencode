@@ -34,19 +34,19 @@ web-assessment uses tools from the recon skill:
 
 ```bash
 # Corporate structure for scope
-bun ~/.config/opencode/skills/recon/Tools/CorporateStructure.ts target.com
+bun ~/.config/opencode/skills/security/recon/Tools/CorporateStructure.ts target.com
 
 # Subdomain enumeration
-bun ~/.config/opencode/skills/recon/Tools/SubdomainEnum.ts target.com
+bun ~/.config/opencode/skills/security/recon/Tools/SubdomainEnum.ts target.com
 
 # Endpoint discovery from JavaScript
-bun ~/.config/opencode/skills/recon/Tools/EndpointDiscovery.ts https://target.com
+bun ~/.config/opencode/skills/security/recon/Tools/EndpointDiscovery.ts https://target.com
 
 # Port scanning
-bun ~/.config/opencode/skills/recon/Tools/PortScan.ts target.com
+bun ~/.config/opencode/skills/security/recon/Tools/PortScan.ts target.com
 
 # Path discovery
-bun ~/.config/opencode/skills/recon/Tools/PathDiscovery.ts https://target.com
+bun ~/.config/opencode/skills/security/recon/Tools/PathDiscovery.ts https://target.com
 ```
 
 ## UnderstandApplication Output

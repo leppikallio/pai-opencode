@@ -20,19 +20,19 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 - `message`: "Running the WORKFLOWNAME workflow in the evals skill to ACTION"bash
 # Run an eval suite
-bun run ~/.config/opencode/skills/evals/Tools/AlgorithmBridge.ts -s <suite>
+bun run ~/.config/opencode/skills/utilities/evals/Tools/AlgorithmBridge.ts -s <suite>
 
 # Log a failure for later conversion
-bun run ~/.config/opencode/skills/evals/Tools/FailureToTask.ts log "description" -c category -s severity
+bun run ~/.config/opencode/skills/utilities/evals/Tools/FailureToTask.ts log "description" -c category -s severity
 
 # Convert failures to test tasks
-bun run ~/.config/opencode/skills/evals/Tools/FailureToTask.ts convert-all
+bun run ~/.config/opencode/skills/utilities/evals/Tools/FailureToTask.ts convert-all
 
 # Manage suites
-bun run ~/.config/opencode/skills/evals/Tools/SuiteManager.ts create <name> -t capability -d "description"
-bun run ~/.config/opencode/skills/evals/Tools/SuiteManager.ts list
-bun run ~/.config/opencode/skills/evals/Tools/SuiteManager.ts check-saturation <name>
-bun run ~/.config/opencode/skills/evals/Tools/SuiteManager.ts graduate <name>
+bun run ~/.config/opencode/skills/utilities/evals/Tools/SuiteManager.ts create <name> -t capability -d "description"
+bun run ~/.config/opencode/skills/utilities/evals/Tools/SuiteManager.ts list
+bun run ~/.config/opencode/skills/utilities/evals/Tools/SuiteManager.ts check-saturation <name>
+bun run ~/.config/opencode/skills/utilities/evals/Tools/SuiteManager.ts graduate <name>
 ```
 
 ### ALGORITHM Integration
@@ -41,7 +41,7 @@ Evals is a verification method for THE ALGORITHM ISC rows:
 
 ```bash
 # Run eval and update ISC row
-bun run ~/.config/opencode/skills/evals/Tools/AlgorithmBridge.ts -s regression-core -r 3 -u
+bun run ~/.config/opencode/skills/utilities/evals/Tools/AlgorithmBridge.ts -s regression-core -r 3 -u
 ```
 
 ISC rows can specify eval verification:

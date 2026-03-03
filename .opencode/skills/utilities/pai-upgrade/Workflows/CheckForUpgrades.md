@@ -10,10 +10,10 @@ Collect and consolidate new upgrade signals from configured sources, then produc
 - Optional `--force` flag to bypass historical state and re-scan.
 - Optional source filter intent from user (Anthropic, YouTube, provider, or both).
 - Runtime config:
-  - `/Users/zuul/.config/opencode/skills/pai-upgrade/sources.v2.json` (preferred)
-  - `/Users/zuul/.config/opencode/skills/pai-upgrade/sources.json` (legacy fallback)
-  - `/Users/zuul/.config/opencode/skills/pai-upgrade/youtube-channels.json`
-  - `/Users/zuul/.config/opencode/skills/pai-upgrade/State/` (state and ledger outputs)
+  - `/Users/zuul/.config/opencode/skills/utilities/pai-upgrade/sources.v2.json` (preferred)
+  - `/Users/zuul/.config/opencode/skills/utilities/pai-upgrade/sources.json` (legacy fallback)
+  - `/Users/zuul/.config/opencode/skills/utilities/pai-upgrade/youtube-channels.json`
+  - `/Users/zuul/.config/opencode/skills/utilities/pai-upgrade/State/` (state and ledger outputs)
 
 ## Steps
 
@@ -30,8 +30,8 @@ Prefer `sources.v2.json` when present.
 2. Confirm state files exist:
 
 ```bash
-cat ~/.config/opencode/skills/pai-upgrade/State/last-check.json
-cat ~/.config/opencode/skills/pai-upgrade/State/youtube-videos.json
+cat ~/.config/opencode/skills/utilities/pai-upgrade/State/last-check.json
+cat ~/.config/opencode/skills/utilities/pai-upgrade/State/youtube-videos.json
 ```
 
 ### Step 2: Check Anthropic/Claude source feeds
@@ -39,7 +39,7 @@ cat ~/.config/opencode/skills/pai-upgrade/State/youtube-videos.json
 Run Anthropic/Claude updater:
 
 ```bash
-bun ~/.config/opencode/skills/pai-upgrade/Tools/Anthropic.ts 14
+bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/Anthropic.ts 14
 ```
 
 ### Step 3: Check YouTube and other optional provider sources
@@ -64,7 +64,7 @@ Create a review draft with three priority bands: **High**, **Medium**, **Low**.
 When you (the operator) decide outcomes for top recommendations, record them to improve future ranking quality:
 
 ```bash
-bun ~/.config/opencode/skills/pai-upgrade/Tools/RecordRecommendationFeedback.ts \
+bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/RecordRecommendationFeedback.ts \
   --recommendation-id <ranking_id> \
   --decision accepted \
   --helpfulness helpful \
@@ -84,8 +84,8 @@ Supported values:
 - If `--force` is passed, verify run did not skip already-seen hashes.
 
 ```bash
-test -s ~/.config/opencode/skills/pai-upgrade/State/last-check.json
-test -s ~/.config/opencode/skills/pai-upgrade/State/youtube-videos.json
+test -s ~/.config/opencode/skills/utilities/pai-upgrade/State/last-check.json
+test -s ~/.config/opencode/skills/utilities/pai-upgrade/State/youtube-videos.json
 ```
 
 ## Output

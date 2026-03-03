@@ -733,7 +733,7 @@ evals backup --output evals-backup-2025-11-15.tar.gz
 ## File Structure
 
 ```
-~/.config/opencode/skills/evals/
+~/.config/opencode/skills/utilities/evals/
 ├── PROJECT.md                    # This file
 ├── SKILL.md                      # Skill definition
 │

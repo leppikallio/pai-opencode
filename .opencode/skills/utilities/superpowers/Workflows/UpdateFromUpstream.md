@@ -35,7 +35,7 @@ Notes:
 cd <PaiRepoDir>
 
 # Example: re-import one skill
-bun "~/.config/opencode/skills/create-skill/Tools/ImportSkill.ts" \
+bun "~/.config/opencode/skills/utilities/create-skill/Tools/ImportSkill.ts" \
   --source "<SuperpowersRepoDir>/skills/brainstorming" \
   --dest "<PaiRepoDir>/.opencode/skills" \
   --name "brainstorming" \

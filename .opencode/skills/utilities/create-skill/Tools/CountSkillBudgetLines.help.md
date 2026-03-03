@@ -12,7 +12,7 @@ Counts “budget lines” in a `SKILL.md` file.
 ## Usage
 
 ```bash
-bun "/Users/zuul/.config/opencode/skills/create-skill/Tools/CountSkillBudgetLines.ts" \
+bun "/Users/zuul/.config/opencode/skills/utilities/create-skill/Tools/CountSkillBudgetLines.ts" \
   --file "/Users/zuul/Projects/pai-opencode/.opencode/skills/<skill-name>/SKILL.md" \
   --max 80
 ```

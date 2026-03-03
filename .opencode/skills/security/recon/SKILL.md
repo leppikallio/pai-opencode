@@ -432,7 +432,7 @@ Assistant: Activating OSINT skill...
 ## Related Documentation
 
 **Security Skills:**
-- `~/.config/opencode/skills/osint/` - Entity and people reconnaissance
+- `~/.config/opencode/skills/investigation/osint/` - Entity and people reconnaissance
 - `~/.config/opencode/skills/security/web-assessment/` - Web application testing
 
 **Tool Documentation:**

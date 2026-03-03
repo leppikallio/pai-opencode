@@ -43,7 +43,7 @@ models:
 
 ### Step 3: Create Model Comparison Config
 
-Create `~/.config/opencode/skills/evals/UseCases/<name>/model-comparisons/<comparison-name>.yaml`:
+Create `~/.config/opencode/skills/utilities/evals/UseCases/<name>/model-comparisons/<comparison-name>.yaml`:
 
 ```yaml
 model_comparison:
@@ -108,7 +108,7 @@ Results stored in:
 Use Report template:
 
 ```bash
-bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/utilities/prompting/Tools/RenderTemplate.ts \
   -t Evals/Report.hbs \
   -d Results/<use-case>/models/<run-id>/summary.yaml \
   -o Results/<use-case>/models/<run-id>/report.md

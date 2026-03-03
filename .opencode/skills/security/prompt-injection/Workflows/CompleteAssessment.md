@@ -82,7 +82,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 ### Phase 2: Reconnaissance (1-2 hours)
 
 **Use Reconnaissance workflow:**
-`~/.config/opencode/skills/prompt-injection/Workflows/Reconnaissance.md`
+`~/.config/opencode/skills/security/prompt-injection/Workflows/Reconnaissance.md`
 
 **Deliverables:**
 - Complete attack surface map
@@ -103,7 +103,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 ### Phase 3: Direct Injection Testing (2-3 hours)
 
 **Use DirectInjectionTesting workflow:**
-`~/.config/opencode/skills/prompt-injection/Workflows/DirectInjectionTesting.md`
+`~/.config/opencode/skills/security/prompt-injection/Workflows/DirectInjectionTesting.md`
 
 **Test all categories:**
 1. Basic instruction override
@@ -125,7 +125,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 ### Phase 4: Indirect Injection Testing (2-3 hours)
 
 **Use IndirectInjectionTesting workflow:**
-`~/.config/opencode/skills/prompt-injection/Workflows/IndirectInjectionTesting.md`
+`~/.config/opencode/skills/security/prompt-injection/Workflows/IndirectInjectionTesting.md`
 
 **Test all vectors:**
 1. Document upload injection
@@ -147,7 +147,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 ### Phase 5: Multi-Stage Attack Testing (1-2 hours)
 
 **Use MultiStageAttacks workflow:**
-`~/.config/opencode/skills/prompt-injection/Workflows/MultiStageAttacks.md`
+`~/.config/opencode/skills/security/prompt-injection/Workflows/MultiStageAttacks.md`
 
 **Test patterns:**
 1. Progressive escalation
@@ -246,7 +246,7 @@ Execute a full end-to-end prompt injection security assessment incorporating all
 ### Phase 8: Reporting (2-3 hours)
 
 **Use Reporting workflow for structure:**
-`~/.config/opencode/skills/prompt-injection/Reporting.md`
+`~/.config/opencode/skills/security/prompt-injection/Reporting.md`
 
 **Report sections:**
 

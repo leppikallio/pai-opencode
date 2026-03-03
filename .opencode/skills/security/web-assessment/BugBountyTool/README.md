@@ -29,7 +29,7 @@ Automatically tracks new bug bounty programs across HackerOne, Bugcrowd, Intigri
 ## 📦 Installation
 
 ```bash
-cd ~/.config/opencode/skills/web-assessment/BugBountyTool
+cd ~/.config/opencode/skills/security/web-assessment/BugBountyTool
 bun install
 ./bounty.sh init
 ```

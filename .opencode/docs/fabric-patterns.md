@@ -4,8 +4,8 @@ fabric patterns are available under the fabric skill.
 
 ## Runtime Paths
 
-- Skill root: `~/.config/opencode/skills/fabric/`
-- Patterns: `~/.config/opencode/skills/fabric/Patterns/`
+- Skill root: `~/.config/opencode/skills/utilities/fabric/`
+- Patterns: `~/.config/opencode/skills/utilities/fabric/Patterns/`
 
 If a workflow references a pattern, ensure it exists under `Patterns/`.
 

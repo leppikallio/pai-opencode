@@ -64,7 +64,7 @@ Ask the user:
 
 ```bash
 # Check prompts exist
-ls ~/.config/opencode/skills/evals/UseCases/<name>/prompts/
+ls ~/.config/opencode/skills/utilities/evals/UseCases/<name>/prompts/
 
 # Should see both versions:
 # v1.0.0.md
@@ -73,7 +73,7 @@ ls ~/.config/opencode/skills/evals/UseCases/<name>/prompts/
 
 ### Step 3: Create Comparison Config
 
-Create `~/.config/opencode/skills/evals/UseCases/<name>/comparisons/<comparison-name>.yaml`:
+Create `~/.config/opencode/skills/utilities/evals/UseCases/<name>/comparisons/<comparison-name>.yaml`:
 
 ```yaml
 comparison:
@@ -287,10 +287,10 @@ focus: "depth"
 For detailed comparison setup, use the Comparison template:
 
 ```bash
-bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/utilities/prompting/Tools/RenderTemplate.ts \
   -t evals/Comparison.hbs \
-  -d ~/.config/opencode/skills/evals/UseCases/<name>/comparisons/<name>.yaml \
-  -o ~/.config/opencode/skills/evals/UseCases/<name>/comparisons/<name>-setup.md \
+  -d ~/.config/opencode/skills/utilities/evals/UseCases/<name>/comparisons/<name>.yaml \
+  -o ~/.config/opencode/skills/utilities/evals/UseCases/<name>/comparisons/<name>-setup.md \
   --preview
 ```
 

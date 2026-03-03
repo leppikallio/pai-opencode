@@ -18,10 +18,10 @@
 Use the JUDGE template for custom evaluation:
 
 ```bash
-bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/utilities/prompting/Tools/RenderTemplate.ts \
   -t evals/Judge.hbs \
-  -d ~/.config/opencode/skills/evals/UseCases/<name>/judge-config.yaml \
-  -o ~/.config/opencode/skills/evals/UseCases/<name>/judge-prompt.md
+  -d ~/.config/opencode/skills/utilities/evals/UseCases/<name>/judge-config.yaml \
+  -o ~/.config/opencode/skills/utilities/evals/UseCases/<name>/judge-prompt.md
 ```
 
 ### Judge Config Example
@@ -55,10 +55,10 @@ output:
 Use the RUBRIC template for scoring criteria:
 
 ```bash
-bun run ~/.config/opencode/skills/prompting/Tools/RenderTemplate.ts \
+bun run ~/.config/opencode/skills/utilities/prompting/Tools/RenderTemplate.ts \
   -t Evals/Rubric.hbs \
-  -d ~/.config/opencode/skills/evals/UseCases/<name>/rubric.yaml \
-  -o ~/.config/opencode/skills/evals/UseCases/<name>/rubric.md
+  -d ~/.config/opencode/skills/utilities/evals/UseCases/<name>/rubric.yaml \
+  -o ~/.config/opencode/skills/utilities/evals/UseCases/<name>/rubric.md
 ```
 
 ---

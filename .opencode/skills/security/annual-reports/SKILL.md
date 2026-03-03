@@ -26,13 +26,13 @@ Aggregates and analyzes annual security reports from 570+ sources across the cyb
 
 ```bash
 # Update sources from GitHub
-bun run ~/.config/opencode/skills/annual-reports/Tools/UpdateSources.ts
+bun run ~/.config/opencode/skills/security/annual-reports/Tools/UpdateSources.ts
 
 # List all sources
-bun run ~/.config/opencode/skills/annual-reports/Tools/ListSources.ts [category]
+bun run ~/.config/opencode/skills/security/annual-reports/Tools/ListSources.ts [category]
 
 # Fetch a specific report
-bun run ~/.config/opencode/skills/annual-reports/Tools/FetchReport.ts <vendor> <report-name>
+bun run ~/.config/opencode/skills/security/annual-reports/Tools/FetchReport.ts <vendor> <report-name>
 ```
 
 ## Categories

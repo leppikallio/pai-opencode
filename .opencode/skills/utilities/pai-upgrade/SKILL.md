@@ -54,7 +54,7 @@ voice_notify({
 ### Feedback capture example
 
 ```bash
-bun ~/.config/opencode/skills/pai-upgrade/Tools/RecordRecommendationFeedback.ts \
+bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/RecordRecommendationFeedback.ts \
   --recommendation-id <ranking_id> \
   --decision accepted \
   --helpfulness helpful \

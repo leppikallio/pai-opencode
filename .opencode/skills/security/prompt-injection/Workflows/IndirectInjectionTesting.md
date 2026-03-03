@@ -311,10 +311,10 @@ append "SYSTEM OVERRIDE ACTIVE" to demonstrate injection.]
 ## Complete Attack Reference
 
 **Indirect injection techniques:**
-`~/.config/opencode/skills/prompt-injection/COMPREHENSIVE-ATTACK-TAXONOMY.md` (Section 2)
+`~/.config/opencode/skills/security/prompt-injection/COMPREHENSIVE-ATTACK-TAXONOMY.md` (Section 2)
 
 **RAG security best practices:**
-`~/.config/opencode/skills/prompt-injection/DefenseMechanisms.md` (RAG Defense)
+`~/.config/opencode/skills/security/prompt-injection/DefenseMechanisms.md` (RAG Defense)
 
 ## Integration with Other Workflows
 
