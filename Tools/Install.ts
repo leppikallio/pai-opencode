@@ -72,9 +72,7 @@ const MANDATORY_SKILLS: string[] = [
   "system",
   "agents",
   "research",
-  "red-team",
-  "council",
-  "first-principles",
+  "thinking",
 ];
 
 const SKILL_DEPENDENCIES: Record<string, string[]> = {};
@@ -105,10 +103,17 @@ function verifyCrossReferences(args: { targetDir: string; dryRun: boolean; enabl
     return;
   }
 
-  const toolPath = path.join(args.targetDir, "skills", "System", "Tools", "ScanBrokenRefs.ts");
-  if (!isFile(toolPath)) {
-    console.log(`[write] verify: skipped (missing ${toolPath})`);
-    return;
+  const skillsRoot = path.join(args.targetDir, "skills");
+  const toolPath = resolveSkillToolPath({
+    skillsRoot,
+    skillNameLower: "system",
+    toolRelPath: path.join("Tools", "ScanBrokenRefs.ts"),
+  });
+  if (!toolPath) {
+    throw new Error(
+      `Post-install verification failed: could not locate system tool Tools/ScanBrokenRefs.ts under ${skillsRoot}. ` +
+        `Ensure the 'system' skill is installed.`
+    );
   }
 
   const scope = path.join(args.targetDir, "skills");
@@ -157,10 +162,17 @@ function verifySkillSystemDocs(args: { targetDir: string; dryRun: boolean; enabl
     return;
   }
 
-  const toolPath = path.join(args.targetDir, "skills", "system", "Tools", "ValidateSkillSystemDocs.ts");
-  if (!isFile(toolPath)) {
-    console.log(`[write] verify: skipped (missing ${toolPath})`);
-    return;
+  const skillsRoot = path.join(args.targetDir, "skills");
+  const toolPath = resolveSkillToolPath({
+    skillsRoot,
+    skillNameLower: "system",
+    toolRelPath: path.join("Tools", "ValidateSkillSystemDocs.ts"),
+  });
+  if (!toolPath) {
+    throw new Error(
+      `Post-install verification failed: could not locate system tool Tools/ValidateSkillSystemDocs.ts under ${skillsRoot}. ` +
+        `Ensure the 'system' skill is installed.`
+    );
   }
 
   if (args.dryRun) {
@@ -169,14 +181,82 @@ function verifySkillSystemDocs(args: { targetDir: string; dryRun: boolean; enabl
   }
 
   try {
-    execSync(`bun "${toolPath}"`, {
+    const paiSkillRoot = resolveSkillRoot({ skillsRoot, skillNameLower: "pai" });
+    if (!paiSkillRoot) {
+      throw new Error(`Could not locate PAI skill root under ${skillsRoot}`);
+    }
+
+    const indexPath = path.join(paiSkillRoot, "SYSTEM", "SkillSystem.md");
+    const sectionsDir = path.join(paiSkillRoot, "SYSTEM", "SkillSystem");
+    execSync(
+      `bun "${toolPath}" --index "${indexPath}" --sections-dir "${sectionsDir}" --skills-root "${skillsRoot}"`,
+      {
       stdio: "inherit",
       env: { ...process.env, PAI_DIR: args.targetDir },
-    });
+      }
+    );
     console.log("[write] verify: ValidateSkillSystemDocs (ok)");
   } catch (err) {
     throw new Error(`Post-install verification failed (ValidateSkillSystemDocs).\n${String(err)}`);
   }
+}
+
+function parseSkillNameFromSkillMd(skillMdPath: string): string | null {
+  const raw = readFileSafe(skillMdPath);
+  if (!raw.trim()) return null;
+
+  const fmMatch = raw.match(/^---\s*\n([\s\S]*?)\n---/);
+  const fm = fmMatch ? fmMatch[1] : raw;
+  const nameMatch = fm.match(/^\s*name:\s*(.+?)\s*$/m);
+  if (!nameMatch) return null;
+  const name = nameMatch[1].trim().replace(/^['\"]/, "").replace(/['\"]$/, "");
+  return name || null;
+}
+
+function discoverSkillRootsByName(args: { skillsRoot: string; skillNameLower: string }): string[] {
+  const relDirs = listSkillDirectories(args.skillsRoot);
+  const matches: string[] = [];
+  for (const rel of relDirs) {
+    const absDir = path.join(args.skillsRoot, ...rel.split("/"));
+    const skillMd = path.join(absDir, "SKILL.md");
+    const name = parseSkillNameFromSkillMd(skillMd);
+    if (!name) continue;
+    if (name.toLowerCase() === args.skillNameLower) matches.push(absDir);
+  }
+  return matches.sort((a, b) => a.localeCompare(b));
+}
+
+function resolveSkillRoot(args: { skillsRoot: string; skillNameLower: string }): string | null {
+  const matches = discoverSkillRootsByName(args);
+  if (matches.length === 0) return null;
+  if (matches.length === 1) return matches[0];
+  throw new Error(
+    `Found multiple installed skills with name '${args.skillNameLower}'. ` +
+      `This is ambiguous: ${matches.map((p) => path.relative(args.skillsRoot, p)).join(", ")}`
+  );
+}
+
+function resolveSkillToolPath(args: { skillsRoot: string; skillNameLower: string; toolRelPath: string }): string | null {
+  const roots = discoverSkillRootsByName({ skillsRoot: args.skillsRoot, skillNameLower: args.skillNameLower });
+  if (roots.length === 0) return null;
+
+  const candidates = roots
+    .map((root) => path.join(root, args.toolRelPath))
+    .filter((p) => isFile(p))
+    .sort((a, b) => a.localeCompare(b));
+
+  if (candidates.length === 1) return candidates[0];
+  if (candidates.length > 1) {
+    throw new Error(
+      `Found multiple '${args.skillNameLower}' tool candidates for ${args.toolRelPath}: ` +
+        `${candidates.map((p) => path.relative(args.skillsRoot, p)).join(", ")}`
+    );
+  }
+
+  throw new Error(
+    `Installed skill '${args.skillNameLower}' found, but tool missing: ${args.toolRelPath}. ` +
+      `Checked: ${roots.map((p) => path.relative(args.skillsRoot, p)).join(", ")}`
+  );
 }
 
 function listSkillDirectories(skillsRoot: string): string[] {
@@ -967,28 +1047,31 @@ function computeScannerFingerprint(args: { toolPath: string; scannerRoot: string
   return hash.digest("hex");
 }
 
-function computeAllowlistFingerprint(args: { sourceDir: string; targetDir: string }): string {
+function computeAllowlistFingerprint(args: { sourceAllowlistPath: string; targetDir: string }): string {
   const files = [
-    path.join(args.sourceDir, "skills", "skill-security-vetting", "Data", "allowlist.json"),
-    path.join(
-      args.targetDir,
-      "skills",
-      "PAI",
-      "USER",
-      "SKILLCUSTOMIZATIONS",
-      "skill-security-vetting",
-      "allowlist.json"
-    ),
+    { label: "source", filePath: args.sourceAllowlistPath },
+    {
+      label: "runtime-override",
+      filePath: path.join(
+        args.targetDir,
+        "skills",
+        "PAI",
+        "USER",
+        "SKILLCUSTOMIZATIONS",
+        "skill-security-vetting",
+        "allowlist.json"
+      ),
+    },
   ];
 
   const hash = crypto.createHash("sha256");
-  for (const file of files) {
-    hash.update(`${file}:`);
-    if (!isFile(file)) {
+  for (const { label, filePath } of files) {
+    hash.update(`${label}:`);
+    if (!isFile(filePath)) {
       hash.update("<missing>\n");
       continue;
     }
-    hash.update(fileSha256(file));
+    hash.update(fileSha256(filePath));
     hash.update("\n");
   }
   return hash.digest("hex");
@@ -1052,9 +1135,53 @@ function persistSkillsSecurityScanCache(args: {
 
 function normalizeSelectedSkillDirs(args: { sourceSkillsDir: string; selectedTopLevelSkills: string[] }): string[] {
   const selectedTopLevel = new Set(args.selectedTopLevelSkills.map((s) => s.toLowerCase()));
-  return listSkillDirectories(args.sourceSkillsDir)
+
+  // Gate scans should run against leaf skills only. Routers/packs (directories that contain
+  // nested SKILL.md directories) can cause allowlist mismatches because findings get attributed
+  // to the router skill id.
+  const dirs = listSkillDirectories(args.sourceSkillsDir)
     .filter((rel) => selectedTopLevel.has(rel.split("/")[0].toLowerCase()))
     .sort((a, b) => a.localeCompare(b));
+
+  const leaf: string[] = [];
+  for (let i = 0; i < dirs.length; i++) {
+    const rel = dirs[i];
+    const next = dirs[i + 1];
+    if (next && next.startsWith(`${rel}/`)) {
+      continue;
+    }
+    leaf.push(rel);
+  }
+
+  return leaf;
+}
+
+function discoverSkillSecurityVettingRoots(sourceSkillsDir: string): string[] {
+  return listSkillDirectories(sourceSkillsDir)
+    .filter((rel) => rel.split("/").pop()?.toLowerCase() === "skill-security-vetting")
+    .map((rel) => path.join(sourceSkillsDir, rel))
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function resolveSkillSecurityVettingRoot(args: {
+  sourceSkillsDir: string;
+  profile: SkillsGateProfile;
+}): string | null {
+  const roots = discoverSkillSecurityVettingRoots(args.sourceSkillsDir);
+  if (roots.length === 1) return roots[0];
+
+  const candidates = roots.length > 0 ? roots.map((root) => `  - ${root}`).join("\n") : "  - <none>";
+  const msg =
+    "skills gate root resolution failed: expected exactly one match for " +
+    "sourceDir/skills/**/skill-security-vetting with SKILL.md; " +
+    `found ${roots.length}.\nCandidates:\n${candidates}`;
+
+  if (args.profile === "advisory") {
+    console.log(`[warn] ${msg} (continuing in advisory mode)`);
+    return null;
+  }
+
+  throw new Error(msg);
 }
 
 function maybeRunSkillsSecurityGate(args: {
@@ -1071,17 +1198,27 @@ function maybeRunSkillsSecurityGate(args: {
     return;
   }
 
-  const toolPath = path.join(
-    args.sourceDir,
-    "skills",
-    "skill-security-vetting",
-    "Tools",
-    "RunSecurityScan.py"
-  );
   const sourceSkillsDir = path.join(args.sourceDir, "skills");
   const targetSkillsDir = path.join(args.targetDir, "skills");
   const cachePath = path.join(args.targetDir, SKILLS_SECURITY_SCAN_CACHE_REL_PATH);
 
+  if (!isDir(sourceSkillsDir)) {
+    const msg = `skills directory missing: ${sourceSkillsDir}`;
+    if (args.profile === "advisory") {
+      console.log(`[warn] ${msg} (continuing in advisory mode)`);
+      return;
+    }
+    throw new Error(msg);
+  }
+
+  const securitySkillRoot = resolveSkillSecurityVettingRoot({
+    sourceSkillsDir,
+    profile: args.profile,
+  });
+  if (!securitySkillRoot) return;
+
+  const toolPath = path.join(securitySkillRoot, "Tools", "RunSecurityScan.py");
+  const sourceAllowlistPath = path.join(securitySkillRoot, "Data", "allowlist.json");
   if (!isFile(toolPath)) {
     const msg = `skills gate tool missing: ${toolPath}`;
     if (args.profile === "advisory") {
@@ -1091,8 +1228,8 @@ function maybeRunSkillsSecurityGate(args: {
     throw new Error(msg);
   }
 
-  if (!isDir(sourceSkillsDir)) {
-    const msg = `skills directory missing: ${sourceSkillsDir}`;
+  if (!isFile(sourceAllowlistPath)) {
+    const msg = `skills gate allowlist missing: ${sourceAllowlistPath}`;
     if (args.profile === "advisory") {
       console.log(`[warn] ${msg} (continuing in advisory mode)`);
       return;
@@ -1133,7 +1270,10 @@ function maybeRunSkillsSecurityGate(args: {
   }
 
   const scannerFingerprint = computeScannerFingerprint({ toolPath, scannerRoot: args.scannerRoot });
-  const allowlistFingerprint = computeAllowlistFingerprint({ sourceDir: args.sourceDir, targetDir: args.targetDir });
+  const allowlistFingerprint = computeAllowlistFingerprint({
+    sourceAllowlistPath,
+    targetDir: args.targetDir,
+  });
   const cache = loadSkillsSecurityScanCache(cachePath);
 
   const skillHashes = new Map<string, string>();
@@ -1512,7 +1652,7 @@ function maybeInstallDependencies(args: { targetDir: string; dryRun: boolean; en
     { rel: ".", label: "root" },
     { rel: "skills/browser", label: "browser", requireModule: "playwright" },
     { rel: "skills/apify", label: "apify", requireModule: "apify-client" },
-    { rel: "skills/Agents/Tools", label: "Agents tools", requireModule: "yaml" },
+    { rel: "skills/agents/Tools", label: "Agents tools", requireModule: "yaml" },
   ];
 
   for (const pkg of packages) {
@@ -1675,20 +1815,31 @@ function pruneDeprecatedDeepResearchCommands(args: {
 function migrateLegacyCoreSkills(args: { targetDir: string; dryRun: boolean }) {
   const coreDir = path.join(args.targetDir, "skills", "CORE");
   const paiDir = path.join(args.targetDir, "skills", "PAI");
-  if (!isDir(coreDir)) return;
-
-  let coreIsSymlink = false;
-  try {
-    coreIsSymlink = fs.lstatSync(coreDir).isSymbolicLink();
-  } catch {
-    coreIsSymlink = false;
-  }
-  if (coreIsSymlink) return;
 
   const prefix = args.dryRun ? "[dry]" : "[write]";
 
+  let coreStat: fs.Stats | null = null;
+  try {
+    coreStat = fs.lstatSync(coreDir);
+  } catch {
+    coreStat = null;
+  }
+  if (!coreStat) return;
+
+  if (coreStat.isSymbolicLink()) {
+    console.log(`${prefix} remove legacy skills/CORE symlink`);
+    removePath(coreDir, args.dryRun);
+    return;
+  }
+
+  if (!coreStat.isDirectory()) {
+    console.log(`${prefix} remove unexpected skills/CORE entry`);
+    removePath(coreDir, args.dryRun);
+    return;
+  }
+
   if (!isDir(paiDir)) {
-    console.log(`${prefix} migrate compatibility skills/CORE -> skills/PAI`);
+    console.log(`${prefix} migrate legacy skills/CORE -> skills/PAI`);
     if (args.dryRun) return;
     try {
       fs.renameSync(coreDir, paiDir);
@@ -1705,25 +1856,17 @@ function migrateLegacyCoreSkills(args: { targetDir: string; dryRun: boolean }) {
     }
   }
 
-  const subdirs = ["USER", "WORK"];
-  for (const name of subdirs) {
-    const from = path.join(coreDir, name);
-    const to = path.join(paiDir, name);
-    if (!isDir(from) || isDir(to)) continue;
-    console.log(`${prefix} migrate compatibility skills/CORE/${name} -> skills/PAI/${name}`);
-    if (args.dryRun) continue;
-    try {
-      fs.renameSync(from, to);
-    } catch {
-      copyDirRecursive(from, to, {
-        dryRun: false,
-        overwrite: false,
-        preserveIfExistsPrefixes: [""],
-        relBase: `skills/PAI/${name}/`,
-      });
-      removePath(from, false);
-    }
+  console.log(`${prefix} migrate legacy skills/CORE -> skills/PAI (merge)`);
+  if (!args.dryRun) {
+    copyDirRecursive(coreDir, paiDir, {
+      dryRun: false,
+      overwrite: false,
+      preserveIfExistsPrefixes: [""],
+      relBase: "skills/PAI/",
+    });
   }
+
+  removePath(coreDir, args.dryRun);
 }
 
 function detectProfileName(args: { targetDir: string }): string | null {
@@ -1996,8 +2139,15 @@ function removePath(targetPath: string, dryRun: boolean) {
   const prefix = dryRun ? "[dry]" : "[write]";
   console.log(`${prefix} delete ${targetPath}`);
   if (dryRun) return;
+
   try {
-    fs.rmSync(targetPath, { recursive: true, force: true });
+    const st = fs.lstatSync(targetPath);
+    if (st.isDirectory() && !st.isSymbolicLink()) {
+      fs.rmSync(targetPath, { recursive: true, force: true });
+      return;
+    }
+    // Files and symlinks: never recurse.
+    fs.rmSync(targetPath, { force: true });
   } catch {
     // best-effort
   }
@@ -2010,7 +2160,17 @@ function pruneDirRecursive(
 ): { deleted: number } {
   const { dryRun, preserveIfExistsPrefixes, relBase } = opts;
 
-  if (!isDir(destDir)) return { deleted: 0 };
+  if (!fs.existsSync(destDir)) return { deleted: 0 };
+  let destStat: fs.Stats | null = null;
+  try {
+    destStat = fs.lstatSync(destDir);
+  } catch {
+    destStat = null;
+  }
+  if (!destStat || !destStat.isDirectory()) return { deleted: 0 };
+  if (destStat.isSymbolicLink()) {
+    throw new Error(`Refusing to prune through symlinked directory: ${destDir}`);
+  }
 
   let deleted = 0;
   const entries = fs.readdirSync(destDir, { withFileTypes: true });
@@ -2025,34 +2185,41 @@ function pruneDirRecursive(
     const preserveIfExists = preserveIfExistsPrefixes.some((pfx) => relPath.startsWith(pfx));
     if (preserveIfExists) continue;
 
-    const srcExists = fs.existsSync(srcPath);
-    if (!srcExists) {
+    let srcType: "missing" | "dir" | "file" | "symlink" | "other" = "missing";
+    try {
+      const srcStat = fs.lstatSync(srcPath);
+      if (srcStat.isDirectory()) srcType = "dir";
+      else if (srcStat.isFile()) srcType = "file";
+      else if (srcStat.isSymbolicLink()) srcType = "symlink";
+      else srcType = "other";
+    } catch {
+      srcType = "missing";
+    }
+
+    if (srcType === "missing") {
       removePath(destPath, dryRun);
       deleted++;
       continue;
     }
-
-    const srcIsDir = isDir(srcPath);
-    const srcIsFile = isFile(srcPath);
 
     // If types mismatch (dir vs file), delete the destination; it will be recreated by copy.
-    if (ent.isDirectory() && !srcIsDir) {
+    if (ent.isDirectory() && srcType !== "dir") {
       removePath(destPath, dryRun);
       deleted++;
       continue;
     }
-    if (ent.isFile() && !srcIsFile) {
+    if (ent.isFile() && srcType !== "file") {
       removePath(destPath, dryRun);
       deleted++;
       continue;
     }
-    if (ent.isSymbolicLink() && !(srcIsDir || srcIsFile)) {
+    if (ent.isSymbolicLink() && srcType !== "symlink") {
       removePath(destPath, dryRun);
       deleted++;
       continue;
     }
 
-    if (ent.isDirectory() && srcIsDir) {
+    if (ent.isDirectory() && srcType === "dir") {
       const child = pruneDirRecursive(srcPath, destPath, {
         dryRun,
         preserveIfExistsPrefixes,
@@ -2065,6 +2232,79 @@ function pruneDirRecursive(
   return { deleted };
 }
 
+function normalizeSelectedSkillDirCasing(args: {
+  targetSkillsDir: string;
+  normalizedSelectedSkills: string[];
+  dryRun: boolean;
+}) {
+  const { targetSkillsDir, normalizedSelectedSkills, dryRun } = args;
+  const prefix = dryRun ? "[dry]" : "[write]";
+
+  const canonicalByLower = new Map<string, string>();
+  for (const skill of normalizedSelectedSkills) {
+    canonicalByLower.set(skill.toLowerCase(), skill);
+  }
+
+  let entries: fs.Dirent[] = [];
+  try {
+    entries = fs.readdirSync(targetSkillsDir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+
+  const names = new Set(entries.map((e) => e.name));
+
+  for (const ent of entries) {
+    const name = ent.name;
+    if (!name || name.startsWith(".")) continue;
+    if (ent.isFile()) continue;
+    if (!ent.isDirectory() && !ent.isSymbolicLink()) continue;
+
+    const canonical = canonicalByLower.get(name.toLowerCase());
+    if (!canonical) continue;
+    if (name === canonical) continue;
+
+    // If the canonical entry already exists (case-sensitive), delete the non-canonical one.
+    // This can happen on case-sensitive filesystems.
+    if (names.has(canonical)) {
+      removePath(path.join(targetSkillsDir, name), dryRun);
+      continue;
+    }
+
+    const from = path.join(targetSkillsDir, name);
+    const to = path.join(targetSkillsDir, canonical);
+    const tmp = path.join(
+      targetSkillsDir,
+      `.__casefix_${canonical}_${Date.now()}_${Math.random().toString(16).slice(2)}`
+    );
+
+    console.log(`${prefix} normalize skill dir casing: ${name} -> ${canonical}`);
+    if (dryRun) continue;
+
+    try {
+      const st = fs.lstatSync(from);
+      if (st.isSymbolicLink()) {
+        // Never keep skill dirs as symlinks; remove and let copy recreate.
+        removePath(from, dryRun);
+        continue;
+      }
+    } catch {
+      continue;
+    }
+
+    try {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    } catch {
+      // ignore
+    }
+
+    // On case-insensitive filesystems, renaming only casing is often a no-op.
+    // Use a unique temporary path to force an actual directory entry rename.
+    fs.renameSync(from, tmp);
+    fs.renameSync(tmp, to);
+  }
+}
+
 function syncSelectedSkills(args: {
   sourceSkillsDir: string;
   targetSkillsDir: string;
@@ -2072,74 +2312,108 @@ function syncSelectedSkills(args: {
   dryRun: boolean;
   prune: boolean;
 }) {
-  const ensureCoreAlias = () => {
-    const paiPath = path.join(args.targetSkillsDir, "PAI");
-    const corePath = path.join(args.targetSkillsDir, "CORE");
-    if (!isDir(paiPath)) return;
+  let normalizedAny = false;
+  const normalizedSelectedSkills = Array.from(
+    new Set(
+      args.selectedSkills.map((skill) => {
+        const lower = skill.toLowerCase();
+        if (lower === "core" || lower === "pai") {
+          if (skill !== "PAI") normalizedAny = true;
+          return "PAI";
+        }
+        return skill;
+      })
+    )
+  );
 
+  if (!normalizedSelectedSkills.some((s) => s.toLowerCase() === "pai")) {
+    normalizedSelectedSkills.unshift("PAI");
     const prefix = args.dryRun ? "[dry]" : "[write]";
-    let coreExists = fs.existsSync(corePath);
-    if (coreExists) {
-      try {
-        const stat = fs.lstatSync(corePath);
-        if (stat.isSymbolicLink()) {
-          const linkTarget = fs.readlinkSync(corePath);
-          if (linkTarget === "PAI" || linkTarget === "skills/PAI") {
-            console.log(`${prefix} skills alias CORE -> PAI (ok)`);
-            return;
-          }
-        }
-      } catch {
-        // Fallthrough to overwrite alias.
-      }
+    console.log(`${prefix} skill selection: auto-selected mandatory PAI`);
+  }
 
-      if (!args.dryRun) {
-        try {
-          fs.rmSync(corePath, { recursive: true, force: true });
-        } catch {
-          // best-effort
-        }
-      }
-      coreExists = false;
-    }
+  if (normalizedAny) {
+    const prefix = args.dryRun ? "[dry]" : "[write]";
+    console.log(`${prefix} normalize selected skill CORE/pai -> PAI`);
+  }
 
-    if (!coreExists) {
-      console.log(`${prefix} skills alias CORE -> PAI`);
-      if (!args.dryRun) {
-        fs.symlinkSync("PAI", corePath);
-      }
-    }
-  };
-
-  const selectedSet = new Set(args.selectedSkills);
   ensureDir(args.targetSkillsDir, args.dryRun);
 
-  if (args.prune && isDir(args.targetSkillsDir)) {
-    let deleted = 0;
-    const entries = fs.readdirSync(args.targetSkillsDir, { withFileTypes: true });
-    for (const ent of entries) {
-      if (!(ent.isDirectory() || ent.isSymbolicLink())) continue;
-      const name = ent.name;
-      if (name.startsWith(".")) continue;
-      if (name === "CORE") continue;
-      if (selectedSet.has(name)) continue;
-      removePath(path.join(args.targetSkillsDir, name), args.dryRun);
-      deleted++;
-    }
-    if (deleted > 0) {
-      console.log(`${args.dryRun ? "[dry]" : "[write]"} pruned ${deleted} deselected skill(s)`);
-    }
+  // Safety: never operate through a symlinked skills root.
+  let skillsRootStat: fs.Stats | null = null;
+  try {
+    skillsRootStat = fs.lstatSync(args.targetSkillsDir);
+  } catch {
+    skillsRootStat = null;
   }
+  if (skillsRootStat?.isSymbolicLink()) {
+    throw new Error(`Refusing to sync skills through symlink: ${args.targetSkillsDir}`);
+  }
+
+  // Normalize case for selected top-level skill directories in the target.
+  // This matters on case-insensitive filesystems where "Agents" and "agents" refer to the same path.
+  normalizeSelectedSkillDirCasing({
+    targetSkillsDir: args.targetSkillsDir,
+    normalizedSelectedSkills,
+    dryRun: args.dryRun,
+  });
 
   const preserve = ["skills/PAI/USER/", "skills/PAI/WORK/"];
 
-  for (const skill of args.selectedSkills) {
+  // If prune is enabled, remove deselected top-level skill directories/symlinks.
+  // Do NOT delete files under skills/ (for example skill-index.json).
+  if (args.prune) {
+    const selected = new Set(normalizedSelectedSkills.map((s) => s.toLowerCase()));
+    let entries: fs.Dirent[] = [];
+    try {
+      entries = fs.readdirSync(args.targetSkillsDir, { withFileTypes: true });
+    } catch {
+      entries = [];
+    }
+    for (const ent of entries) {
+      const name = ent.name;
+      if (!name || name.startsWith(".")) continue;
+      if (ent.isFile()) continue;
+      if (!ent.isDirectory() && !ent.isSymbolicLink()) continue;
+      if (selected.has(name.toLowerCase())) continue;
+      removePath(path.join(args.targetSkillsDir, name), args.dryRun);
+    }
+  }
+
+  for (const skill of normalizedSelectedSkills) {
     const src = path.join(args.sourceSkillsDir, skill);
     if (!isDir(src)) continue;
     const dest = path.join(args.targetSkillsDir, skill);
     const prefix = args.dryRun ? "[dry]" : "[sync]";
     console.log(`${prefix} skill ${skill}`);
+
+    // Safety: if a skill dir is unexpectedly a symlink, delete it first.
+    if (fs.existsSync(dest)) {
+      try {
+        const dstStat = fs.lstatSync(dest);
+        if (dstStat.isSymbolicLink()) {
+          removePath(dest, args.dryRun);
+        }
+      } catch {
+        // ignore
+      }
+    }
+
     ensureDir(dest, args.dryRun);
+
+    if (args.prune) {
+      const pruneResult = pruneDirRecursive(src, dest, {
+        dryRun: args.dryRun,
+        preserveIfExistsPrefixes: preserve,
+        relBase: `skills/${skill}/`,
+      });
+      if (pruneResult.deleted > 0) {
+        console.log(
+          `${args.dryRun ? "[dry]" : "[write]"} pruned ${pruneResult.deleted} path(s) under skills/${skill}`
+        );
+      }
+    }
+
     copyDirRecursive(src, dest, {
       dryRun: args.dryRun,
       overwrite: true,
@@ -2147,8 +2421,6 @@ function syncSelectedSkills(args: {
       relBase: `skills/${skill}/`,
     });
   }
-
-  ensureCoreAlias();
 }
 
 async function sync(mode: Mode, opts: Options) {
@@ -2205,7 +2477,7 @@ async function sync(mode: Mode, opts: Options) {
 
   ensureDir(targetDir, dryRun);
 
-  // Migrate legacy CORE layout before syncing in PAI layout.
+  // Migrate/remove legacy CORE layout before syncing in PAI layout.
   migrateLegacyCoreSkills({ targetDir, dryRun });
 
   // Optional nWave generator pass must happen before skill selection discovery.

@@ -36,9 +36,7 @@ interface ExtendManifest {
 // Constants
 function resolveCustomizationDir(): string {
   const paiDir = join(getPaiDir(), 'skills', 'PAI', 'USER', 'SKILLCUSTOMIZATIONS');
-  const coreDir = join(getPaiDir(), 'skills', 'CORE', 'USER', 'SKILLCUSTOMIZATIONS');
   if (existsSync(paiDir)) return paiDir;
-  if (existsSync(coreDir)) return coreDir;
   return paiDir;
 }
 
@@ -308,4 +306,3 @@ Examples:
     process.exit(1);
   }
 }
-

@@ -138,7 +138,7 @@ When upgrading PAI-OpenCode to a new PAI version (e.g., 2.4 → 2.5), follow the
 
 This document covers:
 - **Architecture differences** (`.claude/` → `.opencode/`, hooks → plugins)
-- **Component mapping rules** (Skills, Agents, CORE, MEMORY)
+- **Component mapping rules** (Skills, Agents, PAI, MEMORY)
 - **What NOT to import** (Observability, VoiceServer, lib/)
 - **Common import errors** (nested SKILL.md, long descriptions, color format)
 - **Pre/During/Post import checklists**

@@ -27,7 +27,7 @@ description: One line summary. USE WHEN user intent indicates activation.
   - MUST match the canonical skill ID exactly (case-sensitive).
   - SHOULD match the skill directory name exactly.
   - Preferred convention is lowercase-hyphen (for example, `create-skill`, `red-team`, `first-principles`).
-  - Compatibility aliases are allowed only when explicitly documented (for example, `CORE`).
+  - Uppercase skill IDs are allowed only for explicit canonical skills (e.g., `PAI`).
 
 - `description` (required)
   - MUST be a **single line** (no `|` multiline blocks).

@@ -1,6 +1,6 @@
 # SkillSecurityVetting
 
-Operational guide for the `skill-security-vetting` skill in `.opencode/skills/skill-security-vetting`.
+Operational guide for the `skill-security-vetting` skill in `.opencode/skills/security/skill-security-vetting`.
 
 Roadmap and phase status:
 
@@ -14,7 +14,7 @@ Run security scans against local skills using the `skill-scanner` fork with the 
 ## Source locations
 
 - Skill scanner fork: `/Users/zuul/Projects/skill-scanner`
-- PAI skill: `/Users/zuul/Projects/pai-opencode/.opencode/skills/skill-security-vetting`
+- PAI skill: `<repo>/.opencode/skills/security/skill-security-vetting`
 
 ## Primary command
 
@@ -22,25 +22,25 @@ Run security scans against local skills using the `skill-scanner` fork with the 
 
 ```bash
 cd "/Users/zuul/Projects/skill-scanner"
-uv run python "$HOME/.config/opencode/skills/skill-security-vetting/Tools/RunSecurityScan.py" \
+uv run python "$HOME/.config/opencode/skills/security/skill-security-vetting/Tools/RunSecurityScan.py" \
   --mode all \
-  --skills-dir "/Users/zuul/Projects/pai-opencode/.opencode/skills"
+  --skills-dir "<repo>/.opencode/skills"
 ```
 
 ### Scan one skill
 
 ```bash
 cd "/Users/zuul/Projects/skill-scanner"
-uv run python "$HOME/.config/opencode/skills/skill-security-vetting/Tools/RunSecurityScan.py" \
+uv run python "$HOME/.config/opencode/skills/security/skill-security-vetting/Tools/RunSecurityScan.py" \
   --mode single \
-  --skill-dir "/Users/zuul/Projects/pai-opencode/.opencode/skills/skill-security-vetting"
+  --skill-dir "<repo>/.opencode/skills/security/skill-security-vetting"
 ```
 
 ### Adjudicate findings (Phase 2)
 
 ```bash
 cd "/Users/zuul/Projects/skill-scanner"
-uv run python "$HOME/.config/opencode/skills/skill-security-vetting/Tools/AdjudicateFindingsWithOpencode.py" \
+uv run python "$HOME/.config/opencode/skills/security/skill-security-vetting/Tools/AdjudicateFindingsWithOpencode.py" \
   --scan-report "/path/to/report.json" \
   --model "openai/gpt-5.2"
 ```
@@ -49,7 +49,7 @@ uv run python "$HOME/.config/opencode/skills/skill-security-vetting/Tools/Adjudi
 
 ```bash
 cd "/Users/zuul/Projects/skill-scanner"
-uv run python "$HOME/.config/opencode/skills/skill-security-vetting/Tools/GenerateSecurityAuditReport.py" \
+uv run python "$HOME/.config/opencode/skills/security/skill-security-vetting/Tools/GenerateSecurityAuditReport.py" \
   --raw-report "/path/to/raw/report.json" \
   --allowlisted-report "/path/to/allowlisted/report.json" \
   --allowlist-summary "/path/to/allowlisted/allowlist-summary.json" \
@@ -84,7 +84,7 @@ Override with `--output-dir <dir>`.
 Scanner allowlisting is controlled by dedicated files (to avoid `opencode.json` schema coupling):
 
 - Repo baseline (tracked):
-  - `/Users/zuul/Projects/pai-opencode/.opencode/skills/skill-security-vetting/Data/allowlist.json`
+  - `<repo>/.opencode/skills/security/skill-security-vetting/Data/allowlist.json`
 - Optional runtime override (local/private):
   - `~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/skill-security-vetting/allowlist.json`
 

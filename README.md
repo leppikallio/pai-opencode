@@ -110,7 +110,7 @@ This **10-15 minute** interactive session will configure your complete TELOS fra
 
 ### 🎯 Skills System
 Modular, reusable capabilities invoked by name:
-- **CORE** — Identity, preferences, auto-loaded at session start
+- **PAI** — Identity, preferences, auto-loaded at session start
 - **Art** — Excalidraw-style visual diagrams
 - **Browser** — Code-first browser automation
 - **Security** — Pentesting, credential scanning

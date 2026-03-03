@@ -6,7 +6,7 @@ This document tracks the implementation roadmap and progress for PAI skill secur
 
 - Scanner fork: `/Users/zuul/Projects/skill-scanner`
 - PAI repo integration: `/Users/zuul/Projects/pai-opencode`
-- Primary runtime skill: `.opencode/skills/skill-security-vetting`
+- Primary runtime skill: `.opencode/skills/security/skill-security-vetting`
 
 ## Current status
 
@@ -70,7 +70,7 @@ The gate runs against **source skills before runtime copy**.
 
 Implemented via:
 
-- `.opencode/skills/skill-security-vetting/Tools/AdjudicateFindingsWithOpencode.py`
+- `.opencode/skills/security/skill-security-vetting/Tools/AdjudicateFindingsWithOpencode.py`
 
 ### P2.2 Pipeline
 
@@ -157,12 +157,12 @@ Reference:
 ```bash
 # All skills (advisory)
 cd "/Users/zuul/Projects/skill-scanner"
-uv run python "/Users/zuul/Projects/pai-opencode/.opencode/skills/skill-security-vetting/Tools/RunSecurityScan.py" \
+uv run python "<repo>/.opencode/skills/security/skill-security-vetting/Tools/RunSecurityScan.py" \
   --mode all \
   --skills-dir "/Users/zuul/Projects/pai-opencode/.opencode/skills"
 
 # Raw baseline (no allowlist)
-uv run python "/Users/zuul/Projects/pai-opencode/.opencode/skills/skill-security-vetting/Tools/RunSecurityScan.py" \
+uv run python "<repo>/.opencode/skills/security/skill-security-vetting/Tools/RunSecurityScan.py" \
   --mode all \
   --skills-dir "/Users/zuul/Projects/pai-opencode/.opencode/skills" \
   --no-allowlist

@@ -33,6 +33,34 @@ Rules:
 
 ---
 
+## Skill packs (category routers) — allowed nesting outside PAI
+
+Default rule is flat skills (`skills/<skill-id>/...`).
+
+Exception: **skill packs** may nest leaf skills under a category router skill when it improves navigation and incremental context loading.
+
+Canonical pack shape (2 levels):
+
+```text
+/Users/zuul/.config/opencode/skills/<pack-id>/
+├── SKILL.md                # router skill (short)
+├── Tools/
+├── Workflows/
+└── <leaf-skill-id>/
+    ├── SKILL.md            # leaf skill (full)
+    ├── Tools/
+    └── Workflows/
+```
+
+Rules:
+
+- Pack router `SKILL.md` stays short; it routes to leaf skills.
+- Leaf skills keep canonical IDs in frontmatter `name:` (kebab-case).
+- Avoid >2 nesting levels unless there is a clear router at each boundary.
+- `skill_resource` reads resources within the selected skill directory. To read a leaf resource, load the leaf skill.
+
+---
+
 ## Naming: canonical skill IDs (lowercase-hyphen default)
 
 Default naming across skills is canonical **skill IDs** (usually lowercase-hyphen):
@@ -40,7 +68,7 @@ Default naming across skills is canonical **skill IDs** (usually lowercase-hyphe
 - Lowercase-hyphen is preferred: `create-skill`, `first-principles`, `web-assessment` ✅
 - No spaces: `my skill` ❌
 - No underscores: `my_skill` ❌
-- Uppercase aliases are only for explicit compatibility cases (for example, `CORE`) ✅
+- Uppercase skill IDs are allowed only for explicit canonical skills (e.g., `PAI`).
 
 ### Skill ID rules
 
