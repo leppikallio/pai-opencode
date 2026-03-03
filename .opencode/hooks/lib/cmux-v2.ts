@@ -12,6 +12,7 @@ const PROGRESS_BY_PHASE_TOKEN: Record<string, number> = {
   BUILD: 0.55,
   WORK: 0.60,
   EXECUTE: 0.75,
+  VERIFY: 0.85,
   QUESTION: 0.85,
   LEARN: 0.90,
   DONE: 1.00,

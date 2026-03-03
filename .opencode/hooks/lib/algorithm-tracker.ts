@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import crypto from "node:crypto";
 
+import { mirrorCurrentCmuxPhase } from "./cmux-v2";
 import { getPaiDir } from "./paths";
 
 export interface AlgorithmTrackerState {
@@ -226,6 +227,8 @@ export async function updateAlgorithmTrackerState(payload: unknown, options?: Up
   const toolInput = asRecord(payloadRecord.tool_input);
   const toolResponse = asRecord(payloadRecord.tool_response);
 
+  const previousPhase = state.currentPhase;
+
   if (toolName === "TodoWrite") {
     const todos = asArray(toolInput?.todos ?? toolResponse?.todos);
     const criteria: AlgorithmTrackerState["criteria"] = [];
@@ -269,8 +272,11 @@ export async function updateAlgorithmTrackerState(payload: unknown, options?: Up
       const messageMatch = cmd.match(/"message"\s*:\s*"([^"]+)"/);
       if (messageMatch) {
         const { phase, isAlgorithmEntry } = detectPhaseFromText(messageMatch[1]);
-        if (isAlgorithmEntry && !state.currentPhase) state.currentPhase = "OBSERVE";
-        if (phase) state.currentPhase = phase;
+
+        const nextPhase = phase ?? (isAlgorithmEntry && !state.currentPhase ? "OBSERVE" : null);
+        if (nextPhase) {
+          state.currentPhase = nextPhase;
+        }
       }
     }
   }
@@ -279,9 +285,17 @@ export async function updateAlgorithmTrackerState(payload: unknown, options?: Up
     const message = asNonEmptyString(toolInput?.message);
     if (message) {
       const { phase, isAlgorithmEntry } = detectPhaseFromText(message);
-      if (isAlgorithmEntry && !state.currentPhase) state.currentPhase = "OBSERVE";
-      if (phase) state.currentPhase = phase;
+
+      const nextPhase = phase ?? (isAlgorithmEntry && !state.currentPhase ? "OBSERVE" : null);
+      if (nextPhase) {
+        state.currentPhase = nextPhase;
+      }
     }
+  }
+
+  // Mirror detected phase into cmux workspace status/progress.
+  if (state.currentPhase && state.currentPhase !== previousPhase) {
+    await mirrorCurrentCmuxPhase({ phaseToken: state.currentPhase, sessionId });
   }
 
   await mkdir(dirname(statePath), { recursive: true });
