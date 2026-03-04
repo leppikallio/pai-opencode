@@ -1976,7 +1976,7 @@ function renderGlobalAgentsManagedBlock(args: {
     "",
     "## HARD RULE: Do Not Edit Runtime Directly",
     "",
-    `HARD RULE: Do not edit files under \`${targetDir}/\` directly.`,
+    `HARD RULE: Do not edit installed runtime code under \`${targetDir}/\` directly (skills/hooks/settings). Runtime data under \`${targetDir}/MEMORY/\` is expected to be read/written.`,
     "",
     "If a task requires changing anything under that directory:",
     "1) STOP and do the change in the base repository instead:",
@@ -1992,7 +1992,6 @@ function renderGlobalAgentsManagedBlock(args: {
     `- \`${targetDir}/settings.json\``,
     `- \`${targetDir}/opencode.json\``,
     `- \`${targetDir}/skills/PAI/USER/\``,
-    `- \`${targetDir}/MEMORY/\``,
     "",
     AGENTS_BLOCK_END,
   ].join("\n");
