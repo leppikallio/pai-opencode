@@ -86,7 +86,10 @@ type MutateWorkStateResult<T> =
   | { applied: true; value: T }
   | { applied: false; reason: "lock-timeout" | "corrupt-dual-failure" };
 
-const PRD_FILENAME_RE = /^PRD-.*\.md$/i;
+const PRD_EVENT_FILENAME_RE = /^PRD-.*\.md$/i;
+const PRD_CANONICAL_FILENAME_RE = /^PRD(?:-.*)?\.md$/i;
+const PRD_DASH_FILENAME_RE = /^PRD-.*\.md$/i;
+const IDENTITY_SLUG_V2_RE = /^\d{8}-\d{6}-[a-z0-9-]+-[a-z0-9]{6,}$/;
 const APPLY_PATCH_FILE_HEADER_RE = /^\*\*\*\s+(Add File|Update File|Delete File):\s+(.+)\s*$/;
 const APPLY_PATCH_MOVE_TO_RE = /^\*\*\*\s+Move to:\s+(.+)\s*$/;
 const PHASE_SET = new Set<WorkJsonPhase>([
@@ -739,57 +742,6 @@ function compareExistingSessionEntries(
   return a[0].localeCompare(b[0]);
 }
 
-function slugifyPrdTitle(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 50);
-}
-
-function formatYmdUtc(date: Date): string {
-  const year = String(date.getUTCFullYear());
-  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
-  const day = String(date.getUTCDate()).padStart(2, "0");
-  return `${year}${month}${day}`;
-}
-
-async function expectedPrdFilenameFromMeta(sessionDir: string): Promise<string | null> {
-  const metaPath = path.join(sessionDir, "META.yaml");
-  let rawMeta = "";
-  try {
-    rawMeta = await fs.promises.readFile(metaPath, "utf8");
-  } catch {
-    return null;
-  }
-
-  let parsedMeta: unknown;
-  try {
-    parsedMeta = YAML.parse(rawMeta) as unknown;
-  } catch {
-    return null;
-  }
-
-  if (!isRecord(parsedMeta)) {
-    return null;
-  }
-
-  const startedAtRaw = asString(parsedMeta.started_at) ?? asString(parsedMeta.startedAt);
-  if (!startedAtRaw) {
-    return null;
-  }
-
-  const startedAtMs = Date.parse(startedAtRaw);
-  if (!Number.isFinite(startedAtMs)) {
-    return null;
-  }
-
-  const title = asString(parsedMeta.title) ?? "";
-  const fileSlug = slugifyPrdTitle(title) || "work-session";
-  const ymd = formatYmdUtc(new Date(startedAtMs));
-  return `PRD-${ymd}-${fileSlug}.md`;
-}
-
 function parseFrontmatter(content: string): Record<string, unknown> {
   const match = content.match(/^---\s*\n([\s\S]*?)\n---\s*(?:\n|$)/);
   if (!match?.[1]) {
@@ -865,6 +817,74 @@ function asTextValue(frontmatter: Record<string, unknown>, key: string): string 
   }
 
   return undefined;
+}
+
+type CanonicalPrdCandidate = {
+  prdPath: string;
+  hasV2IdentitySlug: boolean;
+  isDashedPrdFile: boolean;
+  updatedMs: number | null;
+  mtimeMs: number;
+};
+
+function compareCanonicalPrdCandidates(a: CanonicalPrdCandidate, b: CanonicalPrdCandidate): number {
+  if (a.hasV2IdentitySlug !== b.hasV2IdentitySlug) {
+    return a.hasV2IdentitySlug ? -1 : 1;
+  }
+
+  if (a.isDashedPrdFile !== b.isDashedPrdFile) {
+    return a.isDashedPrdFile ? -1 : 1;
+  }
+
+  const aHasUpdated = a.updatedMs !== null;
+  const bHasUpdated = b.updatedMs !== null;
+  if (aHasUpdated !== bHasUpdated) {
+    return aHasUpdated ? -1 : 1;
+  }
+
+  if (a.updatedMs !== null && b.updatedMs !== null && a.updatedMs !== b.updatedMs) {
+    return b.updatedMs - a.updatedMs;
+  }
+
+  if (a.mtimeMs !== b.mtimeMs) {
+    return b.mtimeMs - a.mtimeMs;
+  }
+
+  return a.prdPath.localeCompare(b.prdPath);
+}
+
+async function parseCanonicalPrdCandidate(prdPath: string): Promise<CanonicalPrdCandidate> {
+  const resolvedPrdPath = path.resolve(prdPath);
+  let content = "";
+  let mtimeMs = 0;
+
+  try {
+    content = await fs.promises.readFile(resolvedPrdPath, "utf8");
+  } catch {
+    content = "";
+  }
+
+  try {
+    const stat = await fs.promises.stat(resolvedPrdPath);
+    if (Number.isFinite(stat.mtimeMs)) {
+      mtimeMs = stat.mtimeMs;
+    }
+  } catch {
+    mtimeMs = 0;
+  }
+
+  const frontmatter = parseFrontmatter(content);
+  const slug = asTextValue(frontmatter, "slug") ?? "";
+  const updatedMs = parseIsoMs(asTextValue(frontmatter, "updated"));
+  const basename = path.basename(resolvedPrdPath);
+
+  return {
+    prdPath: resolvedPrdPath,
+    hasV2IdentitySlug: IDENTITY_SLUG_V2_RE.test(slug),
+    isDashedPrdFile: PRD_DASH_FILENAME_RE.test(basename),
+    updatedMs,
+    mtimeMs,
+  };
 }
 
 export function parsePrdContent(content: string): ParsedPrdData | null {
@@ -1002,7 +1022,7 @@ export function resolveApplyPatchPaths(args: {
 export function isPrdPathUnderMemoryWork(paiDir: string, candidatePath: string): boolean {
   const memoryWorkRoot = path.resolve(path.join(paiDir, "MEMORY", "WORK"));
   const resolvedPath = path.resolve(candidatePath);
-  return insideRoot(memoryWorkRoot, resolvedPath) && PRD_FILENAME_RE.test(path.basename(resolvedPath));
+  return insideRoot(memoryWorkRoot, resolvedPath) && PRD_EVENT_FILENAME_RE.test(path.basename(resolvedPath));
 }
 
 export function deriveSessionUUIDFromPrdPath(paiDir: string, candidatePath: string): string | null {
@@ -1046,19 +1066,19 @@ export async function scanCanonicalPrdInSessionDir(sessionDir: string): Promise<
     return null;
   }
 
-  const expectedFilename = await expectedPrdFilenameFromMeta(sessionDir);
-  if (expectedFilename) {
-    const expectedEntry = entries.find((entry) => entry.name === expectedFilename && entry.isFile());
-    if (expectedEntry) {
-      return path.join(sessionDir, expectedEntry.name);
-    }
+  const fileCandidates = entries
+    .filter((entry) => entry.isFile() && PRD_CANONICAL_FILENAME_RE.test(entry.name))
+    .map((entry) => path.join(sessionDir, entry.name))
+    .sort((a, b) => a.localeCompare(b));
+  if (fileCandidates.length === 0) {
+    return null;
   }
 
-  const rootCandidates = entries
-    .filter((entry) => entry.isFile() && PRD_FILENAME_RE.test(entry.name))
-    .map((entry) => path.join(sessionDir, entry.name))
-    .sort();
-  return rootCandidates[0] ?? null;
+  const rankedCandidates = await Promise.all(
+    fileCandidates.map((candidatePath) => parseCanonicalPrdCandidate(candidatePath)),
+  );
+  rankedCandidates.sort(compareCanonicalPrdCandidates);
+  return rankedCandidates[0]?.prdPath ?? null;
 }
 
 export async function upsertWorkSessionFromEvent(args: {
