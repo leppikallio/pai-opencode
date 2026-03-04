@@ -100,6 +100,7 @@ describe("pai-tui wrapper", () => {
 			opencodeRoot: "/tmp/opencode-root",
 			port: 4222,
 			completionVisibleFallback: "auto",
+			codexCleanSlate: undefined,
 		});
 
 		expect(env.OPENCODE_SERVER_URL).toBe("http://127.0.0.1:4222");
@@ -111,12 +112,58 @@ describe("pai-tui wrapper", () => {
 		expect(env.TEST_FLAG).toBe("1");
 	});
 
+	test("inherits PAI_CODEX_CLEAN_SLATE when codex flag is omitted", () => {
+		const inherited = buildChildEnv({
+			baseEnv: { PAI_CODEX_CLEAN_SLATE: "1" },
+			opencodeRoot: "/tmp/opencode-root",
+			port: 4222,
+			completionVisibleFallback: "auto",
+			codexCleanSlate: undefined,
+		});
+
+		const unset = buildChildEnv({
+			baseEnv: {},
+			opencodeRoot: "/tmp/opencode-root",
+			port: 4222,
+			completionVisibleFallback: "auto",
+			codexCleanSlate: undefined,
+		});
+
+		expect(inherited.PAI_CODEX_CLEAN_SLATE).toBe("1");
+		expect(unset.PAI_CODEX_CLEAN_SLATE).toBeUndefined();
+	});
+
+	test("maps --codex-clean-slate=on to PAI_CODEX_CLEAN_SLATE=1", () => {
+		const env = buildChildEnv({
+			baseEnv: {},
+			opencodeRoot: "/tmp/opencode-root",
+			port: 4222,
+			completionVisibleFallback: "auto",
+			codexCleanSlate: "on",
+		});
+
+		expect(env.PAI_CODEX_CLEAN_SLATE).toBe("1");
+	});
+
+	test("maps --codex-clean-slate=off to PAI_CODEX_CLEAN_SLATE=0", () => {
+		const env = buildChildEnv({
+			baseEnv: { PAI_CODEX_CLEAN_SLATE: "1" },
+			opencodeRoot: "/tmp/opencode-root",
+			port: 4222,
+			completionVisibleFallback: "auto",
+			codexCleanSlate: "off",
+		});
+
+		expect(env.PAI_CODEX_CLEAN_SLATE).toBe("0");
+	});
+
 	test("enables PAI_CMUX_DEBUG when CMUX_SOCKET_PATH is present", () => {
 		const env = buildChildEnv({
 			baseEnv: { CMUX_SOCKET_PATH: "/tmp/cmux.sock" },
 			opencodeRoot: "/tmp/opencode-root",
 			port: 4222,
 			completionVisibleFallback: "auto",
+			codexCleanSlate: undefined,
 		});
 
 		expect(env.PAI_CMUX_DEBUG).toBe("1");
@@ -240,6 +287,7 @@ describe("pai-tui wrapper", () => {
 		expect(stdout).toContain("--port <n>");
 		expect(stdout).toContain("--opencode-root <path>");
 		expect(stdout).toContain("--completion-visible-fallback <auto|on|off>");
+		expect(stdout).toContain("--codex-clean-slate <on|off>");
 		expect(stdout).toContain("--bind-retries <n>");
 		expect(stdout).toContain("--write-state <on|off>");
 		expect(stdout).toContain("Defaults:");

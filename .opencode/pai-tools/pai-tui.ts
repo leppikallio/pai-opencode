@@ -15,12 +15,14 @@ const DEFAULT_QUICK_EXIT_MS = 1200;
 const LOOPBACK_HOST = "127.0.0.1";
 
 type CompletionVisibleFallbackMode = "auto" | "on" | "off";
+type CodexCleanSlateMode = "on" | "off";
 
 export interface PaiTuiRunOptions {
 	dir: string;
 	startPort: number;
 	opencodeRoot: string;
 	completionVisibleFallback: CompletionVisibleFallbackMode;
+	codexCleanSlate?: CodexCleanSlateMode;
 	bindRetries: number;
 	writeState: boolean;
 	passthroughArgs: string[];
@@ -88,6 +90,7 @@ interface BuildChildEnvInput {
 	opencodeRoot: string;
 	port: number;
 	completionVisibleFallback: CompletionVisibleFallbackMode;
+	codexCleanSlate?: CodexCleanSlateMode;
 }
 
 interface PassthroughSanitizationResult {
@@ -110,6 +113,7 @@ const HELP_TEXT = [
 	"  --port <n>                                     Starting port to probe for free bind",
 	"  --opencode-root <path>                         OpenCode config/runtime root",
 	"  --completion-visible-fallback <auto|on|off>    Fallback env behavior when cmux socket is missing",
+	"  --codex-clean-slate <on|off>                    Explicitly set PAI_CODEX_CLEAN_SLATE (omit flag to inherit)",
 	"  --bind-retries <n>                             Retries for rapid bind-race exits",
 	"  --write-state <on|off>                         Persist pai-tui state artifacts",
 	"",
@@ -118,6 +122,7 @@ const HELP_TEXT = [
 	`  --port ${DEFAULT_START_PORT}`,
 	`  --opencode-root ${resolveRuntimeRootFromMainScript(import.meta.url)}`,
 	"  --completion-visible-fallback auto",
+	"  --codex-clean-slate omitted (inherit parent env; unchanged)",
 	`  --bind-retries ${DEFAULT_BIND_RETRIES}`,
 	"  --write-state on",
 	"",
@@ -344,6 +349,12 @@ export function buildChildEnv(
 		}
 	}
 
+	if (input.codexCleanSlate === "on") {
+		env.PAI_CODEX_CLEAN_SLATE = "1";
+	} else if (input.codexCleanSlate === "off") {
+		env.PAI_CODEX_CLEAN_SLATE = "0";
+	}
+
 	return env;
 }
 
@@ -476,6 +487,7 @@ export async function runPaiTui(
 			opencodeRoot: options.opencodeRoot,
 			port,
 			completionVisibleFallback: options.completionVisibleFallback,
+			codexCleanSlate: options.codexCleanSlate,
 		});
 		const args = [
 			"--port",
@@ -571,6 +583,10 @@ function createCliCommand() {
 				long: "completion-visible-fallback",
 				type: optional(oneOf(["auto", "on", "off"])),
 			}),
+			codexCleanSlate: option({
+				long: "codex-clean-slate",
+				type: optional(oneOf(["on", "off"])),
+			}),
 			bindRetries: option({ long: "bind-retries", type: optional(string) }),
 			writeState: option({
 				long: "write-state",
@@ -601,6 +617,7 @@ function createCliCommand() {
 				),
 				completionVisibleFallback: (args.completionVisibleFallback ??
 					"auto") as CompletionVisibleFallbackMode,
+				codexCleanSlate: args.codexCleanSlate as CodexCleanSlateMode | undefined,
 				bindRetries: parsedBindRetries,
 				writeState: (args.writeState ?? "on") === "on",
 				passthroughArgs: args.opencodeArgs,
@@ -623,6 +640,7 @@ if (import.meta.main) {
 
 	try {
 		assertOptionValueProvided(argv, "--bind-retries");
+		assertOptionValueProvided(argv, "--codex-clean-slate");
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		console.error(`ERROR: ${message}`);

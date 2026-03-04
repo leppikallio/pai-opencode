@@ -59,5 +59,7 @@ describe("pai-tui CLI contract", () => {
 		expect(out.code).toBe(0);
 		expect(out.stdout).toContain("pai-tui");
 		expect(out.stdout).toContain("Usage:");
+		expect(out.stdout).toContain("--codex-clean-slate <on|off>");
+		expect(out.stdout).toContain("omit flag to inherit");
 	});
 });
