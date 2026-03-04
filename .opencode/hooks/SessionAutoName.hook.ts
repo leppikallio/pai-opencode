@@ -200,7 +200,7 @@ function listSessionIndexFiles(rootDir: string, maxDepth = 3): string[] {
 
     for (const entry of entries) {
       const fullPath = join(next.dir, entry);
-      let stat;
+      let stat: ReturnType<typeof statSync>;
       try {
         stat = statSync(fullPath);
       } catch {
