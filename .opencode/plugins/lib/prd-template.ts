@@ -14,11 +14,6 @@ function ymdUtc(now: Date): { y: string; m: string; d: string } {
   return { y, m, d };
 }
 
-function isoDayUtc(now: Date): string {
-  const { y, m, d } = ymdUtc(now);
-  return `${y}-${m}-${d}`;
-}
-
 export function generatePRDFilename(slug: string, now: Date = new Date()): string {
   const { y, m, d } = ymdUtc(now);
   return `PRD-${y}${m}${d}-${slug}.md`;
