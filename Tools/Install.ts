@@ -22,6 +22,10 @@ import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
 import { mergeClaudeHooksSeedIntoSettingsJson } from "./pai-install/merge-claude-hooks";
+import {
+  decideWorkJsonBackfill,
+  type WorkJsonBackfillDecision,
+} from "./pai-install/work-json-backfill-gate";
 import { guessNwaveRoot } from "./lib/nwave/paths";
 
 type Mode = "sync";
@@ -1704,6 +1708,79 @@ function isFile(p: string): boolean {
   }
 }
 
+function shouldRunWorkJsonBackfill(targetDir: string): WorkJsonBackfillDecision {
+  const workPath = path.join(targetDir, "MEMORY", "STATE", "work.json");
+  if (!fs.existsSync(workPath)) {
+    return decideWorkJsonBackfill({ state: "missing" });
+  }
+
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(workPath);
+  } catch {
+    return decideWorkJsonBackfill({ state: "unreadable" });
+  }
+
+  if (!stat.isFile()) {
+    return decideWorkJsonBackfill({ state: "not-file" });
+  }
+
+  if (stat.size === 0) {
+    return decideWorkJsonBackfill({
+      state: "file",
+      sizeBytes: 0,
+      content: "",
+    });
+  }
+
+  try {
+    const content = fs.readFileSync(workPath, "utf8");
+    return decideWorkJsonBackfill({
+      state: "file",
+      sizeBytes: stat.size,
+      content,
+    });
+  } catch {
+    return decideWorkJsonBackfill({ state: "unreadable" });
+  }
+}
+
+function maybeRunWorkJsonBackfill(args: { targetDir: string; dryRun: boolean }) {
+  const backfillScriptPath = path.join(args.targetDir, "hooks", "WorkJsonBackfill.ts");
+  if (!isFile(backfillScriptPath)) {
+    console.log(`[warn] work.json backfill: script missing (${backfillScriptPath})`);
+    return;
+  }
+
+  const decision = shouldRunWorkJsonBackfill(args.targetDir);
+  if (!decision.shouldRun) {
+    console.log(`[write] work.json backfill: skipped (${decision.reason})`);
+    return;
+  }
+
+  if (args.dryRun) {
+    console.log(`[dry] work.json backfill: would run (${decision.reason})`);
+    return;
+  }
+
+  console.log(`[write] work.json backfill: running (${decision.reason})`);
+  try {
+    execSync(`bun "${args.targetDir}/hooks/WorkJsonBackfill.ts"`, {
+      cwd: args.targetDir,
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        OPENCODE_ROOT: args.targetDir,
+        OPENCODE_CONFIG_ROOT: args.targetDir,
+        PAI_DIR: args.targetDir,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.log(`[warn] work.json backfill failed: ${message}`);
+  }
+}
+
 function removeLegacyOpenCodeTools(args: { targetDir: string; dryRun: boolean }) {
   // OpenCode loads custom tools from <opencodeDir>/tools. We must not ship
   // PAI helper scripts there. Clean up the legacy file if present.
@@ -2819,6 +2896,9 @@ async function sync(mode: Mode, opts: Options) {
   // Ensure runtime dependencies exist for code-first tools (e.g., Playwright).
   // This is best-effort but runs by default so skills work immediately.
   maybeInstallDependencies({ targetDir, dryRun, enabled: installDeps });
+
+  // Best-effort deterministic index rebuild for legacy runtime PRDs.
+  maybeRunWorkJsonBackfill({ targetDir, dryRun });
 
   console.log("\nDone.");
   console.log("Next:");
