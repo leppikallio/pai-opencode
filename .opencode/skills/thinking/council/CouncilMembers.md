@@ -2,14 +2,14 @@
 
 Reference for council member roles, perspectives, and voice assignments.
 
-## Default council Members
+## Default Council Members
 
-| Agent | Perspective | Voice |
-|-------|-------------|-------|
-| **Architect** | System design, patterns, long-term | Serena Blackwood |
-| **Designer** | UX, user needs, accessibility | Aditi Sharma |
-| **Engineer** | Implementation reality, tech debt | Marcus Webb |
-| **Researcher** | Data, precedent, external examples | Ava Chen |
+| Role | Perspective | Task subagent_type | Voice |
+|------|-------------|-------------------|-------|
+| **Architect** | System design, patterns, long-term | `Architect` | Serena Blackwood |
+| **Designer** | UX, user needs, accessibility | `Designer` | Aditi Sharma |
+| **Engineer** | Implementation reality, tech debt | `Engineer` | Marcus Webb |
+| **Researcher** | Data, precedent, external examples | `PerplexityResearcher` | Ava Chen |
 
 ## Optional Members
 
@@ -33,9 +33,14 @@ Add these as needed based on the topic:
 | Intern | Intern | Dev Patel |
 | Writer | (use Intern with writer prompt) | Emma Hartley |
 
+## Required Operational Rule
+
+For a **REAL** council run, you MUST spawn one task per selected member using `functions.task(...)` and wait for results with `functions.background_output(...)`.
+
+If you do not spawn tasks, label the run **SIMULATED** and ask for confirmation before proceeding.
+
 ## Custom Council Composition
 
 - "Council with security" - Add pentester agent
 - "Council with intern" - Add intern for fresh perspective
 - "Just architect and engineer" - Only specified members
-

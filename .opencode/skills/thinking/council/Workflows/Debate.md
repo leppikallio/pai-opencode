@@ -18,15 +18,19 @@ Output the debate header:
 
 **Council Members:** [List agents participating]
 **Rounds:** 3 (Positions → Responses → Synthesis)
+**Execution:** REAL (subagents) | SIMULATED (no subagents)
+**Task Evidence:** [task_id per member per round, REAL only]
 ```
 
 ### Step 2: Round 1 - Initial Positions
 
-Launch 4 parallel Task calls (one per council member).
+Launch 4 parallel subagent tasks via `functions.task(...)` (one per council member). Record each `task_id`.
+
+If you do not spawn tasks, you MUST label the run **SIMULATED** and ask for confirmation before proceeding.
 
 **Each agent prompt includes:**
 ```
-You are [Agent Name], [brief role description from AgentPersonalities.md].
+You are [Agent Name], [brief role description from CouncilMembers.md].
 
 COUNCIL DEBATE - ROUND 1: INITIAL POSITIONS
 
@@ -41,11 +45,22 @@ Give your initial position on this topic from your specialized perspective.
 Your perspective focuses on: [agent's domain]
 ```
 
+Tool-call shape (example):
+
+```ts
+functions.task({
+  description: "Council debate R1: Architect position",
+  subagent_type: "Architect",
+  prompt: "<prompt above, specialized for Architect>",
+  run_in_background: true
+})
+```
+
 **Agent domains:**
 - **architect**: System design, patterns, scalability, long-term architectural implications
 - **designer**: User experience, accessibility, user needs, interface implications
 - **engineer**: Implementation reality, tech debt, maintenance burden, practical constraints
-- **researcher** (ClaudeResearcher): Data, precedent, external examples, what others have done
+- **researcher**: Data, precedent, external examples, what others have done
 
 **Output each response as it completes:**
 ```markdown
@@ -66,7 +81,7 @@ Your perspective focuses on: [agent's domain]
 
 ### Step 3: Round 2 - Responses & Challenges
 
-Launch 4 parallel Task calls with Round 1 transcript included.
+Launch 4 parallel subagent tasks via `functions.task(...)` with the Round 1 transcript included. Record `task_id`s.
 
 **Each agent prompt includes:**
 ```
@@ -108,7 +123,7 @@ The value is in genuine intellectual friction—engage with their actual argumen
 
 ### Step 4: Round 3 - Synthesis
 
-Launch 4 parallel Task calls with Round 1 + Round 2 transcripts.
+Launch 4 parallel subagent tasks via `functions.task(...)` with the Round 1 + Round 2 transcripts. Record `task_id`s.
 
 **Each agent prompt includes:**
 ```
@@ -199,4 +214,3 @@ If user specifies custom members, adjust accordingly:
 ## Done
 
 Debate complete. The transcript shows the full intellectual journey from initial positions through challenges to synthesis.
-

@@ -2,10 +2,28 @@
 
 Standard format for council debate transcripts.
 
+## Execution Header (Required)
+
+Every council output MUST declare whether it was run with real subagents.
+
+```markdown
+**Execution:** REAL (subagents) | SIMULATED (no subagents)
+**Task Evidence:**
+- Architect: <task_id>
+- Designer: <task_id>
+- Engineer: <task_id>
+- Researcher: <task_id>
+```
+
+If SIMULATED, omit task IDs and explicitly say why (e.g., tasks unavailable) and ask for confirmation before proceeding.
+
 ## Full Debate Transcript
 
 ```markdown
 ## Council Debate: [Topic]
+
+**Execution:** REAL (subagents)
+**Task Evidence:** [task_id per member per round]
 
 ### Round 1: Initial Positions
 
@@ -55,6 +73,9 @@ Standard format for council debate transcripts.
 ```markdown
 ## Quick Council: [Topic]
 
+**Execution:** REAL (subagents)
+**Task Evidence:** [task_id per member]
+
 ### Perspectives
 
 **Architect (Serena):**
@@ -78,3 +99,4 @@ Standard format for council debate transcripts.
 - **Tone:** Professional but direct; genuine challenges
 - **Must Include:** Specific references to other agents' points in Round 2+
 - **Must Avoid:** Generic opinions, restating initial position without engagement
+- **Must Declare:** REAL vs SIMULATED execution mode

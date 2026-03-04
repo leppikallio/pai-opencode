@@ -16,11 +16,19 @@ Fast single-round perspective check. Use for sanity checks and quick feedback.
 
 **Council Members:** [List agents]
 **Mode:** Single round (fast perspectives)
+**Execution:** REAL (subagents) | SIMULATED (no subagents)
+**Task Evidence:** [task_id per member, REAL only]
 ```
 
 ### Step 2: Parallel Perspective Gathering
 
-Launch all council members in parallel (single Task call batch).
+Launch all council members in parallel using `functions.task(...)` (one task per member), then wait for each output via `functions.background_output(...)`.
+
+If you do not spawn tasks, you MUST label the run **SIMULATED** and ask for confirmation before proceeding.
+
+#### Step 2A: Spawn Tasks (Required)
+
+Create one task per council member. Record each returned `task_id`.
 
 **Each agent prompt:**
 ```
@@ -38,9 +46,35 @@ Give your immediate take from your specialized perspective:
 This is a quick sanity check, not a full debate.
 ```
 
+Tool-call shape (example):
+
+```ts
+functions.task({
+  description: "Quick council: Architect perspective",
+  subagent_type: "Architect",
+  prompt: "<prompt above, specialized for Architect>",
+  run_in_background: true
+})
+```
+
+#### Step 2B: Collect Outputs (Required)
+
+Wait for each task to finish and capture the final text:
+
+```ts
+functions.background_output({ task_id, block: true })
+```
+
 ### Step 3: Output Perspectives
 
 ```markdown
+## Quick Council: [Topic]
+
+**Council Members:** [List agents]
+**Mode:** Single round (fast perspectives)
+**Execution:** REAL (subagents)
+**Task Evidence:** [task_id per member]
+
 ### Perspectives
 
 **🏛️ Architect (Serena):**
