@@ -559,7 +559,7 @@ async function commitAssistantMessage(sessionId: string) {
   // OpenCode cannot reliably inject per-turn system reminders.
   // Instead, compute a post-turn format hint and surface it via:
   // - persisted JSONL (debuggable)
-  // - optional toast in pai-unified.ts (consumes pendingFormatHint)
+  // - optional toast in pai-cc-hooks.ts (consumes pendingFormatHint)
   // - THREAD.md annotation (no raw text added here)
   // Subagent sessions should be minimal: skip format hint artifacts.
   if (!isSubagent) try {
