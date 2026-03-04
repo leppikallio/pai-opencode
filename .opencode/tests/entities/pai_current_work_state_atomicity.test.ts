@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 
 import {
+  clearCurrentWorkForSession,
   getCurrentWorkPathForSession,
   setCurrentWorkPathForSession,
 } from "../../plugins/lib/paths";
@@ -19,6 +20,8 @@ type CurrentWorkState = {
   v: "0.2";
   updated_at: string;
   sessions: Record<string, { work_dir: string; started_at?: string }>;
+  session_id?: string;
+  work_dir?: string;
 };
 
 function withEnv(overrides: Record<string, string | undefined>): Record<string, string> {
@@ -247,6 +250,8 @@ describe("current-work state atomicity and non-lossy updates", () => {
       const state = await readCurrentWorkState(paiDir);
       expect(state.sessions["session-a"]?.work_dir).toBe(makeWorkPath(paiDir, "session-a", 0));
       expect(state.sessions["session-b"]?.work_dir).toBe(makeWorkPath(paiDir, "session-b", 0));
+      expect(state.session_id).toBe("session-a");
+      expect(state.work_dir).toBe(makeWorkPath(paiDir, "session-a", 0));
     } finally {
       if (previousRoot === undefined) {
         delete process.env.OPENCODE_ROOT;
@@ -313,6 +318,56 @@ describe("current-work state atomicity and non-lossy updates", () => {
         terminateSubprocessIfNeeded(writerA),
         terminateSubprocessIfNeeded(writerB),
       ]);
+      await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
+  test("clear repoints legacy convenience fields deterministically when clearing current session", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-current-work-clear-repoint-"));
+    const previousRoot = process.env.OPENCODE_ROOT;
+
+    process.env.OPENCODE_ROOT = paiDir;
+    try {
+      await setCurrentWorkPathForSession("session-b", makeWorkPath(paiDir, "session-b", 0));
+      await setCurrentWorkPathForSession("session-a", makeWorkPath(paiDir, "session-a", 0));
+
+      await clearCurrentWorkForSession("session-a");
+
+      const state = await readCurrentWorkState(paiDir);
+      expect(state.sessions["session-a"]).toBeUndefined();
+      expect(state.sessions["session-b"]?.work_dir).toBe(makeWorkPath(paiDir, "session-b", 0));
+      expect(state.session_id).toBe("session-b");
+      expect(state.work_dir).toBe(makeWorkPath(paiDir, "session-b", 0));
+    } finally {
+      if (previousRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
+      } else {
+        process.env.OPENCODE_ROOT = previousRoot;
+      }
+      await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
+  test("clear removes legacy convenience fields when last session is cleared", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-current-work-clear-empty-"));
+    const previousRoot = process.env.OPENCODE_ROOT;
+
+    process.env.OPENCODE_ROOT = paiDir;
+    try {
+      await setCurrentWorkPathForSession("session-a", makeWorkPath(paiDir, "session-a", 0));
+
+      await clearCurrentWorkForSession("session-a");
+
+      const state = await readCurrentWorkState(paiDir);
+      expect(Object.keys(state.sessions)).toHaveLength(0);
+      expect(state.session_id).toBeUndefined();
+      expect(state.work_dir).toBeUndefined();
+    } finally {
+      if (previousRoot === undefined) {
+        delete process.env.OPENCODE_ROOT;
+      } else {
+        process.env.OPENCODE_ROOT = previousRoot;
+      }
       await fs.rm(paiDir, { recursive: true, force: true });
     }
   });
