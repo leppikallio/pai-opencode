@@ -100,7 +100,7 @@ function validateConfiguredContextFile(paiDir: string, value: unknown): string {
 }
 
 function isSettingsOverride(settings: JsonRecord): boolean {
-  return Object.prototype.hasOwnProperty.call(settings, "contextFiles");
+  return Object.hasOwn(settings, "contextFiles");
 }
 
 function shouldInjectLearningDigest(): boolean {
@@ -108,7 +108,7 @@ function shouldInjectLearningDigest(): boolean {
 }
 
 function sanitizeLearningDigestPayload(payload: string): string {
-  return payload.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return payload.replace(/`/g, "'").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function renderLearningDigestBlock(payload: string): string {
