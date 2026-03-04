@@ -110,6 +110,81 @@ function mergeHooks(runtimeHooks: unknown, seedHooks: unknown, targetDir: string
   return rewriteHookCommandPlaceholders(seedHooks, targetDir) as JsonRecord;
 }
 
+const REQUIRED_PAI_CONTEXT_FILES = [
+  "skills/PAI/SKILL.md",
+  "skills/PAI/SYSTEM/AISTEERINGRULES.md",
+  "skills/PAI/USER/AISTEERINGRULES.md",
+  "skills/PAI/USER/DAIDENTITY.md",
+] as const;
+
+function parseContextFiles(value: unknown): string[] | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+
+  if (!value.every((entry): entry is string => typeof entry === "string")) {
+    return null;
+  }
+
+  return value;
+}
+
+function normalizeContextFileKey(entry: string): string {
+  return entry.trim().replace(/\\/g, "/").replace(/^\.\//, "");
+}
+
+function mergeContextFiles(runtimeContextFiles: unknown, seedContextFiles: unknown): unknown {
+  const seed = parseContextFiles(seedContextFiles);
+  const runtime = parseContextFiles(runtimeContextFiles);
+  const runtimeMissing = runtimeContextFiles === undefined || runtimeContextFiles === null;
+  const runtimeEmptyArray = Array.isArray(runtimeContextFiles) && runtimeContextFiles.length === 0;
+
+  if (runtimeMissing || runtimeEmptyArray) {
+    return seed ? [...seed] : runtimeContextFiles;
+  }
+
+  if (!runtime) {
+    return runtimeContextFiles;
+  }
+
+  const hasCoreEntries = runtime.some((entry) =>
+    normalizeContextFileKey(entry).toLowerCase().startsWith("skills/core/"),
+  );
+
+  if (!hasCoreEntries) {
+    return [...runtime];
+  }
+
+  const seen = new Set<string>();
+  const repaired: string[] = [];
+
+  for (const entry of runtime) {
+    const normalizedKey = normalizeContextFileKey(entry);
+    if (normalizedKey.toLowerCase().startsWith("skills/core/")) {
+      continue;
+    }
+
+    if (seen.has(normalizedKey)) {
+      continue;
+    }
+
+    seen.add(normalizedKey);
+    repaired.push(entry);
+  }
+
+  for (const entry of REQUIRED_PAI_CONTEXT_FILES) {
+    const normalizedKey = normalizeContextFileKey(entry);
+    if (seen.has(normalizedKey)) {
+      continue;
+    }
+
+    seen.add(normalizedKey);
+    repaired.push(entry);
+  }
+
+  return repaired;
+}
+
 export function mergeClaudeHooksSeedIntoSettingsJson(
   args: MergeClaudeHooksSeedIntoSettingsJsonArgs,
 ): MergeClaudeHooksSeedIntoSettingsJsonResult {
@@ -122,6 +197,7 @@ export function mergeClaudeHooksSeedIntoSettingsJson(
 
   const merged: JsonRecord = {
     ...settings,
+    contextFiles: mergeContextFiles(settings.contextFiles, seed.contextFiles),
     env: mergeEnv(settings.env, seed.env, args.targetDir),
     hooks: mergeHooks(settings.hooks, seed.hooks, args.targetDir),
   };
