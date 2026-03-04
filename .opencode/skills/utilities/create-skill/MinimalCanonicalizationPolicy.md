@@ -120,14 +120,19 @@ Allowed edits are the entire definition of canonicalization scope.
    - Rewrite `${PAI_DIR}` and `$PAI_DIR` references to `~/.config/opencode` in imported text files.
    - Rationale: avoid unresolved environment placeholders in skill docs/tool instructions.
 
-5) Normalize legacy reference doc naming
+5) Normalize legacy runtime path roots
+   - Rewrite `~/.config/superpowers/...` to `~/.config/opencode/...` in imported text files.
+   - Rewrite `/Users/<name>/.config/superpowers/...` to `/Users/<name>/.config/opencode/...`.
+   - Rationale: prevent stale path drift after the OpenCode runtime relocation.
+
+6) Normalize legacy reference doc naming
    - Rename `CLAUDE.md` to `REFERENCE.md` (when target name does not already exist).
    - Update in-skill links from `CLAUDE.md` to `REFERENCE.md`.
 
-6) Record and report changes
+7) Record and report changes
    - The importer should list exactly what it changed (paths + short reason).
 
-7) Run automatic post-import checks (default)
+8) Run automatic post-import checks (default)
    - Validate `SKILL.md` frontmatter is parseable.
    - Validate `name:` matches destination skill name.
    - Validate `description:` includes `USE WHEN`.
