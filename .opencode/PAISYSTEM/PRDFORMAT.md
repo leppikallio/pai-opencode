@@ -10,7 +10,7 @@ Eight required fields, one optional:
 ```yaml
 ---
 task: "8 word task description"           # What this work is
-slug: YYYYMMDD-HHMMSS_kebab-task          # Unique ID, directory name
+slug: YYYYMMDD-HHMMSS-kebab-task-xxxxxx   # Identity slug (session-unique; >=6 hash chars)
 effort: standard                          # standard|extended|advanced|deep|comprehensive
 phase: observe                            # observe|think|plan|build|execute|verify|learn|complete
 progress: 0/8                             # checked criteria / total criteria
@@ -29,7 +29,7 @@ iteration: 2                              # Incremented when revisiting a comple
 ### Field Rules
 
 - `task`: Imperative mood, max 60 chars. Describes the deliverable, not the process.
-- `slug`: Format `YYYYMMDD-HHMMSS_kebab-description`. Used as directory name under `MEMORY/WORK/`.
+- `slug`: **Identity slug** format `YYYYMMDD-HHMMSS-kebab-task-xxxxxx` where suffix is a deterministic digest from the full session id and has length >= 6.
 - `effort`: Determines ISC count range and time budget. See Algorithm for tier definitions.
 - `phase`: Updated at the START of each Algorithm phase. Set to `complete` when done.
 - `progress`: Format `M/N` where M = checked ISC criteria, N = total ISC criteria. Updated immediately when a criterion passes (don't wait for VERIFY).
@@ -40,7 +40,7 @@ iteration: 2                              # Incremented when revisiting a comple
 
 ## Body Sections
 
-Four sections. Each appears only when populated — never create empty placeholder sections.
+Four sections are always present in generated PRDs and may start with placeholders.
 
 ### ## Context
 
@@ -101,8 +101,14 @@ Evidence for each criterion. Written during VERIFY phase.
 ## File Location
 
 ```
-~/.config/opencode/MEMORY/WORK/YYYY-MM/<sessionId>/PRD-YYYYMMDD-<slug>.md
+~/.config/opencode/MEMORY/WORK/YYYY-MM/<sessionId>/PRD-YYYYMMDD-<fileSlug>.md
 ```
+
+`fileSlug` is title-derived (`slugify(meta.title)`) and is distinct from frontmatter `slug`.
+The split is intentional:
+
+- Filename slug: stable title-derived path component (`PRD-YYYYMMDD-<fileSlug>.md`)
+- Frontmatter slug: session-unique identity slug (`YYYYMMDD-HHMMSS-kebab-task-xxxxxx`)
 
 The current work directory is discovered via:
 
@@ -143,5 +149,5 @@ Key design choices:
 - **4 sections, not 7**: Risks merged into Context. Plan merged into Context. Changelog dropped (git serves this purpose).
 - **Checkboxes over EARS/BDD**: Simpler to parse, write, and verify. ISC pattern proven over 48 PRDs.
 - **YAML frontmatter over JSON**: Universal standard (Jekyll, Hugo, Astro, Kiro, spec-kit all use it).
-- **Convention-based sections**: Sections appear when needed, not as empty boilerplate.
+- **Stable section scaffold**: Four canonical sections are always present.
 - **Reference file pattern**: This spec lives at `~/.config/opencode/PAISYSTEM/PRDFORMAT.md`, not inline in core skill markdown.
