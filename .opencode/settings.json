@@ -149,6 +149,24 @@
         ]
       },
       {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${PAI_DIR}/hooks/PRDSync.hook.ts"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${PAI_DIR}/hooks/PRDSync.hook.ts"
+          }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           {
