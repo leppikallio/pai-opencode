@@ -92,7 +92,7 @@ async function listMarkdownFilesRecursive(root: string): Promise<string[]> {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
         await walk(full);
-      } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      } else if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== "digest.md") {
         out.push(full);
       }
     }
