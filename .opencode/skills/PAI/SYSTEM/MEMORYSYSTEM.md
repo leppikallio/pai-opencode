@@ -199,6 +199,7 @@ Update (v2.5 port): implicit sentiment capture is implemented as heuristic-gated
 
 **Files:**
 - `current-work.json` - Active work directory pointer
+- `work.json` - PRD-derived session registry (dashboard projection)
 - `algorithm-state.json` - THEALGORITHM execution phase
 - `format-streak.json`, `algorithm-streak.json` - Performance metrics
 - `trending-cache.json` - Cached analysis (TTL-based)
@@ -206,6 +207,26 @@ Update (v2.5 port): implicit sentiment capture is implemented as heuristic-gated
 - `integrity/` - System health check results
 
 This is mutable state that changes during execution - not historical records. If deleted, system recovers gracefully.
+
+### PRD Sessions (PAI Algorithm)
+
+PAI Algorithm execution writes a PRD as the system-of-record for the current work session.
+
+**Where PRDs live:** `~/.config/opencode/MEMORY/WORK/YYYY-MM/<sessionId-or-slug>/PRD*.md`
+
+**Pointers and projections:**
+- `~/.config/opencode/MEMORY/STATE/current-work.json` is the canonical pointer from `sessionId` to a `work_dir` (v0.2 uses a `sessions{}` map).
+- `~/.config/opencode/MEMORY/STATE/work.json` is a derived registry for dashboards, written by PRD sync hooks.
+
+**Who writes `work.json`:**
+- `~/.config/opencode/hooks/PRDSync.hook.ts` (on PRD writes/edits and ApplyPatch path extraction)
+- `~/.config/opencode/hooks/WorkJsonBackfill.ts` (install-time or best-effort backfill)
+
+### Learning Digest (Optional)
+
+Some learning artifacts are captured under `MEMORY/LEARNING/`.
+
+If enabled, a bounded, redacted digest is written to `~/.config/opencode/MEMORY/LEARNING/digest.md` and may be appended to LoadContext behind a gate env var (default OFF).
 
 ### PAISYSTEMUPDATES/ - Change History
 

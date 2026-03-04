@@ -1,5 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { createHash } from "node:crypto";
 
 import { classifyPrompt, isTrivialPrompt, type PromptClassification } from "../lib/prompt-classification";
 import { isEnvFlagEnabled, isMemoryParityEnabled } from "../lib/env-flags";
@@ -13,6 +14,8 @@ type WorkMeta = {
   startedAt: Date;
   title: string;
 };
+
+type PrdEffort = "standard" | "extended" | "advanced";
 
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
   return typeof error === "object" && error !== null && "code" in error;
@@ -74,10 +77,29 @@ async function writeFileAtomicOnce(filePath: string, content: string): Promise<b
   }
 }
 
-function toEffortLabel(effort: PromptClassification["effort"]): string {
-  if (effort === "high") return "Thorough";
-  if (effort === "low") return "Light";
-  return "Standard";
+function toEffortLabel(effort: PromptClassification["effort"]): PrdEffort {
+  if (effort === "high") return "advanced";
+  if (effort === "standard") return "extended";
+  return "standard";
+}
+
+function formatIdentityTimestamp(startedAt: Date): string {
+  const year = String(startedAt.getUTCFullYear());
+  const month = String(startedAt.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(startedAt.getUTCDate()).padStart(2, "0");
+  const hours = String(startedAt.getUTCHours()).padStart(2, "0");
+  const minutes = String(startedAt.getUTCMinutes()).padStart(2, "0");
+  const seconds = String(startedAt.getUTCSeconds()).padStart(2, "0");
+  return `${year}${month}${day}-${hours}${minutes}${seconds}`;
+}
+
+function hashSuffix(sessionId: string): string {
+  return createHash("sha256").update(sessionId).digest("hex").slice(0, 8);
+}
+
+export function buildIdentitySlug(args: { startedAt: Date; fileSlug: string; sessionId: string }): string {
+  const timestamp = formatIdentityTimestamp(args.startedAt);
+  return `${timestamp}-${args.fileSlug}-${hashSuffix(args.sessionId)}`;
 }
 
 async function writeClassificationArtifact(
@@ -110,13 +132,18 @@ export async function ensurePrdForSession(sessionId: string, prompt: string): Pr
   const meta = await readMeta(workPath);
   if (!meta) return;
 
-  const slug = slugify(meta.title) || "work-session";
-  const prdPath = path.join(workPath, generatePRDFilename(slug, meta.startedAt));
+  const fileSlug = slugify(meta.title) || "work-session";
+  const identitySlug = buildIdentitySlug({
+    startedAt: meta.startedAt,
+    fileSlug,
+    sessionId,
+  });
+  const prdPath = path.join(workPath, generatePRDFilename(fileSlug, meta.startedAt));
   const promptExcerpt = prompt.slice(0, 500);
   const prdContent = generatePRDTemplate({
-    title: meta.title,
-    slug,
-    effortLevel: toEffortLabel(classification.effort),
+    task: meta.title,
+    slug: identitySlug,
+    effort: toEffortLabel(classification.effort),
     prompt: promptExcerpt,
     now: meta.startedAt,
   });

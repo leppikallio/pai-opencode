@@ -2,7 +2,7 @@
   🔨 GENERATED FILE - Do not edit directly
   Edit:   ~/Projects/pai-opencode/.opencode/skills/PAI/Components/
   Build:  bun ~/Projects/pai-opencode/.opencode/skills/PAI/Tools/CreateDynamicCore.ts
-  Built:  4 March 2026 10:36:48
+  Built:  4 March 2026 20:17:59
 -->
 ---
 name: PAI
@@ -488,7 +488,7 @@ If after compaction you don't know your current phase or criteria status:
 1. Read the most recent PRD from `MEMORY/WORK/` (by mtime) — it has all state
 2. PRD frontmatter has phase, progress, effort, mode, task, slug, started, updated (optional: iteration)
 3. PRD body has criteria checkboxes, decisions, verification evidence
-4. `~/.config/opencode/MEMORY/STATE/current-work.json` has the registry of all sessions (populated by read-only PRDSync + PRDStateSync hooks)
+4. `~/.config/opencode/MEMORY/STATE/current-work.json` has the registry of all sessions
 
 ### PRD.md Format
 

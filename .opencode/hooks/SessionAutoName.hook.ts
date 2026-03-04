@@ -11,6 +11,7 @@ import {
 import { dirname, join } from "node:path";
 import { readStdinWithTimeout } from "./lib/stdin";
 import { paiPath } from "./lib/paths";
+import { upsertWorkSessionFromEvent } from "./lib/prd-utils";
 import { inference } from "../skills/PAI/Tools/Inference";
 
 if (process.execArgv.includes("--check")) {
@@ -159,6 +160,26 @@ function writeSessionNames(names: SessionNames): void {
   writeFileSync(SESSION_NAMES_PATH, `${JSON.stringify(names, null, 2)}\n`, "utf8");
 }
 
+async function upsertPlaceholderWorkSession(sessionId: string, task: string): Promise<void> {
+  const result = await upsertWorkSessionFromEvent({
+    sessionUUID: sessionId,
+    targetKey: `session-${sessionId}`,
+    source: "placeholder",
+    entry: {
+      task,
+      phase: "starting",
+      mode: "interactive",
+      criteria: [],
+    },
+  });
+
+  if (!result.applied) {
+    process.stderr.write(
+      `PAI_SESSION_AUTONAME_WORK_JSON_APPLY_SKIPPED:${result.reason ?? "unknown"}\n`,
+    );
+  }
+}
+
 function listSessionIndexFiles(rootDir: string, maxDepth = 3): string[] {
   const queue: Array<{ dir: string; depth: number }> = [{ dir: rootDir, depth: 0 }];
   const matches: string[] = [];
@@ -179,7 +200,7 @@ function listSessionIndexFiles(rootDir: string, maxDepth = 3): string[] {
 
     for (const entry of entries) {
       const fullPath = join(next.dir, entry);
-      let stat;
+      let stat: ReturnType<typeof statSync>;
       try {
         stat = statSync(fullPath);
       } catch {
@@ -302,7 +323,7 @@ async function main(): Promise<void> {
       return;
     }
 
-    const sessionId = asString(payload.session_id);
+    const sessionId = asString(payload.session_id) ?? asString(payload.sessionId);
     if (!sessionId) {
       return;
     }
@@ -328,6 +349,7 @@ async function main(): Promise<void> {
     if (customTitleFromIndex) {
       names[sessionId] = customTitleFromIndex;
       writeSessionNames(names);
+      await upsertPlaceholderWorkSession(sessionId, customTitleFromIndex);
       return;
     }
 
@@ -340,6 +362,7 @@ async function main(): Promise<void> {
     const name = await generateName(prompt);
     names[sessionId] = name;
     writeSessionNames(names);
+    await upsertPlaceholderWorkSession(sessionId, name);
   } catch {
     // Hooks must never throw.
   }

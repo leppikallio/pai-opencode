@@ -12,6 +12,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { createHash } from "node:crypto";
 import { fileLog, fileLogError } from "../lib/file-logger";
+import { getPaiDir } from "../lib/pai-runtime";
 import {
   getLearningDir,
   getYearMonth,
@@ -100,8 +101,267 @@ const CATEGORIES = {
   GENERAL: "GENERAL", // General learnings
 } as const;
 
+const LEARNING_DIGEST_FILE_NAME = "digest.md";
+const LEARNING_DIGEST_MAX_LINES = 200;
+const LEARNING_DIGEST_MAX_BYTES = 8000;
+const LEARNING_DIGEST_MAX_FILES = 64;
+const LEARNING_DIGEST_LINES_PER_FILE = 32;
+
+export interface LearningDigestWriteResult {
+  success: boolean;
+  written: boolean;
+  filePath: string;
+  reason?: string;
+  error?: string;
+}
+
 function isErrnoException(error: unknown): error is NodeJS.ErrnoException {
   return typeof error === "object" && error !== null && "code" in error;
+}
+
+function isMissingPathError(error: unknown): boolean {
+  return isErrnoException(error) && error.code === "ENOENT";
+}
+
+function paiPath(...parts: string[]): string {
+  return path.join(getPaiDir(), ...parts);
+}
+
+export function getLearningDigestPath(): string {
+  return paiPath("MEMORY", "LEARNING", LEARNING_DIGEST_FILE_NAME);
+}
+
+function redactPhoneLikeValues(input: string): string {
+  return input.replace(/\b(?:\+?\d[\d().\-\s]{8,}\d)\b/g, (match) => {
+    const digits = match.replace(/\D/g, "");
+    if (digits.length < 10 || digits.length > 15) return match;
+    return "[redacted-phone]";
+  });
+}
+
+function looksHighEntropyToken(value: string): boolean {
+  if (value.length < 24) return false;
+
+  const hasUpper = /[A-Z]/.test(value);
+  const hasLower = /[a-z]/.test(value);
+  const hasDigit = /[0-9]/.test(value);
+  const hasSymbol = /[+/_=-]/.test(value);
+  const classCount = Number(hasUpper) + Number(hasLower) + Number(hasDigit) + Number(hasSymbol);
+  if (classCount < 3) return false;
+
+  const freq = new Map<string, number>();
+  for (const ch of value) {
+    freq.set(ch, (freq.get(ch) ?? 0) + 1);
+  }
+
+  let entropy = 0;
+  for (const count of freq.values()) {
+    const p = count / value.length;
+    entropy -= p * Math.log2(p);
+  }
+
+  return entropy >= 3.5;
+}
+
+function redactSensitiveText(input: string): string {
+  let output = input;
+
+  output = output.replace(
+    /-----BEGIN [^-]+-----[\s\S]*?-----END [^-]+-----/g,
+    "[redacted-key-block]",
+  );
+  output = output.replace(/\bsk-[A-Za-z0-9_-]{10,}\b/g, "[redacted-secret]");
+  output = output.replace(/\bAKIA[0-9A-Z]{16}\b/g, "[redacted-aws-key]");
+  output = output.replace(/\bghp_[A-Za-z0-9]{20,}\b/g, "[redacted-github-token]");
+  output = output.replace(/\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, "[redacted-github-token]");
+  output = output.replace(/\bBearer\s+[A-Za-z0-9._~+/-]{8,}\b/gi, "Bearer [redacted]");
+  output = output.replace(
+    /\b[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{12,}\b/g,
+    "[redacted-jwt]",
+  );
+  output = output.replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[redacted-email]");
+  output = redactPhoneLikeValues(output);
+
+  output = output.replace(/\b[A-Za-z0-9+/_=-]{24,}\b/g, (token) => {
+    if (!looksHighEntropyToken(token)) return token;
+    return "[redacted-token]";
+  });
+
+  return output;
+}
+
+function normalizeTextForDigest(input: string): string[] {
+  const lines = redactSensitiveText(input)
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.replace(/\s+$/g, ""));
+
+  const out: string[] = [];
+  let previousWasBlank = false;
+
+  for (const line of lines) {
+    const isBlank = line.trim().length === 0;
+    if (isBlank && (out.length === 0 || previousWasBlank)) {
+      continue;
+    }
+    out.push(line);
+    previousWasBlank = isBlank;
+  }
+
+  while (out.length > 0 && out[out.length - 1].trim().length === 0) {
+    out.pop();
+  }
+
+  return out;
+}
+
+async function listLearningMarkdownFiles(root: string): Promise<string[]> {
+  const out: string[] = [];
+
+  const walk = async (dir: string): Promise<void> => {
+    let entries: fs.Dirent[] = [];
+    try {
+      entries = await fs.promises.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(full);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      if (!entry.name.endsWith(".md")) continue;
+      if (entry.name === LEARNING_DIGEST_FILE_NAME) continue;
+      out.push(full);
+    }
+  };
+
+  await walk(root);
+
+  return out.sort((a, b) => b.localeCompare(a)).slice(0, LEARNING_DIGEST_MAX_FILES);
+}
+
+function capDigestContent(lines: string[]): string {
+  let capped = lines.slice(0, LEARNING_DIGEST_MAX_LINES);
+  while (capped.length > 0) {
+    const content = capped.join("\n");
+    if (Buffer.byteLength(content, "utf8") <= LEARNING_DIGEST_MAX_BYTES) {
+      return content;
+    }
+    capped = capped.slice(0, -1);
+  }
+  return "# Learning Digest\n";
+}
+
+async function buildLearningDigestContent(): Promise<string> {
+  const learningDir = getLearningDir();
+  const learningFiles = await listLearningMarkdownFiles(learningDir);
+
+  const lines: string[] = [
+    "# Learning Digest",
+    "",
+    "Reference notes distilled from MEMORY/LEARNING.",
+    "",
+  ];
+
+  if (learningFiles.length === 0) {
+    lines.push("_No learning entries captured yet._");
+    return capDigestContent(lines);
+  }
+
+  for (const filePath of learningFiles) {
+    let content = "";
+    try {
+      content = await fs.promises.readFile(filePath, "utf8");
+    } catch {
+      continue;
+    }
+
+    const relativePath = path.relative(learningDir, filePath).replace(/\\/g, "/");
+    const digestLines = normalizeTextForDigest(content).slice(0, LEARNING_DIGEST_LINES_PER_FILE);
+    if (digestLines.length === 0) continue;
+
+    lines.push(`## ${relativePath}`);
+    lines.push(...digestLines);
+    lines.push("");
+  }
+
+  while (lines.length > 0 && lines[lines.length - 1].trim().length === 0) {
+    lines.pop();
+  }
+
+  return capDigestContent(lines);
+}
+
+async function writeFileAtomicIfChanged(filePath: string, content: string): Promise<boolean> {
+  await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+
+  let existingContent: string | null = null;
+  try {
+    existingContent = await fs.promises.readFile(filePath, "utf8");
+  } catch (error) {
+    if (!isMissingPathError(error)) {
+      throw error;
+    }
+  }
+
+  if (existingContent === content) {
+    return false;
+  }
+
+  const tempPath = path.join(
+    path.dirname(filePath),
+    `.${path.basename(filePath)}.tmp-${process.pid}-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+  );
+
+  await fs.promises.writeFile(tempPath, content, "utf8");
+  try {
+    await fs.promises.rename(tempPath, filePath);
+  } catch (error) {
+    try {
+      await fs.promises.unlink(tempPath);
+    } catch (cleanupError) {
+      if (!isMissingPathError(cleanupError)) {
+        throw cleanupError;
+      }
+    }
+    throw error;
+  }
+
+  return true;
+}
+
+export async function updateLearningDigest(): Promise<LearningDigestWriteResult> {
+  const filePath = getLearningDigestPath();
+
+  try {
+    const content = await buildLearningDigestContent();
+    const written = await writeFileAtomicIfChanged(filePath, content);
+    return {
+      success: true,
+      written,
+      filePath,
+      ...(written ? {} : { reason: "unchanged" }),
+    };
+  } catch (error) {
+    fileLogError("Failed to update learning digest", error);
+    return {
+      success: false,
+      written: false,
+      filePath,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+async function updateLearningDigestBestEffort(): Promise<void> {
+  const result = await updateLearningDigest();
+  if (!result.success) {
+    fileLogError("Learning digest update failed", result.error ?? "unknown-error");
+  }
 }
 
 function parseMetaValue(content: string, key: string): string | null {
@@ -537,6 +797,7 @@ ${summaryText}
 `;
 
     const written = await writeFileAtomicOnce(filePath, content);
+    await updateLearningDigestBestEffort();
     return {
       success: true,
       written,
@@ -728,7 +989,10 @@ async function persistLearning(learning: LearningEntry, sessionId?: string): Pro
     try {
       const existing = await fs.promises.readdir(categoryDir);
       const already = existing.find((n) => n.endsWith(`_${fp}.md`));
-      if (already) return path.join(categoryDir, already);
+      if (already) {
+        await updateLearningDigestBestEffort();
+        return path.join(categoryDir, already);
+      }
     } catch {
       // ignore
     }
@@ -752,6 +1016,7 @@ ${learning.content}
 
     await fs.promises.writeFile(filepath, content);
     fileLog(`Learning persisted: ${filename}`, "debug");
+    await updateLearningDigestBestEffort();
     return filepath;
   } catch (error) {
     fileLogError("Failed to persist learning", error);
