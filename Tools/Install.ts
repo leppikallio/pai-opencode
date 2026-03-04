@@ -22,6 +22,10 @@ import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
 import { mergeClaudeHooksSeedIntoSettingsJson } from "./pai-install/merge-claude-hooks";
+import {
+  decideWorkJsonBackfill,
+  type WorkJsonBackfillDecision,
+} from "./pai-install/work-json-backfill-gate";
 import { guessNwaveRoot } from "./lib/nwave/paths";
 
 type Mode = "sync";
@@ -1704,69 +1708,41 @@ function isFile(p: string): boolean {
   }
 }
 
-type WorkJsonBackfillDecision = {
-  shouldRun: boolean;
-  reason: string;
-};
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function hasPrdBackedSessionEntry(sessions: Record<string, unknown>): boolean {
-  return Object.values(sessions).some((entry) => {
-    if (!isRecord(entry)) {
-      return false;
-    }
-
-    const prdPath = entry.prdPath;
-    return typeof prdPath === "string" && prdPath.trim().length > 0;
-  });
-}
-
 function shouldRunWorkJsonBackfill(targetDir: string): WorkJsonBackfillDecision {
   const workPath = path.join(targetDir, "MEMORY", "STATE", "work.json");
   if (!fs.existsSync(workPath)) {
-    return { shouldRun: true, reason: "work.json missing" };
+    return decideWorkJsonBackfill({ state: "missing" });
   }
 
   let stat: fs.Stats;
   try {
     stat = fs.statSync(workPath);
   } catch {
-    return { shouldRun: true, reason: "work.json unreadable" };
+    return decideWorkJsonBackfill({ state: "unreadable" });
   }
 
   if (!stat.isFile()) {
-    return { shouldRun: true, reason: "work.json not a file" };
+    return decideWorkJsonBackfill({ state: "not-file" });
   }
 
   if (stat.size === 0) {
-    return { shouldRun: true, reason: "work.json empty" };
+    return decideWorkJsonBackfill({
+      state: "file",
+      sizeBytes: 0,
+      content: "",
+    });
   }
 
-  let parsed: unknown;
   try {
-    parsed = JSON.parse(fs.readFileSync(workPath, "utf8"));
+    const content = fs.readFileSync(workPath, "utf8");
+    return decideWorkJsonBackfill({
+      state: "file",
+      sizeBytes: stat.size,
+      content,
+    });
   } catch {
-    return { shouldRun: true, reason: "work.json parse failed" };
+    return decideWorkJsonBackfill({ state: "unreadable" });
   }
-
-  const parsedRecord = isRecord(parsed) ? parsed : null;
-  const sessions = parsedRecord && isRecord(parsedRecord.sessions) ? parsedRecord.sessions : null;
-  if (!sessions) {
-    return { shouldRun: true, reason: "sessions missing" };
-  }
-
-  if (Object.keys(sessions).length === 0) {
-    return { shouldRun: true, reason: "sessions empty" };
-  }
-
-  if (!hasPrdBackedSessionEntry(sessions)) {
-    return { shouldRun: true, reason: "sessions missing prdPath" };
-  }
-
-  return { shouldRun: false, reason: "PRD-backed sessions already present" };
 }
 
 function maybeRunWorkJsonBackfill(args: { targetDir: string; dryRun: boolean }) {
