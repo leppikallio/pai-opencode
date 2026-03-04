@@ -71,15 +71,16 @@ PAI-OpenCode:   ~/.config/opencode/agents/*.md
 **Plugin Structure:**
 ```
 ~/.config/opencode/plugins/
-├── pai-unified.ts          # Main orchestrator
-├── handlers/               # Event handlers
-│   ├── context-loader.ts
-│   ├── security-validator.ts
-│   └── ...
-└── lib/                    # Shared utilities
-    ├── paths.ts
-    ├── identity.ts
-    └── ...
+├── pai-cc-hooks.ts         # Active plugin entrypoint
+└── pai-cc-hooks/           # Hook runner implementation
+    ├── handlers/           # Event handlers
+    │   ├── context-loader.ts
+    │   ├── security-validator.ts
+    │   └── ...
+    └── lib/                # Shared utilities
+        ├── paths.ts
+        ├── identity.ts
+        └── ...
 ```
 
 ### 4. PAI Skill (Special Handling)
