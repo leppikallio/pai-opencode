@@ -40,6 +40,8 @@ async function runSessionAutoNameHook(args: {
     cmd: ["bun", ".opencode/hooks/SessionAutoName.hook.ts"],
     cwd: repoRoot,
     env: withEnv({
+      // Keep tests deterministic even if host env enables index scanning.
+      PAI_SESSION_AUTONAME_SCAN_INDEX: undefined,
       ...args.env,
       OPENCODE_ROOT: args.paiDir,
     }),
@@ -92,6 +94,33 @@ describe("SessionAutoName hook", () => {
       const names = await readSessionNames(paiDir);
       expect(() => JSON.parse(names.raw)).not.toThrow();
       expect(names.parsed["session-create"]).toBe("Kaleidoscope Session");
+    } finally {
+      await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
+  test("accepts payload.sessionId and writes fallback name", async () => {
+    const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-session-autoname-"));
+
+    try {
+      const result = await runSessionAutoNameHook({
+        paiDir,
+        payload: {
+          sessionId: "session-camel",
+          prompt: "Aurora incident triage planning",
+        },
+        env: {
+          PAI_DISABLE_SESSION_NAMING_INFERENCE: "1",
+        },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe("");
+      expect(result.stdout).toBe("");
+
+      const names = await readSessionNames(paiDir);
+      expect(() => JSON.parse(names.raw)).not.toThrow();
+      expect(names.parsed["session-camel"]).toBe("Aurora Session");
     } finally {
       await fs.rm(paiDir, { recursive: true, force: true });
     }

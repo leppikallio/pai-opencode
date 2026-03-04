@@ -4,6 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { buildIdentitySlug } from "../../plugins/handlers/auto-prd";
+import { slugify } from "../../plugins/lib/paths";
+
 const thisFileDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(thisFileDir, "..", "..", "..");
 const PRD_FILENAME_PATTERN = /^PRD-\d{8}-[a-z0-9-]+\.md$/;
@@ -105,6 +108,48 @@ function formatUtcDateStamp(date: Date): string {
   const month = String(date.getUTCMonth() + 1).padStart(2, "0");
   const day = String(date.getUTCDate()).padStart(2, "0");
   return `${year}${month}${day}`;
+}
+
+function parseMetaValue(content: string, key: string): string | null {
+  const match = content.match(new RegExp(`^${key}:\\s*(.+)\\s*$`, "m"));
+  if (!match?.[1]) {
+    return null;
+  }
+  return match[1].trim().replace(/^"([\s\S]*)"$/, "$1").replace(/^'([\s\S]*)'$/, "$1");
+}
+
+async function readMeta(workDir: string): Promise<{ title: string; startedAt: Date }> {
+  const rawMeta = await fs.readFile(path.join(workDir, "META.yaml"), "utf8");
+  const title = parseMetaValue(rawMeta, "title");
+  const startedAtRaw = parseMetaValue(rawMeta, "started_at");
+
+  if (!title || !startedAtRaw) {
+    throw new Error("META.yaml is missing title or started_at");
+  }
+
+  const startedAt = new Date(startedAtRaw);
+  if (Number.isNaN(startedAt.getTime())) {
+    throw new Error("META.yaml started_at is unparseable");
+  }
+
+  return {
+    title,
+    startedAt,
+  };
+}
+
+function parsePrdFrontmatter(prdBody: string): { effort: string; slug: string } {
+  const effortMatch = prdBody.match(/^effort:\s*(.+)\s*$/m);
+  const slugMatch = prdBody.match(/^slug:\s*(.+)\s*$/m);
+
+  if (!effortMatch?.[1] || !slugMatch?.[1]) {
+    throw new Error("PRD frontmatter missing effort or slug");
+  }
+
+  return {
+    effort: effortMatch[1].trim(),
+    slug: slugMatch[1].trim(),
+  };
 }
 
 async function readMetaStartedAtDateStamp(workDir: string): Promise<string> {
@@ -241,6 +286,75 @@ describe("auto PRD creation", () => {
       expect(raw).not.toContain(normalizedPrompt);
     } finally {
       await fs.rm(paiDir, { recursive: true, force: true });
+    }
+  });
+
+  test("classification effort levels map to PRD effort and identity slug stays distinct from file slug", async () => {
+    const scenarios = [
+      {
+        label: "low",
+        prompt: "Fix login bug now",
+        expectedPrdEffort: "standard",
+      },
+      {
+        label: "standard",
+        prompt: "Implement retry logic for webhook delivery failures today",
+        expectedPrdEffort: "extended",
+      },
+      {
+        label: "high",
+        prompt: "Implement comprehensive incident response runbook for distributed deployment rollback and end-to-end verification",
+        expectedPrdEffort: "advanced",
+      },
+    ] as const;
+
+    for (const scenario of scenarios) {
+      const paiDir = await fs.mkdtemp(path.join(os.tmpdir(), `pai-auto-prd-effort-${scenario.label}-`));
+      const sessionId = `session-auto-prd-effort-${scenario.label}`;
+
+      try {
+        const run = await runAutoWorkCreationHook({
+          paiDir,
+          sessionId,
+          prompt: scenario.prompt,
+        });
+        expect(run.exitCode).toBe(0);
+
+        const workDir = await getWorkDir(paiDir, sessionId);
+
+        const classificationPath = path.join(workDir, "PROMPT_CLASSIFICATION.json");
+        const classificationRaw = await fs.readFile(classificationPath, "utf8");
+        const classification = JSON.parse(classificationRaw) as {
+          type?: string;
+          effort?: string;
+        };
+        expect(classification.type).toBe("work");
+        expect(classification.effort).toBe(scenario.label);
+
+        const meta = await readMeta(workDir);
+        const fileSlug = slugify(meta.title) || "work-session";
+        const expectedFilename = `PRD-${formatUtcDateStamp(meta.startedAt)}-${fileSlug}.md`;
+
+        const prdFiles = await listPrdFiles(workDir);
+        expect(prdFiles).toHaveLength(1);
+        expect(prdFiles[0]).toBe(expectedFilename);
+
+        const prdPath = path.join(workDir, expectedFilename);
+        const prdBody = await fs.readFile(prdPath, "utf8");
+        const frontmatter = parsePrdFrontmatter(prdBody);
+
+        expect(frontmatter.effort).toBe(scenario.expectedPrdEffort);
+
+        const expectedIdentitySlug = buildIdentitySlug({
+          startedAt: meta.startedAt,
+          fileSlug,
+          sessionId,
+        });
+        expect(frontmatter.slug).toBe(expectedIdentitySlug);
+        expect(frontmatter.slug).not.toBe(fileSlug);
+      } finally {
+        await fs.rm(paiDir, { recursive: true, force: true });
+      }
     }
   });
 

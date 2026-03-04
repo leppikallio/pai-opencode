@@ -22,6 +22,10 @@ import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
 import { mergeClaudeHooksSeedIntoSettingsJson } from "./pai-install/merge-claude-hooks";
+import {
+  decideWorkJsonBackfill,
+  type WorkJsonBackfillDecision,
+} from "./pai-install/work-json-backfill-gate";
 import { guessNwaveRoot } from "./lib/nwave/paths";
 
 type Mode = "sync";
@@ -198,6 +202,40 @@ function verifySkillSystemDocs(args: { targetDir: string; dryRun: boolean; enabl
     console.log("[write] verify: ValidateSkillSystemDocs (ok)");
   } catch (err) {
     throw new Error(`Post-install verification failed (ValidateSkillSystemDocs).\n${String(err)}`);
+  }
+}
+
+function ensureRuntimeProjectionFiles(args: { targetDir: string; dryRun: boolean }) {
+  const stateDir = path.join(args.targetDir, "MEMORY", "STATE");
+  const learningDir = path.join(args.targetDir, "MEMORY", "LEARNING");
+
+  if (args.dryRun) {
+    console.log(`[dry] runtime projections: would ensure ${stateDir}/*.json and ${learningDir}/digest.md exist`);
+    return;
+  }
+
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.mkdirSync(learningDir, { recursive: true });
+
+  const now = new Date().toISOString();
+
+  const workJsonPath = path.join(stateDir, "work.json");
+  if (!fs.existsSync(workJsonPath)) {
+    fs.writeFileSync(
+      workJsonPath,
+      `${JSON.stringify({ v: "0.1", updatedAt: now, sessions: {} }, null, 2)}\n`,
+      "utf8"
+    );
+  }
+
+  const sessionNamesPath = path.join(stateDir, "session-names.json");
+  if (!fs.existsSync(sessionNamesPath)) {
+    fs.writeFileSync(sessionNamesPath, `${JSON.stringify({}, null, 2)}\n`, "utf8");
+  }
+
+  const digestPath = path.join(learningDir, "digest.md");
+  if (!fs.existsSync(digestPath)) {
+    fs.writeFileSync(digestPath, "", "utf8");
   }
 }
 
@@ -1649,7 +1687,8 @@ function maybeInstallDependencies(args: { targetDir: string; dryRun: boolean; en
   }
 
   const packages: Array<{ rel: string; label: string; requireModule?: string }> = [
-    { rel: ".", label: "root" },
+    // Hooks under <targetDir>/hooks import from the root node_modules.
+    { rel: ".", label: "root", requireModule: "yaml" },
     { rel: "skills/browser", label: "browser", requireModule: "playwright" },
     { rel: "skills/apify", label: "apify", requireModule: "apify-client" },
     { rel: "skills/agents/Tools", label: "Agents tools", requireModule: "yaml" },
@@ -1701,6 +1740,79 @@ function isFile(p: string): boolean {
     return fs.existsSync(p) && fs.statSync(p).isFile();
   } catch {
     return false;
+  }
+}
+
+function shouldRunWorkJsonBackfill(targetDir: string): WorkJsonBackfillDecision {
+  const workPath = path.join(targetDir, "MEMORY", "STATE", "work.json");
+  if (!fs.existsSync(workPath)) {
+    return decideWorkJsonBackfill({ state: "missing" });
+  }
+
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(workPath);
+  } catch {
+    return decideWorkJsonBackfill({ state: "unreadable" });
+  }
+
+  if (!stat.isFile()) {
+    return decideWorkJsonBackfill({ state: "not-file" });
+  }
+
+  if (stat.size === 0) {
+    return decideWorkJsonBackfill({
+      state: "file",
+      sizeBytes: 0,
+      content: "",
+    });
+  }
+
+  try {
+    const content = fs.readFileSync(workPath, "utf8");
+    return decideWorkJsonBackfill({
+      state: "file",
+      sizeBytes: stat.size,
+      content,
+    });
+  } catch {
+    return decideWorkJsonBackfill({ state: "unreadable" });
+  }
+}
+
+function maybeRunWorkJsonBackfill(args: { targetDir: string; dryRun: boolean }) {
+  const backfillScriptPath = path.join(args.targetDir, "hooks", "WorkJsonBackfill.ts");
+  if (!isFile(backfillScriptPath)) {
+    console.log(`[warn] work.json backfill: script missing (${backfillScriptPath})`);
+    return;
+  }
+
+  const decision = shouldRunWorkJsonBackfill(args.targetDir);
+  if (!decision.shouldRun) {
+    console.log(`[write] work.json backfill: skipped (${decision.reason})`);
+    return;
+  }
+
+  if (args.dryRun) {
+    console.log(`[dry] work.json backfill: would run (${decision.reason})`);
+    return;
+  }
+
+  console.log(`[write] work.json backfill: running (${decision.reason})`);
+  try {
+    execSync(`bun "${args.targetDir}/hooks/WorkJsonBackfill.ts"`, {
+      cwd: args.targetDir,
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        OPENCODE_ROOT: args.targetDir,
+        OPENCODE_CONFIG_ROOT: args.targetDir,
+        PAI_DIR: args.targetDir,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.log(`[warn] work.json backfill failed: ${message}`);
   }
 }
 
@@ -1976,7 +2088,7 @@ function renderGlobalAgentsManagedBlock(args: {
     "",
     "## HARD RULE: Do Not Edit Runtime Directly",
     "",
-    `HARD RULE: Do not edit files under \`${targetDir}/\` directly.`,
+    `HARD RULE: Do not edit installed runtime code under \`${targetDir}/\` directly (skills/hooks/settings). Runtime data under \`${targetDir}/MEMORY/\` is expected to be read/written.`,
     "",
     "If a task requires changing anything under that directory:",
     "1) STOP and do the change in the base repository instead:",
@@ -1992,7 +2104,6 @@ function renderGlobalAgentsManagedBlock(args: {
     `- \`${targetDir}/settings.json\``,
     `- \`${targetDir}/opencode.json\``,
     `- \`${targetDir}/skills/PAI/USER/\``,
-    `- \`${targetDir}/MEMORY/\``,
     "",
     AGENTS_BLOCK_END,
   ].join("\n");
@@ -2810,6 +2921,9 @@ async function sync(mode: Mode, opts: Options) {
   // Generate skills/skill-index.json for deterministic skill discovery.
   maybeGenerateSkillIndex({ targetDir, dryRun });
 
+  // Ensure runtime-projection files exist so cross-reference checks are stable.
+  ensureRuntimeProjectionFiles({ targetDir, dryRun });
+
   // Post-install verification (default): ensure skill cross-references resolve.
   verifyCrossReferences({ targetDir, dryRun, enabled: verify });
 
@@ -2820,6 +2934,9 @@ async function sync(mode: Mode, opts: Options) {
   // Ensure runtime dependencies exist for code-first tools (e.g., Playwright).
   // This is best-effort but runs by default so skills work immediately.
   maybeInstallDependencies({ targetDir, dryRun, enabled: installDeps });
+
+  // Best-effort deterministic index rebuild for legacy runtime PRDs.
+  maybeRunWorkJsonBackfill({ targetDir, dryRun });
 
   console.log("\nDone.");
   console.log("Next:");

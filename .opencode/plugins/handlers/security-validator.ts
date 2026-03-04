@@ -111,6 +111,15 @@ function stripQuotes(value: string): string {
   return v;
 }
 
+function normalizeApplyPatchPath(value: string): string {
+  const stripped = stripQuotes(value);
+  if (!stripped) {
+    return "";
+  }
+
+  return stripped.replace(/\\/g, "/");
+}
+
 function parsePatternsYaml(content: string): {
   dangerous: RawRule[];
   warning: RawRule[];
@@ -600,34 +609,83 @@ function validatePathAccess(
   return { action: "allow" };
 }
 
-function extractApplyPatchPaths(patchText: string): Array<{ action: PathAction; filePath: string }> {
+export function extractApplyPatchPaths(patchText: string): Array<{ action: PathAction; filePath: string }> {
   const out: Array<{ action: PathAction; filePath: string }> = [];
   const lines = patchText.split(/\r?\n/);
 
+  let pendingUpdatePath: string | null = null;
+  let pendingUpdateMoved = false;
+
+  const flushPendingUpdate = () => {
+    if (pendingUpdatePath && !pendingUpdateMoved) {
+      out.push({ action: "write", filePath: pendingUpdatePath });
+    }
+
+    pendingUpdatePath = null;
+    pendingUpdateMoved = false;
+  };
+
   for (const line of lines) {
     const m = line.match(/^\*\*\*\s+(Add File|Update File|Delete File):\s+(.+)\s*$/);
-    if (!m) continue;
-    const op = m[1];
-    const fp = m[2].trim();
-    if (!fp) continue;
-    if (op === "Delete File") out.push({ action: "delete", filePath: fp });
-    else out.push({ action: "write", filePath: fp });
+    if (m) {
+      flushPendingUpdate();
+
+      const op = m[1];
+      const filePath = normalizeApplyPatchPath(m[2] ?? "");
+      if (!filePath) {
+        continue;
+      }
+
+      if (op === "Update File") {
+        pendingUpdatePath = filePath;
+        continue;
+      }
+
+      if (op === "Delete File") {
+        out.push({ action: "delete", filePath });
+      } else {
+        out.push({ action: "write", filePath });
+      }
+
+      continue;
+    }
+
+    const moveToMatch = line.match(/^\*\*\*\s+Move to:\s+(.+)\s*$/);
+    if (moveToMatch && pendingUpdatePath) {
+      const destination = normalizeApplyPatchPath(moveToMatch[1] ?? "");
+      out.push({ action: "delete", filePath: pendingUpdatePath });
+      if (destination) {
+        out.push({ action: "write", filePath: destination });
+      }
+      pendingUpdateMoved = true;
+    }
   }
 
+  flushPendingUpdate();
   return out;
 }
 
-function resolveApplyPatchPaths(args: { paiDir: string; cwd: string; filePathRaw: string }): string[] {
-  const raw = args.filePathRaw.trim();
+export function resolveApplyPatchPaths(args: { paiDir: string; cwd: string; filePathRaw: string }): string[] {
+  const raw = normalizeApplyPatchPath(args.filePathRaw);
+  if (!raw) {
+    return [];
+  }
+
   const expanded = expandHome(raw);
+  if (/^[A-Za-z]:[\\/]/.test(expanded)) {
+    return [path.win32.resolve(expanded).replace(/\\/g, "/")];
+  }
+
   if (expanded.startsWith("/")) return [path.resolve(expanded)];
+
+  const normalized = expanded.replace(/\\/g, "/");
 
   // For relative paths, OpenCode applies them relative to the session CWD.
   // Some patches may also intentionally reference runtime-relative paths.
   // Validate BOTH to avoid security bypass due to mismatched resolution.
   const candidates = [
-    path.resolve(path.join(args.cwd, expanded)),
-    path.resolve(path.join(args.paiDir, expanded)),
+    path.resolve(path.join(args.cwd, normalized)),
+    path.resolve(path.join(args.paiDir, normalized)),
   ];
   return Array.from(new Set(candidates));
 }
