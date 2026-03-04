@@ -126,6 +126,8 @@ export type CurrentWorkStateV2 = {
   v: "0.2";
   updated_at: string;
   sessions: Record<string, { work_dir: string; started_at?: string }>;
+  work_dir?: string;
+  session_id?: string;
 };
 
 type CurrentWorkLockRecordV1 = {
@@ -403,6 +405,8 @@ async function readCurrentWorkState(stateFile: string): Promise<CurrentWorkState
         v: "0.2",
         updated_at: readString(parsed, "updated_at") ?? new Date().toISOString(),
         sessions,
+        ...(readString(parsed, "work_dir") ? { work_dir: readString(parsed, "work_dir") } : {}),
+        ...(readString(parsed, "session_id") ? { session_id: readString(parsed, "session_id") } : {}),
       };
     }
   } catch {
@@ -485,6 +489,8 @@ export async function setCurrentWorkPathForSession(sessionIdRaw: string, workPat
   try {
     const state = await readCurrentWorkState(stateFile);
     state.sessions[sessionId] = { work_dir: candidate, started_at: new Date().toISOString() };
+    state.work_dir = candidate;
+    state.session_id = sessionId;
     state.updated_at = new Date().toISOString();
     await writeCurrentWorkState(stateFile, state);
   } finally {
@@ -508,7 +514,28 @@ export async function clearCurrentWorkForSession(sessionIdRaw: string): Promise<
 
   try {
     const state = await readCurrentWorkState(stateFile);
+    const legacyWorkDirSessionId = state.work_dir ? path.basename(path.resolve(state.work_dir)) : undefined;
     delete state.sessions[sessionId];
+
+    if (state.session_id === sessionId || (!state.session_id && legacyWorkDirSessionId === sessionId)) {
+      const remainingSessionIds = Object.keys(state.sessions).sort();
+      const nextSessionId = remainingSessionIds[0];
+
+      if (nextSessionId) {
+        const nextWorkDir = state.sessions[nextSessionId]?.work_dir;
+        if (nextWorkDir) {
+          state.session_id = nextSessionId;
+          state.work_dir = nextWorkDir;
+        } else {
+          delete state.session_id;
+          delete state.work_dir;
+        }
+      } else {
+        delete state.session_id;
+        delete state.work_dir;
+      }
+    }
+
     state.updated_at = new Date().toISOString();
     await writeCurrentWorkState(stateFile, state);
   } catch {

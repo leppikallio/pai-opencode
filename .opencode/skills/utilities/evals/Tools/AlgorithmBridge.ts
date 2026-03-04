@@ -5,17 +5,18 @@
  */
 
 import type { AlgorithmEvalRequest, AlgorithmEvalResult, EvalRun, Task } from '../Types/index.ts';
-import { loadSuite, checkSaturation } from './SuiteManager.ts';
-import { TrialRunner, } from './TrialRunner.ts';
-import { createTranscript } from './TranscriptCapture.ts';
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parse as parseYaml } from 'yaml';
 import { parseArgs } from 'node:util';
-import { getPaiDir } from '../../../pai-tools/PaiRuntime';
+import { getPaiDir } from '../../../../pai-tools/PaiRuntime.ts';
 
 const EVALS_DIR = join(import.meta.dir, '..');
 const RESULTS_DIR = join(EVALS_DIR, 'Results');
+
+async function parseTaskYaml(content: string): Promise<Task> {
+  const { parse } = await import('yaml');
+  return parse(content) as Task;
+}
 
 /**
  * Run an eval suite for ALGORITHM verification
@@ -23,6 +24,10 @@ const RESULTS_DIR = join(EVALS_DIR, 'Results');
 export async function runEvalForAlgorithm(
   request: AlgorithmEvalRequest
 ): Promise<AlgorithmEvalResult> {
+  const { loadSuite } = await import('./SuiteManager.ts');
+  const { TrialRunner } = await import('./TrialRunner.ts');
+  const { createTranscript } = await import('./TranscriptCapture.ts');
+
   const suite = loadSuite(request.suite);
   if (!suite) {
     return {
@@ -40,7 +45,7 @@ export async function runEvalForAlgorithm(
   for (const taskId of suite.tasks) {
     const taskPath = findTaskFile(taskId);
     if (taskPath && existsSync(taskPath)) {
-      const task = parseYaml(readFileSync(taskPath, 'utf-8')) as Task;
+      const task = await parseTaskYaml(readFileSync(taskPath, 'utf-8'));
       tasks.push(task);
     }
   }
@@ -163,8 +168,15 @@ export async function updateISCWithResult(result: AlgorithmEvalResult): Promise<
     throw new Error(`No active work session found (missing ${statePath})`);
   }
 
-  const state = JSON.parse(readFileSync(statePath, 'utf-8')) as { work_dir?: string };
-  const workDir = state.work_dir;
+  const state = JSON.parse(readFileSync(statePath, 'utf-8')) as {
+    work_dir?: string;
+    sessions?: Record<string, { work_dir?: string }>;
+  };
+  const sessionId = process.env.OPENCODE_SESSION_ID ?? process.env.SESSION_ID;
+  const workDirFromSession = sessionId
+    ? state.sessions?.[sessionId]?.work_dir
+    : undefined;
+  const workDir = workDirFromSession ?? state.work_dir;
   if (!workDir) {
     throw new Error(`No active work session found (invalid ${statePath})`);
   }
@@ -247,6 +259,7 @@ Examples:
   }
 
   if (values['show-saturation']) {
+    const { checkSaturation } = await import('./SuiteManager.ts');
     const status = checkSaturation(suite);
     console.log(`\nSaturation Status: ${suite}\n`);
     console.log(`  Saturated: ${status.saturated ? '⚠️ Yes' : '✅ No'}`);
