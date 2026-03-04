@@ -24,25 +24,30 @@ ls -d .worktrees 2>/dev/null     # Preferred (hidden)
 ls -d worktrees 2>/dev/null      # Alternative
 ```
 
-**If found:** Use that directory. If both exist, `.worktrees` wins.
+**If found:** Use that directory. If both exist, `.worktrees` wins. If either directory exists, use it immediately and skip REFERENCE.md lookup.
 
-### 2. Check REFERENCE.md
+### 2. Check REFERENCE.md (Optional)
 
 ```bash
-grep -i "worktree.*director" REFERENCE.md 2>/dev/null
+# Optional preference lookup only when file exists
+if [ -f REFERENCE.md ]; then
+  rg -i "worktree.*director" REFERENCE.md
+fi
 ```
 
-**If preference specified:** Use it without asking.
+**If REFERENCE.md exists and preference is specified:** Use it without asking.
+
+**If REFERENCE.md exists** and does not specify a preference, continue to Ask User.
 
 ### 3. Ask User
 
-If no directory exists and no REFERENCE.md preference:
+If no directory exists and no REFERENCE.md preference (or REFERENCE.md is absent):
 
 ```
 No worktree directory found. Where should I create worktrees?
 
 1. .worktrees/ (project-local, hidden)
-2. ~/.config/superpowers/worktrees/<project-name>/ (global location)
+2. ~/.config/opencode/worktrees/<project-name>/ (global location)
 
 Which would you prefer?
 ```
@@ -67,7 +72,7 @@ Per Jesse's rule "Fix broken things immediately":
 
 **Why critical:** Prevents accidentally committing worktree contents to repository.
 
-### For Global Directory (~/.config/superpowers/worktrees)
+### For Global Directory (~/.config/opencode/worktrees)
 
 No .gitignore verification needed - outside project entirely.
 
@@ -87,8 +92,8 @@ case $LOCATION in
   .worktrees|worktrees)
     path="$LOCATION/$BRANCH_NAME"
     ;;
-  ~/.config/superpowers/worktrees/*)
-    path="~/.config/superpowers/worktrees/$project/$BRANCH_NAME"
+  ~/.config/opencode/worktrees/*)
+    path="$HOME/.config/opencode/worktrees/$project/$BRANCH_NAME"
     ;;
 esac
 
@@ -147,7 +152,7 @@ Ready to implement <feature-name>
 | `.worktrees/` exists | Use it (verify ignored) |
 | `worktrees/` exists | Use it (verify ignored) |
 | Both exist | Use `.worktrees/` |
-| Neither exists | Check REFERENCE.md → Ask user |
+| Neither exists | Check REFERENCE.md if present → Ask user |
 | Directory not ignored | Add to .gitignore + commit |
 | Tests fail during baseline | Report failures + ask |
 | No package.json/Cargo.toml | Skip dependency install |
@@ -162,7 +167,7 @@ Ready to implement <feature-name>
 ### Assuming directory location
 
 - **Problem:** Creates inconsistency, violates project conventions
-- **Fix:** Follow priority: existing > REFERENCE.md > ask
+- **Fix:** Follow priority: existing > optional REFERENCE.md > ask
 
 ### Proceeding with failing tests
 
@@ -197,10 +202,10 @@ Ready to implement auth feature
 - Skip baseline test verification
 - Proceed with failing tests without asking
 - Assume directory location when ambiguous
-- Skip REFERENCE.md check
+- Skip REFERENCE.md check when file exists
 
 **Always:**
-- Follow directory priority: existing > REFERENCE.md > ask
+- Follow directory priority: existing > optional REFERENCE.md > ask
 - Verify directory is ignored for project-local
 - Auto-detect and run project setup
 - Verify clean test baseline

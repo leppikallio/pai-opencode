@@ -289,6 +289,10 @@ function rewriteImportedContent(
   output = output.replace(/\$\{PAI_DIR\}/g, "~/.config/opencode");
   output = output.replace(/\$PAI_DIR\b/g, "~/.config/opencode");
 
+  // Normalize legacy Superpowers runtime paths to OpenCode runtime paths.
+  output = output.replace(/~\/\.config\/superpowers\//g, "~/.config/opencode/");
+  output = output.replace(/\/Users\/([^/]+)\/\.config\/superpowers\//g, "/Users/$1/.config/opencode/");
+
   // Normalize legacy Claude reference docs to OpenCode reference naming.
   output = output.replace(/\bCLAUDE\.md\b/g, "REFERENCE.md");
 

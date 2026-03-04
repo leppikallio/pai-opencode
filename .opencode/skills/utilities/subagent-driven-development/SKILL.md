@@ -103,7 +103,7 @@ Task 1: Hook installation script
 
 Implementer: "Before I begin - should the hook be installed at user or system level?"
 
-You: "User level (~/.config/superpowers/hooks/)"
+You: "User level (~/.config/opencode/hooks/)"
 
 Implementer: "Got it. Implementing now..."
 [Later] Implementer:
