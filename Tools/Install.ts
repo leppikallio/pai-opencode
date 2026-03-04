@@ -205,6 +205,40 @@ function verifySkillSystemDocs(args: { targetDir: string; dryRun: boolean; enabl
   }
 }
 
+function ensureRuntimeProjectionFiles(args: { targetDir: string; dryRun: boolean }) {
+  const stateDir = path.join(args.targetDir, "MEMORY", "STATE");
+  const learningDir = path.join(args.targetDir, "MEMORY", "LEARNING");
+
+  if (args.dryRun) {
+    console.log(`[dry] runtime projections: would ensure ${stateDir}/*.json and ${learningDir}/digest.md exist`);
+    return;
+  }
+
+  fs.mkdirSync(stateDir, { recursive: true });
+  fs.mkdirSync(learningDir, { recursive: true });
+
+  const now = new Date().toISOString();
+
+  const workJsonPath = path.join(stateDir, "work.json");
+  if (!fs.existsSync(workJsonPath)) {
+    fs.writeFileSync(
+      workJsonPath,
+      `${JSON.stringify({ v: "0.1", updatedAt: now, sessions: {} }, null, 2)}\n`,
+      "utf8"
+    );
+  }
+
+  const sessionNamesPath = path.join(stateDir, "session-names.json");
+  if (!fs.existsSync(sessionNamesPath)) {
+    fs.writeFileSync(sessionNamesPath, `${JSON.stringify({}, null, 2)}\n`, "utf8");
+  }
+
+  const digestPath = path.join(learningDir, "digest.md");
+  if (!fs.existsSync(digestPath)) {
+    fs.writeFileSync(digestPath, "", "utf8");
+  }
+}
+
 function parseSkillNameFromSkillMd(skillMdPath: string): string | null {
   const raw = readFileSafe(skillMdPath);
   if (!raw.trim()) return null;
@@ -1653,7 +1687,8 @@ function maybeInstallDependencies(args: { targetDir: string; dryRun: boolean; en
   }
 
   const packages: Array<{ rel: string; label: string; requireModule?: string }> = [
-    { rel: ".", label: "root" },
+    // Hooks under <targetDir>/hooks import from the root node_modules.
+    { rel: ".", label: "root", requireModule: "yaml" },
     { rel: "skills/browser", label: "browser", requireModule: "playwright" },
     { rel: "skills/apify", label: "apify", requireModule: "apify-client" },
     { rel: "skills/agents/Tools", label: "Agents tools", requireModule: "yaml" },
@@ -2885,6 +2920,9 @@ async function sync(mode: Mode, opts: Options) {
 
   // Generate skills/skill-index.json for deterministic skill discovery.
   maybeGenerateSkillIndex({ targetDir, dryRun });
+
+  // Ensure runtime-projection files exist so cross-reference checks are stable.
+  ensureRuntimeProjectionFiles({ targetDir, dryRun });
 
   // Post-install verification (default): ensure skill cross-references resolve.
   verifyCrossReferences({ targetDir, dryRun, enabled: verify });
