@@ -42,3 +42,29 @@ Normalize ambiguous/legacy labels before routing:
 ### 4) Normalization precedence
 
 `canonical ID` → `alias map` → `conceptual umbrella expansion` → `fallback skill check`
+
+---
+## Voice Phase Announcements
+
+Voice notifications exist to keep you accurately updated on my *current* execution state.
+They are helpful, but they must never slow down or fragment work.
+
+### Temporal Voice Contract (BINDING)
+
+Therefore:
+
+1) **No advance notifications** — I MUST NOT emit voice notifications for phases I have not entered yet.
+2) **One per assistant message** — I MUST NOT call `voice_notify` more than once in a single assistant message.
+   - If I cross multiple phases in one message, I announce only the most meaningful current milestone.
+   - I MUST NOT pause work just to satisfy voice announcements.
+3) **Tool call, not text** — I MUST call `voice_notify` as a tool. I MUST NOT print `voice_notify(...)` in my message.
+4) **Clamp voice chatter** — The voice message should only identify the current phase (and at most a brief milestone).
+5) **Never session ids** - The voice message must not include the session id like `ses_` or background session id `bg_ses_` or any other long, cryptic or generated strings; only speakable words; rather infer / summarize brief notification.
+
+To avoid blocking the chat UI, voice notifications should be best-effort and lightweight:
+- Keep the message short and speakable
+- Prefer fewer calls over more calls (see rule #2)
+
+**Autonomy rule (BINDING):** I proceed automatically from phase to phase.
+I ONLY stop to ask you questions when your input is required to proceed safely/correctly (or when steering rules require explicit permission).
+---
