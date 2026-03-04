@@ -14,6 +14,20 @@ If this directory exists, load and apply any PREFERENCES.md, configurations, or 
 
 Multi-agent debate system where specialized agents discuss topics in rounds, respond to each other's points, and surface insights through intellectual friction.
 
+## Execution Contract (Required)
+
+This is an execution skill, not a formatting template.
+
+- A council run is only considered **REAL** if you spawn one subagent per council member using `functions.task(...)` and wait for their outputs.
+- If you cannot or will not spawn subagents, you MUST label the output **SIMULATED** and ask for confirmation before proceeding.
+
+Minimum expectations when the user says "use council" / "council:" / "quick council":
+
+- Pick a workflow (default: QUICK unless user requests a 3-round debate).
+- Assemble the default council (Architect, Designer, Engineer, Researcher) unless the user specifies otherwise.
+- Run subagents immediately after the topic is known.
+- Include task evidence (task IDs) in the transcript header.
+
 **Key Differentiator from red-team:** council is collaborative-adversarial (debate to find best path), while red-team is purely adversarial (attack the idea). council produces visible conversation transcripts; RedTeam produces steelman + counter-argument.
 
 
@@ -24,9 +38,7 @@ Multi-agent debate system where specialized agents discuss topics in rounds, res
 1. **Send voice notification**:
    Use the `voice_notify` tool:
 
-- `message`: "Running the WORKFLOWNAME workflow from the council skill"
-Running the **WorkflowName** workflow from the **council** skill...
-```
+   - `message`: "Running the WORKFLOWNAME workflow from the council skill"
 
 | Trigger | Workflow |
 |---------|----------|
