@@ -6,23 +6,35 @@ import path from "node:path";
 import { scanCanonicalPrdInSessionDir } from "../../hooks/lib/prd-utils";
 
 describe("scanCanonicalPrdInSessionDir", () => {
-  test("prefers META-derived expected PRD file when present", async () => {
+  test("prefers v2 identity slug over legacy candidates", async () => {
     const sessionDir = await mkdtemp(path.join(os.tmpdir(), "pai-prdsync-canonical-meta-"));
 
     try {
+      const expectedPath = path.join(sessionDir, "PRD.md");
       await writeFile(
-        path.join(sessionDir, "META.yaml"),
+        path.join(sessionDir, "PRD-20260304-legacy.md"),
         [
-          'title: "My Expected Session"',
-          "started_at: 2026-03-04T08:00:00.000Z",
+          "---",
+          "task: Legacy",
+          "slug: legacy-candidate",
+          "updated: 2026-03-04T09:00:00.000Z",
+          "---",
           "",
         ].join("\n"),
         "utf8",
       );
-
-      const expectedPath = path.join(sessionDir, "PRD-20260304-my-expected-session.md");
-      await writeFile(path.join(sessionDir, "PRD-20260304-a-lex-first.md"), "# fallback\n", "utf8");
-      await writeFile(expectedPath, "# expected\n", "utf8");
+      await writeFile(
+        expectedPath,
+        [
+          "---",
+          "task: V2",
+          "slug: 20260304-080000-my-expected-session-a1b2c3d4",
+          "updated: 2026-03-04T08:00:00.000Z",
+          "---",
+          "",
+        ].join("\n"),
+        "utf8",
+      );
 
       const canonical = await scanCanonicalPrdInSessionDir(sessionDir);
       expect(canonical).toBe(expectedPath);

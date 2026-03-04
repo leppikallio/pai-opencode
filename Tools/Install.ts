@@ -1704,6 +1704,107 @@ function isFile(p: string): boolean {
   }
 }
 
+type WorkJsonBackfillDecision = {
+  shouldRun: boolean;
+  reason: string;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function hasPrdBackedSessionEntry(sessions: Record<string, unknown>): boolean {
+  return Object.values(sessions).some((entry) => {
+    if (!isRecord(entry)) {
+      return false;
+    }
+
+    const prdPath = entry.prdPath;
+    return typeof prdPath === "string" && prdPath.trim().length > 0;
+  });
+}
+
+function shouldRunWorkJsonBackfill(targetDir: string): WorkJsonBackfillDecision {
+  const workPath = path.join(targetDir, "MEMORY", "STATE", "work.json");
+  if (!fs.existsSync(workPath)) {
+    return { shouldRun: true, reason: "work.json missing" };
+  }
+
+  let stat: fs.Stats;
+  try {
+    stat = fs.statSync(workPath);
+  } catch {
+    return { shouldRun: true, reason: "work.json unreadable" };
+  }
+
+  if (!stat.isFile()) {
+    return { shouldRun: true, reason: "work.json not a file" };
+  }
+
+  if (stat.size === 0) {
+    return { shouldRun: true, reason: "work.json empty" };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(fs.readFileSync(workPath, "utf8"));
+  } catch {
+    return { shouldRun: true, reason: "work.json parse failed" };
+  }
+
+  const parsedRecord = isRecord(parsed) ? parsed : null;
+  const sessions = parsedRecord && isRecord(parsedRecord.sessions) ? parsedRecord.sessions : null;
+  if (!sessions) {
+    return { shouldRun: true, reason: "sessions missing" };
+  }
+
+  if (Object.keys(sessions).length === 0) {
+    return { shouldRun: true, reason: "sessions empty" };
+  }
+
+  if (!hasPrdBackedSessionEntry(sessions)) {
+    return { shouldRun: true, reason: "sessions missing prdPath" };
+  }
+
+  return { shouldRun: false, reason: "PRD-backed sessions already present" };
+}
+
+function maybeRunWorkJsonBackfill(args: { targetDir: string; dryRun: boolean }) {
+  const backfillScriptPath = path.join(args.targetDir, "hooks", "WorkJsonBackfill.ts");
+  if (!isFile(backfillScriptPath)) {
+    console.log(`[warn] work.json backfill: script missing (${backfillScriptPath})`);
+    return;
+  }
+
+  const decision = shouldRunWorkJsonBackfill(args.targetDir);
+  if (!decision.shouldRun) {
+    console.log(`[write] work.json backfill: skipped (${decision.reason})`);
+    return;
+  }
+
+  if (args.dryRun) {
+    console.log(`[dry] work.json backfill: would run (${decision.reason})`);
+    return;
+  }
+
+  console.log(`[write] work.json backfill: running (${decision.reason})`);
+  try {
+    execSync(`bun "${args.targetDir}/hooks/WorkJsonBackfill.ts"`, {
+      cwd: args.targetDir,
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        OPENCODE_ROOT: args.targetDir,
+        OPENCODE_CONFIG_ROOT: args.targetDir,
+        PAI_DIR: args.targetDir,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.log(`[warn] work.json backfill failed: ${message}`);
+  }
+}
+
 function removeLegacyOpenCodeTools(args: { targetDir: string; dryRun: boolean }) {
   // OpenCode loads custom tools from <opencodeDir>/tools. We must not ship
   // PAI helper scripts there. Clean up the legacy file if present.
@@ -2819,6 +2920,9 @@ async function sync(mode: Mode, opts: Options) {
   // Ensure runtime dependencies exist for code-first tools (e.g., Playwright).
   // This is best-effort but runs by default so skills work immediately.
   maybeInstallDependencies({ targetDir, dryRun, enabled: installDeps });
+
+  // Best-effort deterministic index rebuild for legacy runtime PRDs.
+  maybeRunWorkJsonBackfill({ targetDir, dryRun });
 
   console.log("\nDone.");
   console.log("Next:");
