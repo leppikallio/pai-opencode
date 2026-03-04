@@ -514,9 +514,10 @@ export async function clearCurrentWorkForSession(sessionIdRaw: string): Promise<
 
   try {
     const state = await readCurrentWorkState(stateFile);
+    const legacyWorkDirSessionId = state.work_dir ? path.basename(path.resolve(state.work_dir)) : undefined;
     delete state.sessions[sessionId];
 
-    if (state.session_id === sessionId) {
+    if (state.session_id === sessionId || (!state.session_id && legacyWorkDirSessionId === sessionId)) {
       const remainingSessionIds = Object.keys(state.sessions).sort();
       const nextSessionId = remainingSessionIds[0];
 
