@@ -255,6 +255,7 @@ describe("prompt-control module (Task 1 RED)", () => {
 			await promptControl.systemTransform(createGpt5Input("ses_root"), output);
 
 			const bundle = (output.system as string[])[0] ?? "";
+			expect(bundle.startsWith("PAI SCRATCHPAD (Binding)")).toBe(true);
 			const scratchpadDir = extractScratchpadDir(bundle);
 			const expected = path.join(
 				xdgHome,
@@ -300,7 +301,7 @@ describe("prompt-control module (Task 1 RED)", () => {
 			await promptControl.systemTransform(createUnknownModelInput("ses_root"), output);
 
 			const bundle = (output.system as string[])[0] ?? "";
-			expect(bundle).toContain("PAI SCRATCHPAD (Binding)");
+			expect(bundle.startsWith("PAI SCRATCHPAD (Binding)")).toBe(true);
 			const scratchpadDir = extractScratchpadDir(bundle);
 			const expected = path.join(
 				xdgHome,
