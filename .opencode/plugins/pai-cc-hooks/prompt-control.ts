@@ -6,6 +6,7 @@ import {
 } from "../lib/paths";
 import { getPaiRuntimeInfo } from "../lib/pai-runtime";
 import { ensureScratchpadSession } from "../lib/scratchpad";
+import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { getSessionRootId } from "./shared/session-root";
@@ -200,6 +201,7 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
   const scratchpadBySession = new Map<string, string>();
   const rootBySession = new Map<string, string>();
   const scratchpadTouchedAt = new Map<string, number>();
+  const upgradeBlockedTargetBySession = new Map<string, string>();
 
   const trimScratchpadToBound = (): void => {
     while (scratchpadTouchedAt.size > MAX_TRACKED_SESSIONS) {
@@ -219,6 +221,7 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
       scratchpadTouchedAt.delete(oldestSessionId);
       scratchpadBySession.delete(oldestSessionId);
       rootBySession.delete(oldestSessionId);
+      upgradeBlockedTargetBySession.delete(oldestSessionId);
     }
   };
 
@@ -247,6 +250,7 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
         scratchpadTouchedAt.delete(sessionId);
         scratchpadBySession.delete(sessionId);
         rootBySession.delete(sessionId);
+        upgradeBlockedTargetBySession.delete(sessionId);
       }
     }
 
@@ -312,6 +316,15 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
     return scratchpad.dir;
   };
 
+  const isScratchpadDirEmpty = async (scratchpadDir: string): Promise<boolean> => {
+    try {
+      const entries = await fs.readdir(scratchpadDir);
+      return entries.length === 0;
+    } catch {
+      return false;
+    }
+  };
+
 	const resolvePinnedScratchpadDir = async (args: {
 		sessionId: string;
 		nowMs: number;
@@ -326,15 +339,41 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
 			return scratchpad.dir;
 		}
 
-    if (normalizedSessionId) {
-      const existingSessionScratchpad = scratchpadBySession.get(normalizedSessionId);
-      if (existingSessionScratchpad) {
-        scratchpadTouchedAt.set(normalizedSessionId, args.nowMs);
-        return existingSessionScratchpad;
+    const rootSessionId = getResolvedRootSessionId(args.sessionId);
+    const existingSessionScratchpad = scratchpadBySession.get(normalizedSessionId);
+    if (existingSessionScratchpad) {
+      const cachedRootSessionId = rootBySession.get(normalizedSessionId) ?? normalizedSessionId;
+      if (cachedRootSessionId !== rootSessionId) {
+        // D2 Option B: late-upgrade only when current pinned scratchpad is empty.
+        const blockedTarget = upgradeBlockedTargetBySession.get(normalizedSessionId) ?? "";
+        if (blockedTarget !== rootSessionId) {
+          const canUpgradeToRootScratchpad =
+            await isScratchpadDirEmpty(existingSessionScratchpad);
+          if (canUpgradeToRootScratchpad) {
+          const existingRootScratchpad = scratchpadByRoot.get(rootSessionId);
+          const nextScratchpadDir =
+            existingRootScratchpad ?? (await resolveScratchpadDirForRoot(rootSessionId));
+          scratchpadByRoot.set(rootSessionId, nextScratchpadDir);
+          upgradeBlockedTargetBySession.delete(normalizedSessionId);
+          markScratchpadSession({
+            sessionId: args.sessionId,
+            rootSessionId,
+            scratchpadDir: nextScratchpadDir,
+            nowMs: args.nowMs,
+          });
+          return nextScratchpadDir;
+          }
+
+			// Keep pinned when artifacts exist (or on errors). Avoid repeated readdir
+			// for the same root mismatch target.
+			upgradeBlockedTargetBySession.set(normalizedSessionId, rootSessionId);
+        }
       }
+
+      scratchpadTouchedAt.set(normalizedSessionId, args.nowMs);
+      return existingSessionScratchpad;
     }
 
-    const rootSessionId = getResolvedRootSessionId(args.sessionId);
     const existingRootScratchpad = scratchpadByRoot.get(rootSessionId);
     if (existingRootScratchpad) {
       markScratchpadSession({
@@ -367,6 +406,7 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
     scratchpadBySession.delete(normalizedSessionId);
     scratchpadTouchedAt.delete(normalizedSessionId);
     rootBySession.delete(normalizedSessionId);
+    upgradeBlockedTargetBySession.delete(normalizedSessionId);
     pruneRootCache();
   };
 
