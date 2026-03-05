@@ -18,6 +18,11 @@ import { notify as notifyCmuxDefault } from "./shared/cmux-adapter";
 import { executeHookCommand } from "./shared/execute-hook-command";
 import { findMatchingHooks } from "./shared/pattern-matcher";
 import {
+	deleteSessionRootId,
+	getSessionRootId,
+	setSessionRootId,
+} from "./shared/session-root";
+import {
 	type BackgroundTaskRecord,
 	findBackgroundTaskByChildSessionId as findBackgroundTaskByChildSessionIdDefault,
 	listActiveBackgroundTasks as listActiveBackgroundTasksDefault,
@@ -713,12 +718,27 @@ export function createPaiClaudeHooks({
 			) {
 				return;
 			}
-
-			const { hooks: config, env } = await getSettingsPromise();
 			const properties = getRecord(event, "properties") ?? {};
 			const info = getRecord(properties, "info") ?? {};
 			const sessionId = getSessionIdFromEvent(properties, info);
 			if (!sessionId) return;
+
+			if (eventType === "session.created") {
+				const fallbackParentSessionId = getParentSessionIdFromEvent(
+					properties,
+					info,
+				);
+				const fallbackRootSessionId = fallbackParentSessionId
+					? (getSessionRootId(fallbackParentSessionId) ?? fallbackParentSessionId)
+					: sessionId;
+				setSessionRootId(sessionId, fallbackRootSessionId || sessionId);
+			}
+
+			if (eventType === "session.deleted") {
+				deleteSessionRootId(sessionId);
+			}
+
+			const { hooks: config, env } = await getSettingsPromise();
 
 			if (eventType === "session.created") {
 				const fallbackParentSessionId = getParentSessionIdFromEvent(
@@ -731,6 +751,11 @@ export function createPaiClaudeHooks({
 					fallbackParentSessionId,
 				});
 				parentSessionIdCache.set(sessionId, sessionStart.parentSessionId ?? null);
+				const resolvedRootSessionId = sessionStart.parentSessionId
+					? (getSessionRootId(sessionStart.parentSessionId) ??
+						sessionStart.parentSessionId)
+					: sessionId;
+				setSessionRootId(sessionId, resolvedRootSessionId || sessionId);
 
 				await executeSessionLifecycleHooks(
 					{
