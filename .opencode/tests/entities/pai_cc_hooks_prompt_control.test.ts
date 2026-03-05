@@ -424,7 +424,7 @@ describe("prompt-control module (Task 1 RED)", () => {
 		}
 	});
 
-	test("uses deterministic safe fallback for empty session ids without state pointer churn", async () => {
+	test("uses safe fallback for empty session ids without state pointer churn", async () => {
 		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
 		const xdgHome = await fs.mkdtemp(
 			path.join(os.tmpdir(), "pai-prompt-control-xdg-empty-session-"),
@@ -467,6 +467,74 @@ describe("prompt-control module (Task 1 RED)", () => {
 				"STATE",
 				"scratchpad.json",
 			);
+		await expect(fs.stat(statePointerPath)).rejects.toThrow();
+	} finally {
+			restoreEnv("XDG_CONFIG_HOME", previousXdg);
+			restoreEnv("OPENCODE_ROOT", previousOpenCodeRoot);
+			__resetSessionRootRegistryForTests();
+			await fs.rm(xdgHome, { recursive: true, force: true });
+			await fs.rm(openCodeRoot, { recursive: true, force: true });
+			await fs.rm(projectDir, { recursive: true, force: true });
+	}
+	});
+
+	test("treats sanitized-empty session ids as missing-session inputs", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const xdgHome = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-xdg-sanitized-empty-"),
+		);
+		const openCodeRoot = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-root-sanitized-empty-"),
+		);
+		const projectDir = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-project-sanitized-empty-"),
+		);
+		const previousXdg = process.env.XDG_CONFIG_HOME;
+		const previousOpenCodeRoot = process.env.OPENCODE_ROOT;
+
+		try {
+			process.env.XDG_CONFIG_HOME = xdgHome;
+			process.env.OPENCODE_ROOT = openCodeRoot;
+
+			const promptControl = module.createPromptControl({ projectDir }) as PromptControl;
+
+			const firstOutput: { system: unknown } = { system: ["ORIGINAL"] };
+			await promptControl.systemTransform(
+				{
+					sessionID: "!!!",
+					provider: { id: "openai" },
+					model: { providerID: "openai", id: "gpt-5", api: { id: "gpt-5" } },
+				},
+				firstOutput,
+			);
+			const firstDir = extractScratchpadDir(
+				(firstOutput.system as string[])[0] ?? "",
+			);
+
+			const secondOutput: { system: unknown } = { system: ["ORIGINAL"] };
+			await promptControl.systemTransform(
+				{
+					sessionID: "!!!",
+					provider: { id: "openai" },
+					model: { providerID: "openai", id: "gpt-5", api: { id: "gpt-5" } },
+				},
+				secondOutput,
+			);
+			const secondDir = extractScratchpadDir(
+				(secondOutput.system as string[])[0] ?? "",
+			);
+
+			expect(firstDir).not.toBe(secondDir);
+			await expect(fs.stat(firstDir)).resolves.toBeTruthy();
+			await expect(fs.stat(secondDir)).resolves.toBeTruthy();
+
+			const statePointerPath = path.join(
+				xdgHome,
+				"opencode",
+				"MEMORY",
+				"STATE",
+				"scratchpad.json",
+			);
 			await expect(fs.stat(statePointerPath)).rejects.toThrow();
 		} finally {
 			restoreEnv("XDG_CONFIG_HOME", previousXdg);
@@ -478,7 +546,69 @@ describe("prompt-control module (Task 1 RED)", () => {
 		}
 	});
 
-	test("pins per-session fallback when root mapping arrives after first transform", async () => {
+	test("does not co-mingle missing-session ScratchpadDir across calls", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const xdgHome = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-xdg-missing-session-"),
+		);
+		const openCodeRoot = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-root-missing-session-"),
+		);
+		const projectDir = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-project-missing-session-"),
+		);
+		const previousXdg = process.env.XDG_CONFIG_HOME;
+		const previousOpenCodeRoot = process.env.OPENCODE_ROOT;
+
+		try {
+			process.env.XDG_CONFIG_HOME = xdgHome;
+			process.env.OPENCODE_ROOT = openCodeRoot;
+
+			const promptControl = module.createPromptControl({ projectDir }) as PromptControl;
+
+			const firstOutput: { system: unknown } = { system: ["ORIGINAL"] };
+			await promptControl.systemTransform(
+				{
+					provider: { id: "openai" },
+					model: { providerID: "openai", id: "gpt-5", api: { id: "gpt-5" } },
+				},
+				firstOutput,
+			);
+			const firstDir = extractScratchpadDir((firstOutput.system as string[])[0] ?? "");
+
+			const secondOutput: { system: unknown } = { system: ["ORIGINAL"] };
+			await promptControl.systemTransform(
+				{
+					provider: { id: "openai" },
+					model: { providerID: "openai", id: "gpt-5", api: { id: "gpt-5" } },
+				},
+				secondOutput,
+			);
+			const secondDir = extractScratchpadDir((secondOutput.system as string[])[0] ?? "");
+
+			expect(firstDir).not.toBe(secondDir);
+			await expect(fs.stat(firstDir)).resolves.toBeTruthy();
+			await expect(fs.stat(secondDir)).resolves.toBeTruthy();
+
+			const statePointerPath = path.join(
+				xdgHome,
+				"opencode",
+				"MEMORY",
+				"STATE",
+				"scratchpad.json",
+			);
+			await expect(fs.stat(statePointerPath)).rejects.toThrow();
+		} finally {
+			restoreEnv("XDG_CONFIG_HOME", previousXdg);
+			restoreEnv("OPENCODE_ROOT", previousOpenCodeRoot);
+			__resetSessionRootRegistryForTests();
+			await fs.rm(xdgHome, { recursive: true, force: true });
+			await fs.rm(openCodeRoot, { recursive: true, force: true });
+			await fs.rm(projectDir, { recursive: true, force: true });
+		}
+	});
+
+	test("upgrades to root ScratchpadDir when mapping arrives and scratchpad is empty", async () => {
 		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
 		const xdgHome = await fs.mkdtemp(
 			path.join(os.tmpdir(), "pai-prompt-control-xdg-race-fallback-"),
@@ -501,6 +631,63 @@ describe("prompt-control module (Task 1 RED)", () => {
 			const firstOutput: { system: unknown } = { system: ["ORIGINAL"] };
 			await promptControl.systemTransform(createGpt5Input("ses_child_race"), firstOutput);
 			const firstDir = extractScratchpadDir((firstOutput.system as string[])[0] ?? "");
+
+			setSessionRootId("ses_child_race", "ses_root");
+
+			const secondOutput: { system: unknown } = { system: ["ORIGINAL"] };
+			await promptControl.systemTransform(createGpt5Input("ses_child_race"), secondOutput);
+			const secondDir = extractScratchpadDir((secondOutput.system as string[])[0] ?? "");
+
+			const expectedFallback = path.join(
+				xdgHome,
+				"opencode",
+				"scratchpad",
+				"sessions",
+				"ses_child_race",
+			);
+			const expectedRootDir = path.join(
+				xdgHome,
+				"opencode",
+				"scratchpad",
+				"sessions",
+				"ses_root",
+			);
+			expect(firstDir).toBe(expectedFallback);
+			expect(secondDir).toBe(expectedRootDir);
+		} finally {
+			restoreEnv("XDG_CONFIG_HOME", previousXdg);
+			restoreEnv("OPENCODE_ROOT", previousOpenCodeRoot);
+			__resetSessionRootRegistryForTests();
+			await fs.rm(xdgHome, { recursive: true, force: true });
+			await fs.rm(openCodeRoot, { recursive: true, force: true });
+			await fs.rm(projectDir, { recursive: true, force: true });
+		}
+	});
+
+	test("does not upgrade when scratchpad contains artifacts", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const xdgHome = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-xdg-race-pinned-"),
+		);
+		const openCodeRoot = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-root-race-pinned-"),
+		);
+		const projectDir = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-project-race-pinned-"),
+		);
+		const previousXdg = process.env.XDG_CONFIG_HOME;
+		const previousOpenCodeRoot = process.env.OPENCODE_ROOT;
+
+		try {
+			process.env.XDG_CONFIG_HOME = xdgHome;
+			process.env.OPENCODE_ROOT = openCodeRoot;
+
+			const promptControl = module.createPromptControl({ projectDir }) as PromptControl;
+
+			const firstOutput: { system: unknown } = { system: ["ORIGINAL"] };
+			await promptControl.systemTransform(createGpt5Input("ses_child_race"), firstOutput);
+			const firstDir = extractScratchpadDir((firstOutput.system as string[])[0] ?? "");
+			await fs.writeFile(path.join(firstDir, "artifact.txt"), "artifact", "utf8");
 
 			setSessionRootId("ses_child_race", "ses_root");
 
