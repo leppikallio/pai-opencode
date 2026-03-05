@@ -1,10 +1,7 @@
 node_modules/
 
 # Runtime session data (never commit)
-.opencode/MEMORY/**
-!.opencode/MEMORY/README.md
-!.opencode/MEMORY/**/
-!.opencode/MEMORY/**/.gitkeep
+.opencode/MEMORY/
 
 # Runtime session data (never commit)
 MEMORY/**
