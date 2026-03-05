@@ -424,7 +424,7 @@ describe("prompt-control module (Task 1 RED)", () => {
 		}
 	});
 
-	test("uses deterministic safe fallback for empty session ids without state pointer churn", async () => {
+	test("uses safe fallback for empty session ids without state pointer churn", async () => {
 		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
 		const xdgHome = await fs.mkdtemp(
 			path.join(os.tmpdir(), "pai-prompt-control-xdg-empty-session-"),
@@ -459,6 +459,136 @@ describe("prompt-control module (Task 1 RED)", () => {
 			);
 			const scratchpadBase = path.basename(scratchpadDir);
 			expect(scratchpadBase.startsWith(SAFE_FALLBACK_SESSION_ID_PREFIX)).toBe(true);
+
+			const statePointerPath = path.join(
+				xdgHome,
+				"opencode",
+				"MEMORY",
+				"STATE",
+				"scratchpad.json",
+			);
+		await expect(fs.stat(statePointerPath)).rejects.toThrow();
+	} finally {
+			restoreEnv("XDG_CONFIG_HOME", previousXdg);
+			restoreEnv("OPENCODE_ROOT", previousOpenCodeRoot);
+			__resetSessionRootRegistryForTests();
+			await fs.rm(xdgHome, { recursive: true, force: true });
+			await fs.rm(openCodeRoot, { recursive: true, force: true });
+			await fs.rm(projectDir, { recursive: true, force: true });
+	}
+	});
+
+	test("treats sanitized-empty session ids as missing-session inputs", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const xdgHome = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-xdg-sanitized-empty-"),
+		);
+		const openCodeRoot = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-root-sanitized-empty-"),
+		);
+		const projectDir = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-project-sanitized-empty-"),
+		);
+		const previousXdg = process.env.XDG_CONFIG_HOME;
+		const previousOpenCodeRoot = process.env.OPENCODE_ROOT;
+
+		try {
+			process.env.XDG_CONFIG_HOME = xdgHome;
+			process.env.OPENCODE_ROOT = openCodeRoot;
+
+			const promptControl = module.createPromptControl({ projectDir }) as PromptControl;
+
+			const firstOutput: { system: unknown } = { system: ["ORIGINAL"] };
+			await promptControl.systemTransform(
+				{
+					sessionID: "!!!",
+					provider: { id: "openai" },
+					model: { providerID: "openai", id: "gpt-5", api: { id: "gpt-5" } },
+				},
+				firstOutput,
+			);
+			const firstDir = extractScratchpadDir(
+				(firstOutput.system as string[])[0] ?? "",
+			);
+
+			const secondOutput: { system: unknown } = { system: ["ORIGINAL"] };
+			await promptControl.systemTransform(
+				{
+					sessionID: "!!!",
+					provider: { id: "openai" },
+					model: { providerID: "openai", id: "gpt-5", api: { id: "gpt-5" } },
+				},
+				secondOutput,
+			);
+			const secondDir = extractScratchpadDir(
+				(secondOutput.system as string[])[0] ?? "",
+			);
+
+			expect(firstDir).not.toBe(secondDir);
+			await expect(fs.stat(firstDir)).resolves.toBeTruthy();
+			await expect(fs.stat(secondDir)).resolves.toBeTruthy();
+
+			const statePointerPath = path.join(
+				xdgHome,
+				"opencode",
+				"MEMORY",
+				"STATE",
+				"scratchpad.json",
+			);
+			await expect(fs.stat(statePointerPath)).rejects.toThrow();
+		} finally {
+			restoreEnv("XDG_CONFIG_HOME", previousXdg);
+			restoreEnv("OPENCODE_ROOT", previousOpenCodeRoot);
+			__resetSessionRootRegistryForTests();
+			await fs.rm(xdgHome, { recursive: true, force: true });
+			await fs.rm(openCodeRoot, { recursive: true, force: true });
+			await fs.rm(projectDir, { recursive: true, force: true });
+		}
+	});
+
+	test("does not co-mingle missing-session ScratchpadDir across calls", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const xdgHome = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-xdg-missing-session-"),
+		);
+		const openCodeRoot = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-root-missing-session-"),
+		);
+		const projectDir = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-project-missing-session-"),
+		);
+		const previousXdg = process.env.XDG_CONFIG_HOME;
+		const previousOpenCodeRoot = process.env.OPENCODE_ROOT;
+
+		try {
+			process.env.XDG_CONFIG_HOME = xdgHome;
+			process.env.OPENCODE_ROOT = openCodeRoot;
+
+			const promptControl = module.createPromptControl({ projectDir }) as PromptControl;
+
+			const firstOutput: { system: unknown } = { system: ["ORIGINAL"] };
+			await promptControl.systemTransform(
+				{
+					provider: { id: "openai" },
+					model: { providerID: "openai", id: "gpt-5", api: { id: "gpt-5" } },
+				},
+				firstOutput,
+			);
+			const firstDir = extractScratchpadDir((firstOutput.system as string[])[0] ?? "");
+
+			const secondOutput: { system: unknown } = { system: ["ORIGINAL"] };
+			await promptControl.systemTransform(
+				{
+					provider: { id: "openai" },
+					model: { providerID: "openai", id: "gpt-5", api: { id: "gpt-5" } },
+				},
+				secondOutput,
+			);
+			const secondDir = extractScratchpadDir((secondOutput.system as string[])[0] ?? "");
+
+			expect(firstDir).not.toBe(secondDir);
+			await expect(fs.stat(firstDir)).resolves.toBeTruthy();
+			await expect(fs.stat(secondDir)).resolves.toBeTruthy();
 
 			const statePointerPath = path.join(
 				xdgHome,
