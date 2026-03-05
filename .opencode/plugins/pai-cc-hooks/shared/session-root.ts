@@ -1,3 +1,5 @@
+export const MAX_ROOT_MAPPINGS = 4096;
+
 const rootBySession = new Map<string, string>();
 
 function normalizeSessionId(sessionId: string): string {
@@ -12,6 +14,15 @@ export function setSessionRootId(sessionId: string, rootSessionId: string): void
 	}
 
 	rootBySession.set(normalizedSessionId, normalizedRootSessionId);
+
+	while (rootBySession.size > MAX_ROOT_MAPPINGS) {
+		const oldestSessionId = rootBySession.keys().next().value;
+		if (!oldestSessionId) {
+			break;
+		}
+
+		rootBySession.delete(oldestSessionId);
+	}
 }
 
 export function getSessionRootId(sessionId: string): string | undefined {
