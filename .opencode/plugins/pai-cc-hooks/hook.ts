@@ -217,7 +217,24 @@ function getSessionGetFromContext(ctx: unknown): SessionGetFn | undefined {
 	const client = asRecord(context.client);
 	const session = asRecord(client.session);
 	const get = session.get;
-	return typeof get === "function" ? (get as SessionGetFn) : undefined;
+	if (typeof get !== "function") {
+		return undefined;
+	}
+
+	return (args) =>
+		(get as (this: unknown, args: unknown) => Promise<unknown>).call(
+			session,
+			args,
+		);
+}
+
+function isDebugLoggingEnabled(): boolean {
+	return process.env.PAI_CC_HOOKS_DEBUG === "1";
+}
+
+function sanitizeDebugReason(error: unknown): string {
+	const reason = error instanceof Error ? error.message : String(error);
+	return summarizeBackgroundText(reason) || "unknown error";
 }
 
 function getSessionPromptAsyncFromContext(
@@ -248,9 +265,11 @@ async function resolveSessionStartPolicy(args: {
 	fallbackParentSessionId?: string;
 }): Promise<{ parentSessionId?: string; policy: SessionStartPolicy }> {
 	if (!args.sessionGet) {
-		console.warn(
-			`[pai-cc-hooks] SessionStart metadata unavailable for ${args.sessionId}; skipping LoadContext and SessionStart stdout injection.`,
-		);
+		if (isDebugLoggingEnabled()) {
+			console.warn(
+				"[pai-cc-hooks] SessionStart metadata unavailable; skipping LoadContext and SessionStart stdout injection.",
+			);
+		}
 		return {
 			parentSessionId: args.fallbackParentSessionId,
 			policy: {
@@ -278,10 +297,12 @@ async function resolveSessionStartPolicy(args: {
 			},
 		};
 	} catch (error) {
-		const reason = error instanceof Error ? error.message : String(error);
-		console.warn(
-			`[pai-cc-hooks] SessionStart metadata fetch failed for ${args.sessionId}; skipping LoadContext and SessionStart stdout injection: ${reason}`,
-		);
+		if (isDebugLoggingEnabled()) {
+			const reason = sanitizeDebugReason(error);
+			console.warn(
+				`[pai-cc-hooks] SessionStart metadata fetch failed; skipping LoadContext and SessionStart stdout injection: ${reason}`,
+			);
+		}
 		return {
 			parentSessionId: args.fallbackParentSessionId,
 			policy: {
@@ -551,10 +572,12 @@ async function executeSessionLifecycleHooks(
 						},
 					});
 				} catch (error) {
-					const reason = error instanceof Error ? error.message : String(error);
-					console.warn(
-						`[pai-cc-hooks] SessionStart stdout injection failed: ${reason}`,
-					);
+					if (isDebugLoggingEnabled()) {
+						const reason = sanitizeDebugReason(error);
+						console.warn(
+							`[pai-cc-hooks] SessionStart stdout injection failed: ${reason}`,
+						);
+					}
 				}
 			}
 		}
