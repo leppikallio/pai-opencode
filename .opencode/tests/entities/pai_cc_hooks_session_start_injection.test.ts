@@ -80,16 +80,25 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 
 			__resetPaiCcHooksSettingsCacheForTests();
 
+			const sessionObj = {
+				_client: {
+					tag: "bound-client",
+				},
+				get: async function (this: { _client?: { tag: string } }) {
+					expect(this).toBe(sessionObj);
+					expect(this._client?.tag).toBe("bound-client");
+					return { info: {} };
+				},
+				promptAsync: async (call: unknown) => {
+					promptCalls.push(call);
+					return { ok: true };
+				},
+			};
+
 			const hooks = createPaiClaudeHooks({
 				ctx: {
 					client: {
-						session: {
-							get: async () => ({ info: {} }),
-							promptAsync: async (call: unknown) => {
-								promptCalls.push(call);
-								return { ok: true };
-							},
-						},
+						session: sessionObj,
 					},
 				},
 			});
