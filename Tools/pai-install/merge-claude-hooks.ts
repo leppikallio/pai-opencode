@@ -111,11 +111,13 @@ function mergeHooks(runtimeHooks: unknown, seedHooks: unknown, targetDir: string
 }
 
 const REQUIRED_PAI_CONTEXT_FILES = [
-  "skills/PAI/SKILL.md",
   "skills/PAI/SYSTEM/AISTEERINGRULES.md",
   "skills/PAI/USER/AISTEERINGRULES.md",
   "skills/PAI/USER/DAIDENTITY.md",
 ] as const;
+
+const LEGACY_PAI_SKILL_CONTEXT_FILE = "skills/PAI/SKILL.md";
+const LEGACY_PAI_SKILL_CONTEXT_FILE_KEY = "skills/pai/skill.md";
 
 function parseContextFiles(value: unknown): string[] | null {
   if (!Array.isArray(value)) {
@@ -133,13 +135,43 @@ function normalizeContextFileKey(entry: string): string {
   return entry.trim().replace(/\\/g, "/").replace(/^\.\//, "");
 }
 
-function mergeContextFiles(runtimeContextFiles: unknown, seedContextFiles: unknown): unknown {
-  const seed = parseContextFiles(seedContextFiles);
-  const runtime = parseContextFiles(runtimeContextFiles);
-  const runtimeMissing = runtimeContextFiles === undefined || runtimeContextFiles === null;
-  const runtimeEmptyArray = Array.isArray(runtimeContextFiles) && runtimeContextFiles.length === 0;
+function pruneLegacyPaiSkillContextFile(
+  contextFiles: string[] | null,
+  sourceLabel: string,
+): string[] | null {
+  if (!contextFiles) {
+    return contextFiles;
+  }
 
-  if (runtimeMissing || runtimeEmptyArray) {
+  let removedCount = 0;
+  const pruned = contextFiles.filter((entry) => {
+    const isLegacyEntry =
+      normalizeContextFileKey(entry).toLowerCase() === LEGACY_PAI_SKILL_CONTEXT_FILE_KEY;
+    if (isLegacyEntry) {
+      removedCount += 1;
+    }
+    return !isLegacyEntry;
+  });
+
+  if (removedCount > 0) {
+    console.error(
+      `[pai-install] Pruned ${removedCount} deprecated contextFiles entry from ${sourceLabel}: ${LEGACY_PAI_SKILL_CONTEXT_FILE}`,
+    );
+  }
+
+  return pruned;
+}
+
+function mergeContextFiles(runtimeContextFiles: unknown, seedContextFiles: unknown): unknown {
+  const seed = pruneLegacyPaiSkillContextFile(parseContextFiles(seedContextFiles), "seed settings.json");
+  const runtime = pruneLegacyPaiSkillContextFile(
+    parseContextFiles(runtimeContextFiles),
+    "runtime settings.json",
+  );
+  const runtimeMissing = runtimeContextFiles === undefined || runtimeContextFiles === null;
+  const runtimeEmptyAfterPrune = Array.isArray(runtime) && runtime.length === 0;
+
+  if (runtimeMissing || runtimeEmptyAfterPrune) {
     return seed ? [...seed] : runtimeContextFiles;
   }
 

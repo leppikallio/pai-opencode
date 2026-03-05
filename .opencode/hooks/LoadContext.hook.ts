@@ -1,8 +1,6 @@
 #!/usr/bin/env bun
 
 import {
-  REQUIRED_SKILL_RELATIVE_PATH,
-  hasRequiredSkillFile,
   loadContextBundle,
 } from "./lib/context-loader";
 import { getPaiDir } from "./lib/paths";
@@ -12,73 +10,99 @@ if (process.execArgv.includes("--check")) {
 }
 
 function isSubagent(): boolean {
-  const claudeAgentType = process.env.CLAUDE_AGENT_TYPE ?? "";
-  const claudeProjectDir = process.env.CLAUDE_PROJECT_DIR ?? "";
-  return claudeProjectDir.includes("/.claude/Agents/") || claudeAgentType.trim().length > 0;
+  const agentType = (process.env.OPENCODE_AGENT_TYPE ?? "").trim();
+  const projectDir = (process.env.OPENCODE_PROJECT_DIR ?? "").trim();
+  return agentType.length > 0 || projectDir.includes("/.opencode/agents/");
 }
 
 function renderReminder(content: string): string {
   return `<system-reminder>\n${content}\n</system-reminder>\n`;
 }
 
-function fail(message: string): never {
-  process.stderr.write(`${message}\n`);
-  process.exit(1);
-}
-
 function warn(message: string): void {
   process.stderr.write(`${message}\n`);
 }
 
-function allowMissingConfiguredContextFiles(): boolean {
-  return process.env.PAI_ALLOW_MISSING_CONTEXT_FILES === "1";
+function warnLegacySubagentMarkers(): void {
+  const projectDir = (process.env.OPENCODE_PROJECT_DIR ?? "").trim();
+  if (projectDir.includes("/.opencode/Agents/")) {
+    warn("[LoadContext] Ignoring uppercase agent marker; use /.opencode/agents/");
+  }
+
+  if ((process.env.CLAUDE_AGENT_TYPE ?? "").trim().length > 0 || (process.env.CLAUDE_PROJECT_DIR ?? "").trim().length > 0) {
+    warn("[LoadContext] Ignoring legacy CLAUDE_* subagent markers");
+  }
+}
+
+function replaceControlCharacters(content: string): string {
+  let result = "";
+  for (const character of content) {
+    const codePoint = character.codePointAt(0);
+    if (
+      codePoint !== undefined
+      && (codePoint === 0x7f || (codePoint <= 0x1f && codePoint !== 0x09 && codePoint !== 0x0a && codePoint !== 0x0d))
+    ) {
+      result += " ";
+      continue;
+    }
+
+    result += character;
+  }
+
+  return result;
+}
+
+function sanitizeOutput(content: string, maxChars: number): string {
+  const sanitized = replaceControlCharacters(content)
+    .replace(/`/g, "'")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .trim();
+  if (sanitized.length <= maxChars) {
+    return sanitized;
+  }
+
+  return `${sanitized.slice(0, maxChars).trimEnd()}…`;
 }
 
 function main(): void {
+  warnLegacySubagentMarkers();
+
   if (isSubagent()) {
     process.exit(0);
   }
 
   const paiDir = getPaiDir();
-  if (!hasRequiredSkillFile(paiDir)) {
-    fail(`[LoadContext] Missing required file: ${REQUIRED_SKILL_RELATIVE_PATH}`);
-  }
 
   let context: ReturnType<typeof loadContextBundle>;
   try {
     context = loadContextBundle(paiDir);
   } catch (error) {
     if (error instanceof Error) {
-      fail(error.message);
+      warn(error.message);
+      process.exit(0);
     }
 
-    fail(`[LoadContext] Failed to load context: ${String(error)}`);
+    warn(`[LoadContext] Failed to load context: ${String(error)}`);
+    process.exit(0);
   }
 
-  if (context.missingFiles.includes(REQUIRED_SKILL_RELATIVE_PATH)) {
-    fail(`[LoadContext] Missing required file: ${REQUIRED_SKILL_RELATIVE_PATH}`);
+  for (const warning of context.warnings) {
+    warn(warning);
   }
 
   if (context.missingFiles.length > 0) {
-    if (context.usesConfiguredContextFiles) {
-      const message = `[LoadContext] Missing configured context file(s): ${context.missingFiles.join(", ")}`;
-      if (allowMissingConfiguredContextFiles()) {
-        warn(`${message} (continuing because PAI_ALLOW_MISSING_CONTEXT_FILES=1)`);
-      } else {
-        fail(`${message}. Set PAI_ALLOW_MISSING_CONTEXT_FILES=1 to continue.`);
-      }
-    } else {
-      for (const missingFile of context.missingFiles) {
-        warn(`[LoadContext] Missing optional context file: ${missingFile}`);
-      }
+    for (const missingFile of context.missingFiles) {
+      warn(`[LoadContext] Missing optional context file: ${missingFile}`);
     }
   }
 
-  if (!context.combinedContent.trim()) {
-    fail("[LoadContext] No context content loaded");
+  const bounded = sanitizeOutput(context.combinedContent, 14000);
+  if (!bounded) {
+    process.exit(0);
   }
 
-  process.stdout.write(renderReminder(context.combinedContent));
+  process.stdout.write(renderReminder(bounded));
   process.exit(0);
 }
 
