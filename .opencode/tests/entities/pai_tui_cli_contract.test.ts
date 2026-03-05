@@ -60,6 +60,22 @@ describe("pai-tui CLI contract", () => {
 		expect(out.stdout).toContain("pai-tui");
 		expect(out.stdout).toContain("Usage:");
 		expect(out.stdout).toContain("--codex-clean-slate <on|off>");
+		expect(out.stdout).toContain("--dynamic-context <on|off>");
 		expect(out.stdout).toContain("omit flag to inherit");
+	});
+
+	test("--codex-clean-slate requires explicit value", async () => {
+		const out = await runPaiTuiCli(["--codex-clean-slate"]);
+		expect(out.signal).toBeNull();
+		expect(out.code).toBe(1);
+		expect(out.stderr).toContain("--codex-clean-slate requires a value");
+	});
+
+	test("--dynamic-context rejects invalid values", async () => {
+		const out = await runPaiTuiCli(["--dynamic-context", "maybe"]);
+		expect(out.signal).toBeNull();
+		expect(out.code).toBe(1);
+		expect(out.stderr).toContain("--dynamic-context");
+		expect(out.stderr).toContain("Invalid value 'maybe'");
 	});
 });

@@ -16,6 +16,11 @@ const LOOPBACK_HOST = "127.0.0.1";
 
 type CompletionVisibleFallbackMode = "auto" | "on" | "off";
 type CodexCleanSlateMode = "on" | "off";
+type DynamicContextMode = "on" | "off";
+
+export interface DynamicContextSettingsPatch {
+	dynamicContext: boolean;
+}
 
 export interface PaiTuiRunOptions {
 	dir: string;
@@ -23,6 +28,7 @@ export interface PaiTuiRunOptions {
 	opencodeRoot: string;
 	completionVisibleFallback: CompletionVisibleFallbackMode;
 	codexCleanSlate?: CodexCleanSlateMode;
+	dynamicContext: DynamicContextMode;
 	bindRetries: number;
 	writeState: boolean;
 	passthroughArgs: string[];
@@ -72,6 +78,10 @@ export interface PaiTuiDeps {
 	selectFreePort: (startPort: number) => Promise<number>;
 	spawnChild: (input: SpawnChildInput) => SpawnedChild;
 	isPortAvailable: (port: number) => Promise<boolean>;
+	writeSettingsPatch: (
+		opencodeRoot: string,
+		patch: DynamicContextSettingsPatch,
+	) => Promise<void>;
 	writeState: (input: StateWriteInput) => Promise<PaiTuiStateV1>;
 	logInfo: (line: string) => void;
 	logWarn: (line: string) => void;
@@ -114,6 +124,7 @@ const HELP_TEXT = [
 	"  --opencode-root <path>                         OpenCode config/runtime root",
 	"  --completion-visible-fallback <auto|on|off>    Fallback env behavior when cmux socket is missing",
 	"  --codex-clean-slate <on|off>                    Explicitly set PAI_CODEX_CLEAN_SLATE (omit flag to inherit)",
+	"  --dynamic-context <on|off>                      Persist settings.json.dynamicContext for SessionStart injection",
 	"  --bind-retries <n>                             Retries for rapid bind-race exits",
 	"  --write-state <on|off>                         Persist pai-tui state artifacts",
 	"",
@@ -123,6 +134,7 @@ const HELP_TEXT = [
 	`  --opencode-root ${resolveRuntimeRootFromMainScript(import.meta.url)}`,
 	"  --completion-visible-fallback auto",
 	"  --codex-clean-slate omitted (inherit parent env; unchanged)",
+	"  --dynamic-context on",
 	`  --bind-retries ${DEFAULT_BIND_RETRIES}`,
 	"  --write-state on",
 	"",
@@ -358,6 +370,72 @@ export function buildChildEnv(
 	return env;
 }
 
+export function resolveDynamicContextMode(
+	value: DynamicContextMode | undefined,
+): DynamicContextMode {
+	return value ?? "on";
+}
+
+export function buildDynamicContextSettingsPatch(
+	mode: DynamicContextMode,
+): DynamicContextSettingsPatch {
+	return {
+		dynamicContext: mode === "on",
+	};
+}
+
+export async function writeSettingsPatch(
+	opencodeRoot: string,
+	patch: DynamicContextSettingsPatch,
+): Promise<void> {
+	const settingsPath = path.join(opencodeRoot, "settings.json");
+	let existing: Record<string, unknown> | null = null;
+	let raw = "";
+	let hasExistingFile = false;
+
+	try {
+		raw = await fs.readFile(settingsPath, "utf8");
+		hasExistingFile = true;
+	} catch (error) {
+		const code = (error as NodeJS.ErrnoException).code;
+		if (code !== "ENOENT") {
+			throw new Error(
+				`Unable to read existing settings.json at ${settingsPath}: ${code ?? String(error)}`,
+			);
+		}
+	}
+
+	if (hasExistingFile) {
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(raw);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			throw new Error(
+				`Invalid JSON in existing settings.json at ${settingsPath}: ${message}`,
+			);
+		}
+
+		if (
+			typeof parsed !== "object" ||
+			parsed === null ||
+			Array.isArray(parsed)
+		) {
+			throw new Error(
+				`Invalid JSON in existing settings.json at ${settingsPath}: expected top-level object`,
+			);
+		}
+
+		existing = parsed as Record<string, unknown>;
+	}
+
+	const next = {
+		...(existing ?? {}),
+		...patch,
+	};
+	await atomicWriteJson(settingsPath, next);
+}
+
 export async function isPortAvailable(port: number): Promise<boolean> {
 	return await new Promise((resolve) => {
 		const server = net.createServer();
@@ -450,6 +528,7 @@ function defaultDeps(): PaiTuiDeps {
 		selectFreePort: findFirstAvailablePort,
 		spawnChild: defaultSpawnChild,
 		isPortAvailable,
+		writeSettingsPatch,
 		writeState: writePaiTuiState,
 		logInfo: (line) => {
 			console.log(line);
@@ -467,6 +546,17 @@ export async function runPaiTui(
 	overrides: Partial<PaiTuiDeps> = {},
 ): Promise<number> {
 	const deps = { ...defaultDeps(), ...overrides };
+	const dynamicContextPatch = buildDynamicContextSettingsPatch(
+		resolveDynamicContextMode(options.dynamicContext),
+	);
+
+	try {
+		await deps.writeSettingsPatch(options.opencodeRoot, dynamicContextPatch);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		deps.logWarn(`Failed to persist dynamic context setting: ${message}`);
+		return 1;
+	}
 
 	const binary = await deps.resolveBinary();
 	const sanitized = sanitizePassthroughArgs(options.passthroughArgs);
@@ -579,6 +669,10 @@ function createCliCommand() {
 			dir: option({ long: "dir", type: optional(string) }),
 			port: option({ long: "port", type: optional(string) }),
 			opencodeRoot: option({ long: "opencode-root", type: optional(string) }),
+			dynamicContext: option({
+				long: "dynamic-context",
+				type: optional(oneOf(["on", "off"])),
+			}),
 			completionVisibleFallback: option({
 				long: "completion-visible-fallback",
 				type: optional(oneOf(["auto", "on", "off"])),
@@ -615,6 +709,9 @@ function createCliCommand() {
 					args.opencodeRoot ??
 						resolveRuntimeRootFromMainScript(import.meta.url),
 				),
+				dynamicContext: resolveDynamicContextMode(
+					args.dynamicContext as DynamicContextMode | undefined,
+				),
 				completionVisibleFallback: (args.completionVisibleFallback ??
 					"auto") as CompletionVisibleFallbackMode,
 				codexCleanSlate: args.codexCleanSlate as CodexCleanSlateMode | undefined,
@@ -641,6 +738,7 @@ if (import.meta.main) {
 	try {
 		assertOptionValueProvided(argv, "--bind-retries");
 		assertOptionValueProvided(argv, "--codex-clean-slate");
+		assertOptionValueProvided(argv, "--dynamic-context");
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		console.error(`ERROR: ${message}`);
