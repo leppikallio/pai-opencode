@@ -6,7 +6,6 @@ import path from "node:path";
 import { mergeClaudeHooksSeedIntoSettingsJson } from "../../../Tools/pai-install/merge-claude-hooks";
 
 const PAI_CONTEXT_FILES = [
-  "skills/PAI/SKILL.md",
   "skills/PAI/SYSTEM/AISTEERINGRULES.md",
   "skills/PAI/USER/AISTEERINGRULES.md",
   "skills/PAI/USER/DAIDENTITY.md",
@@ -145,11 +144,35 @@ describe("mergeClaudeHooksSeedIntoSettingsJson contextFiles merge", () => {
     expect(merged.provider).toEqual(runtimeProvider);
   });
 
-  test("preserves runtime skills/PAI contextFiles exactly when no CORE entries exist", () => {
+  test("uses seed contextFiles when runtime contextFiles is pruned to empty", () => {
     const root = createRoot();
     const settingsPath = path.join(root, "settings.json");
     const seedPath = path.join(root, "seed-settings.json");
-    const runtimeContextFiles = ["skills/PAI/SKILL.md"];
+
+    writeJson(settingsPath, {
+      contextFiles: ["skills/PAI/SKILL.md"],
+      provider: { id: "openai", model: "openai/gpt-5.3-codex" },
+      env: { RUNTIME_ONLY: "1" },
+      hooks: { Runtime: [] },
+    });
+
+    writeJson(seedPath, {
+      contextFiles: [...PAI_CONTEXT_FILES],
+      env: { PAI_DIR: "$" + "{PAI_DIR}" },
+      hooks: { Seed: [] },
+    });
+
+    mergeClaudeHooksSeedIntoSettingsJson({ targetDir: root, sourceSeedPath: seedPath });
+    const merged = readJson(settingsPath);
+
+    expect(merged.contextFiles).toEqual(PAI_CONTEXT_FILES);
+  });
+
+  test("prunes deprecated runtime skills/PAI/SKILL.md when no CORE entries exist", () => {
+    const root = createRoot();
+    const settingsPath = path.join(root, "settings.json");
+    const seedPath = path.join(root, "seed-settings.json");
+    const runtimeContextFiles = ["skills/PAI/SKILL.md", "custom/context.md"];
 
     writeJson(settingsPath, {
       contextFiles: runtimeContextFiles,
@@ -167,7 +190,7 @@ describe("mergeClaudeHooksSeedIntoSettingsJson contextFiles merge", () => {
     mergeClaudeHooksSeedIntoSettingsJson({ targetDir: root, sourceSeedPath: seedPath });
     const merged = readJson(settingsPath);
 
-    expect(merged.contextFiles).toEqual(runtimeContextFiles);
+    expect(merged.contextFiles).toEqual(["custom/context.md"]);
   });
 
   test("conservatively repairs mixed CORE entries while preserving custom runtime entries", () => {
@@ -199,7 +222,6 @@ describe("mergeClaudeHooksSeedIntoSettingsJson contextFiles merge", () => {
     expect(contextFiles).toEqual([
       "docs/custom-notes.md",
       "skills/PAI/USER/AISTEERINGRULES.md",
-      "skills/PAI/SKILL.md",
       "skills/PAI/SYSTEM/AISTEERINGRULES.md",
       "skills/PAI/USER/DAIDENTITY.md",
     ]);

@@ -108,6 +108,8 @@ describe("CheckVersion hook gating", () => {
           PATH: prependPath(shimDir),
           PAI_DISABLE_VERSION_CHECK: "1",
           PAI_NO_NETWORK: undefined,
+          OPENCODE_PROJECT_DIR: "/tmp/.opencode/Agents/session-1",
+          CLAUDE_AGENT_TYPE: "Subagent",
         },
       });
 
@@ -138,14 +140,14 @@ describe("CheckVersion hook gating", () => {
     }
   });
 
-  test("CLAUDE_AGENT_TYPE=Subagent is treated as subagent and no-ops", async () => {
+  test("OPENCODE_AGENT_TYPE=Subagent is treated as subagent and no-ops", async () => {
     const shimDir = await createShimDir("#!/bin/sh\necho \"2.0.0\"\n");
     try {
       const result = await runHook({
         env: {
           PATH: prependPath(shimDir),
-          CLAUDE_AGENT_TYPE: "Subagent",
-          CLAUDE_PROJECT_DIR: "/tmp/project",
+          OPENCODE_AGENT_TYPE: "Subagent",
+          OPENCODE_PROJECT_DIR: "/tmp/project",
           PAI_DISABLE_VERSION_CHECK: undefined,
           PAI_NO_NETWORK: undefined,
         },
@@ -159,14 +161,14 @@ describe("CheckVersion hook gating", () => {
     }
   });
 
-  test("CLAUDE_AGENT_TYPE='' does not count as subagent", async () => {
+  test("OPENCODE project marker requires lowercase /.opencode/agents/", async () => {
     const shimDir = await createShimDir("#!/bin/sh\necho \"2.0.0\"\n");
     try {
       const result = await runHook({
         env: {
           PATH: prependPath(shimDir),
-          CLAUDE_AGENT_TYPE: "",
-          CLAUDE_PROJECT_DIR: "/tmp/project",
+          OPENCODE_AGENT_TYPE: "",
+          OPENCODE_PROJECT_DIR: "/tmp/.opencode/Agents/session-1",
           PAI_DISABLE_VERSION_CHECK: undefined,
           PAI_NO_NETWORK: undefined,
         },
@@ -174,6 +176,52 @@ describe("CheckVersion hook gating", () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("Ignoring uppercase agent marker; use /.opencode/agents/");
+      expect(result.stderr).toContain("Update available: opencode 1.0.0 -> 2.0.0");
+    } finally {
+      await fs.rm(shimDir, { recursive: true, force: true });
+    }
+  });
+
+  test("lowercase /.opencode/agents/ marker is treated as subagent", async () => {
+    const shimDir = await createShimDir("#!/bin/sh\necho \"2.0.0\"\n");
+    try {
+      const result = await runHook({
+        env: {
+          PATH: prependPath(shimDir),
+          OPENCODE_AGENT_TYPE: "",
+          OPENCODE_PROJECT_DIR: "/tmp/.opencode/agents/session-1",
+          PAI_DISABLE_VERSION_CHECK: undefined,
+          PAI_NO_NETWORK: undefined,
+        },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe("");
+    } finally {
+      await fs.rm(shimDir, { recursive: true, force: true });
+    }
+  });
+
+  test("legacy CLAUDE markers are ignored (no fallback)", async () => {
+    const shimDir = await createShimDir("#!/bin/sh\necho \"2.0.0\"\n");
+    try {
+      const result = await runHook({
+        env: {
+          PATH: prependPath(shimDir),
+          CLAUDE_AGENT_TYPE: "Subagent",
+          CLAUDE_PROJECT_DIR: "/tmp/.claude/Agents/old",
+          OPENCODE_AGENT_TYPE: "",
+          OPENCODE_PROJECT_DIR: "/tmp/project",
+          PAI_DISABLE_VERSION_CHECK: undefined,
+          PAI_NO_NETWORK: undefined,
+        },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toContain("Ignoring legacy CLAUDE_* subagent markers");
       expect(result.stderr).toContain("Update available: opencode 1.0.0 -> 2.0.0");
     } finally {
       await fs.rm(shimDir, { recursive: true, force: true });
@@ -186,8 +234,8 @@ describe("CheckVersion hook gating", () => {
       const result = await runHook({
         env: {
           PATH: prependPath(shimDir),
-          CLAUDE_AGENT_TYPE: "",
-          CLAUDE_PROJECT_DIR: "/tmp/project",
+          OPENCODE_AGENT_TYPE: "",
+          OPENCODE_PROJECT_DIR: "/tmp/project",
           PAI_DISABLE_VERSION_CHECK: undefined,
           PAI_NO_NETWORK: undefined,
         },

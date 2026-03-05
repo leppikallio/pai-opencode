@@ -31,10 +31,20 @@ import { createPaiVoiceNotifyTool } from "./tools/voice-notify";
 type EventHookHandler = (input: unknown) => Promise<void>;
 type HookHandler = (input: unknown, output: unknown) => Promise<void>;
 type SessionGetFn = (args: { path: { id: string } }) => Promise<unknown>;
-type SessionPromptAsyncFn = (args: unknown) => Promise<unknown>;
+type SessionPromptAsyncFn = (args: {
+	path: { id: string };
+	body: {
+		noReply: boolean;
+		parts: Array<{ type: "text"; text: string; synthetic?: boolean }>;
+	};
+}) => Promise<unknown>;
 
 type UnknownRecord = Record<string, unknown>;
 type SessionLifecycleEventName = "SessionStart" | "SessionEnd";
+type SessionStartPolicy = {
+	allowLoadContext: boolean;
+	allowStdoutInjection: boolean;
+};
 type CmuxNotifyFn = (args: {
 	sessionId: string;
 	title: string;
@@ -228,6 +238,60 @@ function getSessionPromptAsyncFromContext(
 		);
 }
 
+function isLoadContextHookCommand(command: string): boolean {
+	return command.includes("LoadContext.hook.ts");
+}
+
+async function resolveSessionStartPolicy(args: {
+	sessionId: string;
+	sessionGet?: SessionGetFn;
+	fallbackParentSessionId?: string;
+}): Promise<{ parentSessionId?: string; policy: SessionStartPolicy }> {
+	if (!args.sessionGet) {
+		console.warn(
+			`[pai-cc-hooks] SessionStart metadata unavailable for ${args.sessionId}; skipping LoadContext and SessionStart stdout injection.`,
+		);
+		return {
+			parentSessionId: args.fallbackParentSessionId,
+			policy: {
+				allowLoadContext: false,
+				allowStdoutInjection: false,
+			},
+		};
+	}
+
+	try {
+		const session = asRecord(
+			await args.sessionGet({ path: { id: args.sessionId } }),
+		);
+		const sessionInfo = getRecord(session, "info") ?? {};
+		const parentSessionId =
+			getParentSessionIdFromEvent(session, sessionInfo) ??
+			args.fallbackParentSessionId;
+		const isSubagent = Boolean(parentSessionId);
+
+		return {
+			parentSessionId,
+			policy: {
+				allowLoadContext: !isSubagent,
+				allowStdoutInjection: !isSubagent,
+			},
+		};
+	} catch (error) {
+		const reason = error instanceof Error ? error.message : String(error);
+		console.warn(
+			`[pai-cc-hooks] SessionStart metadata fetch failed for ${args.sessionId}; skipping LoadContext and SessionStart stdout injection: ${reason}`,
+		);
+		return {
+			parentSessionId: args.fallbackParentSessionId,
+			policy: {
+				allowLoadContext: false,
+				allowStdoutInjection: false,
+			},
+		};
+	}
+}
+
 function collapseWhitespace(value: string): string {
 	return value.trim().replace(/\s+/g, " ");
 }
@@ -409,6 +473,8 @@ async function executeSessionLifecycleHooks(
 		sessionId: string;
 		cwd: string;
 		hookEventName: SessionLifecycleEventName;
+		sessionStartPolicy?: SessionStartPolicy;
+		promptSessionAsync?: SessionPromptAsyncFn;
 	},
 	config: ClaudeHooksConfig | null,
 	settingsEnv?: Record<string, string>,
@@ -434,6 +500,14 @@ async function executeSessionLifecycleHooks(
 
 		for (const hook of matcher.hooks) {
 			if (hook.type !== "command") continue;
+			if (
+				args.hookEventName === "SessionStart" &&
+				args.sessionStartPolicy &&
+				!args.sessionStartPolicy.allowLoadContext &&
+				isLoadContextHookCommand(hook.command)
+			) {
+				continue;
+			}
 
 			const result = await executeHookCommand(
 				hook.command,
@@ -452,6 +526,36 @@ async function executeSessionLifecycleHooks(
 				console.warn(
 					`[pai-cc-hooks] ${args.hookEventName} hook command failed: ${reason}`,
 				);
+			}
+
+			if (
+				args.hookEventName === "SessionStart" &&
+				args.sessionStartPolicy?.allowStdoutInjection &&
+				args.promptSessionAsync &&
+				isLoadContextHookCommand(hook.command) &&
+				result.exitCode === 0 &&
+				result.stdout
+			) {
+				try {
+					await args.promptSessionAsync({
+						path: { id: args.sessionId },
+						body: {
+							noReply: true,
+							parts: [
+								{
+									type: "text",
+									text: result.stdout,
+									synthetic: true,
+								},
+							],
+						},
+					});
+				} catch (error) {
+					const reason = error instanceof Error ? error.message : String(error);
+					console.warn(
+						`[pai-cc-hooks] SessionStart stdout injection failed: ${reason}`,
+					);
+				}
 			}
 		}
 	}
@@ -592,28 +696,38 @@ export function createPaiClaudeHooks({
 			const info = getRecord(properties, "info") ?? {};
 			const sessionId = getSessionIdFromEvent(properties, info);
 			if (!sessionId) return;
-			const parentSessionId = await resolveParentSessionId(
-				sessionId,
-				properties,
-				info,
-			);
 
 			if (eventType === "session.created") {
-				if (parentSessionId) {
-					return;
-				}
+				const fallbackParentSessionId = getParentSessionIdFromEvent(
+					properties,
+					info,
+				);
+				const sessionStart = await resolveSessionStartPolicy({
+					sessionId,
+					sessionGet,
+					fallbackParentSessionId,
+				});
+				parentSessionIdCache.set(sessionId, sessionStart.parentSessionId ?? null);
 
 				await executeSessionLifecycleHooks(
 					{
 						sessionId,
 						cwd: process.cwd(),
 						hookEventName: "SessionStart",
+						sessionStartPolicy: sessionStart.policy,
+						promptSessionAsync: promptParentSessionAsyncFromContext,
 					},
 					config,
 					env,
 				);
 				return;
 			}
+
+			const parentSessionId = await resolveParentSessionId(
+				sessionId,
+				properties,
+				info,
+			);
 
 			if (eventType === "session.deleted") {
 				if (parentSessionId) {

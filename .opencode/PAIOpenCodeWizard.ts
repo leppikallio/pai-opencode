@@ -306,7 +306,7 @@ function generateOpencodeJson(config: InstallConfig): object {
   };
 }
 
-function generateSettingsJson(config: InstallConfig, paiDir: string): object {
+export function generateSettingsJson(config: InstallConfig, paiDir: string): object {
   const VOICE_ID = DEFAULT_VOICES[config.VOICE_TYPE || 'male'];
 
   return {
@@ -316,8 +316,11 @@ function generateSettingsJson(config: InstallConfig, paiDir: string): object {
       "OPENCODE_MAX_OUTPUT_TOKENS": "80000",
       "BASH_DEFAULT_TIMEOUT_MS": "600000"
     },
+    "dynamicContext": true,
+    "loadAtStartup": {
+      "files": []
+    },
     "contextFiles": [
-      "skills/PAI/SKILL.md",
       "skills/PAI/SYSTEM/AISTEERINGRULES.md",
       "skills/PAI/USER/AISTEERINGRULES.md",
       "skills/PAI/USER/DAIDENTITY.md"
@@ -672,6 +675,10 @@ async function main(): Promise<void> {
     print(`     • Values, Beliefs, Narratives`);
     print(`     • Work style, Preferences`);
     print('');
+    print(`  ${c.cyan}3.${c.reset} ${c.bold}TODO (follow-up task):${c.reset}`);
+    print(`     Keep static always-on docs in native startup injection surfaces.`);
+    print(`     Do not route always-on docs through settings load context defaults.`);
+    print('');
   } else {
     print(`${c.red}${c.bold}✗ Installation has issues${c.reset}`);
     print(`  Check the validation results above.`);
@@ -681,7 +688,9 @@ async function main(): Promise<void> {
   process.exit(0);
 }
 
-main().catch(err => {
-  console.error(`${c.red}Error:${c.reset}`, err.message);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch(err => {
+    console.error(`${c.red}Error:${c.reset}`, err.message);
+    process.exit(1);
+  });
+}
