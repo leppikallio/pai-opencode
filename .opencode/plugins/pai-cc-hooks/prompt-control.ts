@@ -157,7 +157,9 @@ function buildScratchpadBinding(scratchpadDir: string): string {
 	return [
 		"PAI SCRATCHPAD (Binding)",
 		`ScratchpadDir: ${scratchpadDir}`,
-		"Authoritative: If asked, answer with ScratchpadDir; do not scan files.",
+		"Rules:",
+		"- If asked for ScratchpadDir, answer with the value above.",
+		"- Do NOT run tools (Read/Glob/Bash/etc) to discover it.",
 	].join("\n");
 }
 
@@ -166,7 +168,12 @@ function buildCanonicalBundle(
   scratchpadDir: string,
   options?: { excludePaiSkillInstructionSources?: boolean },
 ): string {
-  const chunks: string[] = ["PAI_CODEX_CLEAN_SLATE_V1"];
+	// Keep ScratchpadDir binding at the very top so the
+	// model sees it immediately and doesn't "scavenge".
+	const chunks: string[] = [
+		buildScratchpadBinding(scratchpadDir),
+		"PAI_CODEX_CLEAN_SLATE_V1",
+	];
   const excludePaiSkillInstructionSources = options?.excludePaiSkillInstructionSources === true;
 
   try {
@@ -199,11 +206,10 @@ function buildCanonicalBundle(
     // Fail-open by design: keep sentinel and scratchpad binding.
   }
 
-  chunks.push(buildScratchpadBinding(scratchpadDir));
-  return chunks.join("\n\n");
+	return chunks.join("\n\n");
 }
 
-function appendScratchpadBinding(systemMessage: string, scratchpadDir: string): string {
+function prependScratchpadBinding(systemMessage: string, scratchpadDir: string): string {
 	if (systemMessage.includes("PAI SCRATCHPAD (Binding)")) {
 		return systemMessage;
 	}
@@ -213,7 +219,7 @@ function appendScratchpadBinding(systemMessage: string, scratchpadDir: string): 
 		return binding;
 	}
 
-	return `${systemMessage}\n\n${binding}`;
+	return `${binding}\n\n${systemMessage}`;
 }
 
 export function createPromptControl({ projectDir }: { projectDir: string }): PromptControl {
@@ -483,7 +489,7 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
 		// Always inject the ScratchpadDir binding, even when model eligibility
 		// matching is not available (e.g. missing provider/model fields).
 		if (!(eligible || wasMarked)) {
-			const nextSystem0 = appendScratchpadBinding(
+			const nextSystem0 = prependScratchpadBinding(
 				typeof previousSystem[0] === "string" ? previousSystem[0] : "",
 				scratchpadDir,
 			);

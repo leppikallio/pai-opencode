@@ -1,6 +1,8 @@
 # Scratchpad Policy (Binding)
 
-ScratchpadDir is injected into context and is session/work scoped.
+ScratchpadDir is injected into context (see `PAI SCRATCHPAD (Binding)` in the system prompt) and is session/work scoped.
+
+If asked what ScratchpadDir is: answer with the injected value. Do NOT scan files.
 
 ScratchpadDir can resolve to either:
 
