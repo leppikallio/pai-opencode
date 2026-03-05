@@ -153,6 +153,14 @@ export function isPaiSkillInstructionSource(sourcePath: string): boolean {
   return canonicalSourcePathKey(sourcePath).endsWith(PAI_SKILL_PATH_KEY);
 }
 
+function buildScratchpadBinding(scratchpadDir: string): string {
+	return [
+		"PAI SCRATCHPAD (Binding)",
+		`ScratchpadDir: ${scratchpadDir}`,
+		"Authoritative: If asked, answer with ScratchpadDir; do not scan files.",
+	].join("\n");
+}
+
 function buildCanonicalBundle(
   projectDir: string,
   scratchpadDir: string,
@@ -191,8 +199,21 @@ function buildCanonicalBundle(
     // Fail-open by design: keep sentinel and scratchpad binding.
   }
 
-  chunks.push(["PAI SCRATCHPAD (Binding)", `ScratchpadDir: ${scratchpadDir}`].join("\n"));
+  chunks.push(buildScratchpadBinding(scratchpadDir));
   return chunks.join("\n\n");
+}
+
+function appendScratchpadBinding(systemMessage: string, scratchpadDir: string): string {
+	if (systemMessage.includes("PAI SCRATCHPAD (Binding)")) {
+		return systemMessage;
+	}
+
+	const binding = buildScratchpadBinding(scratchpadDir);
+	if (!systemMessage.trim()) {
+		return binding;
+	}
+
+	return `${systemMessage}\n\n${binding}`;
 }
 
 export function createPromptControl({ projectDir }: { projectDir: string }): PromptControl {
@@ -446,18 +467,34 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
 
       const out = (isRecord(output) ? output : {}) as PromptControlOutput;
       const previousSystem = out.system;
-      if (!Array.isArray(previousSystem) || !(eligible || wasMarked)) {
-        if (eligible) {
-          markSession(sessionId, nowMs);
-        }
-        pruneStale(nowMs);
-        return;
-      }
+      if (!Array.isArray(previousSystem)) {
+			if (eligible) {
+				markSession(sessionId, nowMs);
+			}
+			pruneStale(nowMs);
+			return;
+		}
 
-      const scratchpadDir = await resolvePinnedScratchpadDir({
-        sessionId,
-        nowMs,
-      });
+		const scratchpadDir = await resolvePinnedScratchpadDir({
+			sessionId,
+			nowMs,
+		});
+
+		// Always inject the ScratchpadDir binding, even when model eligibility
+		// matching is not available (e.g. missing provider/model fields).
+		if (!(eligible || wasMarked)) {
+			const nextSystem0 = appendScratchpadBinding(
+				typeof previousSystem[0] === "string" ? previousSystem[0] : "",
+				scratchpadDir,
+			);
+			out.system = [nextSystem0, ...previousSystem.slice(1)];
+
+			if (eligible) {
+				markSession(sessionId, nowMs);
+			}
+			pruneStale(nowMs);
+			return;
+		}
 
       const bundle = buildCanonicalBundle(projectDir, scratchpadDir, {
         excludePaiSkillInstructionSources: eligible,
