@@ -4,13 +4,16 @@ import os from "node:os";
 import path from "node:path";
 
 import {
+	buildDynamicContextSettingsPatch,
 	buildChildEnv,
 	findFirstAvailablePort,
 	type PaiTuiDeps,
 	type PaiTuiRunOptions,
 	type PaiTuiStateV1,
+	resolveDynamicContextMode,
 	runPaiTui,
 	sanitizePassthroughArgs,
+	writeSettingsPatch,
 	writePaiTuiState,
 } from "../../pai-tools/pai-tui";
 import { resolveServeCapableOpencodeBinary } from "../../skills/PAI/Tools/opencode-binary-resolver";
@@ -28,6 +31,7 @@ function baseOptions(
 		dir: repoRoot,
 		startPort: 4096,
 		opencodeRoot: path.join(repoRoot, ".opencode"),
+		dynamicContext: "on",
 		completionVisibleFallback: "auto",
 		bindRetries: 2,
 		writeState: true,
@@ -59,6 +63,7 @@ function makeDeps(overrides: Partial<PaiTuiDeps>): PaiTuiDeps {
 		selectFreePort: async (start) => start,
 		spawnChild: () => ({ pid: 1001, exited: Promise.resolve(0) }),
 		isPortAvailable: async () => true,
+		writeSettingsPatch: async () => undefined,
 		writeState: async () => stateRecord,
 		logInfo: () => undefined,
 		logWarn: () => undefined,
@@ -155,6 +160,71 @@ describe("pai-tui wrapper", () => {
 		});
 
 		expect(env.PAI_CODEX_CLEAN_SLATE).toBe("0");
+	});
+
+	test("dynamic context mode defaults to on", () => {
+		expect(resolveDynamicContextMode(undefined)).toBe("on");
+		expect(resolveDynamicContextMode("off")).toBe("off");
+		expect(buildDynamicContextSettingsPatch("on")).toEqual({
+			dynamicContext: true,
+		});
+		expect(buildDynamicContextSettingsPatch("off")).toEqual({
+			dynamicContext: false,
+		});
+	});
+
+	test("persists dynamic context settings patch into target runtime root", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-tui-settings-"));
+		try {
+			await fs.writeFile(
+				path.join(root, "settings.json"),
+				`${JSON.stringify({ theme: "dark", dynamicContext: true }, null, 2)}\n`,
+				"utf8",
+			);
+
+			await writeSettingsPatch(root, { dynamicContext: false });
+
+			const settings = JSON.parse(
+				await fs.readFile(path.join(root, "settings.json"), "utf8"),
+			) as Record<string, unknown>;
+			expect(settings.theme).toBe("dark");
+			expect(settings.dynamicContext).toBe(false);
+		} finally {
+			await fs.rm(root, { recursive: true, force: true });
+		}
+	});
+
+	test("does not clobber existing malformed settings.json", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-tui-settings-"));
+		const settingsPath = path.join(root, "settings.json");
+		const malformed = "{\n  \"dynamicContext\": tru\n}\n";
+
+		try {
+			await fs.writeFile(settingsPath, malformed, "utf8");
+
+			await expect(
+				writeSettingsPatch(root, { dynamicContext: false }),
+			).rejects.toThrow("Invalid JSON in existing settings.json");
+
+			expect(await fs.readFile(settingsPath, "utf8")).toBe(malformed);
+		} finally {
+			await fs.rm(root, { recursive: true, force: true });
+		}
+	});
+
+	test("fails visibly when existing settings.json is unreadable", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-tui-settings-"));
+		const settingsPath = path.join(root, "settings.json");
+
+		try {
+			await fs.mkdir(settingsPath, { recursive: true });
+
+			await expect(
+				writeSettingsPatch(root, { dynamicContext: false }),
+			).rejects.toThrow("Unable to read existing settings.json");
+		} finally {
+			await fs.rm(root, { recursive: true, force: true });
+		}
 	});
 
 	test("enables PAI_CMUX_DEBUG when CMUX_SOCKET_PATH is present", () => {
@@ -256,13 +326,36 @@ describe("pai-tui wrapper", () => {
 				await fs.readFile(latestPath, "utf8"),
 			) as Record<string, unknown>;
 
-			expect(record.v).toBe(1);
-			expect(record.wrapperPid).toBe(111);
-			expect(record.childPid).toBe(222);
-			expect(instance.v).toBe(1);
-			expect(instance.wrapperPid).toBe(111);
-			expect(instance.childPid).toBe(222);
-			expect(latest.childPid).toBe(222);
+			const expectedShape = {
+				v: 1,
+				wrapperPid: 111,
+				childPid: 222,
+				port: 5123,
+				serverUrl: "http://127.0.0.1:5123",
+				opencodeRoot: root,
+				opencodeBinary: "opencode",
+				cwd: repoRoot,
+				previousLatestChildPid: null,
+				previousLatestStale: null,
+			};
+
+			expect(record).toMatchObject(expectedShape);
+			expect(instance).toMatchObject(expectedShape);
+			expect(latest).toMatchObject(expectedShape);
+
+			for (const candidate of [
+				record,
+				instance as unknown as PaiTuiStateV1,
+				latest as unknown as PaiTuiStateV1,
+			]) {
+				expect(typeof candidate.stale).toBe("boolean");
+				expect(typeof candidate.startedAt).toBe("string");
+				expect(typeof candidate.updatedAt).toBe("string");
+				expect(Number.isNaN(Date.parse(candidate.startedAt))).toBe(false);
+				expect(Number.isNaN(Date.parse(candidate.updatedAt))).toBe(false);
+			}
+
+			expect(instance).toEqual(latest);
 		} finally {
 			await fs.rm(root, { recursive: true, force: true });
 		}
@@ -288,6 +381,7 @@ describe("pai-tui wrapper", () => {
 		expect(stdout).toContain("--opencode-root <path>");
 		expect(stdout).toContain("--completion-visible-fallback <auto|on|off>");
 		expect(stdout).toContain("--codex-clean-slate <on|off>");
+		expect(stdout).toContain("--dynamic-context <on|off>");
 		expect(stdout).toContain("--bind-retries <n>");
 		expect(stdout).toContain("--write-state <on|off>");
 		expect(stdout).toContain("Defaults:");
@@ -355,6 +449,110 @@ describe("pai-tui wrapper", () => {
 		}
 	});
 
+	test("--dynamic-context=off persists settings.json patch in target opencode root", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-tui-dctx-"));
+		const binPath = path.join(root, "opencode");
+		const runtimeRoot = path.join(root, "runtime");
+		const projectDir = await fs.mkdtemp(path.join(root, "project-"));
+		await fs.mkdir(runtimeRoot, { recursive: true });
+
+		await fs.writeFile(
+			binPath,
+			[
+				"#!/usr/bin/env node",
+				"const args = process.argv.slice(2);",
+				"if (args.includes('--version')) process.exit(0);",
+				"if (args[0] === 'serve' && args.includes('--help')) process.exit(0);",
+				"process.exit(0);",
+			].join("\n"),
+			"utf8",
+		);
+		await fs.chmod(binPath, 0o755);
+
+		const proc = Bun.spawn({
+			cmd: [
+				"bun",
+				cliPath,
+				"--opencode-root",
+				runtimeRoot,
+				"--write-state",
+				"off",
+				"--dynamic-context",
+				"off",
+			],
+			cwd: repoRoot,
+			env: {
+				...process.env,
+				PAI_OPENCODE_BIN: binPath,
+			},
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+
+		const stderr = await new Response(proc.stderr).text();
+		const exit = await proc.exited;
+
+		try {
+			expect(exit).toBe(0);
+			expect(stderr.trim()).toBe("");
+			const settings = JSON.parse(
+				await fs.readFile(path.join(runtimeRoot, "settings.json"), "utf8"),
+			) as Record<string, unknown>;
+			expect(settings.dynamicContext).toBe(false);
+
+			const loadContextBaseEnv = Object.fromEntries(
+				Object.entries(process.env).filter(
+					([key]) => !key.startsWith("CLAUDE_") && !key.startsWith("OPENCODE_"),
+				),
+			);
+
+			const runLoadContext = async (): Promise<{
+				exit: number;
+				stdout: string;
+				stderr: string;
+			}> => {
+				const loadContextProc = Bun.spawn({
+					cmd: ["bun", ".opencode/hooks/LoadContext.hook.ts"],
+					cwd: repoRoot,
+					env: {
+						...loadContextBaseEnv,
+						OPENCODE_AGENT_TYPE: "",
+						OPENCODE_PROJECT_DIR: projectDir,
+						OPENCODE_ROOT: runtimeRoot,
+					},
+					stdin: "pipe",
+					stdout: "pipe",
+					stderr: "pipe",
+				});
+
+				loadContextProc.stdin.end();
+				const loadContextStdout = await new Response(loadContextProc.stdout).text();
+				const loadContextStderr = await new Response(loadContextProc.stderr).text();
+				const loadContextExit = await loadContextProc.exited;
+
+				return {
+					exit: loadContextExit,
+					stdout: loadContextStdout,
+					stderr: loadContextStderr,
+				};
+			};
+
+			const disabled = await runLoadContext();
+			expect(disabled.exit).toBe(0);
+			expect(disabled.stdout).toBe("");
+			expect(disabled.stderr).toBe("");
+
+			await writeSettingsPatch(runtimeRoot, { dynamicContext: true });
+			const enabled = await runLoadContext();
+			expect(enabled.exit).toBe(0);
+			expect(enabled.stderr).toBe("");
+			expect(enabled.stdout).toContain("&lt;dynamic-context&gt;");
+			expect(enabled.stdout.trim().length).toBeGreaterThan(0);
+		} finally {
+			await fs.rm(root, { recursive: true, force: true });
+		}
+	});
+
 	test("rejects --bind-retries when value is missing", async () => {
 		const proc = Bun.spawn({
 			cmd: ["bun", cliPath, "--bind-retries"],
@@ -369,5 +567,54 @@ describe("pai-tui wrapper", () => {
 
 		expect(exit).toBe(1);
 		expect(stderr).toContain("--bind-retries requires a value");
+	});
+
+	test("rejects --dynamic-context when value is missing", async () => {
+		const proc = Bun.spawn({
+			cmd: ["bun", cliPath, "--dynamic-context"],
+			cwd: repoRoot,
+			env: { ...process.env },
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+
+		const stderr = await new Response(proc.stderr).text();
+		const exit = await proc.exited;
+
+		expect(exit).toBe(1);
+		expect(stderr).toContain("--dynamic-context requires a value");
+	});
+
+	test("rejects --codex-clean-slate when value is missing", async () => {
+		const proc = Bun.spawn({
+			cmd: ["bun", cliPath, "--codex-clean-slate"],
+			cwd: repoRoot,
+			env: { ...process.env },
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+
+		const stderr = await new Response(proc.stderr).text();
+		const exit = await proc.exited;
+
+		expect(exit).toBe(1);
+		expect(stderr).toContain("--codex-clean-slate requires a value");
+	});
+
+	test("rejects --dynamic-context invalid enum value", async () => {
+		const proc = Bun.spawn({
+			cmd: ["bun", cliPath, "--dynamic-context", "maybe"],
+			cwd: repoRoot,
+			env: { ...process.env },
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+
+		const stderr = await new Response(proc.stderr).text();
+		const exit = await proc.exited;
+
+		expect(exit).toBe(1);
+		expect(stderr).toContain("--dynamic-context");
+		expect(stderr).toContain("Invalid value 'maybe'");
 	});
 });

@@ -57,66 +57,158 @@ async function runLoadContextHook(args: {
   return { exitCode, stdout, stderr };
 }
 
-async function createPaiFixture(args: {
-  includeSkill: boolean;
-  contextFiles?: string[];
+async function createPaiFixture(args?: {
+  settings?: Record<string, unknown>;
+  startupFiles?: Record<string, string>;
+  includeSkill?: boolean;
 }): Promise<string> {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-load-context-hook-"));
-  const paiSkillDir = path.join(root, "skills", "PAI");
 
-  await fs.mkdir(path.join(paiSkillDir, "USER"), { recursive: true });
-  await fs.writeFile(path.join(paiSkillDir, "AISTEERINGRULES.md"), "SYSTEM RULES");
-  await fs.writeFile(path.join(paiSkillDir, "USER", "AISTEERINGRULES.md"), "USER RULES");
+  await fs.mkdir(path.join(root, "MEMORY", "RELATIONSHIP", "2026-03"), { recursive: true });
+  await fs.mkdir(path.join(root, "MEMORY", "LEARNING"), { recursive: true });
+  await fs.mkdir(path.join(root, "MEMORY", "STATE"), { recursive: true });
+  await fs.mkdir(path.join(root, "skills", "PAI"), { recursive: true });
 
-  if (args.includeSkill) {
-    await fs.writeFile(path.join(paiSkillDir, "SKILL.md"), "SKILL: TEST CONTEXT");
+  if (args?.includeSkill) {
+    await fs.writeFile(path.join(root, "skills", "PAI", "SKILL.md"), "SKILL: TEST CONTEXT\n", "utf8");
   }
 
-  if (args.contextFiles) {
-    await fs.writeFile(
-      path.join(root, "settings.json"),
-      `${JSON.stringify({ contextFiles: args.contextFiles }, null, 2)}\n`,
-    );
+  await fs.writeFile(
+    path.join(root, "MEMORY", "RELATIONSHIP", "2026-03", "2026-03-04.md"),
+    "# Relationship Notes: 2026-03-04\n\n## 10:15\n\n- B @Marvin: Session stayed focused\n",
+    "utf8",
+  );
+  await fs.writeFile(path.join(root, "MEMORY", "LEARNING", "digest.md"), "# Learning Digest\n- Keep hooks fail-open\n", "utf8");
+  await fs.writeFile(
+    path.join(root, "MEMORY", "STATE", "current-work.json"),
+    `${JSON.stringify({
+      v: "0.2",
+      updated_at: "2026-03-04T10:00:00.000Z",
+      session_id: "ses_abc",
+      sessions: {
+        ses_abc: {
+          work_dir: path.join(root, "MEMORY", "WORK", "task-alpha"),
+          started_at: "2026-03-04T09:58:00.000Z",
+        },
+      },
+    }, null, 2)}\n`,
+    "utf8",
+  );
+
+  if (args?.startupFiles) {
+    for (const [relativePath, content] of Object.entries(args.startupFiles)) {
+      const fullPath = path.join(root, relativePath);
+      await fs.mkdir(path.dirname(fullPath), { recursive: true });
+      await fs.writeFile(fullPath, content, "utf8");
+    }
+  }
+
+  if (args?.settings) {
+    await fs.writeFile(path.join(root, "settings.json"), `${JSON.stringify(args.settings, null, 2)}\n`, "utf8");
   }
 
   return root;
 }
 
 describe("LoadContext hook reminder output", () => {
-  test("outputs <system-reminder> with SKILL content", async () => {
-    const fixtureDir = await createPaiFixture({ includeSkill: true });
-
-    try {
-      const result = await runLoadContextHook({ paiDir: fixtureDir });
-
-      expect(result.exitCode).toBe(0);
-      expect(result.stderr).toBe("");
-      expect(result.stdout.startsWith("<system-reminder>\n")).toBe(true);
-      expect(result.stdout.endsWith("</system-reminder>\n")).toBe(true);
-      expect(countOccurrences(result.stdout, "<system-reminder>")).toBe(1);
-      expect(countOccurrences(result.stdout, "</system-reminder>")).toBe(1);
-      expect(result.stdout).toContain("SKILL: TEST CONTEXT");
-    } finally {
-      await fs.rm(fixtureDir, { recursive: true, force: true });
-    }
-  });
-
-  test("fails when SKILL.md is missing", async () => {
+  test("outputs dynamic summaries by default and does not require SKILL.md", async () => {
     const fixtureDir = await createPaiFixture({ includeSkill: false });
 
     try {
       const result = await runLoadContextHook({ paiDir: fixtureDir });
 
-      expect(result.exitCode).not.toBe(0);
-      expect(result.stderr).toContain("skills/PAI/SKILL.md");
-      expect(result.stdout).toBe("");
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout.startsWith("<system-reminder>\n")).toBe(true);
+      expect(result.stdout.endsWith("</system-reminder>\n")).toBe(true);
+      expect(result.stdout).toContain("Session stayed focused");
+      expect(result.stdout).toContain("Keep hooks fail-open");
+      expect(result.stdout).toContain("ses_abc");
+      expect(result.stdout).toContain("task-alpha");
+      expect(result.stdout).not.toContain("SKILL: TEST CONTEXT");
+      expect(result.stderr).toBe("");
     } finally {
       await fs.rm(fixtureDir, { recursive: true, force: true });
     }
   });
 
-  test("skips context output for subagent sessions", async () => {
-    const fixtureDir = await createPaiFixture({ includeSkill: true });
+  test("ignores legacy settings.json.contextFiles for SessionStart injection", async () => {
+    const fixtureDir = await createPaiFixture({
+      includeSkill: true,
+      settings: {
+        contextFiles: ["skills/PAI/SKILL.md"],
+      },
+    });
+
+    try {
+      const result = await runLoadContextHook({ paiDir: fixtureDir });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Session stayed focused");
+      expect(result.stdout).toContain("Keep hooks fail-open");
+      expect(result.stdout).not.toContain("SKILL: TEST CONTEXT");
+      expect(result.stderr).toContain("settings.json.contextFiles is legacy and ignored");
+    } finally {
+      await fs.rm(fixtureDir, { recursive: true, force: true });
+    }
+  });
+
+  test("loadAtStartup.files validates paths and dedupes entries", async () => {
+    const fixtureDir = await createPaiFixture({
+      startupFiles: {
+        "docs/extra.md": "EXTRA CONTEXT BLOCK\n",
+      },
+      settings: {
+        loadAtStartup: {
+          files: [
+            "docs/extra.md",
+            "docs/extra.md",
+            "../secrets.md",
+            "/etc/passwd",
+            42,
+          ],
+        },
+      },
+    });
+
+    try {
+      const result = await runLoadContextHook({ paiDir: fixtureDir });
+
+      expect(result.exitCode).toBe(0);
+      expect(countOccurrences(result.stdout, "EXTRA CONTEXT BLOCK")).toBe(1);
+      expect(result.stderr).toContain("Duplicate loadAtStartup.files entry dropped: docs/extra.md");
+      expect(result.stderr).toContain("Ignoring loadAtStartup.files entry (traversal): ../secrets.md");
+      expect(result.stderr).toContain("Ignoring loadAtStartup.files entry (absolute path): /etc/passwd");
+      expect(result.stderr).toContain("Ignoring loadAtStartup.files entry: expected string");
+    } finally {
+      await fs.rm(fixtureDir, { recursive: true, force: true });
+    }
+  });
+
+  test("missing optional loadAtStartup file warns and continues (fail-open)", async () => {
+    const fixtureDir = await createPaiFixture({
+      startupFiles: {
+        "docs/exists.md": "EXISTS\n",
+      },
+      settings: {
+        loadAtStartup: {
+          files: ["docs/exists.md", "docs/missing.md"],
+        },
+      },
+    });
+
+    try {
+      const result = await runLoadContextHook({ paiDir: fixtureDir });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("EXISTS");
+      expect(result.stderr).toContain("Missing optional context file: docs/missing.md");
+    } finally {
+      await fs.rm(fixtureDir, { recursive: true, force: true });
+    }
+  });
+
+  test("ignores CLAUDE_* subagent markers and still loads context", async () => {
+    const fixtureDir = await createPaiFixture();
 
     try {
       const result = await runLoadContextHook({
@@ -125,99 +217,25 @@ describe("LoadContext hook reminder output", () => {
       });
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toBe("");
-      expect(result.stderr).toBe("");
+      expect(result.stdout).toContain("Session stayed focused");
+      expect(result.stderr).toContain("Ignoring legacy CLAUDE_* subagent markers");
     } finally {
       await fs.rm(fixtureDir, { recursive: true, force: true });
     }
   });
 
-  test("uses settings.json.contextFiles when provided", async () => {
-    const fixtureDir = await createPaiFixture({
-      includeSkill: true,
-      contextFiles: ["skills/PAI/SKILL.md"],
-    });
-
-    try {
-      const result = await runLoadContextHook({ paiDir: fixtureDir });
-
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain("SKILL: TEST CONTEXT");
-      expect(result.stdout).not.toContain("SYSTEM RULES");
-      expect(result.stdout).not.toContain("USER RULES");
-    } finally {
-      await fs.rm(fixtureDir, { recursive: true, force: true });
-    }
-  });
-
-  test("fails when settings.json.contextFiles contains absolute path", async () => {
-    const fixtureDir = await createPaiFixture({
-      includeSkill: true,
-      contextFiles: ["/etc/passwd"],
-    });
-
-    try {
-      const result = await runLoadContextHook({ paiDir: fixtureDir });
-
-      expect(result.exitCode).not.toBe(0);
-      expect(result.stdout).toBe("");
-      expect(result.stderr).toContain("Invalid settings.json.contextFiles entry (absolute path)");
-    } finally {
-      await fs.rm(fixtureDir, { recursive: true, force: true });
-    }
-  });
-
-  test("fails when settings.json.contextFiles contains traversal path", async () => {
-    const fixtureDir = await createPaiFixture({
-      includeSkill: true,
-      contextFiles: ["../secrets"],
-    });
-
-    try {
-      const result = await runLoadContextHook({ paiDir: fixtureDir });
-
-      expect(result.exitCode).not.toBe(0);
-      expect(result.stdout).toBe("");
-      expect(result.stderr).toContain("Invalid settings.json.contextFiles entry (traversal)");
-    } finally {
-      await fs.rm(fixtureDir, { recursive: true, force: true });
-    }
-  });
-
-  test("fails when configured context file is missing", async () => {
-    const fixtureDir = await createPaiFixture({
-      includeSkill: true,
-      contextFiles: ["skills/PAI/SKILL.md", "skills/PAI/MISSING.md"],
-    });
-
-    try {
-      const result = await runLoadContextHook({ paiDir: fixtureDir });
-
-      expect(result.exitCode).not.toBe(0);
-      expect(result.stdout).toBe("");
-      expect(result.stderr).toContain("Missing configured context file(s): skills/PAI/MISSING.md");
-      expect(result.stderr).toContain("PAI_ALLOW_MISSING_CONTEXT_FILES=1");
-    } finally {
-      await fs.rm(fixtureDir, { recursive: true, force: true });
-    }
-  });
-
-  test("allows missing configured context file when env override is set", async () => {
-    const fixtureDir = await createPaiFixture({
-      includeSkill: true,
-      contextFiles: ["skills/PAI/SKILL.md", "skills/PAI/MISSING.md"],
-    });
+  test("skips context output for OPENCODE subagent sessions", async () => {
+    const fixtureDir = await createPaiFixture();
 
     try {
       const result = await runLoadContextHook({
         paiDir: fixtureDir,
-        env: { PAI_ALLOW_MISSING_CONTEXT_FILES: "1" },
+        env: { OPENCODE_AGENT_TYPE: "Subagent" },
       });
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain("SKILL: TEST CONTEXT");
-      expect(result.stderr).toContain("Missing configured context file(s): skills/PAI/MISSING.md");
-      expect(result.stderr).toContain("PAI_ALLOW_MISSING_CONTEXT_FILES=1");
+      expect(result.stdout).toBe("");
+      expect(result.stderr).toBe("");
     } finally {
       await fs.rm(fixtureDir, { recursive: true, force: true });
     }

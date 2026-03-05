@@ -13,18 +13,27 @@ function isVersionCheckDisabled(): boolean {
   return process.env.PAI_DISABLE_VERSION_CHECK === "1" || process.env.PAI_NO_NETWORK === "1";
 }
 
+function warn(message: string): void {
+  process.stderr.write(`${message}\n`);
+}
+
 function isSubagent(): boolean {
-  const agentType = (process.env.OPENCODE_AGENT_TYPE ?? process.env.CLAUDE_AGENT_TYPE ?? "").trim();
-  const projectDir = (process.env.OPENCODE_PROJECT_DIR ?? process.env.CLAUDE_PROJECT_DIR ?? "").trim();
+  const agentType = (process.env.OPENCODE_AGENT_TYPE ?? "").trim();
+  const projectDir = (process.env.OPENCODE_PROJECT_DIR ?? "").trim();
 
   if (agentType.length > 0) {
     return true;
   }
 
-  // Claude Code uses "/.claude/Agents/"; keep this for compatibility.
-  // OpenCode does not currently guarantee an agent project dir shape, so we
-  // include a conservative opencode marker as well.
-  return projectDir.includes("/.claude/Agents/") || projectDir.includes("/.opencode/Agents/");
+  if (projectDir.includes("/.opencode/Agents/")) {
+    warn("[CheckVersion] Ignoring uppercase agent marker; use /.opencode/agents/");
+  }
+
+  if ((process.env.CLAUDE_AGENT_TYPE ?? "").trim().length > 0 || (process.env.CLAUDE_PROJECT_DIR ?? "").trim().length > 0) {
+    warn("[CheckVersion] Ignoring legacy CLAUDE_* subagent markers");
+  }
+
+  return projectDir.includes("/.opencode/agents/");
 }
 
 async function readCommandStdout(command: string[]): Promise<string> {

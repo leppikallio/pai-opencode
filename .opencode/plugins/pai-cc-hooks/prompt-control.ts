@@ -1,5 +1,7 @@
 import { loadAgentsStack, loadConfiguredInstructions } from "../handlers/prompt-sources";
 import { getPaiRuntimeInfo } from "../lib/pai-runtime";
+import * as os from "node:os";
+import * as path from "node:path";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -89,9 +91,43 @@ function normalizeChunk(content: string): string {
   return content.trim();
 }
 
-function buildCanonicalBundle(projectDir: string): string {
+function expandTildePath(value: string): string {
+  if (value === "~") {
+    return os.homedir();
+  }
+
+  if (value.startsWith("~/") || value.startsWith("~\\")) {
+    return path.join(os.homedir(), value.slice(2));
+  }
+
+  return value;
+}
+
+export function canonicalSourcePathKey(rawPath: string): string {
+  const trimmed = rawPath.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const expanded = expandTildePath(trimmed);
+  const withNativeSeparators = expanded.replace(/[\\/]+/g, path.sep);
+  const resolved = path.resolve(withNativeSeparators);
+  return resolved.replace(/\\/g, "/").replace(/\/+/g, "/").toLowerCase();
+}
+
+const PAI_SKILL_PATH_KEY = "/skills/pai/skill.md";
+
+export function isPaiSkillInstructionSource(sourcePath: string): boolean {
+  return canonicalSourcePathKey(sourcePath).endsWith(PAI_SKILL_PATH_KEY);
+}
+
+function buildCanonicalBundle(
+  projectDir: string,
+  options?: { excludePaiSkillInstructionSources?: boolean },
+): string {
   const chunks: string[] = ["PAI_CODEX_CLEAN_SLATE_V1"];
   let scratchpadDir = "~/.config/opencode/scratchpad";
+  const excludePaiSkillInstructionSources = options?.excludePaiSkillInstructionSources === true;
 
   try {
     const runtime = getPaiRuntimeInfo();
@@ -100,6 +136,10 @@ function buildCanonicalBundle(projectDir: string): string {
     const agents = loadAgentsStack({ paiDir: runtime.paiDir, projectDir });
 
     for (const source of configuredInstructions.sources) {
+      if (excludePaiSkillInstructionSources && isPaiSkillInstructionSource(source.path)) {
+        continue;
+      }
+
       const text = normalizeChunk(source.content);
       if (text) {
         chunks.push(text);
@@ -107,6 +147,10 @@ function buildCanonicalBundle(projectDir: string): string {
     }
 
     for (const source of agents.sources) {
+      if (excludePaiSkillInstructionSources && isPaiSkillInstructionSource(source.path)) {
+        continue;
+      }
+
       const text = normalizeChunk(source.content);
       if (text) {
         chunks.push(text);
@@ -211,7 +255,9 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
         return;
       }
 
-      const bundle = buildCanonicalBundle(projectDir);
+      const bundle = buildCanonicalBundle(projectDir, {
+        excludePaiSkillInstructionSources: eligible,
+      });
       out.system = [bundle, ...previousSystem.slice(1)];
 
       markSession(sessionId, nowMs);
