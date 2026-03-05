@@ -1,7 +1,14 @@
 import { loadAgentsStack, loadConfiguredInstructions } from "../handlers/prompt-sources";
+import {
+  ensureDir,
+  generateSessionId,
+  getCurrentWorkPathForSession,
+} from "../lib/paths";
 import { getPaiRuntimeInfo } from "../lib/pai-runtime";
+import { ensureScratchpadSession } from "../lib/scratchpad";
 import * as os from "node:os";
 import * as path from "node:path";
+import { getSessionRootId } from "./shared/session-root";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -26,6 +33,7 @@ type PromptControl = {
 
 const SESSION_TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_TRACKED_SESSIONS = 2048;
+const SAFE_FALLBACK_SESSION_ID_PREFIX = "session_unknown_";
 function isRecord(value: unknown): value is UnknownRecord {
   return typeof value === "object" && value !== null;
 }
@@ -58,6 +66,25 @@ function getSessionId(input: unknown): string {
   const rec = (isRecord(input) ? input : {}) as PromptControlInput;
   const sessionId = rec.sessionID ?? rec.sessionId;
   return typeof sessionId === "string" ? sessionId : "";
+}
+
+function normalizeSessionId(sessionIdRaw: string): string {
+  const trimmed = sessionIdRaw.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  return trimmed.replace(/[^A-Za-z0-9_-]/g, "");
+}
+
+function getResolvedRootSessionId(sessionIdRaw: string, fallbackRootSessionId: string): string {
+  const sessionId = normalizeSessionId(sessionIdRaw);
+  if (!sessionId) {
+    return fallbackRootSessionId;
+  }
+
+  const mappedRootSessionId = normalizeSessionId(getSessionRootId(sessionId) ?? "");
+  return mappedRootSessionId || sessionId;
 }
 
 function isEligible(input: unknown): boolean {
@@ -123,15 +150,14 @@ export function isPaiSkillInstructionSource(sourcePath: string): boolean {
 
 function buildCanonicalBundle(
   projectDir: string,
+  scratchpadDir: string,
   options?: { excludePaiSkillInstructionSources?: boolean },
 ): string {
   const chunks: string[] = ["PAI_CODEX_CLEAN_SLATE_V1"];
-  let scratchpadDir = "~/.config/opencode/scratchpad";
   const excludePaiSkillInstructionSources = options?.excludePaiSkillInstructionSources === true;
 
   try {
     const runtime = getPaiRuntimeInfo();
-    scratchpadDir = `${runtime.paiDir}/scratchpad`;
     const configuredInstructions = loadConfiguredInstructions(runtime.opencodeConfigPath);
     const agents = loadAgentsStack({ paiDir: runtime.paiDir, projectDir });
 
@@ -166,6 +192,45 @@ function buildCanonicalBundle(
 
 export function createPromptControl({ projectDir }: { projectDir: string }): PromptControl {
   const codexSessions = new Map<string, number>();
+  const fallbackRootSessionId = `${SAFE_FALLBACK_SESSION_ID_PREFIX}${generateSessionId()}`;
+  const scratchpadByRoot = new Map<string, string>();
+  const scratchpadBySession = new Map<string, string>();
+  const rootBySession = new Map<string, string>();
+  const scratchpadTouchedAt = new Map<string, number>();
+
+  const trimScratchpadToBound = (): void => {
+    while (scratchpadTouchedAt.size > MAX_TRACKED_SESSIONS) {
+      let oldestSessionId = "";
+      let oldestTimestamp = Number.POSITIVE_INFINITY;
+      for (const [sessionId, timestamp] of scratchpadTouchedAt.entries()) {
+        if (timestamp < oldestTimestamp) {
+          oldestTimestamp = timestamp;
+          oldestSessionId = sessionId;
+        }
+      }
+
+      if (!oldestSessionId) {
+        break;
+      }
+
+      scratchpadTouchedAt.delete(oldestSessionId);
+      scratchpadBySession.delete(oldestSessionId);
+      rootBySession.delete(oldestSessionId);
+    }
+  };
+
+  const pruneRootCache = (): void => {
+    const activeRoots = new Set<string>();
+    for (const rootSessionId of rootBySession.values()) {
+      activeRoots.add(rootSessionId);
+    }
+
+    for (const rootSessionId of scratchpadByRoot.keys()) {
+      if (!activeRoots.has(rootSessionId)) {
+        scratchpadByRoot.delete(rootSessionId);
+      }
+    }
+  };
 
   const pruneStale = (nowMs: number = Date.now()): void => {
     for (const [sessionId, timestamp] of codexSessions.entries()) {
@@ -173,6 +238,16 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
         codexSessions.delete(sessionId);
       }
     }
+
+    for (const [sessionId, timestamp] of scratchpadTouchedAt.entries()) {
+      if (nowMs - timestamp > SESSION_TTL_MS) {
+        scratchpadTouchedAt.delete(sessionId);
+        scratchpadBySession.delete(sessionId);
+        rootBySession.delete(sessionId);
+      }
+    }
+
+    pruneRootCache();
   };
 
   const trimToBound = (): void => {
@@ -196,20 +271,91 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
   };
 
   const markSession = (sessionId: string, nowMs: number): void => {
-    if (!sessionId) {
+    const normalizedSessionId = normalizeSessionId(sessionId);
+    if (!normalizedSessionId) {
       return;
     }
 
-    codexSessions.set(sessionId, nowMs);
+    codexSessions.set(normalizedSessionId, nowMs);
     trimToBound();
   };
 
-  const onSessionDeleted = (sessionId: string): void => {
-    if (!sessionId) {
+  const markScratchpadSession = (args: {
+    sessionId: string;
+    rootSessionId: string;
+    scratchpadDir: string;
+    nowMs: number;
+  }): void => {
+    const normalizedSessionId = normalizeSessionId(args.sessionId);
+    if (!normalizedSessionId) {
       return;
     }
 
-    codexSessions.delete(sessionId);
+    scratchpadBySession.set(normalizedSessionId, args.scratchpadDir);
+	rootBySession.set(normalizedSessionId, args.rootSessionId);
+	scratchpadTouchedAt.set(normalizedSessionId, args.nowMs);
+	trimScratchpadToBound();
+  };
+
+  const resolveScratchpadDirForRoot = async (rootSessionId: string): Promise<string> => {
+    const workDir = await getCurrentWorkPathForSession(rootSessionId);
+    if (workDir) {
+      const scratchDir = path.join(workDir, "scratch", rootSessionId);
+      await ensureDir(scratchDir);
+      return scratchDir;
+    }
+
+    const scratchpad = await ensureScratchpadSession(rootSessionId);
+    return scratchpad.dir;
+  };
+
+  const resolvePinnedScratchpadDir = async (args: {
+    sessionId: string;
+    nowMs: number;
+  }): Promise<string> => {
+    const normalizedSessionId = normalizeSessionId(args.sessionId);
+    if (normalizedSessionId) {
+      const existingSessionScratchpad = scratchpadBySession.get(normalizedSessionId);
+      if (existingSessionScratchpad) {
+        scratchpadTouchedAt.set(normalizedSessionId, args.nowMs);
+        return existingSessionScratchpad;
+      }
+    }
+
+	const rootSessionId = getResolvedRootSessionId(args.sessionId, fallbackRootSessionId);
+    const existingRootScratchpad = scratchpadByRoot.get(rootSessionId);
+    if (existingRootScratchpad) {
+      markScratchpadSession({
+        sessionId: args.sessionId,
+        rootSessionId,
+        scratchpadDir: existingRootScratchpad,
+        nowMs: args.nowMs,
+      });
+      return existingRootScratchpad;
+    }
+
+    const scratchpadDir = await resolveScratchpadDirForRoot(rootSessionId);
+    scratchpadByRoot.set(rootSessionId, scratchpadDir);
+    markScratchpadSession({
+      sessionId: args.sessionId,
+      rootSessionId,
+      scratchpadDir,
+      nowMs: args.nowMs,
+    });
+    return scratchpadDir;
+  };
+
+  const onSessionDeleted = (sessionId: string): void => {
+    const normalizedSessionId = normalizeSessionId(sessionId);
+    if (!normalizedSessionId) {
+      return;
+    }
+
+    codexSessions.delete(normalizedSessionId);
+    scratchpadBySession.delete(normalizedSessionId);
+    scratchpadTouchedAt.delete(normalizedSessionId);
+    rootBySession.delete(normalizedSessionId);
+    pruneRootCache();
   };
 
   const chatParams = async (input: unknown, output: unknown): Promise<void> => {
@@ -243,7 +389,8 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
       const nowMs = Date.now();
       const sessionId = getSessionId(input);
       const eligible = isEligible(input);
-      const wasMarked = !!sessionId && codexSessions.has(sessionId);
+      const normalizedSessionId = normalizeSessionId(sessionId);
+      const wasMarked = !!normalizedSessionId && codexSessions.has(normalizedSessionId);
 
       const out = (isRecord(output) ? output : {}) as PromptControlOutput;
       const previousSystem = out.system;
@@ -255,7 +402,12 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
         return;
       }
 
-      const bundle = buildCanonicalBundle(projectDir, {
+      const scratchpadDir = await resolvePinnedScratchpadDir({
+        sessionId,
+        nowMs,
+      });
+
+      const bundle = buildCanonicalBundle(projectDir, scratchpadDir, {
         excludePaiSkillInstructionSources: eligible,
       });
       out.system = [bundle, ...previousSystem.slice(1)];

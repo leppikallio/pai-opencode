@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
 	chmodSync,
 	existsSync,
@@ -13,6 +13,10 @@ import {
 	__resetPaiCcHooksSettingsCacheForTests,
 	createPaiClaudeHooks,
 } from "../../plugins/pai-cc-hooks/hook";
+import {
+	__resetSessionRootRegistryForTests,
+	getSessionRootId,
+} from "../../plugins/pai-cc-hooks/shared/session-root";
 
 function writeJson(filePath: string, value: unknown): void {
 	writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
@@ -28,6 +32,14 @@ function restoreEnv(key: string, previousValue: string | undefined): void {
 }
 
 describe("pai-cc-hooks SessionStart stdout injection", () => {
+	beforeEach(() => {
+		__resetSessionRootRegistryForTests();
+	});
+
+	afterEach(() => {
+		__resetSessionRootRegistryForTests();
+	});
+
 	test("injects only LoadContext stdout for root SessionStart", async () => {
 		const tmpRoot = mkdtempSync(
 			path.join(os.tmpdir(), "pai-cc-hooks-session-start-inject-"),
@@ -234,6 +246,133 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 			expect(promptCalls).toHaveLength(0);
 			expect(existsSync(loadContextMarker)).toBe(false);
 			expect(existsSync(checkVersionMarker)).toBe(true);
+		} finally {
+			restoreEnv("PAI_CC_HOOKS_CONFIG_ROOT", prevConfigRoot);
+			rmSync(tmpRoot, { recursive: true, force: true });
+			__resetPaiCcHooksSettingsCacheForTests();
+		}
+	});
+
+	test("records root mapping before metadata await and clears it on delete", async () => {
+		const tmpRoot = mkdtempSync(
+			path.join(os.tmpdir(), "pai-cc-hooks-session-root-map-"),
+		);
+		const prevConfigRoot = process.env.PAI_CC_HOOKS_CONFIG_ROOT;
+
+		try {
+			process.env.PAI_CC_HOOKS_CONFIG_ROOT = tmpRoot;
+			writeJson(path.join(tmpRoot, "settings.json"), {
+				env: {
+					PAI_DIR: tmpRoot,
+				},
+				hooks: {
+					SessionStart: [],
+				},
+			});
+
+			__resetPaiCcHooksSettingsCacheForTests();
+
+			const hooks = createPaiClaudeHooks({
+				ctx: {
+					client: {
+						session: {
+							get: async () => {
+								expect(getSessionRootId("ses_child")).toBe("ses_parent");
+								return { info: { parentID: "ses_parent" } };
+							},
+						},
+					},
+				},
+			});
+
+			await hooks.event({
+				event: {
+					type: "session.created",
+					properties: {
+						sessionID: "ses_child",
+						info: {
+							parentID: "ses_parent",
+						},
+					},
+				},
+			});
+
+			expect(getSessionRootId("ses_child")).toBe("ses_parent");
+
+			await hooks.event({
+				event: {
+					type: "session.deleted",
+					properties: {
+						sessionID: "ses_child",
+						info: {
+							parentID: "ses_parent",
+						},
+					},
+				},
+			});
+
+			expect(getSessionRootId("ses_child")).toBeUndefined();
+		} finally {
+			restoreEnv("PAI_CC_HOOKS_CONFIG_ROOT", prevConfigRoot);
+			rmSync(tmpRoot, { recursive: true, force: true });
+			__resetPaiCcHooksSettingsCacheForTests();
+		}
+	});
+
+	test("inherits top-level root for nested child sessions", async () => {
+		const tmpRoot = mkdtempSync(
+			path.join(os.tmpdir(), "pai-cc-hooks-session-root-nested-"),
+		);
+		const prevConfigRoot = process.env.PAI_CC_HOOKS_CONFIG_ROOT;
+
+		try {
+			process.env.PAI_CC_HOOKS_CONFIG_ROOT = tmpRoot;
+			writeJson(path.join(tmpRoot, "settings.json"), {
+				env: {
+					PAI_DIR: tmpRoot,
+				},
+				hooks: {
+					SessionStart: [],
+				},
+			});
+
+			__resetPaiCcHooksSettingsCacheForTests();
+
+			const hooks = createPaiClaudeHooks({
+				ctx: {
+					client: {
+						session: {
+							get: async () => ({ info: {} }),
+						},
+					},
+				},
+			});
+
+			await hooks.event({
+				event: {
+					type: "session.created",
+					properties: {
+						sessionID: "ses_child",
+						info: {
+							parentID: "ses_root",
+						},
+					},
+				},
+			});
+
+			await hooks.event({
+				event: {
+					type: "session.created",
+					properties: {
+						sessionID: "ses_grandchild",
+						info: {
+							parentID: "ses_child",
+						},
+					},
+				},
+			});
+
+			expect(getSessionRootId("ses_grandchild")).toBe("ses_root");
 		} finally {
 			restoreEnv("PAI_CC_HOOKS_CONFIG_ROOT", prevConfigRoot);
 			rmSync(tmpRoot, { recursive: true, force: true });

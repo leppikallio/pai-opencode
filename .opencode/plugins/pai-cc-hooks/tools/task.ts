@@ -1,6 +1,11 @@
 import { type ToolContext, tool } from "@opencode-ai/plugin";
 
 import {
+	getSessionRootId,
+	setSessionRootId,
+} from "../shared/session-root";
+
+import {
 	type RecordBackgroundTaskLaunchArgs,
 	type RecordBackgroundTaskLaunchErrorArgs,
 	recordBackgroundTaskLaunch as recordBackgroundTaskLaunchDefault,
@@ -192,9 +197,9 @@ export function createPaiTaskTool(input: {
 			task_id: tool.schema.string().optional(),
 			run_in_background: tool.schema.boolean().optional(),
 		},
-		async execute(args: TaskToolArgs, ctx: ToolContext): Promise<string> {
-			if (args.run_in_background === true) {
-				const parentSessionId = getContextSessionId(ctx);
+			async execute(args: TaskToolArgs, ctx: ToolContext): Promise<string> {
+				if (args.run_in_background === true) {
+					const parentSessionId = getContextSessionId(ctx);
 				if (!parentSessionId) {
 					throw new Error(
 						"PAI task override: ctx.sessionID is required for run_in_background=true",
@@ -226,12 +231,16 @@ export function createPaiTaskTool(input: {
 					},
 				});
 
-				const childSessionId = extractSessionId(childCreateResult);
-				if (!childSessionId) {
-					throw new Error(
-						"PAI task override: child session creation returned no id",
-					);
-				}
+					const childSessionId = extractSessionId(childCreateResult);
+					if (!childSessionId) {
+						throw new Error(
+							"PAI task override: child session creation returned no id",
+						);
+					}
+
+					const rootSessionId =
+						getSessionRootId(parentSessionId) ?? parentSessionId;
+					setSessionRootId(childSessionId, rootSessionId);
 
 				const taskId = buildBackgroundTaskId(childSessionId);
 
@@ -290,11 +299,17 @@ export function createPaiTaskTool(input: {
 				},
 			});
 
-			const childSessionId = await resolveChildSessionId(args, client, {
-				parentSessionId: getContextSessionId(ctx),
-				directory: getContextDirectory(ctx),
-			});
-			const session = client.session;
+				const childSessionId = await resolveChildSessionId(args, client, {
+					parentSessionId: getContextSessionId(ctx),
+					directory: getContextDirectory(ctx),
+				});
+				const parentSessionId = getContextSessionId(ctx);
+				if (parentSessionId) {
+					const rootSessionId =
+						getSessionRootId(parentSessionId) ?? parentSessionId;
+					setSessionRootId(childSessionId, rootSessionId);
+				}
+				const session = client.session;
 			if (!session?.prompt) {
 				throw new Error(
 					"PAI task override: client.session.prompt is unavailable",
