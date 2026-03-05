@@ -26,13 +26,19 @@ function extractScratchpadDir(bundle: string): string {
 	return match?.[1]?.trim() ?? "";
 }
 
-function createGpt5Input(sessionID: string): unknown {
-	return {
-		sessionID,
-		provider: { id: "openai" },
-		model: { providerID: "openai", id: "gpt-5", api: { id: "gpt-5" } },
-	};
-}
+	function createGpt5Input(sessionID: string): unknown {
+		return {
+			sessionID,
+			provider: { id: "openai" },
+			model: { providerID: "openai", id: "gpt-5", api: { id: "gpt-5" } },
+		};
+	}
+
+	function createUnknownModelInput(sessionID: string): unknown {
+		return {
+			sessionID,
+		};
+	}
 
 function restoreEnv(key: string, value: string | undefined): void {
 	if (value === undefined) {
@@ -260,6 +266,50 @@ describe("prompt-control module (Task 1 RED)", () => {
 
 			expect(scratchpadDir).toBe(expected);
 			await expect(fs.stat(expected)).resolves.toBeTruthy();
+		} finally {
+			restoreEnv("XDG_CONFIG_HOME", previousXdg);
+			restoreEnv("OPENCODE_ROOT", previousOpenCodeRoot);
+			__resetSessionRootRegistryForTests();
+			await fs.rm(xdgHome, { recursive: true, force: true });
+			await fs.rm(openCodeRoot, { recursive: true, force: true });
+			await fs.rm(projectDir, { recursive: true, force: true });
+		}
+	});
+
+	test("injects ScratchpadDir binding even when provider/model missing", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const xdgHome = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-xdg-missing-model-"),
+		);
+		const openCodeRoot = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-root-missing-model-"),
+		);
+		const projectDir = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-project-missing-model-"),
+		);
+		const previousXdg = process.env.XDG_CONFIG_HOME;
+		const previousOpenCodeRoot = process.env.OPENCODE_ROOT;
+
+		__resetSessionRootRegistryForTests();
+		try {
+			process.env.XDG_CONFIG_HOME = xdgHome;
+			process.env.OPENCODE_ROOT = openCodeRoot;
+
+			const promptControl = module.createPromptControl({ projectDir }) as PromptControl;
+			const output: { system: unknown } = { system: ["ORIGINAL"] };
+			await promptControl.systemTransform(createUnknownModelInput("ses_root"), output);
+
+			const bundle = (output.system as string[])[0] ?? "";
+			expect(bundle).toContain("PAI SCRATCHPAD (Binding)");
+			const scratchpadDir = extractScratchpadDir(bundle);
+			const expected = path.join(
+				xdgHome,
+				"opencode",
+				"scratchpad",
+				"sessions",
+				"ses_root",
+			);
+			expect(scratchpadDir).toBe(expected);
 		} finally {
 			restoreEnv("XDG_CONFIG_HOME", previousXdg);
 			restoreEnv("OPENCODE_ROOT", previousOpenCodeRoot);
