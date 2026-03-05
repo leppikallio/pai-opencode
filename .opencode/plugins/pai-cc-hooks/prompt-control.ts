@@ -77,10 +77,14 @@ function normalizeSessionId(sessionIdRaw: string): string {
   return trimmed.replace(/[^A-Za-z0-9_-]/g, "");
 }
 
-function getResolvedRootSessionId(sessionIdRaw: string, fallbackRootSessionId: string): string {
+function createSyntheticRootSessionId(): string {
+  return `${SAFE_FALLBACK_SESSION_ID_PREFIX}${generateSessionId()}`;
+}
+
+function getResolvedRootSessionId(sessionIdRaw: string): string {
   const sessionId = normalizeSessionId(sessionIdRaw);
   if (!sessionId) {
-    return fallbackRootSessionId;
+    return "";
   }
 
   const mappedRootSessionId = normalizeSessionId(getSessionRootId(sessionId) ?? "");
@@ -192,7 +196,6 @@ function buildCanonicalBundle(
 
 export function createPromptControl({ projectDir }: { projectDir: string }): PromptControl {
   const codexSessions = new Map<string, number>();
-  const fallbackRootSessionId = `${SAFE_FALLBACK_SESSION_ID_PREFIX}${generateSessionId()}`;
   const scratchpadByRoot = new Map<string, string>();
   const scratchpadBySession = new Map<string, string>();
   const rootBySession = new Map<string, string>();
@@ -309,11 +312,20 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
     return scratchpad.dir;
   };
 
-  const resolvePinnedScratchpadDir = async (args: {
-    sessionId: string;
-    nowMs: number;
-  }): Promise<string> => {
-    const normalizedSessionId = normalizeSessionId(args.sessionId);
+	const resolvePinnedScratchpadDir = async (args: {
+		sessionId: string;
+		nowMs: number;
+	}): Promise<string> => {
+		const normalizedSessionId = normalizeSessionId(args.sessionId);
+		if (!normalizedSessionId) {
+			// D1 Option A: missing/empty session ids must never co-mingle.
+			// Use a unique synthetic root id per call and bypass all caches.
+			const scratchpad = await ensureScratchpadSession(
+				createSyntheticRootSessionId(),
+			);
+			return scratchpad.dir;
+		}
+
     if (normalizedSessionId) {
       const existingSessionScratchpad = scratchpadBySession.get(normalizedSessionId);
       if (existingSessionScratchpad) {
@@ -322,7 +334,7 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
       }
     }
 
-	const rootSessionId = getResolvedRootSessionId(args.sessionId, fallbackRootSessionId);
+    const rootSessionId = getResolvedRootSessionId(args.sessionId);
     const existingRootScratchpad = scratchpadByRoot.get(rootSessionId);
     if (existingRootScratchpad) {
       markScratchpadSession({
