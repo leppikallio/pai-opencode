@@ -437,16 +437,26 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
 
       const out = (isRecord(output) ? output : {}) as PromptControlOutput;
       const options = getRecord(out, "options");
-      if (!options || !eligible) {
+      if (!options) {
+        return;
+      }
+
+      const scratchpadDir = await resolvePinnedScratchpadDir({
+        sessionId,
+        nowMs,
+      });
+
+      const binding = buildScratchpadBinding(scratchpadDir);
+      if (eligible) {
+        options.instructions = `${binding}\n\n${buildOverrideStub()}`;
         return;
       }
 
       const existingInstructions = getString(options, "instructions");
-      if (!existingInstructions.trim()) {
-        return;
-      }
-
-      options.instructions = buildOverrideStub();
+      options.instructions = prependScratchpadBinding(
+        existingInstructions,
+        scratchpadDir,
+      );
     } catch {
       // Fail-open by design.
     }

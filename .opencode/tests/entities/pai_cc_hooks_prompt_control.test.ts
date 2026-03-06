@@ -72,7 +72,9 @@ describe("prompt-control module (Task 1 RED)", () => {
       output,
     );
 
-    expect(output.options.instructions).toBe(EXPECTED_OVERRIDE_STUB);
+    expect(output.options.instructions).toContain("PAI SCRATCHPAD (Binding)");
+    expect(output.options.instructions).toContain("ScratchpadDir: /");
+    expect(output.options.instructions).toContain(EXPECTED_OVERRIDE_STUB);
 
     await expect(
       promptControl.chatParams(
@@ -96,7 +98,7 @@ describe("prompt-control module (Task 1 RED)", () => {
     ).resolves.toBeUndefined();
   });
 
-  test("does not override for non-OpenAI or non-GPT-5 model", async () => {
+  test("does not override with GPT-5 stub for non-OpenAI or non-GPT-5 model", async () => {
     const module = await import("../../plugins/pai-cc-hooks/prompt-control");
     const promptControl = module.createPromptControl({ projectDir: process.cwd() }) as PromptControl;
 
@@ -109,7 +111,10 @@ describe("prompt-control module (Task 1 RED)", () => {
       },
       output1,
     );
-    expect(output1.options.instructions).toBe("ORIGINAL");
+    expect(output1.options.instructions).toContain("PAI SCRATCHPAD (Binding)");
+    expect(output1.options.instructions).toContain("ScratchpadDir: /");
+    expect(output1.options.instructions).toContain("ORIGINAL");
+    expect(output1.options.instructions).not.toContain(EXPECTED_OVERRIDE_STUB);
 
     const output2 = { options: { instructions: "ORIGINAL" } };
     await promptControl.chatParams(
@@ -120,8 +125,25 @@ describe("prompt-control module (Task 1 RED)", () => {
       },
       output2,
     );
-    expect(output2.options.instructions).toBe("ORIGINAL");
+    expect(output2.options.instructions).toContain("PAI SCRATCHPAD (Binding)");
+    expect(output2.options.instructions).toContain("ScratchpadDir: /");
+    expect(output2.options.instructions).toContain("ORIGINAL");
+    expect(output2.options.instructions).not.toContain(EXPECTED_OVERRIDE_STUB);
   });
+
+	test("chat.params prepends ScratchpadDir binding for all sessions", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const promptControl = module.createPromptControl({ projectDir: process.cwd() });
+
+		const output: { options: { instructions: string } } = {
+			options: { instructions: "ORIGINAL_INSTRUCTIONS" },
+		};
+
+		await promptControl.chatParams({ sessionID: "ses_root" }, output);
+
+		expect(output.options.instructions).toContain("PAI SCRATCHPAD (Binding)");
+		expect(output.options.instructions).toContain("ScratchpadDir: /");
+	});
 
   test("filters PAI SKILL.md only for OpenAI GPT-5 canonical bundle builds", async () => {
     const module = await import("../../plugins/pai-cc-hooks/prompt-control");
