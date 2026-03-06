@@ -1,11 +1,11 @@
 ---
 name: pai-upgrade
-description: System upgrade analysis and ecosystem monitoring. USE WHEN you need provider-update monitoring, release-note analysis, or source discovery for upgrade opportunities.
+description: System upgrade analysis, internal reflection mining, and algorithm improvement planning. USE WHEN you need provider-update monitoring, release-note analysis, reflection insights, or bounded upgrade proposals.
 ---
 
 # pai-upgrade Skill
 
-Runbook-oriented skill for finding, validating, and prioritizing ecosystem upgrades. The skill supports Claude/Anthropic sources as a default set and allows provider-extensible monitoring.
+Runbook-oriented skill for finding, validating, and prioritizing ecosystem upgrades plus internal algorithm improvement opportunities. The skill supports Claude/Anthropic sources as a default set and allows provider-extensible monitoring.
 Monitoring now applies learning-aware prioritization from historical quality signals and records recommendation rankings to a history ledger.
 
 ## Customization
@@ -31,6 +31,8 @@ voice_notify({
 | Workflow | Trigger | File |
 |---|---|---|
 | **CheckForUpgrades** | check for upgrades, check sources, track provider updates | `<Workflows/CheckForUpgrades.md>` |
+| **MineReflections** | mine reflections, check reflections, reflection insights | `<Workflows/MineReflections.md>` |
+| **AlgorithmUpgrade** | algorithm upgrade, improve the algorithm, algorithm improvements | `<Workflows/AlgorithmUpgrade.md>` |
 | **ResearchUpgrade** | research an upgrade, deep-dive a feature, validate implementation options | `<Workflows/ResearchUpgrade.md>` |
 | **ReleaseNotesDeepDive** | analyze release notes, analyze changelog updates, review product announcements | `<Workflows/ReleaseNotesDeepDive.md>` |
 | **FindSources** | find upgrade sources, discover monitoring targets, expand coverage | `<Workflows/FindSources.md>` |
@@ -38,6 +40,8 @@ voice_notify({
 ## When to Activate This Skill
 
 - **Check**: user asks to monitor for upgrades or source updates.
+- **Reflect**: user asks to mine or review internal reflection signals.
+- **Algorithm Upgrade**: user asks to improve the algorithm using reflection evidence.
 - **Research**: user asks for deeper analysis of a specific feature or change.
 - **Release**: user asks for release/changelog deep analysis.
 - **Discover**: user asks to find new source channels, feeds, or repositories.

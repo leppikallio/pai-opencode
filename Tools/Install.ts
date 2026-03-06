@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 import { execSync } from "node:child_process";
 
 import { mergeClaudeHooksSeedIntoSettingsJson } from "./pai-install/merge-claude-hooks";
+import { ensureLearningReflectionsArtifacts } from "./pai-install/ensure-learning-reflections";
 import {
   decideWorkJsonBackfill,
   type WorkJsonBackfillDecision,
@@ -208,14 +209,21 @@ function verifySkillSystemDocs(args: { targetDir: string; dryRun: boolean; enabl
 function ensureRuntimeProjectionFiles(args: { targetDir: string; dryRun: boolean }) {
   const stateDir = path.join(args.targetDir, "MEMORY", "STATE");
   const learningDir = path.join(args.targetDir, "MEMORY", "LEARNING");
+  const updatesDir = path.join(args.targetDir, "MEMORY", "PAISYSTEMUPDATES");
+  const configDir = path.join(args.targetDir, "config");
+  const opencodePath = path.join(args.targetDir, "opencode.json");
 
   if (args.dryRun) {
-    console.log(`[dry] runtime projections: would ensure ${stateDir}/*.json and ${learningDir}/digest.md exist`);
+    console.log(
+      `[dry] runtime projections: would ensure ${stateDir}/*.json, ${learningDir}/*, ${updatesDir}/*, ${configDir}/document-recent.json, and ${opencodePath} exist`
+    );
     return;
   }
 
   fs.mkdirSync(stateDir, { recursive: true });
   fs.mkdirSync(learningDir, { recursive: true });
+  fs.mkdirSync(updatesDir, { recursive: true });
+  fs.mkdirSync(configDir, { recursive: true });
 
   const now = new Date().toISOString();
 
@@ -233,9 +241,47 @@ function ensureRuntimeProjectionFiles(args: { targetDir: string; dryRun: boolean
     fs.writeFileSync(sessionNamesPath, `${JSON.stringify({}, null, 2)}\n`, "utf8");
   }
 
+  const currentWorkPath = path.join(stateDir, "current-work.json");
+  if (!fs.existsSync(currentWorkPath)) {
+    fs.writeFileSync(
+      currentWorkPath,
+      `${JSON.stringify({ v: "0.2", updated_at: now, sessions: {} }, null, 2)}\n`,
+      "utf8"
+    );
+  }
+
+  const algorithmStatePath = path.join(stateDir, "algorithm-state.json");
+  if (!fs.existsSync(algorithmStatePath)) {
+    fs.writeFileSync(algorithmStatePath, `${JSON.stringify({}, null, 2)}\n`, "utf8");
+  }
+
   const digestPath = path.join(learningDir, "digest.md");
   if (!fs.existsSync(digestPath)) {
     fs.writeFileSync(digestPath, "", "utf8");
+  }
+
+  const learningReadmePath = path.join(learningDir, "README.md");
+  if (!fs.existsSync(learningReadmePath)) {
+    fs.writeFileSync(learningReadmePath, "# LEARNING\n\nRuntime-generated learning artifacts live in this directory.\n", "utf8");
+  }
+
+  const updatesIndexPath = path.join(updatesDir, "index.json");
+  if (!fs.existsSync(updatesIndexPath)) {
+    fs.writeFileSync(updatesIndexPath, `${JSON.stringify({ v: "0.1", updates: [] }, null, 2)}\n`, "utf8");
+  }
+
+  const updatesChangelogPath = path.join(updatesDir, "CHANGELOG.md");
+  if (!fs.existsSync(updatesChangelogPath)) {
+    fs.writeFileSync(updatesChangelogPath, "# PAI System Updates\n", "utf8");
+  }
+
+  const documentRecentPath = path.join(configDir, "document-recent.json");
+  if (!fs.existsSync(documentRecentPath)) {
+    fs.writeFileSync(documentRecentPath, `${JSON.stringify({ entries: [] }, null, 2)}\n`, "utf8");
+  }
+
+  if (!fs.existsSync(opencodePath)) {
+    fs.writeFileSync(opencodePath, `${JSON.stringify({}, null, 2)}\n`, "utf8");
   }
 }
 
@@ -2931,6 +2977,9 @@ async function sync(mode: Mode, opts: Options) {
 
   // Ensure runtime-projection files exist so cross-reference checks are stable.
   ensureRuntimeProjectionFiles({ targetDir, dryRun });
+
+  // Ensure LEARNING/REFLECTIONS bootstrap artifacts exist before verification scans.
+  ensureLearningReflectionsArtifacts({ targetDir, dryRun });
 
   // Post-install verification (default): ensure skill cross-references resolve.
   verifyCrossReferences({ targetDir, dryRun, enabled: verify });

@@ -197,15 +197,29 @@ function resolveRef(rootDir: string, sourceFile: string, raw: string): string | 
   // Strip anchors.
   r = r.split("#")[0];
   r = r.replace(/^file:\/\//, "");
+
+  // Runtime-root explicit.
+  if (r === "~/.config/opencode") {
+    return rootDir;
+  }
+  if (r.startsWith("~/.config/opencode/")) {
+    return path.join(rootDir, r.slice("~/.config/opencode/".length));
+  }
+
+  // Runtime-root absolute form (e.g. /Users/*/.config/opencode/...).
+  // Always resolve these against --root so checks are runtime-root aware.
+  const normalized = r.replace(/\\/g, "/");
+  const runtimeMarker = "/.config/opencode/";
+  const markerIndex = normalized.indexOf(runtimeMarker);
+  if (normalized.startsWith("/") && markerIndex >= 0) {
+    const suffix = normalized.slice(markerIndex + runtimeMarker.length);
+    return suffix ? path.join(rootDir, suffix) : rootDir;
+  }
+
   r = expandTilde(r);
 
   // Absolute.
   if (r.startsWith("/")) return r;
-
-  // Runtime-root explicit.
-  if (r.startsWith("~/.config/opencode/")) {
-    return path.join(homedir(), r.slice(2));
-  }
 
   // Runtime-root shorthands.
   for (const prefix of [

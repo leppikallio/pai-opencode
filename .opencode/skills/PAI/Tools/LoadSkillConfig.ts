@@ -15,7 +15,7 @@
  */
 
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { join, basename } from 'node:path';
+import { basename, extname, join } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 import { getPaiDir } from '../../../pai-tools/PaiRuntime';
 
@@ -35,12 +35,22 @@ interface ExtendManifest {
 
 // Constants
 function resolveCustomizationDir(): string {
-  const paiDir = join(getPaiDir(), 'skills', 'PAI', 'USER', 'SKILLCUSTOMIZATIONS');
-  if (existsSync(paiDir)) return paiDir;
-  return paiDir;
+  return join(getPaiDir(), 'skills', 'PAI', 'USER', 'SKILLCUSTOMIZATIONS');
 }
 
-const CUSTOMIZATION_DIR = resolveCustomizationDir();
+function getCustomizationDir(): string {
+  return resolveCustomizationDir();
+}
+
+function parseConfigContent<T>(filePath: string, content: string): T {
+  const extension = extname(filePath).toLowerCase();
+
+  if (extension === '.yaml' || extension === '.yml') {
+    return parseYaml(content) as T;
+  }
+
+  return JSON.parse(content) as T;
+}
 
 /**
  * Deep merge two objects recursively
@@ -121,7 +131,7 @@ function mergeConfigs<T>(
  * Load EXTEND.yaml manifest for a skill customization
  */
 function loadExtendManifest(skillName: string): ExtendManifest | null {
-  const manifestPath = join(CUSTOMIZATION_DIR, skillName, 'EXTEND.yaml');
+  const manifestPath = join(getCustomizationDir(), skillName, 'EXTEND.yaml');
 
   if (!existsSync(manifestPath)) {
     return null;
@@ -165,7 +175,7 @@ export function loadSkillConfig<T>(skillDir: string, filename: string): T {
 
   try {
     const content = readFileSync(baseConfigPath, 'utf-8');
-    baseConfig = JSON.parse(content) as T;
+    baseConfig = parseConfigContent<T>(baseConfigPath, content);
   } catch (error) {
     // If base doesn't exist, return empty object (customization-only case)
     if (!existsSync(baseConfigPath)) {
@@ -196,7 +206,7 @@ export function loadSkillConfig<T>(skillDir: string, filename: string): T {
   }
 
   // 4. Load customization file
-  const customConfigPath = join(CUSTOMIZATION_DIR, skillName, filename);
+  const customConfigPath = join(getCustomizationDir(), skillName, filename);
 
   if (!existsSync(customConfigPath)) {
     // Customization file doesn't exist (yet)
@@ -205,7 +215,7 @@ export function loadSkillConfig<T>(skillDir: string, filename: string): T {
 
   try {
     const customContent = readFileSync(customConfigPath, 'utf-8');
-    const customConfig = JSON.parse(customContent) as T & { _customization?: CustomizationMetadata };
+    const customConfig = parseConfigContent<T & { _customization?: CustomizationMetadata }>(customConfigPath, customContent);
 
     // 5. Merge and return
     return mergeConfigs(baseConfig, customConfig, manifest.merge_strategy);
@@ -219,7 +229,7 @@ export function loadSkillConfig<T>(skillDir: string, filename: string): T {
  * Get the customization directory path for a skill
  */
 export function getCustomizationPath(skillName: string): string {
-  return join(CUSTOMIZATION_DIR, skillName);
+  return join(getCustomizationDir(), skillName);
 }
 
 /**
@@ -234,11 +244,13 @@ export function hasCustomizations(skillName: string): boolean {
  * List all skills with customizations
  */
 export function listCustomizedSkills(): string[] {
-  if (!existsSync(CUSTOMIZATION_DIR)) {
+  const customizationDir = getCustomizationDir();
+
+  if (!existsSync(customizationDir)) {
     return [];
   }
 
-  const dirs = readdirSync(CUSTOMIZATION_DIR, { withFileTypes: true });
+  const dirs = readdirSync(customizationDir, { withFileTypes: true });
   return dirs
     .filter(d => d.isDirectory())
     .map(d => d.name)
@@ -259,7 +271,7 @@ Usage:
   bun LoadSkillConfig.ts --check <skill-name>      Check if skill has customizations
 
 Examples:
-  bun LoadSkillConfig.ts ~/.config/opencode/skills/pai-upgrade sources.json
+  bun LoadSkillConfig.ts ~/.config/opencode/skills/utilities/pai-upgrade sources.json
   bun LoadSkillConfig.ts --list
   bun LoadSkillConfig.ts --check pai-upgrade
 `);
