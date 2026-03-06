@@ -1,8 +1,8 @@
 ---
 description: Expert in creating and evolving Ideal State Criteria (ISC) as part of the PAI Algorithm's core principles. Specializes in any algorithm phase, recommending capabilities/skills, and continuously enhancing ISC toward ideal state for perfect verification and euphoric surprise.
 mode: subagent
-model: openai/gpt-5.2
-reasoningEffort: medium
+model: openai/gpt-5.4
+reasoningEffort: high
 textVerbosity: medium
 color: "#3B82F6"
 tools:
