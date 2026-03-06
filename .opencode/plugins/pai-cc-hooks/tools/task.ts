@@ -1,5 +1,7 @@
 import { type ToolContext, tool } from "@opencode-ai/plugin";
 
+import { ensureScratchpadSession } from "../../lib/scratchpad";
+
 import {
 	getSessionRootId,
 	setSessionRootId,
@@ -42,6 +44,37 @@ type RecordBackgroundTaskLaunchFn = (
 type RecordBackgroundTaskLaunchErrorFn = (
 	args: RecordBackgroundTaskLaunchErrorArgs,
 ) => Promise<void>;
+
+const SCRATCHPAD_BINDING_MARKER = "PAI SCRATCHPAD (Binding)";
+const SCRATCHPAD_RULES = [
+	"Rules:",
+	"- If asked for ScratchpadDir, answer with the value above.",
+	"- Do NOT run tools (Read/Glob/Bash/etc) to discover it.",
+];
+
+function buildScratchpadBinding(scratchpadDir: string): string {
+	return [
+		SCRATCHPAD_BINDING_MARKER,
+		`ScratchpadDir: ${scratchpadDir}`,
+		...SCRATCHPAD_RULES,
+	].join("\n");
+}
+
+function prefixPromptWithScratchpadBinding(
+	prompt: string,
+	scratchpadDir: string,
+): string {
+	if (prompt.includes(SCRATCHPAD_BINDING_MARKER)) {
+		return prompt;
+	}
+
+	const binding = buildScratchpadBinding(scratchpadDir);
+	if (!prompt.trim()) {
+		return binding;
+	}
+
+	return `${binding}\n\n${prompt}`;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null;
@@ -241,6 +274,12 @@ export function createPaiTaskTool(input: {
 					const rootSessionId =
 						getSessionRootId(parentSessionId) ?? parentSessionId;
 					setSessionRootId(childSessionId, rootSessionId);
+					const scratchpadDir =
+						(await ensureScratchpadSession(rootSessionId)).dir;
+					const promptText = prefixPromptWithScratchpadBinding(
+						args.prompt,
+						scratchpadDir,
+					);
 
 				const taskId = buildBackgroundTaskId(childSessionId);
 
@@ -256,7 +295,7 @@ export function createPaiTaskTool(input: {
 						path: { id: childSessionId },
 						body: {
 							agent: args.subagent_type,
-							parts: [{ type: "text", text: args.prompt }],
+							parts: [{ type: "text", text: promptText }],
 						},
 					})
 					.catch(async (promptError) => {
@@ -304,10 +343,17 @@ export function createPaiTaskTool(input: {
 					directory: getContextDirectory(ctx),
 				});
 				const parentSessionId = getContextSessionId(ctx);
+				let promptText = args.prompt;
 				if (parentSessionId) {
 					const rootSessionId =
 						getSessionRootId(parentSessionId) ?? parentSessionId;
 					setSessionRootId(childSessionId, rootSessionId);
+					const scratchpadDir =
+						(await ensureScratchpadSession(rootSessionId)).dir;
+					promptText = prefixPromptWithScratchpadBinding(
+						args.prompt,
+						scratchpadDir,
+					);
 				}
 				const session = client.session;
 			if (!session?.prompt) {
@@ -320,7 +366,7 @@ export function createPaiTaskTool(input: {
 				path: { id: childSessionId },
 				body: {
 					agent: args.subagent_type,
-					parts: [{ type: "text", text: args.prompt }],
+					parts: [{ type: "text", text: promptText }],
 				},
 			});
 
