@@ -6,14 +6,14 @@ Collect and consolidate new upgrade signals from configured sources, then produc
 
 ## Inputs
 
-- Optional `days` argument (`7`, `14`, or `30`) to scope Anthropic/Claude ingestion.
+- Optional `days` override (`7`, `14`, or `30`) to scope Anthropic/Claude ingestion. If you do not supply one, use the default example value `14` shown below.
 - Optional `--force` flag to bypass historical state and re-scan.
 - Optional source filter intent from user (Anthropic, YouTube, provider, or both).
 - Runtime config:
-  - `/Users/zuul/.config/opencode/skills/utilities/pai-upgrade/sources.v2.json` (preferred)
-  - `/Users/zuul/.config/opencode/skills/utilities/pai-upgrade/sources.json` (legacy fallback)
-  - `/Users/zuul/.config/opencode/skills/utilities/pai-upgrade/youtube-channels.json`
-  - `/Users/zuul/.config/opencode/skills/utilities/pai-upgrade/State/` (state and ledger outputs)
+  - `~/.config/opencode/skills/utilities/pai-upgrade/sources.v2.json` (preferred)
+  - `~/.config/opencode/skills/utilities/pai-upgrade/sources.json` (legacy fallback)
+  - `~/.config/opencode/skills/utilities/pai-upgrade/youtube-channels.json`
+  - `~/.config/opencode/skills/utilities/pai-upgrade/State/` (state and ledger outputs)
 
 ## Steps
 
@@ -22,10 +22,18 @@ Collect and consolidate new upgrade signals from configured sources, then produc
 1. Run:
 
 ```bash
-bun ~/.config/opencode/skills/PAI/Tools/LoadSkillConfig.ts /Users/zuul/.config/opencode/skills/pai-upgrade sources.v2.json
+bun ~/.config/opencode/skills/PAI/Tools/LoadSkillConfig.ts ~/.config/opencode/skills/utilities/pai-upgrade sources.v2.json
 ```
 
 Prefer `sources.v2.json` when present.
+
+If `sources.v2.json` is missing or empty during a manual workflow run, fall back explicitly to:
+
+```bash
+bun ~/.config/opencode/skills/PAI/Tools/LoadSkillConfig.ts ~/.config/opencode/skills/utilities/pai-upgrade sources.json
+```
+
+The underlying monitoring toolchain also falls back from `sources.v2.json` to `sources.json` when the v2 catalog is unavailable or empty.
 
 2. Confirm state files exist:
 
@@ -39,7 +47,7 @@ cat ~/.config/opencode/skills/utilities/pai-upgrade/State/youtube-videos.json
 Run Anthropic/Claude updater:
 
 ```bash
-bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/Anthropic.ts 14
+bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/Anthropic.ts --days 14
 ```
 
 ### Step 3: Check YouTube and other optional provider sources
@@ -55,11 +63,28 @@ bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/Anthropic.ts 14
 - Apply learning-aware ranking with adjusted priority, score delta, and rationale.
 - Persist ranked recommendation history by default when not in `--dry-run` mode.
 
-### Step 5: Produce upgrade check output
+### Step 5: Mine bounded internal reflections
+
+This CheckForUpgrades workflow is the OpenCode equivalent of the upstream main upgrade flow for this reflections slice.
+
+Use the reflections sink after source normalization and before final recommendations:
+
+```bash
+REFLECTIONS_FILE=~/.config/opencode/MEMORY/LEARNING/REFLECTIONS/algorithm-reflections.jsonl
+if test -s "$REFLECTIONS_FILE"; then
+  bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/MineAlgorithmReflections.ts --pretty
+else
+  printf "Reflections have not accumulated yet.\n"
+fi
+```
+
+If the reflections file is missing or empty, include a short note in the report that internal reflections are not yet available.
+
+### Step 6: Produce upgrade check output
 
 Create a review draft with three priority bands: **High**, **Medium**, **Low**.
 
-### Step 6: Capture explicit recommendation outcomes (optional but recommended)
+### Step 7: Capture explicit recommendation outcomes (optional but recommended)
 
 When you (the operator) decide outcomes for top recommendations, record them to improve future ranking quality:
 
@@ -94,5 +119,6 @@ test -s ~/.config/opencode/skills/utilities/pai-upgrade/State/youtube-videos.jso
   - `## High Priority` items with rationale
   - `## Medium Priority` items
   - `## Low Priority` items
+  - `## Internal Reflections` (themes from `algorithm-reflections.jsonl`, or a short not-yet-available note)
   - `## New Videos` (if applicable)
 - Clear note on what to review next and why it matters.

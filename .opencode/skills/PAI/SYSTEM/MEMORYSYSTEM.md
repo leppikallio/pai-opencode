@@ -38,7 +38,7 @@ Plugins maintain projections:
 ~/.config/opencode/MEMORY/
 ├── RAW/                         # Append-only event firehose (JSONL)
 ├── WORK/                        # Work sessions (thread + ISC)
-├── LEARNING/                    # Learnings + ratings signals
+├── LEARNING/                    # Learnings + ratings signals + reflections sink
 ├── RESEARCH/                    # Subagent captures (Task tool)
 ├── SECURITY/                    # Security audit log events
 ├── STATE/                       # Runtime state (current-work pointer, caches)
@@ -131,6 +131,22 @@ Update (v2.5 port): implicit sentiment capture is implemented as heuristic-gated
 - `LEARNING/ALGORITHM/YYYY-MM/` - Task execution learnings (approach errors)
 - `LEARNING/SYSTEM/` - Aggregated pattern analysis reports
 - `MEMORY/LEARNING/SIGNALS/` - User satisfaction signal stream
+- `MEMORY/LEARNING/REFLECTIONS/algorithm-reflections.jsonl` - LEARN-phase structured reflection sink
+
+### LEARNING/REFLECTIONS/ - Algorithm Reflection Sink
+
+**Runtime location:** `~/.config/opencode/MEMORY/LEARNING/REFLECTIONS/algorithm-reflections.jsonl`
+
+**What appends to it:**
+- PAI Algorithm LEARN phase reflection records (Q1/Q2/Q3 prompts)
+
+**Purpose:**
+- Durable sink for LEARN-phase self-reflection telemetry
+- Input stream for MineReflections pattern extraction
+- Input stream for AlgorithmUpgrade decision support
+- Evidence source for bounded upgrade checks before algorithm changes
+
+This sink is runtime data under the installed runtime memory root, not a source-controlled log.
 
 **Categorization logic:**
 | Directory | When Used | Example Triggers |

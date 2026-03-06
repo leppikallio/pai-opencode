@@ -11,6 +11,14 @@ function normalizeNewlines(text: string): string {
   return text.replace(/\r\n/g, "\n");
 }
 
+function adaptSnippetForOpenCode(input: string): string {
+  return input
+    .replaceAll("`Skill` tool", "`skill` tool")
+    .replaceAll("`Task` tool", "`task` tool")
+    .replace(/\bSkill\("/g, 'skill("')
+    .replace(/\bTask\("/g, 'task("');
+}
+
 describe("PAI SKILL markdown drift gate", () => {
   test("SKILL.md contains top 16 lines of latest algorithm markdown", () => {
     const algorithmDir = path.join(opencodeRoot, "skills", "PAI", "Components", "Algorithm");
@@ -27,6 +35,7 @@ describe("PAI SKILL markdown drift gate", () => {
     expect(top16Trimmed.length).toBeGreaterThan(0);
     expect(top16Trimmed.length).toBeGreaterThan(20);
 
-    expect(skillText).toContain(top16Trimmed);
+    const expectedTop16 = adaptSnippetForOpenCode(top16Trimmed);
+    expect(skillText).toContain(expectedTop16);
   });
 });
