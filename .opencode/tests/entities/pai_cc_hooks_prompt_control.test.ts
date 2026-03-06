@@ -321,7 +321,7 @@ describe("prompt-control module (Task 1 RED)", () => {
 		}
 	});
 
-	test("injects WORK scratch path with root session suffix when mapping exists", async () => {
+	test("ScratchpadDir uses canonical sessions root (never WORK)", async () => {
 		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
 		const xdgHome = await fs.mkdtemp(
 			path.join(os.tmpdir(), "pai-prompt-control-xdg-work-"),
@@ -378,10 +378,18 @@ describe("prompt-control module (Task 1 RED)", () => {
 			await promptControl.systemTransform(createGpt5Input("ses_root"), output);
 
 			const bundle = (output.system as string[])[0] ?? "";
-			const scratchpadDir = extractScratchpadDir(bundle);
-			const expected = path.join(workDir, "scratch", "ses_root");
+			const dir = bundle.match(/ScratchpadDir:\s*(.+)/)?.[1]?.trim() ?? "";
+			const expected = path.join(
+				xdgHome,
+				"opencode",
+				"scratchpad",
+				"sessions",
+				"ses_root",
+			);
 
-			expect(scratchpadDir).toBe(expected);
+			expect(dir).toBe(expected);
+			expect(dir).toContain("/scratchpad/sessions/ses_root");
+			expect(dir).not.toContain("/MEMORY/WORK/");
 			await expect(fs.stat(expected)).resolves.toBeTruthy();
 		} finally {
 			restoreEnv("XDG_CONFIG_HOME", previousXdg);
@@ -462,7 +470,13 @@ describe("prompt-control module (Task 1 RED)", () => {
 				(grandchildOutput.system as string[])[0] ?? "",
 			);
 
-			const expected = path.join(workDir, "scratch", "ses_root");
+			const expected = path.join(
+				xdgHome,
+				"opencode",
+				"scratchpad",
+				"sessions",
+				"ses_root",
+			);
 			expect(childDir).toBe(expected);
 			expect(grandchildDir).toBe(expected);
 		} finally {
@@ -765,7 +779,7 @@ describe("prompt-control module (Task 1 RED)", () => {
 		}
 	});
 
-		test("limits out-of-root sentinel noise to one lookup per root session", async () => {
+		test("does not emit out-of-root sentinel when ScratchpadDir ignores WORK mapping", async () => {
 		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
 		const xdgHome = await fs.mkdtemp(
 			path.join(os.tmpdir(), "pai-prompt-control-xdg-sentinel-"),
@@ -830,7 +844,7 @@ describe("prompt-control module (Task 1 RED)", () => {
 
 			const sentinelCount =
 				stderrOutput.match(new RegExp(SENTINEL_OUT_OF_ROOT, "g"))?.length ?? 0;
-			expect(sentinelCount).toBe(1);
+			expect(sentinelCount).toBe(0);
 		} finally {
 			restoreEnv("XDG_CONFIG_HOME", previousXdg);
 			restoreEnv("OPENCODE_ROOT", previousOpenCodeRoot);
@@ -841,7 +855,7 @@ describe("prompt-control module (Task 1 RED)", () => {
 		}
 		});
 
-		test("limits out-of-root sentinel noise independently per root session id", async () => {
+		test("does not emit out-of-root sentinel for multiple root session ids", async () => {
 			const module = await import("../../plugins/pai-cc-hooks/prompt-control");
 			const xdgHome = await fs.mkdtemp(
 				path.join(os.tmpdir(), "pai-prompt-control-xdg-sentinel-multi-root-"),
@@ -917,7 +931,7 @@ describe("prompt-control module (Task 1 RED)", () => {
 
 				const sentinelCount =
 					stderrOutput.match(new RegExp(SENTINEL_OUT_OF_ROOT, "g"))?.length ?? 0;
-				expect(sentinelCount).toBe(2);
+				expect(sentinelCount).toBe(0);
 			} finally {
 				restoreEnv("XDG_CONFIG_HOME", previousXdg);
 				restoreEnv("OPENCODE_ROOT", previousOpenCodeRoot);

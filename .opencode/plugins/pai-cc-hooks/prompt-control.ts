@@ -1,9 +1,5 @@
 import { loadAgentsStack, loadConfiguredInstructions } from "../handlers/prompt-sources";
-import {
-  ensureDir,
-  generateSessionId,
-  getCurrentWorkPathForSession,
-} from "../lib/paths";
+import { generateSessionId } from "../lib/paths";
 import { getPaiRuntimeInfo } from "../lib/pai-runtime";
 import { ensureScratchpadSession } from "../lib/scratchpad";
 import * as fs from "node:fs/promises";
@@ -332,13 +328,6 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
   };
 
   const resolveScratchpadDirForRoot = async (rootSessionId: string): Promise<string> => {
-    const workDir = await getCurrentWorkPathForSession(rootSessionId);
-    if (workDir) {
-      const scratchDir = path.join(workDir, "scratch", rootSessionId);
-      await ensureDir(scratchDir);
-      return scratchDir;
-    }
-
     const scratchpad = await ensureScratchpadSession(rootSessionId);
     return scratchpad.dir;
   };
