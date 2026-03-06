@@ -104,6 +104,18 @@ describe("prompt-control module (Task 1 RED)", () => {
     ).resolves.toBeUndefined();
   });
 
+	test("systemTransform injects binding even when output.system is missing", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const promptControl = module.createPromptControl({ projectDir: process.cwd() });
+
+		const output: { system?: unknown } = {};
+		await promptControl.systemTransform({ sessionID: "ses_root" }, output);
+
+		expect(Array.isArray(output.system)).toBe(true);
+		const system0 = (output.system as string[])[0] ?? "";
+		expect(system0).toContain("PAI SCRATCHPAD (Binding)");
+	});
+
   test("does not override with GPT-5 stub for non-OpenAI or non-GPT-5 model", async () => {
     const module = await import("../../plugins/pai-cc-hooks/prompt-control");
     const promptControl = module.createPromptControl({ projectDir: process.cwd() }) as PromptControl;

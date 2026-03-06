@@ -516,23 +516,16 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
     }
   };
 
-  const systemTransform = async (input: unknown, output: unknown): Promise<void> => {
-    try {
-      const nowMs = Date.now();
-      const sessionId = getSessionId(input);
-      const eligible = isEligible(input);
-      const normalizedSessionId = normalizeSessionId(sessionId);
-      const wasMarked = !!normalizedSessionId && codexSessions.has(normalizedSessionId);
+	const systemTransform = async (input: unknown, output: unknown): Promise<void> => {
+		try {
+			const nowMs = Date.now();
+			const sessionId = getSessionId(input);
+			const eligible = isEligible(input);
+			const normalizedSessionId = normalizeSessionId(sessionId);
+			const wasMarked = !!normalizedSessionId && codexSessions.has(normalizedSessionId);
 
-      const out = (isRecord(output) ? output : {}) as PromptControlOutput;
-      const previousSystem = out.system;
-      if (!Array.isArray(previousSystem)) {
-			if (eligible) {
-				markSession(sessionId, nowMs);
-			}
-			pruneStale(nowMs);
-			return;
-		}
+			const out = (isRecord(output) ? output : {}) as PromptControlOutput;
+			const previousSystem = Array.isArray(out.system) ? out.system : [];
 
 		const scratchpadDir = await resolvePinnedScratchpadDir({
 			sessionId,
