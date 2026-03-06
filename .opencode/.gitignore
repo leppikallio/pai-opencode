@@ -9,6 +9,17 @@ node_modules/
 USER/*
 !USER/README.md
 !USER/.gitkeep
+skills/PAI/USER/
+
+# Temporary planning and runtime-like artifacts
+Plans/
+History/
+BACKUPS/
+skills/**/Scratchpad/
+skills/**/State/
+skills/**/Reports/
+**/__pycache__/
+**/state.json
 
 # Security patterns (user customizes)
 PAISECURITYSYSTEM/patterns.yaml

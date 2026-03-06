@@ -13,6 +13,21 @@ MEMORY/**
 # Local session transcripts (never commit)
 session-ses_*.md
 
+# Temporary planning/review documents (never commit)
+docs/plans/
+docs/reviews/
+
+# Private and temporary OpenCode repository content (never commit)
+.opencode/Plans/
+.opencode/History/
+.opencode/BACKUPS/
+.opencode/skills/PAI/USER/
+.opencode/skills/**/Scratchpad/
+.opencode/skills/**/State/
+.opencode/skills/**/Reports/
+.opencode/**/__pycache__/
+.opencode/**/state.json
+
 # Underscore-prefixed agent drafts/variants
 .opencode/agents/_*.md
 
@@ -31,7 +46,6 @@ session-ses_*.md
 **/.$*.drawio.dtmp
 
 # Local backup artifacts (never commit)
-.opencode/BACKUPS/
 Components_backup/
 opencode.json.tui-migration.bak
 
