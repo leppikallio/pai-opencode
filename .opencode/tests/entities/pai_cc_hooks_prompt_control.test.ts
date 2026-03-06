@@ -26,6 +26,12 @@ function extractScratchpadDir(bundle: string): string {
 	return match?.[1]?.trim() ?? "";
 }
 
+function countScratchpadBindings(message: string): number {
+	return message
+		.split("\n")
+		.filter((line) => line.trim() === "PAI SCRATCHPAD (Binding)").length;
+}
+
 	function createGpt5Input(sessionID: string): unknown {
 		return {
 			sessionID,
@@ -143,6 +149,70 @@ describe("prompt-control module (Task 1 RED)", () => {
 
 		expect(output.options.instructions).toContain("PAI SCRATCHPAD (Binding)");
 		expect(output.options.instructions).toContain("ScratchpadDir: /");
+	});
+
+	test("chat.params does not duplicate ScratchpadDir binding across repeated calls", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const promptControl = module.createPromptControl({ projectDir: process.cwd() });
+
+		const output: { options: { instructions: string } } = {
+			options: { instructions: "ORIGINAL_INSTRUCTIONS" },
+		};
+
+		await promptControl.chatParams(createUnknownModelInput("ses_idempotent"), output);
+		await promptControl.chatParams(createUnknownModelInput("ses_idempotent"), output);
+
+		expect(countScratchpadBindings(output.options.instructions)).toBe(1);
+		expect(output.options.instructions).toContain("ORIGINAL_INSTRUCTIONS");
+	});
+
+	test("chat.params updates ScratchpadDir after late root upgrade without duplicating binding", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const xdgHome = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-xdg-chatparams-upgrade-"),
+		);
+		const openCodeRoot = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-root-chatparams-upgrade-"),
+		);
+		const projectDir = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-project-chatparams-upgrade-"),
+		);
+		const previousXdg = process.env.XDG_CONFIG_HOME;
+		const previousOpenCodeRoot = process.env.OPENCODE_ROOT;
+
+		__resetSessionRootRegistryForTests();
+		try {
+			process.env.XDG_CONFIG_HOME = xdgHome;
+			process.env.OPENCODE_ROOT = openCodeRoot;
+
+			const promptControl = module.createPromptControl({ projectDir }) as PromptControl;
+			const output: { options: { instructions: string } } = {
+				options: { instructions: "ORIGINAL_INSTRUCTIONS" },
+			};
+
+			await promptControl.chatParams(createUnknownModelInput("ses_child"), output);
+			const firstDir = extractScratchpadDir(output.options.instructions);
+
+			setSessionRootId("ses_child", "ses_root");
+			await promptControl.chatParams(createUnknownModelInput("ses_child"), output);
+			const secondDir = extractScratchpadDir(output.options.instructions);
+
+			expect(firstDir).toBe(
+				path.join(xdgHome, "opencode", "scratchpad", "sessions", "ses_child"),
+			);
+			expect(secondDir).toBe(
+				path.join(xdgHome, "opencode", "scratchpad", "sessions", "ses_root"),
+			);
+			expect(countScratchpadBindings(output.options.instructions)).toBe(1);
+			expect(output.options.instructions).toContain("ORIGINAL_INSTRUCTIONS");
+		} finally {
+			restoreEnv("XDG_CONFIG_HOME", previousXdg);
+			restoreEnv("OPENCODE_ROOT", previousOpenCodeRoot);
+			__resetSessionRootRegistryForTests();
+			await fs.rm(xdgHome, { recursive: true, force: true });
+			await fs.rm(openCodeRoot, { recursive: true, force: true });
+			await fs.rm(projectDir, { recursive: true, force: true });
+		}
 	});
 
   test("filters PAI SKILL.md only for OpenAI GPT-5 canonical bundle builds", async () => {
