@@ -40,19 +40,28 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 		__resetSessionRootRegistryForTests();
 	});
 
-	test("injects only LoadContext stdout for root SessionStart", async () => {
+	test("injects ScratchpadBinding and LoadContext stdout for root SessionStart", async () => {
 		const tmpRoot = mkdtempSync(
 			path.join(os.tmpdir(), "pai-cc-hooks-session-start-inject-"),
 		);
 		const prevConfigRoot = process.env.PAI_CC_HOOKS_CONFIG_ROOT;
 
+		const scratchpadMarker = path.join(tmpRoot, "scratchpad.marker");
 		const loadContextMarker = path.join(tmpRoot, "loadcontext.marker");
 		const checkVersionMarker = path.join(tmpRoot, "checkversion.marker");
+		const scratchpadHookPath = path.join(tmpRoot, "ScratchpadBinding.hook.ts");
 		const loadContextHookPath = path.join(tmpRoot, "LoadContext.hook.ts");
 		const checkVersionHookPath = path.join(tmpRoot, "CheckVersion.hook.ts");
 		const promptCalls: Array<unknown> = [];
 
 		try {
+			writeFileSync(
+				scratchpadHookPath,
+				`#!/bin/sh\ntouch "${scratchpadMarker}"\nprintf '<system-reminder>Injected ScratchpadBinding context</system-reminder>'\n`,
+				"utf-8",
+			);
+			chmodSync(scratchpadHookPath, 0o755);
+
 			writeFileSync(
 				loadContextHookPath,
 				`#!/bin/sh\ntouch "${loadContextMarker}"\nprintf '<system-reminder>Injected LoadContext context</system-reminder>'\n`,
@@ -76,6 +85,10 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 					SessionStart: [
 						{
 							hooks: [
+								{
+									type: "command",
+									command: scratchpadHookPath,
+								},
 								{
 									type: "command",
 									command: loadContextHookPath,
@@ -124,11 +137,19 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 				},
 			});
 
+			expect(existsSync(scratchpadMarker)).toBe(true);
 			expect(existsSync(loadContextMarker)).toBe(true);
 			expect(existsSync(checkVersionMarker)).toBe(true);
-			expect(promptCalls).toHaveLength(1);
+			expect(promptCalls).toHaveLength(2);
 
-			const injectionCall = promptCalls[0] as {
+			const scratchpadInjectionCall = promptCalls[0] as {
+				path: { id: string };
+				body: {
+					noReply: boolean;
+					parts: Array<{ type: string; text: string; synthetic?: boolean }>;
+				};
+			};
+			const loadContextInjectionCall = promptCalls[1] as {
 				path: { id: string };
 				body: {
 					noReply: boolean;
@@ -136,31 +157,57 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 				};
 			};
 
-			expect(injectionCall.path.id).toBe("ses_root");
-			expect(injectionCall.body.noReply).toBe(true);
-			expect(injectionCall.body.parts).toHaveLength(1);
-			expect(injectionCall.body.parts[0]).toEqual({
+			expect(scratchpadInjectionCall.path.id).toBe("ses_root");
+			expect(scratchpadInjectionCall.body.noReply).toBe(true);
+			expect(scratchpadInjectionCall.body.parts).toHaveLength(1);
+			expect(scratchpadInjectionCall.body.parts[0]).toEqual({
+				type: "text",
+				text: "<system-reminder>Injected ScratchpadBinding context</system-reminder>",
+				synthetic: true,
+			});
+			expect(loadContextInjectionCall.path.id).toBe("ses_root");
+			expect(loadContextInjectionCall.body.noReply).toBe(true);
+			expect(loadContextInjectionCall.body.parts).toHaveLength(1);
+			expect(loadContextInjectionCall.body.parts[0]).toEqual({
 				type: "text",
 				text: "<system-reminder>Injected LoadContext context</system-reminder>",
 				synthetic: true,
 			});
-			expect(injectionCall.body.parts[0]?.text).not.toContain(
+			expect(scratchpadInjectionCall.body.parts[0]?.text).not.toContain(
+				"Injected LoadContext context",
+			);
+			expect(loadContextInjectionCall.body.parts[0]?.text).not.toContain(
 				"Injected CheckVersion context",
 			);
 
-			expect(injectionCall).toEqual({
-				path: { id: "ses_root" },
-				body: {
-					noReply: true,
-					parts: [
-						{
-							type: "text",
-							text: "<system-reminder>Injected LoadContext context</system-reminder>",
-							synthetic: true,
-						},
-					],
+			expect(promptCalls).toEqual([
+				{
+					path: { id: "ses_root" },
+					body: {
+						noReply: true,
+						parts: [
+							{
+								type: "text",
+								text: "<system-reminder>Injected ScratchpadBinding context</system-reminder>",
+								synthetic: true,
+							},
+						],
+					},
 				},
-			});
+				{
+					path: { id: "ses_root" },
+					body: {
+						noReply: true,
+						parts: [
+							{
+								type: "text",
+								text: "<system-reminder>Injected LoadContext context</system-reminder>",
+								synthetic: true,
+							},
+						],
+					},
+				},
+			]);
 		} finally {
 			restoreEnv("PAI_CC_HOOKS_CONFIG_ROOT", prevConfigRoot);
 			rmSync(tmpRoot, { recursive: true, force: true });
@@ -168,19 +215,28 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 		}
 	});
 
-	test("does not inject SessionStart stdout when parentID is present", async () => {
+	test("injects ScratchpadBinding stdout but skips LoadContext for subagent SessionStart", async () => {
 		const tmpRoot = mkdtempSync(
 			path.join(os.tmpdir(), "pai-cc-hooks-session-start-parent-"),
 		);
 		const prevConfigRoot = process.env.PAI_CC_HOOKS_CONFIG_ROOT;
 
+		const scratchpadMarker = path.join(tmpRoot, "scratchpad.marker");
 		const loadContextMarker = path.join(tmpRoot, "loadcontext.marker");
 		const checkVersionMarker = path.join(tmpRoot, "checkversion.marker");
+		const scratchpadHookPath = path.join(tmpRoot, "ScratchpadBinding.hook.ts");
 		const loadContextHookPath = path.join(tmpRoot, "LoadContext.hook.ts");
 		const checkVersionHookPath = path.join(tmpRoot, "CheckVersion.hook.ts");
 		const promptCalls: Array<unknown> = [];
 
 		try {
+			writeFileSync(
+				scratchpadHookPath,
+				`#!/bin/sh\ntouch "${scratchpadMarker}"\nprintf '<system-reminder>Injected ScratchpadBinding context</system-reminder>'\n`,
+				"utf-8",
+			);
+			chmodSync(scratchpadHookPath, 0o755);
+
 			writeFileSync(
 				loadContextHookPath,
 				`#!/bin/sh\ntouch "${loadContextMarker}"\nprintf '<system-reminder>Injected LoadContext context</system-reminder>'\n`,
@@ -204,6 +260,10 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 					SessionStart: [
 						{
 							hooks: [
+								{
+									type: "command",
+									command: scratchpadHookPath,
+								},
 								{
 									type: "command",
 									command: loadContextHookPath,
@@ -243,7 +303,23 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 				},
 			});
 
-			expect(promptCalls).toHaveLength(0);
+			expect(promptCalls).toHaveLength(1);
+			expect(promptCalls).toEqual([
+				{
+					path: { id: "ses_child" },
+					body: {
+						noReply: true,
+						parts: [
+							{
+								type: "text",
+								text: "<system-reminder>Injected ScratchpadBinding context</system-reminder>",
+								synthetic: true,
+							},
+						],
+					},
+				},
+			]);
+			expect(existsSync(scratchpadMarker)).toBe(true);
 			expect(existsSync(loadContextMarker)).toBe(false);
 			expect(existsSync(checkVersionMarker)).toBe(true);
 		} finally {
