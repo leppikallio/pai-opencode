@@ -26,6 +26,12 @@ function extractScratchpadDir(bundle: string): string {
 	return match?.[1]?.trim() ?? "";
 }
 
+function countScratchpadBindings(message: string): number {
+	return message
+		.split("\n")
+		.filter((line) => line.trim() === "PAI SCRATCHPAD (Binding)").length;
+}
+
 	function createGpt5Input(sessionID: string): unknown {
 		return {
 			sessionID,
@@ -72,7 +78,9 @@ describe("prompt-control module (Task 1 RED)", () => {
       output,
     );
 
-    expect(output.options.instructions).toBe(EXPECTED_OVERRIDE_STUB);
+    expect(output.options.instructions).toContain("PAI SCRATCHPAD (Binding)");
+    expect(output.options.instructions).toContain("ScratchpadDir: /");
+    expect(output.options.instructions).toContain(EXPECTED_OVERRIDE_STUB);
 
     await expect(
       promptControl.chatParams(
@@ -96,7 +104,19 @@ describe("prompt-control module (Task 1 RED)", () => {
     ).resolves.toBeUndefined();
   });
 
-  test("does not override for non-OpenAI or non-GPT-5 model", async () => {
+	test("systemTransform injects binding even when output.system is missing", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const promptControl = module.createPromptControl({ projectDir: process.cwd() });
+
+		const output: { system?: unknown } = {};
+		await promptControl.systemTransform({ sessionID: "ses_root" }, output);
+
+		expect(Array.isArray(output.system)).toBe(true);
+		const system0 = (output.system as string[])[0] ?? "";
+		expect(system0).toContain("PAI SCRATCHPAD (Binding)");
+	});
+
+  test("does not override with GPT-5 stub for non-OpenAI or non-GPT-5 model", async () => {
     const module = await import("../../plugins/pai-cc-hooks/prompt-control");
     const promptControl = module.createPromptControl({ projectDir: process.cwd() }) as PromptControl;
 
@@ -109,7 +129,10 @@ describe("prompt-control module (Task 1 RED)", () => {
       },
       output1,
     );
-    expect(output1.options.instructions).toBe("ORIGINAL");
+    expect(output1.options.instructions).toContain("PAI SCRATCHPAD (Binding)");
+    expect(output1.options.instructions).toContain("ScratchpadDir: /");
+    expect(output1.options.instructions).toContain("ORIGINAL");
+    expect(output1.options.instructions).not.toContain(EXPECTED_OVERRIDE_STUB);
 
     const output2 = { options: { instructions: "ORIGINAL" } };
     await promptControl.chatParams(
@@ -120,8 +143,89 @@ describe("prompt-control module (Task 1 RED)", () => {
       },
       output2,
     );
-    expect(output2.options.instructions).toBe("ORIGINAL");
+    expect(output2.options.instructions).toContain("PAI SCRATCHPAD (Binding)");
+    expect(output2.options.instructions).toContain("ScratchpadDir: /");
+    expect(output2.options.instructions).toContain("ORIGINAL");
+    expect(output2.options.instructions).not.toContain(EXPECTED_OVERRIDE_STUB);
   });
+
+	test("chat.params prepends ScratchpadDir binding for all sessions", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const promptControl = module.createPromptControl({ projectDir: process.cwd() });
+
+		const output: { options: { instructions: string } } = {
+			options: { instructions: "ORIGINAL_INSTRUCTIONS" },
+		};
+
+		await promptControl.chatParams({ sessionID: "ses_root" }, output);
+
+		expect(output.options.instructions).toContain("PAI SCRATCHPAD (Binding)");
+		expect(output.options.instructions).toContain("ScratchpadDir: /");
+	});
+
+	test("chat.params does not duplicate ScratchpadDir binding across repeated calls", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const promptControl = module.createPromptControl({ projectDir: process.cwd() });
+
+		const output: { options: { instructions: string } } = {
+			options: { instructions: "ORIGINAL_INSTRUCTIONS" },
+		};
+
+		await promptControl.chatParams(createUnknownModelInput("ses_idempotent"), output);
+		await promptControl.chatParams(createUnknownModelInput("ses_idempotent"), output);
+
+		expect(countScratchpadBindings(output.options.instructions)).toBe(1);
+		expect(output.options.instructions).toContain("ORIGINAL_INSTRUCTIONS");
+	});
+
+	test("chat.params updates ScratchpadDir after late root upgrade without duplicating binding", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const xdgHome = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-xdg-chatparams-upgrade-"),
+		);
+		const openCodeRoot = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-root-chatparams-upgrade-"),
+		);
+		const projectDir = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-prompt-control-project-chatparams-upgrade-"),
+		);
+		const previousXdg = process.env.XDG_CONFIG_HOME;
+		const previousOpenCodeRoot = process.env.OPENCODE_ROOT;
+
+		__resetSessionRootRegistryForTests();
+		try {
+			process.env.XDG_CONFIG_HOME = xdgHome;
+			process.env.OPENCODE_ROOT = openCodeRoot;
+
+			const promptControl = module.createPromptControl({ projectDir }) as PromptControl;
+			const output: { options: { instructions: string } } = {
+				options: { instructions: "ORIGINAL_INSTRUCTIONS" },
+			};
+
+			await promptControl.chatParams(createUnknownModelInput("ses_child"), output);
+			const firstDir = extractScratchpadDir(output.options.instructions);
+
+			setSessionRootId("ses_child", "ses_root");
+			await promptControl.chatParams(createUnknownModelInput("ses_child"), output);
+			const secondDir = extractScratchpadDir(output.options.instructions);
+
+			expect(firstDir).toBe(
+				path.join(xdgHome, "opencode", "scratchpad", "sessions", "ses_child"),
+			);
+			expect(secondDir).toBe(
+				path.join(xdgHome, "opencode", "scratchpad", "sessions", "ses_root"),
+			);
+			expect(countScratchpadBindings(output.options.instructions)).toBe(1);
+			expect(output.options.instructions).toContain("ORIGINAL_INSTRUCTIONS");
+		} finally {
+			restoreEnv("XDG_CONFIG_HOME", previousXdg);
+			restoreEnv("OPENCODE_ROOT", previousOpenCodeRoot);
+			__resetSessionRootRegistryForTests();
+			await fs.rm(xdgHome, { recursive: true, force: true });
+			await fs.rm(openCodeRoot, { recursive: true, force: true });
+			await fs.rm(projectDir, { recursive: true, force: true });
+		}
+	});
 
   test("filters PAI SKILL.md only for OpenAI GPT-5 canonical bundle builds", async () => {
     const module = await import("../../plugins/pai-cc-hooks/prompt-control");
@@ -321,7 +425,7 @@ describe("prompt-control module (Task 1 RED)", () => {
 		}
 	});
 
-	test("injects WORK scratch path with root session suffix when mapping exists", async () => {
+	test("ScratchpadDir uses canonical sessions root (never WORK)", async () => {
 		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
 		const xdgHome = await fs.mkdtemp(
 			path.join(os.tmpdir(), "pai-prompt-control-xdg-work-"),
@@ -378,10 +482,18 @@ describe("prompt-control module (Task 1 RED)", () => {
 			await promptControl.systemTransform(createGpt5Input("ses_root"), output);
 
 			const bundle = (output.system as string[])[0] ?? "";
-			const scratchpadDir = extractScratchpadDir(bundle);
-			const expected = path.join(workDir, "scratch", "ses_root");
+			const dir = bundle.match(/ScratchpadDir:\s*(.+)/)?.[1]?.trim() ?? "";
+			const expected = path.join(
+				xdgHome,
+				"opencode",
+				"scratchpad",
+				"sessions",
+				"ses_root",
+			);
 
-			expect(scratchpadDir).toBe(expected);
+			expect(dir).toBe(expected);
+			expect(dir).toContain("/scratchpad/sessions/ses_root");
+			expect(dir).not.toContain("/MEMORY/WORK/");
 			await expect(fs.stat(expected)).resolves.toBeTruthy();
 		} finally {
 			restoreEnv("XDG_CONFIG_HOME", previousXdg);
@@ -462,7 +574,13 @@ describe("prompt-control module (Task 1 RED)", () => {
 				(grandchildOutput.system as string[])[0] ?? "",
 			);
 
-			const expected = path.join(workDir, "scratch", "ses_root");
+			const expected = path.join(
+				xdgHome,
+				"opencode",
+				"scratchpad",
+				"sessions",
+				"ses_root",
+			);
 			expect(childDir).toBe(expected);
 			expect(grandchildDir).toBe(expected);
 		} finally {
@@ -765,7 +883,7 @@ describe("prompt-control module (Task 1 RED)", () => {
 		}
 	});
 
-		test("limits out-of-root sentinel noise to one lookup per root session", async () => {
+		test("does not emit out-of-root sentinel when ScratchpadDir ignores WORK mapping", async () => {
 		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
 		const xdgHome = await fs.mkdtemp(
 			path.join(os.tmpdir(), "pai-prompt-control-xdg-sentinel-"),
@@ -830,7 +948,7 @@ describe("prompt-control module (Task 1 RED)", () => {
 
 			const sentinelCount =
 				stderrOutput.match(new RegExp(SENTINEL_OUT_OF_ROOT, "g"))?.length ?? 0;
-			expect(sentinelCount).toBe(1);
+			expect(sentinelCount).toBe(0);
 		} finally {
 			restoreEnv("XDG_CONFIG_HOME", previousXdg);
 			restoreEnv("OPENCODE_ROOT", previousOpenCodeRoot);
@@ -841,7 +959,7 @@ describe("prompt-control module (Task 1 RED)", () => {
 		}
 		});
 
-		test("limits out-of-root sentinel noise independently per root session id", async () => {
+		test("does not emit out-of-root sentinel for multiple root session ids", async () => {
 			const module = await import("../../plugins/pai-cc-hooks/prompt-control");
 			const xdgHome = await fs.mkdtemp(
 				path.join(os.tmpdir(), "pai-prompt-control-xdg-sentinel-multi-root-"),
@@ -917,7 +1035,7 @@ describe("prompt-control module (Task 1 RED)", () => {
 
 				const sentinelCount =
 					stderrOutput.match(new RegExp(SENTINEL_OUT_OF_ROOT, "g"))?.length ?? 0;
-				expect(sentinelCount).toBe(2);
+				expect(sentinelCount).toBe(0);
 			} finally {
 				restoreEnv("XDG_CONFIG_HOME", previousXdg);
 				restoreEnv("OPENCODE_ROOT", previousOpenCodeRoot);

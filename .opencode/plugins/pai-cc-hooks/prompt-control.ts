@@ -1,9 +1,5 @@
 import { loadAgentsStack, loadConfiguredInstructions } from "../handlers/prompt-sources";
-import {
-  ensureDir,
-  generateSessionId,
-  getCurrentWorkPathForSession,
-} from "../lib/paths";
+import { generateSessionId } from "../lib/paths";
 import { getPaiRuntimeInfo } from "../lib/pai-runtime";
 import { ensureScratchpadSession } from "../lib/scratchpad";
 import * as fs from "node:fs/promises";
@@ -148,6 +144,11 @@ export function canonicalSourcePathKey(rawPath: string): string {
 }
 
 const PAI_SKILL_PATH_KEY = "/skills/pai/skill.md";
+const SCRATCHPAD_BINDING_HEADER = "PAI SCRATCHPAD (Binding)";
+const SCRATCHPAD_DIR_PREFIX = "ScratchpadDir:";
+const SCRATCHPAD_RULES_HEADER = "Rules:";
+const SCRATCHPAD_RULE_ASK = "- If asked for ScratchpadDir, answer with the value above.";
+const SCRATCHPAD_RULE_DISCOVER = "- Do NOT run tools (Read/Glob/Bash/etc) to discover it.";
 
 export function isPaiSkillInstructionSource(sourcePath: string): boolean {
   return canonicalSourcePathKey(sourcePath).endsWith(PAI_SKILL_PATH_KEY);
@@ -155,11 +156,11 @@ export function isPaiSkillInstructionSource(sourcePath: string): boolean {
 
 function buildScratchpadBinding(scratchpadDir: string): string {
 	return [
-		"PAI SCRATCHPAD (Binding)",
-		`ScratchpadDir: ${scratchpadDir}`,
-		"Rules:",
-		"- If asked for ScratchpadDir, answer with the value above.",
-		"- Do NOT run tools (Read/Glob/Bash/etc) to discover it.",
+		SCRATCHPAD_BINDING_HEADER,
+		`${SCRATCHPAD_DIR_PREFIX} ${scratchpadDir}`,
+		SCRATCHPAD_RULES_HEADER,
+		SCRATCHPAD_RULE_ASK,
+		SCRATCHPAD_RULE_DISCOVER,
 	].join("\n");
 }
 
@@ -209,17 +210,64 @@ function buildCanonicalBundle(
 	return chunks.join("\n\n");
 }
 
-function prependScratchpadBinding(systemMessage: string, scratchpadDir: string): string {
-	if (systemMessage.includes("PAI SCRATCHPAD (Binding)")) {
-		return systemMessage;
+function isScratchpadDirBindingLine(line: string): boolean {
+	const trimmed = line.trimStart();
+	return trimmed === SCRATCHPAD_DIR_PREFIX || trimmed.startsWith(`${SCRATCHPAD_DIR_PREFIX} `);
+}
+
+function getScratchpadBindingBlockEnd(lines: string[], startIndex: number): number {
+	if (lines[startIndex]?.trim() !== SCRATCHPAD_BINDING_HEADER) {
+		return -1;
 	}
 
+	if (!isScratchpadDirBindingLine(lines[startIndex + 1] ?? "")) {
+		return -1;
+	}
+
+	if ((lines[startIndex + 2] ?? "").trim() !== SCRATCHPAD_RULES_HEADER) {
+		return -1;
+	}
+
+	if ((lines[startIndex + 3] ?? "").trim() !== SCRATCHPAD_RULE_ASK) {
+		return -1;
+	}
+
+	if ((lines[startIndex + 4] ?? "").trim() !== SCRATCHPAD_RULE_DISCOVER) {
+		return -1;
+	}
+
+	return startIndex + 4;
+}
+
+function upsertScratchpadBinding(message: string, scratchpadDir: string): string {
 	const binding = buildScratchpadBinding(scratchpadDir);
-	if (!systemMessage.trim()) {
+	if (!message.trim()) {
 		return binding;
 	}
 
-	return `${binding}\n\n${systemMessage}`;
+	const lines = message.split("\n");
+	const remainingLines: string[] = [];
+
+	for (let lineIndex = 0; lineIndex < lines.length;) {
+		const blockEnd = getScratchpadBindingBlockEnd(lines, lineIndex);
+		if (blockEnd === -1) {
+			remainingLines.push(lines[lineIndex] ?? "");
+			lineIndex += 1;
+			continue;
+		}
+
+		lineIndex = blockEnd + 1;
+		while (lineIndex < lines.length && (lines[lineIndex] ?? "").trim() === "") {
+			lineIndex += 1;
+		}
+	}
+
+	const remainingMessage = remainingLines.join("\n").trimStart();
+	if (!remainingMessage) {
+		return binding;
+	}
+
+	return `${binding}\n\n${remainingMessage}`;
 }
 
 export function createPromptControl({ projectDir }: { projectDir: string }): PromptControl {
@@ -332,13 +380,6 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
   };
 
   const resolveScratchpadDirForRoot = async (rootSessionId: string): Promise<string> => {
-    const workDir = await getCurrentWorkPathForSession(rootSessionId);
-    if (workDir) {
-      const scratchDir = path.join(workDir, "scratch", rootSessionId);
-      await ensureDir(scratchDir);
-      return scratchDir;
-    }
-
     const scratchpad = await ensureScratchpadSession(rootSessionId);
     return scratchpad.dir;
   };
@@ -448,38 +489,43 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
 
       const out = (isRecord(output) ? output : {}) as PromptControlOutput;
       const options = getRecord(out, "options");
-      if (!options || !eligible) {
+      if (!options) {
         return;
       }
 
-      const existingInstructions = getString(options, "instructions");
-      if (!existingInstructions.trim()) {
-        return;
-      }
+      const scratchpadDir = await resolvePinnedScratchpadDir({
+        sessionId,
+        nowMs,
+      });
 
-      options.instructions = buildOverrideStub();
+		if (eligible) {
+			options.instructions = upsertScratchpadBinding(
+				buildOverrideStub(),
+				scratchpadDir,
+			);
+			return;
+		}
+
+		const existingInstructions = getString(options, "instructions");
+		options.instructions = upsertScratchpadBinding(
+			existingInstructions,
+			scratchpadDir,
+		);
     } catch {
       // Fail-open by design.
     }
   };
 
-  const systemTransform = async (input: unknown, output: unknown): Promise<void> => {
-    try {
-      const nowMs = Date.now();
-      const sessionId = getSessionId(input);
-      const eligible = isEligible(input);
-      const normalizedSessionId = normalizeSessionId(sessionId);
-      const wasMarked = !!normalizedSessionId && codexSessions.has(normalizedSessionId);
+	const systemTransform = async (input: unknown, output: unknown): Promise<void> => {
+		try {
+			const nowMs = Date.now();
+			const sessionId = getSessionId(input);
+			const eligible = isEligible(input);
+			const normalizedSessionId = normalizeSessionId(sessionId);
+			const wasMarked = !!normalizedSessionId && codexSessions.has(normalizedSessionId);
 
-      const out = (isRecord(output) ? output : {}) as PromptControlOutput;
-      const previousSystem = out.system;
-      if (!Array.isArray(previousSystem)) {
-			if (eligible) {
-				markSession(sessionId, nowMs);
-			}
-			pruneStale(nowMs);
-			return;
-		}
+			const out = (isRecord(output) ? output : {}) as PromptControlOutput;
+			const previousSystem = Array.isArray(out.system) ? out.system : [];
 
 		const scratchpadDir = await resolvePinnedScratchpadDir({
 			sessionId,
@@ -489,7 +535,7 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
 		// Always inject the ScratchpadDir binding, even when model eligibility
 		// matching is not available (e.g. missing provider/model fields).
 		if (!(eligible || wasMarked)) {
-			const nextSystem0 = prependScratchpadBinding(
+			const nextSystem0 = upsertScratchpadBinding(
 				typeof previousSystem[0] === "string" ? previousSystem[0] : "",
 				scratchpadDir,
 			);

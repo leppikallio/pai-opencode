@@ -48,7 +48,8 @@ type UnknownRecord = Record<string, unknown>;
 type SessionLifecycleEventName = "SessionStart" | "SessionEnd";
 type SessionStartPolicy = {
 	allowLoadContext: boolean;
-	allowStdoutInjection: boolean;
+	allowLoadContextStdoutInjection: boolean;
+	allowScratchpadBindingStdoutInjection: boolean;
 };
 type CmuxNotifyFn = (args: {
 	sessionId: string;
@@ -264,6 +265,25 @@ function isLoadContextHookCommand(command: string): boolean {
 	return command.includes("LoadContext.hook.ts");
 }
 
+function isScratchpadBindingHookCommand(command: string): boolean {
+	return command.includes("ScratchpadBinding.hook.ts");
+}
+
+function shouldInjectSessionStartStdout(args: {
+	command: string;
+	policy: SessionStartPolicy;
+}): boolean {
+	if (isScratchpadBindingHookCommand(args.command)) {
+		return args.policy.allowScratchpadBindingStdoutInjection;
+	}
+
+	if (isLoadContextHookCommand(args.command)) {
+		return args.policy.allowLoadContextStdoutInjection;
+	}
+
+	return false;
+}
+
 async function resolveSessionStartPolicy(args: {
 	sessionId: string;
 	sessionGet?: SessionGetFn;
@@ -272,14 +292,15 @@ async function resolveSessionStartPolicy(args: {
 	if (!args.sessionGet) {
 		if (isDebugLoggingEnabled()) {
 			console.warn(
-				"[pai-cc-hooks] SessionStart metadata unavailable; skipping LoadContext and SessionStart stdout injection.",
+				"[pai-cc-hooks] SessionStart metadata unavailable; skipping LoadContext hook injection.",
 			);
 		}
 		return {
 			parentSessionId: args.fallbackParentSessionId,
 			policy: {
 				allowLoadContext: false,
-				allowStdoutInjection: false,
+				allowLoadContextStdoutInjection: false,
+				allowScratchpadBindingStdoutInjection: true,
 			},
 		};
 	}
@@ -298,21 +319,23 @@ async function resolveSessionStartPolicy(args: {
 			parentSessionId,
 			policy: {
 				allowLoadContext: !isSubagent,
-				allowStdoutInjection: !isSubagent,
+				allowLoadContextStdoutInjection: !isSubagent,
+				allowScratchpadBindingStdoutInjection: true,
 			},
 		};
 	} catch (error) {
 		if (isDebugLoggingEnabled()) {
 			const reason = sanitizeDebugReason(error);
 			console.warn(
-				`[pai-cc-hooks] SessionStart metadata fetch failed; skipping LoadContext and SessionStart stdout injection: ${reason}`,
+				`[pai-cc-hooks] SessionStart metadata fetch failed; skipping LoadContext hook injection: ${reason}`,
 			);
 		}
 		return {
 			parentSessionId: args.fallbackParentSessionId,
 			policy: {
 				allowLoadContext: false,
-				allowStdoutInjection: false,
+				allowLoadContextStdoutInjection: false,
+				allowScratchpadBindingStdoutInjection: true,
 			},
 		};
 	}
@@ -499,6 +522,7 @@ async function executeSessionLifecycleHooks(
 		sessionId: string;
 		cwd: string;
 		hookEventName: SessionLifecycleEventName;
+		rootSessionId?: string;
 		sessionStartPolicy?: SessionStartPolicy;
 		promptSessionAsync?: SessionPromptAsyncFn;
 	},
@@ -520,6 +544,14 @@ async function executeSessionLifecycleHooks(
 		hook_event_name: args.hookEventName,
 		hook_source: "opencode-plugin",
 	};
+
+	if (args.hookEventName === "SessionStart") {
+		(
+			stdinData as SessionStartInput & {
+				root_session_id?: string;
+			}
+		).root_session_id = args.rootSessionId || args.sessionId;
+	}
 
 	for (const matcher of matchers) {
 		if (!matcher.hooks || matcher.hooks.length === 0) continue;
@@ -556,9 +588,12 @@ async function executeSessionLifecycleHooks(
 
 			if (
 				args.hookEventName === "SessionStart" &&
-				args.sessionStartPolicy?.allowStdoutInjection &&
+				args.sessionStartPolicy &&
 				args.promptSessionAsync &&
-				isLoadContextHookCommand(hook.command) &&
+				shouldInjectSessionStartStdout({
+					command: hook.command,
+					policy: args.sessionStartPolicy,
+				}) &&
 				result.exitCode === 0 &&
 				result.stdout
 			) {
@@ -762,6 +797,7 @@ export function createPaiClaudeHooks({
 						sessionId,
 						cwd: process.cwd(),
 						hookEventName: "SessionStart",
+						rootSessionId: resolvedRootSessionId || sessionId,
 						sessionStartPolicy: sessionStart.policy,
 						promptSessionAsync: promptParentSessionAsyncFromContext,
 					},

@@ -262,6 +262,10 @@
         "hooks": [
           {
             "type": "command",
+            "command": "${PAI_DIR}/hooks/ScratchpadBinding.hook.ts"
+          },
+          {
+            "type": "command",
             "command": "${PAI_DIR}/hooks/LoadContext.hook.ts"
           },
           {
