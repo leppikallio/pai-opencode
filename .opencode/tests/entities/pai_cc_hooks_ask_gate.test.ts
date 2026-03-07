@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -40,6 +40,38 @@ describe("pai-cc-hooks ask gate", () => {
         },
       });
 
+      // The hooks layer injects OPENCODE_ROOT=tmpRoot. Provide a test-local
+      // security patterns override so the SecurityValidator produces an `ask`
+      // decision for a non-destructive command.
+      const patternsDir = path.join(
+        tmpRoot,
+        "skills",
+        "PAI",
+        "USER",
+        "PAISECURITYSYSTEM",
+      );
+      mkdirSync(patternsDir, { recursive: true });
+      writeFileSync(
+        path.join(patternsDir, "patterns.yaml"),
+        [
+          "---",
+          'version: "1.0"',
+          "",
+          "bash:",
+          "  confirm:",
+          '    - pattern: "echo block_test"',
+          '      reason: "Test-only ask-gate trigger"',
+          "",
+          "paths:",
+          "  zeroAccess:",
+          "  readOnly:",
+          "  confirmWrite:",
+          "  noDelete:",
+          "",
+        ].join("\n"),
+        "utf-8",
+      );
+
       __resetPaiCcHooksSettingsCacheForTests();
       const hooks = createPaiClaudeHooks({ ctx: {} });
 
@@ -48,8 +80,8 @@ describe("pai-cc-hooks ask gate", () => {
         sessionID: "ses_test",
         callID: "call_test",
         args: {
-          command: "git reset --hard",
-          description: "trigger confirm",
+          command: "echo block_test",
+          description: "trigger ask gate",
         },
       };
 

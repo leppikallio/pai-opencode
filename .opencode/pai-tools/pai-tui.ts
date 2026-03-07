@@ -12,11 +12,21 @@ import { resolveRuntimeRootFromMainScript } from "./resolveRuntimeRootFromMainSc
 const DEFAULT_START_PORT = 4096;
 const DEFAULT_BIND_RETRIES = 3;
 const DEFAULT_QUICK_EXIT_MS = 1200;
+const DEFAULT_GC = "on" satisfies GarbageCollectMode;
+const DEFAULT_GC_ON_START = "on" satisfies GarbageCollectMode;
+const DEFAULT_GC_ON_EXIT = "on" satisfies GarbageCollectMode;
+const DEFAULT_GC_INTERNAL_MODE = "stale" satisfies InternalGcMode;
+const DEFAULT_GC_INTERNAL_TTL_MIN = 15;
+const DEFAULT_GC_MAX_DELETES = 25;
+const DEFAULT_GC_DELETE_TIMEOUT_MS = 5_000;
+const DEFAULT_GC_BUDGET_MS = 30_000;
 const LOOPBACK_HOST = "127.0.0.1";
 
 type CompletionVisibleFallbackMode = "auto" | "on" | "off";
 type CodexCleanSlateMode = "on" | "off";
 type DynamicContextMode = "on" | "off";
+type GarbageCollectMode = "on" | "off";
+type InternalGcMode = "stale" | "all";
 
 export interface DynamicContextSettingsPatch {
 	dynamicContext: boolean;
@@ -29,9 +39,34 @@ export interface PaiTuiRunOptions {
 	completionVisibleFallback: CompletionVisibleFallbackMode;
 	codexCleanSlate?: CodexCleanSlateMode;
 	dynamicContext: DynamicContextMode;
+	gc: GarbageCollectMode;
+	gcOnStart: GarbageCollectMode;
+	gcOnExit: GarbageCollectMode;
+	gcInternalMode: InternalGcMode;
+	gcInternalTtlMin: number;
+	gcMaxDeletes: number;
+	gcDeleteTimeoutMs: number;
+	gcBudgetMs: number;
 	bindRetries: number;
 	writeState: boolean;
 	passthroughArgs: string[];
+}
+
+export interface RunOpencodeCliInput {
+	binary: string;
+	args: string[];
+	env: Record<string, string>;
+	cwd: string;
+	timeoutMs: number;
+	stdoutPrefix?: string;
+	stderrPrefix?: string;
+	stream?: boolean;
+}
+
+export interface RunOpencodeCliResult {
+	exitCode: number;
+	stdout: string;
+	stderr: string;
 }
 
 export interface SpawnChildInput {
@@ -78,6 +113,7 @@ export interface PaiTuiDeps {
 	selectFreePort: (startPort: number) => Promise<number>;
 	spawnChild: (input: SpawnChildInput) => SpawnedChild;
 	isPortAvailable: (port: number) => Promise<boolean>;
+	runOpencodeCli: (input: RunOpencodeCliInput) => Promise<RunOpencodeCliResult>;
 	writeSettingsPatch: (
 		opencodeRoot: string,
 		patch: DynamicContextSettingsPatch,
@@ -125,6 +161,14 @@ const HELP_TEXT = [
 	"  --completion-visible-fallback <auto|on|off>    Fallback env behavior when cmux socket is missing",
 	"  --codex-clean-slate <on|off>                    Explicitly set PAI_CODEX_CLEAN_SLATE (omit flag to inherit)",
 	"  --dynamic-context <on|off>                      Persist settings.json.dynamicContext for SessionStart injection",
+	"  --gc <on|off>                                   Garbage-collect leaked sessions (default: on)",
+	"  --gc-on-start <on|off>                           Run GC before starting the TUI (default: on)",
+	"  --gc-on-exit <on|off>                            Run GC after the TUI exits (default: on)",
+	"  --gc-internal-mode <stale|all>                   GC mode for [PAI INTERNAL] sessions (default: stale)",
+	"  --gc-internal-ttl-min <n>                        Stale threshold minutes (default: 15)",
+	"  --gc-max-deletes <n>                             Max deletes per GC pass (default: 25)",
+	"  --gc-delete-timeout-ms <n>                       Per-delete timeout (default: 5000)",
+	"  --gc-budget-ms <n>                               Total GC time budget (default: 30000)",
 	"  --bind-retries <n>                             Retries for rapid bind-race exits",
 	"  --write-state <on|off>                         Persist pai-tui state artifacts",
 	"",
@@ -135,6 +179,14 @@ const HELP_TEXT = [
 	"  --completion-visible-fallback auto",
 	"  --codex-clean-slate omitted (inherit parent env; unchanged)",
 	"  --dynamic-context on",
+	`  --gc ${DEFAULT_GC}`,
+	`  --gc-on-start ${DEFAULT_GC_ON_START}`,
+	`  --gc-on-exit ${DEFAULT_GC_ON_EXIT}`,
+	`  --gc-internal-mode ${DEFAULT_GC_INTERNAL_MODE}`,
+	`  --gc-internal-ttl-min ${DEFAULT_GC_INTERNAL_TTL_MIN}`,
+	`  --gc-max-deletes ${DEFAULT_GC_MAX_DELETES}`,
+	`  --gc-delete-timeout-ms ${DEFAULT_GC_DELETE_TIMEOUT_MS}`,
+	`  --gc-budget-ms ${DEFAULT_GC_BUDGET_MS}`,
 	`  --bind-retries ${DEFAULT_BIND_RETRIES}`,
 	"  --write-state on",
 	"",
@@ -168,6 +220,26 @@ function normalizeInteger(
 function isLikelyValueToken(token: string | undefined): boolean {
 	if (!token) return false;
 	return !token.startsWith("-");
+}
+
+function extractExcludedSessionIds(passthroughArgs: string[]): Set<string> {
+	const out = new Set<string>();
+	for (let idx = 0; idx < passthroughArgs.length; idx += 1) {
+		const token = passthroughArgs[idx];
+		if (token === "-s" || token === "--session") {
+			const value = passthroughArgs[idx + 1];
+			if (isLikelyValueToken(value)) {
+				out.add(String(value));
+				idx += 1;
+			}
+			continue;
+		}
+		if (token.startsWith("--session=")) {
+			const value = token.slice("--session=".length).trim();
+			if (value) out.add(value);
+		}
+	}
+	return out;
 }
 
 function helpRequested(argv: string[]): boolean {
@@ -522,12 +594,104 @@ function defaultSpawnChild(input: SpawnChildInput): SpawnedChild {
 	};
 }
 
+function flushPrefixedLines(args: {
+	buffer: string;
+	prefix: string;
+	write: (text: string) => void;
+}): string {
+	let buf = args.buffer;
+	while (true) {
+		const idx = buf.indexOf("\n");
+		if (idx === -1) return buf;
+		const line = buf.slice(0, idx + 1);
+		buf = buf.slice(idx + 1);
+		args.write(args.prefix ? `${args.prefix}${line}` : line);
+	}
+}
+
+async function defaultRunOpencodeCli(
+	input: RunOpencodeCliInput,
+): Promise<RunOpencodeCliResult> {
+	return await new Promise((resolve, reject) => {
+		const child = spawn(input.binary, input.args, {
+			cwd: input.cwd,
+			env: input.env,
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+
+		let stdout = "";
+		let stderr = "";
+		let stdoutBuf = "";
+		let stderrBuf = "";
+		const stream = Boolean(input.stream);
+		const stdoutPrefix = input.stdoutPrefix ?? "";
+		const stderrPrefix = input.stderrPrefix ?? "";
+
+		const timer = setTimeout(() => {
+			child.kill("SIGKILL");
+		}, input.timeoutMs);
+
+		child.stdout?.on("data", (chunk) => {
+			const text = chunk.toString();
+			stdout += text;
+			if (!stream) return;
+			stdoutBuf += text;
+			stdoutBuf = flushPrefixedLines({
+				buffer: stdoutBuf,
+				prefix: stdoutPrefix,
+				write: (line) => process.stdout.write(line),
+			});
+		});
+
+		child.stderr?.on("data", (chunk) => {
+			const text = chunk.toString();
+			stderr += text;
+			if (!stream) return;
+			stderrBuf += text;
+			stderrBuf = flushPrefixedLines({
+				buffer: stderrBuf,
+				prefix: stderrPrefix,
+				write: (line) => process.stderr.write(line),
+			});
+		});
+
+		child.once("error", (error) => {
+			clearTimeout(timer);
+			reject(error);
+		});
+
+		child.once("close", (code) => {
+			clearTimeout(timer);
+			if (stream) {
+				if (stdoutBuf) {
+					process.stdout.write(
+						stdoutPrefix ? `${stdoutPrefix}${stdoutBuf}` : stdoutBuf,
+					);
+					stdoutBuf = "";
+				}
+				if (stderrBuf) {
+					process.stderr.write(
+						stderrPrefix ? `${stderrPrefix}${stderrBuf}` : stderrBuf,
+					);
+					stderrBuf = "";
+				}
+			}
+			resolve({
+				exitCode: normalizeExitCode(code ?? 1),
+				stdout,
+				stderr,
+			});
+		});
+	});
+}
+
 function defaultDeps(): PaiTuiDeps {
 	return {
 		resolveBinary: async () => await resolveServeCapableOpencodeBinary(),
 		selectFreePort: findFirstAvailablePort,
 		spawnChild: defaultSpawnChild,
 		isPortAvailable,
+		runOpencodeCli: defaultRunOpencodeCli,
 		writeSettingsPatch,
 		writeState: writePaiTuiState,
 		logInfo: (line) => {
@@ -539,6 +703,276 @@ function defaultDeps(): PaiTuiDeps {
 		nowMs: () => Date.now(),
 		quickExitMs: DEFAULT_QUICK_EXIT_MS,
 	};
+}
+
+type SessionListItem = {
+	id: string;
+	title: string;
+	created: number;
+	updated: number;
+	projectId?: string;
+	directory?: string;
+};
+
+type GcLockV1 = {
+	v: 1;
+	pid: number;
+	createdAt: string;
+};
+
+function buildOpencodeCliEnv(args: {
+	baseEnv: NodeJS.ProcessEnv;
+	opencodeRoot: string;
+}): Record<string, string> {
+	const env = envToRecord(args.baseEnv);
+	env.OPENCODE_CONFIG_DIR = args.opencodeRoot;
+	env.OPENCODE_ROOT = args.opencodeRoot;
+	env.OPENCODE_CONFIG_ROOT = args.opencodeRoot;
+	env.PAI_DIR = args.opencodeRoot;
+	return env;
+}
+
+function isInternalSessionTitle(title: string): boolean {
+	return title.trimStart().startsWith("[PAI INTERNAL]");
+}
+
+function safeNumber(value: unknown): number | null {
+	return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function safeString(value: unknown): string | null {
+	return typeof value === "string" ? value : null;
+}
+
+function parseSessionListJson(raw: string): SessionListItem[] {
+	const parsed = JSON.parse(raw) as unknown;
+	if (!Array.isArray(parsed)) return [];
+
+	const out: SessionListItem[] = [];
+	for (const item of parsed) {
+		if (typeof item !== "object" || item === null) continue;
+		const rec = item as Record<string, unknown>;
+		const id = safeString(rec.id);
+		const title = safeString(rec.title);
+		const created = safeNumber(rec.created);
+		const updated = safeNumber(rec.updated);
+		if (!id || !title || created === null || updated === null) continue;
+		out.push({
+			id,
+			title,
+			created,
+			updated,
+			projectId: safeString(rec.projectId) ?? undefined,
+			directory: safeString(rec.directory) ?? undefined,
+		});
+	}
+	return out;
+}
+
+function formatAgeMinutes(nowMs: number, updatedMs: number): string {
+	const ageMs = Math.max(0, nowMs - updatedMs);
+	const minutes = Math.floor(ageMs / 60000);
+	return `${minutes}m`;
+}
+
+async function acquireGcLock(args: {
+	stateDir: string;
+	nowMs: number;
+	staleAfterMs: number;
+}): Promise<{ acquired: boolean; lockPath: string }> {
+	await fs.mkdir(args.stateDir, { recursive: true });
+	const lockPath = path.join(args.stateDir, "pai-tui-gc.lock");
+	const existing = await readJsonIfExists(lockPath);
+
+	if (existing) {
+		const pid = typeof existing.pid === "number" ? existing.pid : null;
+		const createdAt = typeof existing.createdAt === "string" ? existing.createdAt : null;
+		const createdAtMs = createdAt ? Date.parse(createdAt) : Number.NaN;
+		const ageMs = Number.isFinite(createdAtMs) ? args.nowMs - createdAtMs : Number.POSITIVE_INFINITY;
+
+		if (pid && isProcessAlive(pid) && ageMs < args.staleAfterMs) {
+			return { acquired: false, lockPath };
+		}
+	}
+
+	const lock: GcLockV1 = {
+		v: 1,
+		pid: process.pid,
+		createdAt: new Date(args.nowMs).toISOString(),
+	};
+	await atomicWriteJson(lockPath, lock);
+	return { acquired: true, lockPath };
+}
+
+async function releaseGcLock(lockPath: string): Promise<void> {
+	try {
+		await fs.rm(lockPath, { force: true });
+	} catch {
+		// best-effort
+	}
+}
+
+async function runGcPass(args: {
+	phase: "start" | "exit";
+	options: PaiTuiRunOptions;
+	deps: PaiTuiDeps;
+	binary: string;
+	excludeSessionIds: Set<string>;
+}): Promise<void> {
+	const enabled = args.options.gc !== "off";
+	const phaseEnabled =
+		args.phase === "start"
+			? args.options.gcOnStart !== "off"
+			: args.options.gcOnExit !== "off";
+	if (!enabled || !phaseEnabled) return;
+
+	const startMs = args.deps.nowMs();
+	const stateDir = path.join(args.options.opencodeRoot, "MEMORY", "STATE");
+	const lockStaleAfterMs = Math.max(2 * 60 * 1000, args.options.gcBudgetMs * 2);
+	const lock = await acquireGcLock({
+		stateDir,
+		nowMs: startMs,
+		staleAfterMs: lockStaleAfterMs,
+	});
+	if (!lock.acquired) return;
+
+	let deleted = 0;
+	let skipped = 0;
+	let errors = 0;
+	const budgetDeadline = startMs + Math.max(0, args.options.gcBudgetMs);
+
+	const env = buildOpencodeCliEnv({
+		baseEnv: process.env,
+		opencodeRoot: args.options.opencodeRoot,
+	});
+
+	const withinBudget = () => args.deps.nowMs() < budgetDeadline;
+	const canDeleteMore = () => deleted < Math.max(0, args.options.gcMaxDeletes);
+
+	args.deps.logInfo(
+		`GC starting… (mode=${args.options.gcInternalMode} ttl=${args.options.gcInternalTtlMin}m cap=${args.options.gcMaxDeletes})`,
+	);
+
+	try {
+		// 1) Process /wq markers first.
+		const entries = await fs.readdir(stateDir).catch(() => []);
+		const markers = entries
+			.filter(
+				(name) =>
+					name.startsWith("pai-wq-exit-intent.") && name.endsWith(".json"),
+			)
+			.map((name) => path.join(stateDir, name));
+
+		for (const markerPath of markers) {
+			if (!withinBudget() || !canDeleteMore()) break;
+			const markerRaw = await readJsonIfExists(markerPath);
+			if (!markerRaw) {
+				continue;
+			}
+			const pid = typeof markerRaw.pid === "number" ? markerRaw.pid : null;
+			const sessionId = typeof markerRaw.sessionId === "string" ? markerRaw.sessionId : "";
+			if (!sessionId) {
+				await fs.rm(markerPath, { force: true }).catch(() => {});
+				continue;
+			}
+			if (pid && isProcessAlive(pid)) {
+				skipped += 1;
+				continue;
+			}
+			if (args.excludeSessionIds.has(sessionId)) {
+				skipped += 1;
+				await fs.rm(markerPath, { force: true }).catch(() => {});
+				continue;
+			}
+
+			args.deps.logInfo(
+				`[PAI GC] deleting ${sessionId} (from /wq marker)`,
+			);
+			try {
+				const res = await args.deps.runOpencodeCli({
+					binary: args.binary,
+					args: ["session", "delete", sessionId],
+					env,
+					cwd: args.options.dir,
+					timeoutMs: args.options.gcDeleteTimeoutMs,
+					stdoutPrefix: "[opencode] ",
+					stderrPrefix: "[opencode] ",
+					stream: true,
+				});
+				if (res.exitCode === 0) {
+					deleted += 1;
+					await fs.rm(markerPath, { force: true }).catch(() => {});
+				} else {
+					errors += 1;
+				}
+			} catch {
+				errors += 1;
+			}
+		}
+
+		// 2) Prune internal sessions.
+		if (withinBudget() && canDeleteMore()) {
+			const listRes = await args.deps.runOpencodeCli({
+				binary: args.binary,
+				args: ["session", "list", "--format", "json"],
+				env,
+				cwd: args.options.dir,
+				timeoutMs: Math.min(args.options.gcBudgetMs, 5000),
+				stream: false,
+			});
+
+			let sessions: SessionListItem[] = [];
+			try {
+				sessions = parseSessionListJson(listRes.stdout);
+			} catch {
+				sessions = [];
+			}
+
+			const nowMs = args.deps.nowMs();
+			const ttlMs = Math.max(0, args.options.gcInternalTtlMin) * 60_000;
+			const candidates = sessions
+				.filter((s) => !args.excludeSessionIds.has(s.id))
+				.filter((s) => isInternalSessionTitle(s.title))
+				.filter((s) => {
+					if (args.options.gcInternalMode === "all") return true;
+					return nowMs - s.updated >= ttlMs;
+				})
+				.sort((a, b) => a.updated - b.updated);
+
+			for (const session of candidates) {
+				if (!withinBudget() || !canDeleteMore()) break;
+				const age = formatAgeMinutes(args.deps.nowMs(), session.updated);
+				args.deps.logInfo(
+					`[PAI GC] deleting ${session.id} (${session.title}, age ${age})`,
+				);
+				try {
+					const res = await args.deps.runOpencodeCli({
+						binary: args.binary,
+						args: ["session", "delete", session.id],
+						env,
+						cwd: args.options.dir,
+						timeoutMs: args.options.gcDeleteTimeoutMs,
+						stdoutPrefix: "[opencode] ",
+						stderrPrefix: "[opencode] ",
+						stream: true,
+					});
+					if (res.exitCode === 0) {
+						deleted += 1;
+					} else {
+						errors += 1;
+					}
+				} catch {
+					errors += 1;
+				}
+			}
+		}
+	} finally {
+		await releaseGcLock(lock.lockPath);
+		const elapsed = args.deps.nowMs() - startMs;
+		args.deps.logInfo(
+			`GC done: deleted ${deleted} in ${elapsed}ms; skipped ${skipped}; errors ${errors}`,
+		);
+	}
 }
 
 export async function runPaiTui(
@@ -568,6 +1002,24 @@ export async function runPaiTui(
 
 	let nextPortStart = normalizeInteger(options.startPort, "startPort");
 	const bindRetries = Math.max(0, Math.trunc(options.bindRetries));
+	const excludeSessionIds = extractExcludedSessionIds(sanitized.args);
+
+	try {
+		await runGcPass({
+			phase: "start",
+			options,
+			deps,
+			binary,
+			excludeSessionIds,
+		});
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		deps.logWarn(`GC failed (start): ${message}`);
+	}
+
+	let finalExitCode = 1;
+
+	try {
 
 	for (let attempt = 0; attempt <= bindRetries; attempt += 1) {
 		const port = await deps.selectFreePort(nextPortStart);
@@ -632,16 +1084,19 @@ export async function runPaiTui(
 		if (!early.exitedEarly) {
 			try {
 				const finalExit = await child.exited;
-				return normalizeExitCode(finalExit);
+				finalExitCode = normalizeExitCode(finalExit);
+				break;
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
 				deps.logWarn(`OpenCode process crashed: ${message}`);
-				return 1;
+				finalExitCode = 1;
+				break;
 			}
 		}
 
 		if (early.exitCode === 0) {
-			return 0;
+			finalExitCode = 0;
+			break;
 		}
 
 		const retriesRemain = attempt < bindRetries;
@@ -656,10 +1111,25 @@ export async function runPaiTui(
 			continue;
 		}
 
-		return early.exitCode;
+		finalExitCode = early.exitCode;
+		break;
+	}
+	} finally {
+		try {
+			await runGcPass({
+				phase: "exit",
+				options,
+				deps,
+				binary,
+				excludeSessionIds,
+			});
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			deps.logWarn(`GC failed (exit): ${message}`);
+		}
 	}
 
-	return 1;
+	return finalExitCode;
 }
 
 function createCliCommand() {
@@ -680,6 +1150,38 @@ function createCliCommand() {
 			codexCleanSlate: option({
 				long: "codex-clean-slate",
 				type: optional(oneOf(["on", "off"])),
+			}),
+			gc: option({
+				long: "gc",
+				type: optional(oneOf(["on", "off"])),
+			}),
+			gcOnStart: option({
+				long: "gc-on-start",
+				type: optional(oneOf(["on", "off"])),
+			}),
+			gcOnExit: option({
+				long: "gc-on-exit",
+				type: optional(oneOf(["on", "off"])),
+			}),
+			gcInternalMode: option({
+				long: "gc-internal-mode",
+				type: optional(oneOf(["stale", "all"])),
+			}),
+			gcInternalTtlMin: option({
+				long: "gc-internal-ttl-min",
+				type: optional(string),
+			}),
+			gcMaxDeletes: option({
+				long: "gc-max-deletes",
+				type: optional(string),
+			}),
+			gcDeleteTimeoutMs: option({
+				long: "gc-delete-timeout-ms",
+				type: optional(string),
+			}),
+			gcBudgetMs: option({
+				long: "gc-budget-ms",
+				type: optional(string),
 			}),
 			bindRetries: option({ long: "bind-retries", type: optional(string) }),
 			writeState: option({
@@ -702,6 +1204,33 @@ function createCliCommand() {
 				0,
 			);
 
+			const parsedGcInternalTtlMin = normalizeInteger(
+				Number.parseInt(
+					args.gcInternalTtlMin ?? String(DEFAULT_GC_INTERNAL_TTL_MIN),
+					10,
+				),
+				"--gc-internal-ttl-min",
+				0,
+			);
+			const parsedGcMaxDeletes = normalizeInteger(
+				Number.parseInt(args.gcMaxDeletes ?? String(DEFAULT_GC_MAX_DELETES), 10),
+				"--gc-max-deletes",
+				0,
+			);
+			const parsedGcDeleteTimeoutMs = normalizeInteger(
+				Number.parseInt(
+					args.gcDeleteTimeoutMs ?? String(DEFAULT_GC_DELETE_TIMEOUT_MS),
+					10,
+				),
+				"--gc-delete-timeout-ms",
+				0,
+			);
+			const parsedGcBudgetMs = normalizeInteger(
+				Number.parseInt(args.gcBudgetMs ?? String(DEFAULT_GC_BUDGET_MS), 10),
+				"--gc-budget-ms",
+				0,
+			);
+
 			const exitCode = await runPaiTui({
 				dir: path.resolve(args.dir ?? process.cwd()),
 				startPort: parsedPort,
@@ -715,6 +1244,15 @@ function createCliCommand() {
 				completionVisibleFallback: (args.completionVisibleFallback ??
 					"auto") as CompletionVisibleFallbackMode,
 				codexCleanSlate: args.codexCleanSlate as CodexCleanSlateMode | undefined,
+				gc: (args.gc ?? DEFAULT_GC) as GarbageCollectMode,
+				gcOnStart: (args.gcOnStart ?? DEFAULT_GC_ON_START) as GarbageCollectMode,
+				gcOnExit: (args.gcOnExit ?? DEFAULT_GC_ON_EXIT) as GarbageCollectMode,
+				gcInternalMode: (args.gcInternalMode ??
+					DEFAULT_GC_INTERNAL_MODE) as InternalGcMode,
+				gcInternalTtlMin: parsedGcInternalTtlMin,
+				gcMaxDeletes: parsedGcMaxDeletes,
+				gcDeleteTimeoutMs: parsedGcDeleteTimeoutMs,
+				gcBudgetMs: parsedGcBudgetMs,
 				bindRetries: parsedBindRetries,
 				writeState: (args.writeState ?? "on") === "on",
 				passthroughArgs: args.opencodeArgs,
@@ -739,6 +1277,14 @@ if (import.meta.main) {
 		assertOptionValueProvided(argv, "--bind-retries");
 		assertOptionValueProvided(argv, "--codex-clean-slate");
 		assertOptionValueProvided(argv, "--dynamic-context");
+		assertOptionValueProvided(argv, "--gc");
+		assertOptionValueProvided(argv, "--gc-on-start");
+		assertOptionValueProvided(argv, "--gc-on-exit");
+		assertOptionValueProvided(argv, "--gc-internal-mode");
+		assertOptionValueProvided(argv, "--gc-internal-ttl-min");
+		assertOptionValueProvided(argv, "--gc-max-deletes");
+		assertOptionValueProvided(argv, "--gc-delete-timeout-ms");
+		assertOptionValueProvided(argv, "--gc-budget-ms");
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		console.error(`ERROR: ${message}`);

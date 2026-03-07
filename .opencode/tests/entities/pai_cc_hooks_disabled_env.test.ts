@@ -26,6 +26,9 @@ describe("pai-cc-hooks disabled env gate", () => {
 			const plugin = (await import("../../plugins/pai-cc-hooks")).default;
 			const out = await plugin({ client: {}, $: {} } as any);
 			expect((out as any)["chat.message"]).toBeDefined();
+			expect(
+				Object.hasOwn(out, "command.execute.before"),
+			).toBe(true);
 			expect(out).toHaveProperty("tool.task");
 			expect(out).toHaveProperty("tool.voice_notify");
 			expect(out).toHaveProperty("tool.background_output");

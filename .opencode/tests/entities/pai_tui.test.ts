@@ -33,6 +33,14 @@ function baseOptions(
 		opencodeRoot: path.join(repoRoot, ".opencode"),
 		dynamicContext: "on",
 		completionVisibleFallback: "auto",
+		gc: "off",
+		gcOnStart: "on",
+		gcOnExit: "on",
+		gcInternalMode: "stale",
+		gcInternalTtlMin: 15,
+		gcMaxDeletes: 25,
+		gcDeleteTimeoutMs: 5000,
+		gcBudgetMs: 30000,
 		bindRetries: 2,
 		writeState: true,
 		passthroughArgs: [],
@@ -63,6 +71,7 @@ function makeDeps(overrides: Partial<PaiTuiDeps>): PaiTuiDeps {
 		selectFreePort: async (start) => start,
 		spawnChild: () => ({ pid: 1001, exited: Promise.resolve(0) }),
 		isPortAvailable: async () => true,
+		runOpencodeCli: async () => ({ exitCode: 0, stdout: "[]", stderr: "" }),
 		writeSettingsPatch: async () => undefined,
 		writeState: async () => stateRecord,
 		logInfo: () => undefined,
@@ -73,7 +82,7 @@ function makeDeps(overrides: Partial<PaiTuiDeps>): PaiTuiDeps {
 	};
 }
 
-describe("pai-tui wrapper", () => {
+	describe("pai-tui wrapper", () => {
 	test("shared serve-capable resolver remains available from PAI tools", () => {
 		expect(typeof resolveServeCapableOpencodeBinary).toBe("function");
 	});
@@ -268,7 +277,7 @@ describe("pai-tui wrapper", () => {
 		expect(attemptedPorts).toEqual([5000, 5001]);
 	});
 
-	test("forwards child exit code", async () => {
+		test("forwards child exit code", async () => {
 		const exitCode = await runPaiTui(
 			baseOptions({ writeState: false }),
 			makeDeps({
@@ -361,18 +370,18 @@ describe("pai-tui wrapper", () => {
 		}
 	});
 
-	test("help output is explicit about options and passthrough", async () => {
-		const proc = Bun.spawn({
-			cmd: ["bun", cliPath, "--help"],
-			cwd: repoRoot,
-			env: { ...process.env },
-			stdout: "pipe",
-			stderr: "pipe",
-		});
+		test("help output is explicit about options and passthrough", async () => {
+			const proc = Bun.spawn({
+				cmd: ["bun", cliPath, "--help"],
+				cwd: repoRoot,
+				env: { ...process.env },
+				stdout: "pipe",
+				stderr: "pipe",
+			});
 
-		const stdout = await new Response(proc.stdout).text();
-		const stderr = await new Response(proc.stderr).text();
-		const exit = await proc.exited;
+			const stdout = await new Response(proc.stdout).text();
+			const stderr = await new Response(proc.stderr).text();
+			const exit = await proc.exited;
 
 		expect(exit).toBe(0);
 		expect(stderr.trim()).toBe("");
@@ -382,11 +391,84 @@ describe("pai-tui wrapper", () => {
 		expect(stdout).toContain("--completion-visible-fallback <auto|on|off>");
 		expect(stdout).toContain("--codex-clean-slate <on|off>");
 		expect(stdout).toContain("--dynamic-context <on|off>");
+		expect(stdout).toContain("--gc <on|off>");
+		expect(stdout).toContain("--gc-on-start <on|off>");
+		expect(stdout).toContain("--gc-on-exit <on|off>");
+		expect(stdout).toContain("--gc-internal-mode <stale|all>");
+		expect(stdout).toContain("--gc-internal-ttl-min <n>");
+		expect(stdout).toContain("--gc-max-deletes <n>");
+		expect(stdout).toContain("--gc-delete-timeout-ms <n>");
+		expect(stdout).toContain("--gc-budget-ms <n>");
 		expect(stdout).toContain("--bind-retries <n>");
 		expect(stdout).toContain("--write-state <on|off>");
 		expect(stdout).toContain("Defaults:");
-		expect(stdout).toContain("Pass extra OpenCode args after wrapper options.");
-	});
+			expect(stdout).toContain("Pass extra OpenCode args after wrapper options.");
+		});
+
+		test("GC on runs session list on start+exit and deletes internal sessions", async () => {
+			const runtimeRoot = await fs.mkdtemp(
+				path.join(os.tmpdir(), "pai-tui-gc-"),
+			);
+			try {
+				const calls: string[] = [];
+				let listCalls = 0;
+
+				const exitCode = await runPaiTui(
+					baseOptions({
+						opencodeRoot: runtimeRoot,
+						writeState: false,
+						gc: "on",
+						gcOnStart: "on",
+						gcOnExit: "on",
+						gcInternalMode: "all",
+						gcInternalTtlMin: 0,
+						gcMaxDeletes: 10,
+						gcBudgetMs: 1000,
+					}),
+					makeDeps({
+						spawnChild: () => ({ pid: 4444, exited: Promise.resolve(0) }),
+						runOpencodeCli: async (input) => {
+							calls.push(input.args.join(" "));
+							if (input.args[0] === "session" && input.args[1] === "list") {
+								listCalls += 1;
+								const payload =
+									listCalls === 1
+										? [
+												{
+													id: "ses_internal",
+													title: "[PAI INTERNAL] ImplicitSentiment",
+													created: 0,
+													updated: 0,
+												},
+											]
+										: [];
+								return {
+									exitCode: 0,
+									stdout: `${JSON.stringify(payload)}\n`,
+									stderr: "",
+								};
+							}
+							return { exitCode: 0, stdout: "", stderr: "" };
+						},
+						logInfo: () => undefined,
+						logWarn: () => undefined,
+						nowMs: () => 0,
+						quickExitMs: 10,
+					}),
+				);
+
+				expect(exitCode).toBe(0);
+				expect(
+					calls.filter((c) => c.startsWith("session list")).length,
+				).toBe(2);
+				expect(
+					calls.filter((c) => c.startsWith("session delete ses_internal"))
+						.length,
+				).toBe(1);
+			} finally {
+				await fs.rm(runtimeRoot, { recursive: true, force: true });
+			}
+		});
 
 	test("forwards unknown args to opencode (e.g. -s SESSION)", async () => {
 		const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-tui-fwd-"));
@@ -415,6 +497,8 @@ describe("pai-tui wrapper", () => {
 				"--opencode-root",
 				stateDir,
 				"--write-state",
+				"off",
+				"--gc",
 				"off",
 				"-s",
 				"ses_test_123",
@@ -476,6 +560,8 @@ describe("pai-tui wrapper", () => {
 				"--opencode-root",
 				runtimeRoot,
 				"--write-state",
+				"off",
+				"--gc",
 				"off",
 				"--dynamic-context",
 				"off",

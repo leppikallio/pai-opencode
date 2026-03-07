@@ -22,6 +22,10 @@ import {
 	getSessionRootId,
 	setSessionRootId,
 } from "./shared/session-root";
+import { completeWorkSession } from "../handlers/work-tracker";
+import { ensureDir, getStateDir } from "../lib/paths";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import {
 	type BackgroundTaskRecord,
 	findBackgroundTaskByChildSessionId as findBackgroundTaskByChildSessionIdDefault,
@@ -36,11 +40,27 @@ import { createPaiVoiceNotifyTool } from "./tools/voice-notify";
 type EventHookHandler = (input: unknown) => Promise<void>;
 type HookHandler = (input: unknown, output: unknown) => Promise<void>;
 type SessionGetFn = (args: { path: { id: string } }) => Promise<unknown>;
+type SessionDeleteFn = (args: { path: { id: string } }) => Promise<unknown>;
 type SessionPromptAsyncFn = (args: {
 	path: { id: string };
 	body: {
 		noReply: boolean;
 		parts: Array<{ type: "text"; text: string; synthetic?: boolean }>;
+	};
+}) => Promise<unknown>;
+type TuiPublishFn = (args: {
+	body: {
+		type: "tui.command.execute";
+		properties: {
+			command: "app.exit";
+		};
+	};
+}) => Promise<unknown>;
+type TuiShowToastFn = (args: {
+	body: {
+		message: "Failed to exit TUI";
+		variant: "error";
+		duration: 5000;
 	};
 }) => Promise<unknown>;
 
@@ -90,6 +110,22 @@ type BackgroundCompletionDeps = {
 	fetchImpl: FetchLike;
 };
 
+type WqDeps = {
+	writeMarker?: (sessionId: string) => Promise<void>;
+	completeWorkSession?: (sessionId: string) => Promise<unknown>;
+	sessionDelete?: (sessionId: string) => Promise<unknown>;
+	nowMs?: () => number;
+};
+
+type ExecuteSessionLifecycleHooksFn = (args: {
+	sessionId: string;
+	cwd: string;
+	hookEventName: SessionLifecycleEventName;
+	rootSessionId?: string;
+	sessionStartPolicy?: SessionStartPolicy;
+	promptSessionAsync?: SessionPromptAsyncFn;
+}, config: ClaudeHooksConfig | null, settingsEnv?: Record<string, string>) => Promise<void>;
+
 const DEFAULT_HOOK_COMMAND_CONFIG = {
 	forceZsh: process.platform !== "win32",
 	zshPath: "/bin/zsh",
@@ -110,8 +146,52 @@ type AskGateEntry = {
 // (PermissionNext.ask) from tool.execute.before. Instead, we block the tool and
 // require an explicit user confirmation message.
 const ASK_GATE_TTL_MS = 5 * 60 * 1000;
+const WQ_EXIT_TIMEOUT_MS = 1_000;
+const WQ_CLEANUP_DEADLINE_MS = 600;
 const askGateByConfirmId = new Map<string, AskGateEntry>();
 const askGateByKey = new Map<string, AskGateEntry>();
+
+class WqExitCancelledError extends Error {
+	constructor() {
+		super("/wq intercepted; exiting TUI");
+		this.name = "WqExitCancelledError";
+		this.stack = undefined;
+	}
+}
+
+type WqExitIntentMarkerV1 = {
+	v: 1;
+	pid: number;
+	sessionId: string;
+	createdAt: string;
+};
+
+async function bestEffortWriteWqExitIntentMarker(args: {
+	sessionId: string;
+	now: number;
+}): Promise<void> {
+	try {
+		const stateDir = getStateDir();
+		await ensureDir(stateDir);
+		const marker: WqExitIntentMarkerV1 = {
+			v: 1,
+			pid: process.pid,
+			sessionId: args.sessionId,
+			createdAt: new Date(args.now).toISOString(),
+		};
+		const filePath = path.join(
+			stateDir,
+			`pai-wq-exit-intent.${process.pid}.${args.now}.json`,
+		);
+		await fs.promises.writeFile(
+			filePath,
+			`${JSON.stringify(marker, null, 2)}\n`,
+			"utf8",
+		);
+	} catch {
+		// Best effort by design.
+	}
+}
 
 function stableStringify(value: unknown): string {
 	const seen = new WeakSet<object>();
@@ -234,6 +314,19 @@ function getSessionGetFromContext(ctx: unknown): SessionGetFn | undefined {
 		);
 }
 
+function getSessionDeleteFromContext(ctx: unknown): SessionDeleteFn | undefined {
+	const context = asRecord(ctx);
+	const client = asRecord(context.client);
+	const session = asRecord(client.session);
+	const del = session.delete;
+	if (typeof del !== "function") {
+		return undefined;
+	}
+
+	return (args) =>
+		(del as (this: unknown, args: unknown) => Promise<unknown>).call(session, args);
+}
+
 function isDebugLoggingEnabled(): boolean {
 	return process.env.PAI_CC_HOOKS_DEBUG === "1";
 }
@@ -257,6 +350,59 @@ function getSessionPromptAsyncFromContext(
 	return (args) =>
 		(promptAsync as (this: unknown, args: unknown) => Promise<unknown>).call(
 			session,
+			args,
+		);
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+	let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+	try {
+		return await Promise.race([
+			promise,
+			new Promise<T>((_, reject) => {
+				timeoutId = setTimeout(() => {
+					reject(new Error(`Operation timed out after ${ms}ms`));
+				}, ms);
+			}),
+		]);
+	} finally {
+		if (timeoutId) {
+			clearTimeout(timeoutId);
+		}
+	}
+}
+
+function getTuiPublishFromContext(ctx: unknown): TuiPublishFn | undefined {
+	const context = asRecord(ctx);
+	const client = asRecord(context.client);
+	const tui = asRecord(client.tui);
+	const publish = tui.publish;
+
+	if (typeof publish !== "function") {
+		return undefined;
+	}
+
+	return (args) =>
+		(publish as (this: unknown, args: unknown) => Promise<unknown>).call(
+			tui,
+			args,
+		);
+}
+
+function getTuiShowToastFromContext(ctx: unknown): TuiShowToastFn | undefined {
+	const context = asRecord(ctx);
+	const client = asRecord(context.client);
+	const tui = asRecord(client.tui);
+	const showToast = tui.showToast;
+
+	if (typeof showToast !== "function") {
+		return undefined;
+	}
+
+	return (args) =>
+		(showToast as (this: unknown, args: unknown) => Promise<unknown>).call(
+			tui,
 			args,
 		);
 }
@@ -642,17 +788,43 @@ export function createPaiClaudeHooks({
 	deps,
 }: {
 	ctx: unknown;
-	deps?: Partial<BackgroundCompletionDeps>;
+	deps?:
+		Partial<BackgroundCompletionDeps> &
+		{
+			wq?: WqDeps;
+			executeSessionLifecycleHooks?: ExecuteSessionLifecycleHooksFn;
+		};
 }): {
 	event: EventHookHandler;
 	"chat.message": HookHandler;
+	"command.execute.before": HookHandler;
 	"tool.execute.before": HookHandler;
 	"tool.execute.after": HookHandler;
 } {
 	const parentSessionIdCache = new Map<string, string | null>();
+	const internalSessions = new Set<string>();
 	const sessionGet = getSessionGetFromContext(ctx);
+	const sessionDelete = getSessionDeleteFromContext(ctx);
+	const lifecycleExecutor =
+		deps?.executeSessionLifecycleHooks ?? executeSessionLifecycleHooks;
 	const promptParentSessionAsyncFromContext =
 		getSessionPromptAsyncFromContext(ctx);
+	const tuiPublish = getTuiPublishFromContext(ctx);
+	const tuiShowToast = getTuiShowToastFromContext(ctx);
+	const wqDeps = deps?.wq;
+	const wqNowMs = wqDeps?.nowMs ?? (() => Date.now());
+	const wqWriteMarker =
+		wqDeps?.writeMarker ??
+		((sessionId: string) =>
+			bestEffortWriteWqExitIntentMarker({ sessionId, now: wqNowMs() }));
+	const wqCompleteWorkSession =
+		wqDeps?.completeWorkSession ?? ((sessionId: string) => completeWorkSession(sessionId));
+	const wqSessionDelete =
+		wqDeps?.sessionDelete ??
+		((sessionId: string) =>
+			sessionDelete
+				? sessionDelete({ path: { id: sessionId } })
+				: Promise.reject(new Error("session.delete unavailable")));
 	const notifyCmux = deps?.notifyCmux ?? notifyCmuxDefault;
 	const emitCompletionAttention =
 		deps?.emitCompletionAttention ??
@@ -741,7 +913,7 @@ export function createPaiClaudeHooks({
 	};
 
 	return {
-		event: async (input) => {
+			event: async (input) => {
 			const payload = asRecord(input);
 			const event = getRecord(payload, "event") ?? payload;
 			const eventType = getString(event, "type") ?? "";
@@ -773,6 +945,29 @@ export function createPaiClaudeHooks({
 				deleteSessionRootId(sessionId);
 			}
 
+			const title = getString(info, "title") ?? "";
+			const internalFromEventTitle = title
+				.trimStart()
+				.startsWith("[PAI INTERNAL]");
+			const internalFromCache = internalSessions.has(sessionId);
+			const isInternalSession = internalFromCache || internalFromEventTitle;
+
+			if (eventType === "session.created" && internalFromEventTitle) {
+				internalSessions.add(sessionId);
+				parentSessionIdCache.set(sessionId, null);
+				return;
+			}
+
+			if (eventType === "session.idle" && internalFromCache) {
+				return;
+			}
+
+			if (eventType === "session.deleted" && isInternalSession) {
+				internalSessions.delete(sessionId);
+				parentSessionIdCache.delete(sessionId);
+				return;
+			}
+
 			const { hooks: config, env } = await getSettingsPromise();
 
 			if (eventType === "session.created") {
@@ -792,7 +987,7 @@ export function createPaiClaudeHooks({
 					: sessionId;
 				setSessionRootId(sessionId, resolvedRootSessionId || sessionId);
 
-				await executeSessionLifecycleHooks(
+				await lifecycleExecutor(
 					{
 						sessionId,
 						cwd: process.cwd(),
@@ -819,7 +1014,7 @@ export function createPaiClaudeHooks({
 					return;
 				}
 
-				await executeSessionLifecycleHooks(
+				await lifecycleExecutor(
 					{
 						sessionId,
 						cwd: process.cwd(),
@@ -930,6 +1125,86 @@ export function createPaiClaudeHooks({
 
 			if (result.messages.length > 0) {
 				out.hookMessages = result.messages;
+			}
+		},
+
+		"command.execute.before": async (input) => {
+			const payload = asRecord(input);
+			const command = getString(payload, "command");
+			const sessionId =
+				getString(payload, "sessionID") ??
+				getString(payload, "sessionId") ??
+				"";
+
+			if (command !== "wq") {
+				return;
+			}
+
+			const publishSucceeded = await (async (): Promise<boolean> => {
+				if (!tuiPublish) {
+					return false;
+				}
+
+				try {
+					await withTimeout(
+						tuiPublish({
+							body: {
+								type: "tui.command.execute",
+								properties: { command: "app.exit" },
+							},
+						}),
+						WQ_EXIT_TIMEOUT_MS,
+					);
+					return true;
+				} catch {
+					return false;
+				}
+			})();
+
+			if (publishSucceeded) {
+				try {
+					if (sessionId) {
+						const cleanupStart = wqNowMs();
+						const cleanupDeadline = cleanupStart + WQ_CLEANUP_DEADLINE_MS;
+						const remaining = () => Math.max(0, cleanupDeadline - wqNowMs());
+
+						const bounded = <T,>(p: Promise<T>, msCap: number) =>
+							withTimeout(p, Math.min(msCap, remaining())).catch(() => undefined);
+
+						await Promise.race([
+							Promise.allSettled([
+								bounded(wqWriteMarker(sessionId), 150),
+								bounded(wqCompleteWorkSession(sessionId), 250),
+								bounded(wqSessionDelete(sessionId), 250),
+							]),
+							new Promise<void>((resolve) =>
+								setTimeout(resolve, remaining()),
+							),
+						]);
+					}
+				} catch {
+					// Best-effort cleanup; exit cancellation must still win.
+				}
+				throw new WqExitCancelledError();
+			}
+
+			if (!tuiShowToast) {
+				return;
+			}
+
+			try {
+				await withTimeout(
+					tuiShowToast({
+						body: {
+							message: "Failed to exit TUI",
+							variant: "error",
+							duration: 5000,
+						},
+					}),
+					WQ_EXIT_TIMEOUT_MS,
+				);
+			} catch {
+				// Best effort by design.
 			}
 		},
 
