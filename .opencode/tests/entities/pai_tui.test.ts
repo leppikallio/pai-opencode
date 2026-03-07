@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 
 import {
-	buildDynamicContextSettingsPatch,
 	buildChildEnv,
+	buildDynamicContextSettingsPatch,
 	findFirstAvailablePort,
 	type PaiTuiDeps,
 	type PaiTuiRunOptions,
@@ -13,8 +13,8 @@ import {
 	resolveDynamicContextMode,
 	runPaiTui,
 	sanitizePassthroughArgs,
-	writeSettingsPatch,
 	writePaiTuiState,
+	writeSettingsPatch,
 } from "../../pai-tools/pai-tui";
 import { resolveServeCapableOpencodeBinary } from "../../skills/PAI/Tools/opencode-binary-resolver";
 
@@ -82,7 +82,7 @@ function makeDeps(overrides: Partial<PaiTuiDeps>): PaiTuiDeps {
 	};
 }
 
-	describe("pai-tui wrapper", () => {
+describe("pai-tui wrapper", () => {
 	test("shared serve-capable resolver remains available from PAI tools", () => {
 		expect(typeof resolveServeCapableOpencodeBinary).toBe("function");
 	});
@@ -206,7 +206,7 @@ function makeDeps(overrides: Partial<PaiTuiDeps>): PaiTuiDeps {
 	test("does not clobber existing malformed settings.json", async () => {
 		const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-tui-settings-"));
 		const settingsPath = path.join(root, "settings.json");
-		const malformed = "{\n  \"dynamicContext\": tru\n}\n";
+		const malformed = '{\n  "dynamicContext": tru\n}\n';
 
 		try {
 			await fs.writeFile(settingsPath, malformed, "utf8");
@@ -277,7 +277,7 @@ function makeDeps(overrides: Partial<PaiTuiDeps>): PaiTuiDeps {
 		expect(attemptedPorts).toEqual([5000, 5001]);
 	});
 
-		test("forwards child exit code", async () => {
+	test("forwards child exit code", async () => {
 		const exitCode = await runPaiTui(
 			baseOptions({ writeState: false }),
 			makeDeps({
@@ -370,18 +370,18 @@ function makeDeps(overrides: Partial<PaiTuiDeps>): PaiTuiDeps {
 		}
 	});
 
-		test("help output is explicit about options and passthrough", async () => {
-			const proc = Bun.spawn({
-				cmd: ["bun", cliPath, "--help"],
-				cwd: repoRoot,
-				env: { ...process.env },
-				stdout: "pipe",
-				stderr: "pipe",
-			});
+	test("help output is explicit about options and passthrough", async () => {
+		const proc = Bun.spawn({
+			cmd: ["bun", cliPath, "--help"],
+			cwd: repoRoot,
+			env: { ...process.env },
+			stdout: "pipe",
+			stderr: "pipe",
+		});
 
-			const stdout = await new Response(proc.stdout).text();
-			const stderr = await new Response(proc.stderr).text();
-			const exit = await proc.exited;
+		const stdout = await new Response(proc.stdout).text();
+		const stderr = await new Response(proc.stderr).text();
+		const exit = await proc.exited;
 
 		expect(exit).toBe(0);
 		expect(stderr.trim()).toBe("");
@@ -402,73 +402,154 @@ function makeDeps(overrides: Partial<PaiTuiDeps>): PaiTuiDeps {
 		expect(stdout).toContain("--bind-retries <n>");
 		expect(stdout).toContain("--write-state <on|off>");
 		expect(stdout).toContain("Defaults:");
-			expect(stdout).toContain("Pass extra OpenCode args after wrapper options.");
-		});
+		expect(stdout).toContain("Pass extra OpenCode args after wrapper options.");
+	});
 
-		test("GC on runs session list on start+exit and deletes internal sessions", async () => {
-			const runtimeRoot = await fs.mkdtemp(
-				path.join(os.tmpdir(), "pai-tui-gc-"),
+	test("GC on runs session list on start+exit and deletes internal sessions", async () => {
+		const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pai-tui-gc-"));
+		try {
+			const calls: string[] = [];
+			let listCalls = 0;
+
+			const exitCode = await runPaiTui(
+				baseOptions({
+					opencodeRoot: runtimeRoot,
+					writeState: false,
+					gc: "on",
+					gcOnStart: "on",
+					gcOnExit: "on",
+					gcInternalMode: "all",
+					gcInternalTtlMin: 0,
+					gcMaxDeletes: 10,
+					gcBudgetMs: 1000,
+				}),
+				makeDeps({
+					spawnChild: () => ({ pid: 4444, exited: Promise.resolve(0) }),
+					runOpencodeCli: async (input) => {
+						calls.push(input.args.join(" "));
+						if (input.args[0] === "session" && input.args[1] === "list") {
+							listCalls += 1;
+							const payload =
+								listCalls === 1
+									? [
+											{
+												id: "ses_internal",
+												title: "[PAI INTERNAL] ImplicitSentiment",
+												created: 0,
+												updated: 0,
+											},
+										]
+									: [];
+							return {
+								exitCode: 0,
+								stdout: `${JSON.stringify(payload)}\n`,
+								stderr: "",
+							};
+						}
+						return { exitCode: 0, stdout: "", stderr: "" };
+					},
+					logInfo: () => undefined,
+					logWarn: () => undefined,
+					nowMs: () => 0,
+					quickExitMs: 10,
+				}),
 			);
+
+			expect(exitCode).toBe(0);
+			expect(calls.filter((c) => c.startsWith("session list")).length).toBe(2);
+			expect(
+				calls.filter((c) => c.startsWith("session delete ses_internal")).length,
+			).toBe(1);
+		} finally {
+			await fs.rm(runtimeRoot, { recursive: true, force: true });
+		}
+	});
+
+	test("GC prunes /wq markers when session is already gone", async () => {
+		const runtimeRoot = await fs.mkdtemp(
+			path.join(os.tmpdir(), "pai-tui-wq-marker-"),
+		);
+		try {
+			const stateDir = path.join(runtimeRoot, "MEMORY", "STATE");
+			await fs.mkdir(stateDir, { recursive: true });
+			const sessionId = "ses_missing";
+			const markerPath = path.join(stateDir, "pai-wq-exit-intent.0.0.json");
+			await fs.writeFile(
+				markerPath,
+				`${JSON.stringify({
+					v: 1,
+					pid: 0,
+					sessionId,
+					createdAt: new Date(0).toISOString(),
+				})}\n`,
+				"utf8",
+			);
+
+			const logs: string[] = [];
+			const cliCalls: Array<{ args: string[]; stream?: boolean }> = [];
+
+			const exitCode = await runPaiTui(
+				baseOptions({
+					opencodeRoot: runtimeRoot,
+					writeState: false,
+					gc: "on",
+					gcOnStart: "on",
+					gcOnExit: "on",
+					gcInternalMode: "all",
+					gcInternalTtlMin: 0,
+					gcMaxDeletes: 10,
+					gcBudgetMs: 1000,
+				}),
+				makeDeps({
+					spawnChild: () => ({ pid: 4444, exited: Promise.resolve(0) }),
+					runOpencodeCli: async (input) => {
+						cliCalls.push({ args: input.args, stream: input.stream });
+						if (input.args[0] === "session" && input.args[1] === "list") {
+							return { exitCode: 0, stdout: "[]\n", stderr: "" };
+						}
+						if (
+							input.args[0] === "session" &&
+							input.args[1] === "delete" &&
+							input.args[2] === sessionId
+						) {
+							return {
+								exitCode: 1,
+								stdout: "",
+								stderr: `Error: Session not found: ${sessionId}`,
+							};
+						}
+						return { exitCode: 0, stdout: "", stderr: "" };
+					},
+					logInfo: (msg) => logs.push(msg),
+					logWarn: (msg) => logs.push(`WARN:${msg}`),
+					nowMs: () => 0,
+					quickExitMs: 10,
+				}),
+			);
+
+			expect(exitCode).toBe(0);
+			expect(logs.some((line) => line.includes(sessionId))).toBe(false);
+			expect(
+				cliCalls.filter(
+					(call) => call.args.join(" ") === `session delete ${sessionId}`,
+				).length,
+			).toBe(1);
+			const deleteCall = cliCalls.find(
+				(call) => call.args.join(" ") === `session delete ${sessionId}`,
+			);
+			expect(deleteCall?.stream).toBe(false);
+
+			let markerExists = true;
 			try {
-				const calls: string[] = [];
-				let listCalls = 0;
-
-				const exitCode = await runPaiTui(
-					baseOptions({
-						opencodeRoot: runtimeRoot,
-						writeState: false,
-						gc: "on",
-						gcOnStart: "on",
-						gcOnExit: "on",
-						gcInternalMode: "all",
-						gcInternalTtlMin: 0,
-						gcMaxDeletes: 10,
-						gcBudgetMs: 1000,
-					}),
-					makeDeps({
-						spawnChild: () => ({ pid: 4444, exited: Promise.resolve(0) }),
-						runOpencodeCli: async (input) => {
-							calls.push(input.args.join(" "));
-							if (input.args[0] === "session" && input.args[1] === "list") {
-								listCalls += 1;
-								const payload =
-									listCalls === 1
-										? [
-												{
-													id: "ses_internal",
-													title: "[PAI INTERNAL] ImplicitSentiment",
-													created: 0,
-													updated: 0,
-												},
-											]
-										: [];
-								return {
-									exitCode: 0,
-									stdout: `${JSON.stringify(payload)}\n`,
-									stderr: "",
-								};
-							}
-							return { exitCode: 0, stdout: "", stderr: "" };
-						},
-						logInfo: () => undefined,
-						logWarn: () => undefined,
-						nowMs: () => 0,
-						quickExitMs: 10,
-					}),
-				);
-
-				expect(exitCode).toBe(0);
-				expect(
-					calls.filter((c) => c.startsWith("session list")).length,
-				).toBe(2);
-				expect(
-					calls.filter((c) => c.startsWith("session delete ses_internal"))
-						.length,
-				).toBe(1);
-			} finally {
-				await fs.rm(runtimeRoot, { recursive: true, force: true });
+				await fs.stat(markerPath);
+			} catch {
+				markerExists = false;
 			}
-		});
+			expect(markerExists).toBe(false);
+		} finally {
+			await fs.rm(runtimeRoot, { recursive: true, force: true });
+		}
+	});
 
 	test("forwards unknown args to opencode (e.g. -s SESSION)", async () => {
 		const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-tui-fwd-"));
@@ -612,8 +693,12 @@ function makeDeps(overrides: Partial<PaiTuiDeps>): PaiTuiDeps {
 				});
 
 				loadContextProc.stdin.end();
-				const loadContextStdout = await new Response(loadContextProc.stdout).text();
-				const loadContextStderr = await new Response(loadContextProc.stderr).text();
+				const loadContextStdout = await new Response(
+					loadContextProc.stdout,
+				).text();
+				const loadContextStderr = await new Response(
+					loadContextProc.stderr,
+				).text();
 				const loadContextExit = await loadContextProc.exited;
 
 				return {

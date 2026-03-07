@@ -4,7 +4,15 @@ import { spawn } from "node:child_process";
 import { promises as fs } from "node:fs";
 import * as net from "node:net";
 import * as path from "node:path";
-import { command, oneOf, option, optional, rest, runSafely, string } from "cmd-ts";
+import {
+	command,
+	oneOf,
+	option,
+	optional,
+	rest,
+	runSafely,
+	string,
+} from "cmd-ts";
 
 import { resolveServeCapableOpencodeBinary } from "../skills/PAI/Tools/opencode-binary-resolver";
 import { resolveRuntimeRootFromMainScript } from "./resolveRuntimeRootFromMainScript";
@@ -786,9 +794,12 @@ async function acquireGcLock(args: {
 
 	if (existing) {
 		const pid = typeof existing.pid === "number" ? existing.pid : null;
-		const createdAt = typeof existing.createdAt === "string" ? existing.createdAt : null;
+		const createdAt =
+			typeof existing.createdAt === "string" ? existing.createdAt : null;
 		const createdAtMs = createdAt ? Date.parse(createdAt) : Number.NaN;
-		const ageMs = Number.isFinite(createdAtMs) ? args.nowMs - createdAtMs : Number.POSITIVE_INFINITY;
+		const ageMs = Number.isFinite(createdAtMs)
+			? args.nowMs - createdAtMs
+			: Number.POSITIVE_INFINITY;
 
 		if (pid && isProcessAlive(pid) && ageMs < args.staleAfterMs) {
 			return { acquired: false, lockPath };
@@ -870,7 +881,8 @@ async function runGcPass(args: {
 				continue;
 			}
 			const pid = typeof markerRaw.pid === "number" ? markerRaw.pid : null;
-			const sessionId = typeof markerRaw.sessionId === "string" ? markerRaw.sessionId : "";
+			const sessionId =
+				typeof markerRaw.sessionId === "string" ? markerRaw.sessionId : "";
 			if (!sessionId) {
 				await fs.rm(markerPath, { force: true }).catch(() => {});
 				continue;
@@ -885,9 +897,6 @@ async function runGcPass(args: {
 				continue;
 			}
 
-			args.deps.logInfo(
-				`[PAI GC] deleting ${sessionId} (from /wq marker)`,
-			);
 			try {
 				const res = await args.deps.runOpencodeCli({
 					binary: args.binary,
@@ -895,16 +904,31 @@ async function runGcPass(args: {
 					env,
 					cwd: args.options.dir,
 					timeoutMs: args.options.gcDeleteTimeoutMs,
-					stdoutPrefix: "[opencode] ",
-					stderrPrefix: "[opencode] ",
-					stream: true,
+					stream: false,
 				});
+
 				if (res.exitCode === 0) {
 					deleted += 1;
 					await fs.rm(markerPath, { force: true }).catch(() => {});
-				} else {
-					errors += 1;
+					args.deps.logInfo(`[PAI GC] deleted ${sessionId} (from /wq marker)`);
+					continue;
 				}
+
+				const combined = `${res.stdout ?? ""}\n${res.stderr ?? ""}`.trim();
+				if (/Session not found/i.test(combined)) {
+					// Already gone; remove marker quietly.
+					skipped += 1;
+					await fs.rm(markerPath, { force: true }).catch(() => {});
+					continue;
+				}
+
+				errors += 1;
+				const firstLine = combined.split(/\r?\n/).find(Boolean) ?? "";
+				const preview =
+					firstLine.length > 200 ? `${firstLine.slice(0, 200)}…` : firstLine;
+				args.deps.logWarn(
+					`[PAI GC] failed to delete ${sessionId} (from /wq marker)${preview ? `: ${preview}` : ""}`,
+				);
 			} catch {
 				errors += 1;
 			}
@@ -1020,100 +1044,105 @@ export async function runPaiTui(
 	let finalExitCode = 1;
 
 	try {
-
-	for (let attempt = 0; attempt <= bindRetries; attempt += 1) {
-		const port = await deps.selectFreePort(nextPortStart);
-		const serverUrl = `http://${LOOPBACK_HOST}:${port}`;
-		const env = buildChildEnv({
-			baseEnv: process.env,
-			opencodeRoot: options.opencodeRoot,
-			port,
-			completionVisibleFallback: options.completionVisibleFallback,
-			codexCleanSlate: options.codexCleanSlate,
-		});
-		const args = [
-			"--port",
-			String(port),
-			"--hostname",
-			LOOPBACK_HOST,
-			...sanitized.args,
-		];
-
-		deps.logInfo(`PAI TUI URL: ${serverUrl}`);
-
-		let child: SpawnedChild;
-		try {
-			child = deps.spawnChild({
-				binary,
-				args,
-				env,
-				cwd: options.dir,
-				port,
-			});
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			deps.logWarn(`Failed to spawn opencode: ${message}`);
-			return 1;
-		}
-
-		if (options.writeState && typeof child.pid === "number" && child.pid > 0) {
-			await deps.writeState({
+		for (let attempt = 0; attempt <= bindRetries; attempt += 1) {
+			const port = await deps.selectFreePort(nextPortStart);
+			const serverUrl = `http://${LOOPBACK_HOST}:${port}`;
+			const env = buildChildEnv({
+				baseEnv: process.env,
 				opencodeRoot: options.opencodeRoot,
-				wrapperPid: process.pid,
-				childPid: child.pid,
 				port,
-				serverUrl,
-				opencodeBinary: binary,
-				cwd: options.dir,
+				completionVisibleFallback: options.completionVisibleFallback,
+				codexCleanSlate: options.codexCleanSlate,
 			});
-		}
+			const args = [
+				"--port",
+				String(port),
+				"--hostname",
+				LOOPBACK_HOST,
+				...sanitized.args,
+			];
 
-		let early: EarlyExitResult;
-		try {
-			early = await waitForEarlyExit(
-				child.exited,
-				deps.quickExitMs,
-				deps.nowMs,
-			);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			deps.logWarn(`OpenCode process failed before startup: ${message}`);
-			return 1;
-		}
+			deps.logInfo(`PAI TUI URL: ${serverUrl}`);
 
-		if (!early.exitedEarly) {
+			let child: SpawnedChild;
 			try {
-				const finalExit = await child.exited;
-				finalExitCode = normalizeExitCode(finalExit);
-				break;
+				child = deps.spawnChild({
+					binary,
+					args,
+					env,
+					cwd: options.dir,
+					port,
+				});
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
-				deps.logWarn(`OpenCode process crashed: ${message}`);
-				finalExitCode = 1;
+				deps.logWarn(`Failed to spawn opencode: ${message}`);
+				return 1;
+			}
+
+			if (
+				options.writeState &&
+				typeof child.pid === "number" &&
+				child.pid > 0
+			) {
+				await deps.writeState({
+					opencodeRoot: options.opencodeRoot,
+					wrapperPid: process.pid,
+					childPid: child.pid,
+					port,
+					serverUrl,
+					opencodeBinary: binary,
+					cwd: options.dir,
+				});
+			}
+
+			let early: EarlyExitResult;
+			try {
+				early = await waitForEarlyExit(
+					child.exited,
+					deps.quickExitMs,
+					deps.nowMs,
+				);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				deps.logWarn(`OpenCode process failed before startup: ${message}`);
+				return 1;
+			}
+
+			if (!early.exitedEarly) {
+				try {
+					const finalExit = await child.exited;
+					finalExitCode = normalizeExitCode(finalExit);
+					break;
+				} catch (error) {
+					const message =
+						error instanceof Error ? error.message : String(error);
+					deps.logWarn(`OpenCode process crashed: ${message}`);
+					finalExitCode = 1;
+					break;
+				}
+			}
+
+			if (early.exitCode === 0) {
+				finalExitCode = 0;
 				break;
 			}
-		}
 
-		if (early.exitCode === 0) {
-			finalExitCode = 0;
+			const retriesRemain = attempt < bindRetries;
+			const stillOccupied = !(await deps.isPortAvailable(port));
+			const likelyBindRace =
+				early.elapsedMs <= deps.quickExitMs && stillOccupied;
+
+			if (retriesRemain && likelyBindRace) {
+				nextPortStart = port + 1;
+				deps.logWarn(
+					`Rapid bind failure on port ${port}; retrying with next free port.`,
+				);
+				continue;
+			}
+
+			finalExitCode = early.exitCode;
 			break;
 		}
-
-		const retriesRemain = attempt < bindRetries;
-		const stillOccupied = !(await deps.isPortAvailable(port));
-		const likelyBindRace = early.elapsedMs <= deps.quickExitMs && stillOccupied;
-
-		if (retriesRemain && likelyBindRace) {
-			nextPortStart = port + 1;
-			deps.logWarn(
-				`Rapid bind failure on port ${port}; retrying with next free port.`,
-			);
-			continue;
-		}
-
-		finalExitCode = early.exitCode;
-		break;
-	}
 	} finally {
 		try {
 			await runGcPass({
@@ -1213,7 +1242,10 @@ function createCliCommand() {
 				0,
 			);
 			const parsedGcMaxDeletes = normalizeInteger(
-				Number.parseInt(args.gcMaxDeletes ?? String(DEFAULT_GC_MAX_DELETES), 10),
+				Number.parseInt(
+					args.gcMaxDeletes ?? String(DEFAULT_GC_MAX_DELETES),
+					10,
+				),
 				"--gc-max-deletes",
 				0,
 			);
@@ -1243,9 +1275,12 @@ function createCliCommand() {
 				),
 				completionVisibleFallback: (args.completionVisibleFallback ??
 					"auto") as CompletionVisibleFallbackMode,
-				codexCleanSlate: args.codexCleanSlate as CodexCleanSlateMode | undefined,
+				codexCleanSlate: args.codexCleanSlate as
+					| CodexCleanSlateMode
+					| undefined,
 				gc: (args.gc ?? DEFAULT_GC) as GarbageCollectMode,
-				gcOnStart: (args.gcOnStart ?? DEFAULT_GC_ON_START) as GarbageCollectMode,
+				gcOnStart: (args.gcOnStart ??
+					DEFAULT_GC_ON_START) as GarbageCollectMode,
 				gcOnExit: (args.gcOnExit ?? DEFAULT_GC_ON_EXIT) as GarbageCollectMode,
 				gcInternalMode: (args.gcInternalMode ??
 					DEFAULT_GC_INTERNAL_MODE) as InternalGcMode,
