@@ -42,6 +42,8 @@ export interface ToolInput {
   tool: string;
   /** Tool arguments */
   args?: Record<string, unknown>;
+  /** Working directory context */
+  cwd?: string;
   /** Session ID */
   sessionID?: string;
   /** Tool call ID */

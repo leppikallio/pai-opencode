@@ -2,8 +2,19 @@
 import { readFileSync } from "node:fs";
 
 import type { ToolInput } from "../plugins/adapters/types";
+import {
+  createSecurityPermissionDecisionFromError,
+  createSecurityPermissionDecisionFromResult,
+  type SecurityPermissionDecision,
+} from "../plugins/security/adapter-decision";
 
 type JsonRecord = Record<string, unknown>;
+
+export type SecurityHookProcessResult = {
+  exitCode: 0 | 2;
+  stdout?: string;
+  stderr?: string;
+};
 
 if (process.execArgv.includes("--check")) {
   process.exit(0);
@@ -30,55 +41,82 @@ function readPayloadStrict(): JsonRecord | undefined {
   }
 }
 
-const payload = readPayloadStrict();
-const toolName = payload ? asString(payload.tool_name) : undefined;
-
-if (!payload || !toolName) {
-  process.stdout.write(
-    `${JSON.stringify({
-      decision: "ask",
-      reason: "Security validator: missing/invalid hook payload",
-    })}\n`,
-  );
-  process.exit(0);
+function jsonLine(value: unknown): string {
+  return `${JSON.stringify(value)}\n`;
 }
 
-const toolArgs = asRecord(payload.tool_input) ?? {};
-
-const input: ToolInput = {
-  tool: toolName,
-  args: toolArgs,
-  sessionID: asString(payload.session_id),
-  callID: asString(payload.tool_use_id),
-};
-
-try {
-  const { validateSecurity } = await import("../plugins/handlers/security-validator");
-  const result = await validateSecurity(input);
-
-  if (result.action === "allow") {
-    process.stdout.write('{"continue": true}\n');
-    process.exit(0);
+export function createSecurityHookProcessResult(
+  decision: SecurityPermissionDecision,
+): SecurityHookProcessResult {
+  if (decision.status === "allow") {
+    return {
+      exitCode: 0,
+      stdout: jsonLine({ continue: true }),
+    };
   }
 
-  if (result.action === "confirm") {
-    process.stdout.write(
-      `${JSON.stringify({ decision: "ask", reason: result.message ?? result.reason })}\n`
-    );
-    process.exit(0);
+  if (decision.status === "ask") {
+    return {
+      exitCode: 0,
+      stdout: jsonLine({
+        decision: "ask",
+        reason: decision.reason,
+      }),
+    };
   }
 
-  process.stderr.write(`${result.message ?? result.reason}\n`);
-  process.exit(2);
-} catch (error) {
-  const message = error instanceof Error ? error.message : String(error);
-  process.stderr.write(`[SecurityValidator] ${message}\n`);
-  // Fail-safe: require confirmation when the validator fails unexpectedly.
-  process.stdout.write(
-    `${JSON.stringify({
-      decision: "ask",
-      reason: `Security validator error: ${message}`,
-    })}\n`,
-  );
-  process.exit(0);
+  return {
+    exitCode: 2,
+    stderr: `${decision.reason ?? "Blocked by security policy"}\n`,
+  };
+}
+
+export function writeSecurityHookProcessResult(result: SecurityHookProcessResult): never {
+  if (result.stdout) {
+    process.stdout.write(result.stdout);
+  }
+
+  if (result.stderr) {
+    process.stderr.write(result.stderr);
+  }
+
+  process.exit(result.exitCode);
+}
+
+export async function runSecurityValidatorHookFromStdin(): Promise<SecurityHookProcessResult> {
+  const payload = readPayloadStrict();
+  const toolName = payload ? asString(payload.tool_name) : undefined;
+
+  if (!payload || !toolName) {
+    return createSecurityHookProcessResult({
+      status: "ask",
+      reason: "Security validator: missing/invalid hook payload",
+    });
+  }
+
+  const toolArgs = asRecord(payload.tool_input) ?? {};
+
+  const input: ToolInput = {
+    tool: toolName,
+    args: toolArgs,
+    cwd: asString(payload.cwd),
+    sessionID: asString(payload.session_id),
+    callID: asString(payload.tool_use_id),
+  };
+
+  try {
+    const { validateSecurity } = await import("../plugins/handlers/security-validator");
+    const result = await validateSecurity(input);
+    return createSecurityHookProcessResult(createSecurityPermissionDecisionFromResult(result));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      ...createSecurityHookProcessResult(createSecurityPermissionDecisionFromError(error)),
+      stderr: `[SecurityValidator] ${message}\n`,
+    };
+  }
+}
+
+if (import.meta.main) {
+  writeSecurityHookProcessResult(await runSecurityValidatorHookFromStdin());
 }

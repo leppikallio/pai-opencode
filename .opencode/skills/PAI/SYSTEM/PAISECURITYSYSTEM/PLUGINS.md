@@ -1,72 +1,90 @@
-# Security Validator Plugin
+# Security Plugin Architecture (OpenCode)
 
-**OpenCode plugin implementation details for PAI security enforcement**
-
----
-
-## Canonical Location
-
-`~/.config/opencode/skills/PAI/SYSTEM/PAISECURITYSYSTEM/` is the source of truth.
-
-Compatibility:
-- `~/.config/opencode/PAISECURITYSYSTEM/` is a symlink to this directory.
+Current source-of-truth plugin architecture for security middleware parity work.
 
 ---
 
-## Where It Runs
+## Canonical Security Engine
 
-- Plugin entry point: `~/.config/opencode/plugins/pai-cc-hooks.ts`
-- Validator hook script: `~/.config/opencode/hooks/SecurityValidator.hook.ts`
+Security policy logic is centralized in:
 
----
+- `.opencode/plugins/security/index.ts`
+- `.opencode/plugins/security/policy-loader.ts`
+- `.opencode/plugins/security/bash-policy.ts`
+- `.opencode/plugins/security/path-policy.ts`
+- `.opencode/plugins/security/content-policy.ts`
+- `.opencode/plugins/security/redaction.ts`
+- `.opencode/plugins/security/audit-log.ts`
+- `.opencode/plugins/security/decision.ts`
 
-## Enforcement Hook
+Compatibility facade:
 
-- **Hook:** `tool.execute.before`
-- **Behavior:** throw Error to block, return to allow
-- **Confirm:** use `permission.ask` when OpenCode prompts
-
----
-
-## Pattern Loading
-
-Order of precedence:
-
-1. `~/.config/opencode/skills/PAI/USER/PAISECURITYSYSTEM/patterns.yaml` (user override)
-2. `PAISECURITYSYSTEM/patterns.example.yaml` (system fallback)
-3. Fail‑open if neither exists
-
-Patterns are compiled once at plugin load (no per‑call YAML reads).
+- `.opencode/plugins/handlers/security-validator.ts`
 
 ---
 
-## Pattern Sections (YAML)
+## Plugin Integration Points
 
-- `bash.blocked` → deny execution
-- `bash.confirm` → require confirmation
-- `bash.alert` → alert/log while allowing
-- `paths.zeroAccess` / `paths.readOnly` / `paths.confirmWrite` / `paths.noDelete` → path-level policy controls
+- Plugin entry: `.opencode/plugins/pai-cc-hooks.ts`
+- Composition root: `.opencode/plugins/pai-cc-hooks/hook.ts`
+- Security gate hook point: `.opencode/plugins/pai-cc-hooks/tool-before.ts`
+- Hook command runner: `.opencode/plugins/pai-cc-hooks/claude/pre-tool-use.ts`
+- Security result mapper: `.opencode/plugins/pai-cc-hooks/security-adapter.ts`
+- Hook script: `.opencode/hooks/SecurityValidator.hook.ts`
+
+Behavior summary:
+
+- Canonical engine computes allow/confirm/block.
+- bridge maps allow/confirm/block to allow/ask/deny for PreToolUse.
+- ask decisions are gated through confirm-id flow in ask-gate.
+
+---
+
+## research-shell Security Reuse
+
+Shared adapter path:
+
+- `.opencode/mcp/research-shell/security-adapter.ts`
+
+It reuses canonical modules for:
+
+- path allowlist matching
+- security audit event writing
+- preview redaction
+
+Provider auth/HTTP/response formatting stays local in `.opencode/mcp/research-shell/index.ts`.
+
+---
+
+## Deprecated Source
+
+- `.opencode/pai-unified.ts` is deprecated and not target-state runtime architecture.
+- It is not a dependency of the canonical security path.
+
+---
+
+## Composition Constraints
+
+- Internal security composition must use TypeScript imports/exports.
+- no internal CLI composition inside canonical engine and shared MCP adapter.
+- process spawning is allowed only for real runtime boundaries (configured external hook commands).
 
 ---
 
 ## Logging
 
-Security decisions are appended to:
+Security events are written to:
 
 - `MEMORY/SECURITY/YYYY-MM/security.jsonl`
 
-Each entry includes:
-- timestamp
-- session id
-- tool name
-- action (allow/confirm/block)
-- category (bash_command/path_access/other)
-- rule id + reason
+Writer:
+
+- `.opencode/plugins/security/audit-log.ts`
 
 ---
 
-## Quick Update Workflow
+## Known follow-ups
 
-1. Edit `~/.config/opencode/skills/PAI/USER/PAISECURITYSYSTEM/patterns.yaml`
-2. Deploy: `bun Tools/Install.ts --target "~/.config/opencode"`
-3. Restart OpenCode
+1. research-shell query validation (`MAX_QUERY_LENGTH`, allowlist regex) remains local to `.opencode/mcp/research-shell/index.ts`.
+2. MCP `sourceCallId` is not always propagated into security audit event fields.
+3. `policy-loader.ts` custom parser remains a future hardening target for stricter schema validation.

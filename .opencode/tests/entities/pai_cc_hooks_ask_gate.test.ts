@@ -7,12 +7,38 @@ import {
   __resetPaiCcHooksSettingsCacheForTests,
   createPaiClaudeHooks,
 } from "../../plugins/pai-cc-hooks/hook";
+import { buildAskGateKey } from "../../plugins/pai-cc-hooks/ask-gate";
 
 function writeJson(filePath: string, value: unknown): void {
   writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
 }
 
 describe("pai-cc-hooks ask gate", () => {
+  test("buildAskGateKey handles circular arrays deterministically", () => {
+    const circularArray: unknown[] = [];
+    circularArray.push("alpha");
+    circularArray.push(circularArray);
+
+    const key1 = buildAskGateKey({
+      sessionId: "ses_circular",
+      toolName: "bash",
+      toolInput: { payload: circularArray },
+    });
+
+    const secondCircularArray: unknown[] = [];
+    secondCircularArray.push("alpha");
+    secondCircularArray.push(secondCircularArray);
+
+    const key2 = buildAskGateKey({
+      sessionId: "ses_circular",
+      toolName: "bash",
+      toolInput: { payload: secondCircularArray },
+    });
+
+    expect(key1).toContain('"[Circular]"');
+    expect(key1).toBe(key2);
+  });
+
   test("ask decision blocks and can be confirmed once", async () => {
     const tmpRoot = mkdtempSync(path.join(os.tmpdir(), "pai-cc-hooks-ask-"));
     const prevConfigRoot = process.env.PAI_CC_HOOKS_CONFIG_ROOT;

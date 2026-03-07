@@ -1,31 +1,50 @@
-# Security Validation (OpenCode Plugin)
+# Security Hooks and PreToolUse Bridge
 
-In the OpenCode port, security validation is implemented as a **plugin**, not a Claude Code hook script.
+This document describes the current hook-side integration for security decisions.
 
-## Where It Runs
+## Canonical vs Adapter Boundaries
 
-- Plugin entrypoint: `~/.config/opencode/plugins/pai-cc-hooks.ts`
-- Validator hook script: `~/.config/opencode/hooks/SecurityValidator.hook.ts`
-- Pattern registry (YAML): `PAISECURITYSYSTEM/patterns.example.yaml` (USER override → SYSTEM fallback)
+- Canonical policy engine: `.opencode/plugins/security/`
+- Thin facade: `.opencode/plugins/handlers/security-validator.ts`
+- Hook script adapter: `.opencode/hooks/SecurityValidator.hook.ts`
 
-## What It Does
+`SecurityValidator.hook.ts` imports the facade and returns hook-compatible allow/ask/deny output.
 
-- Validates tool executions (especially `bash`, plus some file operations)
-- Blocks obviously dangerous commands (e.g. destructive `rm -rf`, reverse shells)
-- Prompts for confirmation on risky commands (e.g. force pushes)
-- Blocks basic prompt-injection patterns found in tool `content`
+## PreToolUse Integration Path
 
-## OpenCode Integration Points
+Security checks in the plugin/hook bridge flow through:
 
-- `tool.execute.before`: plugin can **throw** to block execution
-- `permission.ask`: plugin can set `output.status = "deny" | "ask"` when OpenCode prompts
+1. `.opencode/plugins/pai-cc-hooks/tool-before.ts`
+2. `.opencode/plugins/pai-cc-hooks/claude/pre-tool-use.ts`
+3. configured PreToolUse commands (including `SecurityValidator.hook.ts`)
 
-## How To Update Patterns
+When security returns `confirm`, the bridge converts that into ask-gate flow.
 
-1. Copy `patterns.example.yaml` to `~/.config/opencode/skills/PAI/USER/PAISECURITYSYSTEM/patterns.yaml`.
-2. Edit patterns (v2.4 schema: bash/paths).
-3. Reinstall to runtime: `bun Tools/Install.ts --target "~/.config/opencode"`
+## Decision Mapping
 
-Notes:
-- `~/.config/opencode/PAISECURITYSYSTEM/` is a symlink to `~/.config/opencode/skills/PAI/SYSTEM/PAISECURITYSYSTEM/`.
-- Security decisions are logged to `MEMORY/SECURITY/YYYY-MM/security.jsonl`.
+`.opencode/plugins/pai-cc-hooks/security-adapter.ts` maps canonical results:
+
+- `allow` → `allow`
+- `confirm` → `ask`
+- `block` → `deny`
+
+## Fail-safe Behavior
+
+For security-critical PreToolUse commands (matching `securityvalidator.hook`):
+
+- exit code `0` + empty stdout => fail-safe `ask`
+- exit code `0` + non-JSON stdout => fail-safe `ask`
+
+This behavior is implemented in `.opencode/plugins/pai-cc-hooks/claude/pre-tool-use.ts`.
+
+## Composition Rule
+
+- Canonical security logic stays in TypeScript modules under `.opencode/plugins/security/`.
+- There is **no internal CLI composition** inside the canonical engine.
+- Runtime command spawning is limited to configured hook-command boundaries in PreToolUse.
+
+## Related Paths
+
+- `.opencode/plugins/pai-cc-hooks/hook.ts` (composition root)
+- `.opencode/plugins/pai-cc-hooks/ask-gate.ts` (confirm gate state)
+- `.opencode/mcp/research-shell/security-adapter.ts` (shared security adapter for MCP surface)
