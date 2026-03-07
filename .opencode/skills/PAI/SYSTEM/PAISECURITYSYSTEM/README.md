@@ -4,10 +4,10 @@ A foundational security framework for Personal AI Infrastructure.
 
 ## Current Implementation Status (Tasks 4–8)
 
-- Canonical security engine is modularized under `.opencode/plugins/security/`.
+- Canonical security engine is modularized under `plugins/security/`.
 - Hook/plugin/MCP integrations are thin adapters over the shared engine.
-- `research-shell` uses shared security adapter logic via `.opencode/mcp/research-shell/security-adapter.ts`.
-- `.opencode/pai-unified.ts` is deprecated and not a target dependency for new security behavior.
+- `research-shell` uses shared security adapter logic via `~/.config/opencode/mcp/research-shell/security-adapter.ts`.
+- `pai-unified.ts` is deprecated and not a target dependency for new security behavior.
 
 ---
 
@@ -69,8 +69,8 @@ This security system provides essential protection against catastrophic operatio
 
 The validator loads `~/.config/opencode/skills/PAI/USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml` if not found.
 
-Legacy fallback path for USER overrides is also supported:
-- `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml`
+Legacy fallback directory for USER overrides is also supported:
+- `~/.config/opencode/USER/PAISECURITYSYSTEM/` (optional; create `patterns.yaml` there if needed)
 
 ---
 

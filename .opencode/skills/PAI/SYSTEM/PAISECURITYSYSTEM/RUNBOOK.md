@@ -2,42 +2,46 @@
 
 Operational guide for changing security rules and validating runtime behavior after Tasks 4–8.
 
-## 1) Canonical implementation paths (this branch)
+## 1) Canonical implementation paths (runtime-first)
 
-- Canonical engine: `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/plugins/security/index.ts`
+- Canonical engine: `~/.config/opencode/plugins/security/index.ts`
 - Security modules:
-  - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/plugins/security/policy-loader.ts`
-  - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/plugins/security/bash-policy.ts`
-  - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/plugins/security/path-policy.ts`
-  - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/plugins/security/content-policy.ts`
-  - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/plugins/security/redaction.ts`
-  - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/plugins/security/audit-log.ts`
-  - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/plugins/security/decision.ts`
-  - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/plugins/security/adapter-decision.ts`
-  - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/plugins/security/tool-normalization.ts`
-  - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/plugins/security/project-rules.ts`
+  - `~/.config/opencode/plugins/security/policy-loader.ts`
+  - `~/.config/opencode/plugins/security/bash-policy.ts`
+  - `~/.config/opencode/plugins/security/path-policy.ts`
+  - `~/.config/opencode/plugins/security/content-policy.ts`
+  - `~/.config/opencode/plugins/security/redaction.ts`
+  - `~/.config/opencode/plugins/security/audit-log.ts`
+  - `~/.config/opencode/plugins/security/decision.ts`
+  - `~/.config/opencode/plugins/security/adapter-decision.ts`
+  - `~/.config/opencode/plugins/security/tool-normalization.ts`
+  - `~/.config/opencode/plugins/security/project-rules.ts`
 - Compatibility facade:
-  - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/plugins/handlers/security-validator.ts`
+  - `~/.config/opencode/plugins/handlers/security-validator.ts`
 - Hook/plugin adapters:
-  - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/hooks/SecurityValidator.hook.ts`
-  - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/plugins/pai-cc-hooks/security-adapter.ts`
-  - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/plugins/pai-cc-hooks/tool-before.ts`
+  - `~/.config/opencode/hooks/SecurityValidator.hook.ts`
+  - `~/.config/opencode/plugins/pai-cc-hooks/security-adapter.ts`
+  - `~/.config/opencode/plugins/pai-cc-hooks/tool-before.ts`
 - MCP shared adapter:
-  - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/mcp/research-shell/security-adapter.ts`
+  - `~/.config/opencode/mcp/research-shell/security-adapter.ts`
 
-> Deprecated and non-target: `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/pai-unified.ts`
+> Deprecated and non-target: `pai-unified.ts` in the repo root.
+
+Repo source equivalent for edits before deployment:
+
+- `~/Projects/pai-opencode/.opencode/...`
 
 ## 2) Policy files and precedence (runtime)
 
 The policy loader resolves these runtime paths in order:
 
 1. `/Users/zuul/.config/opencode/skills/PAI/USER/PAISECURITYSYSTEM/patterns.yaml`
-2. `/Users/zuul/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml`
+2. `/Users/zuul/.config/opencode/USER/PAISECURITYSYSTEM/` (optional legacy directory; create `patterns.yaml` if needed)
 3. `/Users/zuul/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml` (fallback default)
 
 System template source in this repo:
 
-- `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/skills/PAI/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml`
+- `~/Projects/pai-opencode/.opencode/skills/PAI/SYSTEM/PAISECURITYSYSTEM/patterns.example.yaml`
 
 ## 3) Rule-change workflow
 
@@ -52,25 +56,27 @@ System template source in this repo:
 Run from any directory:
 
 ```bash
+cd "~/Projects/pai-opencode"
 bun test \
-  "/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/security_current_behavior_baseline.test.ts" \
-  "/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/security_bash_bypass_regressions.test.ts" \
-  "/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/security_policy_loading.test.ts" \
-  "/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/security_project_rules.test.ts" \
-  "/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/security_module_contract.test.ts" \
-  "/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/security_pai_unified_extraction.test.ts" \
-  "/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/security_hook_modularity_contract.test.ts" \
-  "/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/security_adapter_contract.test.ts" \
-  "/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/research_shell_security_adapter.test.ts" \
-  "/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/pai_security_validator_apply_patch_move_to.test.ts" \
-  "/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/pai_cc_hooks_ask_gate.test.ts" \
-  "/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/pai_cc_hooks_tool_execute_before_args.test.ts"
+  ./.opencode/tests/entities/security_current_behavior_baseline.test.ts \
+  ./.opencode/tests/entities/security_bash_bypass_regressions.test.ts \
+  ./.opencode/tests/entities/security_policy_loading.test.ts \
+  ./.opencode/tests/entities/security_project_rules.test.ts \
+  ./.opencode/tests/entities/security_module_contract.test.ts \
+  ./.opencode/tests/entities/security_pai_unified_extraction.test.ts \
+  ./.opencode/tests/entities/security_hook_modularity_contract.test.ts \
+  ./.opencode/tests/entities/security_adapter_contract.test.ts \
+  ./.opencode/tests/entities/research_shell_security_adapter.test.ts \
+  ./.opencode/tests/entities/pai_security_validator_apply_patch_move_to.test.ts \
+  ./.opencode/tests/entities/pai_cc_hooks_ask_gate.test.ts \
+  ./.opencode/tests/entities/pai_cc_hooks_tool_execute_before_args.test.ts
 ```
 
 Fast single-suite check (MCP adapter only):
 
 ```bash
-bun test "/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/research_shell_security_adapter.test.ts"
+cd "~/Projects/pai-opencode"
+bun test ./.opencode/tests/entities/research_shell_security_adapter.test.ts
 ```
 
 ## 5) Deploy to runtime
@@ -86,16 +92,16 @@ Pre-deploy safety checklist:
 4. Start a fresh session after deployment if behavior appears stale.
 
 ```bash
-cd "/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity" && bun Tools/Install.ts --target "/Users/zuul/.config/opencode"
+cd "~/Projects/pai-opencode" && bun Tools/Install.ts --target "~/.config/opencode"
 ```
 
 ## 6) Restart / reload requirements
 
 - **Required restart:** after changing TypeScript implementation under:
-  - `.opencode/plugins/security/`
-  - `.opencode/plugins/pai-cc-hooks/`
-  - `.opencode/hooks/`
-  - `.opencode/mcp/research-shell/`
+  - `~/.config/opencode/plugins/security/`
+  - `~/.config/opencode/plugins/pai-cc-hooks/`
+  - `~/.config/opencode/hooks/`
+  - `~/.config/opencode/mcp/research-shell/`
 - **MCP subprocesses:** restart OpenCode so `research-shell` subprocesses respawn with new code/env.
 - **Policy-only YAML edits:** policy loader re-checks file mtime/size and reloads automatically; restart is not strictly required, but open a new session if behavior appears stale.
 
@@ -140,9 +146,9 @@ When incident docs reference `<session_dir>`, use one of these deterministic sou
 
 ## 9) Path portability note
 
-This runbook uses exact `/Users/zuul/...` paths for this branch.
+This runbook uses exact runtime paths where operational behavior matters most.
 Portable equivalents are:
 
 - repo root → `~/Projects/pai-opencode`
-- worktree root → `~/Projects/pai-opencode/.worktrees/feat-security-middleware-parity`
+- worktree root → `~/Projects/pai-opencode/.worktrees/<branch>`
 - runtime root → `~/.config/opencode`

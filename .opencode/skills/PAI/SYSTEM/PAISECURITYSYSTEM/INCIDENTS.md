@@ -67,10 +67,10 @@ rg '"sessionId":"<SESSION_ID>".*"tool":"<TOOL>"' "/Users/zuul/.config/opencode/M
 
 1. Capture the exact triggering input and audit evidence.
 2. Add or update a failing test first in the most relevant suite:
-   - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/security_bash_bypass_regressions.test.ts`
-   - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/security_current_behavior_baseline.test.ts`
-   - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/security_policy_loading.test.ts`
-   - `/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity/.opencode/tests/entities/security_project_rules.test.ts`
+   - `~/Projects/pai-opencode/.opencode/tests/entities/security_bash_bypass_regressions.test.ts`
+   - `~/Projects/pai-opencode/.opencode/tests/entities/security_current_behavior_baseline.test.ts`
+   - `~/Projects/pai-opencode/.opencode/tests/entities/security_policy_loading.test.ts`
+   - `~/Projects/pai-opencode/.opencode/tests/entities/security_project_rules.test.ts`
 3. Apply the minimal policy/engine change.
 4. Run targeted suite + branch security suite.
 5. Deploy runtime changes:
@@ -79,7 +79,7 @@ rg '"sessionId":"<SESSION_ID>".*"tool":"<TOOL>"' "/Users/zuul/.config/opencode/M
 > Restart OpenCode/MCP after code changes and prefer a fresh session for verification.
 
 ```bash
-cd "/Users/zuul/Projects/pai-opencode/.worktrees/feat-security-middleware-parity" && bun Tools/Install.ts --target "/Users/zuul/.config/opencode"
+cd "~/Projects/pai-opencode" && bun Tools/Install.ts --target "~/.config/opencode"
 ```
 
 6. Restart OpenCode when code changed (required for hook/plugin/MCP code updates).
