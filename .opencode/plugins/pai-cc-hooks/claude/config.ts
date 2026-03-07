@@ -140,10 +140,12 @@ function finalizeLoadedSettings(
   // prevents accidental writes into the current project directory.
   const configuredRuntimeRoot = (env.OPENCODE_ROOT ?? env.OPENCODE_CONFIG_ROOT)?.trim();
   const hasPlaceholder = typeof configuredRuntimeRoot === "string" && configuredRuntimeRoot.includes("${");
+  const legacyPaiDir = env.PAI_DIR?.trim();
+  const legacyPaiDirIsUsable = !!legacyPaiDir && !legacyPaiDir.includes("${");
   if (!configuredRuntimeRoot || hasPlaceholder) {
     env = {
       ...env,
-      OPENCODE_ROOT: opencodeRoot,
+      OPENCODE_ROOT: legacyPaiDirIsUsable ? legacyPaiDir : opencodeRoot,
     };
   }
 

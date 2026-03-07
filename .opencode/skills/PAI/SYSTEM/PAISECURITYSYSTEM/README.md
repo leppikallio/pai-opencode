@@ -2,6 +2,13 @@
 
 A foundational security framework for Personal AI Infrastructure.
 
+## Current Implementation Status (Tasks 4–8)
+
+- Canonical security engine is modularized under `.opencode/plugins/security/`.
+- Hook/plugin/MCP integrations are thin adapters over the shared engine.
+- `research-shell` uses shared security adapter logic via `.opencode/mcp/research-shell/security-adapter.ts`.
+- `.opencode/pai-unified.ts` is deprecated and not a target dependency for new security behavior.
+
 ---
 
 ## Two-Layer Design
@@ -62,6 +69,9 @@ This security system provides essential protection against catastrophic operatio
 
 The validator loads `~/.config/opencode/skills/PAI/USER/PAISECURITYSYSTEM/patterns.yaml` first, falling back to `~/.config/opencode/PAISECURITYSYSTEM/patterns.example.yaml` if not found.
 
+Legacy fallback path for USER overrides is also supported:
+- `~/.config/opencode/USER/PAISECURITYSYSTEM/patterns.yaml`
+
 ---
 
 ## Quick Start
@@ -92,6 +102,12 @@ Contributions and feedback welcome.
 | `ARCHITECTURE.md` | Security layers, trust hierarchy, philosophy |
 | `HOOKS.md` | SecurityValidator implementation details |
 | `PLUGINS.md` | OpenCode plugin integration details |
+| `RUNBOOK.md` | Operator workflow for policy changes and deployment |
+| `INCIDENTS.md` | Incident triage, classification, and rule tuning workflow |
 | `PROMPTINJECTION.md` | Defense against prompt injection attacks |
 | `COMMANDINJECTION.md` | Defense against command injection |
 | `patterns.example.yaml` | Default pattern template |
+
+Operational note:
+- `RUNBOOK.md` uses exact `/Users/zuul/...` paths for this branch; adapt them to `~/Projects/pai-opencode` and `~/.config/opencode` on other machines.
+- Deploying with `bun Tools/Install.ts --target "~/.config/opencode"` updates the live runtime and should be treated as a high-impact operation.

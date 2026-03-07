@@ -46,6 +46,27 @@ function buildInputLines(toolInput: Record<string, unknown>): string {
     .join("\n");
 }
 
+function getHookNameFromCommand(command: string): string {
+  return command.split("/").pop() || command;
+}
+
+function isSecurityCriticalPreToolHook(command: string): boolean {
+  return command.toLowerCase().includes("securityvalidator.hook");
+}
+
+function buildSecurityHookParseFailureReason(args: {
+  hookName: string;
+  kind: "empty" | "parse";
+  stderr?: string;
+}): string {
+  const baseReason =
+    args.kind === "empty"
+      ? `Security-critical hook ${args.hookName} returned empty stdout with exit code 0`
+      : `Security-critical hook ${args.hookName} returned non-JSON stdout (parse failure) with exit code 0`;
+  const stderrReason = args.stderr ? ` (stderr: ${args.stderr})` : "";
+  return `${baseReason}${stderrReason}; failing safe to ask.`;
+}
+
 export async function executePreToolUseHooks(
   ctx: PreToolUseContext,
   config: ClaudeHooksConfig | null,
@@ -97,8 +118,11 @@ export async function executePreToolUseHooks(
   };
 
   const startTime = Date.now();
-  let firstHookName: string | undefined;
   const inputLines = buildInputLines(ctx.toolInput);
+  const accumulatedCommonFields: Pick<
+    PreToolUseResult,
+    "continue" | "stopReason" | "suppressOutput" | "systemMessage"
+  > = {};
 
   for (const command of commandsToExecute) {
     if (isHookCommandDisabled("PreToolUse", command, extendedConfig ?? null)) {
@@ -109,8 +133,8 @@ export async function executePreToolUseHooks(
       continue;
     }
 
-    const hookName = command.split("/").pop() || command;
-    if (!firstHookName) firstHookName = hookName;
+    const hookName = getHookNameFromCommand(command);
+    const securityCriticalHook = isSecurityCriticalPreToolHook(command);
 
     const result = await executeHookCommand(command, JSON.stringify(stdinData), ctx.cwd, {
       forceZsh: DEFAULT_CONFIG.forceZsh,
@@ -123,7 +147,7 @@ export async function executePreToolUseHooks(
         decision: "deny",
         reason: result.stderr || result.stdout || "Hook blocked the operation",
         elapsedMs: Date.now() - startTime,
-        hookName: firstHookName,
+        hookName,
         toolName: transformedToolName,
         inputLines,
       };
@@ -134,9 +158,42 @@ export async function executePreToolUseHooks(
         decision: "ask",
         reason: result.stderr || result.stdout,
         elapsedMs: Date.now() - startTime,
-        hookName: firstHookName,
+        hookName,
         toolName: transformedToolName,
         inputLines,
+      };
+    }
+
+    if (result.exitCode !== 0) {
+      return {
+        decision: "ask",
+        reason:
+          result.stderr ||
+          result.stdout ||
+          `Hook command exited unexpectedly with code ${result.exitCode}`,
+        elapsedMs: Date.now() - startTime,
+        hookName,
+        toolName: transformedToolName,
+        inputLines,
+      };
+    }
+
+    if (!result.stdout && securityCriticalHook) {
+      return {
+        decision: "ask",
+        reason: buildSecurityHookParseFailureReason({
+          hookName,
+          kind: "empty",
+          stderr: result.stderr,
+        }),
+        elapsedMs: Date.now() - startTime,
+        hookName,
+        toolName: transformedToolName,
+        inputLines,
+        continue: accumulatedCommonFields.continue,
+        stopReason: accumulatedCommonFields.stopReason,
+        suppressOutput: accumulatedCommonFields.suppressOutput,
+        systemMessage: accumulatedCommonFields.systemMessage,
       };
     }
 
@@ -164,32 +221,65 @@ export async function executePreToolUseHooks(
           reason = output.reason;
         }
 
-        const hasCommonFields =
-          output.continue !== undefined ||
-          output.stopReason !== undefined ||
-          output.suppressOutput !== undefined ||
-          output.systemMessage !== undefined;
+        if (output.continue !== undefined) {
+          accumulatedCommonFields.continue = output.continue;
+        }
+        if (output.stopReason !== undefined) {
+          accumulatedCommonFields.stopReason = output.stopReason;
+        }
+        if (output.suppressOutput !== undefined) {
+          accumulatedCommonFields.suppressOutput = output.suppressOutput;
+        }
+        if (output.systemMessage !== undefined) {
+          accumulatedCommonFields.systemMessage = output.systemMessage;
+        }
 
-        if (decision || hasCommonFields) {
+        if (decision) {
           return {
-            decision: decision ?? "allow",
+            decision,
             reason,
             modifiedInput,
             elapsedMs: Date.now() - startTime,
-            hookName: firstHookName,
+            hookName,
             toolName: transformedToolName,
             inputLines,
-            continue: output.continue,
-            stopReason: output.stopReason,
-            suppressOutput: output.suppressOutput,
-            systemMessage: output.systemMessage,
+            continue: accumulatedCommonFields.continue,
+            stopReason: accumulatedCommonFields.stopReason,
+            suppressOutput: accumulatedCommonFields.suppressOutput,
+            systemMessage: accumulatedCommonFields.systemMessage,
           };
         }
+
       } catch {
+        if (securityCriticalHook) {
+          return {
+            decision: "ask",
+            reason: buildSecurityHookParseFailureReason({
+              hookName,
+              kind: "parse",
+              stderr: result.stderr,
+            }),
+            elapsedMs: Date.now() - startTime,
+            hookName,
+            toolName: transformedToolName,
+            inputLines,
+            continue: accumulatedCommonFields.continue,
+            stopReason: accumulatedCommonFields.stopReason,
+            suppressOutput: accumulatedCommonFields.suppressOutput,
+            systemMessage: accumulatedCommonFields.systemMessage,
+          };
+        }
+
         // Ignore parse errors and continue.
       }
     }
   }
 
-  return { decision: "allow" };
+  return {
+    decision: "allow",
+    continue: accumulatedCommonFields.continue,
+    stopReason: accumulatedCommonFields.stopReason,
+    suppressOutput: accumulatedCommonFields.suppressOutput,
+    systemMessage: accumulatedCommonFields.systemMessage,
+  };
 }

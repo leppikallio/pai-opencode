@@ -107,6 +107,8 @@ describe("pai-cc-hooks prompt control integration", () => {
       ),
     ).resolves.toBeUndefined();
 
-		expect(output.system).toBeNull();
-  });
+		expect(Array.isArray(output.system)).toBe(true);
+		const system0 = (output.system as string[])[0] ?? "";
+		expect(system0).toContain("PAI SCRATCHPAD (Binding)");
+	});
 });

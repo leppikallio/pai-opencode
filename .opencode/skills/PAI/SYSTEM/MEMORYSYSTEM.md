@@ -202,7 +202,15 @@ This sink is runtime data under the installed runtime memory root, not a source-
 
 ### SECURITY/ - Security Events
 
-**What populates it:** `plugins/handlers/security-validator.ts` on `tool.execute.before`
+**What populates it:** shared audit writer in `plugins/security/audit-log.ts`
+
+Primary emitters:
+- `plugins/security/index.ts` (canonical tool security engine via plugin/hook path)
+- `mcp/research-shell/security-adapter.ts` (session-dir policy events for research-shell)
+
+Legacy compatibility facade still present:
+- `plugins/handlers/security-validator.ts` (thin re-export facade over canonical engine)
+
 **Content:** Security audit events (blocks, confirmations, alerts)
 **Current logging:** `MEMORY/SECURITY/YYYY-MM/security.jsonl`
 **Purpose:** Security decision audit trail
@@ -260,7 +268,7 @@ If enabled, a bounded, redacted digest is written to `~/.config/opencode/MEMORY/
 | `plugins/handlers/rating-capture.ts` | user message commit | MEMORY/LEARNING/SIGNALS/ (+ low-rating learnings) |
 | `plugins/handlers/learning-capture.ts` | idle checkpoint, session.deleted | LEARNING/ |
 | `plugins/handlers/agent-capture.ts` | `tool.execute.after` (Task) | RESEARCH/ |
-| `plugins/handlers/security-validator.ts` | `tool.execute.before` | `~/.config/opencode/MEMORY/SECURITY/YYYY-MM/security.jsonl` |
+| `plugins/security/audit-log.ts` (called by `plugins/security/index.ts` and `mcp/research-shell/security-adapter.ts`) | tool security checks + research-shell session-dir checks | `~/.config/opencode/MEMORY/SECURITY/YYYY-MM/security.jsonl` |
 
 ## Harvesting Tools
 

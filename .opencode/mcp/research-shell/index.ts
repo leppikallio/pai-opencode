@@ -16,9 +16,8 @@
  */
 
 import { createHash, randomUUID } from 'node:crypto';
-import { appendFile, mkdir, realpath, rename, stat, writeFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
-import { delimiter, isAbsolute, join, resolve, sep } from 'node:path';
+import { appendFile, mkdir, rename, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -30,6 +29,7 @@ import { searchGemini as geminiSearch } from './clients/gemini.js';
 import { grokSearch } from './clients/grok.js';
 import { perplexitySearch } from './clients/perplexity.js';
 import { loadConfig } from './config.js';
+import { createResearchShellSecurityAdapter } from './security-adapter.js';
 import { type RetryConfig, withRetry } from './retry.js';
 import type { SearchResult } from './types.js';
 import { renderGeminiWithGrounding } from './GeminiGrounding.js';
@@ -78,6 +78,8 @@ const RETRY_CONFIG: Partial<RetryConfig> = {
   jitter: true, // Prevent thundering herd
   debug: process.env.DEBUG === '1',
 };
+
+const securityAdapter = createResearchShellSecurityAdapter();
 
 // ============================================================================
 // Input Validation
@@ -197,62 +199,6 @@ interface ArtifactRecord {
   };
   error?: string;
   raw?: unknown;
-}
-
-const DEFAULT_ALLOWED_SESSION_DIR_PREFIXES = [
-  join(homedir(), '.config', 'opencode', 'scratchpad', 'sessions'),
-  join(homedir(), '.config', 'opencode', 'MEMORY', 'WORK'),
-];
-
-function parseAllowedSessionDirPrefixes(): string[] {
-  const raw = process.env.RESEARCH_SHELL_ALLOWED_SESSION_DIR_PREFIXES;
-  if (!raw || raw.trim().length === 0) return DEFAULT_ALLOWED_SESSION_DIR_PREFIXES;
-
-  const prefixes = raw
-    .split(delimiter)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
-
-  return prefixes.length > 0 ? prefixes : DEFAULT_ALLOWED_SESSION_DIR_PREFIXES;
-}
-
-function isWithinPrefix(targetPath: string, prefixPath: string): boolean {
-  if (targetPath === prefixPath) return true;
-  return targetPath.startsWith(prefixPath.endsWith(sep) ? prefixPath : prefixPath + sep);
-}
-
-async function validateSessionDirOrThrow(sessionDirRaw: string): Promise<string> {
-  if (!sessionDirRaw || sessionDirRaw.trim().length === 0) {
-    throw new Error('session_dir cannot be empty');
-  }
-
-  if (!isAbsolute(sessionDirRaw)) {
-    throw new Error(`session_dir must be an absolute path, got: "${sessionDirRaw}"`);
-  }
-
-  const sessionDirReal = await realpath(sessionDirRaw);
-  const st = await stat(sessionDirReal);
-  if (!st.isDirectory()) {
-    throw new Error(`session_dir must be a directory, got: "${sessionDirReal}"`);
-  }
-
-  const allowedPrefixes = parseAllowedSessionDirPrefixes();
-  const allowedPrefixReals: string[] = [];
-  for (const prefix of allowedPrefixes) {
-    try {
-      allowedPrefixReals.push(await realpath(prefix));
-    } catch {
-      allowedPrefixReals.push(resolve(prefix));
-    }
-  }
-
-  if (!allowedPrefixReals.some((p) => isWithinPrefix(sessionDirReal, p))) {
-    throw new Error(
-      `session_dir is not allowed: "${sessionDirReal}". Allowed prefixes: ${allowedPrefixes.join(', ')}`,
-    );
-  }
-
-  return sessionDirReal;
 }
 
 function formatTimestampForFilename(timestampIso: string): string {
@@ -818,7 +764,11 @@ server.setRequestHandler(
 
     let sessionDirReal: string;
     try {
-      sessionDirReal = await validateSessionDirOrThrow(session_dir);
+      sessionDirReal = await securityAdapter.validateSessionDirOrThrow({
+        toolName: name,
+        sessionDirRaw: session_dir,
+        query,
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return {
