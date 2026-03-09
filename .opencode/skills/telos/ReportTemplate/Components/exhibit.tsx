@@ -1,8 +1,10 @@
+import type { ReactNode } from "react"
+
 interface ExhibitProps {
   number: number | string
   title: string
   source?: string
-  children: React.ReactNode
+  children: ReactNode
 }
 
 export function Exhibit({ number, title, source, children }: ExhibitProps) {
