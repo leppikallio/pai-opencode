@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom"
+      xmlns:yt="http://www.youtube.com/xml/schemas/2015"
+      xmlns:media="http://search.yahoo.com/mrss/">
+  <id>yt:channel:UCxExampleDeterministicFixture</id>
+  <yt:channelId>UCxExampleDeterministicFixture</yt:channelId>
+  <title>PAI Upgrade Signals</title>
+  <link rel="self" href="https://www.youtube.com/feeds/videos.xml?channel_id=UCxExampleDeterministicFixture"/>
+  <updated>2026-03-05T09:12:48Z</updated>
+
+  <entry>
+    <id>yt:video:dQw4w9WgXcQ</id>
+    <yt:videoId>dQw4w9WgXcQ</yt:videoId>
+    <yt:channelId>UCxExampleDeterministicFixture</yt:channelId>
+    <title>Release Intelligence Loop: Weekly Upgrade Review</title>
+    <link rel="alternate" href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"/>
+    <author>
+      <name>PAI Upgrade Signals</name>
+      <uri>https://www.youtube.com/channel/UCxExampleDeterministicFixture</uri>
+    </author>
+    <published>2026-03-01T08:00:00Z</published>
+    <updated>2026-03-01T08:05:12Z</updated>
+    <media:group>
+      <media:title>Release Intelligence Loop: Weekly Upgrade Review</media:title>
+    </media:group>
+  </entry>
+
+    <entry>
+      <id>yt:video:a1B2c3D4e5F</id>
+      <yt:videoId>a1B2c3D4e5F</yt:videoId>
+      <yt:channelId>UCxExampleDeterministicFixture</yt:channelId>
+      <title>How We Score Breaking Changes in 20 Minutes</title>
+      <link rel="alternate"
+            href="https://www.youtube.com/watch?v=a1B2c3D4e5F"/>
+      <author>
+        <name>PAI Upgrade Signals</name>
+      </author>
+      <published>2026-02-24T17:43:09Z</published>
+      <updated>2026-02-24T17:59:44Z</updated>
+    </entry>
+</feed>

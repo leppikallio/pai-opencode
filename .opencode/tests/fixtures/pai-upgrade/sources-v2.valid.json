@@ -1,0 +1,25 @@
+{
+  "schema_version": 2,
+  "sources": [
+    {
+      "id": "anthropic-docs",
+      "provider": "anthropic",
+      "category": "docs",
+      "name": "Anthropic Docs",
+      "url": "https://example.test/anthropic/docs",
+      "priority": "HIGH",
+      "type": "docs"
+    },
+    {
+      "id": "ecosystem-github",
+      "provider": "ecosystem",
+      "category": "github",
+      "name": "OpenCode Repo",
+      "owner": "example",
+      "repo": "opencode",
+      "priority": "MEDIUM",
+      "check_commits": true,
+      "check_releases": true
+    }
+  ]
+}

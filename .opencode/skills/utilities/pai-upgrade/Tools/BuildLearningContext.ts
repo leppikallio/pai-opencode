@@ -4,7 +4,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { parseArgs } from "node:util";
-import { getPaiRuntimeInfo } from "../../../pai-tools/PaiRuntime";
+import { getPaiRuntimeInfo } from "../../../../pai-tools/PaiRuntime";
 
 export const LEARNING_CONTEXT_SCHEMA = "pai-upgrade.learning-context.v1";
 
@@ -20,6 +20,7 @@ export interface LearningContextOptions {
   learningRoot?: string;
   ratingsPath?: string;
   failuresRoot?: string;
+  now?: () => Date;
   lookbackDays?: number;
   maxLearningFiles?: number;
   maxFailureFiles?: number;
@@ -202,9 +203,9 @@ function countPatterns(labels: string[], maxPatterns: number): PatternCount[] {
     .slice(0, maxPatterns);
 }
 
-function getRecentMarkdownFiles(rootDir: string, lookbackDays: number): string[] {
+function getRecentMarkdownFiles(rootDir: string, lookbackDays: number, nowMs: number): string[] {
   if (!fs.existsSync(rootDir)) return [];
-  const cutoff = Date.now() - lookbackDays * 24 * 60 * 60 * 1000;
+  const cutoff = nowMs - lookbackDays * 24 * 60 * 60 * 1000;
   const files: Array<{ path: string; mtime: number }> = [];
   const stack = [rootDir];
 
@@ -241,13 +242,13 @@ function getRecentMarkdownFiles(rootDir: string, lookbackDays: number): string[]
   return files.sort((a, b) => b.mtime - a.mtime).map((f) => f.path);
 }
 
-function normalizeDocSignal(filePath: string, learningRoot: string): LearningDocumentSignal {
+function normalizeDocSignal(filePath: string, learningRoot: string, nowIso: string): LearningDocumentSignal {
   const content = safeReadFile(filePath);
   const titleMatch = content.match(/^#\s+(.+)$/m);
   const title = titleMatch?.[1]?.trim() || path.basename(filePath);
   const categoryPath = path.relative(learningRoot, filePath).split(path.sep);
   const category = categoryPath[0] ?? "UNKNOWN";
-  const timestamp = fs.existsSync(filePath) ? fs.statSync(filePath).mtime.toISOString() : new Date().toISOString();
+  const timestamp = fs.existsSync(filePath) ? fs.statSync(filePath).mtime.toISOString() : nowIso;
   const pattern_hits = collectPatternHits(content);
 
   return {
@@ -294,6 +295,11 @@ function computeTrend(ratings: RatingSignal[]): LearningTrend {
 }
 
 export function buildLearningContext(options: LearningContextOptions = {}): LearningContext {
+  const now = options.now ?? (() => new Date());
+  const capturedNow = now();
+  const nowMs = capturedNow.getTime();
+  const nowIso = capturedNow.toISOString();
+
   const lookbackDays = options.lookbackDays ?? 30;
   const maxLearningFiles = options.maxLearningFiles ?? 24;
   const maxFailureFiles = options.maxFailureFiles ?? 24;
@@ -308,17 +314,17 @@ export function buildLearningContext(options: LearningContextOptions = {}): Lear
     .filter(Boolean)
     .map(parseRatingLine)
     .filter((value): value is RatingSignal => value !== null)
-    .filter((value) => new Date(value.timestamp).getTime() >= Date.now() - lookbackDays * 24 * 60 * 60 * 1000)
+    .filter((value) => new Date(value.timestamp).getTime() >= nowMs - lookbackDays * 24 * 60 * 60 * 1000)
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-  const allLearningFiles = getRecentMarkdownFiles(paths.learning_root, lookbackDays).filter((filePath) => {
+  const allLearningFiles = getRecentMarkdownFiles(paths.learning_root, lookbackDays, nowMs).filter((filePath) => {
     const rel = path.relative(paths.learning_root, filePath).split(path.sep);
     return rel[0] !== "SIGNALS" && rel[0] !== "FAILURES";
   });
-  const allFailureFiles = getRecentMarkdownFiles(paths.failures_root, lookbackDays);
+  const allFailureFiles = getRecentMarkdownFiles(paths.failures_root, lookbackDays, nowMs);
 
-  const learningDocs = allLearningFiles.slice(0, maxLearningFiles).map((filePath) => normalizeDocSignal(filePath, paths.learning_root));
-  const failures = allFailureFiles.slice(0, maxFailureFiles).map((filePath) => normalizeDocSignal(filePath, paths.learning_root));
+  const learningDocs = allLearningFiles.slice(0, maxLearningFiles).map((filePath) => normalizeDocSignal(filePath, paths.learning_root, nowIso));
+  const failures = allFailureFiles.slice(0, maxFailureFiles).map((filePath) => normalizeDocSignal(filePath, paths.learning_root, nowIso));
 
   const ratingPatternLabels = allRatings.flatMap((rating) => collectPatternHits(rating.summary));
   const learningPatternLabels = learningDocs.flatMap((doc) => doc.pattern_hits);
@@ -342,7 +348,7 @@ export function buildLearningContext(options: LearningContextOptions = {}): Lear
 
   return {
     schema: LEARNING_CONTEXT_SCHEMA,
-    generated_at: new Date().toISOString(),
+    generated_at: nowIso,
     lookback_days: lookbackDays,
     paths,
     stats: {

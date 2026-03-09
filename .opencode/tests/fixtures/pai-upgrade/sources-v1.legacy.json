@@ -1,0 +1,30 @@
+{
+  "blogs": [
+    {
+      "name": "Anthropic Blog",
+      "url": "https://example.test/anthropic/blog",
+      "priority": "HIGH",
+      "type": "blog"
+    }
+  ],
+  "github_repos": [
+    {
+      "name": "OpenCode",
+      "owner": "example",
+      "repo": "opencode",
+      "priority": "MEDIUM",
+      "check_commits": true,
+      "check_releases": true
+    }
+  ],
+  "changelogs": [],
+  "documentation": [
+    {
+      "name": "Migration Docs",
+      "url": "https://example.test/pai-upgrade/docs",
+      "priority": "LOW",
+      "type": "docs"
+    }
+  ],
+  "community": []
+}

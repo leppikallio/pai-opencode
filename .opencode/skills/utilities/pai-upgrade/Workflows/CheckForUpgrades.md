@@ -2,18 +2,20 @@
 
 ## Purpose
 
-Collect and consolidate new upgrade signals from configured sources, then produce a prioritized review list.
+Run PAI upgrade intelligence monitoring and generate a runtime-backed report contract.
 
 ## Inputs
 
-- Optional `days` override (`7`, `14`, or `30`) to scope Anthropic/Claude ingestion. If you do not supply one, use the default example value `14` shown below.
+- Optional `days` override (`7`, `14`, or `30`) to scope provider ingestion. If you do not supply one, use the default example value `14` shown below.
 - Optional `--force` flag to bypass historical state and re-scan.
-- Optional source filter intent from user (Anthropic, YouTube, provider, or both).
+- Optional provider filter intent from user (`anthropic`, `openai`, `ecosystem`, or `all`).
 - Runtime config:
   - `~/.config/opencode/skills/utilities/pai-upgrade/sources.v2.json` (preferred)
   - `~/.config/opencode/skills/utilities/pai-upgrade/sources.json` (legacy fallback)
-  - `~/.config/opencode/skills/utilities/pai-upgrade/youtube-channels.json`
+  - `~/.config/opencode/skills/utilities/pai-upgrade/youtube-channels.json` (optional monitored-source catalog extension)
   - `~/.config/opencode/skills/utilities/pai-upgrade/State/` (state and ledger outputs)
+  - `~/.config/opencode/skills/utilities/pai-upgrade/State/youtube-videos.json` (runtime source state)
+  - `~/.config/opencode/skills/utilities/pai-upgrade/State/transcripts/youtube/` (runtime source transcript state)
 
 ## Steps
 
@@ -34,72 +36,45 @@ bun ~/.config/opencode/skills/PAI/Tools/LoadSkillConfig.ts ~/.config/opencode/sk
 ```
 
 The underlying monitoring toolchain also falls back from `sources.v2.json` to `sources.json` when the v2 catalog is unavailable or empty.
+In this legacy fallback mode, provider filtering is intentionally constrained to `anthropic` and `all` because v1 entries do not encode provider metadata for `ecosystem` or `openai`.
 
 2. Confirm state files exist:
 
 ```bash
 cat ~/.config/opencode/skills/utilities/pai-upgrade/State/last-check.json
-cat ~/.config/opencode/skills/utilities/pai-upgrade/State/youtube-videos.json
+cat ~/.config/opencode/skills/utilities/pai-upgrade/Logs/run-history.jsonl
 ```
 
-### Step 2: Check Anthropic/Claude source feeds
+### Step 2: Check provider source feeds
 
-Run Anthropic/Claude updater:
+Run the canonical monitor entrypoint:
 
 ```bash
-bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/Anthropic.ts --days 14
+bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/MonitorSources.ts --days 14
 ```
 
-### Step 3: Check YouTube and other optional provider sources
+### Step 3: Check configured provider sources
 
-- Resolve current channel/source list from merged config.
-- For each source, fetch fresh metadata and deduplicate against state.
-- Pull transcript/summary only for newly discovered high-signal items.
+- Resolve current source list from merged config.
+- Monitor runtime-supported categories (`blog`, `github`, `changelog`, `docs`, `community`).
+- If YouTube source catalog entries are configured, process them only through `Tools/MonitorSources.ts` runtime ingestion.
+- Fetch fresh source metadata and deduplicate against persisted state.
 
 ### Step 4: Normalize and prioritize
 
 - Merge findings into a single result set.
 - Tag each item with provider, source, confidence, and recency.
 - Apply learning-aware ranking with adjusted priority, score delta, and rationale.
+- Keep reflection mining and synthesis internal to `Tools/MonitorSources.ts`; do not run a second public reflections stage here.
+- Internal reflection signals are read from `algorithm-reflections.jsonl` when available and folded into the same ranked update list.
+- Internal learnings may outrank external discoveries when reflected ranking evidence is stronger.
 - Persist ranked recommendation history by default when not in `--dry-run` mode.
 
-### Step 5: Mine bounded internal reflections
+### Step 5: Produce upgrade check output
 
-This CheckForUpgrades workflow is the OpenCode equivalent of the upstream main upgrade flow for this reflections slice.
+Produce the canonical report shape:
 
-Use the reflections sink after source normalization and before final recommendations:
-
-```bash
-REFLECTIONS_FILE=~/.config/opencode/MEMORY/LEARNING/REFLECTIONS/algorithm-reflections.jsonl
-if test -s "$REFLECTIONS_FILE"; then
-  bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/MineAlgorithmReflections.ts --pretty
-else
-  printf "Reflections have not accumulated yet.\n"
-fi
-```
-
-If the reflections file is missing or empty, include a short note in the report that internal reflections are not yet available.
-
-### Step 6: Produce upgrade check output
-
-Create a review draft with three priority bands: **High**, **Medium**, **Low**.
-
-### Step 7: Capture explicit recommendation outcomes (optional but recommended)
-
-When you (the operator) decide outcomes for top recommendations, record them to improve future ranking quality:
-
-```bash
-bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/RecordRecommendationFeedback.ts \
-  --recommendation-id <ranking_id> \
-  --decision accepted \
-  --helpfulness helpful \
-  --confidence 0.9
-```
-
-Supported values:
-
-- `--decision`: `accepted` | `ignored` | `deferred`
-- `--helpfulness`: `helpful` | `neutral` | `harmful`
+**Discoveries → Recommendations → Implementation Targets**
 
 ## Verify
 
@@ -110,15 +85,14 @@ Supported values:
 
 ```bash
 test -s ~/.config/opencode/skills/utilities/pai-upgrade/State/last-check.json
-test -s ~/.config/opencode/skills/utilities/pai-upgrade/State/youtube-videos.json
+test -s ~/.config/opencode/skills/utilities/pai-upgrade/Logs/run-history.jsonl
 ```
 
 ## Output
 
-- A markdown report containing:
-  - `## High Priority` items with rationale
-  - `## Medium Priority` items
-  - `## Low Priority` items
-  - `## Internal Reflections` (themes from `algorithm-reflections.jsonl`, or a short not-yet-available note)
-  - `## New Videos` (if applicable)
-- Clear note on what to review next and why it matters.
+- Output is runtime-backed by `runMonitor(...).report` and follows:
+  - `discoveries[]`
+  - `recommendations[]`
+  - `implementation_targets[]`
+- Internal reflections are synthesized into the same ranked pipeline; no standalone internal reflections output section is expected.
+- Markdown rendering is derived from the same report contract and ranking metadata.

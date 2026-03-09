@@ -8,9 +8,9 @@ import {
   writeFileSync
 } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { join, resolve } from 'node:path';
-import { loadSkillConfig } from '../../PAI/Tools/LoadSkillConfig';
-import { buildLearningContext, type LearningContext } from './BuildLearningContext';
+import { basename, dirname, join, resolve } from 'node:path';
+import { loadSkillConfig } from '../../../PAI/Tools/LoadSkillConfig';
+import { buildLearningContext, type LearningContext, type LearningContextOptions } from './BuildLearningContext';
 import {
   getDefaultRecommendationHistoryPath,
   rankRecommendations,
@@ -20,9 +20,26 @@ import {
 
 type Priority = 'HIGH' | 'MEDIUM' | 'LOW';
 type SourceCategory = 'blog' | 'github' | 'changelog' | 'docs' | 'community';
-type UpdateType = 'blog' | 'commit' | 'release' | 'changelog' | 'docs' | 'community';
+type UpdateType = 'blog' | 'commit' | 'release' | 'changelog' | 'docs' | 'community' | 'youtube';
 type OutputFormat = 'json' | 'markdown';
 type StateChannel = 'content' | 'commits' | 'releases';
+type TranscriptStatus = 'not_attempted' | 'extracted' | 'empty' | 'pending_retry' | 'unavailable' | 'failed' | 'retry_exhausted';
+type TranscriptErrorClassification = 'timeout' | 'non_zero_exit' | 'unknown';
+
+interface TranscriptMetadata {
+  source: 'youtube';
+  path: string;
+  status: TranscriptStatus;
+  retries: number;
+  attempted: boolean;
+  extracted: boolean;
+  dry_run: boolean;
+  excerpt?: string;
+  error?: string;
+  error_classification?: TranscriptErrorClassification;
+  char_count?: number;
+  line_count?: number;
+}
 
 interface Source {
   id: string;
@@ -81,8 +98,10 @@ interface MonitorState {
 }
 
 interface Update {
+  canonical_id?: string;
   source_id: string;
   source: string;
+  origin: 'external' | 'internal';
   provider: string;
   category: SourceCategory;
   type: UpdateType;
@@ -105,6 +124,12 @@ interface Update {
   ranking_matched_patterns?: string[];
   ranking_reasons?: string[];
   ranking_rationale?: string;
+  transcript_path?: string;
+  transcript_excerpt?: string;
+  transcript_status?: TranscriptStatus;
+  transcript_char_count?: number;
+  transcript_line_count?: number;
+  transcript?: TranscriptMetadata;
 }
 
 export interface MonitorOptions {
@@ -115,6 +140,71 @@ export interface MonitorOptions {
   format: OutputFormat;
   persistHistory: boolean;
   historyPath?: string;
+  runtime?: MonitorRuntimeSeams;
+}
+
+export interface MonitorLearningContextSeams {
+  memoryRoot?: string;
+  learningRoot?: string;
+  ratingsPath?: string;
+  failuresRoot?: string;
+  reflectionsPath?: string;
+}
+
+export interface MonitorRuntimeSeams {
+  fetch?: typeof fetch;
+  now?: () => Date;
+  stateFilePath?: string;
+  runHistoryPath?: string;
+  recommendationHistoryPath?: string;
+  sourcesV2ConfigPath?: string;
+  sourcesV1ConfigPath?: string;
+  youtubeChannelsConfigPath?: string;
+  youtubeStateFilePath?: string;
+  youtubeTranscriptDir?: string;
+  getTranscript?: (videoId: string, videoUrl: string) => Promise<string | null | undefined>;
+  learningContext?: MonitorLearningContextSeams;
+}
+
+export interface UpgradeReportDiscovery {
+  id: string;
+  source_id: string;
+  source_name: string;
+  provider: string;
+  category: SourceCategory;
+  update_type: UpdateType;
+  title: string;
+  url: string;
+  date: string;
+  priority: Priority;
+  summary?: string;
+  transcript_path?: string;
+  transcript_excerpt?: string;
+  transcript_status?: TranscriptStatus;
+  transcript_char_count?: number;
+  transcript_line_count?: number;
+  transcript?: TranscriptMetadata;
+}
+
+export interface UpgradeReportRecommendation {
+  id: string;
+  discovery_ids: string[];
+  implementation_target_ids: string[];
+  priority: RecommendationPriority;
+  rationale: string;
+}
+
+export interface UpgradeImplementationTarget {
+  id: string;
+  label: string;
+  area: 'tooling' | 'workflow' | 'integration' | 'docs';
+  source_ids: string[];
+}
+
+export interface UpgradeMonitorReport {
+  discoveries: UpgradeReportDiscovery[];
+  recommendations: UpgradeReportRecommendation[];
+  implementation_targets: UpgradeImplementationTarget[];
 }
 
 interface ParseResult {
@@ -150,10 +240,58 @@ type GitRelease = {
   body?: string;
 };
 
+interface YouTubeChannelConfig {
+  id: string;
+  provider: string;
+  name: string;
+  priority: Priority;
+  feedUrl: string;
+}
+
+interface LoadedYouTubeChannelsConfig {
+  channels: YouTubeChannelConfig[];
+  valid: boolean;
+}
+
+interface YouTubeFeedEntry {
+  videoId: string;
+  title: string;
+  url: string;
+  publishedAt: string;
+  updatedAt: string;
+}
+
+interface YouTubeTranscriptState {
+  status: TranscriptStatus;
+  retries: number;
+  path: string;
+  updated_at: string;
+  excerpt?: string;
+  char_count?: number;
+  line_count?: number;
+  error?: string;
+  error_classification?: TranscriptErrorClassification;
+}
+
+interface YouTubeChannelState {
+  last_checked: string;
+  last_video_id?: string;
+  last_video_published_at?: string;
+  seen_videos: string[];
+  transcripts: Record<string, YouTubeTranscriptState>;
+}
+
+interface YouTubeState {
+  schema_version: 2;
+  last_check_timestamp: string | null;
+  channels: Record<string, YouTubeChannelState>;
+}
+
 export interface RunResult {
   generatedAt: string;
   options: MonitorOptions;
   updates: Update[];
+  report: UpgradeMonitorReport;
   summary: {
     total: number;
     critical: number;
@@ -162,6 +300,9 @@ export interface RunResult {
     low: number;
     provider: string;
     sourcesChecked: number;
+    catalogSourcesChecked: number;
+    youtubeChannelsChecked: number;
+    sourcesCheckedNote: string;
     ranking: {
       enabled: boolean;
       persisted: boolean;
@@ -189,13 +330,101 @@ export interface RunResult {
 
 const DEFAULT_DAYS = 30;
 const DEFAULT_PROVIDER = 'anthropic';
+const LEGACY_V1_PROVIDER = 'anthropic';
 const SKILL_DIR = resolve(join(import.meta.dir, '..'));
-const STATE_DIR = join(SKILL_DIR, 'State');
-const STATE_FILE = join(STATE_DIR, 'last-check.json');
+const DEFAULT_STATE_DIR = join(SKILL_DIR, 'State');
+const DEFAULT_STATE_FILE = join(DEFAULT_STATE_DIR, 'last-check.json');
 const SOURCES_V2_FILE = 'sources.v2.json';
 const SOURCES_V1_FILE = 'sources.json';
-const LOG_DIR = join(SKILL_DIR, 'Logs');
-const LOG_FILE = join(LOG_DIR, 'run-history.jsonl');
+const YOUTUBE_CHANNELS_FILE = 'youtube-channels.json';
+const DEFAULT_LOG_DIR = join(SKILL_DIR, 'Logs');
+const DEFAULT_LOG_FILE = join(DEFAULT_LOG_DIR, 'run-history.jsonl');
+const DEFAULT_YOUTUBE_STATE_FILE = join(DEFAULT_STATE_DIR, 'youtube-videos.json');
+const YOUTUBE_TRANSCRIPT_RELATIVE_DIR = join('State', 'transcripts', 'youtube');
+const DEFAULT_YOUTUBE_TRANSCRIPT_DIR = join(SKILL_DIR, YOUTUBE_TRANSCRIPT_RELATIVE_DIR);
+const YOUTUBE_SEEN_VIDEOS_RETENTION = 100;
+const YOUTUBE_TRANSCRIPT_MAX_RETRIES = 2;
+const YOUTUBE_TRANSCRIPT_EXCERPT_LIMIT = 240;
+const YOUTUBE_TRANSCRIPT_ERROR_LIMIT = 240;
+
+interface MonitorRuntimeContext {
+  fetch: typeof fetch;
+  now: () => Date;
+  nowIso: () => string;
+  nowMs: () => number;
+  getTranscript?: (videoId: string, videoUrl: string) => Promise<string | null | undefined>;
+  paths: {
+    stateDir: string;
+    stateFile: string;
+    logDir: string;
+    logFile: string;
+    recommendationHistoryPath: string;
+    sourcesV2ConfigPath: string;
+    sourcesV1ConfigPath: string;
+    youtubeChannelsConfigPath: string;
+    youtubeStateFilePath: string;
+    youtubeTranscriptDir: string;
+  };
+  learningContext: MonitorLearningContextSeams;
+}
+
+function resolveConfigLocation(configPath: string): { dir: string; file: string } {
+  const resolved = resolve(configPath);
+  return {
+    dir: dirname(resolved),
+    file: basename(resolved)
+  };
+}
+
+function createRuntimeContext(options: MonitorOptions): MonitorRuntimeContext {
+  const runtime = options.runtime || {};
+  const now = runtime.now || (() => new Date());
+  const stateFile = resolve(runtime.stateFilePath || DEFAULT_STATE_FILE);
+  const runHistoryPath = resolve(runtime.runHistoryPath || DEFAULT_LOG_FILE);
+  const recommendationHistoryPath = resolve(
+    runtime.recommendationHistoryPath || options.historyPath || getDefaultRecommendationHistoryPath()
+  );
+  const hasCustomSourcesV2ConfigPath = typeof runtime.sourcesV2ConfigPath === 'string' && runtime.sourcesV2ConfigPath.trim().length > 0;
+  const sourcesV2ConfigPath = resolve(runtime.sourcesV2ConfigPath || join(SKILL_DIR, SOURCES_V2_FILE));
+  const sourcesV1ConfigPath = resolve(runtime.sourcesV1ConfigPath || join(SKILL_DIR, SOURCES_V1_FILE));
+  const youtubeChannelsConfigPath = resolve(runtime.youtubeChannelsConfigPath || join(SKILL_DIR, YOUTUBE_CHANNELS_FILE));
+  const configRoot = dirname(sourcesV2ConfigPath);
+  const inferredYoutubeStateFilePath = join(configRoot, 'runtime', 'State', 'youtube-videos.json');
+  const inferredYoutubeTranscriptDir = join(configRoot, 'runtime', 'State', 'transcripts', 'youtube');
+  const youtubeStateFilePath = resolve(
+    runtime.youtubeStateFilePath
+      || (hasCustomSourcesV2ConfigPath ? inferredYoutubeStateFilePath : DEFAULT_YOUTUBE_STATE_FILE)
+  );
+  const youtubeTranscriptDir = resolve(
+    runtime.youtubeTranscriptDir
+      || (hasCustomSourcesV2ConfigPath ? inferredYoutubeTranscriptDir : DEFAULT_YOUTUBE_TRANSCRIPT_DIR)
+  );
+
+  return {
+    fetch: runtime.fetch || fetch,
+    now,
+    nowIso: () => now().toISOString(),
+    nowMs: () => now().getTime(),
+    getTranscript: runtime.getTranscript,
+    paths: {
+      stateDir: dirname(stateFile),
+      stateFile,
+      logDir: dirname(runHistoryPath),
+      logFile: runHistoryPath,
+      recommendationHistoryPath,
+      sourcesV2ConfigPath,
+      sourcesV1ConfigPath,
+      youtubeChannelsConfigPath,
+      youtubeStateFilePath,
+      youtubeTranscriptDir
+    },
+    learningContext: runtime.learningContext || {}
+  };
+}
+
+function isoDate(nowIso: string): string {
+  return nowIso.split('T')[0];
+}
 
 function hash(content: string): string {
   return createHash('md5').update(content).digest('hex');
@@ -223,20 +452,37 @@ function assertPriority(value: unknown): Priority {
   return 'MEDIUM';
 }
 
-function loadSourcesConfig(): Source[] {
-  const rawV2 = loadSkillConfig<Partial<SourcesV2>>(SKILL_DIR, SOURCES_V2_FILE);
-  if (isObject(rawV2) && Array.isArray(rawV2.sources)) {
-    const v2Sources = rawV2.sources
-      .map((source) => normalizeSource(source))
-      .filter((source): source is Source => source !== null);
+interface LoadedSourcesConfig {
+  sources: Source[];
+  sourceCatalog: 'v2' | 'v1';
+}
 
-    if (v2Sources.length > 0) {
-      return v2Sources;
+function loadSourcesConfig(runtime: MonitorRuntimeContext): LoadedSourcesConfig {
+  try {
+    const v2Config = resolveConfigLocation(runtime.paths.sourcesV2ConfigPath);
+    const rawV2 = loadSkillConfig<Partial<SourcesV2>>(v2Config.dir, v2Config.file);
+    if (isObject(rawV2) && Array.isArray(rawV2.sources)) {
+      const v2Sources = rawV2.sources
+        .map((source) => normalizeSource(source))
+        .filter((source): source is Source => source !== null);
+
+      if (v2Sources.length > 0) {
+        return {
+          sources: v2Sources,
+          sourceCatalog: 'v2'
+        };
+      }
     }
+  } catch (error) {
+    console.warn('⚠️ Failed to load sources.v2.json, falling back to sources.json:', error);
   }
 
-  const rawV1 = loadSkillConfig<Partial<SourcesV1>>(SKILL_DIR, SOURCES_V1_FILE);
-  return migrateV1Sources(rawV1);
+  const v1Config = resolveConfigLocation(runtime.paths.sourcesV1ConfigPath);
+  const rawV1 = loadSkillConfig<Partial<SourcesV1>>(v1Config.dir, v1Config.file);
+  return {
+    sources: migrateV1Sources(rawV1),
+    sourceCatalog: 'v1'
+  };
 }
 
 function normalizeSource(raw: unknown): Source | null {
@@ -275,7 +521,7 @@ function migrateV1Sources(raw: Partial<SourcesV1>): Source[] {
       const id = makeStableSourceId(category, item, usedIds);
       out.push({
         id,
-        provider: DEFAULT_PROVIDER,
+        provider: LEGACY_V1_PROVIDER,
         category,
         name: item.name,
         priority: assertPriority(item.priority),
@@ -315,29 +561,29 @@ function makeStableSourceId(category: SourceCategory, source: LegacySource, used
   return candidate;
 }
 
-function defaultState(days: number): MonitorState {
+function defaultState(days: number, runtime: MonitorRuntimeContext): MonitorState {
   return {
     schema_version: 2,
-    last_check_timestamp: new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString(),
+    last_check_timestamp: new Date(runtime.nowMs() - days * 24 * 60 * 60 * 1000).toISOString(),
     sources: {}
   };
 }
 
-function loadState(days: number, sources: Source[]): MonitorState {
-  if (!existsSync(STATE_FILE)) {
-    return defaultState(days);
+function loadState(days: number, sources: Source[], runtime: MonitorRuntimeContext): MonitorState {
+  if (!existsSync(runtime.paths.stateFile)) {
+    return defaultState(days, runtime);
   }
 
   try {
-    const raw = JSON.parse(readFileSync(STATE_FILE, 'utf-8')) as unknown;
+    const raw = JSON.parse(readFileSync(runtime.paths.stateFile, 'utf-8')) as unknown;
     if (isStateV2(raw)) {
       return raw;
     }
 
-    return migrateLegacyState(raw, days, sources);
+    return migrateLegacyState(raw, days, sources, runtime);
   } catch (error) {
     console.warn('⚠️ Failed to load state, starting fresh:', error);
-    return defaultState(days);
+    return defaultState(days, runtime);
   }
 }
 
@@ -349,8 +595,8 @@ function isStateV2(raw: unknown): raw is MonitorState {
   );
 }
 
-function migrateLegacyState(raw: unknown, days: number, sources: Source[]): MonitorState {
-  const migrated = defaultState(days);
+function migrateLegacyState(raw: unknown, days: number, sources: Source[], runtime: MonitorRuntimeContext): MonitorState {
+  const migrated = defaultState(days, runtime);
   if (!isObject(raw)) return migrated;
 
   if (typeof raw.last_check_timestamp === 'string' || raw.last_check_timestamp === null) {
@@ -361,8 +607,8 @@ function migrateLegacyState(raw: unknown, days: number, sources: Source[]): Moni
 
   for (const source of sources) {
     if (source.category === 'github') {
-      copyLegacyState(source, 'commits', legacySources, migrated.sources);
-      copyLegacyState(source, 'releases', legacySources, migrated.sources);
+      copyLegacyState(source, 'commits', legacySources, migrated.sources, runtime.nowIso());
+      copyLegacyState(source, 'releases', legacySources, migrated.sources, runtime.nowIso());
       continue;
     }
 
@@ -370,7 +616,7 @@ function migrateLegacyState(raw: unknown, days: number, sources: Source[]): Moni
       continue;
     }
 
-    copyLegacyState(source, 'content', legacySources, migrated.sources);
+    copyLegacyState(source, 'content', legacySources, migrated.sources, runtime.nowIso());
   }
 
   return migrated;
@@ -380,7 +626,8 @@ function copyLegacyState(
   source: Source,
   channel: StateChannel,
   legacyMap: Record<string, unknown>,
-  target: Record<string, SourceState>
+  target: Record<string, SourceState>,
+  nowIso: string
 ): void {
   const candidates = legacyStateKeyCandidates(source, channel);
   const stableKey = stableStateKey(source.id, channel);
@@ -390,7 +637,7 @@ function copyLegacyState(
     if (!isObject(entry)) continue;
 
     target[stableKey] = {
-      last_checked: typeof entry.last_checked === 'string' ? entry.last_checked : new Date().toISOString(),
+      last_checked: typeof entry.last_checked === 'string' ? entry.last_checked : nowIso,
       last_hash: typeof entry.last_hash === 'string' ? entry.last_hash : undefined,
       last_title: typeof entry.last_title === 'string' ? entry.last_title : undefined,
       last_sha: typeof entry.last_sha === 'string' ? entry.last_sha : undefined,
@@ -430,25 +677,25 @@ function legacyStateKeyCandidates(source: Source, channel: StateChannel): string
   return [];
 }
 
-function saveState(state: MonitorState): void {
+function saveState(state: MonitorState, runtime: MonitorRuntimeContext): void {
   try {
-    if (!existsSync(STATE_DIR)) {
-      mkdirSync(STATE_DIR, { recursive: true });
+    if (!existsSync(runtime.paths.stateDir)) {
+      mkdirSync(runtime.paths.stateDir, { recursive: true });
     }
-    writeFileSync(STATE_FILE, JSON.stringify(state, null, 2), 'utf-8');
+    writeFileSync(runtime.paths.stateFile, JSON.stringify(state, null, 2), 'utf-8');
   } catch (error) {
     console.error('❌ Failed to save state:', error);
   }
 }
 
-function logRun(result: RunResult): void {
+function logRun(result: RunResult, runtime: MonitorRuntimeContext): void {
   try {
-    if (!existsSync(LOG_DIR)) {
-      mkdirSync(LOG_DIR, { recursive: true });
+    if (!existsSync(runtime.paths.logDir)) {
+      mkdirSync(runtime.paths.logDir, { recursive: true });
     }
 
     appendFileSync(
-      LOG_FILE,
+      runtime.paths.logFile,
       `${JSON.stringify({
         timestamp: result.generatedAt,
         days_checked: result.options.days,
@@ -471,25 +718,729 @@ function logRun(result: RunResult): void {
   }
 }
 
+function isYouTubeFeedUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    const hostname = parsed.hostname.toLowerCase();
+    const pathname = parsed.pathname.replace(/\/+$/, '');
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return false;
+    }
+
+    if (hostname !== 'youtube.com' && hostname !== 'www.youtube.com') {
+      return false;
+    }
+
+    return pathname === '/feeds/videos.xml';
+  } catch {
+    return false;
+  }
+}
+
+function deriveChannelId(channelId: string, feedUrl: string): string {
+  if (channelId) {
+    return channelId;
+  }
+
+  try {
+    const parsed = new URL(feedUrl);
+    const fromQuery = parsed.searchParams.get('channel_id')?.trim();
+    if (fromQuery) {
+      return fromQuery;
+    }
+  } catch {
+    // feedUrl validity is validated before deriving fallback id.
+  }
+
+  return `feed-${hash(feedUrl).slice(0, 12)}`;
+}
+
+function normalizeYouTubeChannel(raw: unknown, index: number): { channel?: YouTubeChannelConfig; error?: string } {
+  if (!isObject(raw)) {
+    return {
+      error: `channels[${index}] must be an object`
+    };
+  }
+
+  const channelId = typeof raw.channel_id === 'string'
+    ? raw.channel_id.trim()
+    : '';
+  const feedUrlRaw = typeof raw.feed_url === 'string' ? raw.feed_url.trim() : '';
+
+  if (!channelId && !feedUrlRaw) {
+    return {
+      error: `channels[${index}] requires at least one of channel_id or feed_url`
+    };
+  }
+
+  if (feedUrlRaw && !isYouTubeFeedUrl(feedUrlRaw)) {
+    return {
+      error: `channels[${index}] has invalid feed_url: ${feedUrlRaw}`
+    };
+  }
+
+  const id = deriveChannelId(channelId, feedUrlRaw);
+  const feedUrl = feedUrlRaw || `https://www.youtube.com/feeds/videos.xml?channel_id=${id}`;
+
+  const provider = typeof raw.provider === 'string' && raw.provider.trim()
+    ? raw.provider.trim()
+    : DEFAULT_PROVIDER;
+
+  const name = typeof raw.name === 'string' && raw.name.trim()
+    ? raw.name.trim()
+    : id;
+
+  return {
+    channel: {
+      id,
+      provider,
+      name,
+      priority: assertPriority(raw.priority),
+      feedUrl
+    }
+  };
+}
+
+function loadYouTubeChannelsConfig(runtime: MonitorRuntimeContext): LoadedYouTubeChannelsConfig {
+  const configLocation = resolveConfigLocation(runtime.paths.youtubeChannelsConfigPath);
+  const configLabel = runtime.paths.youtubeChannelsConfigPath;
+
+  let raw: unknown;
+
+  try {
+    raw = loadSkillConfig<{ schema_version?: number; channels?: unknown[] }>(
+      configLocation.dir,
+      configLocation.file
+    );
+  } catch (error) {
+    console.warn(`⚠️ Failed to load ${configLabel}; Skipping YouTube discovery for this run.`, error);
+    return {
+      channels: [],
+      valid: false
+    };
+  }
+
+  if (!isObject(raw)) {
+    console.warn(`⚠️ Invalid ${configLabel}; expected JSON object. Skipping YouTube discovery for this run.`);
+    return {
+      channels: [],
+      valid: false
+    };
+  }
+
+  if (raw.channels === undefined) {
+    return {
+      channels: [],
+      valid: true
+    };
+  }
+
+  if (!Array.isArray(raw.channels)) {
+    console.warn(`⚠️ Invalid ${configLabel}; channels must be an array. Skipping YouTube discovery for this run.`);
+    return {
+      channels: [],
+      valid: false
+    };
+  }
+
+  const channels: YouTubeChannelConfig[] = [];
+  const errors: string[] = [];
+  for (const [index, entry] of raw.channels.entries()) {
+    const normalized = normalizeYouTubeChannel(entry, index);
+    if (normalized.error) {
+      errors.push(normalized.error);
+      continue;
+    }
+    if (normalized.channel) {
+      channels.push(normalized.channel);
+    }
+  }
+
+  if (errors.length > 0) {
+    console.warn(`⚠️ Invalid ${configLabel}; ${errors.join('; ')}. Skipping YouTube discovery for this run.`);
+    return {
+      channels: [],
+      valid: false
+    };
+  }
+
+  return {
+    channels,
+    valid: true
+  };
+}
+
+function parseYouTubeEntry(entryXml: string): YouTubeFeedEntry | null {
+  const videoIdMatch = entryXml.match(/<yt:videoId>\s*([^<]+)\s*<\/yt:videoId>/i)
+    || entryXml.match(/<id>\s*yt:video:([^<]+)\s*<\/id>/i);
+  const titleMatch = entryXml.match(/<title>\s*([\s\S]*?)\s*<\/title>/i);
+  const linkMatch = entryXml.match(/<link[^>]*href=["']([^"']+)["'][^>]*>/i);
+  const publishedMatch = entryXml.match(/<published>\s*([^<]+)\s*<\/published>/i);
+  const updatedMatch = entryXml.match(/<updated>\s*([^<]+)\s*<\/updated>/i);
+
+  const videoId = videoIdMatch?.[1]?.trim();
+  const title = titleMatch?.[1]?.replace(/\s+/g, ' ').trim();
+  const url = linkMatch?.[1]?.trim() || (videoId ? `https://www.youtube.com/watch?v=${videoId}` : '');
+  const publishedAt = publishedMatch?.[1]?.trim() || updatedMatch?.[1]?.trim() || '';
+  const updatedAt = updatedMatch?.[1]?.trim() || publishedMatch?.[1]?.trim() || '';
+
+  if (!videoId || !title || !url || !publishedAt || !updatedAt) {
+    return null;
+  }
+
+  return {
+    videoId,
+    title,
+    url,
+    publishedAt,
+    updatedAt
+  };
+}
+
+function parseYouTubeAtomFeed(xml: string): YouTubeFeedEntry[] {
+  const entries = xml.match(/<entry\b[\s\S]*?<\/entry>/gi) || [];
+  return entries
+    .map((entryXml) => parseYouTubeEntry(entryXml))
+    .filter((entry): entry is YouTubeFeedEntry => entry !== null)
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+}
+
+function decodeHtmlEntities(value: string): string {
+  return value
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number.parseInt(code, 10)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCharCode(Number.parseInt(code, 16)))
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
+function normalizeTranscriptExcerpt(text: string): string {
+  return text
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, YOUTUBE_TRANSCRIPT_EXCERPT_LIMIT);
+}
+
+function truncateTranscriptValue(value: string, limit: number): string {
+  return value.slice(0, limit);
+}
+
+function classifyTranscriptError(message: string): TranscriptErrorClassification {
+  const normalized = message.toLowerCase();
+  if (normalized.includes('timed out') || normalized.includes('timeout')) {
+    return 'timeout';
+  }
+
+  if (
+    normalized.includes('non-zero')
+    || normalized.includes('non zero')
+    || /exit(?:ed)?\s+with\s+code\s+\d+/.test(normalized)
+    || /code\s+\d+/.test(normalized)
+  ) {
+    return 'non_zero_exit';
+  }
+
+  return 'unknown';
+}
+
+function parseTranscriptXml(raw: string): string | null {
+  const matches = [...raw.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/gi)];
+  if (matches.length === 0) {
+    return null;
+  }
+
+  const lines = matches
+    .map((match) => decodeHtmlEntities(match[1] || '').replace(/\s+/g, ' ').trim())
+    .filter((line) => line.length > 0);
+
+  if (lines.length === 0) {
+    return null;
+  }
+
+  return lines.join('\n');
+}
+
+function parseTranscriptJson3(raw: string): string | null {
+  try {
+    const parsed = JSON.parse(raw) as {
+      events?: Array<{ segs?: Array<{ utf8?: string }> }>;
+    };
+
+    const lines = (parsed.events || [])
+      .flatMap((event) => event.segs || [])
+      .map((segment) => (segment.utf8 || '').replace(/\s+/g, ' ').trim())
+      .filter((line) => line.length > 0);
+
+    if (lines.length === 0) {
+      return null;
+    }
+
+    return lines.join('\n');
+  } catch {
+    return null;
+  }
+}
+
+async function extractTranscriptWithInternalHelper(videoId: string, runtime: MonitorRuntimeContext): Promise<string | null> {
+  const transcriptUrl = `https://www.youtube.com/api/timedtext?lang=en&fmt=json3&v=${encodeURIComponent(videoId)}`;
+  const response = await runtime.fetch(transcriptUrl);
+  if (!response.ok) {
+    return null;
+  }
+
+  const body = await response.text();
+  return parseTranscriptJson3(body) || parseTranscriptXml(body);
+}
+
+async function getTranscriptForVideo(
+  videoId: string,
+  videoUrl: string,
+  runtime: MonitorRuntimeContext
+): Promise<string | null | undefined> {
+  if (runtime.getTranscript) {
+    return runtime.getTranscript(videoId, videoUrl);
+  }
+
+  return extractTranscriptWithInternalHelper(videoId, runtime);
+}
+
+function normalizeSeenVideos(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of value) {
+    if (typeof entry !== 'string') continue;
+    const normalized = entry.trim();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    out.push(normalized);
+    if (out.length >= YOUTUBE_SEEN_VIDEOS_RETENTION) {
+      break;
+    }
+  }
+
+  return out;
+}
+
+function upsertSeenVideo(seenVideos: string[], videoId: string): string[] {
+  const deduped = [videoId, ...seenVideos.filter((value) => value !== videoId)];
+  return deduped.slice(0, YOUTUBE_SEEN_VIDEOS_RETENTION);
+}
+
+function normalizeTranscriptState(
+  value: unknown,
+  nowIso: string,
+  fallbackPath: string
+): YouTubeTranscriptState | null {
+  if (!isObject(value)) {
+    return null;
+  }
+
+  const retries = typeof value.retries === 'number' && Number.isFinite(value.retries)
+    ? Math.max(0, Math.floor(value.retries))
+    : 0;
+
+  const statusRaw = typeof value.status === 'string' ? value.status : 'pending_retry';
+  let status: TranscriptStatus;
+  if (
+    statusRaw === 'not_attempted'
+    || statusRaw === 'extracted'
+    || statusRaw === 'empty'
+    || statusRaw === 'pending_retry'
+    || statusRaw === 'unavailable'
+  ) {
+    status = statusRaw;
+  } else if (statusRaw === 'retry_exhausted') {
+    status = 'unavailable';
+  } else if (statusRaw === 'failed') {
+    status = retries >= YOUTUBE_TRANSCRIPT_MAX_RETRIES ? 'unavailable' : 'pending_retry';
+  } else {
+    status = 'pending_retry';
+  }
+
+  const errorClassificationRaw = typeof value.error_classification === 'string' ? value.error_classification : undefined;
+  const errorClassification: TranscriptErrorClassification | undefined = (
+    errorClassificationRaw === 'timeout'
+    || errorClassificationRaw === 'non_zero_exit'
+    || errorClassificationRaw === 'unknown'
+  )
+    ? errorClassificationRaw
+    : undefined;
+
+  return {
+    status,
+    retries,
+    path: typeof value.path === 'string' ? value.path : fallbackPath,
+    updated_at: typeof value.updated_at === 'string' ? value.updated_at : nowIso,
+    excerpt: typeof value.excerpt === 'string' ? value.excerpt : undefined,
+    char_count: typeof value.char_count === 'number' ? value.char_count : undefined,
+    line_count: typeof value.line_count === 'number' ? value.line_count : undefined,
+    error: typeof value.error === 'string' ? value.error : undefined,
+    error_classification: errorClassification
+  };
+}
+
+function normalizeYouTubeChannelState(value: unknown, nowIso: string): YouTubeChannelState {
+  if (!isObject(value)) {
+    return {
+      last_checked: nowIso,
+      seen_videos: [],
+      transcripts: {}
+    };
+  }
+
+  const transcriptsRaw = isObject(value.transcripts)
+    ? value.transcripts
+    : {};
+
+  const transcripts: Record<string, YouTubeTranscriptState> = {};
+  for (const [videoId, transcriptValue] of Object.entries(transcriptsRaw)) {
+    const normalized = normalizeTranscriptState(transcriptValue, nowIso, youtubeTranscriptRelativePath(videoId));
+    if (normalized) {
+      transcripts[videoId] = normalized;
+    }
+  }
+
+  const seenLegacy = normalizeSeenVideos(value.seen_video_ids);
+  const seenCurrent = normalizeSeenVideos(value.seen_videos);
+
+  return {
+    last_checked: typeof value.last_checked === 'string' ? value.last_checked : nowIso,
+    last_video_id: typeof value.last_video_id === 'string' ? value.last_video_id : undefined,
+    last_video_published_at: typeof value.last_video_published_at === 'string' ? value.last_video_published_at : undefined,
+    seen_videos: seenCurrent.length > 0 ? seenCurrent : seenLegacy,
+    transcripts
+  };
+}
+
+function defaultYouTubeState(runtime: MonitorRuntimeContext): YouTubeState {
+  return {
+    schema_version: 2,
+    last_check_timestamp: runtime.nowIso(),
+    channels: {}
+  };
+}
+
+function loadYouTubeState(runtime: MonitorRuntimeContext): YouTubeState {
+  if (!existsSync(runtime.paths.youtubeStateFilePath)) {
+    return defaultYouTubeState(runtime);
+  }
+
+  try {
+    const raw = JSON.parse(readFileSync(runtime.paths.youtubeStateFilePath, 'utf-8')) as unknown;
+    if (isObject(raw) && isObject(raw.channels)) {
+      const schemaVersion = raw.schema_version;
+      if (schemaVersion !== 1 && schemaVersion !== 2) {
+        return defaultYouTubeState(runtime);
+      }
+
+      const channels: Record<string, YouTubeChannelState> = {};
+      for (const [channelId, value] of Object.entries(raw.channels)) {
+        channels[channelId] = normalizeYouTubeChannelState(value, runtime.nowIso());
+      }
+
+      return {
+        schema_version: 2,
+        last_check_timestamp: (typeof raw.last_check_timestamp === 'string' || raw.last_check_timestamp === null)
+          ? raw.last_check_timestamp
+          : runtime.nowIso(),
+        channels
+      };
+    }
+  } catch (error) {
+    console.warn('⚠️ Failed to load youtube state, starting fresh:', error);
+  }
+
+  return defaultYouTubeState(runtime);
+}
+
+function saveYouTubeState(state: YouTubeState, runtime: MonitorRuntimeContext): void {
+  try {
+    const stateDir = dirname(runtime.paths.youtubeStateFilePath);
+    if (!existsSync(stateDir)) {
+      mkdirSync(stateDir, { recursive: true });
+    }
+
+    writeFileSync(runtime.paths.youtubeStateFilePath, JSON.stringify(state, null, 2), 'utf-8');
+  } catch (error) {
+    console.warn('⚠️ Failed to save youtube state:', error);
+  }
+}
+
+function youtubeTranscriptRelativePath(videoId: string): string {
+  return `State/transcripts/youtube/${videoId}.txt`;
+}
+
+interface YouTubeUpdatesResult {
+  updates: Update[];
+  channelsChecked: number;
+}
+
+async function fetchYouTubeUpdates(options: MonitorOptions, runtime: MonitorRuntimeContext): Promise<YouTubeUpdatesResult> {
+  const loadedChannels = loadYouTubeChannelsConfig(runtime);
+  if (!loadedChannels.valid) {
+    return {
+      updates: [],
+      channelsChecked: 0
+    };
+  }
+
+  const channels = loadedChannels.channels;
+
+  if (channels.length === 0) {
+    return {
+      updates: [],
+      channelsChecked: 0
+    };
+  }
+
+  const currentState = loadYouTubeState(runtime);
+  const nextState: YouTubeState = {
+    schema_version: 2,
+    last_check_timestamp: runtime.nowIso(),
+    channels: { ...currentState.channels }
+  };
+
+  const updates: Update[] = [];
+  const cutoffMs = runtime.nowMs() - options.days * 24 * 60 * 60 * 1000;
+
+  for (const channel of channels) {
+    const channelKey = channel.id;
+    const previous = nextState.channels[channelKey] || {
+      last_checked: runtime.nowIso(),
+      seen_videos: [],
+      transcripts: {}
+    };
+    let seenVideos = normalizeSeenVideos(previous.seen_videos);
+    const seen = new Set(seenVideos);
+    const transcripts: Record<string, YouTubeTranscriptState> = { ...(previous.transcripts || {}) };
+
+    try {
+      const response = await runtime.fetch(channel.feedUrl);
+      if (!response.ok) {
+        console.warn(`⚠️ Failed to fetch YouTube channel ${channel.name}: ${response.status}`);
+        nextState.channels[channelKey] = {
+          ...previous,
+          last_checked: runtime.nowIso(),
+          seen_videos: seenVideos,
+          transcripts
+        };
+        continue;
+      }
+
+      const feed = await response.text();
+      const entries = parseYouTubeAtomFeed(feed);
+
+      for (const entry of entries) {
+        const publishedMs = new Date(entry.publishedAt).getTime();
+        if (Number.isFinite(publishedMs) && publishedMs < cutoffMs) {
+          continue;
+        }
+
+        const transcriptPath = youtubeTranscriptRelativePath(entry.videoId);
+        const existingTranscriptState = transcripts[entry.videoId];
+        const wasSeen = seen.has(entry.videoId);
+
+        if (!options.force && wasSeen) {
+          continue;
+        }
+
+        if (options.force && wasSeen && existingTranscriptState?.status === 'unavailable') {
+          continue;
+        }
+
+        const transcript: TranscriptMetadata = {
+          source: 'youtube',
+          path: transcriptPath,
+          status: 'not_attempted',
+          retries: existingTranscriptState?.retries || 0,
+          attempted: false,
+          extracted: false,
+          dry_run: options.dryRun,
+          error_classification: existingTranscriptState?.error_classification
+        };
+
+        if (!options.dryRun) {
+          const retries = existingTranscriptState?.retries || 0;
+          const canRetry = retries < YOUTUBE_TRANSCRIPT_MAX_RETRIES;
+          const alreadyExtracted = existingTranscriptState?.status === 'extracted';
+
+          if (alreadyExtracted) {
+            transcript.status = 'extracted';
+            transcript.extracted = true;
+            transcript.excerpt = existingTranscriptState?.excerpt;
+            transcript.char_count = existingTranscriptState?.char_count;
+            transcript.line_count = existingTranscriptState?.line_count;
+            transcript.error_classification = existingTranscriptState?.error_classification;
+          } else if (!canRetry) {
+            const nowIso = runtime.nowIso();
+            transcript.status = 'unavailable';
+            transcript.excerpt = existingTranscriptState?.excerpt;
+            transcript.error = existingTranscriptState?.error;
+            transcript.error_classification = existingTranscriptState?.error_classification;
+            transcripts[entry.videoId] = {
+              status: 'unavailable',
+              retries,
+              path: transcriptPath,
+              updated_at: nowIso,
+              excerpt: existingTranscriptState?.excerpt,
+              error: existingTranscriptState?.error,
+              error_classification: existingTranscriptState?.error_classification
+            };
+          } else {
+            const nowIso = runtime.nowIso();
+            transcript.attempted = true;
+            transcript.retries = retries + 1;
+
+            try {
+              const transcriptText = await getTranscriptForVideo(entry.videoId, entry.url, runtime);
+              if (transcriptText?.trim()) {
+                if (!existsSync(runtime.paths.youtubeTranscriptDir)) {
+                  mkdirSync(runtime.paths.youtubeTranscriptDir, { recursive: true });
+                }
+                writeFileSync(join(runtime.paths.youtubeTranscriptDir, `${entry.videoId}.txt`), transcriptText, 'utf-8');
+                const excerpt = normalizeTranscriptExcerpt(transcriptText);
+                const charCount = transcriptText.length;
+                const lineCount = transcriptText.split(/\r?\n/).length;
+
+                transcript.status = 'extracted';
+                transcript.extracted = true;
+                transcript.excerpt = excerpt;
+                transcript.char_count = charCount;
+                transcript.line_count = lineCount;
+
+                transcripts[entry.videoId] = {
+                  status: 'extracted',
+                  retries: transcript.retries,
+                  path: transcriptPath,
+                  updated_at: nowIso,
+                  excerpt,
+                  char_count: charCount,
+                  line_count: lineCount
+                };
+              } else {
+                transcript.status = 'empty';
+                transcripts[entry.videoId] = {
+                  status: 'empty',
+                  retries: transcript.retries,
+                  path: transcriptPath,
+                  updated_at: nowIso,
+                  excerpt: existingTranscriptState?.excerpt
+                };
+              }
+            } catch (error) {
+              const rawErrorMessage = error instanceof Error ? error.message : String(error);
+              const errorClassification = classifyTranscriptError(rawErrorMessage);
+              const errorMessage = truncateTranscriptValue(rawErrorMessage, YOUTUBE_TRANSCRIPT_ERROR_LIMIT);
+              const hasRetriesRemaining = transcript.retries < YOUTUBE_TRANSCRIPT_MAX_RETRIES;
+
+              transcript.status = hasRetriesRemaining ? 'pending_retry' : 'unavailable';
+              transcript.error = errorMessage;
+              transcript.error_classification = errorClassification;
+              transcripts[entry.videoId] = {
+                status: transcript.status,
+                retries: transcript.retries,
+                path: transcriptPath,
+                updated_at: nowIso,
+                error: errorMessage,
+                excerpt: existingTranscriptState?.excerpt,
+                error_classification: errorClassification
+              };
+            }
+          }
+        } else {
+          transcript.status = 'not_attempted';
+        }
+
+        if (!options.dryRun && !transcripts[entry.videoId] && existingTranscriptState) {
+          transcripts[entry.videoId] = existingTranscriptState;
+        }
+
+        updates.push({
+          canonical_id: `youtube:${entry.videoId}`,
+          source_id: `youtube-${channel.id}`,
+          source: channel.name,
+          origin: 'external',
+          provider: 'ecosystem',
+          category: 'community',
+          type: 'youtube',
+          title: entry.title,
+          url: entry.url,
+          date: isoDate(entry.publishedAt),
+          priority: channel.priority,
+          summary: 'New YouTube upload detected',
+          transcript_path: transcript.path,
+          transcript_excerpt: transcript.excerpt,
+          transcript_status: transcript.status,
+          transcript_char_count: transcript.char_count,
+          transcript_line_count: transcript.line_count,
+          transcript
+        });
+
+        seenVideos = upsertSeenVideo(seenVideos, entry.videoId);
+        seen.add(entry.videoId);
+      }
+
+      nextState.channels[channelKey] = {
+        last_checked: runtime.nowIso(),
+        last_video_id: entries[0]?.videoId || previous.last_video_id,
+        last_video_published_at: entries[0]?.publishedAt || previous.last_video_published_at,
+        seen_videos: seenVideos,
+        transcripts
+      };
+    } catch (error) {
+      console.warn(`⚠️ Error fetching YouTube source ${channel.name}:`, error);
+      nextState.channels[channelKey] = {
+        ...previous,
+        last_checked: runtime.nowIso(),
+        seen_videos: seenVideos,
+        transcripts
+      };
+    }
+  }
+
+  if (!options.dryRun) {
+    saveYouTubeState(nextState, runtime);
+  }
+
+  return {
+    updates,
+    channelsChecked: channels.length
+  };
+}
+
+function buildSourcesCheckedNote(catalogSourcesChecked: number, youtubeChannelsChecked: number): string {
+  if (youtubeChannelsChecked > 0) {
+    return `sourcesChecked includes ${catalogSourcesChecked} catalog sources plus ${youtubeChannelsChecked} auxiliary YouTube channels checked; mixed-provider output is expected because YouTube discoveries use provider 'ecosystem'.`;
+  }
+
+  return `sourcesChecked includes ${catalogSourcesChecked} catalog sources and 0 auxiliary YouTube channels checked.`;
+}
+
 function getStateRecord(state: MonitorState, sourceId: string, channel: StateChannel): SourceState | undefined {
   return state.sources[stableStateKey(sourceId, channel)];
 }
 
-function setStateRecord(state: MonitorState, sourceId: string, channel: StateChannel, patch: Partial<SourceState>): void {
+function setStateRecord(state: MonitorState, sourceId: string, channel: StateChannel, patch: Partial<SourceState>, runtime: MonitorRuntimeContext): void {
   const key = stableStateKey(sourceId, channel);
-  const previous = state.sources[key] || { last_checked: new Date().toISOString() };
+  const previous = state.sources[key] || { last_checked: runtime.nowIso() };
   state.sources[key] = {
     ...previous,
     ...patch,
-    last_checked: patch.last_checked || new Date().toISOString()
+    last_checked: patch.last_checked || runtime.nowIso()
   };
 }
 
-async function fetchBlogLike(source: Source, state: MonitorState, options: MonitorOptions): Promise<Update[]> {
+async function fetchBlogLike(source: Source, state: MonitorState, options: MonitorOptions, runtime: MonitorRuntimeContext): Promise<Update[]> {
   if (!source.url) return [];
 
   try {
-    const response = await fetch(source.url);
+    const response = await runtime.fetch(source.url);
     if (!response.ok) {
       console.warn(`⚠️ Failed to fetch ${source.name}: ${response.status}`);
       return [];
@@ -501,10 +1452,10 @@ async function fetchBlogLike(source: Source, state: MonitorState, options: Monit
     const unchanged = !options.force && stateRecord?.last_hash === contentHash;
 
     setStateRecord(state, source.id, 'content', {
-      last_checked: new Date().toISOString(),
+      last_checked: runtime.nowIso(),
       last_hash: contentHash,
       last_title: stateRecord?.last_title
-    });
+    }, runtime);
 
     if (unchanged) {
       return [];
@@ -514,10 +1465,10 @@ async function fetchBlogLike(source: Source, state: MonitorState, options: Monit
     const title = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '').trim() : 'Latest update';
 
     setStateRecord(state, source.id, 'content', {
-      last_checked: new Date().toISOString(),
+      last_checked: runtime.nowIso(),
       last_hash: contentHash,
       last_title: title
-    });
+    }, runtime);
 
     const type: UpdateType = source.category === 'docs'
       ? 'docs'
@@ -528,12 +1479,13 @@ async function fetchBlogLike(source: Source, state: MonitorState, options: Monit
     return [{
       source_id: source.id,
       source: source.name,
+      origin: 'external',
       provider: source.provider,
       category: source.category,
       type,
       title: `${source.name}: ${title}`,
       url: source.url,
-      date: new Date().toISOString().split('T')[0],
+      date: isoDate(runtime.nowIso()),
       hash: contentHash,
       priority: source.priority,
       summary: `${source.category} content changed`
@@ -544,7 +1496,7 @@ async function fetchBlogLike(source: Source, state: MonitorState, options: Monit
   }
 }
 
-async function fetchGitHub(source: Source, state: MonitorState, options: MonitorOptions): Promise<Update[]> {
+async function fetchGitHub(source: Source, state: MonitorState, options: MonitorOptions, runtime: MonitorRuntimeContext): Promise<Update[]> {
   const updates: Update[] = [];
   if (!source.owner || !source.repo) return updates;
 
@@ -557,9 +1509,9 @@ async function fetchGitHub(source: Source, state: MonitorState, options: Monitor
 
   try {
     if (source.check_commits) {
-      const since = new Date(Date.now() - options.days * 24 * 60 * 60 * 1000).toISOString();
+      const since = new Date(runtime.nowMs() - options.days * 24 * 60 * 60 * 1000).toISOString();
       const commitUrl = `https://api.github.com/repos/${source.owner}/${source.repo}/commits?since=${since}&per_page=10`;
-      const response = await fetch(commitUrl, { headers });
+      const response = await runtime.fetch(commitUrl, { headers });
 
       if (response.ok) {
         const commits = await response.json() as GitCommit[];
@@ -574,11 +1526,12 @@ async function fetchGitHub(source: Source, state: MonitorState, options: Monitor
           const message = commit.commit?.message || 'Commit';
           const title = message.split('\n')[0];
           const authorName = commit.commit?.author?.name || 'Unknown';
-          const date = commit.commit?.author?.date?.split('T')[0] || new Date().toISOString().split('T')[0];
+          const date = commit.commit?.author?.date?.split('T')[0] || isoDate(runtime.nowIso());
 
           updates.push({
             source_id: source.id,
             source: source.name,
+            origin: 'external',
             provider: source.provider,
             category: 'github',
             type: 'commit',
@@ -594,21 +1547,21 @@ async function fetchGitHub(source: Source, state: MonitorState, options: Monitor
         const newestSha = commits[0]?.sha;
         if (newestSha) {
           setStateRecord(state, source.id, 'commits', {
-            last_checked: new Date().toISOString(),
+            last_checked: runtime.nowIso(),
             last_sha: newestSha,
             last_title: commits[0]?.commit?.message?.split('\n')[0]
-          });
+          }, runtime);
         } else {
           setStateRecord(state, source.id, 'commits', {
-            last_checked: new Date().toISOString()
-          });
+            last_checked: runtime.nowIso()
+          }, runtime);
         }
       }
     }
 
     if (source.check_releases) {
       const releaseUrl = `https://api.github.com/repos/${source.owner}/${source.repo}/releases?per_page=5`;
-      const response = await fetch(releaseUrl, { headers });
+      const response = await runtime.fetch(releaseUrl, { headers });
 
       if (response.ok) {
         const releases = await response.json() as GitRelease[];
@@ -623,12 +1576,13 @@ async function fetchGitHub(source: Source, state: MonitorState, options: Monitor
           updates.push({
             source_id: source.id,
             source: source.name,
+            origin: 'external',
             provider: source.provider,
             category: 'github',
             type: 'release',
             title: `${tag}: ${release.name || 'New release'}`,
             url: release.html_url || '',
-            date: release.published_at?.split('T')[0] || new Date().toISOString().split('T')[0],
+            date: release.published_at?.split('T')[0] || isoDate(runtime.nowIso()),
             version: tag,
             priority: source.priority,
             summary: release.body ? `${release.body.substring(0, 200)}...` : 'See release notes'
@@ -638,14 +1592,14 @@ async function fetchGitHub(source: Source, state: MonitorState, options: Monitor
         const newestTag = releases[0]?.tag_name;
         if (newestTag) {
           setStateRecord(state, source.id, 'releases', {
-            last_checked: new Date().toISOString(),
+            last_checked: runtime.nowIso(),
             last_version: newestTag,
             last_title: `${newestTag}: ${releases[0]?.name || 'New release'}`
-          });
+          }, runtime);
         } else {
           setStateRecord(state, source.id, 'releases', {
-            last_checked: new Date().toISOString()
-          });
+            last_checked: runtime.nowIso()
+          }, runtime);
         }
       }
     }
@@ -707,12 +1661,107 @@ function toLegacyPriority(priority: RecommendationPriority): Priority {
   return 'MEDIUM';
 }
 
+function recommendationPriorityForReport(update: Update): RecommendationPriority {
+  if (update.adjusted_priority) return update.adjusted_priority;
+  return toRecommendationPriority(update.priority);
+}
+
+function implementationTargetArea(update: Update): UpgradeImplementationTarget['area'] {
+  if (update.category === 'github') return 'integration';
+  if (update.category === 'docs') return 'docs';
+  if (update.category === 'changelog') return 'workflow';
+  return 'tooling';
+}
+
+function implementationTargetLabel(area: UpgradeImplementationTarget['area']): string {
+  if (area === 'integration') return 'Provider integration compatibility updates';
+  if (area === 'docs') return 'Documentation alignment for PAI Upgrade Intelligence';
+  if (area === 'workflow') return 'Upgrade workflow and release-note handling';
+  return 'Runtime monitoring and operational tooling';
+}
+
+function canonicalUpdateIdentity(update: Update): string | null {
+  const canonical = typeof update.canonical_id === 'string' ? update.canonical_id.trim() : '';
+  return canonical.length > 0 ? canonical : null;
+}
+
+function stableDiscoveryIdentity(update: Update): string {
+  const canonical = canonicalUpdateIdentity(update);
+  if (canonical) {
+    return canonical;
+  }
+
+  const stableHint = update.sha || update.version || update.hash || update.url || `${update.date}:${update.title}`;
+  return `discovery:${update.source_id}:${update.type}:${hash(stableHint).slice(0, 12)}`;
+}
+
+function buildUpgradeMonitorReport(updates: Update[]): UpgradeMonitorReport {
+  const discoveries: UpgradeReportDiscovery[] = updates.map((update) => ({
+    id: stableDiscoveryIdentity(update),
+    source_id: update.source_id,
+    source_name: update.source,
+    provider: update.provider,
+    category: update.category,
+    update_type: update.type,
+    title: update.title,
+    url: update.url,
+    date: update.date,
+    priority: update.priority,
+    summary: update.summary,
+    transcript_path: update.transcript_path,
+    transcript_excerpt: update.transcript_excerpt,
+    transcript_status: update.transcript_status,
+    transcript_char_count: update.transcript_char_count,
+    transcript_line_count: update.transcript_line_count,
+    transcript: update.transcript
+  }));
+
+  const targetById = new Map<string, UpgradeImplementationTarget>();
+  const recommendations: UpgradeReportRecommendation[] = discoveries.map((discovery, index) => {
+    const update = updates[index];
+    const area = implementationTargetArea(update);
+    const targetId = `target-${area}-${slugify(update.source_id)}`;
+
+    const existing = targetById.get(targetId);
+    if (existing) {
+      if (!existing.source_ids.includes(update.source_id)) {
+        existing.source_ids.push(update.source_id);
+      }
+    } else {
+      targetById.set(targetId, {
+        id: targetId,
+        label: implementationTargetLabel(area),
+        area,
+        source_ids: [update.source_id]
+      });
+    }
+
+    return {
+      id: `recommendation:${discovery.id}`,
+      discovery_ids: [discovery.id],
+      implementation_target_ids: [targetId],
+      priority: recommendationPriorityForReport(update),
+      rationale: update.recommendation || 'Review this discovery for PAI Upgrade Intelligence impact.'
+    };
+  });
+
+  return {
+    discoveries,
+    recommendations,
+    implementation_targets: [...targetById.values()]
+  };
+}
+
 function buildRecommendationCandidates(updates: Update[]): RecommendationCandidate[] {
-  return updates.map((update, index) => {
-    const stableHint = update.sha || update.version || update.hash || `${update.date}-${index}`;
-    const id = `${update.source_id}:${update.type}:${hash(`${stableHint}:${update.title}`).slice(0, 12)}`;
+  return updates.map((update) => {
+    const canonical = canonicalUpdateIdentity(update);
+    const stableHint = update.sha || update.version || update.hash || update.url || update.date;
+    const id = canonical
+      ? `ranking:${canonical}`
+      : `${update.source_id}:${update.type}:${hash(`${stableHint}:${update.title}`).slice(0, 12)}`;
 
     const tags = [
+      update.origin,
       update.provider,
       update.category,
       update.type,
@@ -747,23 +1796,133 @@ function buildLearningContextSummary(context: LearningContext): RunResult['learn
   };
 }
 
-function applyLearningRanking(updates: Update[], options: MonitorOptions): {
+interface InternalReflectionRecord {
+  timestamp: string;
+  task_description?: string;
+  implied_sentiment?: number;
+  criteria_failed?: number;
+  reflection_q1?: string;
+  reflection_q2?: string;
+  reflection_q3?: string;
+}
+
+function parseInternalReflectionRecord(line: string): InternalReflectionRecord | null {
+  try {
+    const parsed = JSON.parse(line) as Record<string, unknown>;
+    if (typeof parsed.timestamp !== 'string') {
+      return null;
+    }
+
+    return {
+      timestamp: parsed.timestamp,
+      task_description: typeof parsed.task_description === 'string' ? parsed.task_description : undefined,
+      implied_sentiment: typeof parsed.implied_sentiment === 'number' ? parsed.implied_sentiment : undefined,
+      criteria_failed: typeof parsed.criteria_failed === 'number' ? parsed.criteria_failed : undefined,
+      reflection_q1: typeof parsed.reflection_q1 === 'string' ? parsed.reflection_q1 : undefined,
+      reflection_q2: typeof parsed.reflection_q2 === 'string' ? parsed.reflection_q2 : undefined,
+      reflection_q3: typeof parsed.reflection_q3 === 'string' ? parsed.reflection_q3 : undefined
+    };
+  } catch {
+    return null;
+  }
+}
+
+function internalReflectionPriority(record: InternalReflectionRecord): Priority {
+  const failedCriteria = record.criteria_failed || 0;
+  const sentiment = typeof record.implied_sentiment === 'number' ? record.implied_sentiment : 7;
+
+  if (failedCriteria > 0 || sentiment <= 4) return 'HIGH';
+  if (sentiment <= 7) return 'MEDIUM';
+  return 'LOW';
+}
+
+function resolveInternalReflectionsPath(runtime: MonitorRuntimeContext): string | null {
+  if (runtime.learningContext.reflectionsPath) {
+    return resolve(runtime.learningContext.reflectionsPath);
+  }
+
+  if (runtime.learningContext.learningRoot) {
+    return resolve(join(runtime.learningContext.learningRoot, 'REFLECTIONS', 'algorithm-reflections.jsonl'));
+  }
+
+  if (runtime.learningContext.memoryRoot) {
+    return resolve(join(runtime.learningContext.memoryRoot, 'LEARNING', 'REFLECTIONS', 'algorithm-reflections.jsonl'));
+  }
+
+  if (runtime.learningContext.ratingsPath) {
+    const learningRootFromRatings = dirname(dirname(resolve(runtime.learningContext.ratingsPath)));
+    return resolve(join(learningRootFromRatings, 'REFLECTIONS', 'algorithm-reflections.jsonl'));
+  }
+
+  return null;
+}
+
+function buildInternalSynthesisUpdates(options: MonitorOptions, runtime: MonitorRuntimeContext): Update[] {
+  const reflectionsPath = resolveInternalReflectionsPath(runtime);
+  if (!reflectionsPath || !existsSync(reflectionsPath)) {
+    return [];
+  }
+
+  const cutoffMs = runtime.nowMs() - options.days * 24 * 60 * 60 * 1000;
+  const lines = readFileSync(reflectionsPath, 'utf-8')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  const records = lines
+    .map((line) => parseInternalReflectionRecord(line))
+    .filter((record): record is InternalReflectionRecord => record !== null)
+    .filter((record) => new Date(record.timestamp).getTime() >= cutoffMs)
+    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    .slice(0, 5);
+
+  return records.map((record, index) => {
+    const sourceText = `${record.reflection_q1 || ''} ${record.reflection_q2 || ''} ${record.reflection_q3 || ''}`.trim();
+    const titleSeed = record.task_description || record.reflection_q2 || record.reflection_q1 || 'reflection signal';
+    const sourceId = `internal-reflection-${hash(`${record.timestamp}:${titleSeed}`).slice(0, 10)}`;
+    const summaryParts = [record.reflection_q1, record.reflection_q2, record.reflection_q3]
+      .filter((value): value is string => !!value);
+
+    return {
+      source_id: sourceId,
+      source: `Internal Reflections (${index + 1})`,
+      origin: 'internal',
+      provider: 'internal',
+      category: 'community',
+      type: 'community',
+      title: `Internal reflection theme: ${titleSeed}`,
+      url: `internal://reflections/${sourceId}`,
+      date: isoDate(record.timestamp),
+      summary: summaryParts.join(' ').trim() || sourceText || 'Internal reflection signal available.',
+      priority: internalReflectionPriority(record),
+      recommendation: 'PAI impact: HIGH — Address internal reflection signals before external upgrades.'
+    };
+  });
+}
+
+function applyLearningRanking(updates: Update[], options: MonitorOptions, runtime: MonitorRuntimeContext): {
   updates: Update[];
   learning_context: RunResult['learning_context'];
   ranking: RunResult['summary']['ranking'];
 } {
   const learningContext = buildLearningContext({
-    lookbackDays: Math.max(options.days, 7)
-  });
+    lookbackDays: Math.max(options.days, 7),
+    memoryRoot: runtime.learningContext.memoryRoot,
+    learningRoot: runtime.learningContext.learningRoot,
+    ratingsPath: runtime.learningContext.ratingsPath,
+    failuresRoot: runtime.learningContext.failuresRoot,
+    now: runtime.now
+  } satisfies LearningContextOptions);
 
   const learning_context = buildLearningContextSummary(learningContext);
-  const historyPath = resolve(options.historyPath || getDefaultRecommendationHistoryPath());
+  const historyPath = runtime.paths.recommendationHistoryPath;
   const candidates = buildRecommendationCandidates(updates);
   const shouldPersistHistory = options.persistHistory && !options.dryRun && candidates.length > 0;
 
   const ranked = rankRecommendations(candidates, learningContext, {
     persistHistory: shouldPersistHistory,
-    historyPath
+    historyPath,
+    timestamp: runtime.nowIso()
   });
 
   const rankedById = new Map(ranked.map((entry) => [entry.id, entry]));
@@ -813,44 +1972,54 @@ function applyLearningRanking(updates: Update[], options: MonitorOptions): {
 }
 
 export async function runMonitor(options: MonitorOptions): Promise<RunResult> {
-  const allSources = loadSourcesConfig();
+  const runtime = createRuntimeContext(options);
+  const loadedSources = loadSourcesConfig(runtime);
+  const allSources = loadedSources.sources;
   const provider = options.provider.toLowerCase();
   const selectedSources = provider === 'all'
     ? allSources
     : allSources.filter((source) => source.provider.toLowerCase() === provider);
 
   if (selectedSources.length === 0) {
+    if (loadedSources.sourceCatalog === 'v1') {
+      throw new Error(
+        `Legacy fallback sources.json only supports providers 'anthropic' and 'all'. Received '${options.provider}'.`
+      );
+    }
     const available = [...new Set(allSources.map((source) => source.provider.toLowerCase()))].sort();
     throw new Error(`No sources found for provider '${options.provider}'. Available: ${available.join(', ') || '(none)'}`);
   }
 
-  const state = loadState(options.days, selectedSources);
+  const state = loadState(options.days, selectedSources, runtime);
   const nextState: MonitorState = {
     schema_version: 2,
-    last_check_timestamp: new Date().toISOString(),
+    last_check_timestamp: runtime.nowIso(),
     sources: { ...state.sources }
   };
 
   const tasks = selectedSources.map(async (source) => {
     if (source.category === 'github') {
-      return fetchGitHub(source, nextState, options);
+      return fetchGitHub(source, nextState, options, runtime);
     }
 
     if (source.category === 'community') {
       return [] as Update[];
     }
 
-    return fetchBlogLike(source, nextState, options);
+    return fetchBlogLike(source, nextState, options, runtime);
   });
 
   const updateArrays = await Promise.all(tasks);
-  const baseUpdates = updateArrays.flat().map((update) => ({
+  const youtubeResult = await fetchYouTubeUpdates(options, runtime);
+  const youtubeUpdates = youtubeResult.updates;
+  const internalSynthesis = buildInternalSynthesisUpdates(options, runtime);
+  const baseUpdates = [...updateArrays.flat(), ...youtubeUpdates, ...internalSynthesis].map((update) => ({
     ...update,
-    recommendation: generateRecommendation(update),
+    recommendation: update.recommendation || generateRecommendation(update),
     priority: assessRelevance(update)
   }));
 
-  const ranked = applyLearningRanking(baseUpdates, options);
+  const ranked = applyLearningRanking(baseUpdates, options, runtime);
   const updates = ranked.updates;
 
   const priorityOrder: Record<Priority, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
@@ -870,11 +2039,16 @@ export async function runMonitor(options: MonitorOptions): Promise<RunResult> {
   const high = updates.filter((update) => update.priority === 'HIGH').length;
   const medium = updates.filter((update) => update.priority === 'MEDIUM').length;
   const low = updates.filter((update) => update.priority === 'LOW').length;
+  const catalogSourcesChecked = selectedSources.length;
+  const youtubeChannelsChecked = youtubeResult.channelsChecked;
+  const sourcesChecked = catalogSourcesChecked + youtubeChannelsChecked;
+  const sourcesCheckedNote = buildSourcesCheckedNote(catalogSourcesChecked, youtubeChannelsChecked);
 
   const result: RunResult = {
-    generatedAt: new Date().toISOString(),
+    generatedAt: runtime.nowIso(),
     options,
     updates,
+    report: buildUpgradeMonitorReport(updates),
     summary: {
       total: updates.length,
       critical,
@@ -882,7 +2056,10 @@ export async function runMonitor(options: MonitorOptions): Promise<RunResult> {
       medium,
       low,
       provider: options.provider,
-      sourcesChecked: selectedSources.length,
+      sourcesChecked,
+      catalogSourcesChecked,
+      youtubeChannelsChecked,
+      sourcesCheckedNote,
       ranking: ranked.ranking
     },
     learning_context: ranked.learning_context,
@@ -890,8 +2067,8 @@ export async function runMonitor(options: MonitorOptions): Promise<RunResult> {
   };
 
   if (!options.dryRun) {
-    saveState(nextState);
-    logRun(result);
+    saveState(nextState, runtime);
+    logRun(result, runtime);
   }
 
   return result;
@@ -906,7 +2083,8 @@ function renderMarkdown(result: RunResult): string {
   lines.push(`- Days checked: ${result.options.days}`);
   lines.push(`- Force mode: ${result.options.force ? 'yes' : 'no'}`);
   lines.push(`- Dry run: ${result.options.dryRun ? 'yes' : 'no'}`);
-  lines.push(`- Sources checked: ${result.summary.sourcesChecked}`);
+  lines.push(`- Sources checked: ${result.summary.sourcesChecked} (catalog ${result.summary.catalogSourcesChecked} + YouTube channels ${result.summary.youtubeChannelsChecked})`);
+  lines.push(`- Source-selection note: ${result.summary.sourcesCheckedNote}`);
   lines.push(`- Learning context: trend ${result.learning_context.trend_direction}, average rating ${result.learning_context.average_rating} (${result.learning_context.total_ratings} ratings)`);
   lines.push(`- Learning patterns: ${result.learning_context.top_failure_patterns.join(', ') || 'none'}`);
   lines.push(`- Ranking ledger: ${result.summary.ranking.persisted ? `persisted (${result.summary.ranking.historyPath})` : 'not persisted'}`);
@@ -929,6 +2107,7 @@ function renderMarkdown(result: RunResult): string {
     for (const update of bucket) {
       lines.push(`### ${update.title}`);
       lines.push(`- Source: ${update.source} (${update.source_id})`);
+      lines.push(`- Origin: ${update.origin}`);
       lines.push(`- Type: ${update.type}`);
       lines.push(`- Date: ${update.date}`);
       lines.push(`- URL: ${update.url}`);
@@ -973,7 +2152,7 @@ Options:
 
 Examples:
   bun ${programName}
-  bun ${programName} --days 14 --provider anthropic
+  bun ${programName} --days 14 --provider all
   bun ${programName} 7 --force
   bun ${programName} --history-path ./State/recommendation-history.jsonl
   bun ${programName} --format json --dry-run

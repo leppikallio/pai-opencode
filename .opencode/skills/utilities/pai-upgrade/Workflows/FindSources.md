@@ -2,13 +2,13 @@
 
 ## Purpose
 
-Find and evaluate new high-signal sources to expand monitoring coverage while keeping provider support configurable.
+Find and evaluate new high-signal sources to expand PAI upgrade intelligence coverage while keeping provider support configurable.
 
 ## Inputs
 
-- Search domain or domain categories (YouTube, blogs, GitHub, newsletters, docs feeds).
+- Search domain or domain categories (blogs, GitHub, newsletters, docs feeds).
 - Optional priority constraints (`high`, `medium`, `low` risk/effort).
-- Optional allowed providers list (default includes Anthropic/Claude sources).
+- Optional allowed providers list (default includes configured `anthropic` provider sources).
 - Optional current source-state files for dedupe and drift checking.
 
 ## Steps
@@ -45,8 +45,11 @@ Score 1–5 for:
 ### Step 5: Prepare source updates
 
 - Recommend **High/Medium/Low** additions.
-- For YouTube, propose user-layer customization updates only.
-- For other sources, create a monitored-source addition plan targeting `sources.v2.json` as the primary catalog.
+- Create a monitored-source addition plan targeting `sources.v2.json` as the primary catalog.
+- For YouTube source candidates, stage catalog updates in `youtube-channels.json` and keep runtime handling in `Tools/MonitorSources.ts`.
+- For approved YouTube source entries, expect runtime state artifacts in `State/youtube-videos.json` and `State/transcripts/youtube/`.
+- Keep updates inside the monitored-source catalog surface; do not add separate operator tracks.
+- Ensure operator execution still enters via `Tools/MonitorSources.ts` after catalog changes.
 
 ## Verify
 
@@ -56,9 +59,7 @@ Score 1–5 for:
 
 ## Output
 
-- Source discovery report with prioritized buckets:
-  - `HIGH` add now,
-  - `MEDIUM` evaluate,
-  - `LOW` keep for future review.
-- Exact JSON payload suggestions for user customization where applicable.
-- Short execution plan for onboarding top recommendations.
+- Source discovery report aligned to monitor report shape:
+  - **Discoveries → Recommendations → Implementation Targets**
+- Exact JSON payload suggestions for source catalog updates where applicable.
+- Provider notes keep Anthropic references in provider/source context only.

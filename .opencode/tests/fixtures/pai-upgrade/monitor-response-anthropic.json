@@ -1,0 +1,85 @@
+{
+  "generatedAt": "2026-03-08T10:00:00.000Z",
+  "options": {
+    "provider": "anthropic",
+    "days": 14,
+    "force": true,
+    "dryRun": true,
+    "format": "json",
+    "persistHistory": false
+  },
+  "report": {
+    "discoveries": [
+      {
+        "id": "discovery-1",
+        "source_id": "anthropic-docs",
+        "source_name": "Anthropic Docs",
+        "provider": "anthropic",
+        "category": "docs",
+        "update_type": "docs",
+        "title": "Anthropic Docs: deterministic output format update",
+        "url": "https://example.test/anthropic/docs/update",
+        "date": "2026-03-08",
+        "priority": "HIGH"
+      }
+    ],
+    "recommendations": [
+      {
+        "id": "recommendation-1",
+        "discovery_ids": [
+          "discovery-1"
+        ],
+        "implementation_target_ids": [
+          "target-docs-anthropic-docs"
+        ],
+        "priority": "high",
+        "rationale": "Review docs shifts for monitor contract impact"
+      }
+    ],
+    "implementation_targets": [
+      {
+        "id": "target-docs-anthropic-docs",
+        "label": "Documentation alignment for PAI Upgrade Intelligence",
+        "area": "docs",
+        "source_ids": [
+          "anthropic-docs"
+        ]
+      }
+    ]
+  },
+  "summary": {
+    "total": 1,
+    "critical": 0,
+    "high": 1,
+    "medium": 0,
+    "low": 0,
+    "provider": "anthropic",
+    "sourcesChecked": 1,
+    "ranking": {
+      "enabled": true,
+      "persisted": false,
+      "historyPath": "/tmp/pai-upgrade/recommendation-history.jsonl",
+      "candidates": 1,
+      "critical": 0,
+      "high": 1,
+      "medium": 0,
+      "low": 0
+    }
+  },
+  "learning_context": {
+    "generated_at": "2026-03-08T10:00:00.000Z",
+    "lookback_days": 14,
+    "trend_direction": "stable",
+    "average_rating": 7.5,
+    "total_ratings": 2,
+    "low_rating_count": 0,
+    "high_rating_count": 1,
+    "top_failure_patterns": [
+      "verification"
+    ],
+    "top_rating_patterns": [
+      "simplicity"
+    ]
+  },
+  "dryRun": true
+}

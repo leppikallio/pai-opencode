@@ -1,0 +1,5 @@
+[00:00] Today we are tightening our upgrade intelligence loop so regressions surface before release day.
+[00:18] We review release notes, classify risk, and map each change to one owner.
+[00:41] Actionable technique: run a 20-minute Friday postmortem for every upgrade candidate.
+[00:56] In that session, write the top three failure modes, measure confidence from 1 to 5, and track one mitigation in the next sprint board.
+[01:14] This keeps the process deterministic: same cadence, same checklist, and clear accountability every week.

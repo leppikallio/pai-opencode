@@ -29,11 +29,12 @@ describe("pai-upgrade reflections workflow parity", () => {
     expect(skill).toContain("<Workflows/AlgorithmUpgrade.md>");
   });
 
-  test("check workflow includes internal reflections references", () => {
+  test("check workflow keeps reflection synthesis inside MonitorSources", () => {
     const checkForUpgrades = readFileSync(checkForUpgradesPath, "utf8");
 
     expect(checkForUpgrades).toContain("algorithm-reflections.jsonl");
-    expect(checkForUpgrades).toContain("Internal Reflections");
+    expect(checkForUpgrades).not.toContain("MineAlgorithmReflections.ts");
+    expect(checkForUpgrades).not.toContain("## Internal Reflections");
   });
 
   test("check workflow documents default days behavior and config fallback path", () => {

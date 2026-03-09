@@ -2,11 +2,11 @@
 
 ## Purpose
 
-Map mined reflection themes to the current algorithm and propose concrete edits.
+Map ranked monitor findings (including internal reflections) to the current algorithm and propose concrete edits.
 
 ## Inputs
 
-- Reflection themes from `MineAlgorithmReflections.ts`
+- Reflection and external findings from `Tools/MonitorSources.ts`
 - Current algorithm selector: `~/.config/opencode/skills/PAI/Components/Algorithm/LATEST`
 
 ## Steps
@@ -16,10 +16,10 @@ Map mined reflection themes to the current algorithm and propose concrete edits.
 Run:
 
 ```bash
-bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/MineAlgorithmReflections.ts --pretty
+bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/MonitorSources.ts --days 14 --provider anthropic --format json
 ```
 
-If no reflections exist yet, stop with a note that there is not enough internal evidence for an algorithm upgrade pass.
+If no reflections exist yet, continue with external discoveries only.
 
 ### Step 2: Read the current algorithm target
 
@@ -29,13 +29,14 @@ If no reflections exist yet, stop with a note that there is not enough internal 
 
 ### Step 3: Map themes to sections
 
-Use the upstream section-mapping idea, adapted for OpenCode paths and the generated-skill flow:
+Use ranked findings, adapted for OpenCode paths and the generated-skill flow:
 
 - ISC quality themes → criteria and verification sections in the current algorithm file
 - timing or budget themes → effort level and phase budget sections
 - capability selection themes → capability selection rules
 - verification gaps → verify phase rules
 - PRD or workflow drift → PRD and execution-phase sections
+- Internal learnings may outrank external discoveries when ranking evidence is stronger.
 
 ### Step 4: Propose concrete edits
 
@@ -50,7 +51,8 @@ For each meaningful recurring theme:
 
 Produce an algorithm upgrade report with:
 
-- reflections analyzed
+- discoveries analyzed (internal + external)
 - section heat map
 - concrete proposed edits
+- canonical contract linkage: **Discoveries → Recommendations → Implementation Targets**
 - suggested follow-up actions for the generated-skill flow

@@ -1,12 +1,19 @@
 ---
 name: pai-upgrade
-description: System upgrade analysis, internal reflection mining, and algorithm improvement planning. USE WHEN you need provider-update monitoring, release-note analysis, reflection insights, or bounded upgrade proposals.
+description: PAI upgrade intelligence for monitored-source analysis and implementation planning. USE WHEN you need provider-update monitoring, release-note analysis, reflection-aware ranking, or bounded upgrade proposals.
 ---
 
-# pai-upgrade Skill
+# PAI Upgrade Intelligence Skill
 
-Runbook-oriented skill for finding, validating, and prioritizing ecosystem upgrades plus internal algorithm improvement opportunities. The skill supports Claude/Anthropic sources as a default set and allows provider-extensible monitoring.
-Monitoring now applies learning-aware prioritization from historical quality signals and records recommendation rankings to a history ledger.
+Runbook-oriented skill for finding, validating, and prioritizing ecosystem upgrades plus internal learning signals. Operator-facing execution enters through `Tools/MonitorSources.ts`.
+
+This skill monitors providers (including `anthropic` as a provider/source context) and keeps the recommendation pipeline provider-extensible.
+
+Canonical report contract is:
+
+**Discoveries → Recommendations → Implementation Targets**
+
+Internal learnings may outrank external discoveries when ranking evidence is stronger.
 
 ## Customization
 
@@ -48,22 +55,16 @@ voice_notify({
 
 ## Core Coverage
 
-- **Monitoring scope (default):** Anthropic and Claude sources are included (`Tools/Anthropic.ts`, configured feed list).
+- **Monitoring scope (default):** `anthropic` provider sources are included (via `Tools/MonitorSources.ts` with configured feed list and provider filters).
 - **Provider-extensible scope:** additional providers can be added through explicit source lists and workflow inputs.
-- **Learning-aware prioritization:** `Tools/MonitorSources.ts` uses `BuildLearningContext.ts` + `RankRecommendations.ts` to adjust priority and score with rationale.
-- **Outcome feedback loop (v2):** `Tools/RecordRecommendationFeedback.ts` records `accepted|ignored|deferred` + `helpful|neutral|harmful` outcomes back to the ledger.
+- **Legacy fallback contract:** when monitor config falls back to `sources.json` (v1), provider scope is explicitly limited to `anthropic` and `all` until `sources.v2.json` is restored.
+- **Learning-aware prioritization:** `Tools/MonitorSources.ts` adjusts priority and score with rationale.
 - **Recommendation history ledger:** ranked decisions persist to `State/recommendation-history.jsonl` by default for non-dry-run checks.
 - **State tracking:** monitor cursors persist in `State/last-check.json` using stable source IDs.
-
-### Feedback capture example
-
-```bash
-bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/RecordRecommendationFeedback.ts \
-  --recommendation-id <ranking_id> \
-  --decision accepted \
-  --helpfulness helpful \
-  --confidence 0.9
-```
+- **YouTube source catalog input:** `youtube-channels.json` is an optional monitored-source catalog extension consumed by `Tools/MonitorSources.ts`.
+- **YouTube runtime state output:** source scans may persist normalized video metadata in `State/youtube-videos.json`.
+- **YouTube transcript runtime state output:** source scans may persist transcript artifacts under `State/transcripts/youtube/`.
+- **Operator path constraint:** monitor YouTube source ingestion through `Tools/MonitorSources.ts` only.
 
 ## Session Trigger Mode
 

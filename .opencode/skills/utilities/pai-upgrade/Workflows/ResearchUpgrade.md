@@ -2,17 +2,17 @@
 
 ## Purpose
 
-Deeply validate one or more upgrade opportunities, map implementation impact, and produce prioritized recommendations.
+Validate upgrade opportunities from monitor findings, map implementation impact, and produce runtime-aligned recommendations.
 
 ## Inputs
 
-- Feature/topic name(s) from `CheckForUpgrades` or user prompt.
+- Feature/topic name(s) from `CheckForUpgrades` / `Tools/MonitorSources.ts` or user prompt.
 - Optional content snippets (release item text, changelog line, commit message).
 - Optional user constraints:
   - target component (`skills`, `agent`, `workflows`, `tooling`)
   - risk tolerance (`low`, `medium`, `high`)
   - effort limit (days/weeks)
-- Source scope (default: existing Anthropic/Claude sources plus user-added sources).
+- Source scope (default: configured `anthropic` provider sources plus user-added sources).
 - Optional monitor artifact fields: `adjusted_priority`, `adjusted_score`, `ranking_rationale`, and `learning_context` summary.
 
 ## Steps
@@ -24,10 +24,10 @@ Deeply validate one or more upgrade opportunities, map implementation impact, an
 
 ### Step 2: Parallel evidence collection
 
-Research each feature across provider and community sources:
+Research each feature across monitored provider and community sources:
 
 1. GitHub source references (docs, commits, issues, discussions)
-2. Anthropic/Claude product/blog sources
+2. `anthropic` provider product/blog sources
 3. Official MCP and API docs where relevant
 4. Community implementation examples
 
@@ -59,6 +59,9 @@ Apply priority framework:
 - **High**: immediate value, low-to-medium risk (or monitor ranking elevated priority)
 - **Medium**: moderate value, defined follow-up
 - **Aspirational**: useful but uncertain without additional validation
+- Preserve canonical output contract ordering:
+  - **Discoveries → Recommendations → Implementation Targets**
+- Internal learnings may outrank external discoveries when ranking evidence is stronger.
 
 ## Verify
 
@@ -69,10 +72,10 @@ Apply priority framework:
 
 ## Output
 
-Create a research memo with:
+Create a research memo that stays aligned with runtime output:
 
 - Executive summary
 - Per-feature findings with evidence table
 - Architecture mapping notes
-- Prioritized upgrade roadmap
-- Concrete next actions with owners and timeline
+- `discoveries[]`, `recommendations[]`, `implementation_targets[]`
+- Concrete next actions scoped to implementation targets
