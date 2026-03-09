@@ -16,7 +16,7 @@ import { DiscordBotClient } from '../Lib/discord-bot';
 import { MidjourneyClient, MidjourneyError } from '../Lib/midjourney-client';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { getPaiDir } from '../../../pai-tools/PaiRuntime';
+import { getPaiDir } from '../../../../pai-tools/PaiRuntime';
 
 // ============================================================================
 // Environment Loading

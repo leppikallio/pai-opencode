@@ -29,7 +29,7 @@
 
 import { $ } from "bun";
 import { join } from "node:path";
-import { getPaiDir } from "../../../pai-tools/PaiRuntime.ts";
+import { getPaiDir } from "../../../../pai-tools/PaiRuntime";
 
 const VOICE_SERVER_PATH = join(getPaiDir(), "VoiceServer");
 const PORT = 8888;
@@ -199,4 +199,3 @@ main().catch((error) => {
   console.error(colors.red("Fatal error:"), error);
   process.exit(1);
 });
-
