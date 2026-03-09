@@ -7,6 +7,7 @@
     "@modelcontextprotocol/sdk": "^1.12.0",
     "@opencode-ai/plugin": "1.2.21",
     "@opencode-ai/sdk": "1.2.11",
+    "apify-client": "^2.19.0",
     "chalk": "^5.6.2",
     "cmd-ts": "^0.15.0",
     "discord.js": "^14.19.0",
