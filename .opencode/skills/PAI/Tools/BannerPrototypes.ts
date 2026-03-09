@@ -167,3 +167,5 @@ console.log(`\n${"═".repeat(70)}`);
 console.log(" DESIGN 6: GHOST IN THE SHELL");
 console.log("═".repeat(70));
 console.log(design6_ghost());
+
+export {};

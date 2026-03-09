@@ -174,3 +174,5 @@ console.log(`\n${"═".repeat(70)}`);
 console.log(" DESIGN F: TOKYO TERMINAL");
 console.log("═".repeat(70));
 console.log(designF());
+
+export {};

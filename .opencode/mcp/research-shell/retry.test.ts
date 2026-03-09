@@ -1,7 +1,7 @@
 /**
  * Tests for retry logic with exponential backoff
  */
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import {
   calculateDelay,
   isRetryableError,
