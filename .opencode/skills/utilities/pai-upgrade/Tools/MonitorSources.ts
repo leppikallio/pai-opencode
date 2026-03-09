@@ -9,7 +9,7 @@ import {
 } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, resolve } from 'node:path';
-import { loadSkillConfig } from '../../PAI/Tools/LoadSkillConfig';
+import { loadSkillConfig } from '../../../PAI/Tools/LoadSkillConfig.ts';
 import { buildLearningContext, type LearningContext } from './BuildLearningContext';
 import {
   getDefaultRecommendationHistoryPath,

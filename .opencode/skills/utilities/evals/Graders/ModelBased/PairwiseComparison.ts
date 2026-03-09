@@ -5,8 +5,9 @@
 
 import { BaseGrader, registerGrader, type GraderContext } from '../Base.ts';
 import type { GraderResult, PairwiseComparisonParams } from '../../Types/index.ts';
-import { inference, type InferenceLevel } from '../../../PAI/Tools/Inference';
+import { inference, type InferenceLevel } from '../../../../PAI/Tools/Inference.ts';
 import { readFileSync, existsSync } from 'node:fs';
+import { parsePairwiseComparisonParams } from './ParamGuards.ts';
 
 export class PairwiseComparisonGrader extends BaseGrader {
   type = 'pairwise_comparison' as const;
@@ -14,7 +15,13 @@ export class PairwiseComparisonGrader extends BaseGrader {
 
   async grade(context: GraderContext): Promise<GraderResult> {
     const start = performance.now();
-    const params = this.config.params as unknown as PairwiseComparisonParams;
+    const params: PairwiseComparisonParams | null = parsePairwiseComparisonParams(this.config.params);
+
+    if (!params) {
+      return this.createResult(0, false, performance.now() - start, {
+        reasoning: 'Invalid pairwise_comparison params',
+      });
+    }
 
     // Load reference
     let reference = params.reference;
@@ -47,7 +54,7 @@ export class PairwiseComparisonGrader extends BaseGrader {
       const flippedWinner = result2.winner === 'A' ? 'B' : result2.winner === 'B' ? 'A' : 'tie';
       results.push({
         position: 'reference_first',
-        winner: flippedWinner as 'A' | 'B' | 'tie',
+        winner: flippedWinner,
         reasoning: result2.reasoning,
       });
     }

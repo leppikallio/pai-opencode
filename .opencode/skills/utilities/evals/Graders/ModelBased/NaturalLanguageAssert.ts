@@ -5,7 +5,8 @@
 
 import { BaseGrader, registerGrader, type GraderContext } from '../Base.ts';
 import type { GraderResult, NaturalLanguageAssertParams } from '../../Types/index.ts';
-import { inference, type InferenceLevel } from '../../../PAI/Tools/Inference';
+import { inference, type InferenceLevel } from '../../../../PAI/Tools/Inference.ts';
+import { parseNaturalLanguageAssertParams } from './ParamGuards.ts';
 
 export class NaturalLanguageAssertGrader extends BaseGrader {
   type = 'natural_language_assert' as const;
@@ -13,7 +14,13 @@ export class NaturalLanguageAssertGrader extends BaseGrader {
 
   async grade(context: GraderContext): Promise<GraderResult> {
     const start = performance.now();
-    const params = this.config.params as unknown as NaturalLanguageAssertParams;
+    const params: NaturalLanguageAssertParams | null = parseNaturalLanguageAssertParams(this.config.params);
+
+    if (!params) {
+      return this.createResult(0, false, performance.now() - start, {
+        reasoning: 'Invalid natural_language_assert params',
+      });
+    }
 
     if (!params?.assertions?.length) {
       return this.createResult(0, false, performance.now() - start, {

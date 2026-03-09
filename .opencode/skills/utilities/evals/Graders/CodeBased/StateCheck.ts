@@ -7,6 +7,7 @@ import { BaseGrader, registerGrader, type GraderContext } from '../Base.ts';
 import type { GraderResult, StateCheckParams } from '../../Types/index.ts';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { parseStateCheckParams } from './ParamGuards.ts';
 
 export class StateCheckGrader extends BaseGrader {
   type = 'state_check' as const;
@@ -14,7 +15,13 @@ export class StateCheckGrader extends BaseGrader {
 
   async grade(context: GraderContext): Promise<GraderResult> {
     const start = performance.now();
-    const params = this.config.params as StateCheckParams;
+    const params: StateCheckParams | null = parseStateCheckParams(this.config.params);
+
+    if (!params) {
+      return this.createResult(0, false, performance.now() - start, {
+        reasoning: 'Invalid state_check params',
+      });
+    }
 
     const checks: { check: string; passed: boolean; expected?: unknown; actual?: unknown }[] = [];
     const workingDir = context.working_dir ?? process.cwd();

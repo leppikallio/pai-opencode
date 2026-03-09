@@ -5,8 +5,9 @@
 
 import { BaseGrader, registerGrader, type GraderContext } from '../Base.ts';
 import type { GraderResult, LLMRubricParams } from '../../Types/index.ts';
-import { inference, type InferenceLevel } from '../../../PAI/Tools/Inference';
+import { inference, type InferenceLevel } from '../../../../PAI/Tools/Inference.ts';
 import { readFileSync, existsSync } from 'node:fs';
+import { parseLLMRubricParams } from './ParamGuards.ts';
 
 export class LLMRubricGrader extends BaseGrader {
   type = 'llm_rubric' as const;
@@ -14,7 +15,13 @@ export class LLMRubricGrader extends BaseGrader {
 
   async grade(context: GraderContext): Promise<GraderResult> {
     const start = performance.now();
-    const params = this.config.params as unknown as LLMRubricParams;
+    const params: LLMRubricParams | null = parseLLMRubricParams(this.config.params);
+
+    if (!params) {
+      return this.createResult(0, false, performance.now() - start, {
+        reasoning: 'Invalid llm_rubric params',
+      });
+    }
 
     // Load rubric
     let rubric = params.rubric;
