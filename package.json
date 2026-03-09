@@ -9,6 +9,7 @@
     "typecheck": "tsc --project .opencode/tsconfig.json --pretty false --noEmit"
   },
   "dependencies": {
+    "apify-client": "2.19.0",
     "cmd-ts": "^0.15.0",
     "diff": "^8.0.3",
     "pai-opencode": "./.opencode",

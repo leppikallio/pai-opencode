@@ -77,14 +77,14 @@ export class Apify {
       offset: options?.offset ?? 0
     })
 
-    const normalizedActors = items
-      .map(normalizeActor)
-      .filter((actor): actor is Actor => actor !== null)
+    const normalizedActors = (Array.isArray(items) ? items : [])
+      .map((item) => normalizeActor(item))
+      .filter((actor: Actor | null): actor is Actor => actor !== null)
 
     // Filter client-side by query
     // Match if ANY word in query appears in actor fields
     const queryWords = query.toLowerCase().split(/\s+/)
-    const filtered = normalizedActors.filter((actor) => {
+    const filtered = normalizedActors.filter((actor: Actor) => {
       const name = (actor.name || '').toLowerCase()
       const title = (actor.title || '').toLowerCase()
       const description = (actor.description || '').toLowerCase()

@@ -3,6 +3,39 @@
 import { CONFIG } from './config.js';
 import type { GitHubCommit, Program } from './types.js';
 
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+function isGitHubCommitAuthor(value: unknown): value is GitHubCommit['commit']['author'] {
+  if (!isObjectRecord(value)) {
+    return false;
+  }
+
+  return typeof value.date === 'string' && typeof value.name === 'string';
+}
+
+function isGitHubCommit(value: unknown): value is GitHubCommit {
+  if (!isObjectRecord(value) || typeof value.sha !== 'string') {
+    return false;
+  }
+
+  const commit = value.commit;
+  if (!isObjectRecord(commit) || typeof commit.message !== 'string') {
+    return false;
+  }
+
+  return isGitHubCommitAuthor(commit.author);
+}
+
+function parseGitHubCommits(payload: unknown): GitHubCommit[] {
+  if (!Array.isArray(payload)) {
+    return [];
+  }
+
+  return payload.filter((item): item is GitHubCommit => isGitHubCommit(item));
+}
+
 export class GitHubClient {
   private baseUrl = CONFIG.api.base;
   private repoPath = `repos/${CONFIG.repo.owner}/${CONFIG.repo.name}`;
@@ -21,7 +54,8 @@ export class GitHubClient {
         throw new Error(`GitHub API error: ${response.status}`);
       }
 
-      return await response.json();
+      const payload: unknown = await response.json();
+      return parseGitHubCommits(payload);
     } catch (error) {
       console.error('Failed to fetch commits:', error);
       return [];
@@ -41,7 +75,8 @@ export class GitHubClient {
         return null;
       }
 
-      const commits = await response.json();
+      const payload: unknown = await response.json();
+      const commits = parseGitHubCommits(payload);
       return commits[0] || null;
     } catch {
       return null;
