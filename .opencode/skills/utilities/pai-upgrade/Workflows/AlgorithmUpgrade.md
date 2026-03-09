@@ -6,7 +6,7 @@ Map ranked monitor findings (including internal reflections) to the current algo
 
 ## Inputs
 
-- Reflection and external findings from `Tools/MonitorSources.ts`
+- Reflection and external findings from the skill's monitor entrypoint
 - Current algorithm selector: `~/.config/opencode/skills/PAI/Components/Algorithm/LATEST`
 
 ## Steps

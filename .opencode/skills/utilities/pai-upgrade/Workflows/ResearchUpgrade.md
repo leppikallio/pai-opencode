@@ -6,7 +6,7 @@ Validate upgrade opportunities from monitor findings, map implementation impact,
 
 ## Inputs
 
-- Feature/topic name(s) from `CheckForUpgrades` / `Tools/MonitorSources.ts` or user prompt.
+- Feature/topic name(s) from `CheckForUpgrades`, the skill's monitor entrypoint, or the user prompt.
 - Optional content snippets (release item text, changelog line, commit message).
 - Optional user constraints:
   - target component (`skills`, `agent`, `workflows`, `tooling`)

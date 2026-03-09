@@ -46,10 +46,10 @@ Score 1–5 for:
 
 - Recommend **High/Medium/Low** additions.
 - Create a monitored-source addition plan targeting `sources.v2.json` as the primary catalog.
-- For YouTube source candidates, stage catalog updates in `youtube-channels.json` and keep runtime handling in `Tools/MonitorSources.ts`.
-- For approved YouTube source entries, expect runtime state artifacts in `State/youtube-videos.json` and `State/transcripts/youtube/`.
+- For YouTube source candidates, stage catalog updates in `youtube-channels.json` and keep runtime handling in the skill's monitor entrypoint.
+- For approved YouTube source entries, expect runtime state artifacts under the skill `State/` directory, including the YouTube state ledger and transcript directory.
 - Keep updates inside the monitored-source catalog surface; do not add separate operator tracks.
-- Ensure operator execution still enters via `Tools/MonitorSources.ts` after catalog changes.
+- Ensure operator execution still enters via the skill's monitor entrypoint after catalog changes.
 
 ## Verify
 

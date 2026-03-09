@@ -38,11 +38,10 @@ bun ~/.config/opencode/skills/PAI/Tools/LoadSkillConfig.ts ~/.config/opencode/sk
 The underlying monitoring toolchain also falls back from `sources.v2.json` to `sources.json` when the v2 catalog is unavailable or empty.
 In this legacy fallback mode, provider filtering is intentionally constrained to `anthropic` and `all` because v1 entries do not encode provider metadata for `ecosystem` or `openai`.
 
-2. Confirm state files exist:
+2. Confirm runtime state exists:
 
 ```bash
 cat ~/.config/opencode/skills/utilities/pai-upgrade/State/last-check.json
-cat ~/.config/opencode/skills/utilities/pai-upgrade/Logs/run-history.jsonl
 ```
 
 ### Step 2: Check provider source feeds
@@ -57,7 +56,7 @@ bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/MonitorSources.ts --da
 
 - Resolve current source list from merged config.
 - Monitor runtime-supported categories (`blog`, `github`, `changelog`, `docs`, `community`).
-- If YouTube source catalog entries are configured, process them only through `Tools/MonitorSources.ts` runtime ingestion.
+- If YouTube source catalog entries are configured, process them only through the skill's monitor entrypoint runtime ingestion.
 - Fetch fresh source metadata and deduplicate against persisted state.
 
 ### Step 4: Normalize and prioritize
@@ -65,7 +64,7 @@ bun ~/.config/opencode/skills/utilities/pai-upgrade/Tools/MonitorSources.ts --da
 - Merge findings into a single result set.
 - Tag each item with provider, source, confidence, and recency.
 - Apply learning-aware ranking with adjusted priority, score delta, and rationale.
-- Keep reflection mining and synthesis internal to `Tools/MonitorSources.ts`; do not run a second public reflections stage here.
+- Keep reflection mining and synthesis internal to the skill's monitor entrypoint; do not run a second public reflections stage here.
 - Internal reflection signals are read from `algorithm-reflections.jsonl` when available and folded into the same ranked update list.
 - Internal learnings may outrank external discoveries when reflected ranking evidence is stronger.
 - Persist ranked recommendation history by default when not in `--dry-run` mode.
@@ -85,7 +84,6 @@ Produce the canonical report shape:
 
 ```bash
 test -s ~/.config/opencode/skills/utilities/pai-upgrade/State/last-check.json
-test -s ~/.config/opencode/skills/utilities/pai-upgrade/Logs/run-history.jsonl
 ```
 
 ## Output
