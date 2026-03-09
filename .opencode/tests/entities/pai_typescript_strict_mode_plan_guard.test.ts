@@ -89,7 +89,7 @@ describe("TypeScript strict mode plan guard", () => {
     ]));
   });
 
-  test("precommit runs repo typecheck for staged TypeScript with explicit enforcement sequencing", () => {
+  test("precommit enforces repo typecheck for staged TypeScript by default", () => {
     const precommitPath = path.join(repoRoot, "Tools", "Precommit.ts");
     expect(existsSync(precommitPath)).toBe(true);
 
@@ -101,8 +101,9 @@ describe("TypeScript strict mode plan guard", () => {
     expect(source).toContain("lower.endsWith(\".mts\")");
     expect(source).toContain("lower.endsWith(\".cts\")");
 
-    // Gate sequencing is explicit while repo-wide typecheck remains red.
-    expect(source).toContain("PAI_PRECOMMIT_TYPECHECK_ENFORCE");
-    expect(source).toContain("Landing sequence: keep the gate advisory while repo-wide typecheck remains red.");
+    // Final posture: typecheck failure blocks commit by default.
+    expect(source).toMatch(/if \(code !== 0\) \{[\s\S]*Precommit requires repo typecheck to pass for staged TypeScript changes\.[\s\S]*failed = true;/);
+    expect(source).not.toContain("PAI_PRECOMMIT_TYPECHECK_ENFORCE");
+    expect(source).not.toContain("Landing sequence: keep the gate advisory while repo-wide typecheck remains red.");
   });
 });

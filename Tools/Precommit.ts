@@ -79,10 +79,6 @@ function stagedTypeScriptFiles(staged: string[]): string[] {
   });
 }
 
-function isTypecheckGateEnforced(): boolean {
-  return process.env.PAI_PRECOMMIT_TYPECHECK_ENFORCE === "1";
-}
-
 function biomeBin(): string {
   const bin = join(REPO_ROOT, "node_modules", ".bin", "biome");
   return existsSync(bin) ? bin : "biome";
@@ -152,20 +148,13 @@ async function main(): Promise<void> {
 
   // 3) TypeScript typecheck (repo-level, only when staged TS exists)
   if (tsFiles.length > 0) {
-    const enforceTypecheckGate = isTypecheckGateEnforced();
     const code = await run({
       cmd: "bun",
       args: ["run", "typecheck"],
     });
     if (code !== 0) {
-      if (enforceTypecheckGate) {
-        console.error("\nERROR: TypeScript typecheck failed with enforcement enabled (PAI_PRECOMMIT_TYPECHECK_ENFORCE=1).");
-        failed = true;
-      } else {
-        console.warn("\nWARNING: TypeScript typecheck failed, but precommit enforcement is currently disabled.");
-        console.warn("Landing sequence: keep the gate advisory while repo-wide typecheck remains red.");
-        console.warn("Enable blocking after repo-wide typecheck is green by setting PAI_PRECOMMIT_TYPECHECK_ENFORCE=1.");
-      }
+      console.error("\nERROR: TypeScript typecheck failed. Precommit requires repo typecheck to pass for staged TypeScript changes.");
+      failed = true;
     }
   }
 
