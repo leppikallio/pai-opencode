@@ -7,6 +7,14 @@
     "allowImportingTsExtensions": true,
     "lib": ["ES2022"],
     "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "useUnknownInCatchVariables": true,
+    "alwaysStrict": true,
     "noEmit": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -17,6 +25,6 @@
       "@opencode-ai/plugin": ["./node_modules/@opencode-ai/plugin"]
     }
   },
-  "include": ["**/*.ts"],
+  "include": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
   "exclude": ["node_modules", "_deprecated", "skills/telos/DashboardTemplate/**", "skills/web-assessment/BugBountyTool/**"]
 }
