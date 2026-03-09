@@ -16,6 +16,15 @@ import type {
   PaginationOptions,
   ActorRunOptions
 } from '../../types'
+import {
+  asArray,
+  asBoolean,
+  asNumber,
+  asRecord,
+  asString,
+  asStringArray,
+  type UnknownRecord
+} from '../shared/normalization'
 
 /* ============================================================================
  * TYPES
@@ -67,7 +76,8 @@ export interface GoogleMapsPlace extends BusinessInfo {
   phone?: string
   website?: string
   email?: string
-  openingHours?: OpeningHours
+  openingHours?: string[]
+  openingHoursByDay?: OpeningHours
   popularTimes?: PopularTimes[]
   isTemporarilyClosed?: boolean
   isPermanentlyClosed?: boolean
@@ -201,7 +211,9 @@ export async function searchGoogleMaps(
     offset: input.offset || 0
   })
 
-  return items.map(transformPlace)
+  return items
+    .map(normalizeGoogleMapsPlace)
+    .filter((place): place is GoogleMapsPlace => place !== null)
 }
 
 /**
@@ -258,7 +270,13 @@ export async function scrapeGoogleMapsPlace(
     throw new Error(`Place not found: ${input.placeUrl}`)
   }
 
-  return transformPlace(items[0])
+  const firstItem = items[0]
+  const place = normalizeGoogleMapsPlace(firstItem)
+  if (!place) {
+    throw new Error('Invalid Google Maps place payload shape')
+  }
+
+  return place
 }
 
 /**
@@ -315,7 +333,9 @@ export async function scrapeGoogleMapsReviews(
   })
 
   // Filter by rating if specified
-  let reviews = items.map(transformReview)
+  let reviews = items
+    .map(normalizeGoogleMapsReview)
+    .filter((review): review is GoogleMapsReview => review !== null)
   const minRating = input.minRating
   if (typeof minRating === "number") {
     reviews = reviews.filter(r => r.rating >= minRating)
@@ -328,121 +348,270 @@ export async function scrapeGoogleMapsReviews(
  * HELPERS
  * ========================================================================= */
 
-/**
- * Transform raw Google Maps place data to our standard format
- */
-type GoogleMapsReviewRaw = GoogleMapsReview & {
-  reviewId?: string
-  reviewText?: string
-  publishAt?: string
-  stars?: number
-  rating?: number
-  likesCount?: number
-  reviewerId?: string
-  name?: string
-  reviewerName?: string
-  profilePhotoUrl?: string
-  reviewerPhotoUrl?: string
-  reviewerNumberOfReviews?: number
-  responseFromOwnerText?: string
-  responseFromOwnerDate?: string
-  reviewImageUrls?: string[]
+const OPENING_HOURS_DAYS: Array<keyof OpeningHours> = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday'
+]
+
+type GoogleMapsSocialMedia = NonNullable<GoogleMapsPlace['socialMedia']>
+
+function hasDefinedValue(values: unknown[]): boolean {
+  return values.some((value) => value !== undefined)
 }
 
-type GoogleMapsPlaceRaw = GoogleMapsPlace & {
-  title?: string
-  categoryName?: string
-  city?: string
-  state?: string
-  countryCode?: string
-  postalCode?: string
-  location?: { lat?: number; lng?: number }
-  companyEmail?: string
-  popularTimesHistogram?: PopularTimes[]
-  temporarilyClosed?: boolean
-  permanentlyClosed?: boolean
-  imageUrls?: string[]
-  reviews?: GoogleMapsReviewRaw[]
-  facebookUrl?: string
-  twitterUrl?: string
-  instagramUrl?: string
-  linkedinUrl?: string
-  claimThisBusiness?: string
+function normalizeOpeningHoursByDay(hours: unknown): OpeningHours | undefined {
+  const record = asRecord(hours)
+  if (!record) {
+    return undefined
+  }
+
+  const byDay: OpeningHours = {}
+  for (const day of OPENING_HOURS_DAYS) {
+    const value = asString(record[day])
+    if (value) {
+      byDay[day] = value
+    }
+  }
+
+  return hasDefinedValue(Object.values(byDay)) ? byDay : undefined
 }
 
-function transformPlace(place: GoogleMapsPlaceRaw): GoogleMapsPlace {
+function normalizeOpeningHours(hours: unknown, byDay?: OpeningHours): string[] | undefined {
+  if (Array.isArray(hours)) {
+    return asStringArray(hours)
+  }
+
+  if (byDay) {
+    const normalized = OPENING_HOURS_DAYS
+      .map((day) => {
+        const value = byDay[day]
+        return value ? `${day}: ${value}` : undefined
+      })
+      .filter((entry): entry is string => typeof entry === 'string')
+
+    return normalized.length > 0 ? normalized : undefined
+  }
+
+  const single = asString(hours)
+  return single ? [single] : undefined
+}
+
+function normalizeLocation(place: UnknownRecord, address?: string): Location | undefined {
+  const locationRecord = asRecord(place.location)
+  const latitude = asNumber(locationRecord?.lat) ?? asNumber(locationRecord?.latitude)
+  const longitude = asNumber(locationRecord?.lng) ?? asNumber(locationRecord?.longitude)
+  const city = asString(place.city)
+  const state = asString(place.state)
+  const country = asString(place.countryCode)
+  const postalCode = asString(place.postalCode)
+
+  if (!hasDefinedValue([latitude, longitude, address, city, state, country, postalCode])) {
+    return undefined
+  }
+
   return {
-    placeId: place.placeId ?? "",
-    name: place.title || place.name || "",
-    url: place.url || "",
-    category: place.categoryName,
-    categories: place.categories ?? (place.categoryName ? [place.categoryName] : []),
-    address: place.address,
-    location: {
-      latitude: place.location?.lat,
-      longitude: place.location?.lng,
-      address: place.address,
-      city: place.city,
-      state: place.state,
-      country: place.countryCode,
-      postalCode: place.postalCode
-    },
-    rating: place.totalScore,
-    totalScore: place.totalScore,
-    reviewsCount: place.reviewsCount,
-    priceLevel: place.priceLevel,
-    phone: place.phone,
-    website: place.website,
-    email: place.email || place.companyEmail,
-    openingHours: place.openingHours,
-    popularTimes: place.popularTimesHistogram,
-    isTemporarilyClosed: place.temporarilyClosed,
-    isPermanentlyClosed: place.permanentlyClosed,
-    reviewsDistribution: place.reviewsDistribution,
-    imageUrls: place.imageUrls,
-    reviews: Array.isArray(place.reviews) ? place.reviews.map(transformReview) : undefined,
-    contact: {
-      email: place.email || place.companyEmail,
-      phone: place.phone,
-      website: place.website,
-      socialMedia: {
-        facebook: place.facebookUrl,
-        twitter: place.twitterUrl,
-        instagram: place.instagramUrl,
-        linkedin: place.linkedinUrl
-      }
-    },
-    contactInfo: {
-      email: place.email || place.companyEmail,
-      phone: place.phone,
-      website: place.website
-    },
-    socialMedia: {
-      facebook: place.facebookUrl,
-      twitter: place.twitterUrl,
-      instagram: place.instagramUrl,
-      linkedin: place.linkedinUrl
-    },
-    verificationStatus: place.claimThisBusiness
+    latitude,
+    longitude,
+    address,
+    city,
+    state,
+    country,
+    postalCode
   }
 }
 
-/**
- * Transform raw Google Maps review data to our standard format
- */
-function transformReview(review: GoogleMapsReviewRaw): GoogleMapsReview {
+function normalizeReviewsDistribution(value: unknown): ReviewsDistribution | undefined {
+  const record = asRecord(value)
+  if (!record) {
+    return undefined
+  }
+
+  const distribution: ReviewsDistribution = {
+    oneStar: asNumber(record.oneStar),
+    twoStar: asNumber(record.twoStar),
+    threeStar: asNumber(record.threeStar),
+    fourStar: asNumber(record.fourStar),
+    fiveStar: asNumber(record.fiveStar)
+  }
+
+  return hasDefinedValue(Object.values(distribution)) ? distribution : undefined
+}
+
+function normalizePopularTimes(value: unknown): PopularTimes[] | undefined {
+  const entries = asArray(value)
+  if (!entries) {
+    return undefined
+  }
+
+  const normalized = entries
+    .map((entry): PopularTimes | null => {
+      const record = asRecord(entry)
+      if (!record) {
+        return null
+      }
+
+      const day = asString(record.day)
+      const hours = asArray(record.hours)
+      if (!day || !hours) {
+        return null
+      }
+
+      const normalizedHours = hours
+        .map((hour): PopularTimes['hours'][number] | null => {
+          const hourRecord = asRecord(hour)
+          if (!hourRecord) {
+            return null
+          }
+
+          const hourValue = asNumber(hourRecord.hour)
+          const occupancyPercent = asNumber(hourRecord.occupancyPercent)
+          if (hourValue === undefined || occupancyPercent === undefined) {
+            return null
+          }
+
+          return {
+            hour: hourValue,
+            occupancyPercent
+          }
+        })
+        .filter((hour): hour is PopularTimes['hours'][number] => hour !== null)
+
+      if (normalizedHours.length === 0) {
+        return null
+      }
+
+      return {
+        day,
+        hours: normalizedHours
+      }
+    })
+    .filter((entry): entry is PopularTimes => entry !== null)
+
+  return normalized.length > 0 ? normalized : undefined
+}
+
+function normalizeSocialMedia(place: UnknownRecord): GoogleMapsSocialMedia | undefined {
+  const facebook = asString(place.facebookUrl)
+  const twitter = asString(place.twitterUrl)
+  const instagram = asString(place.instagramUrl)
+  const linkedin = asString(place.linkedinUrl)
+
+  if (!hasDefinedValue([facebook, twitter, instagram, linkedin])) {
+    return undefined
+  }
+
   return {
-    id: review.reviewId,
-    text: review.text || review.reviewText,
-    publishedAtDate: review.publishedAtDate || review.publishAt,
-    rating: review.stars || review.rating,
-    likesCount: review.likesCount,
-    reviewerId: review.reviewerId,
-    reviewerName: review.name || review.reviewerName,
-    reviewerPhotoUrl: review.profilePhotoUrl || review.reviewerPhotoUrl,
-    reviewerReviewsCount: review.reviewerNumberOfReviews,
-    responseFromOwner: review.responseFromOwnerText,
-    responseFromOwnerDate: review.responseFromOwnerDate,
-    imageUrls: review.reviewImageUrls
+    facebook,
+    twitter,
+    instagram,
+    linkedin
+  }
+}
+
+function normalizeContactInfo(
+  place: UnknownRecord,
+  socialMedia: GoogleMapsSocialMedia | undefined
+): ContactInfo | undefined {
+  const email = asString(place.email) ?? asString(place.companyEmail)
+  const phone = asString(place.phone)
+  const website = asString(place.website)
+
+  if (!hasDefinedValue([email, phone, website, socialMedia])) {
+    return undefined
+  }
+
+  return {
+    email,
+    phone,
+    website,
+    socialMedia
+  }
+}
+
+function normalizeGoogleMapsReview(review: unknown): GoogleMapsReview | null {
+  const record = asRecord(review)
+  if (!record) {
+    return null
+  }
+
+  const text = asString(record.text) ?? asString(record.reviewText)
+  const publishedAtDate = asString(record.publishedAtDate) ?? asString(record.publishAt)
+  const rating = asNumber(record.stars) ?? asNumber(record.rating)
+  if (!text || !publishedAtDate || rating === undefined) {
+    return null
+  }
+
+  return {
+    id: asString(record.reviewId) ?? asString(record.id),
+    text,
+    publishedAtDate,
+    rating,
+    likesCount: asNumber(record.likesCount),
+    reviewerId: asString(record.reviewerId),
+    reviewerName: asString(record.name) ?? asString(record.reviewerName),
+    reviewerPhotoUrl: asString(record.profilePhotoUrl) ?? asString(record.reviewerPhotoUrl),
+    reviewerReviewsCount: asNumber(record.reviewerNumberOfReviews),
+    responseFromOwner: asString(record.responseFromOwnerText),
+    responseFromOwnerDate: asString(record.responseFromOwnerDate),
+    imageUrls: asStringArray(record.reviewImageUrls) ?? asStringArray(record.imageUrls)
+  }
+}
+
+function normalizeGoogleMapsPlace(place: unknown): GoogleMapsPlace | null {
+  const record = asRecord(place)
+  if (!record) {
+    return null
+  }
+
+  const placeId = asString(record.placeId) ?? asString(record.id)
+  const name = asString(record.title) ?? asString(record.name)
+  const url = asString(record.url)
+  if (!name || !placeId || !url) {
+    return null
+  }
+
+  const category = asString(record.categoryName) ?? asString(record.category)
+  const categories = asStringArray(record.categories) ?? (category ? [category] : undefined)
+  const address = asString(record.address)
+  const openingHoursByDay = normalizeOpeningHoursByDay(record.openingHours)
+  const socialMedia = normalizeSocialMedia(record)
+  const contactInfo = normalizeContactInfo(record, socialMedia)
+  const normalizedReviews = asArray(record.reviews)
+    ?.map(normalizeGoogleMapsReview)
+    .filter((review): review is GoogleMapsReview => review !== null)
+  const totalScore = asNumber(record.totalScore)
+
+  return {
+    placeId,
+    name,
+    url,
+    category,
+    categories,
+    address,
+    location: normalizeLocation(record, address),
+    rating: totalScore ?? asNumber(record.rating),
+    totalScore,
+    reviewsCount: asNumber(record.reviewsCount),
+    priceLevel: asNumber(record.priceLevel),
+    phone: asString(record.phone),
+    website: asString(record.website),
+    email: asString(record.email) ?? asString(record.companyEmail),
+    openingHours: normalizeOpeningHours(record.openingHours, openingHoursByDay),
+    openingHoursByDay,
+    popularTimes: normalizePopularTimes(record.popularTimesHistogram),
+    isTemporarilyClosed: asBoolean(record.temporarilyClosed),
+    isPermanentlyClosed: asBoolean(record.permanentlyClosed),
+    reviewsDistribution: normalizeReviewsDistribution(record.reviewsDistribution),
+    imageUrls: asStringArray(record.imageUrls),
+    reviews: normalizedReviews && normalizedReviews.length > 0 ? normalizedReviews : undefined,
+    contact: contactInfo,
+    contactInfo,
+    socialMedia,
+    verificationStatus: asString(record.claimThisBusiness)
   }
 }
