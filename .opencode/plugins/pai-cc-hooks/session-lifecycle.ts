@@ -39,6 +39,10 @@ function isScratchpadBindingHookCommand(command: string): boolean {
 	return command.includes("ScratchpadBinding.hook.ts");
 }
 
+function isRtkAwarenessHookCommand(command: string): boolean {
+	return command.includes("RtkAwareness.hook.ts");
+}
+
 function shouldInjectSessionStartStdout(args: {
 	command: string;
 	policy: SessionStartPolicy;
@@ -49,6 +53,10 @@ function shouldInjectSessionStartStdout(args: {
 
 	if (isLoadContextHookCommand(args.command)) {
 		return args.policy.allowLoadContextStdoutInjection;
+	}
+
+	if (isRtkAwarenessHookCommand(args.command)) {
+		return args.policy.allowRtkAwarenessStdoutInjection;
 	}
 
 	return false;
@@ -71,6 +79,7 @@ export async function resolveSessionStartPolicy(args: {
 				allowLoadContext: false,
 				allowLoadContextStdoutInjection: false,
 				allowScratchpadBindingStdoutInjection: true,
+				allowRtkAwarenessStdoutInjection: true,
 			},
 		};
 	}
@@ -89,6 +98,7 @@ export async function resolveSessionStartPolicy(args: {
 				allowLoadContext: !isSubagent,
 				allowLoadContextStdoutInjection: !isSubagent,
 				allowScratchpadBindingStdoutInjection: true,
+				allowRtkAwarenessStdoutInjection: true,
 			},
 		};
 	} catch (error) {
@@ -104,6 +114,7 @@ export async function resolveSessionStartPolicy(args: {
 				allowLoadContext: false,
 				allowLoadContextStdoutInjection: false,
 				allowScratchpadBindingStdoutInjection: true,
+				allowRtkAwarenessStdoutInjection: true,
 			},
 		};
 	}

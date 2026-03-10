@@ -40,7 +40,7 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 		__resetSessionRootRegistryForTests();
 	});
 
-	test("injects ScratchpadBinding and LoadContext stdout for root SessionStart", async () => {
+	test("injects ScratchpadBinding, LoadContext, and RTK awareness stdout for root SessionStart", async () => {
 		const tmpRoot = mkdtempSync(
 			path.join(os.tmpdir(), "pai-cc-hooks-session-start-inject-"),
 		);
@@ -48,9 +48,11 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 
 		const scratchpadMarker = path.join(tmpRoot, "scratchpad.marker");
 		const loadContextMarker = path.join(tmpRoot, "loadcontext.marker");
+		const rtkAwarenessMarker = path.join(tmpRoot, "rtk-awareness.marker");
 		const checkVersionMarker = path.join(tmpRoot, "checkversion.marker");
 		const scratchpadHookPath = path.join(tmpRoot, "ScratchpadBinding.hook.ts");
 		const loadContextHookPath = path.join(tmpRoot, "LoadContext.hook.ts");
+		const rtkAwarenessHookPath = path.join(tmpRoot, "RtkAwareness.hook.ts");
 		const checkVersionHookPath = path.join(tmpRoot, "CheckVersion.hook.ts");
 		const promptCalls: Array<unknown> = [];
 
@@ -68,6 +70,13 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 				"utf-8",
 			);
 			chmodSync(loadContextHookPath, 0o755);
+
+			writeFileSync(
+				rtkAwarenessHookPath,
+				`#!/bin/sh\ntouch "${rtkAwarenessMarker}"\nprintf '<system-reminder>Injected RTK awareness context</system-reminder>'\n`,
+				"utf-8",
+			);
+			chmodSync(rtkAwarenessHookPath, 0o755);
 
 			writeFileSync(
 				checkVersionHookPath,
@@ -92,6 +101,10 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 								{
 									type: "command",
 									command: loadContextHookPath,
+								},
+								{
+									type: "command",
+									command: rtkAwarenessHookPath,
 								},
 								{
 									type: "command",
@@ -139,8 +152,9 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 
 			expect(existsSync(scratchpadMarker)).toBe(true);
 			expect(existsSync(loadContextMarker)).toBe(true);
+			expect(existsSync(rtkAwarenessMarker)).toBe(true);
 			expect(existsSync(checkVersionMarker)).toBe(true);
-			expect(promptCalls).toHaveLength(2);
+			expect(promptCalls).toHaveLength(3);
 
 			const scratchpadInjectionCall = promptCalls[0] as {
 				path: { id: string };
@@ -150,6 +164,13 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 				};
 			};
 			const loadContextInjectionCall = promptCalls[1] as {
+				path: { id: string };
+				body: {
+					noReply: boolean;
+					parts: Array<{ type: string; text: string; synthetic?: boolean }>;
+				};
+			};
+			const rtkAwarenessInjectionCall = promptCalls[2] as {
 				path: { id: string };
 				body: {
 					noReply: boolean;
@@ -173,10 +194,21 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 				text: "<system-reminder>Injected LoadContext context</system-reminder>",
 				synthetic: true,
 			});
+			expect(rtkAwarenessInjectionCall.path.id).toBe("ses_root");
+			expect(rtkAwarenessInjectionCall.body.noReply).toBe(true);
+			expect(rtkAwarenessInjectionCall.body.parts).toHaveLength(1);
+			expect(rtkAwarenessInjectionCall.body.parts[0]).toEqual({
+				type: "text",
+				text: "<system-reminder>Injected RTK awareness context</system-reminder>",
+				synthetic: true,
+			});
 			expect(scratchpadInjectionCall.body.parts[0]?.text).not.toContain(
 				"Injected LoadContext context",
 			);
 			expect(loadContextInjectionCall.body.parts[0]?.text).not.toContain(
+				"Injected CheckVersion context",
+			);
+			expect(rtkAwarenessInjectionCall.body.parts[0]?.text).not.toContain(
 				"Injected CheckVersion context",
 			);
 
@@ -207,6 +239,19 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 						],
 					},
 				},
+				{
+					path: { id: "ses_root" },
+					body: {
+						noReply: true,
+						parts: [
+							{
+								type: "text",
+								text: "<system-reminder>Injected RTK awareness context</system-reminder>",
+								synthetic: true,
+							},
+						],
+					},
+				},
 			]);
 		} finally {
 			restoreEnv("PAI_CC_HOOKS_CONFIG_ROOT", prevConfigRoot);
@@ -215,7 +260,7 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 		}
 	});
 
-	test("injects ScratchpadBinding stdout but skips LoadContext for subagent SessionStart", async () => {
+	test("injects ScratchpadBinding and RTK awareness stdout but skips LoadContext for subagent SessionStart", async () => {
 		const tmpRoot = mkdtempSync(
 			path.join(os.tmpdir(), "pai-cc-hooks-session-start-parent-"),
 		);
@@ -223,9 +268,11 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 
 		const scratchpadMarker = path.join(tmpRoot, "scratchpad.marker");
 		const loadContextMarker = path.join(tmpRoot, "loadcontext.marker");
+		const rtkAwarenessMarker = path.join(tmpRoot, "rtk-awareness.marker");
 		const checkVersionMarker = path.join(tmpRoot, "checkversion.marker");
 		const scratchpadHookPath = path.join(tmpRoot, "ScratchpadBinding.hook.ts");
 		const loadContextHookPath = path.join(tmpRoot, "LoadContext.hook.ts");
+		const rtkAwarenessHookPath = path.join(tmpRoot, "RtkAwareness.hook.ts");
 		const checkVersionHookPath = path.join(tmpRoot, "CheckVersion.hook.ts");
 		const promptCalls: Array<unknown> = [];
 
@@ -243,6 +290,13 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 				"utf-8",
 			);
 			chmodSync(loadContextHookPath, 0o755);
+
+			writeFileSync(
+				rtkAwarenessHookPath,
+				`#!/bin/sh\ntouch "${rtkAwarenessMarker}"\nprintf '<system-reminder>Injected RTK awareness context</system-reminder>'\n`,
+				"utf-8",
+			);
+			chmodSync(rtkAwarenessHookPath, 0o755);
 
 			writeFileSync(
 				checkVersionHookPath,
@@ -267,6 +321,10 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 								{
 									type: "command",
 									command: loadContextHookPath,
+								},
+								{
+									type: "command",
+									command: rtkAwarenessHookPath,
 								},
 								{
 									type: "command",
@@ -303,7 +361,7 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 				},
 			});
 
-			expect(promptCalls).toHaveLength(1);
+			expect(promptCalls).toHaveLength(2);
 			expect(promptCalls).toEqual([
 				{
 					path: { id: "ses_child" },
@@ -318,9 +376,23 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 						],
 					},
 				},
+				{
+					path: { id: "ses_child" },
+					body: {
+						noReply: true,
+						parts: [
+							{
+								type: "text",
+								text: "<system-reminder>Injected RTK awareness context</system-reminder>",
+								synthetic: true,
+							},
+						],
+					},
+				},
 			]);
 			expect(existsSync(scratchpadMarker)).toBe(true);
 			expect(existsSync(loadContextMarker)).toBe(false);
+			expect(existsSync(rtkAwarenessMarker)).toBe(true);
 			expect(existsSync(checkVersionMarker)).toBe(true);
 		} finally {
 			restoreEnv("PAI_CC_HOOKS_CONFIG_ROOT", prevConfigRoot);

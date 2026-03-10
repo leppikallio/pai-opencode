@@ -270,6 +270,10 @@
           },
           {
             "type": "command",
+            "command": "${PAI_DIR}/hooks/RtkAwareness.hook.ts"
+          },
+          {
+            "type": "command",
             "command": "${PAI_DIR}/hooks/CheckVersion.hook.ts"
           }
         ]

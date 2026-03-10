@@ -8,6 +8,7 @@ import {
 	executePreToolUseHooks,
 	type PreToolUseResult,
 } from "./claude/pre-tool-use";
+import { maybeRewriteBashToolInputWithRtk } from "./rtk";
 import type { ClaudeHooksConfig } from "./claude/types";
 import { asRecord, getRecord, getString } from "./session-helpers";
 import type { UnknownRecord } from "./types";
@@ -26,6 +27,11 @@ type ExecutePreToolUseHooksFn = (
 ) => Promise<PreToolUseResult>;
 
 type NormalizeSecurityInputArgsFn = (value: unknown) => unknown;
+type MaybeRewriteBashToolInputWithRtkFn = (args: {
+	toolName: string;
+	toolInput: Record<string, unknown>;
+	env?: Record<string, string>;
+}) => Promise<Record<string, unknown> | null>;
 
 export async function handleToolExecuteBefore(args: {
 	input: unknown;
@@ -36,6 +42,7 @@ export async function handleToolExecuteBefore(args: {
 	deps?: {
 		executePreToolUseHooks?: ExecutePreToolUseHooksFn;
 		normalizeSecurityInputArgs?: NormalizeSecurityInputArgsFn;
+		maybeRewriteBashToolInputWithRtk?: MaybeRewriteBashToolInputWithRtkFn;
 	};
 }): Promise<void> {
 	const payload = asRecord(args.input);
@@ -44,6 +51,9 @@ export async function handleToolExecuteBefore(args: {
 		args.deps?.executePreToolUseHooks ?? executePreToolUseHooks;
 	const normalizeArgs =
 		args.deps?.normalizeSecurityInputArgs ?? normalizeSecurityInputArgs;
+	const maybeRewriteBashInput =
+		args.deps?.maybeRewriteBashToolInputWithRtk ??
+		maybeRewriteBashToolInputWithRtk;
 
 	const rawOutputArgs = getRecord(out, "args");
 	const normalizedOutputArgs = rawOutputArgs
@@ -62,12 +72,22 @@ export async function handleToolExecuteBefore(args: {
 	}
 
 	const toolName = getString(payload, "tool") ?? "";
-	const toolInput = (normalizedOutputArgs ?? normalizedPayloadArgs ?? {}) as Record<
+	let toolInput = (normalizedOutputArgs ?? normalizedPayloadArgs ?? {}) as Record<
 		string,
 		unknown
 	>;
 	const sessionId =
 		getString(payload, "sessionID") ?? getString(payload, "sessionId") ?? "";
+
+	const rtkRewrittenInput = await maybeRewriteBashInput({
+		toolName,
+		toolInput,
+		env: args.env,
+	});
+	if (rtkRewrittenInput) {
+		toolInput = rtkRewrittenInput;
+		out.args = rtkRewrittenInput as UnknownRecord;
+	}
 
 	if (sessionId && toolName) {
 		const oneShotAllowed = consumeAskGateOneShotAllowance({

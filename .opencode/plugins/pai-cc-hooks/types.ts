@@ -17,6 +17,7 @@ export type SessionStartPolicy = {
 	allowLoadContext: boolean;
 	allowLoadContextStdoutInjection: boolean;
 	allowScratchpadBindingStdoutInjection: boolean;
+	allowRtkAwarenessStdoutInjection: boolean;
 };
 
 export type CmuxNotifyFn = (args: {

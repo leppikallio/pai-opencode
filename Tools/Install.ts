@@ -28,6 +28,10 @@ import {
   type WorkJsonBackfillDecision,
 } from "./pai-install/work-json-backfill-gate";
 import { guessNwaveRoot } from "./lib/nwave/paths";
+import {
+  getRtkCapabilityCachePath,
+  refreshRtkCapabilityCache,
+} from "../.opencode/plugins/rtk/capability";
 
 type Mode = "sync";
 
@@ -283,6 +287,22 @@ function ensureRuntimeProjectionFiles(args: { targetDir: string; dryRun: boolean
   if (!fs.existsSync(opencodePath)) {
     fs.writeFileSync(opencodePath, `${JSON.stringify({}, null, 2)}\n`, "utf8");
   }
+}
+
+async function refreshRtkCapabilityBootstrap(args: { targetDir: string; dryRun: boolean }) {
+  const stateDir = path.join(args.targetDir, "MEMORY", "STATE");
+  const cachePath = getRtkCapabilityCachePath({ stateDir });
+
+  if (args.dryRun) {
+    console.log(`[dry] RTK capability cache: would refresh ${cachePath}`);
+    return;
+  }
+
+  const { capability } = await refreshRtkCapabilityCache({ stateDir });
+  const version = capability.version ?? "unknown";
+  console.log(
+    `[write] RTK capability cache: refreshed ${cachePath} (present=${capability.present}, version=${version}, supportsRewrite=${capability.supportsRewrite})`
+  );
 }
 
 function parseSkillNameFromSkillMd(skillMdPath: string): string | null {
@@ -2977,6 +2997,9 @@ async function sync(mode: Mode, opts: Options) {
 
   // Ensure runtime-projection files exist so cross-reference checks are stable.
   ensureRuntimeProjectionFiles({ targetDir, dryRun });
+
+  // Refresh RTK bootstrap capability cache under MEMORY/STATE.
+  await refreshRtkCapabilityBootstrap({ targetDir, dryRun });
 
   // Ensure LEARNING/REFLECTIONS bootstrap artifacts exist before verification scans.
   ensureLearningReflectionsArtifacts({ targetDir, dryRun });
