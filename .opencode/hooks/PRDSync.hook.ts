@@ -31,6 +31,52 @@ type SessionChangeBucket = {
   changes: ChangedPath[];
 };
 
+const SESSION_UUID_RE = /^[A-Za-z0-9_-]{1,200}$/;
+
+function isPathInsideRoot(rootPath: string, candidatePath: string): boolean {
+  const rel = path.relative(path.resolve(rootPath), path.resolve(candidatePath));
+  return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
+}
+
+function isIscPathUnderMemoryWork(paiDir: string, candidatePath: string): boolean {
+  const memoryWorkRoot = path.resolve(path.join(paiDir, "MEMORY", "WORK"));
+  const resolvedPath = path.resolve(candidatePath);
+  return isPathInsideRoot(memoryWorkRoot, resolvedPath) && path.basename(resolvedPath) === "ISC.json";
+}
+
+function deriveSessionUUIDFromWorkArtifactPath(paiDir: string, candidatePath: string): string | null {
+  const memoryWorkRoot = path.resolve(path.join(paiDir, "MEMORY", "WORK"));
+  const resolvedPath = path.resolve(candidatePath);
+  if (!isPathInsideRoot(memoryWorkRoot, resolvedPath)) {
+    return null;
+  }
+
+  const relativePath = path.relative(memoryWorkRoot, resolvedPath);
+  const parts = relativePath.split(path.sep).filter(Boolean);
+  if (parts.length < 2) {
+    return null;
+  }
+
+  const sessionUUID = parts[1] ?? "";
+  return SESSION_UUID_RE.test(sessionUUID) ? sessionUUID : null;
+}
+
+function deriveSessionDirFromWorkArtifactPath(paiDir: string, candidatePath: string): string | null {
+  const memoryWorkRoot = path.resolve(path.join(paiDir, "MEMORY", "WORK"));
+  const resolvedPath = path.resolve(candidatePath);
+  if (!isPathInsideRoot(memoryWorkRoot, resolvedPath)) {
+    return null;
+  }
+
+  const relativePath = path.relative(memoryWorkRoot, resolvedPath);
+  const parts = relativePath.split(path.sep).filter(Boolean);
+  if (parts.length < 2) {
+    return null;
+  }
+
+  return path.join(memoryWorkRoot, parts[0] ?? "", parts[1] ?? "");
+}
+
 function asRecord(value: unknown): JsonRecord | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -232,16 +278,22 @@ try {
 
   const buckets = new Map<string, SessionChangeBucket>();
   for (const change of changedPaths) {
-    if (!isPrdPathUnderMemoryWork(paiDir, change.absolutePath)) {
+    const isPrdPath = isPrdPathUnderMemoryWork(paiDir, change.absolutePath);
+    const isIscPath = isIscPathUnderMemoryWork(paiDir, change.absolutePath);
+    if (!isPrdPath && !isIscPath) {
       continue;
     }
 
-    const sessionUUID = deriveSessionUUIDFromPrdPath(paiDir, change.absolutePath);
+    const sessionUUID = isPrdPath
+      ? deriveSessionUUIDFromPrdPath(paiDir, change.absolutePath)
+      : deriveSessionUUIDFromWorkArtifactPath(paiDir, change.absolutePath);
     if (!sessionUUID) {
       continue;
     }
 
-    const sessionDir = deriveSessionDirFromPrdPath(paiDir, change.absolutePath);
+    const sessionDir = isPrdPath
+      ? deriveSessionDirFromPrdPath(paiDir, change.absolutePath)
+      : deriveSessionDirFromWorkArtifactPath(paiDir, change.absolutePath);
     const existingBucket = buckets.get(sessionUUID) ?? {
       sessionDirs: new Set<string>(),
       changes: [],

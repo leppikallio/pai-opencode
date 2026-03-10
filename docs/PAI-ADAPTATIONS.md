@@ -116,6 +116,28 @@ export function fileLog(message: string, level = "info") {
 
 ---
 
+### 6. Orchestration Parity v1 (Routing + Continuity Hardening)
+
+> **Reference:** [Orchestration Parity v1](reference/orchestration-parity-v1.md)
+
+**What changed:**
+- Foreground delegation now keeps native-safe `task_id` compatibility through the `task` tool seam.
+- Background orchestration gained explicit lifecycle normalization, fan-in-safe completion handling, and concurrency grouping.
+- Compaction continuity now injects and rehydrates a bounded continuation bundle from existing PAI work artifacts.
+- Wisdom projection is now generated as a derived output under existing learning memory.
+
+**Preserved invariants (non-negotiable):**
+- **No parallel sources of truth** (no `.sisyphus/tasks`, `.sisyphus/plans`, or `boulder.json`).
+- **Native-safe `task_id` compatibility** remains the public continuation handle.
+- **Background tasks remain first-class** (improved reliability, not removed).
+- **Compaction continuity is PAI-native** (derives from PRD/ISC/current-work and background state).
+- **Wisdom projection extends existing learning capture** (no rival memory root).
+
+**Why:**
+- Achieve orchestration reliability/wallclock gains without forking PAI’s architecture or introducing competing state ledgers.
+
+---
+
 ## What Stayed The Same
 
 > **Architecture Decisions:**
@@ -239,6 +261,7 @@ See **MIGRATION.md** for full guide.
 | **Directory** | `.claude/` → `.opencode/` | Platform convention | Path updates |
 | **Agents** | Lowercase → PascalCase | OpenCode requirement | Filename only |
 | **Logging** | stdout → file logging | TUI integrity | Debug workflow change |
+| **Orchestration** | Parity hardening over existing artifacts | Reliability without forked state | Behavior hardening |
 | **Deferred** | Voice/Observability | Focus on core first | Available in v1.x |
 
 ---

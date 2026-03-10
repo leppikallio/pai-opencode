@@ -109,6 +109,7 @@ const PaiCcHooksPlugin: Plugin = async (ctx) => {
 		"chat.message": hooks["chat.message"],
 		"chat.params": promptControl.chatParams,
 		"experimental.chat.system.transform": promptControl.systemTransform,
+		"experimental.session.compacting": hooks["experimental.session.compacting"],
 		"command.execute.before": hooks["command.execute.before"],
 		"tool.execute.before": hooks["tool.execute.before"],
 		"tool.execute.after": hooks["tool.execute.after"],

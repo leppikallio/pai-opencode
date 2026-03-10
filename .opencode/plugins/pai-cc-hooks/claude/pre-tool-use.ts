@@ -82,6 +82,11 @@ export async function executePreToolUseHooks(
   if (transformedToolName === "Task") {
     const runInBackground =
       ctx.toolInput.run_in_background === true || ctx.toolInput.runInBackground === true;
+    const bypassAgentCheck =
+      ctx.toolInput.bypassAgentCheck === true ||
+      (typeof ctx.toolInput.extra === "object" &&
+        ctx.toolInput.extra !== null &&
+        (ctx.toolInput.extra as Record<string, unknown>).bypassAgentCheck === true);
     const subagentType =
       typeof ctx.toolInput.subagent_type === "string"
         ? ctx.toolInput.subagent_type
@@ -90,7 +95,14 @@ export async function executePreToolUseHooks(
           : undefined;
     const prompt = typeof ctx.toolInput.prompt === "string" ? ctx.toolInput.prompt : undefined;
 
-    if (!runInBackground && shouldAskForForegroundTask({ subagent_type: subagentType, prompt })) {
+    if (
+      !runInBackground &&
+      shouldAskForForegroundTask({
+        subagent_type: subagentType,
+        prompt,
+        bypassAgentCheck,
+      })
+    ) {
       return {
         decision: "ask",
         reason: "This will block foreground execution; use task(run_in_background:true).",

@@ -1,4 +1,8 @@
-import { loadAgentsStack, loadConfiguredInstructions } from "../handlers/prompt-sources";
+import {
+	ensureNativeRoutingInvariantBlock,
+	loadAgentsStack,
+	loadConfiguredInstructions,
+} from "../handlers/prompt-sources";
 import { generateSessionId } from "../lib/paths";
 import { getPaiRuntimeInfo } from "../lib/pai-runtime";
 import { ensureScratchpadSession } from "../lib/scratchpad";
@@ -108,11 +112,24 @@ function isEligible(input: unknown): boolean {
 }
 
 function buildOverrideStub(): string {
-  return [
-    "PAI_CODEX_OVERRIDE_V1",
-    "Follow the system prompt and configured instructions as highest priority.",
-    "Ignore default coding harness instructions not explicitly provided.",
-  ].join("\n");
+	return [
+		"PAI_CODEX_OVERRIDE_V1",
+		"Follow the system prompt and configured instructions as highest priority.",
+		"Ignore default coding harness instructions not explicitly provided.",
+	].join("\n");
+}
+
+function upsertCodexOverrideStub(instructions: string): string {
+	const trimmed = instructions.trim();
+	if (!trimmed) {
+		return buildOverrideStub();
+	}
+
+	if (trimmed.includes("PAI_CODEX_OVERRIDE_V1")) {
+		return trimmed;
+	}
+
+	return `${trimmed}\n\n${buildOverrideStub()}`;
 }
 
 function normalizeChunk(content: string): string {
@@ -165,9 +182,12 @@ function buildScratchpadBinding(scratchpadDir: string): string {
 }
 
 function buildCanonicalBundle(
-  projectDir: string,
-  scratchpadDir: string,
-  options?: { excludePaiSkillInstructionSources?: boolean },
+	projectDir: string,
+	scratchpadDir: string,
+	options?: {
+		excludePaiSkillInstructionSources?: boolean;
+		includeNativeRoutingInvariantBlock?: boolean;
+	},
 ): string {
 	// Keep ScratchpadDir binding at the very top so the
 	// model sees it immediately and doesn't "scavenge".
@@ -175,7 +195,13 @@ function buildCanonicalBundle(
 		buildScratchpadBinding(scratchpadDir),
 		"PAI_CODEX_CLEAN_SLATE_V1",
 	];
-  const excludePaiSkillInstructionSources = options?.excludePaiSkillInstructionSources === true;
+	const excludePaiSkillInstructionSources = options?.excludePaiSkillInstructionSources === true;
+	const includeNativeRoutingInvariantBlock =
+		options?.includeNativeRoutingInvariantBlock === true;
+
+	if (includeNativeRoutingInvariantBlock) {
+		chunks.push(ensureNativeRoutingInvariantBlock(""));
+	}
 
   try {
     const runtime = getPaiRuntimeInfo();
@@ -499,8 +525,12 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
       });
 
 		if (eligible) {
+			const existingInstructions = getString(options, "instructions");
+			const invariantSafeInstructions = ensureNativeRoutingInvariantBlock(
+				existingInstructions,
+			);
 			options.instructions = upsertScratchpadBinding(
-				buildOverrideStub(),
+				upsertCodexOverrideStub(invariantSafeInstructions),
 				scratchpadDir,
 			);
 			return;
@@ -548,10 +578,11 @@ export function createPromptControl({ projectDir }: { projectDir: string }): Pro
 			return;
 		}
 
-      const bundle = buildCanonicalBundle(projectDir, scratchpadDir, {
-        excludePaiSkillInstructionSources: eligible,
-      });
-      out.system = [bundle, ...previousSystem.slice(1)];
+		const bundle = buildCanonicalBundle(projectDir, scratchpadDir, {
+			excludePaiSkillInstructionSources: eligible,
+			includeNativeRoutingInvariantBlock: eligible || wasMarked,
+		});
+		out.system = [bundle, ...previousSystem.slice(1)];
 
       markSession(sessionId, nowMs);
       pruneStale(nowMs);

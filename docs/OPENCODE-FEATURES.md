@@ -153,6 +153,30 @@ opencode run "/security --scan-all" >> reports/$(date +%Y-%m-%d).log
 opencode run "Check for secrets in staged files"
 ```
 
+## 7. Native Task Routing + PAI Orchestration Parity
+
+OpenCode’s native `task` delegation surface is the core seam PAI now hardens for orchestration parity.
+
+### Preserved Native Contract
+
+- Explicit `@general` / `@agent` requests still route through the `task` tool.
+- Public continuation remains `task_id` (foreground and background compatible).
+- Foreground explicit-mention bypass semantics are preserved.
+
+### Orchestration Behavior Added on Top
+
+- **Background remains first-class** with durable lifecycle normalization and parent fan-in behavior.
+- **Concurrency controls** can gate background admission by provider/model/agent grouping.
+- **Compaction continuity** preserves active-work context via bounded continuation bundles over existing PAI artifacts.
+- **Wisdom projection** is derived from existing `MEMORY/LEARNING` + `MEMORY/STATE`, not a separate memory root.
+
+### Why This Matters
+
+You keep OpenCode-native delegation semantics while getting stronger reliability under parallel/background-heavy workflows.
+
+For the full invariants + acceptance matrix, see:
+- [Orchestration Parity v1 reference](./reference/orchestration-parity-v1.md)
+
 ## Comparison: OpenCode vs Alternatives
 
 | Feature | OpenCode | Cursor | Copilot | Claude Code |
@@ -179,6 +203,7 @@ OpenCode provides the **platform**. PAI provides the **personalization**.
 
 - **Official OpenCode Docs**: [docs.opencode.ai](https://docs.opencode.ai)
 - **GitHub Repository**: [github.com/anomalyco/opencode](https://github.com/anomalyco/opencode)
+- **PAI Parity Reference**: [orchestration-parity-v1.md](./reference/orchestration-parity-v1.md)
 
 ---
 

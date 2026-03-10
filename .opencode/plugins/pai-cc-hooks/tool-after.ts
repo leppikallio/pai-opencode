@@ -4,6 +4,7 @@ import {
 } from "./claude/post-tool-use";
 import type { ClaudeHooksConfig } from "./claude/types";
 import { asRecord, getRecord, getString } from "./session-helpers";
+import { decodeForegroundTaskParityEnvelope } from "./tools/task-foreground-parity-envelope";
 
 type ExecutePostToolUseHooksFn = (
 	ctx: {
@@ -18,6 +19,34 @@ type ExecutePostToolUseHooksFn = (
 	extendedConfig?: unknown,
 	settingsEnv?: Record<string, string>,
 ) => Promise<PostToolUseResult>;
+
+function maybeRestoreForegroundTaskParityOutput(args: {
+	payload: Record<string, unknown>;
+	output: Record<string, unknown>;
+}): void {
+	const toolName = getString(args.payload, "tool") ?? "";
+	if (toolName !== "task") {
+		return;
+	}
+
+	const rawOutput = getString(args.output, "output");
+	if (!rawOutput) {
+		return;
+	}
+
+	const decoded = decodeForegroundTaskParityEnvelope(rawOutput);
+	if (!decoded) {
+		return;
+	}
+
+	const existingMetadata = getRecord(args.output, "metadata") ?? {};
+	args.output.title = decoded.title;
+	args.output.output = decoded.output;
+	args.output.metadata = {
+		...existingMetadata,
+		...decoded.metadata,
+	};
+}
 
 export async function handleToolExecuteAfter(args: {
 	input: unknown;
@@ -39,6 +68,11 @@ export async function handleToolExecuteAfter(args: {
 	const toolOutput = asRecord(args.output);
 	const sessionId =
 		getString(payload, "sessionID") ?? getString(payload, "sessionId") ?? "";
+
+	maybeRestoreForegroundTaskParityOutput({
+		payload,
+		output: out,
+	});
 
 	const result = await executePostToolUse(
 		{

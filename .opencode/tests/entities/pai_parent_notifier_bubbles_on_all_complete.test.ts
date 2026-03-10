@@ -14,12 +14,25 @@ function createTempPaiDir(): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), "pai-parent-notifier-"));
 }
 
+function writeStateFile(paiDir: string, value: unknown): void {
+	const stateDir = path.join(paiDir, "MEMORY", "STATE");
+	fs.mkdirSync(stateDir, { recursive: true });
+	fs.writeFileSync(
+		path.join(stateDir, "background-tasks.json"),
+		`${JSON.stringify(value, null, 2)}\n`,
+		"utf-8",
+	);
+}
+
 describe("PAI parent-session background completion notifier", () => {
 	test("bubbles silently per-task and wakes parent when all complete", async () => {
 		const paiDir = createTempPaiDir();
 		const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
+		const originalVisibleFallback =
+			process.env.PAI_BACKGROUND_COMPLETION_VISIBLE_FALLBACK;
 
 		process.env.OPENCODE_ROOT = paiDir;
+		delete process.env.PAI_BACKGROUND_COMPLETION_VISIBLE_FALLBACK;
 		try {
 			const parentSessionId = "ses_parent";
 			const nowMs = Date.now();
@@ -127,6 +140,13 @@ describe("PAI parent-session background completion notifier", () => {
 		} finally {
 			if (originalOpenCodeRoot === undefined) delete process.env.OPENCODE_ROOT;
 			else process.env.OPENCODE_ROOT = originalOpenCodeRoot;
+
+			if (originalVisibleFallback === undefined) {
+				delete process.env.PAI_BACKGROUND_COMPLETION_VISIBLE_FALLBACK;
+			} else {
+				process.env.PAI_BACKGROUND_COMPLETION_VISIBLE_FALLBACK =
+					originalVisibleFallback;
+			}
 		}
 	});
 
@@ -187,6 +207,86 @@ describe("PAI parent-session background completion notifier", () => {
 				process.env.PAI_BACKGROUND_COMPLETION_VISIBLE_FALLBACK =
 					originalVisibleFallback;
 			}
+		}
+	});
+
+	test("uses normalized lifecycle status instead of raw launch_error for all-complete fan-in", async () => {
+		const paiDir = createTempPaiDir();
+		const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
+
+		process.env.OPENCODE_ROOT = paiDir;
+		try {
+			const parentSessionId = "ses_parent_normalized";
+			const nowMs = Date.now();
+
+			writeStateFile(paiDir, {
+				version: 2,
+				updatedAtMs: nowMs,
+				notifiedTaskIds: {},
+				duplicateBySession: {},
+				backgroundTasks: {
+					bg_running_with_error: {
+						version: 2,
+						task_id: "bg_running_with_error",
+						task_description: "Still working",
+						child_session_id: "ses_running_with_error",
+						parent_session_id: parentSessionId,
+						launched_at_ms: nowMs - 100,
+						updated_at_ms: nowMs,
+						status: "running",
+						launch_error: "diagnostic only",
+						launch_error_at_ms: nowMs,
+					},
+					bg_completed_terminal: {
+						version: 2,
+						task_id: "bg_completed_terminal",
+						task_description: "Done",
+						child_session_id: "ses_completed_terminal",
+						parent_session_id: parentSessionId,
+						launched_at_ms: nowMs - 200,
+						updated_at_ms: nowMs,
+						status: "completed",
+						terminal_reason: "completed",
+						completed_at_ms: nowMs - 1,
+					},
+				},
+			});
+
+			const tasks = await listBackgroundTasksByParent({
+				parentSessionId,
+				nowMs: nowMs + 1,
+			});
+			const completedTask = tasks.find(
+				(task) => task.task_id === "bg_completed_terminal",
+			);
+			expect(completedTask).not.toBeUndefined();
+			if (!completedTask) {
+				throw new Error("expected terminal task in listBackgroundTasksByParent");
+			}
+
+			const promptCalls: any[] = [];
+			await notifyParentSessionBackgroundCompletion({
+				taskRecord: completedTask,
+				deps: {
+					promptAsync: async (call: any) => {
+						promptCalls.push(call);
+					},
+					listBackgroundTasksByParent,
+					shouldSuppressDuplicate: async () => false,
+					nowMs: nowMs + 2,
+				},
+			});
+
+			expect(promptCalls).toHaveLength(1);
+			const notificationText = String(
+				promptCalls[0]?.body?.parts?.[0]?.text ?? "",
+			);
+			expect(notificationText).toContain("[BACKGROUND TASK COMPLETED]");
+			expect(notificationText).toContain("**1 task still in progress.**");
+			expect(notificationText).not.toContain("[ALL BACKGROUND TASKS COMPLETE]");
+		} finally {
+			if (originalOpenCodeRoot === undefined) delete process.env.OPENCODE_ROOT;
+			else process.env.OPENCODE_ROOT = originalOpenCodeRoot;
 		}
 	});
 });

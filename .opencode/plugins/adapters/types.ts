@@ -120,6 +120,129 @@ export interface ToolAfterOutput {
 }
 
 /**
+ * Compaction continuation bundle schema identifier
+ */
+export const PAI_COMPACTION_CONTINUATION_BUNDLE_SCHEMA =
+  "pai.compaction.continuation.bundle.v1" as const;
+
+/**
+ * Derived continuity state schema identifier
+ */
+export const PAI_COMPACTION_DERIVED_CONTINUITY_SCHEMA =
+  "pai.compaction.derived.continuity.v1" as const;
+
+/**
+ * Work pointer included in compaction continuation bundle
+ */
+export interface PaiCompactionSessionWorkPointer {
+  sessionId: string;
+  workDir: string;
+  isParent: boolean;
+}
+
+/**
+ * Next unfinished ISC criterion hint
+ */
+export interface PaiCompactionIscCriterionHint {
+  id: string;
+  text: string;
+  status: string;
+}
+
+/**
+ * ISC progress summary in continuation bundle
+ */
+export interface PaiCompactionIscProgressSummary {
+  total: number;
+  verified: number;
+  pending: number;
+  failed: number;
+  nextUnfinished: PaiCompactionIscCriterionHint[];
+}
+
+/**
+ * Active delegated child-session summary
+ */
+export interface PaiCompactionBackgroundTaskHint {
+  taskId: string;
+  childSessionId: string;
+  status: string;
+  taskDescription?: string;
+}
+
+/**
+ * Compact delegated-session lineage item
+ */
+export interface PaiCompactionLineageItem {
+  taskId: string;
+  childSessionId: string;
+  status: string;
+  launchedAtMs: number;
+  updatedAtMs: number;
+}
+
+/**
+ * Delegated-session lineage summary in continuation bundle
+ */
+export interface PaiCompactionLineageSummary {
+  totalDelegated: number;
+  activeDelegated: number;
+  terminalDelegated: number;
+  statusCounts: Record<string, number>;
+  recent: PaiCompactionLineageItem[];
+}
+
+/**
+ * Compaction continuation bundle generated from existing PAI artifacts
+ */
+export interface PaiCompactionContinuationBundleV1 {
+  schema: typeof PAI_COMPACTION_CONTINUATION_BUNDLE_SCHEMA;
+  generatedAt: string;
+  selection: {
+    parentSessionId: string;
+    referencedChildSessionIds: string[];
+    includedSessionIds: string[];
+    rule: "parent-plus-referenced-children";
+  };
+  currentWork: {
+    activeSlug?: string;
+    currentPointer?: string;
+    pointers: PaiCompactionSessionWorkPointer[];
+  };
+  progress: {
+    prdProgress?: string;
+    prdPhase?: string;
+    isc: PaiCompactionIscProgressSummary;
+  };
+  background: {
+    activeChildSessions: PaiCompactionBackgroundTaskHint[];
+    pendingTaskIds: string[];
+    lineage: PaiCompactionLineageSummary;
+  };
+  continuationHints: string[];
+  budgets: {
+    maxBytes: number;
+    maxLines: number;
+  };
+}
+
+/**
+ * Derived continuity state restored after compaction, sourced from artifacts
+ */
+export interface PaiCompactionDerivedContinuityStateV1 {
+  schema: typeof PAI_COMPACTION_DERIVED_CONTINUITY_SCHEMA;
+  updatedAt: string;
+  workPath?: string;
+  activeWorkSlug?: string;
+  prdProgress?: string;
+  prdPhase?: string;
+  nextUnfinishedIscIds: string[];
+  nextUnfinishedIscTexts: string[];
+  activeBackgroundTaskIds: string[];
+  continuationHints: string[];
+}
+
+/**
  * PAI Hook type mapping
  *
  * Maps PAI hook events to their OpenCode equivalents

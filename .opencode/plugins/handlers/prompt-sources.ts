@@ -14,6 +14,26 @@ import * as path from "node:path";
 
 type UnknownRecord = Record<string, unknown>;
 
+export const PAI_NATIVE_ROUTING_INVARIANT_BLOCK = [
+	"<native-routing-invariants-v1>",
+	"EXPLICIT_ROUTING_CUE:@general->task",
+	"EXPLICIT_ROUTING_CUE:@agent->task",
+	"</native-routing-invariants-v1>",
+].join("\n");
+
+export function ensureNativeRoutingInvariantBlock(content: string): string {
+	const trimmed = content.trim();
+	if (!trimmed) {
+		return PAI_NATIVE_ROUTING_INVARIANT_BLOCK;
+	}
+
+	if (trimmed.includes(PAI_NATIVE_ROUTING_INVARIANT_BLOCK)) {
+		return trimmed;
+	}
+
+	return `${PAI_NATIVE_ROUTING_INVARIANT_BLOCK}\n\n${trimmed}`;
+}
+
 function isRecord(v: unknown): v is UnknownRecord {
   return typeof v === "object" && v !== null;
 }

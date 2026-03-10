@@ -23,6 +23,7 @@ import {
 } from "../lib/paths";
 import { isEnvFlagEnabled, isMemoryParityEnabled } from "../lib/env-flags";
 import { getLearningCategory } from "../lib/learning-utils";
+import { updateWisdomProjection } from "./wisdom-projection";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -102,6 +103,7 @@ const CATEGORIES = {
 } as const;
 
 const LEARNING_DIGEST_FILE_NAME = "digest.md";
+const LEARNING_WISDOM_PROJECTION_FILE_NAME = "wisdom-projection.md";
 const LEARNING_DIGEST_MAX_LINES = 200;
 const LEARNING_DIGEST_MAX_BYTES = 8000;
 const LEARNING_DIGEST_MAX_FILES = 64;
@@ -235,6 +237,7 @@ async function listLearningMarkdownFiles(root: string): Promise<string[]> {
       if (!entry.isFile()) continue;
       if (!entry.name.endsWith(".md")) continue;
       if (entry.name === LEARNING_DIGEST_FILE_NAME) continue;
+      if (entry.name === LEARNING_WISDOM_PROJECTION_FILE_NAME) continue;
       out.push(full);
     }
   };
@@ -361,6 +364,13 @@ async function updateLearningDigestBestEffort(): Promise<void> {
   const result = await updateLearningDigest();
   if (!result.success) {
     fileLogError("Learning digest update failed", result.error ?? "unknown-error");
+  }
+}
+
+async function updateWisdomProjectionBestEffort(): Promise<void> {
+  const result = await updateWisdomProjection();
+  if (!result.success) {
+    fileLogError("Wisdom projection update failed", result.error ?? "unknown-error");
   }
 }
 
@@ -798,6 +808,7 @@ ${summaryText}
 
     const written = await writeFileAtomicOnce(filePath, content);
     await updateLearningDigestBestEffort();
+    await updateWisdomProjectionBestEffort();
     return {
       success: true,
       written,
@@ -915,6 +926,8 @@ export async function extractLearningsFromWork(sessionIdRaw: string): Promise<Ca
     for (const learning of learnings) {
       await persistLearning(learning, sessionId);
     }
+
+    await updateWisdomProjectionBestEffort();
 
     fileLog(`Extracted ${learnings.length} learnings from work session`, "info");
     return { success: true, learnings };

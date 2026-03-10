@@ -58,6 +58,15 @@ describe("AgentExecutionGuard thresholds", () => {
       }),
     ).toBe(true);
   });
+
+	test("does not ask when prompt includes explicit @general mention", () => {
+		expect(
+			shouldAskForForegroundTask({
+				subagent_type: "Engineer",
+				prompt: "Timing: STANDARD but user explicitly asked @general.",
+			}),
+		).toBe(false);
+	});
 });
 
 describe("executePreToolUseHooks task foreground guard", () => {
@@ -104,4 +113,26 @@ describe("executePreToolUseHooks task foreground guard", () => {
 
     expect(result.decision).toBe("ask");
   });
+
+	test("allows explicit @general mention through PreToolUse foreground guard seam", async () => {
+		const config: ClaudeHooksConfig = { PreToolUse: [] };
+
+		const result = await executePreToolUseHooks(
+			{
+				sessionId: "s",
+				toolName: "task",
+				toolInput: {
+					run_in_background: false,
+					subagent_type: "Engineer",
+					prompt: "Timing: STANDARD but route this via @general.",
+				},
+				cwd: process.cwd(),
+			},
+			config,
+			null,
+			{},
+		);
+
+		expect(result.decision).toBe("allow");
+	});
 });

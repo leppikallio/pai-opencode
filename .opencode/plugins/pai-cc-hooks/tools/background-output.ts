@@ -4,6 +4,10 @@ import {
   findBackgroundTaskByTaskId,
   type BackgroundTaskRecord,
 } from "./background-task-state";
+import {
+  normalizeBackgroundTaskLifecycle,
+  isBackgroundTaskTerminal,
+} from "../background/lifecycle-normalizer";
 
 type CarrierClient = {
   session?: {
@@ -81,7 +85,7 @@ function formatParts(parts: unknown[], opts: {
       let text = asString(part.text);
       if (!text) continue;
       if (text.length > opts.thinkingMaxChars) {
-        text = text.slice(0, opts.thinkingMaxChars) + "…";
+        text = `${text.slice(0, opts.thinkingMaxChars)}…`;
       }
       out.push(text);
       continue;
@@ -90,7 +94,6 @@ function formatParts(parts: unknown[], opts: {
     if ((type === "tool_result" || type === "tool_use") && opts.includeToolResults) {
       const text = asString(part.text);
       if (text) out.push(text);
-      continue;
     }
   }
 
@@ -120,7 +123,7 @@ async function waitForCompletion(args: { taskId: string; timeoutMs: number }): P
   while (Date.now() - start < args.timeoutMs) {
     const record = await findBackgroundTaskByTaskId({ taskId: args.taskId });
     if (!record) return null;
-    if (record.completed_at_ms != null) return record;
+    if (isBackgroundTaskTerminal(record)) return record;
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
 
@@ -159,10 +162,11 @@ export function createPaiBackgroundOutputTool(input: { client: unknown }) {
         return `Task not found: ${taskId}`;
       }
 
-      const status = record.completed_at_ms != null ? "completed" : "running";
+      const lifecycle = normalizeBackgroundTaskLifecycle(record);
+      const status = lifecycle.status;
       const fullSession = args.full_session ?? true;
       const messageLimit = Math.min(Math.max(asNumber(args.message_limit) ?? 50, 1), 100);
-      const taskActive = record.completed_at_ms == null;
+      const taskActive = !lifecycle.isTerminal;
       const includeThinking = typeof args.include_thinking === "boolean" ? args.include_thinking : taskActive;
       const includeToolResults =
         typeof args.include_tool_results === "boolean" ? args.include_tool_results : taskActive;
@@ -173,6 +177,12 @@ export function createPaiBackgroundOutputTool(input: { client: unknown }) {
         `Session ID: ${record.child_session_id}`,
         `Status: ${status}`,
       ];
+      if (lifecycle.terminalReason) {
+        headerLines.push(`Terminal reason: ${lifecycle.terminalReason}`);
+      }
+      if (record.concurrency_group) {
+        headerLines.push(`Concurrency group: ${record.concurrency_group}`);
+      }
       if (record.launch_error) {
         headerLines.push(`Launch error: ${record.launch_error}`);
       }

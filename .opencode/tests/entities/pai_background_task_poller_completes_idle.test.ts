@@ -7,8 +7,7 @@ import { BackgroundTaskPoller } from "../../plugins/pai-cc-hooks/background/poll
 import {
   findBackgroundTaskByTaskId,
   listActiveBackgroundTasks,
-  markBackgroundTaskCompleted,
-  markNotified,
+  markBackgroundTaskTerminalAtomic,
   recordBackgroundTaskLaunch,
 } from "../../plugins/pai-cc-hooks/tools/background-task-state";
 
@@ -43,8 +42,7 @@ describe("PAI BackgroundTaskPoller", () => {
           },
         },
         listActiveBackgroundTasks,
-        markNotified,
-        markBackgroundTaskCompleted,
+        markBackgroundTaskTerminalAtomic,
         onTaskCompleted: async () => {
           completedCalls += 1;
         },

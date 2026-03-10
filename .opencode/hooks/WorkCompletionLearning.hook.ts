@@ -5,6 +5,7 @@ import {
   captureWorkCompletionSummary,
   extractLearningsFromWork,
 } from "../plugins/handlers/learning-capture";
+import { updateWisdomProjection } from "../plugins/handlers/wisdom-projection";
 import { isEnvFlagEnabled } from "../plugins/lib/env-flags";
 
 if (process.execArgv.includes("--check")) {
@@ -53,6 +54,8 @@ async function main(): Promise<void> {
     if (isEnvFlagEnabled("PAI_ENABLE_FINE_GRAIN_LEARNINGS", false)) {
       await extractLearningsFromWork(sessionId);
     }
+
+    await updateWisdomProjection();
   } catch {
     // Hooks must never throw.
   }

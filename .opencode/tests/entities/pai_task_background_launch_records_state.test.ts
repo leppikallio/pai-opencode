@@ -78,16 +78,23 @@ describe("PAI task tool run_in_background", () => {
 					},
 				},
 			});
-			expect(calls[1]).toEqual({
+			expect(calls[1]).toMatchObject({
 				method: "prompt",
 				payload: {
 					path: { id: "child-session-123" },
 					body: {
 						agent: "Engineer",
-						parts: [{ type: "text", text: "Do the thing" }],
 					},
 				},
 			});
+			const promptPart = (
+				calls[1].payload as {
+					body?: { parts?: Array<{ type?: string; text?: string }> };
+				}
+			).body?.parts?.[0];
+			expect(promptPart?.type).toBe("text");
+			expect(promptPart?.text).toContain("PAI SCRATCHPAD (Binding)");
+			expect(promptPart?.text).toContain("Do the thing");
 
 			const statePath = getBackgroundTaskStatePath();
 			const persisted = JSON.parse(fs.readFileSync(statePath, "utf-8")) as {
