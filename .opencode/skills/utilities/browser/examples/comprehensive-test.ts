@@ -3,7 +3,7 @@
  * Comprehensive test of all Playwright FileMCP functionality
  */
 
-import { PlaywrightBrowser } from '../index.ts'
+import { PlaywrightBrowser } from '../index'
 
 const TEST_URL = 'https://httpbin.org'
 const FORM_URL = 'https://httpbin.org/forms/post'
@@ -215,8 +215,8 @@ async function main() {
   })
 
   await test('evaluate() - DOM access', async () => {
-    // Use document.body which always exists
-    const hasBody = await browser.evaluate(() => !!document.body)
+    // Check DOM access without relying on DOM lib types in Node context
+    const hasBody = await browser.evaluate('Boolean(document?.body)')
     if (!hasBody) throw new Error('Could not access DOM via evaluate')
   })
 

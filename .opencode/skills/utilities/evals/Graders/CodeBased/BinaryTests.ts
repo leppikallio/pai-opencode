@@ -6,6 +6,7 @@
 import { BaseGrader, registerGrader, type GraderContext } from '../Base.ts';
 import type { GraderResult, BinaryTestsParams } from '../../Types/index.ts';
 import { $ } from 'bun';
+import { parseBinaryTestsParams } from './ParamGuards.ts';
 
 export class BinaryTestsGrader extends BaseGrader {
   type = 'binary_tests' as const;
@@ -13,9 +14,15 @@ export class BinaryTestsGrader extends BaseGrader {
 
   async grade(context: GraderContext): Promise<GraderResult> {
     const start = performance.now();
-    const params = this.config.params as BinaryTestsParams;
+    const params: BinaryTestsParams | null = parseBinaryTestsParams(this.config.params);
 
-    if (!params?.test_files?.length) {
+    if (!params) {
+      return this.createResult(0, false, performance.now() - start, {
+        reasoning: 'Invalid binary_tests params',
+      });
+    }
+
+    if (!params.test_files.length) {
       return this.createResult(0, false, performance.now() - start, {
         reasoning: 'No test files configured',
       });

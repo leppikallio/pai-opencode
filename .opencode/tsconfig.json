@@ -4,9 +4,18 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
     "allowImportingTsExtensions": true,
     "lib": ["ES2022"],
     "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "useUnknownInCatchVariables": true,
+    "alwaysStrict": true,
     "noEmit": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -14,9 +23,11 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "@opencode-ai/plugin": ["./node_modules/@opencode-ai/plugin"]
+      "@opencode-ai/plugin": ["./node_modules/@opencode-ai/plugin"],
+      "@/components/*": ["./skills/telos/ReportTemplate/Components/*"],
+      "@/lib/*": ["./skills/telos/ReportTemplate/Lib/*"]
     }
   },
-  "include": ["**/*.ts"],
-  "exclude": ["node_modules", "_deprecated", "skills/telos/DashboardTemplate/**", "skills/web-assessment/BugBountyTool/**"]
+  "include": ["**/*.ts", "**/*.tsx", "**/*.mts", "**/*.cts"],
+  "exclude": ["node_modules", "_deprecated", "skills/telos/DashboardTemplate/**", "skills/telos/ReportTemplate/next-env.d.ts", "skills/web-assessment/BugBountyTool/**"]
 }

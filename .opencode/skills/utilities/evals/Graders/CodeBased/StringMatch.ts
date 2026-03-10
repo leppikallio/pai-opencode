@@ -5,6 +5,7 @@
 
 import { BaseGrader, registerGrader, type GraderContext } from '../Base.ts';
 import type { GraderResult, StringMatchParams } from '../../Types/index.ts';
+import { parseStringMatchParams } from './ParamGuards.ts';
 
 export class StringMatchGrader extends BaseGrader {
   type = 'string_match' as const;
@@ -12,9 +13,15 @@ export class StringMatchGrader extends BaseGrader {
 
   async grade(context: GraderContext): Promise<GraderResult> {
     const start = performance.now();
-    const params = this.config.params as StringMatchParams;
+    const params: StringMatchParams | null = parseStringMatchParams(this.config.params);
 
-    if (!params?.patterns?.length) {
+    if (!params) {
+      return this.createResult(0, false, performance.now() - start, {
+        reasoning: 'Invalid string_match params',
+      });
+    }
+
+    if (!params.patterns.length) {
       return this.createResult(0, false, performance.now() - start, {
         reasoning: 'No patterns configured',
       });

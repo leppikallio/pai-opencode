@@ -125,6 +125,7 @@ export class BugBountyTracker {
 
     return {
       ...results,
+      total_checked: 5,
       check_duration_ms: duration,
     };
   }

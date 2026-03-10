@@ -1,6 +1,8 @@
+import type { ReactNode } from "react"
+
 interface CalloutProps {
   label?: string
-  children: React.ReactNode
+  children: ReactNode
 }
 
 export function Callout({ label = "Key Takeaway", children }: CalloutProps) {

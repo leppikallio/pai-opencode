@@ -11,7 +11,7 @@ export interface Actor {
   id: string
   name: string
   username: string
-  title: string
+  title?: string
   description?: string
   createdAt?: string
   modifiedAt?: string
@@ -77,10 +77,14 @@ export class Apify {
       offset: options?.offset ?? 0
     })
 
+    const normalizedActors = (Array.isArray(items) ? items : [])
+      .map((item) => normalizeActor(item))
+      .filter((actor: Actor | null): actor is Actor => actor !== null)
+
     // Filter client-side by query
     // Match if ANY word in query appears in actor fields
     const queryWords = query.toLowerCase().split(/\s+/)
-    const filtered = items.filter((actor: Actor) => {
+    const filtered = normalizedActors.filter((actor: Actor) => {
       const name = (actor.name || '').toLowerCase()
       const title = (actor.title || '').toLowerCase()
       const description = (actor.description || '').toLowerCase()
@@ -92,7 +96,7 @@ export class Apify {
     })
 
     // Return requested number of matches
-    return filtered.slice(0, options?.limit ?? 10) as Actor[]
+    return filtered.slice(0, options?.limit ?? 10)
   }
 
   /**
@@ -118,7 +122,11 @@ export class Apify {
       build: options?.build
     })
 
-    return run as ActorRun
+    if (!run) {
+      throw new Error(`Actor call returned empty run payload: ${actorId}`)
+    }
+
+    return normalizeRun(run, actorId)
   }
 
   /**
@@ -139,7 +147,12 @@ export class Apify {
    */
   async getRun(runId: string): Promise<ActorRun> {
     const run = await this.client.run(runId).get()
-    return run as ActorRun
+
+    if (!run) {
+      throw new Error(`Actor run not found: ${runId}`)
+    }
+
+    return normalizeRun(run)
   }
 
   /**
@@ -158,7 +171,91 @@ export class Apify {
     const run = await this.client.run(runId).waitForFinish({
       waitSecs: options?.waitSecs
     })
-    return run as ActorRun
+
+    if (!run) {
+      throw new Error(`Actor run did not return completion payload: ${runId}`)
+    }
+
+    return normalizeRun(run)
+  }
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function asString(value: unknown): string | undefined {
+  if (typeof value === 'string') {
+    return value
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString()
+  }
+
+  return undefined
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === 'number' ? value : undefined
+}
+
+function normalizeActor(actor: unknown): Actor | null {
+  if (!isObjectRecord(actor)) {
+    return null
+  }
+
+  const statsRecord = isObjectRecord(actor.stats) ? actor.stats : undefined
+
+  return {
+    id: asString(actor.id) ?? '',
+    name: asString(actor.name) ?? '',
+    username: asString(actor.username) ?? '',
+    title: asString(actor.title),
+    description: asString(actor.description),
+    createdAt: asString(actor.createdAt),
+    modifiedAt: asString(actor.modifiedAt),
+    stats: statsRecord
+      ? {
+        totalRuns: asNumber(statsRecord.totalRuns),
+        lastRunStartedAt: asString(statsRecord.lastRunStartedAt)
+      }
+      : undefined
+  }
+}
+
+const ACTOR_RUN_STATUSES = new Set<ActorRun['status']>([
+  'READY',
+  'RUNNING',
+  'SUCCEEDED',
+  'FAILED',
+  'TIMED-OUT',
+  'ABORTED'
+])
+
+function normalizeRunStatus(status: unknown): ActorRun['status'] {
+  return (typeof status === 'string' && ACTOR_RUN_STATUSES.has(status as ActorRun['status']))
+    ? (status as ActorRun['status'])
+    : 'FAILED'
+}
+
+function normalizeRun(run: unknown, fallbackActorId = ''): ActorRun {
+  if (!isObjectRecord(run)) {
+    throw new Error('Invalid actor run payload')
+  }
+
+  return {
+    id: asString(run.id) ?? '',
+    actorId: asString(run.actId) ?? asString(run.actorId) ?? fallbackActorId,
+    status: normalizeRunStatus(run.status),
+    startedAt: asString(run.startedAt) ?? '',
+    finishedAt: asString(run.finishedAt),
+    defaultDatasetId: asString(run.defaultDatasetId) ?? '',
+    defaultKeyValueStoreId: asString(run.defaultKeyValueStoreId) ?? '',
+    buildNumber: asString(run.buildNumber),
+    exitCode: asNumber(run.exitCode),
+    containerUrl: asString(run.containerUrl),
+    output: run.output
   }
 }
 

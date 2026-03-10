@@ -23,9 +23,12 @@ async function main() {
 
     console.log(`   Found ${actors.length} actors:`)
     actors.forEach((actor, i) => {
+      const totalRuns = actor.stats?.totalRuns ?? 0
+      const lastRun = actor.stats?.lastRunStartedAt ?? 'unknown'
+
       console.log(`   ${i + 1}. ${actor.username}/${actor.name}`)
       console.log(`      ${actor.title}`)
-      console.log(`      Stats: ${actor.stats.runs.total} runs, ${actor.stats.users.total} users\n`)
+      console.log(`      Stats: ${totalRuns} runs, last run ${lastRun}\n`)
     })
 
     // Select the most popular actor

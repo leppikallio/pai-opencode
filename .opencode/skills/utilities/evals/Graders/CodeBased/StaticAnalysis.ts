@@ -6,6 +6,7 @@
 import { BaseGrader, registerGrader, type GraderContext } from '../Base.ts';
 import type { GraderResult, StaticAnalysisParams } from '../../Types/index.ts';
 import { $ } from 'bun';
+import { parseStaticAnalysisParams } from './ParamGuards.ts';
 
 export class StaticAnalysisGrader extends BaseGrader {
   type = 'static_analysis' as const;
@@ -13,9 +14,15 @@ export class StaticAnalysisGrader extends BaseGrader {
 
   async grade(context: GraderContext): Promise<GraderResult> {
     const start = performance.now();
-    const params = this.config.params as StaticAnalysisParams;
+    const params: StaticAnalysisParams | null = parseStaticAnalysisParams(this.config.params);
 
-    if (!params?.commands?.length) {
+    if (!params) {
+      return this.createResult(0, false, performance.now() - start, {
+        reasoning: 'Invalid static_analysis params',
+      });
+    }
+
+    if (!params.commands.length) {
       return this.createResult(0, false, performance.now() - start, {
         reasoning: 'No analysis commands configured',
       });

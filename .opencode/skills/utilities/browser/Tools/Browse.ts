@@ -17,7 +17,7 @@
  * Session auto-starts on first use. No explicit start needed.
  */
 
-import { getPaiRuntimeInfo } from '../../../pai-tools/PaiRuntime'
+import { getPaiRuntimeInfo } from '../../../../pai-tools/PaiRuntime'
 
 
 const VOICE_SERVER = 'http://localhost:8888/notify'
@@ -233,7 +233,7 @@ async function sessionCommand(
   }
 
   const url = method === 'GET' && body
-    ? `http://localhost:${port}/${endpoint}?${new URLSearchParams(Object.entries(body).map(([key, value]) => [key, String(value)]))}`
+    ? `http://localhost:${port}/${endpoint}?${new URLSearchParams(Object.entries(body).map(([key, value]): [string, string] => [key, String(value)]))}`
     : `http://localhost:${port}/${endpoint}`
 
   const res = await fetch(url, options)

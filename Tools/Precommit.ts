@@ -4,6 +4,7 @@
  *
  * Runs mandatory checks and fails the commit on each failure:
  * - Biome lint on staged TypeScript files
+ * - TypeScript typecheck on staged TypeScript work
  * - gitleaks leak detection (staged)
  * - PAI protected file validation (staged)
  */
@@ -67,7 +68,15 @@ function parseBiomeJson(stdout: string): { summary: BiomeLintSummary } | null {
 }
 
 function stagedTypeScriptFiles(staged: string[]): string[] {
-  return staged.filter((p) => p.endsWith(".ts") || p.endsWith(".tsx"));
+  return staged.filter((p) => {
+    const lower = p.toLowerCase();
+    return (
+      lower.endsWith(".ts")
+      || lower.endsWith(".tsx")
+      || lower.endsWith(".mts")
+      || lower.endsWith(".cts")
+    );
+  });
 }
 
 function biomeBin(): string {
@@ -137,7 +146,19 @@ async function main(): Promise<void> {
     }
   }
 
-  // 3) gitleaks (staged)
+  // 3) TypeScript typecheck (repo-level, only when staged TS exists)
+  if (tsFiles.length > 0) {
+    const code = await run({
+      cmd: "bun",
+      args: ["run", "typecheck"],
+    });
+    if (code !== 0) {
+      console.error("\nERROR: TypeScript typecheck failed. Precommit requires repo typecheck to pass for staged TypeScript changes.");
+      failed = true;
+    }
+  }
+
+  // 4) gitleaks (staged)
   // Strict: fail the commit if gitleaks is not installed.
   const gitleaksCheck = await capture({ cmd: "gitleaks", args: ["version"] });
   if (gitleaksCheck.code !== 0) {
@@ -160,7 +181,7 @@ async function main(): Promise<void> {
     if (code !== 0) failed = true;
   }
 
-  // 4) PAI protected file validation (staged)
+  // 5) PAI protected file validation (staged)
   {
     const code = await run({
       cmd: "bun",

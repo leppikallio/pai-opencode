@@ -12,9 +12,188 @@
  * await browser.close()
  */
 
-import { chromium, firefox, webkit, type Browser, type Page, type BrowserContext } from 'playwright'
-
 export type BrowserType = 'chromium' | 'firefox' | 'webkit'
+
+interface ConsoleMessage {
+  type(): string
+  text(): string
+}
+
+interface PlaywrightRequest {
+  url(): string
+  method(): string
+  resourceType(): string
+  headers(): Record<string, string>
+}
+
+interface PlaywrightResponse {
+  url(): string
+  request(): PlaywrightRequest
+  status(): number
+  statusText(): string
+  headers(): Record<string, string>
+  body(): Promise<Buffer>
+  text(): Promise<string>
+}
+
+interface PlaywrightDialog {
+  type(): 'alert' | 'confirm' | 'prompt' | 'beforeunload'
+  message(): string
+  defaultValue(): string
+  accept(promptText?: string): Promise<void>
+  dismiss(): Promise<void>
+}
+
+interface Locator {
+  screenshot(options?: {
+    path?: string
+    type?: 'png' | 'jpeg'
+    quality?: number
+  }): Promise<Buffer>
+  textContent(): Promise<string | null>
+  innerHTML(): Promise<string>
+  pressSequentially(text: string, options?: { delay?: number }): Promise<void>
+  click(): Promise<void>
+  fill(value: string): Promise<void>
+  waitFor(options?: {
+    state?: 'attached' | 'detached' | 'visible' | 'hidden'
+    timeout?: number
+  }): Promise<void>
+  press(key: string): Promise<void>
+  ariaSnapshot(): Promise<string>
+}
+
+interface FrameLocator {
+  locator(selector: string): Locator
+}
+
+interface Keyboard {
+  press(key: string): Promise<void>
+}
+
+interface Page {
+  on(event: 'console', handler: (message: ConsoleMessage) => void): void
+  on(event: 'request', handler: (request: PlaywrightRequest) => void): void
+  on(event: 'response', handler: (response: PlaywrightResponse) => void): void
+  on(event: 'dialog', handler: (dialog: PlaywrightDialog) => void): void
+  once(event: 'dialog', handler: (dialog: PlaywrightDialog) => void): void
+  goto(url: string, options?: { timeout?: number; waitUntil?: NavigateOptions['waitUntil'] }): Promise<void>
+  goBack(): Promise<void>
+  goForward(): Promise<void>
+  reload(): Promise<void>
+  url(): string
+  title(): Promise<string>
+  locator(selector: string): Locator
+  content(): Promise<string>
+  screenshot(options?: {
+    path?: string
+    fullPage?: boolean
+    type?: 'png' | 'jpeg'
+    quality?: number
+  }): Promise<Buffer>
+  pdf(options?: {
+    path: string
+    format?: 'A4' | 'Letter' | 'Legal' | 'Tabloid'
+    printBackground?: boolean
+    margin?: { top?: string; right?: string; bottom?: string; left?: string }
+  }): Promise<Buffer>
+  click(selector: string, options?: ClickOptions): Promise<void>
+  hover(selector: string): Promise<void>
+  fill(selector: string, value: string, options?: FillOptions): Promise<void>
+  selectOption(selector: string, value: string | string[]): Promise<void>
+  keyboard: Keyboard
+  dragAndDrop(sourceSelector: string, targetSelector: string): Promise<void>
+  setInputFiles(selector: string, filePath: string | string[]): Promise<void>
+  setViewportSize(size: { width: number; height: number }): Promise<void>
+  frameLocator(selector: string): FrameLocator
+  evaluate<T>(script: unknown): Promise<T>
+  getByText(text: string): Locator
+  waitForSelector(selector: string, options?: {
+    state?: 'attached' | 'detached' | 'visible' | 'hidden'
+    timeout?: number
+  }): Promise<void>
+  waitForURL(url: string | RegExp, options?: { timeout?: number }): Promise<void>
+  waitForLoadState(state: 'networkidle', options?: { timeout?: number }): Promise<void>
+  waitForResponse(urlPattern: string | RegExp, options?: { timeout?: number }): Promise<PlaywrightResponse>
+  bringToFront(): Promise<void>
+  close(): Promise<void>
+}
+
+interface BrowserContext {
+  newPage(): Promise<Page>
+  pages(): Page[]
+  close(): Promise<void>
+}
+
+interface Browser {
+  newContext(options?: {
+    viewport?: { width: number; height: number }
+    userAgent?: string
+  }): Promise<BrowserContext>
+  close(): Promise<void>
+}
+
+interface BrowserLauncher {
+  launch(options?: { headless?: boolean }): Promise<Browser>
+}
+
+interface PlaywrightModule {
+  chromium: BrowserLauncher
+  firefox: BrowserLauncher
+  webkit: BrowserLauncher
+  devices: Record<string, { viewport: { width: number; height: number } }>
+}
+
+const PLAYWRIGHT_MODULE_NAME = 'playwright'
+
+async function dynamicImport(moduleName: string): Promise<unknown> {
+  return import(moduleName)
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+function isBrowserLauncher(value: unknown): value is BrowserLauncher {
+  return isRecord(value) && typeof value.launch === 'function'
+}
+
+function isPlaywrightModule(value: unknown): value is PlaywrightModule {
+  if (!isRecord(value)) return false
+
+  const devices = value.devices
+  return isBrowserLauncher(value.chromium)
+    && isBrowserLauncher(value.firefox)
+    && isBrowserLauncher(value.webkit)
+    && isRecord(devices)
+}
+
+function normalizePlaywrightImportError(error: unknown): Error {
+  const code = isRecord(error) ? error.code : undefined
+  const message = error instanceof Error ? error.message : String(error)
+  const missingModule = code === 'ERR_MODULE_NOT_FOUND'
+    || message.includes("Cannot find package 'playwright'")
+
+  if (missingModule) {
+    return new Error(
+      "Playwright runtime dependency is missing in this worktree. Lane C remains compile-clean only; browser execution stays blocked until the owning tooling lane installs 'playwright'."
+    )
+  }
+
+  return error instanceof Error ? error : new Error(message)
+}
+
+async function importPlaywrightModule(): Promise<PlaywrightModule> {
+  try {
+    const loaded = await dynamicImport(PLAYWRIGHT_MODULE_NAME)
+    if (!isPlaywrightModule(loaded)) {
+      throw new Error("'playwright' import resolved, but missing expected launcher exports")
+    }
+    return loaded
+  } catch (error: unknown) {
+    throw normalizePlaywrightImportError(error)
+  }
+}
 
 export interface LaunchOptions {
   browser?: BrowserType
@@ -95,7 +274,12 @@ export class PlaywrightBrowser {
    */
   async launch(options?: LaunchOptions): Promise<void> {
     const browserType = options?.browser || 'chromium'
-    const launcher = browserType === 'firefox' ? firefox : browserType === 'webkit' ? webkit : chromium
+    const playwright = await importPlaywrightModule()
+    const launcher = browserType === 'firefox'
+      ? playwright.firefox
+      : browserType === 'webkit'
+        ? playwright.webkit
+        : playwright.chromium
 
     this.browser = await launcher.launch({
       headless: options?.headless ?? false
@@ -128,7 +312,7 @@ export class PlaywrightBrowser {
    */
   private attachPageListeners(page: Page): void {
     // Capture console logs
-    page.on('console', msg => {
+    page.on('console', (msg: ConsoleMessage) => {
       this.consoleLogs.push({
         type: msg.type(),
         text: msg.text(),
@@ -137,7 +321,7 @@ export class PlaywrightBrowser {
     })
 
     // Capture network requests
-    page.on('request', request => {
+    page.on('request', (request: PlaywrightRequest) => {
       const timestamp = Date.now()
       this.requestTimings.set(request.url(), timestamp)
       this.networkLogs.push({
@@ -151,7 +335,7 @@ export class PlaywrightBrowser {
     })
 
     // Capture network responses
-    page.on('response', async response => {
+    page.on('response', async (response: PlaywrightResponse) => {
       const url = response.url()
       const requestTime = this.requestTimings.get(url)
       const timestamp = Date.now()
@@ -179,7 +363,7 @@ export class PlaywrightBrowser {
     })
 
     // Capture dialogs
-    page.on('dialog', async dialog => {
+    page.on('dialog', async (dialog: PlaywrightDialog) => {
       this.pendingDialog = {
         type: dialog.type() as DialogInfo['type'],
         message: dialog.message(),
@@ -291,7 +475,7 @@ export class PlaywrightBrowser {
       return await page.locator(selector).textContent() || ''
     }
 
-    return await page.evaluate(() => document.body.innerText)
+    return await page.evaluate('document.body?.innerText ?? ""') as string
   }
 
   /**
@@ -445,7 +629,7 @@ export class PlaywrightBrowser {
    */
   async setDevice(device: string): Promise<void> {
     const page = this.ensurePage()
-    const devices = await import('playwright').then(m => m.devices)
+    const { devices } = await importPlaywrightModule()
     const deviceConfig = devices[device]
 
     if (!deviceConfig) {
@@ -525,12 +709,12 @@ export class PlaywrightBrowser {
    * Set custom user agent
    */
   async setUserAgent(userAgent: string): Promise<void> {
-    if (!this.context) {
+    if (!this.context || !this.browser) {
       throw new Error('Browser not launched. Call launch() first.')
     }
 
     // Need to create new page with new context for UA change
-    const newContext = await this.browser?.newContext({ userAgent })
+    const newContext = await this.browser.newContext({ userAgent })
     const newPage = await newContext.newPage()
 
     // Attach event listeners to new page
@@ -699,7 +883,7 @@ export class PlaywrightBrowser {
 
     // The dialog was already stored, we need to wait for the next one if already handled
     // This is a simplification - for more complex cases, we'd queue dialogs
-    page.once('dialog', async dialog => {
+    page.once('dialog', async (dialog: PlaywrightDialog) => {
       if (action === 'accept') {
         await dialog.accept(promptText)
       } else {
@@ -743,7 +927,7 @@ export class PlaywrightBrowser {
       throw new Error('Browser not launched. Call launch() first.')
     }
 
-    return this.context.pages().map((page, index) => ({
+    return this.context.pages().map((page: Page, index: number) => ({
       url: page.url(),
       title: '', // Would need async to get title
       index

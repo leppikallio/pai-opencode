@@ -111,6 +111,9 @@ describe("deep_research orchestrator bounded review loop (entity)", () => {
           fixture_summaries_dir: fixturePath("summaries", "phase05", "summaries-pass"),
           fixture_draft_path: fixturePath("summaries", "phase05", "synthesis", "final-synthesis-pass.md"),
           drivers: {
+            runAgent: async (input: OrchestratorLiveRunAgentInput) => ({
+              markdown: validMarkdownNoGaps(input.perspective_id),
+            }),
             getReviewFixtureBundleDir: (iteration: number) => {
               if (iteration === 1) {
                 return fixturePath("summaries", "phase05", "review-fixture", "changes");

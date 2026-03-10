@@ -26,7 +26,7 @@
  *   POST /stop         - Stop server
  */
 
-import { PlaywrightBrowser } from '../index.ts'
+import { PlaywrightBrowser } from '../index'
 
 const CONFIG = {
   port: parseInt(process.env.BROWSER_PORT || '9222', 10),
@@ -101,10 +101,95 @@ setInterval(checkIdleTimeout, 60 * 1000)
 // ============================================
 
 type JsonPayload = unknown
+type JsonObject = Record<string, unknown>
+type NavigateWaitUntil = 'load' | 'domcontentloaded' | 'networkidle' | 'commit'
+type WaitForSelectorState = 'attached' | 'detached' | 'visible' | 'hidden'
+type WaitForTextState = 'visible' | 'hidden'
 type ConsoleLogType = 'all' | 'error' | 'warning' | 'log' | 'info' | 'debug'
 const CONSOLE_LOG_TYPES = new Set<ConsoleLogType>([
   'all', 'error', 'warning', 'log', 'info', 'debug'
 ])
+const NAVIGATE_WAIT_UNTIL_VALUES = new Set<NavigateWaitUntil>([
+  'load',
+  'domcontentloaded',
+  'networkidle',
+  'commit'
+])
+const WAIT_FOR_SELECTOR_STATE_VALUES = new Set<WaitForSelectorState>([
+  'attached',
+  'detached',
+  'visible',
+  'hidden'
+])
+const WAIT_FOR_TEXT_STATE_VALUES = new Set<WaitForTextState>([
+  'visible',
+  'hidden'
+])
+
+function isJsonObject(value: unknown): value is JsonObject {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+async function readJsonObject(req: Request): Promise<JsonObject> {
+  const body = await req.json()
+  if (!isJsonObject(body)) {
+    throw new Error('JSON body must be an object')
+  }
+  return body
+}
+
+function getString(body: JsonObject, key: string): string | undefined {
+  const value = body[key]
+  return typeof value === 'string' ? value : undefined
+}
+
+function getNumber(body: JsonObject, key: string): number | undefined {
+  const value = body[key]
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    if (Number.isFinite(parsed)) return parsed
+  }
+  return undefined
+}
+
+function getBoolean(body: JsonObject, key: string): boolean | undefined {
+  const value = body[key]
+  return typeof value === 'boolean' ? value : undefined
+}
+
+function getNavigateWaitUntil(body: JsonObject): NavigateWaitUntil | undefined {
+  const value = getString(body, 'waitUntil')
+  if (!value) return undefined
+  return NAVIGATE_WAIT_UNTIL_VALUES.has(value as NavigateWaitUntil)
+    ? (value as NavigateWaitUntil)
+    : undefined
+}
+
+function getWaitForSelectorState(body: JsonObject): WaitForSelectorState | undefined {
+  const value = getString(body, 'state')
+  if (!value) return undefined
+  return WAIT_FOR_SELECTOR_STATE_VALUES.has(value as WaitForSelectorState)
+    ? (value as WaitForSelectorState)
+    : undefined
+}
+
+function getWaitForTextState(body: JsonObject): WaitForTextState | undefined {
+  const value = getString(body, 'state')
+  if (!value) return undefined
+  return WAIT_FOR_TEXT_STATE_VALUES.has(value as WaitForTextState)
+    ? (value as WaitForTextState)
+    : undefined
+}
+
+function getSelectValue(body: JsonObject): string | string[] | undefined {
+  const value = body.value
+  if (typeof value === 'string') return value
+  if (Array.isArray(value) && value.every(item => typeof item === 'string')) {
+    return value as string[]
+  }
+  return undefined
+}
 
 function json(data: JsonPayload, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -246,14 +331,17 @@ const _server = Bun.serve({
 
       // Navigate - CLEARS LOGS for fresh page diagnostics
       if (url.pathname === '/navigate' && method === 'POST') {
-        const body = await req.json()
-        if (!body.url) return error('url required', 400)
+        const body = await readJsonObject(req)
+        const targetUrl = getString(body, 'url')
+        if (!targetUrl) return error('url required', 400)
 
         // Clear logs before navigating for clean diagnostic slate
         browser.getConsoleLogs({ clear: true })
         browser.clearNetworkLogs()
 
-        await browser.navigate(body.url, { waitUntil: body.waitUntil || 'networkidle' })
+        await browser.navigate(targetUrl, {
+          waitUntil: getNavigateWaitUntil(body) || 'networkidle'
+        })
         await saveState()
 
         return success({
@@ -264,36 +352,41 @@ const _server = Bun.serve({
 
       // Click
       if (url.pathname === '/click' && method === 'POST') {
-        const body = await req.json()
-        if (!body.selector) return error('selector required', 400)
-        await browser.click(body.selector, { timeout: body.timeout })
-        return success({ clicked: body.selector })
+        const body = await readJsonObject(req)
+        const selector = getString(body, 'selector')
+        if (!selector) return error('selector required', 400)
+        await browser.click(selector, { timeout: getNumber(body, 'timeout') })
+        return success({ clicked: selector })
       }
 
       // Fill
       if (url.pathname === '/fill' && method === 'POST') {
-        const body = await req.json()
-        if (!body.selector || body.value === undefined) return error('selector and value required', 400)
-        await browser.fill(body.selector, body.value)
-        return success({ filled: body.selector })
+        const body = await readJsonObject(req)
+        const selector = getString(body, 'selector')
+        const value = getString(body, 'value')
+        if (!selector || value === undefined) return error('selector and value required', 400)
+        await browser.fill(selector, value)
+        return success({ filled: selector })
       }
 
       // Type (character by character)
       if (url.pathname === '/type' && method === 'POST') {
-        const body = await req.json()
-        if (!body.selector || !body.text) return error('selector and text required', 400)
-        await browser.type(body.selector, body.text, body.delay)
-        return success({ typed: body.selector })
+        const body = await readJsonObject(req)
+        const selector = getString(body, 'selector')
+        const text = getString(body, 'text')
+        if (!selector || !text) return error('selector and text required', 400)
+        await browser.type(selector, text, getNumber(body, 'delay'))
+        return success({ typed: selector })
       }
 
       // Screenshot
       if (url.pathname === '/screenshot' && method === 'POST') {
-        const body = await req.json()
-        const path = body.path || '/tmp/screenshot.png'
+        const body = await readJsonObject(req)
+        const path = getString(body, 'path') || '/tmp/screenshot.png'
         await browser.screenshot({
           path,
-          fullPage: body.fullPage || false,
-          selector: body.selector
+          fullPage: getBoolean(body, 'fullPage') || false,
+          selector: getString(body, 'selector')
         })
         return success({ path })
       }
@@ -314,56 +407,63 @@ const _server = Bun.serve({
 
       // Evaluate JavaScript
       if (url.pathname === '/evaluate' && method === 'POST') {
-        const body = await req.json()
-        if (!body.script) return error('script required', 400)
-        const result = await browser.evaluate(body.script)
+        const body = await readJsonObject(req)
+        const script = getString(body, 'script')
+        if (!script) return error('script required', 400)
+        const result = await browser.evaluate(script)
         return success({ result })
       }
 
       // Wait for selector
       if (url.pathname === '/wait' && method === 'POST') {
-        const body = await req.json()
-        if (!body.selector) return error('selector required', 400)
-        await browser.waitForSelector(body.selector, {
-          state: body.state,
-          timeout: body.timeout
+        const body = await readJsonObject(req)
+        const selector = getString(body, 'selector')
+        if (!selector) return error('selector required', 400)
+        await browser.waitForSelector(selector, {
+          state: getWaitForSelectorState(body),
+          timeout: getNumber(body, 'timeout')
         })
-        return success({ found: body.selector })
+        return success({ found: selector })
       }
 
       // Wait for text
       if (url.pathname === '/wait-text' && method === 'POST') {
-        const body = await req.json()
-        if (!body.text) return error('text required', 400)
-        await browser.waitForText(body.text, {
-          state: body.state,
-          timeout: body.timeout
+        const body = await readJsonObject(req)
+        const text = getString(body, 'text')
+        if (!text) return error('text required', 400)
+        await browser.waitForText(text, {
+          state: getWaitForTextState(body),
+          timeout: getNumber(body, 'timeout')
         })
-        return success({ found: body.text })
+        return success({ found: text })
       }
 
       // Hover
       if (url.pathname === '/hover' && method === 'POST') {
-        const body = await req.json()
-        if (!body.selector) return error('selector required', 400)
-        await browser.hover(body.selector)
-        return success({ hovered: body.selector })
+        const body = await readJsonObject(req)
+        const selector = getString(body, 'selector')
+        if (!selector) return error('selector required', 400)
+        await browser.hover(selector)
+        return success({ hovered: selector })
       }
 
       // Press key
       if (url.pathname === '/press' && method === 'POST') {
-        const body = await req.json()
-        if (!body.key) return error('key required', 400)
-        await browser.pressKey(body.key, body.selector)
-        return success({ pressed: body.key })
+        const body = await readJsonObject(req)
+        const key = getString(body, 'key')
+        if (!key) return error('key required', 400)
+        await browser.pressKey(key, getString(body, 'selector'))
+        return success({ pressed: key })
       }
 
       // Select dropdown
       if (url.pathname === '/select' && method === 'POST') {
-        const body = await req.json()
-        if (!body.selector || !body.value) return error('selector and value required', 400)
-        await browser.select(body.selector, body.value)
-        return success({ selected: body.value })
+        const body = await readJsonObject(req)
+        const selector = getString(body, 'selector')
+        const value = getSelectValue(body)
+        if (!selector || value === undefined) return error('selector and value required', 400)
+        await browser.select(selector, value)
+        return success({ selected: value })
       }
 
       // Tabs - list
@@ -374,9 +474,10 @@ const _server = Bun.serve({
 
       // Tabs - new
       if (url.pathname === '/tabs' && method === 'POST') {
-        const body = await req.json()
-        await browser.newTab(body.url)
-        return success({ created: true, url: body.url })
+        const body = await readJsonObject(req)
+        const newTabUrl = getString(body, 'url')
+        await browser.newTab(newTabUrl)
+        return success({ created: true, url: newTabUrl })
       }
 
       // Tabs - close
@@ -416,10 +517,12 @@ const _server = Bun.serve({
 
       // Resize viewport
       if (url.pathname === '/resize' && method === 'POST') {
-        const body = await req.json()
-        if (!body.width || !body.height) return error('width and height required', 400)
-        await browser.resize(body.width, body.height)
-        return success({ width: body.width, height: body.height })
+        const body = await readJsonObject(req)
+        const width = getNumber(body, 'width')
+        const height = getNumber(body, 'height')
+        if (width === undefined || height === undefined) return error('width and height required', 400)
+        await browser.resize(width, height)
+        return success({ width, height })
       }
 
       // Stop server

@@ -17,7 +17,7 @@ import OpenAI from "openai";
 import { GoogleGenAI } from "@google/genai";
 import { writeFile, readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
-import { getPaiDir } from "../../../pai-tools/PaiRuntime";
+import { getPaiDir } from "../../../../pai-tools/PaiRuntime";
 
 // ============================================================================
 // Environment Loading
