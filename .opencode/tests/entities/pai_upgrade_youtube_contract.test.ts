@@ -465,8 +465,8 @@ describe("pai-upgrade youtube parser/runtime seams contract", () => {
       const transcriptPathByTitle = new Map<string, unknown>(
         dryYoutube.map((entry) => [entry.title, (entry as unknown as Record<string, unknown>).transcript_path]),
       );
-      expect(transcriptPathByTitle.get("Release Intelligence Loop: Weekly Upgrade Review")).toBe("State/transcripts/youtube/dQw4w9WgXcQ.txt");
-      expect(transcriptPathByTitle.get("How We Score Breaking Changes in 20 Minutes")).toBe("State/transcripts/youtube/a1B2c3D4e5F.txt");
+      expect(transcriptPathByTitle.get("Release Intelligence Loop: Weekly Upgrade Review")).toBe("state/transcripts/youtube/dQw4w9WgXcQ.txt");
+      expect(transcriptPathByTitle.get("How We Score Breaking Changes in 20 Minutes")).toBe("state/transcripts/youtube/a1B2c3D4e5F.txt");
 
       const transcriptStatusByTitle = new Map<string, unknown>(
         dryYoutube.map((entry) => [entry.title, (entry as unknown as Record<string, unknown>).transcript_status]),
@@ -587,8 +587,8 @@ describe("pai-upgrade youtube parser/runtime seams contract", () => {
       const byTitle = new Map(persistedYoutube.map((entry) => [entry.title, entry]));
       const first = byTitle.get("Release Intelligence Loop: Weekly Upgrade Review") as Record<string, unknown> | undefined;
       const second = byTitle.get("How We Score Breaking Changes in 20 Minutes") as Record<string, unknown> | undefined;
-      expect(first?.transcript_path).toBe("State/transcripts/youtube/dQw4w9WgXcQ.txt");
-      expect(second?.transcript_path).toBe("State/transcripts/youtube/a1B2c3D4e5F.txt");
+      expect(first?.transcript_path).toBe("state/transcripts/youtube/dQw4w9WgXcQ.txt");
+      expect(second?.transcript_path).toBe("state/transcripts/youtube/a1B2c3D4e5F.txt");
       expect(first?.transcript_status).toBe("extracted");
       expect(second?.transcript_status).toBe("extracted");
       expect(typeof first?.transcript_excerpt).toBe("string");

@@ -7,6 +7,7 @@ const repoRoot = path.basename(process.cwd()) === ".opencode"
   : process.cwd();
 
 const opencodeRoot = path.join(repoRoot, ".opencode");
+const paiUpgradeRoot = path.join(opencodeRoot, "skills", "utilities", "pai-upgrade");
 
 function listFiles(root: string): string[] {
   if (!existsSync(root)) return [];
@@ -57,6 +58,10 @@ function proseFiles(): string[] {
 
 function markdownFiles(): string[] {
   return inScopeFiles().filter((filePath) => path.extname(filePath) === ".md");
+}
+
+function skillMarkdownFiles(): string[] {
+  return listFiles(paiUpgradeRoot).filter((filePath) => path.extname(filePath) === ".md");
 }
 
 describe("pai-upgrade strict naming cleanup", () => {
@@ -111,5 +116,31 @@ describe("pai-upgrade strict naming cleanup", () => {
       expect(/provider|source|filter|catalog|feed|monitor|fallback/i.test(line)).toBe(true);
       expect(toPattern(["architectural\\s+identity|", "anthropic", "-based\\s+inference"]).test(line)).toBe(false);
     }
+  });
+
+  test("skill docs avoid legacy skill-root runtime config/state paths", () => {
+    const forbidden = [
+      "~/.config/opencode/skills/utilities/pai-upgrade/sources.v2.json",
+      "~/.config/opencode/skills/utilities/pai-upgrade/sources.json",
+      "~/.config/opencode/skills/utilities/pai-upgrade/youtube-channels.json",
+      "~/.config/opencode/skills/utilities/pai-upgrade/State/",
+    ];
+
+    for (const filePath of skillMarkdownFiles()) {
+      const content = readFileSync(filePath, "utf8");
+      for (const phrase of forbidden) {
+        expect(content.includes(phrase)).toBe(false);
+      }
+    }
+  });
+
+  test("skill docs describe template files as blank bootstrap artifacts", () => {
+    const combined = skillMarkdownFiles().map((filePath) => readFileSync(filePath, "utf8")).join("\n");
+
+    expect(combined).toContain("Templates/sources.v2.json");
+    expect(combined).toContain("Templates/sources.json");
+    expect(combined).toContain("Templates/youtube-channels.json");
+    expect(/blank\s+templates?/i.test(combined)).toBe(true);
+    expect(/bootstrap\s+artifacts?/i.test(combined)).toBe(true);
   });
 });

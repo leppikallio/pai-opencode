@@ -8,6 +8,13 @@ Map ranked monitor findings (including internal reflections) to the current algo
 
 - Reflection and external findings from the skill's monitor entrypoint
 - Current algorithm selector: `~/.config/opencode/skills/PAI/Components/Algorithm/LATEST`
+- Live monitored-source config and runtime state:
+  - `~/.config/opencode/MEMORY/STATE/pai-upgrade/config/`
+  - `~/.config/opencode/MEMORY/STATE/pai-upgrade/state/`
+- Repo template references are blank bootstrap artifacts only:
+  - `../Templates/sources.v2.json`
+  - `../Templates/sources.json`
+  - `../Templates/youtube-channels.json`
 
 ## Steps
 

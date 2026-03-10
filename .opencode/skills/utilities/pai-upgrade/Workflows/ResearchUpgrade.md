@@ -13,6 +13,13 @@ Validate upgrade opportunities from monitor findings, map implementation impact,
   - risk tolerance (`low`, `medium`, `high`)
   - effort limit (days/weeks)
 - Source scope (default: configured `anthropic` provider sources plus user-added sources).
+- Live operator config/state context:
+  - `~/.config/opencode/MEMORY/STATE/pai-upgrade/config/`
+  - `~/.config/opencode/MEMORY/STATE/pai-upgrade/state/`
+- Repo templates are blank bootstrap artifacts only:
+  - `../Templates/sources.v2.json`
+  - `../Templates/sources.json`
+  - `../Templates/youtube-channels.json`
 - Optional monitor artifact fields: `adjusted_priority`, `adjusted_score`, `ranking_rationale`, and `learning_context` summary.
 
 ## Steps

@@ -41,7 +41,8 @@ describe("pai-upgrade reflections workflow parity", () => {
     const checkForUpgrades = readFileSync(checkForUpgradesPath, "utf8");
 
     expect(checkForUpgrades).toContain("default example value `14`");
-    expect(checkForUpgrades).toContain("bun ~/.config/opencode/skills/PAI/Tools/LoadSkillConfig.ts ~/.config/opencode/skills/utilities/pai-upgrade sources.json");
+    expect(checkForUpgrades).toContain("cat ~/.config/opencode/MEMORY/STATE/pai-upgrade/config/sources.json");
+    expect(checkForUpgrades).toContain("../Templates/sources.json");
   });
 
   test("workflow docs avoid legacy or machine-specific paths", () => {

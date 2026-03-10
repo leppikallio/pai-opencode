@@ -12,11 +12,11 @@ import { basename, dirname, join, resolve } from 'node:path';
 import { loadSkillConfig } from '../../../PAI/Tools/LoadSkillConfig';
 import { buildLearningContext, type LearningContext, type LearningContextOptions } from './BuildLearningContext';
 import {
-  getDefaultRecommendationHistoryPath,
   rankRecommendations,
   type RecommendationCandidate,
   type RecommendationPriority
 } from './RankRecommendations';
+import { homedir } from 'node:os';
 
 type Priority = 'HIGH' | 'MEDIUM' | 'LOW';
 type SourceCategory = 'blog' | 'github' | 'changelog' | 'docs' | 'community';
@@ -332,16 +332,18 @@ const DEFAULT_DAYS = 30;
 const DEFAULT_PROVIDER = 'anthropic';
 const LEGACY_V1_PROVIDER = 'anthropic';
 const SKILL_DIR = resolve(join(import.meta.dir, '..'));
-const DEFAULT_STATE_DIR = join(SKILL_DIR, 'State');
-const DEFAULT_STATE_FILE = join(DEFAULT_STATE_DIR, 'last-check.json');
+const PAI_UPGRADE_MEMORY_ROOT = (): string => resolve(process.env.HOME || homedir(), '.config', 'opencode', 'MEMORY', 'STATE', 'pai-upgrade');
+const PAI_UPGRADE_CONFIG_DIR = (): string => join(PAI_UPGRADE_MEMORY_ROOT(), 'config');
+const PAI_UPGRADE_STATE_DIR = (): string => join(PAI_UPGRADE_MEMORY_ROOT(), 'state');
+const DEFAULT_STATE_FILE = (): string => join(PAI_UPGRADE_STATE_DIR(), 'last-check.json');
 const SOURCES_V2_FILE = 'sources.v2.json';
 const SOURCES_V1_FILE = 'sources.json';
 const YOUTUBE_CHANNELS_FILE = 'youtube-channels.json';
-const DEFAULT_LOG_DIR = join(SKILL_DIR, 'Logs');
-const DEFAULT_LOG_FILE = join(DEFAULT_LOG_DIR, 'run-history.jsonl');
-const DEFAULT_YOUTUBE_STATE_FILE = join(DEFAULT_STATE_DIR, 'youtube-videos.json');
-const YOUTUBE_TRANSCRIPT_RELATIVE_DIR = join('State', 'transcripts', 'youtube');
-const DEFAULT_YOUTUBE_TRANSCRIPT_DIR = join(SKILL_DIR, YOUTUBE_TRANSCRIPT_RELATIVE_DIR);
+const DEFAULT_LOG_FILE = (): string => join(PAI_UPGRADE_STATE_DIR(), 'run-history.jsonl');
+const DEFAULT_RECOMMENDATION_HISTORY_FILE = (): string => join(PAI_UPGRADE_STATE_DIR(), 'recommendation-history.jsonl');
+const DEFAULT_YOUTUBE_STATE_FILE = (): string => join(PAI_UPGRADE_STATE_DIR(), 'youtube-videos.json');
+const YOUTUBE_TRANSCRIPT_RELATIVE_DIR = join('state', 'transcripts', 'youtube');
+const DEFAULT_YOUTUBE_TRANSCRIPT_DIR = (): string => join(PAI_UPGRADE_STATE_DIR(), 'transcripts', 'youtube');
 const YOUTUBE_SEEN_VIDEOS_RETENTION = 100;
 const YOUTUBE_TRANSCRIPT_MAX_RETRIES = 2;
 const YOUTUBE_TRANSCRIPT_EXCERPT_LIMIT = 240;
@@ -379,25 +381,25 @@ function resolveConfigLocation(configPath: string): { dir: string; file: string 
 function createRuntimeContext(options: MonitorOptions): MonitorRuntimeContext {
   const runtime = options.runtime || {};
   const now = runtime.now || (() => new Date());
-  const stateFile = resolve(runtime.stateFilePath || DEFAULT_STATE_FILE);
-  const runHistoryPath = resolve(runtime.runHistoryPath || DEFAULT_LOG_FILE);
+  const stateFile = resolve(runtime.stateFilePath || DEFAULT_STATE_FILE());
+  const runHistoryPath = resolve(runtime.runHistoryPath || DEFAULT_LOG_FILE());
   const recommendationHistoryPath = resolve(
-    runtime.recommendationHistoryPath || options.historyPath || getDefaultRecommendationHistoryPath()
+    runtime.recommendationHistoryPath || options.historyPath || DEFAULT_RECOMMENDATION_HISTORY_FILE()
   );
   const hasCustomSourcesV2ConfigPath = typeof runtime.sourcesV2ConfigPath === 'string' && runtime.sourcesV2ConfigPath.trim().length > 0;
-  const sourcesV2ConfigPath = resolve(runtime.sourcesV2ConfigPath || join(SKILL_DIR, SOURCES_V2_FILE));
-  const sourcesV1ConfigPath = resolve(runtime.sourcesV1ConfigPath || join(SKILL_DIR, SOURCES_V1_FILE));
-  const youtubeChannelsConfigPath = resolve(runtime.youtubeChannelsConfigPath || join(SKILL_DIR, YOUTUBE_CHANNELS_FILE));
+  const sourcesV2ConfigPath = resolve(runtime.sourcesV2ConfigPath || join(PAI_UPGRADE_CONFIG_DIR(), SOURCES_V2_FILE));
+  const sourcesV1ConfigPath = resolve(runtime.sourcesV1ConfigPath || join(PAI_UPGRADE_CONFIG_DIR(), SOURCES_V1_FILE));
+  const youtubeChannelsConfigPath = resolve(runtime.youtubeChannelsConfigPath || join(PAI_UPGRADE_CONFIG_DIR(), YOUTUBE_CHANNELS_FILE));
   const configRoot = dirname(sourcesV2ConfigPath);
   const inferredYoutubeStateFilePath = join(configRoot, 'runtime', 'State', 'youtube-videos.json');
   const inferredYoutubeTranscriptDir = join(configRoot, 'runtime', 'State', 'transcripts', 'youtube');
   const youtubeStateFilePath = resolve(
-    runtime.youtubeStateFilePath
-      || (hasCustomSourcesV2ConfigPath ? inferredYoutubeStateFilePath : DEFAULT_YOUTUBE_STATE_FILE)
+      runtime.youtubeStateFilePath
+      || (hasCustomSourcesV2ConfigPath ? inferredYoutubeStateFilePath : DEFAULT_YOUTUBE_STATE_FILE())
   );
   const youtubeTranscriptDir = resolve(
-    runtime.youtubeTranscriptDir
-      || (hasCustomSourcesV2ConfigPath ? inferredYoutubeTranscriptDir : DEFAULT_YOUTUBE_TRANSCRIPT_DIR)
+      runtime.youtubeTranscriptDir
+      || (hasCustomSourcesV2ConfigPath ? inferredYoutubeTranscriptDir : DEFAULT_YOUTUBE_TRANSCRIPT_DIR())
   );
 
   return {
@@ -1173,7 +1175,7 @@ function saveYouTubeState(state: YouTubeState, runtime: MonitorRuntimeContext): 
 }
 
 function youtubeTranscriptRelativePath(videoId: string): string {
-  return `State/transcripts/youtube/${videoId}.txt`;
+  return `state/transcripts/youtube/${videoId}.txt`;
 }
 
 interface YouTubeUpdatesResult {

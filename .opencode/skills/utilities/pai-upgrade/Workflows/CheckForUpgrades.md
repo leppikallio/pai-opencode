@@ -9,30 +9,30 @@ Run PAI upgrade intelligence monitoring and generate a runtime-backed report con
 - Optional `days` override (`7`, `14`, or `30`) to scope provider ingestion. If you do not supply one, use the default example value `14` shown below.
 - Optional `--force` flag to bypass historical state and re-scan.
 - Optional provider filter intent from user (`anthropic`, `openai`, `ecosystem`, or `all`).
-- Runtime config:
-  - `~/.config/opencode/skills/utilities/pai-upgrade/sources.v2.json` (preferred)
-  - `~/.config/opencode/skills/utilities/pai-upgrade/sources.json` (legacy fallback)
-  - `~/.config/opencode/skills/utilities/pai-upgrade/youtube-channels.json` (optional monitored-source catalog extension)
-  - `~/.config/opencode/skills/utilities/pai-upgrade/State/` (state and ledger outputs)
-  - `~/.config/opencode/skills/utilities/pai-upgrade/State/youtube-videos.json` (runtime source state)
-  - `~/.config/opencode/skills/utilities/pai-upgrade/State/transcripts/youtube/` (runtime source transcript state)
+- Live runtime config/state:
+  - `~/.config/opencode/MEMORY/STATE/pai-upgrade/config/` (live monitored-source config)
+  - `~/.config/opencode/MEMORY/STATE/pai-upgrade/state/` (live runtime state and ledgers)
+- Repo template references (blank bootstrap artifacts only):
+  - `../Templates/sources.v2.json`
+  - `../Templates/sources.json`
+  - `../Templates/youtube-channels.json`
 
 ## Steps
 
 ### Step 1: Load configuration and state
 
-1. Run:
+1. Confirm live config exists in MEMORY:
 
 ```bash
-bun ~/.config/opencode/skills/PAI/Tools/LoadSkillConfig.ts ~/.config/opencode/skills/utilities/pai-upgrade sources.v2.json
+cat ~/.config/opencode/MEMORY/STATE/pai-upgrade/config/sources.v2.json
 ```
 
 Prefer `sources.v2.json` when present.
 
-If `sources.v2.json` is missing or empty during a manual workflow run, fall back explicitly to:
+If `sources.v2.json` is missing or empty during a manual workflow run, use legacy fallback data from:
 
 ```bash
-bun ~/.config/opencode/skills/PAI/Tools/LoadSkillConfig.ts ~/.config/opencode/skills/utilities/pai-upgrade sources.json
+cat ~/.config/opencode/MEMORY/STATE/pai-upgrade/config/sources.json
 ```
 
 The underlying monitoring toolchain also falls back from `sources.v2.json` to `sources.json` when the v2 catalog is unavailable or empty.
@@ -41,8 +41,10 @@ In this legacy fallback mode, provider filtering is intentionally constrained to
 2. Confirm runtime state exists:
 
 ```bash
-cat ~/.config/opencode/skills/utilities/pai-upgrade/State/last-check.json
+cat ~/.config/opencode/MEMORY/STATE/pai-upgrade/state/last-check.json
 ```
+
+3. If bootstrapping a new machine, seed MEMORY files from repo templates via a **one-time local migration** runbook. This is rollout-only and not permanent install/runtime tooling behavior.
 
 ### Step 2: Check provider source feeds
 
@@ -83,7 +85,7 @@ Produce the canonical report shape:
 - If `--force` is passed, verify run did not skip already-seen hashes.
 
 ```bash
-test -s ~/.config/opencode/skills/utilities/pai-upgrade/State/last-check.json
+test -s ~/.config/opencode/MEMORY/STATE/pai-upgrade/state/last-check.json
 ```
 
 ## Output

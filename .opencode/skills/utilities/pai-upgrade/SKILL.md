@@ -15,12 +15,25 @@ Canonical report contract is:
 
 Internal learnings may outrank external discoveries when ranking evidence is stronger.
 
-## Customization
+## Local Config and State Contract
 
-Before execution, check optional user customizations at:
-`~/.config/opencode/skills/PAI/USER/SKILLCUSTOMIZATIONS/pai-upgrade/`
+- **Live monitored-source config (local runtime):**
+  - `~/.config/opencode/MEMORY/STATE/pai-upgrade/config/sources.v2.json`
+  - `~/.config/opencode/MEMORY/STATE/pai-upgrade/config/sources.json`
+  - `~/.config/opencode/MEMORY/STATE/pai-upgrade/config/youtube-channels.json`
+- **Live runtime outputs (local runtime):**
+  - `~/.config/opencode/MEMORY/STATE/pai-upgrade/state/last-check.json`
+  - `~/.config/opencode/MEMORY/STATE/pai-upgrade/state/recommendation-history.jsonl`
+  - `~/.config/opencode/MEMORY/STATE/pai-upgrade/state/run-history.jsonl`
+  - `~/.config/opencode/MEMORY/STATE/pai-upgrade/state/youtube-videos.json`
+  - `~/.config/opencode/MEMORY/STATE/pai-upgrade/state/transcripts/youtube/`
+- **Repo templates (blank bootstrap artifacts only):**
+  - `Templates/sources.v2.json`
+  - `Templates/sources.json`
+  - `Templates/youtube-channels.json`
 
-If present, merge them via `LoadSkillConfig` inputs (for example source catalogs and channel lists).
+The template files are blank templates for bootstrap/reference only. They are not live operator config.
+If local migration is needed, use a **one-time local migration** script outside permanent install/runtime tooling.
 
 ## Voice Notification
 
@@ -59,11 +72,11 @@ voice_notify({
 - **Provider-extensible scope:** additional providers can be added through explicit source lists and workflow inputs.
 - **Legacy fallback contract:** when monitor config falls back to `sources.json` (v1), provider scope is explicitly limited to `anthropic` and `all` until `sources.v2.json` is restored.
 - **Learning-aware prioritization:** `Tools/MonitorSources.ts` adjusts priority and score with rationale.
-- **Recommendation history ledger:** ranked decisions persist to `State/recommendation-history.jsonl` by default for non-dry-run checks.
-- **State tracking:** monitor cursors persist in `State/last-check.json` using stable source IDs.
-- **YouTube source catalog input:** `youtube-channels.json` is an optional monitored-source catalog extension consumed by `Tools/MonitorSources.ts`.
-- **YouTube runtime state output:** source scans may persist normalized video metadata in `State/youtube-videos.json`.
-- **YouTube transcript runtime state output:** source scans may persist transcript artifacts under `State/transcripts/youtube/`.
+- **Recommendation history ledger:** ranked decisions persist to `~/.config/opencode/MEMORY/STATE/pai-upgrade/state/recommendation-history.jsonl` by default for non-dry-run checks.
+- **State tracking:** monitor cursors persist in `~/.config/opencode/MEMORY/STATE/pai-upgrade/state/last-check.json` using stable source IDs.
+- **YouTube source catalog input:** `~/.config/opencode/MEMORY/STATE/pai-upgrade/config/youtube-channels.json` is an optional monitored-source catalog extension consumed by `Tools/MonitorSources.ts`.
+- **YouTube runtime state output:** source scans may persist normalized video metadata in `~/.config/opencode/MEMORY/STATE/pai-upgrade/state/youtube-videos.json`.
+- **YouTube transcript runtime state output:** source scans may persist transcript artifacts under `~/.config/opencode/MEMORY/STATE/pai-upgrade/state/transcripts/youtube/`.
 - **Operator path constraint:** monitor YouTube source ingestion through `Tools/MonitorSources.ts` only.
 
 ## Session Trigger Mode

@@ -216,6 +216,7 @@ describe("pai-upgrade monitor source contracts", () => {
       const emptyV2Path = path.join(root, "sources.v2.empty.json");
       const missingV2Path = path.join(root, "sources.v2.missing.json");
       const v1Path = path.join(root, "sources.v1.legacy.json");
+      const isolatedYoutubeConfigPath = path.join(root, "youtube-channels.missing.json");
 
       await writeFile(validV2Path, await readFile(fixturePath("sources-v2.valid.json"), "utf-8"), "utf-8");
       await writeFile(emptyV2Path, await readFile(fixturePath("sources-v2.empty.json"), "utf-8"), "utf-8");
@@ -227,6 +228,7 @@ describe("pai-upgrade monitor source contracts", () => {
         fetch: createDeterministicFetch() as typeof fetch,
         now: () => new Date("2026-03-08T10:15:00.000Z"),
         sourcesV1ConfigPath: v1Path,
+        youtubeChannelsConfigPath: isolatedYoutubeConfigPath,
         learningContext: { ratingsPath, failuresRoot },
       };
 

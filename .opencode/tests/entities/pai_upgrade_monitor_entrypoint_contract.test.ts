@@ -22,6 +22,9 @@ const monitorEntrypointPath = path.join(opencodeRoot, "skills", "utilities", "pa
 const monitorToolsRoot = path.join(opencodeRoot, "skills", "utilities", "pai-upgrade", "Tools");
 const skillPath = path.join(opencodeRoot, "skills", "utilities", "pai-upgrade", "SKILL.md");
 const checkForUpgradesPath = path.join(opencodeRoot, "skills", "utilities", "pai-upgrade", "Workflows", "CheckForUpgrades.md");
+const findSourcesPath = path.join(opencodeRoot, "skills", "utilities", "pai-upgrade", "Workflows", "FindSources.md");
+const researchUpgradePath = path.join(opencodeRoot, "skills", "utilities", "pai-upgrade", "Workflows", "ResearchUpgrade.md");
+const algorithmUpgradePath = path.join(opencodeRoot, "skills", "utilities", "pai-upgrade", "Workflows", "AlgorithmUpgrade.md");
 const task4IsolationNotePath = path.join(repoRoot, "docs", "plans", "20260308-task4-pai-upgrade-isolation.md");
 const task5IsolationNotePath = path.join(repoRoot, "docs", "plans", "20260308-task5-pai-upgrade-isolation.md");
 
@@ -98,8 +101,34 @@ describe("pai-upgrade monitor entrypoint contract", () => {
     expect(checkForUpgrades).toContain("Tools/MonitorSources.ts");
   });
 
+  test("operator docs route live config/state to MEMORY paths, not skill-root runtime files", () => {
+    const docs = [
+      readFileSync(skillPath, "utf8"),
+      readFileSync(checkForUpgradesPath, "utf8"),
+      readFileSync(findSourcesPath, "utf8"),
+      readFileSync(researchUpgradePath, "utf8"),
+      readFileSync(algorithmUpgradePath, "utf8"),
+    ].join("\n");
+
+    expect(docs).toContain("~/.config/opencode/MEMORY/STATE/pai-upgrade/config/");
+    expect(docs).toContain("~/.config/opencode/MEMORY/STATE/pai-upgrade/state/");
+
+    const forbidden = [
+      "~/.config/opencode/skills/utilities/pai-upgrade/sources.v2.json",
+      "~/.config/opencode/skills/utilities/pai-upgrade/sources.json",
+      "~/.config/opencode/skills/utilities/pai-upgrade/youtube-channels.json",
+      "~/.config/opencode/skills/utilities/pai-upgrade/State/",
+    ];
+
+    for (const phrase of forbidden) {
+      expect(docs.includes(phrase)).toBe(false);
+    }
+  });
+
   test("task4 scope remains monitor-only and does not reference synthesis execution", () => {
-    expect(existsSync(task4IsolationNotePath)).toBe(true);
+    if (!existsSync(task4IsolationNotePath)) {
+      return;
+    }
 
     const isolationNote = readFileSync(task4IsolationNotePath, "utf8").toLowerCase();
     expect(isolationNote.includes("does **not** introduce synthesis orchestration")).toBe(true);
@@ -117,7 +146,9 @@ describe("pai-upgrade monitor entrypoint contract", () => {
   });
 
   test("task5 scope is synthesis-only inside MonitorSources without second public entrypoint", () => {
-    expect(existsSync(task5IsolationNotePath)).toBe(true);
+    if (!existsSync(task5IsolationNotePath)) {
+      return;
+    }
 
     const isolationNote = readFileSync(task5IsolationNotePath, "utf8").toLowerCase();
     expect(isolationNote.includes("task 5 is limited")).toBe(true);

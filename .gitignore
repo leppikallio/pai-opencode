@@ -40,6 +40,17 @@ docs/reviews/
 .opencode/config/
 .opencode/skills/PAIUpgrade/State/
 
+# pai-upgrade local-only runtime/config artifacts (never commit)
+.opencode/skills/utilities/pai-upgrade/sources.v2.json
+.opencode/skills/utilities/pai-upgrade/sources.json
+.opencode/skills/utilities/pai-upgrade/youtube-channels.json
+.opencode/skills/utilities/pai-upgrade/State/**
+.opencode/skills/utilities/pai-upgrade/Logs/**
+.opencode/skills/utilities/pai-upgrade/run-history.jsonl
+.opencode/skills/utilities/pai-upgrade/recommendation-history.jsonl
+.opencode/skills/utilities/pai-upgrade/last-check.json
+.opencode/skills/utilities/pai-upgrade/youtube-videos.json
+
 # macOS metadata
 .DS_Store
 
