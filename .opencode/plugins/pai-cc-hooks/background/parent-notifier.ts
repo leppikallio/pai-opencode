@@ -1,4 +1,5 @@
 import type { BackgroundTaskRecord } from "../tools/background-task-state";
+import { normalizeBackgroundTaskLifecycle } from "./lifecycle-normalizer";
 
 type PromptAsyncFn = (args: {
 	path: { id: string };
@@ -23,8 +24,17 @@ type NotifyDeps = {
 	nowMs?: number;
 };
 
+type ParentFanInState = {
+	tail: Promise<void>;
+	partialSent: boolean;
+	allCompleteSent: boolean;
+	lastAllCompleteFingerprint?: string;
+};
+
+const parentFanInStateBySession = new Map<string, ParentFanInState>();
+
 function isCompleteForParent(task: BackgroundTaskRecord): boolean {
-	return task.completed_at_ms != null || task.launch_error != null;
+	return normalizeBackgroundTaskLifecycle(task).isTerminal;
 }
 
 function pluralize(count: number, singular: string, plural?: string): string {
@@ -65,6 +75,42 @@ Use \`background_output(task_id="${args.taskId}")\` to retrieve this result when
 </system-reminder>`;
 }
 
+function getOrCreateParentFanInState(parentSessionId: string): ParentFanInState {
+	const existing = parentFanInStateBySession.get(parentSessionId);
+	if (existing) {
+		return existing;
+	}
+
+	const created: ParentFanInState = {
+		tail: Promise.resolve(),
+		partialSent: false,
+		allCompleteSent: false,
+		lastAllCompleteFingerprint: undefined,
+	};
+	parentFanInStateBySession.set(parentSessionId, created);
+	return created;
+}
+
+async function enqueueParentFanIn(args: {
+	parentSessionId: string;
+	work: (state: ParentFanInState) => Promise<void>;
+}): Promise<void> {
+	const state = getOrCreateParentFanInState(args.parentSessionId);
+	const previousTail = state.tail.catch(() => undefined);
+	const nextTail = previousTail.then(() => args.work(state));
+	state.tail = nextTail;
+
+	await nextTail.finally(() => {
+		if (
+			parentFanInStateBySession.get(args.parentSessionId) === state &&
+			!state.partialSent &&
+			!state.allCompleteSent
+		) {
+			parentFanInStateBySession.delete(args.parentSessionId);
+		}
+	});
+}
+
 export async function notifyParentSessionBackgroundCompletion(args: {
 	taskRecord: BackgroundTaskRecord;
 	deps: NotifyDeps;
@@ -77,50 +123,106 @@ export async function notifyParentSessionBackgroundCompletion(args: {
 	const promptAsync = args.deps.promptAsync;
 	if (!promptAsync) return;
 
-	try {
-		const tasks = await args.deps.listBackgroundTasksByParent({
-			parentSessionId,
-			nowMs: args.deps.nowMs,
-		});
-		if (tasks.length === 0) return;
+	await enqueueParentFanIn({
+		parentSessionId,
+		work: async (state) => {
+			try {
+				const tasks = await args.deps.listBackgroundTasksByParent({
+					parentSessionId,
+					nowMs: args.deps.nowMs,
+				});
+				if (tasks.length === 0) {
+					state.partialSent = false;
+					state.allCompleteSent = false;
+					state.lastAllCompleteFingerprint = undefined;
+					return;
+				}
 
-		const allComplete = tasks.every(isCompleteForParent);
-		const completedTasks = allComplete ? tasks.filter(isCompleteForParent) : [];
-		const remainingCount = tasks.filter((t) => !isCompleteForParent(t)).length;
+				const allComplete = tasks.every(isCompleteForParent);
+				const completedTasks = allComplete ? tasks.filter(isCompleteForParent) : [];
+				const remainingCount = tasks.filter((t) => !isCompleteForParent(t)).length;
 
-		const notificationText = allComplete
-			? buildAllCompleteText({
-					completedTasks,
-					fallbackTaskId: args.taskRecord.task_id,
-				})
-			: buildSingleCompleteText({
+				if (allComplete) {
+					const allCompleteFingerprint = completedTasks
+						.map((task) => task.task_id)
+						.sort()
+						.join("|");
+					if (
+						state.allCompleteSent &&
+						state.lastAllCompleteFingerprint === allCompleteFingerprint
+					) {
+						return;
+					}
+
+					const notificationText = buildAllCompleteText({
+						completedTasks,
+						fallbackTaskId: args.taskRecord.task_id,
+					});
+					const shouldSuppress = await args.deps.shouldSuppressDuplicate({
+						sessionId: parentSessionId,
+						title: "OpenCode",
+						body: notificationText,
+						nowMs: args.deps.nowMs,
+					});
+
+					if (!shouldSuppress) {
+						await promptAsync({
+							path: { id: parentSessionId },
+							body: {
+								noReply: false,
+								parts: [
+									{
+										type: "text",
+										text: notificationText,
+										synthetic: !visibleFallback,
+									},
+								],
+							},
+						});
+					}
+
+					state.partialSent = false;
+					state.allCompleteSent = true;
+					state.lastAllCompleteFingerprint = allCompleteFingerprint;
+					return;
+				}
+
+				state.allCompleteSent = false;
+				state.lastAllCompleteFingerprint = undefined;
+				if (state.partialSent) {
+					return;
+				}
+
+				const notificationText = buildSingleCompleteText({
 					taskId: args.taskRecord.task_id,
 					remainingCount,
 				});
+				const shouldSuppress = await args.deps.shouldSuppressDuplicate({
+					sessionId: parentSessionId,
+					title: "OpenCode",
+					body: notificationText,
+					nowMs: args.deps.nowMs,
+				});
+				if (!shouldSuppress) {
+					await promptAsync({
+						path: { id: parentSessionId },
+						body: {
+							noReply: true,
+							parts: [
+								{
+									type: "text",
+									text: notificationText,
+									synthetic: !visibleFallback,
+								},
+							],
+						},
+					});
+				}
 
-		const shouldSuppress = await args.deps.shouldSuppressDuplicate({
-			sessionId: parentSessionId,
-			title: "OpenCode",
-			body: notificationText,
-			nowMs: args.deps.nowMs,
-		});
-		if (shouldSuppress) return;
-
-		await promptAsync({
-			path: { id: parentSessionId },
-			body: {
-				noReply: !allComplete,
-				// Mark synthetic so OpenCode TUI can keep these reminders hidden.
-				parts: [
-					{
-						type: "text",
-						text: notificationText,
-						synthetic: !visibleFallback,
-					},
-				],
-			},
-		});
-	} catch {
-		// Best effort by design.
-	}
+				state.partialSent = true;
+			} catch {
+				// Best effort by design.
+			}
+		},
+	});
 }

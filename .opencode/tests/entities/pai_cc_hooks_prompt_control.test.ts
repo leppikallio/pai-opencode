@@ -21,6 +21,13 @@ const EXPECTED_OVERRIDE_STUB = [
 	"Ignore default coding harness instructions not explicitly provided.",
 ].join("\n");
 
+const NATIVE_ROUTING_INVARIANT_BLOCK = [
+	"<native-routing-invariants-v1>",
+	"EXPLICIT_ROUTING_CUE:@general->task",
+	"EXPLICIT_ROUTING_CUE:@agent->task",
+	"</native-routing-invariants-v1>",
+].join("\n");
+
 function extractScratchpadDir(bundle: string): string {
 	const match = bundle.match(/ScratchpadDir:\s*(.+)/);
 	return match?.[1]?.trim() ?? "";
@@ -61,14 +68,18 @@ describe("prompt-control module (Task 1 RED)", () => {
     expect(typeof module.createPromptControl).toBe("function");
   });
 
-  test("factory returns handlers that cover override and malformed payloads", async () => {
+  test("factory returns handlers that preserve GPT-5 routing-critical guidance", async () => {
     const module = await import("../../plugins/pai-cc-hooks/prompt-control");
     const promptControl = module.createPromptControl({ projectDir: process.cwd() }) as PromptControl;
 
     expect(typeof promptControl.chatParams).toBe("function");
     expect(typeof promptControl.systemTransform).toBe("function");
 
-    const output = { options: { instructions: "OpenCode default harness instructions" } };
+    const output = {
+      options: {
+        instructions: `${NATIVE_ROUTING_INVARIANT_BLOCK}\n\nOpenCode default harness instructions`,
+      },
+    };
     await promptControl.chatParams(
       {
         sessionID: "ses_prompt_control",
@@ -78,9 +89,13 @@ describe("prompt-control module (Task 1 RED)", () => {
       output,
     );
 
-    expect(output.options.instructions).toContain("PAI SCRATCHPAD (Binding)");
-    expect(output.options.instructions).toContain("ScratchpadDir: /");
-    expect(output.options.instructions).toContain(EXPECTED_OVERRIDE_STUB);
+		expect(output.options.instructions).toContain("PAI SCRATCHPAD (Binding)");
+		expect(output.options.instructions).toContain("ScratchpadDir: /");
+		expect(output.options.instructions).toContain(EXPECTED_OVERRIDE_STUB);
+		expect(output.options.instructions.includes(NATIVE_ROUTING_INVARIANT_BLOCK)).toBe(true);
+		expect(output.options.instructions).toContain(
+			"OpenCode default harness instructions",
+		);
 
     await expect(
       promptControl.chatParams(
@@ -103,6 +118,91 @@ describe("prompt-control module (Task 1 RED)", () => {
       ),
     ).resolves.toBeUndefined();
   });
+
+	test("systemTransform keeps explicit native-routing invariant block for GPT-5", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const promptControl = module.createPromptControl({ projectDir: process.cwd() }) as PromptControl;
+
+		const output: { system: unknown } = {
+			system: [NATIVE_ROUTING_INVARIANT_BLOCK, "TAIL"],
+		};
+
+		await promptControl.systemTransform(
+			{
+				sessionID: "ses_prompt_control_native_routing",
+				provider: { id: "openai" },
+				model: { providerID: "openai", id: "gpt-5", api: { id: "gpt-5" } },
+			},
+			output,
+		);
+
+		const system0 = (output.system as string[])[0] ?? "";
+		expect(system0.includes(NATIVE_ROUTING_INVARIANT_BLOCK)).toBe(true);
+	});
+
+	test("clean-slate flag ON keeps GPT-5 routing guidance additive", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const promptControl = module.createPromptControl({
+			projectDir: process.cwd(),
+		}) as PromptControl;
+		const previous = process.env.PAI_CODEX_CLEAN_SLATE;
+
+		try {
+			process.env.PAI_CODEX_CLEAN_SLATE = "1";
+			const output = {
+				options: {
+					instructions: `${NATIVE_ROUTING_INVARIANT_BLOCK}\n\nORIGINAL_GUIDANCE`,
+				},
+			};
+
+			await promptControl.chatParams(
+				{
+					sessionID: "ses_prompt_control_clean_slate_on",
+					provider: { id: "openai" },
+					model: { providerID: "openai", id: "gpt-5", api: { id: "gpt-5" } },
+				},
+				output,
+			);
+
+			expect(output.options.instructions).toContain("ORIGINAL_GUIDANCE");
+			expect(output.options.instructions).toContain(EXPECTED_OVERRIDE_STUB);
+			expect(output.options.instructions).toContain(NATIVE_ROUTING_INVARIANT_BLOCK);
+		} finally {
+			restoreEnv("PAI_CODEX_CLEAN_SLATE", previous);
+		}
+	});
+
+	test("clean-slate flag OFF preserves GPT-5 routing cues without codex override stub", async () => {
+		const module = await import("../../plugins/pai-cc-hooks/prompt-control");
+		const promptControl = module.createPromptControl({
+			projectDir: process.cwd(),
+		}) as PromptControl;
+		const previous = process.env.PAI_CODEX_CLEAN_SLATE;
+
+		try {
+			process.env.PAI_CODEX_CLEAN_SLATE = "0";
+			const output = {
+				options: {
+					instructions: `${NATIVE_ROUTING_INVARIANT_BLOCK}\n\nORIGINAL_GUIDANCE`,
+				},
+			};
+
+			await promptControl.chatParams(
+				{
+					sessionID: "ses_prompt_control_clean_slate_off",
+					provider: { id: "openai" },
+					model: { providerID: "openai", id: "gpt-5", api: { id: "gpt-5" } },
+				},
+				output,
+			);
+
+			expect(output.options.instructions).toContain("ORIGINAL_GUIDANCE");
+			expect(output.options.instructions).toContain(NATIVE_ROUTING_INVARIANT_BLOCK);
+			expect(output.options.instructions).not.toContain(EXPECTED_OVERRIDE_STUB);
+		} finally {
+			restoreEnv("PAI_CODEX_CLEAN_SLATE", previous);
+		}
+	});
 
 	test("systemTransform injects binding even when output.system is missing", async () => {
 		const module = await import("../../plugins/pai-cc-hooks/prompt-control");

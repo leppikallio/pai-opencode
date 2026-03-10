@@ -10,8 +10,17 @@ import {
 	maybeHandleBackgroundTaskCompletion,
 	notifyBackgroundTaskCompletion,
 } from "./background-completion";
+import {
+	buildCompactionContinuationBundle,
+	injectCompactionContinuationContext,
+} from "./compaction/continuation-bundle";
+import {
+	rehydrateCompactionDerivedStateOnParentTurn,
+	snapshotCompactionDerivedState,
+} from "./compaction/isc-preserver";
 import { handleChatMessage } from "./chat-message";
 import { executeStopHooks, setStopHookActive } from "./claude/stop";
+import { resolvePaiOrchestrationFeatureFlags } from "./feature-flags";
 import {
 	asRecord,
 	getBoolean,
@@ -42,8 +51,7 @@ import {
 	findBackgroundTaskByChildSessionId as findBackgroundTaskByChildSessionIdDefault,
 	listActiveBackgroundTasks as listActiveBackgroundTasksDefault,
 	listBackgroundTasksByParent as listBackgroundTasksByParentDefault,
-	markBackgroundTaskCompleted as markBackgroundTaskCompletedDefault,
-	markNotified as markNotifiedDefault,
+	markBackgroundTaskTerminalAtomic as markBackgroundTaskTerminalAtomicDefault,
 	shouldSuppressDuplicate as shouldSuppressDuplicateDefault,
 } from "./tools/background-task-state";
 import type {
@@ -230,6 +238,7 @@ export function createPaiClaudeHooks({
 }): {
 	event: EventHookHandler;
 	"chat.message": HookHandler;
+	"experimental.session.compacting": HookHandler;
 	"command.execute.before": HookHandler;
 	"tool.execute.before": HookHandler;
 	"tool.execute.after": HookHandler;
@@ -269,9 +278,9 @@ export function createPaiClaudeHooks({
 		findBackgroundTaskByChildSessionId:
 			deps?.findBackgroundTaskByChildSessionId ??
 			findBackgroundTaskByChildSessionIdDefault,
-		markBackgroundTaskCompleted:
-			deps?.markBackgroundTaskCompleted ?? markBackgroundTaskCompletedDefault,
-		markNotified: deps?.markNotified ?? markNotifiedDefault,
+		markBackgroundTaskTerminalAtomic:
+			deps?.markBackgroundTaskTerminalAtomic ??
+			markBackgroundTaskTerminalAtomicDefault,
 		listBackgroundTasksByParent:
 			deps?.listBackgroundTasksByParent ?? listBackgroundTasksByParentDefault,
 		shouldSuppressDuplicate:
@@ -287,9 +296,8 @@ export function createPaiClaudeHooks({
 	const poller = new BackgroundTaskPoller({
 		client: getRecord(asRecord(ctx), "client"),
 		listActiveBackgroundTasks: listActiveBackgroundTasksDefault,
-		markNotified: backgroundCompletionDeps.markNotified,
-		markBackgroundTaskCompleted: ({ taskId, nowMs }) =>
-			backgroundCompletionDeps.markBackgroundTaskCompleted({ taskId, nowMs }),
+		markBackgroundTaskTerminalAtomic:
+			backgroundCompletionDeps.markBackgroundTaskTerminalAtomic,
 		onTaskCompleted: async (taskRecord) => {
 			await notifyBackgroundTaskCompletion({
 				taskRecord,
@@ -486,6 +494,28 @@ export function createPaiClaudeHooks({
 		},
 
 		"chat.message": async (input, output) => {
+			try {
+				const flags = resolvePaiOrchestrationFeatureFlags();
+				if (flags.paiOrchestrationCompactionBundleEnabled) {
+					const payload = asRecord(input);
+					const sessionId =
+						getString(payload, "sessionID") ??
+						getString(payload, "sessionId") ??
+						"";
+
+					if (sessionId) {
+						const parentSessionId = await resolveParentSessionId(sessionId);
+						if (!parentSessionId) {
+							await rehydrateCompactionDerivedStateOnParentTurn({
+								sessionId,
+							});
+						}
+					}
+				}
+			} catch {
+				// Fail-open by design.
+			}
+
 			const { hooks: config, env } = await getPaiCcHooksSettings();
 
 			await handleChatMessage({
@@ -495,6 +525,35 @@ export function createPaiClaudeHooks({
 				env,
 				cwd: process.cwd(),
 				resolveParentSessionId,
+			});
+		},
+
+		"experimental.session.compacting": async (input, output) => {
+			const flags = resolvePaiOrchestrationFeatureFlags();
+			if (!flags.paiOrchestrationCompactionBundleEnabled) {
+				return;
+			}
+
+			const payload = asRecord(input);
+			const sessionId =
+				getString(payload, "sessionID") ??
+				getString(payload, "sessionId") ??
+				"";
+			if (!sessionId) {
+				return;
+			}
+
+			const bundle = await buildCompactionContinuationBundle({
+				parentSessionId: sessionId,
+			});
+			await snapshotCompactionDerivedState({
+				sessionId,
+				bundle,
+			});
+
+			injectCompactionContinuationContext({
+				output,
+				bundle,
 			});
 		},
 

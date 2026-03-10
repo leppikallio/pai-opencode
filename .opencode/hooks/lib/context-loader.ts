@@ -4,6 +4,7 @@ import { basename, dirname, isAbsolute, join, posix, relative, resolve } from "n
 type JsonRecord = Record<string, unknown>;
 
 const LEARNING_DIGEST_RELATIVE_PATH = "MEMORY/LEARNING/digest.md";
+const WISDOM_PROJECTION_RELATIVE_PATH = "MEMORY/LEARNING/wisdom-projection.md";
 const RELATIONSHIP_DIR_RELATIVE_PATH = "MEMORY/RELATIONSHIP";
 const CURRENT_WORK_STATE_RELATIVE_PATH = "MEMORY/STATE/current-work.json";
 
@@ -11,6 +12,8 @@ const MAX_DYNAMIC_SECTION_LINES = 4;
 const MAX_DYNAMIC_LINE_LENGTH = 240;
 const MAX_DYNAMIC_CONTENT_CHARS = 4000;
 const MAX_OPTIONAL_FILE_CHARS = 8000;
+const MAX_WISDOM_SECTION_LINES = 4;
+const MAX_WISDOM_SECTION_CHARS = 720;
 
 export type ContextBundle = {
   contextFiles: string[];
@@ -55,6 +58,31 @@ export function loadSettings(paiDir: string): JsonRecord {
   } catch {
     return {};
   }
+}
+
+function parseBooleanEnvOverride(value: string | undefined): boolean | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on") {
+    return true;
+  }
+
+  if (normalized === "0" || normalized === "false" || normalized === "no" || normalized === "off") {
+    return false;
+  }
+
+  return undefined;
+}
+
+function isWisdomProjectionEnabled(): boolean {
+  return parseBooleanEnvOverride(process.env.PAI_ORCHESTRATION_WISDOM_PROJECTION_ENABLED) ?? false;
 }
 
 function hasTraversalSegment(pathValue: string): boolean {
@@ -319,10 +347,93 @@ function parseActiveWorkSummary(paiDir: string): string[] {
   return ["No active work is currently mapped."];
 }
 
+function hasActiveWorkSession(paiDir: string): boolean {
+  const statePath = resolve(paiDir, CURRENT_WORK_STATE_RELATIVE_PATH);
+  ensureInsidePaiDir(paiDir, statePath, CURRENT_WORK_STATE_RELATIVE_PATH);
+  if (!existsSync(statePath)) {
+    return false;
+  }
+
+  try {
+    const parsed = JSON.parse(readFileSync(statePath, "utf8"));
+    const record = asRecord(parsed);
+    if (!record) {
+      return false;
+    }
+
+    const sessions = asRecord(record.sessions);
+    if (sessions) {
+      for (const session of Object.values(sessions)) {
+        const sessionRecord = asRecord(session);
+        const workDir = sessionRecord && typeof sessionRecord.work_dir === "string"
+          ? sessionRecord.work_dir.trim()
+          : "";
+        if (workDir.length > 0) {
+          return true;
+        }
+      }
+    }
+
+    return typeof record.work_dir === "string" && record.work_dir.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+function extractWisdomBullets(raw: string): string[] {
+  const sectionMatch = raw.match(/## Wisdom\s*([\s\S]*?)(?:\n##\s|\n---\s*\n|$)/i);
+  const section = sectionMatch?.[1] ?? raw;
+
+  return section
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("- "))
+    .map((line) => line.replace(/^-[\s]+/, "").trim())
+    .filter((line) => !line.startsWith("_No orchestration wisdom signals met threshold yet._"));
+}
+
+function applyWisdomBudget(lines: string[]): string[] {
+  const bounded = formatCappedLines(lines, MAX_WISDOM_SECTION_LINES);
+  const selected: string[] = [];
+  let usedChars = 0;
+
+  for (const line of bounded) {
+    const projectedCost = line.length + 3; // "- " prefix + newline slack
+    if (usedChars + projectedCost > MAX_WISDOM_SECTION_CHARS) {
+      break;
+    }
+    selected.push(line);
+    usedChars += projectedCost;
+  }
+
+  return selected;
+}
+
+function parseWisdomProjectionSummary(paiDir: string): string[] {
+  const projectionPath = resolve(paiDir, WISDOM_PROJECTION_RELATIVE_PATH);
+  ensureInsidePaiDir(paiDir, projectionPath, WISDOM_PROJECTION_RELATIVE_PATH);
+  if (!existsSync(projectionPath)) {
+    return [];
+  }
+
+  try {
+    const raw = readFileSync(projectionPath, "utf8");
+    const bullets = extractWisdomBullets(raw);
+    if (bullets.length === 0) {
+      return [];
+    }
+    return applyWisdomBudget(bullets);
+  } catch {
+    return [];
+  }
+}
+
 function renderDynamicSummary(paiDir: string): string {
   const relationship = parseRelationshipSummary(paiDir);
   const learning = parseLearningSummary(paiDir);
   const activeWork = parseActiveWorkSummary(paiDir);
+  const includeWisdom = isWisdomProjectionEnabled() && hasActiveWorkSession(paiDir);
+  const wisdom = includeWisdom ? parseWisdomProjectionSummary(paiDir) : [];
 
   const content = [
     "<dynamic-context>",
@@ -336,6 +447,13 @@ function renderDynamicSummary(paiDir: string): string {
     "<active-work-summary>",
     ...activeWork.map((item) => `- ${item}`),
     "</active-work-summary>",
+    ...(wisdom.length > 0
+      ? [
+        "<orchestration-wisdom-summary>",
+        ...wisdom.map((item) => `- ${item}`),
+        "</orchestration-wisdom-summary>",
+      ]
+      : []),
     "</dynamic-context>",
   ].join("\n");
 

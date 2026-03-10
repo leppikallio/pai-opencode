@@ -57,6 +57,126 @@ export interface CompleteWorkResult {
 
 // In-memory cache for work sessions (keyed by OpenCode sessionID)
 const currentSessions = new Map<string, WorkSession>();
+const derivedContinuityBySession = new Map<string, DerivedContinuityState>();
+
+export interface DerivedContinuityState {
+  v: "0.1";
+  updatedAt: string;
+  workPath?: string;
+  activeWorkSlug?: string;
+  prdProgress?: string;
+  prdPhase?: string;
+  nextUnfinishedIscIds: string[];
+  nextUnfinishedIscTexts: string[];
+  activeBackgroundTaskIds: string[];
+  continuationHints: string[];
+}
+
+export interface DerivedContinuityStateInput {
+  updatedAt?: string;
+  workPath?: string;
+  activeWorkSlug?: string;
+  prdProgress?: string;
+  prdPhase?: string;
+  nextUnfinishedIscIds?: string[];
+  nextUnfinishedIscTexts?: string[];
+  activeBackgroundTaskIds?: string[];
+  continuationHints?: string[];
+}
+
+function normalizeStringList(value: unknown, maxItems: number): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    if (typeof item !== "string") {
+      continue;
+    }
+
+    const trimmed = item.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+
+    out.push(trimmed);
+    seen.add(trimmed);
+    if (out.length >= maxItems) {
+      break;
+    }
+  }
+
+  return out;
+}
+
+function normalizeDerivedContinuityState(input: DerivedContinuityStateInput): DerivedContinuityState {
+  const updatedAt =
+    typeof input.updatedAt === "string" && input.updatedAt.trim().length > 0
+      ? input.updatedAt
+      : new Date().toISOString();
+
+  const pickOptional = (value: unknown): string | undefined => {
+    if (typeof value !== "string") return undefined;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  };
+
+  return {
+    v: "0.1",
+    updatedAt,
+    workPath: pickOptional(input.workPath),
+    activeWorkSlug: pickOptional(input.activeWorkSlug),
+    prdProgress: pickOptional(input.prdProgress),
+    prdPhase: pickOptional(input.prdPhase),
+    nextUnfinishedIscIds: normalizeStringList(input.nextUnfinishedIscIds, 24),
+    nextUnfinishedIscTexts: normalizeStringList(input.nextUnfinishedIscTexts, 24),
+    activeBackgroundTaskIds: normalizeStringList(input.activeBackgroundTaskIds, 24),
+    continuationHints: normalizeStringList(input.continuationHints, 16),
+  };
+}
+
+export function setDerivedContinuityStateForSession(
+  sessionIdRaw: string,
+  input: DerivedContinuityStateInput
+): void {
+  const sessionId = normalizeSessionId(sessionIdRaw);
+  if (!sessionId) {
+    return;
+  }
+
+  derivedContinuityBySession.set(sessionId, normalizeDerivedContinuityState(input));
+}
+
+export function getDerivedContinuityStateForSession(sessionIdRaw: string): DerivedContinuityState | null {
+  const sessionId = normalizeSessionId(sessionIdRaw);
+  if (!sessionId) {
+    return null;
+  }
+
+  const state = derivedContinuityBySession.get(sessionId);
+  if (!state) {
+    return null;
+  }
+
+  return {
+    ...state,
+    nextUnfinishedIscIds: [...state.nextUnfinishedIscIds],
+    nextUnfinishedIscTexts: [...state.nextUnfinishedIscTexts],
+    activeBackgroundTaskIds: [...state.activeBackgroundTaskIds],
+    continuationHints: [...state.continuationHints],
+  };
+}
+
+export function clearDerivedContinuityStateForSession(sessionIdRaw: string): void {
+  const sessionId = normalizeSessionId(sessionIdRaw);
+  if (!sessionId) {
+    return;
+  }
+
+  derivedContinuityBySession.delete(sessionId);
+}
 
 function normalizeSessionId(sessionId: string): string {
   const trimmed = sessionId.trim();
@@ -443,6 +563,7 @@ export async function completeWorkSession(sessionIdRaw: string): Promise<Complet
     // Clear state
     await clearCurrentWorkForSession(sessionId);
     currentSessions.delete(sessionId);
+    derivedContinuityBySession.delete(sessionId);
 
     fileLog(`Work session completed: ${sessionPath}`, "info");
 

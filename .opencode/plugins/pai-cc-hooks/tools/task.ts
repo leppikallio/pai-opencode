@@ -1,42 +1,36 @@
 import { type ToolContext, tool } from "@opencode-ai/plugin";
 
 import { ensureScratchpadSession } from "../../lib/scratchpad";
+import {
+	PAI_ORCHESTRATION_FEATURE_FLAG_ENV_KEYS,
+	resolvePaiOrchestrationFeatureFlags,
+} from "../feature-flags";
+import { getSessionRootId, setSessionRootId } from "../shared/session-root";
 
 import {
-	getSessionRootId,
-	setSessionRootId,
-} from "../shared/session-root";
+	type CarrierClient,
+	executeForegroundTaskWithParity,
+	type TaskToolArgs,
+} from "./task-foreground-parity";
+import { encodeForegroundTaskParityEnvelope } from "./task-foreground-parity-envelope";
 
 import {
 	type RecordBackgroundTaskLaunchArgs,
 	type RecordBackgroundTaskLaunchErrorArgs,
+	type FindBackgroundTaskByTaskIdArgs,
+	type BackgroundTaskRecord,
+	findBackgroundTaskByTaskId as findBackgroundTaskByTaskIdDefault,
 	recordBackgroundTaskLaunch as recordBackgroundTaskLaunchDefault,
 	recordBackgroundTaskLaunchError as recordBackgroundTaskLaunchErrorDefault,
 } from "./background-task-state";
-
-type CarrierClient = {
-	session?: {
-		get?: (options: unknown) => Promise<unknown>;
-		create?: (options?: unknown) => Promise<unknown>;
-		prompt?: (options: unknown) => Promise<unknown>;
-		promptAsync?: (options: unknown) => Promise<unknown>;
-		abort?: (options: unknown) => Promise<unknown>;
-		messages?: (options: unknown) => Promise<unknown>;
-	};
-};
-
-function buildBackgroundTaskId(childSessionId: string): string {
-	return `bg_${childSessionId}`;
-}
-
-type TaskToolArgs = {
-	description: string;
-	prompt: string;
-	subagent_type: string;
-	command?: string;
-	task_id?: string;
-	run_in_background?: boolean;
-};
+import {
+	BackgroundConcurrencyCancelledError,
+	BackgroundConcurrencySaturationError,
+	deriveBackgroundConcurrencyGroup,
+	getBackgroundConcurrencyManager,
+	type BackgroundConcurrencyLease,
+	type BackgroundConcurrencyManager,
+} from "../background/concurrency";
 
 type RecordBackgroundTaskLaunchFn = (
 	args: RecordBackgroundTaskLaunchArgs,
@@ -44,6 +38,24 @@ type RecordBackgroundTaskLaunchFn = (
 type RecordBackgroundTaskLaunchErrorFn = (
 	args: RecordBackgroundTaskLaunchErrorArgs,
 ) => Promise<void>;
+type FindBackgroundTaskByTaskIdFn = (
+	args: FindBackgroundTaskByTaskIdArgs,
+) => Promise<BackgroundTaskRecord | null>;
+
+const TASK_TOOL_DESCRIPTION = [
+	"Launch a subagent task while preserving native OpenCode routing cues.",
+	"",
+	"Routing-critical guidance:",
+	"- Explicit user mentions like @general / @<agent> are routing intent and should delegate through task.",
+	"- Foreground execution remains stock-equivalent by default.",
+	"- run_in_background:true is an explicit PAI extension for async launch.",
+	"",
+	"Usage notes:",
+	"- description: concise task title shown to the UI",
+	"- prompt: full instructions for the delegated agent",
+	"- subagent_type: target agent name",
+	"- task_id: continue an existing delegated session",
+].join("\n");
 
 const SCRATCHPAD_BINDING_MARKER = "PAI SCRATCHPAD (Binding)";
 const SCRATCHPAD_RULES = [
@@ -52,28 +64,8 @@ const SCRATCHPAD_RULES = [
 	"- Do NOT run tools (Read/Glob/Bash/etc) to discover it.",
 ];
 
-function buildScratchpadBinding(scratchpadDir: string): string {
-	return [
-		SCRATCHPAD_BINDING_MARKER,
-		`ScratchpadDir: ${scratchpadDir}`,
-		...SCRATCHPAD_RULES,
-	].join("\n");
-}
-
-function prefixPromptWithScratchpadBinding(
-	prompt: string,
-	scratchpadDir: string,
-): string {
-	if (prompt.includes(SCRATCHPAD_BINDING_MARKER)) {
-		return prompt;
-	}
-
-	const binding = buildScratchpadBinding(scratchpadDir);
-	if (!prompt.trim()) {
-		return binding;
-	}
-
-	return `${binding}\n\n${prompt}`;
+function buildBackgroundTaskId(childSessionId: string): string {
+	return `bg_${childSessionId}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -99,6 +91,113 @@ function extractSessionId(result: unknown): string {
 	const fromData = getStringProp(data, "id");
 	if (fromData) return fromData;
 	return getStringProp(result, "id") ?? "";
+}
+
+function getContextSessionId(ctx: ToolContext): string {
+	const value =
+		(ctx as ToolContext & { sessionID?: unknown; sessionId?: unknown })
+			.sessionID ??
+		(ctx as ToolContext & { sessionID?: unknown; sessionId?: unknown })
+			.sessionId;
+	return typeof value === "string" ? value : "";
+}
+
+function getContextDirectory(ctx: ToolContext): string {
+	const value = (ctx as ToolContext & { directory?: unknown }).directory;
+	return typeof value === "string" ? value : process.cwd();
+}
+
+function getContextBypassAgentCheck(ctx: ToolContext): boolean {
+	const extra = getAnyProp(ctx, "extra");
+	return isRecord(extra) && extra.bypassAgentCheck === true;
+}
+
+function getNestedString(source: unknown, path: string[]): string | undefined {
+	let current: unknown = source;
+	for (const segment of path) {
+		if (!isRecord(current)) {
+			return undefined;
+		}
+		current = current[segment];
+	}
+
+	return typeof current === "string" ? current : undefined;
+}
+
+function extractContextProviderModel(ctx: ToolContext): {
+	providerId?: string;
+	modelId?: string;
+} {
+	const providerId =
+		getNestedString(ctx, ["provider", "id"]) ??
+		getNestedString(ctx, ["model", "providerID"]) ??
+		getNestedString(ctx, ["model", "providerId"]) ??
+		getNestedString(ctx, ["extra", "provider", "id"]) ??
+		getNestedString(ctx, ["extra", "model", "providerID"]) ??
+		getNestedString(ctx, ["extra", "model", "providerId"]);
+
+	const modelId =
+		getNestedString(ctx, ["model", "api", "id"]) ??
+		getNestedString(ctx, ["model", "id"]) ??
+		getNestedString(ctx, ["extra", "model", "api", "id"]) ??
+		getNestedString(ctx, ["extra", "model", "id"]);
+
+	return {
+		providerId,
+		modelId,
+	};
+}
+
+function extractAgentMentions(prompt: string): string[] {
+	const mentions: string[] = [];
+	const mentionPattern = /(^|[\s(])@([A-Za-z][A-Za-z0-9_-]*)\b/g;
+
+	for (const match of prompt.matchAll(mentionPattern)) {
+		const mention = (match[2] ?? "").trim().toLowerCase();
+		if (mention) {
+			mentions.push(mention);
+		}
+	}
+
+	return mentions;
+}
+
+function hasExplicitAgentMention(args: { prompt: string; subagentType: string }): boolean {
+	const mentions = extractAgentMentions(args.prompt);
+	if (mentions.length === 0) {
+		return false;
+	}
+
+	const normalizedSubagent = args.subagentType.trim().toLowerCase();
+	if (normalizedSubagent && mentions.includes(normalizedSubagent)) {
+		return true;
+	}
+
+	return mentions.includes("general") || mentions.includes("agent");
+}
+
+function buildScratchpadBinding(scratchpadDir: string): string {
+	return [
+		SCRATCHPAD_BINDING_MARKER,
+		`ScratchpadDir: ${scratchpadDir}`,
+		...SCRATCHPAD_RULES,
+	].join("\n");
+}
+
+function prefixPromptWithScratchpadBinding(
+	prompt: string,
+	scratchpadDir: string,
+): string {
+	if (prompt.includes(SCRATCHPAD_BINDING_MARKER)) {
+		return prompt;
+	}
+
+	const binding = buildScratchpadBinding(scratchpadDir);
+	if (!prompt.trim()) {
+		return binding;
+	}
+
+	return `${binding}\n\n${prompt}`;
 }
 
 function extractTextFromParts(parts: unknown): string {
@@ -145,7 +244,7 @@ async function extractAssistantText(promptResult: unknown): Promise<string> {
 async function resolveChildSessionId(
 	args: TaskToolArgs,
 	client: CarrierClient,
-	opts?: { parentSessionId?: string; directory?: string },
+	ctx: ToolContext,
 ): Promise<string> {
 	const session = client.session;
 	if (!session?.create) {
@@ -172,12 +271,12 @@ async function resolveChildSessionId(
 		title: args.description,
 	};
 
-	const parentSessionId = opts?.parentSessionId?.trim();
+	const parentSessionId = getContextSessionId(ctx).trim();
 	if (parentSessionId) {
 		createBody.parentID = parentSessionId;
 	}
 
-	const directory = opts?.directory?.trim();
+	const directory = getContextDirectory(ctx).trim();
 	const createResult = await session.create({
 		body: createBody,
 		...(directory ? { query: { directory } } : {}),
@@ -189,22 +288,187 @@ async function resolveChildSessionId(
 	return createdId;
 }
 
+async function resolveBackgroundSession(args: {
+	taskArgs: TaskToolArgs;
+	ctx: ToolContext;
+	client: CarrierClient;
+	findBackgroundTaskByTaskId: FindBackgroundTaskByTaskIdFn;
+}): Promise<{
+	taskId: string;
+	childSessionId: string;
+	existingRecord: BackgroundTaskRecord | null;
+}> {
+	const { taskArgs, ctx, client, findBackgroundTaskByTaskId } = args;
+	const requestedTaskId = taskArgs.task_id?.trim();
+	const session = client.session;
+
+	if (requestedTaskId) {
+		const existingRecord = await findBackgroundTaskByTaskId({
+			taskId: requestedTaskId,
+		});
+		if (existingRecord?.child_session_id) {
+			return {
+				taskId: existingRecord.task_id,
+				childSessionId: existingRecord.child_session_id,
+				existingRecord,
+			};
+		}
+
+		if (typeof session?.get === "function") {
+			try {
+				const getResult = await session.get({ path: { id: requestedTaskId } });
+				if (!resultHasError(getResult)) {
+					const childSessionId = extractSessionId(getResult) || requestedTaskId;
+					return {
+						taskId: buildBackgroundTaskId(childSessionId),
+						childSessionId,
+						existingRecord: null,
+					};
+				}
+			} catch {
+				// Fall through to create.
+			}
+		}
+	}
+
+	if (!session?.create) {
+		throw new Error("PAI task override: client.session.create is unavailable");
+	}
+
+	const childCreateResult = await session.create({
+		body: {
+			parentID: getContextSessionId(ctx),
+			title: taskArgs.description,
+		},
+		query: {
+			directory: getContextDirectory(ctx),
+		},
+	});
+
+	const childSessionId = extractSessionId(childCreateResult);
+	if (!childSessionId) {
+		throw new Error(
+			"PAI task override: child session creation returned no id",
+		);
+	}
+
+	return {
+		taskId: buildBackgroundTaskId(childSessionId),
+		childSessionId,
+		existingRecord: null,
+	};
+}
+
 function formatTaskResult(taskId: string, text: string): string {
 	return `task_id: ${taskId}\n<task_result>${text}</task_result>`;
 }
 
-function getContextSessionId(ctx: ToolContext): string {
-	const value =
-		(ctx as ToolContext & { sessionID?: unknown; sessionId?: unknown })
-			.sessionID ??
-		(ctx as ToolContext & { sessionID?: unknown; sessionId?: unknown })
-			.sessionId;
-	return typeof value === "string" ? value : "";
+function parseBooleanEnvOverride(value: string | undefined): boolean | undefined {
+	if (typeof value !== "string") {
+		return undefined;
+	}
+
+	const normalized = value.trim().toLowerCase();
+	if (!normalized) {
+		return undefined;
+	}
+
+	if (normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on") {
+		return true;
+	}
+
+	if (normalized === "0" || normalized === "false" || normalized === "no" || normalized === "off") {
+		return false;
+	}
+
+	return undefined;
 }
 
-function getContextDirectory(ctx: ToolContext): string {
-	const value = (ctx as ToolContext & { directory?: unknown }).directory;
-	return typeof value === "string" ? value : process.cwd();
+export function isForegroundParityEnabled(env: Record<string, string | undefined> = process.env): boolean {
+	const envKey =
+		PAI_ORCHESTRATION_FEATURE_FLAG_ENV_KEYS.paiOrchestrationForegroundParityEnabled;
+	const explicitOverride = parseBooleanEnvOverride(env[envKey]);
+	if (explicitOverride === undefined) {
+		return true;
+	}
+
+	return resolvePaiOrchestrationFeatureFlags(env)
+		.paiOrchestrationForegroundParityEnabled;
+}
+
+export function isBackgroundConcurrencyEnabled(
+	env: Record<string, string | undefined> = process.env,
+): boolean {
+	const envKey =
+		PAI_ORCHESTRATION_FEATURE_FLAG_ENV_KEYS.paiOrchestrationConcurrencyEnabled;
+	const explicitOverride = parseBooleanEnvOverride(env[envKey]);
+	if (explicitOverride === undefined) {
+		return resolvePaiOrchestrationFeatureFlags(env)
+			.paiOrchestrationConcurrencyEnabled;
+	}
+
+	return resolvePaiOrchestrationFeatureFlags(env)
+		.paiOrchestrationConcurrencyEnabled;
+}
+
+async function executeLegacyForegroundTask(args: {
+	taskArgs: TaskToolArgs;
+	ctx: ToolContext;
+	client: CarrierClient;
+}): Promise<string> {
+	const { taskArgs, ctx, client } = args;
+
+	const ask = (
+		ctx as ToolContext & { ask?: (request: unknown) => Promise<unknown> }
+	).ask;
+	const shouldBypassPermissionCheck =
+		getContextBypassAgentCheck(ctx) ||
+		hasExplicitAgentMention({
+			prompt: taskArgs.prompt,
+			subagentType: taskArgs.subagent_type,
+		});
+	if (!shouldBypassPermissionCheck) {
+		if (typeof ask !== "function") {
+			throw new Error("PAI task override: ctx.ask is unavailable");
+		}
+
+		await ask({
+			permission: "task",
+			patterns: [taskArgs.subagent_type],
+			always: ["*"],
+			metadata: {
+				description: taskArgs.description,
+				subagent_type: taskArgs.subagent_type,
+			},
+		});
+	}
+
+	const childSessionId = await resolveChildSessionId(taskArgs, client, ctx);
+	const parentSessionId = getContextSessionId(ctx);
+
+	let promptText = taskArgs.prompt;
+	if (parentSessionId) {
+		const rootSessionId = getSessionRootId(parentSessionId) ?? parentSessionId;
+		setSessionRootId(childSessionId, rootSessionId);
+		const scratchpadDir = (await ensureScratchpadSession(rootSessionId)).dir;
+		promptText = prefixPromptWithScratchpadBinding(taskArgs.prompt, scratchpadDir);
+	}
+
+	const session = client.session;
+	if (!session?.prompt) {
+		throw new Error("PAI task override: client.session.prompt is unavailable");
+	}
+
+	const promptResult = await session.prompt({
+		path: { id: childSessionId },
+		body: {
+			agent: taskArgs.subagent_type,
+			parts: [{ type: "text", text: promptText }],
+		},
+	});
+
+	const assistantText = await extractAssistantText(promptResult);
+	return formatTaskResult(childSessionId, assistantText);
 }
 
 export function createPaiTaskTool(input: {
@@ -212,6 +476,8 @@ export function createPaiTaskTool(input: {
 	$: unknown;
 	recordBackgroundTaskLaunch?: RecordBackgroundTaskLaunchFn;
 	recordBackgroundTaskLaunchError?: RecordBackgroundTaskLaunchErrorFn;
+	findBackgroundTaskByTaskId?: FindBackgroundTaskByTaskIdFn;
+	backgroundConcurrencyManager?: BackgroundConcurrencyManager;
 }) {
 	const client = (input.client ?? {}) as CarrierClient;
 	const recordBackgroundTaskLaunch =
@@ -219,9 +485,13 @@ export function createPaiTaskTool(input: {
 	const recordBackgroundTaskLaunchError =
 		input.recordBackgroundTaskLaunchError ??
 		recordBackgroundTaskLaunchErrorDefault;
+	const findBackgroundTaskByTaskId =
+		input.findBackgroundTaskByTaskId ?? findBackgroundTaskByTaskIdDefault;
+	const backgroundConcurrencyManager =
+		input.backgroundConcurrencyManager ?? getBackgroundConcurrencyManager();
 
 	return tool({
-		description: "Run a subagent task (supports run_in_background)",
+		description: TASK_TOOL_DESCRIPTION,
 		args: {
 			description: tool.schema.string(),
 			prompt: tool.schema.string(),
@@ -230,9 +500,12 @@ export function createPaiTaskTool(input: {
 			task_id: tool.schema.string().optional(),
 			run_in_background: tool.schema.boolean().optional(),
 		},
-			async execute(args: TaskToolArgs, ctx: ToolContext): Promise<string> {
-				if (args.run_in_background === true) {
-					const parentSessionId = getContextSessionId(ctx);
+		async execute(
+			args: TaskToolArgs,
+			ctx: ToolContext,
+		): Promise<string> {
+			if (args.run_in_background === true) {
+				const parentSessionId = getContextSessionId(ctx);
 				if (!parentSessionId) {
 					throw new Error(
 						"PAI task override: ctx.sessionID is required for run_in_background=true",
@@ -240,10 +513,8 @@ export function createPaiTaskTool(input: {
 				}
 
 				const session = client.session;
-				if (!session?.create) {
-					throw new Error(
-						"PAI task override: client.session.create is unavailable",
-					);
+				if (!session) {
+					throw new Error("PAI task override: client.session is unavailable");
 				}
 				const promptAsync = session.promptAsync;
 				const promptSync = session.prompt;
@@ -254,57 +525,82 @@ export function createPaiTaskTool(input: {
 					);
 				}
 
-				const childCreateResult = await session.create({
-					body: {
-						parentID: parentSessionId,
-						title: args.description,
-					},
-					query: {
-						directory: getContextDirectory(ctx),
-					},
-				});
+				const { taskId, childSessionId, existingRecord } =
+					await resolveBackgroundSession({
+						taskArgs: args,
+						ctx,
+						client,
+						findBackgroundTaskByTaskId,
+					});
 
-					const childSessionId = extractSessionId(childCreateResult);
-					if (!childSessionId) {
-						throw new Error(
-							"PAI task override: child session creation returned no id",
-						);
-					}
-
-					const rootSessionId =
-						getSessionRootId(parentSessionId) ?? parentSessionId;
-					setSessionRootId(childSessionId, rootSessionId);
-					const scratchpadDir =
-						(await ensureScratchpadSession(rootSessionId)).dir;
-					const promptText = prefixPromptWithScratchpadBinding(
-						args.prompt,
-						scratchpadDir,
-					);
-
-				const taskId = buildBackgroundTaskId(childSessionId);
+				const rootSessionId =
+					getSessionRootId(parentSessionId) ?? parentSessionId;
+				setSessionRootId(childSessionId, rootSessionId);
+				const scratchpadDir = (await ensureScratchpadSession(rootSessionId)).dir;
+				const promptText = prefixPromptWithScratchpadBinding(
+					args.prompt,
+					scratchpadDir,
+				);
+				const concurrencyEnabled = isBackgroundConcurrencyEnabled();
+				const providerModel = extractContextProviderModel(ctx);
+				const concurrencyGroup =
+					existingRecord?.concurrency_group ??
+					deriveBackgroundConcurrencyGroup({
+						providerId: providerModel.providerId,
+						modelId: providerModel.modelId,
+						subagentType: args.subagent_type,
+					});
 
 				await recordBackgroundTaskLaunch({
 					taskId,
 					taskDescription: args.description,
 					childSessionId,
 					parentSessionId,
+					status: concurrencyEnabled ? "queued" : "running",
+					concurrencyGroup,
 				});
 
-				void promptLaunch
-					.call(session, {
-						path: { id: childSessionId },
-						body: {
-							agent: args.subagent_type,
-							parts: [{ type: "text", text: promptText }],
-						},
-					})
-					.catch(async (promptError) => {
+				void (async () => {
+					let lease: BackgroundConcurrencyLease | null = null;
+					try {
+						if (concurrencyEnabled) {
+							lease = await backgroundConcurrencyManager.acquire({
+								group: concurrencyGroup,
+								taskId,
+							});
+
+							await recordBackgroundTaskLaunch({
+								taskId,
+								taskDescription: args.description,
+								childSessionId,
+								parentSessionId,
+								status: "running",
+								concurrencyGroup,
+							});
+						}
+
+						await Promise.resolve(
+							promptLaunch.call(session, {
+								path: { id: childSessionId },
+								body: {
+									agent: args.subagent_type,
+									parts: [{ type: "text", text: promptText }],
+								},
+							}),
+						);
+					} catch (promptError: unknown) {
+						if (promptError instanceof BackgroundConcurrencyCancelledError) {
+							return;
+						}
+
 						const errorMessage =
-							promptError instanceof Error
-								? promptError.message
-								: typeof promptError === "string"
-									? promptError
-									: String(promptError);
+							promptError instanceof BackgroundConcurrencySaturationError
+								? `${promptError.message} (max queued reached)`
+								: promptError instanceof Error
+									? promptError.message
+									: typeof promptError === "string"
+										? promptError
+										: String(promptError);
 						const normalizedMessage =
 							errorMessage.trim() || "Unknown background prompt launch error";
 
@@ -316,62 +612,36 @@ export function createPaiTaskTool(input: {
 						} catch {
 							// Best effort error marker persistence.
 						}
-					});
+					} finally {
+						lease?.release();
+					}
+				})();
 
-				return `Background task launched.\n\nTask ID: ${taskId}\nSession ID: ${childSessionId}\nAgent: ${args.subagent_type}\n\nSystem notifies on completion. Use \`background_output\` with task_id="${taskId}" to check.`;
+				const queueSnapshot = concurrencyEnabled
+					? backgroundConcurrencyManager.getSnapshot(concurrencyGroup)[0]
+					: undefined;
+				const queueHint = queueSnapshot
+					? `\nConcurrency group: ${concurrencyGroup} (active=${queueSnapshot.active}/${queueSnapshot.limit}, queued=${queueSnapshot.queued})`
+					: "";
+
+				return `Background task launched.\n\nTask ID: ${taskId}\nSession ID: ${childSessionId}\nAgent: ${args.subagent_type}${queueHint}\n\nSystem notifies on completion. Use \`background_output\` with task_id="${taskId}" to check.`;
 			}
 
-			const ask = (
-				ctx as ToolContext & { ask?: (request: unknown) => Promise<unknown> }
-			).ask;
-			if (typeof ask !== "function") {
-				throw new Error("PAI task override: ctx.ask is unavailable");
-			}
-
-			await ask({
-				permission: "task",
-				patterns: [args.subagent_type],
-				always: ["*"],
-				metadata: {
-					description: args.description,
-					subagent_type: args.subagent_type,
-				},
-			});
-
-				const childSessionId = await resolveChildSessionId(args, client, {
-					parentSessionId: getContextSessionId(ctx),
-					directory: getContextDirectory(ctx),
+			if (isForegroundParityEnabled()) {
+				const result = await executeForegroundTaskWithParity({
+					taskArgs: args,
+					ctx,
+					client,
 				});
-				const parentSessionId = getContextSessionId(ctx);
-				let promptText = args.prompt;
-				if (parentSessionId) {
-					const rootSessionId =
-						getSessionRootId(parentSessionId) ?? parentSessionId;
-					setSessionRootId(childSessionId, rootSessionId);
-					const scratchpadDir =
-						(await ensureScratchpadSession(rootSessionId)).dir;
-					promptText = prefixPromptWithScratchpadBinding(
-						args.prompt,
-						scratchpadDir,
-					);
-				}
-				const session = client.session;
-			if (!session?.prompt) {
-				throw new Error(
-					"PAI task override: client.session.prompt is unavailable",
-				);
+
+				return encodeForegroundTaskParityEnvelope(result);
 			}
 
-			const promptResult = await session.prompt({
-				path: { id: childSessionId },
-				body: {
-					agent: args.subagent_type,
-					parts: [{ type: "text", text: promptText }],
-				},
+			return executeLegacyForegroundTask({
+				taskArgs: args,
+				ctx,
+				client,
 			});
-
-			const assistantText = await extractAssistantText(promptResult);
-			return formatTaskResult(childSessionId, assistantText);
 		},
 	});
 }

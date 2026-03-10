@@ -4,6 +4,8 @@ import {
   findBackgroundTaskByTaskId,
   markBackgroundTaskCancelled,
 } from "./background-task-state";
+import { getBackgroundConcurrencyManager } from "../background/concurrency";
+import { resolvePaiOrchestrationFeatureFlags } from "../feature-flags";
 
 type CarrierClient = {
   session?: {
@@ -39,25 +41,46 @@ export function createPaiBackgroundCancelTool(input: { client: unknown }) {
         return `Task not found: ${taskId}`;
       }
 
+      const flags = resolvePaiOrchestrationFeatureFlags();
+      const concurrencyEnabled = flags.paiOrchestrationConcurrencyEnabled;
+      const cancelledPending = concurrencyEnabled
+        ? getBackgroundConcurrencyManager().cancelPendingTask(
+            taskId,
+            record.concurrency_group,
+          )
+        : false;
+
       const session = client.session;
-      if (!session?.abort) {
-        return `Task ID: ${record.task_id}\nSession ID: ${record.child_session_id}\n\n(no client.session.abort available)`;
+
+      let abortSucceeded = false;
+      let abortFailureMessage: string | undefined;
+      if (session?.abort) {
+        try {
+          await session.abort({
+            path: { id: record.child_session_id },
+            query: {
+              directory: getContextDirectory(ctx),
+            },
+          });
+          abortSucceeded = true;
+        } catch (error) {
+          abortFailureMessage = error instanceof Error ? error.message : String(error);
+        }
       }
 
-      try {
-        await session.abort({
-          path: { id: record.child_session_id },
-          query: {
-            directory: getContextDirectory(ctx),
-          },
-        });
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return `Task ID: ${record.task_id}\nSession ID: ${record.child_session_id}\n\nCancel failed: ${msg}`;
+      if (!abortSucceeded && !cancelledPending) {
+        if (!session?.abort) {
+          return `Task ID: ${record.task_id}\nSession ID: ${record.child_session_id}\n\n(no client.session.abort available)`;
+        }
+
+        return `Task ID: ${record.task_id}\nSession ID: ${record.child_session_id}\n\nCancel failed: ${abortFailureMessage ?? "unknown error"}`;
       }
 
       await markBackgroundTaskCancelled({ taskId, reason: "cancelled" });
-      return `Cancelled.\n\nTask ID: ${record.task_id}\nSession ID: ${record.child_session_id}`;
+      const queueNote = cancelledPending
+        ? "\nPending concurrency waiter removed."
+        : "";
+      return `Cancelled.\n\nTask ID: ${record.task_id}\nSession ID: ${record.child_session_id}${queueNote}`;
     },
   });
 }

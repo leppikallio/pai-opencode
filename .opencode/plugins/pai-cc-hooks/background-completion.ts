@@ -1,6 +1,18 @@
 import { emitAmbient } from "../../hooks/lib/cmux-attention";
+import { resolvePaiOrchestrationFeatureFlags } from "./feature-flags";
+import { normalizeBackgroundTaskLifecycle } from "./background/lifecycle-normalizer";
+import {
+	stabilizeBackgroundTaskMetadata,
+	type BackgroundMetadataStabilizerTimeout,
+} from "./background/metadata-stabilizer";
 import { notifyParentSessionBackgroundCompletion } from "./background/parent-notifier";
+import {
+	hasStableIdleCompletionConfidence,
+	resolveStableCompletionPolicy,
+	terminalizeBackgroundTask,
+} from "./background/terminalize";
 import type { BackgroundTaskRecord } from "./tools/background-task-state";
+import { recordBackgroundTaskObservation as recordBackgroundTaskObservationDefault } from "./tools/background-task-state";
 import { createPaiVoiceNotifyTool } from "./tools/voice-notify";
 import type {
 	CmuxNotifyFn,
@@ -14,11 +26,17 @@ export type BackgroundCompletionDeps = {
 	findBackgroundTaskByChildSessionId: (args: {
 		childSessionId: string;
 	}) => Promise<BackgroundTaskRecord | null>;
-	markBackgroundTaskCompleted: (args: {
+	recordBackgroundTaskObservation?: (args: {
 		taskId: string;
+		status: "running" | "idle";
 		nowMs?: number;
 	}) => Promise<BackgroundTaskRecord | null>;
-	markNotified: (taskId: string, nowMs?: number) => Promise<boolean>;
+	markBackgroundTaskTerminalAtomic: (args: {
+		taskId: string;
+		reason: "completed" | "failed" | "cancelled" | "stale";
+		message?: string;
+		nowMs?: number;
+	}) => Promise<BackgroundTaskRecord | null>;
 	listBackgroundTasksByParent: (args: {
 		parentSessionId: string;
 		nowMs?: number;
@@ -34,6 +52,13 @@ export type BackgroundCompletionDeps = {
 	notifyCmux: CmuxNotifyFn;
 	emitCompletionAttention: CompletionAttentionNotifyFn;
 	fetchImpl: FetchLike;
+	nowMs?: () => number;
+	stableCompletionEnabled?: boolean;
+	metadataStabilizerMaxWaitMs?: number;
+	metadataStabilizerPollIntervalMs?: number;
+	onMetadataStabilizationTimeout?: (
+		result: BackgroundMetadataStabilizerTimeout,
+	) => Promise<void> | void;
 };
 
 function collapseWhitespace(value: string): string {
@@ -95,14 +120,27 @@ function composeBackgroundReason(prefix: string, summary: string): string {
 function buildBackgroundCompletionReason(
 	taskRecord: BackgroundTaskRecord,
 ): string {
+	const lifecycle = normalizeBackgroundTaskLifecycle(taskRecord);
 	const errorSummary = summarizeBackgroundText(taskRecord.launch_error);
-	if (errorSummary) {
-		return composeBackgroundReason("Background task failed", errorSummary);
-	}
-
 	const descriptionSummary = summarizeBackgroundText(
 		taskRecord.task_description,
 	);
+
+	if (lifecycle.terminalReason === "failed") {
+		const summary = errorSummary || descriptionSummary;
+		return composeBackgroundReason("Background task failed", summary);
+	}
+
+	if (lifecycle.terminalReason === "cancelled") {
+		const summary = errorSummary || descriptionSummary;
+		return composeBackgroundReason("Background task cancelled", summary);
+	}
+
+	if (lifecycle.terminalReason === "stale") {
+		const summary = descriptionSummary || errorSummary;
+		return composeBackgroundReason("Background task became stale", summary);
+	}
+
 	if (descriptionSummary) {
 		return composeBackgroundReason(
 			"Background task completed",
@@ -190,31 +228,95 @@ export async function notifyBackgroundTaskCompletion(args: {
 	});
 }
 
+function isStableCompletionEnabled(
+	deps: BackgroundCompletionDeps,
+): boolean {
+	if (typeof deps.stableCompletionEnabled === "boolean") {
+		return deps.stableCompletionEnabled;
+	}
+
+	return resolvePaiOrchestrationFeatureFlags()
+		.paiOrchestrationStableCompletionEnabled;
+}
+
+async function handleMetadataStabilizerTimeout(args: {
+	deps: BackgroundCompletionDeps;
+	result: BackgroundMetadataStabilizerTimeout;
+}): Promise<void> {
+	await args.deps.onMetadataStabilizationTimeout?.(args.result);
+
+	if (process.env.PAI_CC_HOOKS_DEBUG !== "1") {
+		return;
+	}
+
+	console.warn(
+		`[pai-cc-hooks] background metadata stabilization timed out for ${args.result.childSessionId} after ${args.result.waitedMs}ms (${args.result.attempts} attempts)`,
+	);
+}
+
 export async function maybeHandleBackgroundTaskCompletion(args: {
 	sessionId: string;
 	deps: BackgroundCompletionDeps;
 }): Promise<void> {
-	const taskRecord = await args.deps.findBackgroundTaskByChildSessionId({
+	const nowMs = args.deps.nowMs?.() ?? Date.now();
+	const metadata = await stabilizeBackgroundTaskMetadata({
 		childSessionId: args.sessionId,
+		deps: {
+			findBackgroundTaskByChildSessionId:
+				args.deps.findBackgroundTaskByChildSessionId,
+			nowMs: args.deps.nowMs,
+			maxWaitMs: args.deps.metadataStabilizerMaxWaitMs,
+			pollIntervalMs: args.deps.metadataStabilizerPollIntervalMs,
+			onTimeout: async (result) => {
+				await handleMetadataStabilizerTimeout({
+					deps: args.deps,
+					result,
+				});
+			},
+		},
 	});
-	if (!taskRecord) {
+	if (metadata.status !== "ready") {
 		return;
 	}
 
-	const shouldNotify = await args.deps.markNotified(taskRecord.task_id);
-	if (!shouldNotify) {
-		return;
+	const stableCompletionEnabled = isStableCompletionEnabled(args.deps);
+	const taskRecord = metadata.taskRecord;
+	if (stableCompletionEnabled) {
+		const policy = resolveStableCompletionPolicy();
+		const observedTaskRecord =
+			(await (
+				args.deps.recordBackgroundTaskObservation ??
+				recordBackgroundTaskObservationDefault
+			)({
+				taskId: taskRecord.task_id,
+				status: "idle",
+				nowMs,
+			})) ?? taskRecord;
+
+		if (
+			!hasStableIdleCompletionConfidence({
+				taskRecord: observedTaskRecord,
+				nowMs,
+				policy,
+			})
+		) {
+			return;
+		}
 	}
 
-	const completedTask = await args.deps.markBackgroundTaskCompleted({
+	await terminalizeBackgroundTask({
 		taskId: taskRecord.task_id,
-	});
-	if (!completedTask) {
-		return;
-	}
-
-	await notifyBackgroundTaskCompletion({
-		taskRecord: completedTask,
-		deps: args.deps,
+		reason: "completed",
+		nowMs,
+		deps: {
+			markBackgroundTaskTerminalAtomic:
+				args.deps.markBackgroundTaskTerminalAtomic,
+			onTaskTerminalized: async (completedTask) => {
+				await notifyBackgroundTaskCompletion({
+					taskRecord: completedTask,
+					deps: args.deps,
+				});
+			},
+		},
 	});
 }

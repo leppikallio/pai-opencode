@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -8,6 +8,8 @@ import {
 	createPaiClaudeHooks,
 } from "../../plugins/pai-cc-hooks/hook";
 import {
+	getBackgroundTaskStatePath,
+	markBackgroundTaskCompleted,
 	recordBackgroundTaskLaunch,
 	recordBackgroundTaskLaunchError,
 } from "../../plugins/pai-cc-hooks/tools/background-task-state";
@@ -220,6 +222,114 @@ describe("pai-cc-hooks background completion attention", () => {
 			expect(voiceNotifyCalls).toHaveLength(1);
 			expect(voiceNotifyCalls[0].url).toBe("https://voice.example.test/notify");
 			expect(voiceNotifyCalls[0].init?.method).toBe("POST");
+		} finally {
+			restoreEnv("PAI_CC_HOOKS_CONFIG_ROOT", prevConfigRoot);
+			restoreEnv("OPENCODE_ROOT", prevOpenCodeRoot);
+			restoreEnv("PAI_VOICE_NOTIFY_URL", prevVoiceNotifyUrl);
+			rmSync(tmpRoot, { recursive: true, force: true });
+			rmSync(paiDir, { recursive: true, force: true });
+			__resetPaiCcHooksSettingsCacheForTests();
+		}
+	});
+
+	test("uses normalized terminal state when launch_error is diagnostic-only", async () => {
+		const tmpRoot = mkdtempSync(
+			path.join(os.tmpdir(), "pai-cc-hooks-bg-attention-diagnostic-"),
+		);
+		const paiDir = mkdtempSync(
+			path.join(os.tmpdir(), "pai-cc-hooks-bg-attention-diagnostic-pai-"),
+		);
+
+		const prevConfigRoot = process.env.PAI_CC_HOOKS_CONFIG_ROOT;
+		const prevOpenCodeRoot = process.env.OPENCODE_ROOT;
+		const prevVoiceNotifyUrl = process.env.PAI_VOICE_NOTIFY_URL;
+
+		const attentionCalls: Array<{
+			eventKey: string;
+			sessionId: string;
+			reasonShort?: string | null;
+		}> = [];
+
+		try {
+			const nowMs = Date.now();
+			process.env.PAI_CC_HOOKS_CONFIG_ROOT = tmpRoot;
+			process.env.OPENCODE_ROOT = paiDir;
+			process.env.PAI_VOICE_NOTIFY_URL = "https://voice.example.test/notify";
+
+			writeJson(path.join(tmpRoot, "settings.json"), {
+				env: {
+					PAI_DIR: paiDir,
+				},
+			});
+
+			__resetPaiCcHooksSettingsCacheForTests();
+
+			await recordBackgroundTaskLaunch({
+				taskId: "task_child_diag",
+				taskDescription: "Draft architecture changelog summary",
+				childSessionId: "child-session-diag",
+				parentSessionId: "parent-session-diag",
+				nowMs: nowMs - 100,
+			});
+			await markBackgroundTaskCompleted({
+				taskId: "task_child_diag",
+				nowMs: nowMs - 50,
+			});
+
+			const statePath = getBackgroundTaskStatePath();
+			const state = JSON.parse(readFileSync(statePath, "utf-8")) as {
+				backgroundTasks?: Record<string, Record<string, unknown>>;
+			};
+			const existingTask = state.backgroundTasks?.task_child_diag;
+			expect(existingTask).toBeDefined();
+			if (!state.backgroundTasks || !existingTask) {
+				throw new Error("expected persisted task_child_diag state record");
+			}
+			state.backgroundTasks.task_child_diag = {
+				...existingTask,
+				status: "completed",
+				terminal_reason: "completed",
+				completed_at_ms: nowMs - 50,
+				launch_error: "diagnostic only: prompt transport retried once",
+				launch_error_at_ms: nowMs - 60,
+			};
+			writeJson(statePath, state);
+
+			const hooks = createPaiClaudeHooks({
+				ctx: {
+					client: {
+						session: {
+							get: async () => ({ info: {} }),
+						},
+					},
+				},
+				deps: {
+					emitCompletionAttention: async (event) => {
+						attentionCalls.push(event);
+					},
+					fetchImpl: async () => ({ ok: true }),
+				},
+			});
+
+			await hooks.event({
+				event: {
+					type: "session.idle",
+					properties: {
+						sessionID: "child-session-diag",
+					},
+				},
+			});
+
+			expect(attentionCalls).toHaveLength(1);
+			expect(attentionCalls[0]).toMatchObject({
+				eventKey: "AGENT_COMPLETED",
+				sessionId: "parent-session-diag",
+				reasonShort:
+					"Background task completed: Draft architecture changelog summary",
+			});
+			expect(attentionCalls[0]?.reasonShort ?? "").not.toContain(
+				"Background task failed",
+			);
 		} finally {
 			restoreEnv("PAI_CC_HOOKS_CONFIG_ROOT", prevConfigRoot);
 			restoreEnv("OPENCODE_ROOT", prevOpenCodeRoot);

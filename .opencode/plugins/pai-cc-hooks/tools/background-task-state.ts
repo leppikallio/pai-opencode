@@ -1,6 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import {
+	isBackgroundTaskActive,
+	normalizeBackgroundTaskLifecycle,
+	selectTerminalReasonByPrecedence,
+	type BackgroundTaskStatus,
+	type BackgroundTaskTerminalReason,
+} from "../background/lifecycle-normalizer";
 import { getPaiDir } from "../../lib/pai-runtime";
 
 const DUPLICATE_WINDOW_MS = 2_000;
@@ -29,6 +36,7 @@ type SessionDuplicateRecord = {
 };
 
 export type BackgroundTaskRecord = {
+	version?: 1 | 2;
 	task_id: string;
 	task_description?: string;
 	child_session_id: string;
@@ -36,12 +44,18 @@ export type BackgroundTaskRecord = {
 	launched_at_ms: number;
 	updated_at_ms: number;
 	completed_at_ms?: number;
+	status?: BackgroundTaskStatus;
+	terminal_reason?: BackgroundTaskTerminalReason;
+	concurrency_group?: string;
+	last_progress_at_ms?: number;
+	idle_seen_at_ms?: number;
+	completion_attempts?: number;
 	launch_error?: string;
 	launch_error_at_ms?: number;
 };
 
-type BackgroundTaskStateV1 = {
-	version: 1;
+type BackgroundTaskState = {
+	version: 1 | 2;
 	updatedAtMs: number;
 	notifiedTaskIds: Record<string, number>;
 	duplicateBySession: Record<string, SessionDuplicateRecord>;
@@ -53,6 +67,8 @@ export type RecordBackgroundTaskLaunchArgs = {
 	taskDescription?: string;
 	childSessionId: string;
 	parentSessionId: string;
+	status?: BackgroundTaskStatus;
+	concurrencyGroup?: string;
 	nowMs?: number;
 };
 
@@ -80,6 +96,31 @@ export type MarkBackgroundTaskCompletedArgs = {
 export type MarkBackgroundTaskCancelledArgs = {
 	taskId: string;
 	reason?: string;
+	nowMs?: number;
+};
+
+export type MarkBackgroundTaskFailedArgs = {
+	taskId: string;
+	errorMessage: string;
+	nowMs?: number;
+};
+
+export type MarkBackgroundTaskStaleArgs = {
+	taskId: string;
+	reason?: string;
+	nowMs?: number;
+};
+
+export type MarkBackgroundTaskTerminalAtomicArgs = {
+	taskId: string;
+	reason: BackgroundTaskTerminalReason;
+	message?: string;
+	nowMs?: number;
+};
+
+export type RecordBackgroundTaskObservationArgs = {
+	taskId: string;
+	status: "running" | "idle";
 	nowMs?: number;
 };
 
@@ -116,9 +157,9 @@ export function getBackgroundTaskStatePath(): string {
 	return path.join(resolvePaiDir(), "MEMORY", "STATE", "background-tasks.json");
 }
 
-function createDefaultState(nowMs: number): BackgroundTaskStateV1 {
+function createDefaultState(nowMs: number): BackgroundTaskState {
 	return {
-		version: 1,
+		version: 2,
 		updatedAtMs: nowMs,
 		notifiedTaskIds: {},
 		duplicateBySession: {},
@@ -142,6 +183,81 @@ function asString(value: unknown): string | null {
 		return null;
 	}
 	return value;
+}
+
+function asNonNegativeInteger(value: unknown): number | undefined {
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		return undefined;
+	}
+
+	if (value < 0) {
+		return undefined;
+	}
+
+	return Math.floor(value);
+}
+
+function asVersion(value: unknown): 1 | 2 | undefined {
+	const numeric = asFiniteNumber(value);
+	if (numeric === 1 || numeric === 2) {
+		return numeric;
+	}
+
+	return undefined;
+}
+
+function asStatus(value: unknown): BackgroundTaskStatus | undefined {
+	if (
+		value === "queued" ||
+		value === "running" ||
+		value === "stable_idle" ||
+		value === "completed" ||
+		value === "failed" ||
+		value === "cancelled" ||
+		value === "stale"
+	) {
+		return value;
+	}
+
+	return undefined;
+}
+
+function asTerminalReason(
+	value: unknown,
+): BackgroundTaskTerminalReason | undefined {
+	if (
+		value === "completed" ||
+		value === "failed" ||
+		value === "cancelled" ||
+		value === "stale"
+	) {
+		return value;
+	}
+
+	return undefined;
+}
+
+function asOptionalTrimmedString(value: unknown): string | undefined {
+	const parsed = asString(value);
+	if (!parsed) {
+		return undefined;
+	}
+
+	const trimmed = parsed.trim();
+	return trimmed ? trimmed : undefined;
+}
+
+function canonicalizeBackgroundTaskRecord(
+	record: BackgroundTaskRecord,
+): BackgroundTaskRecord {
+	const lifecycle = normalizeBackgroundTaskLifecycle(record);
+	return {
+		...record,
+		version: 2,
+		status: lifecycle.status,
+		terminal_reason: lifecycle.terminalReason,
+		completed_at_ms: lifecycle.completedAtMs,
+	};
 }
 
 function coerceBackgroundTaskRecord(
@@ -171,10 +287,16 @@ function coerceBackgroundTaskRecord(
 
 	const launchError = asString(value.launch_error) ?? undefined;
 	const launchErrorAtMs = asFiniteNumber(value.launch_error_at_ms) ?? undefined;
-	const hasLaunchErrorPair =
-		launchError !== undefined && launchErrorAtMs !== undefined;
+	const version = asVersion(value.version) ?? 1;
+	const status = asStatus(value.status);
+	const terminalReason = asTerminalReason(value.terminal_reason);
+	const concurrencyGroup = asOptionalTrimmedString(value.concurrency_group);
+	const lastProgressAtMs = asFiniteNumber(value.last_progress_at_ms) ?? undefined;
+	const idleSeenAtMs = asFiniteNumber(value.idle_seen_at_ms) ?? undefined;
+	const completionAttempts = asNonNegativeInteger(value.completion_attempts);
 
-	return {
+	const normalized = canonicalizeBackgroundTaskRecord({
+		version,
 		task_id: taskId,
 		task_description: taskDescription,
 		child_session_id: childSessionId,
@@ -182,13 +304,24 @@ function coerceBackgroundTaskRecord(
 		launched_at_ms: launchedAtMs,
 		updated_at_ms: updatedAtMs,
 		completed_at_ms: completedAtMs,
-		launch_error: hasLaunchErrorPair ? launchError : undefined,
-		launch_error_at_ms: hasLaunchErrorPair ? launchErrorAtMs : undefined,
-	};
+		status,
+		terminal_reason: terminalReason,
+		concurrency_group: concurrencyGroup,
+		last_progress_at_ms: lastProgressAtMs,
+		idle_seen_at_ms: idleSeenAtMs,
+		completion_attempts: completionAttempts,
+		launch_error: launchError,
+		launch_error_at_ms: launchErrorAtMs,
+	});
+
+	return normalized;
 }
 
-function coerceState(value: unknown, nowMs: number): BackgroundTaskStateV1 {
-	if (!isRecord(value) || value.version !== 1) {
+function coerceState(value: unknown, nowMs: number): BackgroundTaskState {
+	if (
+		!isRecord(value) ||
+		(value.version !== 1 && value.version !== 2)
+	) {
 		return createDefaultState(nowMs);
 	}
 
@@ -226,7 +359,7 @@ function coerceState(value: unknown, nowMs: number): BackgroundTaskStateV1 {
 	}
 
 	return {
-		version: 1,
+		version: 2,
 		updatedAtMs: asFiniteNumber(value.updatedAtMs) ?? nowMs,
 		notifiedTaskIds,
 		duplicateBySession,
@@ -417,7 +550,7 @@ async function archiveCorruptStateFile(statePath: string): Promise<void> {
 async function readState(
 	statePath: string,
 	nowMs: number,
-): Promise<BackgroundTaskStateV1> {
+): Promise<BackgroundTaskState> {
 	let raw: string;
 	try {
 		raw = await fs.promises.readFile(statePath, "utf-8");
@@ -442,7 +575,7 @@ function createTempPath(statePath: string): string {
 
 async function writeState(
 	statePath: string,
-	state: BackgroundTaskStateV1,
+	state: BackgroundTaskState,
 ): Promise<void> {
 	const stateDir = path.dirname(statePath);
 	await fs.promises.mkdir(stateDir, { recursive: true });
@@ -480,7 +613,7 @@ function buildMessageKey(title: string, body: string): string {
 }
 
 function pruneDuplicateState(
-	state: BackgroundTaskStateV1,
+	state: BackgroundTaskState,
 	nowMs: number,
 ): void {
 	for (const [sessionId, record] of Object.entries(state.duplicateBySession)) {
@@ -491,7 +624,7 @@ function pruneDuplicateState(
 }
 
 function pruneNotifiedTaskIds(
-	state: BackgroundTaskStateV1,
+	state: BackgroundTaskState,
 	nowMs: number,
 ): void {
 	for (const [taskId, notifiedAtMs] of Object.entries(state.notifiedTaskIds)) {
@@ -523,7 +656,7 @@ function pruneNotifiedTaskIds(
 }
 
 function pruneBackgroundTasks(
-	state: BackgroundTaskStateV1,
+	state: BackgroundTaskState,
 	nowMs: number,
 ): void {
 	for (const [taskId, record] of Object.entries(state.backgroundTasks)) {
@@ -554,10 +687,141 @@ function pruneBackgroundTasks(
 	}
 }
 
-function pruneState(state: BackgroundTaskStateV1, nowMs: number): void {
+function pruneState(state: BackgroundTaskState, nowMs: number): void {
 	pruneDuplicateState(state, nowMs);
 	pruneNotifiedTaskIds(state, nowMs);
 	pruneBackgroundTasks(state, nowMs);
+}
+
+function normalizeTerminalMessage(message: string | undefined): string | undefined {
+	const normalized = message?.trim();
+	return normalized ? normalized : undefined;
+}
+
+function buildTerminalTaskRecord(args: {
+	existing: BackgroundTaskRecord;
+	reason: BackgroundTaskTerminalReason;
+	terminalMessage?: string;
+	nowMs: number;
+}): BackgroundTaskRecord {
+	const lifecycle = normalizeBackgroundTaskLifecycle(args.existing);
+	const selectedReason = selectTerminalReasonByPrecedence({
+		current: lifecycle.terminalReason,
+		incoming: args.reason,
+	});
+	if (!selectedReason) {
+		return canonicalizeBackgroundTaskRecord(args.existing);
+	}
+
+	const terminalWon = lifecycle.terminalReason !== selectedReason;
+	const shouldAttachMessage =
+		selectedReason !== "completed" && args.terminalMessage != null;
+
+	return canonicalizeBackgroundTaskRecord({
+		...args.existing,
+		version: 2,
+		status: selectedReason,
+		terminal_reason: selectedReason,
+		completed_at_ms:
+			terminalWon || lifecycle.completedAtMs == null
+				? args.nowMs
+				: lifecycle.completedAtMs,
+		updated_at_ms: args.nowMs,
+		completion_attempts: (args.existing.completion_attempts ?? 0) + 1,
+		last_progress_at_ms: args.nowMs,
+		idle_seen_at_ms:
+			selectedReason === "completed"
+				? args.nowMs
+				: args.existing.idle_seen_at_ms,
+		launch_error: shouldAttachMessage
+			? args.terminalMessage
+			: args.existing.launch_error,
+		launch_error_at_ms: shouldAttachMessage
+			? args.nowMs
+			: args.existing.launch_error_at_ms,
+	});
+}
+
+async function markBackgroundTaskTerminal(args: {
+	taskId: string;
+	reason: BackgroundTaskTerminalReason;
+	message?: string;
+	nowMs?: number;
+}): Promise<BackgroundTaskRecord | null> {
+	const taskId = args.taskId.trim();
+	if (!taskId) {
+		return null;
+	}
+
+	const nowMs = normalizeNowMs(args.nowMs);
+	const statePath = getBackgroundTaskStatePath();
+	const terminalMessage = normalizeTerminalMessage(args.message);
+
+	return withStateLock(statePath, async () => {
+		const state = await readState(statePath, nowMs);
+		pruneState(state, nowMs);
+
+		const existing = state.backgroundTasks[taskId];
+		if (!existing) {
+			return null;
+		}
+
+		const updated = buildTerminalTaskRecord({
+			existing,
+			reason: args.reason,
+			terminalMessage,
+			nowMs,
+		});
+
+		state.backgroundTasks[taskId] = updated;
+		state.updatedAtMs = nowMs;
+		pruneState(state, nowMs);
+
+		await writeState(statePath, state);
+		return { ...updated };
+	});
+}
+
+export async function markBackgroundTaskTerminalAtomic(
+	args: MarkBackgroundTaskTerminalAtomicArgs,
+): Promise<BackgroundTaskRecord | null> {
+	const taskId = args.taskId.trim();
+	if (!taskId) {
+		return null;
+	}
+
+	const nowMs = normalizeNowMs(args.nowMs);
+	const statePath = getBackgroundTaskStatePath();
+	const terminalMessage = normalizeTerminalMessage(args.message);
+
+	return withStateLock(statePath, async () => {
+		const state = await readState(statePath, nowMs);
+		pruneState(state, nowMs);
+
+		if (state.notifiedTaskIds[taskId] != null) {
+			return null;
+		}
+
+		const existing = state.backgroundTasks[taskId];
+		if (!existing) {
+			return null;
+		}
+
+		const updated = buildTerminalTaskRecord({
+			existing,
+			reason: args.reason,
+			terminalMessage,
+			nowMs,
+		});
+
+		state.backgroundTasks[taskId] = updated;
+		state.notifiedTaskIds[taskId] = nowMs;
+		state.updatedAtMs = nowMs;
+		pruneState(state, nowMs);
+
+		await writeState(statePath, state);
+		return { ...updated };
+	});
 }
 
 export async function markNotified(
@@ -630,9 +894,22 @@ export async function recordBackgroundTaskLaunch(
 	const taskDescription = args.taskDescription?.trim();
 	const childSessionId = args.childSessionId.trim();
 	const parentSessionId = args.parentSessionId.trim();
+	const requestedStatus = args.status;
+	const concurrencyGroup = args.concurrencyGroup?.trim();
 	if (!taskId || !childSessionId || !parentSessionId) {
 		throw new Error(
 			"recordBackgroundTaskLaunch requires taskId, childSessionId, and parentSessionId",
+		);
+	}
+
+	if (
+		requestedStatus !== undefined &&
+		requestedStatus !== "queued" &&
+		requestedStatus !== "running" &&
+		requestedStatus !== "stable_idle"
+	) {
+		throw new Error(
+			"recordBackgroundTaskLaunch status must be queued, running, or stable_idle",
 		);
 	}
 
@@ -644,16 +921,52 @@ export async function recordBackgroundTaskLaunch(
 		pruneState(state, nowMs);
 
 		const existing = state.backgroundTasks[taskId];
-		state.backgroundTasks[taskId] = {
+		const existingLifecycle =
+			existing != null ? normalizeBackgroundTaskLifecycle(existing) : null;
+		const isTerminalReactivation = existingLifecycle?.isTerminal === true;
+
+		let nextStatus: BackgroundTaskStatus = requestedStatus ?? "running";
+		if (isTerminalReactivation) {
+			// Explicit continuation on an existing public task_id is allowed to
+			// reactivate the same canonical record. Terminal lifecycle fields are
+			// cleared below when the new launch state is written.
+		} else if (existingLifecycle) {
+			if (existingLifecycle.status === "running" && nextStatus === "queued") {
+				nextStatus = "running";
+			}
+			if (
+				existingLifecycle.status === "stable_idle" &&
+				nextStatus === "queued"
+			) {
+				nextStatus = "running";
+			}
+		}
+
+		const nextRecord = canonicalizeBackgroundTaskRecord({
+			version: 2,
 			task_id: taskId,
 			task_description: taskDescription || existing?.task_description,
 			child_session_id: childSessionId,
 			parent_session_id: parentSessionId,
 			launched_at_ms: existing?.launched_at_ms ?? nowMs,
 			updated_at_ms: nowMs,
+			status: nextStatus,
+			concurrency_group: concurrencyGroup || existing?.concurrency_group,
+			last_progress_at_ms: nowMs,
+			idle_seen_at_ms:
+				nextStatus === "stable_idle"
+					? nowMs
+					: existingLifecycle?.status === "stable_idle"
+						? existing?.idle_seen_at_ms
+						: undefined,
+			completion_attempts: existing?.completion_attempts ?? 0,
+			completed_at_ms: undefined,
+			terminal_reason: undefined,
 			launch_error: undefined,
 			launch_error_at_ms: undefined,
-		};
+		});
+
+		state.backgroundTasks[taskId] = nextRecord;
 		state.updatedAtMs = nowMs;
 
 		pruneState(state, nowMs);
@@ -673,28 +986,11 @@ export async function recordBackgroundTaskLaunchError(
 		);
 	}
 
-	const nowMs = normalizeNowMs(args.nowMs);
-	const statePath = getBackgroundTaskStatePath();
-
-	await withStateLock(statePath, async () => {
-		const state = await readState(statePath, nowMs);
-		pruneState(state, nowMs);
-
-		const existing = state.backgroundTasks[taskId];
-		if (!existing) {
-			return;
-		}
-
-		state.backgroundTasks[taskId] = {
-			...existing,
-			launch_error: errorMessage,
-			launch_error_at_ms: nowMs,
-			updated_at_ms: nowMs,
-		};
-		state.updatedAtMs = nowMs;
-		pruneState(state, nowMs);
-
-		await writeState(statePath, state);
+	await markBackgroundTaskTerminal({
+		taskId,
+		reason: "failed",
+		message: errorMessage,
+		nowMs: args.nowMs,
 	});
 }
 
@@ -715,7 +1011,7 @@ export async function findBackgroundTaskByChildSessionId(
 
 		for (const record of Object.values(state.backgroundTasks)) {
 			if (record.child_session_id === childSessionId) {
-				return { ...record };
+				return { ...canonicalizeBackgroundTaskRecord(record) };
 			}
 		}
 
@@ -743,51 +1039,65 @@ export async function findBackgroundTaskByTaskId(
 			return null;
 		}
 
-		return { ...record };
+		return { ...canonicalizeBackgroundTaskRecord(record) };
 	});
 }
 
 export async function markBackgroundTaskCompleted(
 	args: MarkBackgroundTaskCompletedArgs,
 ): Promise<BackgroundTaskRecord | null> {
-	const taskId = args.taskId.trim();
-	if (!taskId) {
-		return null;
-	}
-
-	const nowMs = normalizeNowMs(args.nowMs);
-	const statePath = getBackgroundTaskStatePath();
-
-	return withStateLock(statePath, async () => {
-		const state = await readState(statePath, nowMs);
-		pruneState(state, nowMs);
-
-		const existing = state.backgroundTasks[taskId];
-		if (!existing) {
-			return null;
-		}
-
-		if (existing.completed_at_ms != null) {
-			return { ...existing };
-		}
-
-		const updated: BackgroundTaskRecord = {
-			...existing,
-			completed_at_ms: existing.completed_at_ms ?? nowMs,
-			updated_at_ms: nowMs,
-		};
-
-		state.backgroundTasks[taskId] = updated;
-		state.updatedAtMs = nowMs;
-		pruneState(state, nowMs);
-
-		await writeState(statePath, state);
-		return { ...updated };
+	return markBackgroundTaskTerminal({
+		taskId: args.taskId,
+		reason: "completed",
+		nowMs: args.nowMs,
 	});
 }
 
 export async function markBackgroundTaskCancelled(
 	args: MarkBackgroundTaskCancelledArgs,
+): Promise<BackgroundTaskRecord | null> {
+	const reason = (args.reason ?? "cancelled").trim() || "cancelled";
+	return markBackgroundTaskTerminal({
+		taskId: args.taskId,
+		reason: "cancelled",
+		message: reason,
+		nowMs: args.nowMs,
+	});
+}
+
+export async function markBackgroundTaskFailed(
+	args: MarkBackgroundTaskFailedArgs,
+): Promise<BackgroundTaskRecord | null> {
+	const errorMessage = args.errorMessage.trim();
+	if (!errorMessage) {
+		throw new Error("markBackgroundTaskFailed requires errorMessage");
+	}
+
+	return markBackgroundTaskTerminal({
+		taskId: args.taskId,
+		reason: "failed",
+		message: errorMessage,
+		nowMs: args.nowMs,
+	});
+}
+
+export async function markBackgroundTaskStale(
+	args: MarkBackgroundTaskStaleArgs,
+): Promise<BackgroundTaskRecord | null> {
+	const reason =
+		(args.reason ?? "No progress observed before stale timeout").trim() ||
+		"No progress observed before stale timeout";
+
+	return markBackgroundTaskTerminal({
+		taskId: args.taskId,
+		reason: "stale",
+		message: reason,
+		nowMs: args.nowMs,
+	});
+}
+
+export async function recordBackgroundTaskObservation(
+	args: RecordBackgroundTaskObservationArgs,
 ): Promise<BackgroundTaskRecord | null> {
 	const taskId = args.taskId.trim();
 	if (!taskId) {
@@ -796,7 +1106,6 @@ export async function markBackgroundTaskCancelled(
 
 	const nowMs = normalizeNowMs(args.nowMs);
 	const statePath = getBackgroundTaskStatePath();
-	const reason = (args.reason ?? "cancelled").trim() || "cancelled";
 
 	return withStateLock(statePath, async () => {
 		const state = await readState(statePath, nowMs);
@@ -807,13 +1116,26 @@ export async function markBackgroundTaskCancelled(
 			return null;
 		}
 
-		const updated: BackgroundTaskRecord = {
+		const lifecycle = normalizeBackgroundTaskLifecycle(existing);
+		if (lifecycle.isTerminal) {
+			return { ...canonicalizeBackgroundTaskRecord(existing) };
+		}
+
+		const baselineLastProgressAtMs =
+			existing.last_progress_at_ms ??
+			existing.updated_at_ms ??
+			existing.launched_at_ms;
+		const observedIdle = args.status === "idle";
+		const updated = canonicalizeBackgroundTaskRecord({
 			...existing,
-			completed_at_ms: existing.completed_at_ms ?? nowMs,
+			version: 2,
+			status: observedIdle ? "stable_idle" : "running",
 			updated_at_ms: nowMs,
-			launch_error: reason,
-			launch_error_at_ms: nowMs,
-		};
+			last_progress_at_ms: observedIdle ? baselineLastProgressAtMs : nowMs,
+			idle_seen_at_ms: observedIdle
+				? existing.idle_seen_at_ms ?? nowMs
+				: undefined,
+		});
 
 		state.backgroundTasks[taskId] = updated;
 		state.updatedAtMs = nowMs;
@@ -835,11 +1157,8 @@ export async function listActiveBackgroundTasks(args?: {
 		pruneState(state, nowMs);
 
 		return Object.values(state.backgroundTasks)
-			.filter(
-				(record) =>
-					record.completed_at_ms == null && record.launch_error == null,
-			)
-			.map((record) => ({ ...record }));
+			.filter((record) => isBackgroundTaskActive(record))
+			.map((record) => ({ ...canonicalizeBackgroundTaskRecord(record) }));
 	});
 }
 
@@ -862,6 +1181,6 @@ export async function listBackgroundTasksByParent(args: {
 		return Object.values(state.backgroundTasks)
 			.filter((record) => record.parent_session_id === parentSessionId)
 			.sort((left, right) => left.launched_at_ms - right.launched_at_ms)
-			.map((record) => ({ ...record }));
+			.map((record) => ({ ...canonicalizeBackgroundTaskRecord(record) }));
 	});
 }
