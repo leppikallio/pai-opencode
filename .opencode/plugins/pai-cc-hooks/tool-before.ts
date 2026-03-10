@@ -33,6 +33,18 @@ type MaybeRewriteBashToolInputWithRtkFn = (args: {
 	env?: Record<string, string>;
 }) => Promise<Record<string, unknown> | null>;
 
+function replaceArgsObject(target: Record<string, unknown>, next: Record<string, unknown>) {
+	if (target === next) {
+		return;
+	}
+
+	for (const key of Object.keys(target)) {
+		delete target[key];
+	}
+
+	Object.assign(target, next);
+}
+
 export async function handleToolExecuteBefore(args: {
 	input: unknown;
 	output: unknown;
@@ -55,29 +67,51 @@ export async function handleToolExecuteBefore(args: {
 		args.deps?.maybeRewriteBashToolInputWithRtk ??
 		maybeRewriteBashToolInputWithRtk;
 
-	const rawOutputArgs = getRecord(out, "args");
-	const normalizedOutputArgs = rawOutputArgs
+	const hasOutputArgs = typeof out.args === "object" && out.args !== null;
+	const rawOutputArgs = getRecord(out, "args") as UnknownRecord;
+	const normalizedOutputArgs = hasOutputArgs
 		? (normalizeArgs(rawOutputArgs) as UnknownRecord)
 		: undefined;
-	if (normalizedOutputArgs) {
-		out.args = normalizedOutputArgs;
+	if (hasOutputArgs && normalizedOutputArgs) {
+		replaceArgsObject(rawOutputArgs, normalizedOutputArgs);
+		out.args = rawOutputArgs;
 	}
 
-	const rawPayloadArgs = getRecord(payload, "args");
-	const normalizedPayloadArgs = rawPayloadArgs
+	const hasPayloadArgs = typeof payload.args === "object" && payload.args !== null;
+	const rawPayloadArgs = getRecord(payload, "args") as UnknownRecord;
+	const normalizedPayloadArgs = hasPayloadArgs
 		? (normalizeArgs(rawPayloadArgs) as UnknownRecord)
 		: undefined;
-	if (!normalizedOutputArgs && normalizedPayloadArgs) {
-		payload.args = normalizedPayloadArgs;
+	if (!normalizedOutputArgs && hasPayloadArgs && normalizedPayloadArgs) {
+		replaceArgsObject(rawPayloadArgs, normalizedPayloadArgs);
+		payload.args = rawPayloadArgs;
 	}
 
 	const toolName = getString(payload, "tool") ?? "";
-	let toolInput = (normalizedOutputArgs ?? normalizedPayloadArgs ?? {}) as Record<
+	let toolInput = (rawOutputArgs ?? rawPayloadArgs ?? {}) as Record<
 		string,
 		unknown
 	>;
 	const sessionId =
 		getString(payload, "sessionID") ?? getString(payload, "sessionId") ?? "";
+	const applyArgsUpdate = (next: Record<string, unknown>) => {
+		if (hasOutputArgs) {
+			replaceArgsObject(rawOutputArgs, next);
+			out.args = rawOutputArgs;
+			toolInput = rawOutputArgs;
+			return;
+		}
+
+		if (hasPayloadArgs) {
+			replaceArgsObject(rawPayloadArgs, next);
+			payload.args = rawPayloadArgs;
+			toolInput = rawPayloadArgs;
+			return;
+		}
+
+		toolInput = next;
+		out.args = next as UnknownRecord;
+	};
 
 	const rtkRewrittenInput = await maybeRewriteBashInput({
 		toolName,
@@ -85,8 +119,7 @@ export async function handleToolExecuteBefore(args: {
 		env: args.env,
 	});
 	if (rtkRewrittenInput) {
-		toolInput = rtkRewrittenInput;
-		out.args = rtkRewrittenInput as UnknownRecord;
+		applyArgsUpdate(rtkRewrittenInput);
 	}
 
 	if (sessionId && toolName) {
@@ -115,7 +148,7 @@ export async function handleToolExecuteBefore(args: {
 	);
 
 	if (result.modifiedInput) {
-		out.args = result.modifiedInput;
+		applyArgsUpdate(result.modifiedInput);
 	}
 
 	if (result.decision === "deny") {

@@ -83,13 +83,14 @@ async function writeCapabilityCache(args: {
 async function runToolBefore(args: {
 	runtimeRoot: string;
 	command: string;
-}): Promise<string> {
+	}): Promise<{ observedOutputCommand: string; executeCommand: string }> {
+	const executeArgs: Record<string, unknown> = {
+		command: args.command,
+		workdir: args.runtimeRoot,
+		description: "Runs test command",
+	};
 	const output: { args: Record<string, unknown> } = {
-		args: {
-			command: args.command,
-			workdir: args.runtimeRoot,
-			description: "Runs test command",
-		},
+		args: executeArgs,
 	};
 
 	await handleToolExecuteBefore({
@@ -103,7 +104,10 @@ async function runToolBefore(args: {
 		cwd: args.runtimeRoot,
 	});
 
-	return String((output.args as Record<string, unknown>).command ?? "");
+	return {
+		observedOutputCommand: String((output.args as Record<string, unknown>).command ?? ""),
+		executeCommand: String(executeArgs.command ?? ""),
+	};
 }
 
 describe("pai-cc-hooks RTK rewrite integration", () => {
@@ -123,13 +127,14 @@ describe("pai-cc-hooks RTK rewrite integration", () => {
 				},
 			});
 
-			const command = await withRtkRuntime({
+			const result = await withRtkRuntime({
 				runtimeRoot,
 				pathValue: prependPath(shimDir),
 				run: () => runToolBefore({ runtimeRoot, command: "git status" }),
 			});
 
-			expect(command).toBe("rtk git status");
+			expect(result.observedOutputCommand).toBe("rtk git status");
+			expect(result.executeCommand).toBe("rtk git status");
 		} finally {
 			await fs.rm(shimDir, { recursive: true, force: true });
 			await fs.rm(runtimeRoot, { recursive: true, force: true });
@@ -143,13 +148,14 @@ describe("pai-cc-hooks RTK rewrite integration", () => {
 		const shimDir = await createRtkShim({ mode: "prefix" });
 
 		try {
-			const command = await withRtkRuntime({
+			const result = await withRtkRuntime({
 				runtimeRoot,
 				pathValue: prependPath(shimDir),
 				run: () => runToolBefore({ runtimeRoot, command: "git status" }),
 			});
 
-			expect(command).toBe("git status");
+			expect(result.observedOutputCommand).toBe("git status");
+			expect(result.executeCommand).toBe("git status");
 		} finally {
 			await fs.rm(shimDir, { recursive: true, force: true });
 			await fs.rm(runtimeRoot, { recursive: true, force: true });
@@ -172,13 +178,14 @@ describe("pai-cc-hooks RTK rewrite integration", () => {
 				},
 			});
 
-			const command = await withRtkRuntime({
+			const result = await withRtkRuntime({
 				runtimeRoot,
 				pathValue: prependPath(shimDir),
 				run: () => runToolBefore({ runtimeRoot, command: "git status" }),
 			});
 
-			expect(command).toBe("git status");
+			expect(result.observedOutputCommand).toBe("git status");
+			expect(result.executeCommand).toBe("git status");
 		} finally {
 			await fs.rm(shimDir, { recursive: true, force: true });
 			await fs.rm(runtimeRoot, { recursive: true, force: true });
@@ -201,13 +208,14 @@ describe("pai-cc-hooks RTK rewrite integration", () => {
 				},
 			});
 
-			const command = await withRtkRuntime({
+			const result = await withRtkRuntime({
 				runtimeRoot,
 				pathValue: prependPath(shimDir),
 				run: () => runToolBefore({ runtimeRoot, command: "rtk git status" }),
 			});
 
-			expect(command).toBe("rtk git status");
+			expect(result.observedOutputCommand).toBe("rtk git status");
+			expect(result.executeCommand).toBe("rtk git status");
 		} finally {
 			await fs.rm(shimDir, { recursive: true, force: true });
 			await fs.rm(runtimeRoot, { recursive: true, force: true });
@@ -230,13 +238,14 @@ describe("pai-cc-hooks RTK rewrite integration", () => {
 				},
 			});
 
-			const command = await withRtkRuntime({
+			const result = await withRtkRuntime({
 				runtimeRoot,
 				pathValue: prependPath(shimDir),
 				run: () => runToolBefore({ runtimeRoot, command: "git status" }),
 			});
 
-			expect(command).toBe("git status");
+			expect(result.observedOutputCommand).toBe("git status");
+			expect(result.executeCommand).toBe("git status");
 		} finally {
 			await fs.rm(shimDir, { recursive: true, force: true });
 			await fs.rm(runtimeRoot, { recursive: true, force: true });

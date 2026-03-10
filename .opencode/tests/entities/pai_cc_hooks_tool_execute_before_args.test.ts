@@ -4,9 +4,10 @@ import os from "node:os";
 import path from "node:path";
 
 import {
-  __resetPaiCcHooksSettingsCacheForTests,
-  createPaiClaudeHooks,
+	__resetPaiCcHooksSettingsCacheForTests,
+	createPaiClaudeHooks,
 } from "../../plugins/pai-cc-hooks/hook";
+import { handleToolExecuteBefore } from "../../plugins/pai-cc-hooks/tool-before";
 
 function createConfigRoot(): string {
   const root = mkdtempSync(path.join(os.tmpdir(), "pai-cc-hooks-tool-before-"));
@@ -77,24 +78,55 @@ describe("tool.execute.before", () => {
       "utf8",
     );
 
-    await withConfigRoot(root, async () => {
-      __resetPaiCcHooksSettingsCacheForTests();
-      const hooks = createPaiClaudeHooks({ ctx: {} });
-      const output: { args: Record<string, unknown> } = {
-        args: { command: "echo hi" },
-      };
+	await withConfigRoot(root, async () => {
+		__resetPaiCcHooksSettingsCacheForTests();
+		const hooks = createPaiClaudeHooks({ ctx: {} });
+		const executeArgs: Record<string, unknown> = { command: "echo hi" };
+		const output: { args: Record<string, unknown> } = {
+			args: executeArgs,
+		};
 
-      await hooks["tool.execute.before"](
-        {
-          tool: "bash",
-          sessionID: "session-1",
-          callID: "call-1",
-        },
-        output,
-      );
+		await hooks["tool.execute.before"](
+			{
+				tool: "bash",
+				sessionID: "session-1",
+				callID: "call-1",
+			},
+			output,
+		);
 
-      expect(output.args.command).toBe("echo changed");
-      __resetPaiCcHooksSettingsCacheForTests();
-    });
-  });
+		expect(executeArgs.command).toBe("echo changed");
+		expect(output.args.command).toBe("echo changed");
+		__resetPaiCcHooksSettingsCacheForTests();
+	});
+	});
+
+	test("preserves executable args when rewrite returns the same object reference", async () => {
+		const executeArgs: Record<string, unknown> = {
+			command: "git status",
+			workdir: "/tmp/demo",
+			description: "Runs git status",
+		};
+		const output: { args: Record<string, unknown> } = { args: executeArgs };
+
+		await handleToolExecuteBefore({
+			input: {
+				tool: "bash",
+				sessionID: "session-same-ref",
+				callID: "call-same-ref",
+			},
+			output,
+			config: null,
+			cwd: "/tmp/demo",
+			deps: {
+				async maybeRewriteBashToolInputWithRtk() {
+					return executeArgs;
+				},
+			},
+		});
+
+		expect(executeArgs.command).toBe("git status");
+		expect(executeArgs.workdir).toBe("/tmp/demo");
+		expect(output.args.command).toBe("git status");
+	});
 });
