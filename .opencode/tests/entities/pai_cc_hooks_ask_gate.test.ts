@@ -1,13 +1,16 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 import {
-  __resetPaiCcHooksSettingsCacheForTests,
-  createPaiClaudeHooks,
+	__resetPaiCcHooksSettingsCacheForTests,
+	createPaiClaudeHooks,
 } from "../../plugins/pai-cc-hooks/hook";
-import { buildAskGateKey } from "../../plugins/pai-cc-hooks/ask-gate";
+import {
+	__resetAskGateForTests,
+	buildAskGateKey,
+} from "../../plugins/pai-cc-hooks/ask-gate";
 
 function writeJson(filePath: string, value: unknown): void {
   writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
@@ -39,13 +42,18 @@ describe("pai-cc-hooks ask gate", () => {
     expect(key1).toBe(key2);
   });
 
-  test("ask decision blocks and can be confirmed once", async () => {
-    const tmpRoot = mkdtempSync(path.join(os.tmpdir(), "pai-cc-hooks-ask-"));
-    const prevConfigRoot = process.env.PAI_CC_HOOKS_CONFIG_ROOT;
+	test("ask decision blocks and can be confirmed once", async () => {
+		const tmpRoot = mkdtempSync(path.join(os.tmpdir(), "pai-cc-hooks-ask-"));
+		const prevConfigRoot = process.env.PAI_CC_HOOKS_CONFIG_ROOT;
+		const prevAskGateStatePath = process.env.PAI_CC_HOOKS_ASK_GATE_STATE_PATH;
 
-    try {
-      // Point hooks config loader at this temp root.
-      process.env.PAI_CC_HOOKS_CONFIG_ROOT = tmpRoot;
+		try {
+			// Point hooks config loader at this temp root.
+			process.env.PAI_CC_HOOKS_CONFIG_ROOT = tmpRoot;
+			process.env.PAI_CC_HOOKS_ASK_GATE_STATE_PATH = path.join(
+				tmpRoot,
+				"ask-gate-state.json",
+			);
 
       const hooksDir = path.resolve(import.meta.dir, "..", "..", "hooks");
       const securityHook = path.join(hooksDir, "SecurityValidator.hook.ts");
@@ -66,50 +74,19 @@ describe("pai-cc-hooks ask gate", () => {
         },
       });
 
-      // The hooks layer injects OPENCODE_ROOT=tmpRoot. Provide a test-local
-      // security patterns override so the SecurityValidator produces an `ask`
-      // decision for a non-destructive command.
-      const patternsDir = path.join(
-        tmpRoot,
-        "skills",
-        "PAI",
-        "USER",
-        "PAISECURITYSYSTEM",
-      );
-      mkdirSync(patternsDir, { recursive: true });
-      writeFileSync(
-        path.join(patternsDir, "patterns.yaml"),
-        [
-          "---",
-          'version: "1.0"',
-          "",
-          "bash:",
-          "  confirm:",
-          '    - pattern: "echo block_test"',
-          '      reason: "Test-only ask-gate trigger"',
-          "",
-          "paths:",
-          "  zeroAccess:",
-          "  readOnly:",
-          "  confirmWrite:",
-          "  noDelete:",
-          "",
-        ].join("\n"),
-        "utf-8",
-      );
+			__resetPaiCcHooksSettingsCacheForTests();
+			__resetAskGateForTests();
+			const hooks = createPaiClaudeHooks({ ctx: {} });
 
-      __resetPaiCcHooksSettingsCacheForTests();
-      const hooks = createPaiClaudeHooks({ ctx: {} });
-
-      const input = {
-        tool: "bash",
-        sessionID: "ses_test",
-        callID: "call_test",
-        args: {
-          command: "echo block_test",
-          description: "trigger ask gate",
-        },
-      };
+			const input = {
+				tool: "bash",
+				sessionID: "ses_test",
+				callID: "call_test",
+				args: {
+					command: "git push --force",
+					description: "trigger ask gate",
+				},
+			};
 
       const output: Record<string, unknown> = {
         args: { ...(input.args as Record<string, unknown>) },
@@ -143,14 +120,20 @@ describe("pai-cc-hooks ask gate", () => {
 
       // Retry: should be allowed once (no throw).
       await hooks["tool.execute.before"](input, output);
-    } finally {
-      if (prevConfigRoot === undefined) {
-        delete process.env.PAI_CC_HOOKS_CONFIG_ROOT;
-      } else {
-        process.env.PAI_CC_HOOKS_CONFIG_ROOT = prevConfigRoot;
-      }
-      rmSync(tmpRoot, { recursive: true, force: true });
-      __resetPaiCcHooksSettingsCacheForTests();
-    }
-  });
+		} finally {
+			if (prevConfigRoot === undefined) {
+				delete process.env.PAI_CC_HOOKS_CONFIG_ROOT;
+			} else {
+				process.env.PAI_CC_HOOKS_CONFIG_ROOT = prevConfigRoot;
+			}
+			if (prevAskGateStatePath === undefined) {
+				delete process.env.PAI_CC_HOOKS_ASK_GATE_STATE_PATH;
+			} else {
+				process.env.PAI_CC_HOOKS_ASK_GATE_STATE_PATH = prevAskGateStatePath;
+			}
+			rmSync(tmpRoot, { recursive: true, force: true });
+			__resetAskGateForTests();
+			__resetPaiCcHooksSettingsCacheForTests();
+		}
+	});
 });

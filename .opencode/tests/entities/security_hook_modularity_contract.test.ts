@@ -13,6 +13,10 @@ import {
 	__resetPaiCcHooksSettingsCacheForTests,
 	createPaiClaudeHooks,
 } from "../../plugins/pai-cc-hooks/hook";
+import {
+	__resetAskGateForTests,
+	__resetAskGateInMemoryForTests,
+} from "../../plugins/pai-cc-hooks/ask-gate";
 
 function writeJson(filePath: string, value: unknown): void {
 	writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, "utf-8");
@@ -176,6 +180,107 @@ describe("pai-cc-hooks modularity contract", () => {
 			restoreEnv("PAI_CC_HOOKS_CONFIG_ROOT", previousRoot);
 			rmSync(tmpRoot, { recursive: true, force: true });
 			__resetPaiCcHooksSettingsCacheForTests();
+		}
+	});
+
+	test("confirmed ask-gate survives in-memory reset and stays one-shot", async () => {
+		const tmpRoot = mkdtempSync(
+			path.join(os.tmpdir(), "pai-cc-hooks-modularity-persist-"),
+		);
+		const previousRoot = process.env.PAI_CC_HOOKS_CONFIG_ROOT;
+		const previousAskGateStatePath = process.env.PAI_CC_HOOKS_ASK_GATE_STATE_PATH;
+
+		try {
+			process.env.PAI_CC_HOOKS_CONFIG_ROOT = tmpRoot;
+			process.env.PAI_CC_HOOKS_ASK_GATE_STATE_PATH = path.join(
+				tmpRoot,
+				"ask-gate-state.json",
+			);
+
+			const hooksDir = path.resolve(import.meta.dir, "..", "..", "hooks");
+			const securityHook = path.join(hooksDir, "SecurityValidator.hook.ts");
+			const paiDir = path.resolve(import.meta.dir, "..", "..");
+
+			writeJson(path.join(tmpRoot, "settings.json"), {
+				env: {
+					PAI_DIR: paiDir,
+				},
+				hooks: {
+					PreToolUse: [
+						{
+							matcher: "Bash",
+							hooks: [{ type: "command", command: securityHook }],
+						},
+					],
+				},
+			});
+
+			__resetPaiCcHooksSettingsCacheForTests();
+			__resetAskGateForTests();
+			let hooks = createPaiClaudeHooks({ ctx: {} });
+
+			const input = {
+				tool: "bash",
+				sessionID: "ses_modularity_persist",
+				callID: "call_modularity_persist",
+				args: {
+					command: "git reset --hard",
+					description: "trigger confirm persistence",
+				},
+			};
+
+			const output: Record<string, unknown> = {
+				args: { ...(input.args as Record<string, unknown>) },
+			};
+
+			let firstError = "";
+			try {
+				await hooks["tool.execute.before"](input, output);
+				throw new Error("Expected first ask-gate block");
+			} catch (error) {
+				firstError = error instanceof Error ? error.message : String(error);
+			}
+
+			expect(firstError).toContain("Blocked pending confirmation");
+			const confirmId = extractConfirmId(firstError);
+
+			await hooks["chat.message"](
+				{
+					sessionID: "ses_modularity_persist",
+					prompt: `PAI_CONFIRM ${confirmId}`,
+					parts: [{ type: "text", text: `PAI_CONFIRM ${confirmId}` }],
+				},
+				{},
+			);
+
+			__resetAskGateInMemoryForTests();
+			__resetPaiCcHooksSettingsCacheForTests();
+			hooks = createPaiClaudeHooks({ ctx: {} });
+
+			await hooks["tool.execute.before"](input, output);
+
+			__resetAskGateInMemoryForTests();
+			__resetPaiCcHooksSettingsCacheForTests();
+			hooks = createPaiClaudeHooks({ ctx: {} });
+
+			let secondError = "";
+			try {
+				await hooks["tool.execute.before"](input, output);
+				throw new Error("Expected one-shot allowance to remain consumed");
+			} catch (error) {
+				secondError = error instanceof Error ? error.message : String(error);
+			}
+
+			expect(secondError).toContain("Blocked pending confirmation");
+		} finally {
+			restoreEnv("PAI_CC_HOOKS_CONFIG_ROOT", previousRoot);
+			restoreEnv(
+				"PAI_CC_HOOKS_ASK_GATE_STATE_PATH",
+				previousAskGateStatePath,
+			);
+			rmSync(tmpRoot, { recursive: true, force: true });
+			__resetPaiCcHooksSettingsCacheForTests();
+			__resetAskGateForTests();
 		}
 	});
 
