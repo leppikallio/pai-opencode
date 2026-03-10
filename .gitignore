@@ -26,6 +26,7 @@ docs/reviews/
 .opencode/skills/**/State/
 .opencode/skills/**/Reports/
 .opencode/**/__pycache__/
+.opencode/skills/utilities/pai-upgrade/Logs/*
 .opencode/**/state.json
 
 # Underscore-prefixed agent drafts/variants
