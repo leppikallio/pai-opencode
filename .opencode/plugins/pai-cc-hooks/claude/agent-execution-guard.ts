@@ -151,7 +151,7 @@ function parseCharacterAliases(characterSpec: string): string[] {
 	}
 
 	for (const match of identitySegment.matchAll(/\(([^)]+)\)/g)) {
-		for (const rawAlias of (match[1] ?? "").split(/[\/,]/)) {
+		for (const rawAlias of (match[1] ?? "").split(/[/,]/)) {
 			const alias = rawAlias.trim();
 			if (alias) {
 				aliases.add(alias);

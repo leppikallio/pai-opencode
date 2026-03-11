@@ -88,7 +88,7 @@ describe("AgentExecutionGuard hook port", () => {
 			"utf-8",
 		);
 		expect(settingsJson).toContain(
-			'"command": "${PAI_DIR}/hooks/AgentExecutionGuard.hook.ts"',
+			'"command": "' + "$" + '{PAI_DIR}/hooks/AgentExecutionGuard.hook.ts"',
 		);
 
 		const mode = statSync(hookCommandPath).mode;
