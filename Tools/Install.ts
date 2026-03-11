@@ -31,7 +31,9 @@ import { guessNwaveRoot } from "./lib/nwave/paths";
 import {
   getRtkCapabilityCachePath,
   refreshRtkCapabilityCache,
+  type RtkCapabilityRecord,
 } from "../.opencode/plugins/rtk/capability";
+import { mergeOpencodeInstructions } from "./pai-install/merge-opencode-instructions";
 
 type Mode = "sync";
 
@@ -289,13 +291,16 @@ function ensureRuntimeProjectionFiles(args: { targetDir: string; dryRun: boolean
   }
 }
 
-async function refreshRtkCapabilityBootstrap(args: { targetDir: string; dryRun: boolean }) {
+async function refreshRtkCapabilityBootstrap(args: {
+  targetDir: string;
+  dryRun: boolean;
+}): Promise<RtkCapabilityRecord | null> {
   const stateDir = path.join(args.targetDir, "MEMORY", "STATE");
   const cachePath = getRtkCapabilityCachePath({ stateDir });
 
   if (args.dryRun) {
     console.log(`[dry] RTK capability cache: would refresh ${cachePath}`);
-    return;
+    return null;
   }
 
   const { capability } = await refreshRtkCapabilityCache({ stateDir });
@@ -303,6 +308,7 @@ async function refreshRtkCapabilityBootstrap(args: { targetDir: string; dryRun: 
   console.log(
     `[write] RTK capability cache: refreshed ${cachePath} (present=${capability.present}, version=${version}, supportsRewrite=${capability.supportsRewrite})`
   );
+  return capability;
 }
 
 function parseSkillNameFromSkillMd(skillMdPath: string): string | null {
@@ -2929,6 +2935,7 @@ async function sync(mode: Mode, opts: Options) {
     { name: "PAIOpenCodeWizard.ts", overwrite: true },
     { name: "OPENCODE.md", overwrite: true },
     { name: "INSTALL.md", overwrite: true },
+    { name: "RTK.md", overwrite: true },
     { name: "package.json", overwrite: true },
     { name: "bun.lock", overwrite: true },
     { name: "tsconfig.json", overwrite: true },
@@ -2998,8 +3005,24 @@ async function sync(mode: Mode, opts: Options) {
   // Ensure runtime-projection files exist so cross-reference checks are stable.
   ensureRuntimeProjectionFiles({ targetDir, dryRun });
 
-  // Refresh RTK bootstrap capability cache under MEMORY/STATE.
-  await refreshRtkCapabilityBootstrap({ targetDir, dryRun });
+  // RTK install ordering contract:
+  // 1) copy/install runtime files (including RTK.md)
+  // 2) refresh RTK capability bootstrap for this install run
+  // 3) merge opencode.json.instructions using the fresh capability result
+  const rtkCapability = await refreshRtkCapabilityBootstrap({ targetDir, dryRun });
+
+  if (dryRun) {
+    console.log("[dry] opencode instructions merge: would reconcile runtime RTK.md entry");
+  } else {
+    const mergeResult = mergeOpencodeInstructions({
+      targetDir,
+      supportsRtkRewrite: rtkCapability?.supportsRewrite ?? false,
+    });
+    const mergeState = mergeResult.changed ? "updated" : "unchanged";
+    console.log(
+      `[write] opencode instructions merge: ${mergeState} (${mergeResult.opencodeConfigPath}, supportsRewrite=${rtkCapability?.supportsRewrite ?? false})`
+    );
+  }
 
   // Ensure LEARNING/REFLECTIONS bootstrap artifacts exist before verification scans.
   ensureLearningReflectionsArtifacts({ targetDir, dryRun });

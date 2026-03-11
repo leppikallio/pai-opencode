@@ -41,7 +41,7 @@ async function readCachedCapability(): Promise<RtkCapabilityRecord | null> {
 }
 
 function buildAwarenessReminder(): string {
-  return `<system-reminder>\nRTK rewrite support is active for this PAI/OpenCode runtime.\n\nUse RTK meta commands directly when needed:\n- rtk gain\n- rtk gain --history\n- rtk discover\n- rtk proxy <cmd>\n\nRewrite execution stays in pai-cc-hooks; this hook is awareness-only.\n</system-reminder>\n`;
+  return `<system-reminder>\nRTK rewrite support is active for this runtime.\nDetailed RTK semantics live in RTK.md.\nIf RTK emits a tee/raw-output hint, follow RTK.md recovery guidance (OpenCode Read or rtk proxy).\n\nUse RTK meta commands directly when needed:\n- rtk gain\n- rtk gain --history\n- rtk discover\n- rtk proxy <cmd>\n\nThis hook is capability/status reminder only.\n</system-reminder>\n`;
 }
 
 async function main(): Promise<void> {

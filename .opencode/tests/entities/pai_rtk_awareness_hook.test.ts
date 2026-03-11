@@ -101,7 +101,7 @@ describe("RtkAwareness SessionStart hook", () => {
     }
   });
 
-  test("emits adapted RTK awareness when cached capability supports rewrite", async () => {
+  test("emits capability/status RTK awareness when cached capability supports rewrite", async () => {
     const runtimeRoot = await fs.mkdtemp(path.join(os.tmpdir(), "pai-rtk-awareness-supported-"));
     const emptyPathDir = await fs.mkdtemp(path.join(os.tmpdir(), "pai-rtk-awareness-empty-path-"));
 
@@ -128,7 +128,15 @@ describe("RtkAwareness SessionStart hook", () => {
       expect(result.stdout).toContain("rtk gain --history");
       expect(result.stdout).toContain("rtk discover");
       expect(result.stdout).toContain("rtk proxy <cmd>");
-      expect(result.stdout).toContain("PAI/OpenCode");
+      expect(result.stdout).toContain("RTK.md");
+      expect(result.stdout).toContain(
+        "If RTK emits a tee/raw-output hint, follow RTK.md recovery guidance (OpenCode Read or rtk proxy).",
+      );
+      expect(result.stdout).not.toContain("RTK-proxied output is authoritative by default");
+      expect(result.stdout).not.toContain("Shorter optimized output is normal");
+      expect(result.stdout).not.toContain("Raw-output/tee recovery is an exception path");
+      expect(result.stdout).not.toContain("Read ~/.local/share/rtk/tee/");
+      expect(result.stdout).not.toContain("Do not rerun raw commands outside RTK by default");
       expect(result.stderr).toBe("");
     } finally {
       await fs.rm(emptyPathDir, { recursive: true, force: true });
