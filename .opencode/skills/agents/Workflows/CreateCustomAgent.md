@@ -55,6 +55,7 @@ AgentFactory returns JSON with:
   "name": "Research Enthusiastic Explorer",
   "voice": "Jeremy",
   "voice_id": "bVMeCyTHy58xNoL34h3p",
+  "executionSubagentType": "general",
   "traits": ["research", "enthusiastic", "exploratory"],
   "prompt": "# Dynamic Agent: Research Enthusiastic Explorer\n\nYou are a specialized agent..."
 }
@@ -69,22 +70,25 @@ AgentFactory returns JSON with:
 Task({
   description: "Research agent 1 - enthusiastic",
   prompt: <agent1_full_prompt>,
-  subagent_type: "Intern",
+  subagent_type: <agent1_execution_subagent_type>,
   model: "sonnet"  // or "haiku" for speed
 })
 Task({
   description: "Research agent 2 - skeptical",
   prompt: <agent2_full_prompt>,
-  subagent_type: "Intern",
+  subagent_type: <agent2_execution_subagent_type>,
   model: "sonnet"
 })
 Task({
   description: "Research agent 3 - analytical",
   prompt: <agent3_full_prompt>,
-  subagent_type: "Intern",
+  subagent_type: <agent3_execution_subagent_type>,
   model: "sonnet"
 })
 ```
+
+`executionSubagentType` defaults to `general` for AgentFactory-composed prompts.
+`Intern` remains reserved for broad parallel grunt work, not custom composition output.
 
 **Note:** Store the voice_id from AgentFactory output - you'll need it to voice the agent's results.
 

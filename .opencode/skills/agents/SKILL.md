@@ -202,9 +202,11 @@ bun run AgentFactory.ts --traits "research,analytical,systematic"
 # Output: Prompt with voice "Drew" (professional)
 
 # Launch all 3 with Task tool
-Task({ prompt: <agent1_prompt>, subagent_type: "Intern", model: "sonnet" })
-Task({ prompt: <agent2_prompt>, subagent_type: "Intern", model: "sonnet" })
-Task({ prompt: <agent3_prompt>, subagent_type: "Intern", model: "sonnet" })
+Task({ prompt: <agent1_prompt>, subagent_type: "general", model: "sonnet" })
+Task({ prompt: <agent2_prompt>, subagent_type: "general", model: "sonnet" })
+Task({ prompt: <agent3_prompt>, subagent_type: "general", model: "sonnet" })
+
+# Intern remains reserved for broad parallel grunt work
 ```
 
 ## Model Selection
@@ -228,4 +230,3 @@ Always specify the appropriate model:
 ## Version History
 
 - **v1.0.0** (2025-12-16): Initial creation - consolidated all agent infrastructure into discrete skill
-

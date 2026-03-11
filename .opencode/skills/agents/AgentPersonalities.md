@@ -92,9 +92,12 @@ bun run AgentFactory.ts --traits "medical,empathetic,consultative" --task "Neuro
 bun run AgentFactory.ts --traits "research,bold,adversarial" --task "Marine biologist"
 
 # Then launch each with their custom prompt:
-Task(prompt=<AgentFactory output>, subagent_type="Intern", model="sonnet")
+Task(prompt=<AgentFactory output>, subagent_type="general", model="sonnet")
 # Results: 5 agents with 5 different voices
 ```
+
+For AgentFactory-composed prompts, use `general` as the execution substrate.
+`Intern` remains for generic parallel grunt work.
 
 ---
 

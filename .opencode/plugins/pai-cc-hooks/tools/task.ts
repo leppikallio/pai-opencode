@@ -31,6 +31,7 @@ import {
 	type BackgroundConcurrencyLease,
 	type BackgroundConcurrencyManager,
 } from "../background/concurrency";
+import { hasExplicitRoutingMention } from "../claude/agent-execution-guard";
 
 type RecordBackgroundTaskLaunchFn = (
 	args: RecordBackgroundTaskLaunchArgs,
@@ -148,32 +149,11 @@ function extractContextProviderModel(ctx: ToolContext): {
 	};
 }
 
-function extractAgentMentions(prompt: string): string[] {
-	const mentions: string[] = [];
-	const mentionPattern = /(^|[\s(])@([A-Za-z][A-Za-z0-9_-]*)\b/g;
-
-	for (const match of prompt.matchAll(mentionPattern)) {
-		const mention = (match[2] ?? "").trim().toLowerCase();
-		if (mention) {
-			mentions.push(mention);
-		}
-	}
-
-	return mentions;
-}
-
 function hasExplicitAgentMention(args: { prompt: string; subagentType: string }): boolean {
-	const mentions = extractAgentMentions(args.prompt);
-	if (mentions.length === 0) {
-		return false;
-	}
-
-	const normalizedSubagent = args.subagentType.trim().toLowerCase();
-	if (normalizedSubagent && mentions.includes(normalizedSubagent)) {
-		return true;
-	}
-
-	return mentions.includes("general") || mentions.includes("agent");
+	return hasExplicitRoutingMention({
+		prompt: args.prompt,
+		subagent_type: args.subagentType,
+	});
 }
 
 function buildScratchpadBinding(scratchpadDir: string): string {

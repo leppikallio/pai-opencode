@@ -105,7 +105,8 @@ export async function executePreToolUseHooks(
     ) {
       return {
         decision: "ask",
-        reason: "This will block foreground execution; use task(run_in_background:true).",
+        reason:
+          "This task appears long-running or fan-out; consider task(run_in_background:true).",
       };
     }
   }

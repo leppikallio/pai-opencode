@@ -37,6 +37,7 @@ import Handlebars from "handlebars";
 const SKILL_DIR = resolve(join(import.meta.dir, ".."));
 const TRAITS_PATH = join(SKILL_DIR, "Data", "Traits.yaml");
 const TEMPLATE_PATH = join(SKILL_DIR, "Templates", "DynamicAgent.hbs");
+const DEFAULT_DYNAMIC_COMPOSITION_SUBAGENT_TYPE = "general";
 
 // Types
 interface TraitDefinition {
@@ -84,6 +85,7 @@ interface ComposedAgent {
   voice: string;
   voiceId: string;
   voiceReason: string;
+  executionSubagentType: string;
   prompt: string;
 }
 
@@ -279,6 +281,7 @@ function composeAgent(
     voice,
     voiceId,
     voiceReason,
+    executionSubagentType: DEFAULT_DYNAMIC_COMPOSITION_SUBAGENT_TYPE,
     prompt,
   };
 }
@@ -423,6 +426,7 @@ The factory automatically:
             voice: agent.voice,
             voice_id: agent.voiceId,
             voiceReason: agent.voiceReason,
+            executionSubagentType: agent.executionSubagentType,
             expertise: agent.expertise.map((e) => e.name),
             personality: agent.personality.map((p) => p.name),
             approach: agent.approach.map((a) => a.name),
@@ -439,6 +443,7 @@ The factory automatically:
       console.log(`voice: "${agent.voice}"`);
       console.log(`voice_id: "${agent.voiceId}"`);
       console.log(`voice_reason: "${agent.voiceReason}"`);
+      console.log(`execution_subagent_type: "${agent.executionSubagentType}"`);
       console.log(`traits: [${agent.traits.join(", ")}]`);
       console.log(`expertise: [${agent.expertise.map((e) => e.name).join(", ")}]`);
       console.log(`personality: [${agent.personality.map((p) => p.name).join(", ")}]`);
@@ -453,6 +458,7 @@ The factory automatically:
       console.log(`Personality: ${agent.personality.map((p) => p.name).join(", ")}`);
       console.log(`Approach:    ${agent.approach.map((a) => a.name).join(", ")}`);
       console.log(`Voice:       ${agent.voice} [${agent.voiceId}]`);
+      console.log(`Execution:   ${agent.executionSubagentType}`);
       console.log(`             (${agent.voiceReason})`);
       break;
 
