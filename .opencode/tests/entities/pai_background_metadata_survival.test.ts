@@ -35,6 +35,13 @@ function parseFromFinalToolResult(output: string): {
 	return { taskId, childSessionId };
 }
 
+function expectFinitePositiveNumber(value: unknown): number {
+	expect(typeof value).toBe("number");
+	expect(Number.isFinite(value)).toBe(true);
+	expect((value as number) > 0).toBe(true);
+	return value as number;
+}
+
 describe("background metadata stabilization + survival", () => {
 	test("final task tool result metadata survives to durable child-session linkage", async () => {
 		const paiDir = createTempPaiDir();
@@ -144,6 +151,82 @@ describe("background metadata stabilization + survival", () => {
 
 		expect(terminalizeCalls).toBe(0);
 		expect(promptCalls).toBe(0);
+	});
+
+	test("tenacity metadata survives terminalization updates for review tasks", async () => {
+		const paiDir = createTempPaiDir();
+		const prevOpenCodeRoot = process.env.OPENCODE_ROOT;
+
+		process.env.OPENCODE_ROOT = paiDir;
+		try {
+			const taskTool = createPaiTaskTool({
+				client: {
+					session: {
+						create: async () => ({ data: { id: "child-session-tenacity" } }),
+						prompt: async () => ({ data: { parts: [{ type: "text", text: "ok" }] } }),
+					},
+				},
+				$: (() => Promise.resolve(null)) as unknown,
+			});
+
+			const launchResult = await taskTool.execute(
+				{
+					description: "Launch tenacity metadata task",
+					prompt: "Collect and report",
+					subagent_type: "Engineer",
+					run_in_background: true,
+					task_kind: "review",
+				} as any,
+				{
+					sessionID: "parent-session-tenacity",
+					directory: "/tmp/workspace",
+				} as any,
+			);
+
+			const parsed = parseFromFinalToolResult(launchResult);
+			expect(parsed.taskId).toBe("bg_child-session-tenacity");
+
+			const beforeTerminal = await findBackgroundTaskByTaskId({
+				taskId: parsed.taskId,
+				nowMs: 2_000,
+			});
+			expect((beforeTerminal as any)?.contract?.kind).toBe("review");
+			expect((beforeTerminal as any)?.progress?.phase).toBeTypeOf("string");
+			const executionStartedAtMs = expectFinitePositiveNumber(
+				(beforeTerminal as any)?.execution_started_at_ms,
+			);
+			const minimumTenancyMs = expectFinitePositiveNumber(
+				(beforeTerminal as any)?.contract?.minimumTenancyMs,
+			);
+			const minimumTenancyUntilMs = expectFinitePositiveNumber(
+				(beforeTerminal as any)?.cancellation?.minimumTenancyUntilMs,
+			);
+			expect(minimumTenancyUntilMs).toBe(executionStartedAtMs + minimumTenancyMs);
+
+			await markBackgroundTaskTerminalAtomic({
+				taskId: parsed.taskId,
+				reason: "completed",
+				nowMs: 2_500,
+			});
+
+			const afterTerminal = await findBackgroundTaskByTaskId({
+				taskId: parsed.taskId,
+				nowMs: 2_501,
+			});
+
+			expect(afterTerminal?.status).toBe("completed");
+			expect((afterTerminal as any)?.contract).toEqual(
+				(beforeTerminal as any)?.contract,
+			);
+			expect((afterTerminal as any)?.progress).toEqual(
+				(beforeTerminal as any)?.progress,
+			);
+			expect((afterTerminal as any)?.cancellation).toEqual(
+				(beforeTerminal as any)?.cancellation,
+			);
+		} finally {
+			restoreEnv("OPENCODE_ROOT", prevOpenCodeRoot);
+		}
 	});
 
 	test("metadata-ready completion path still reaches durable completion state", async () => {

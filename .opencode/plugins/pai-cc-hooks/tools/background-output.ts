@@ -45,6 +45,22 @@ function asNumber(value: unknown): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
 
+function formatProgressCounters(counters: unknown): string | null {
+  if (!isRecord(counters)) {
+    return null;
+  }
+
+  const tools = asNumber(counters.tools);
+  const artifacts = asNumber(counters.artifacts);
+  const checkpoints = asNumber(counters.checkpoints);
+  const parts: string[] = [];
+  if (tools != null) parts.push(`tools=${tools}`);
+  if (artifacts != null) parts.push(`artifacts=${artifacts}`);
+  if (checkpoints != null) parts.push(`checkpoints=${checkpoints}`);
+
+  return parts.length > 0 ? parts.join(", ") : null;
+}
+
 function getContextDirectory(ctx: ToolContext): string {
   const value = (ctx as ToolContext & { directory?: unknown }).directory;
   return typeof value === "string" ? value : process.cwd();
@@ -177,6 +193,29 @@ export function createPaiBackgroundOutputTool(input: { client: unknown }) {
         `Session ID: ${record.child_session_id}`,
         `Status: ${status}`,
       ];
+      if (!lifecycle.isTerminal) {
+        if (record.progress?.phase) {
+          headerLines.push(`Progress phase: ${record.progress.phase}`);
+        }
+        if (typeof record.progress?.lastProductiveAtMs === "number") {
+          headerLines.push(`Last productive at ms: ${record.progress.lastProductiveAtMs}`);
+        }
+        if (typeof record.progress?.nextExpectedUpdateByMs === "number") {
+          headerLines.push(`Next expected update by ms: ${record.progress.nextExpectedUpdateByMs}`);
+        }
+        if (record.progress?.blockedReasonCode) {
+          headerLines.push(`Blocked reason code: ${record.progress.blockedReasonCode}`);
+        }
+
+        const countersText = formatProgressCounters(record.progress?.counters);
+        if (countersText) {
+          headerLines.push(`Progress counters: ${countersText}`);
+        }
+
+        if (record.stall?.stage) {
+          headerLines.push(`Stall stage: ${record.stall.stage}`);
+        }
+      }
       if (lifecycle.terminalReason) {
         headerLines.push(`Terminal reason: ${lifecycle.terminalReason}`);
       }

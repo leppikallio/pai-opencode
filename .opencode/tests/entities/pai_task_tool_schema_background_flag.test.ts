@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 
 import { createPaiTaskTool } from "../../plugins/pai-cc-hooks/tools/task";
+import type { RecordBackgroundTaskLaunchArgs } from "../../plugins/pai-cc-hooks/tools/background-task-state";
 import { PAI_ORCHESTRATION_FEATURE_FLAG_ENV_KEYS } from "../../plugins/pai-cc-hooks/feature-flags";
 import {
 	__resetSessionRootRegistryForTests,
@@ -18,6 +19,12 @@ function restoreEnv(key: string, previousValue: string | undefined): void {
 	process.env[key] = previousValue;
 }
 
+function expectFinitePositiveNumber(value: unknown): number {
+	expect(typeof value).toBe("number");
+	expect(Number.isFinite(value)).toBe(true);
+	expect((value as number) > 0).toBe(true);
+	return value as number;
+}
 describe("PAI task tool override", () => {
 	beforeEach(() => {
 		__resetSessionRootRegistryForTests();
@@ -79,6 +86,20 @@ describe("PAI task tool override", () => {
     expect(taskTool.args.run_in_background.safeParse(true).success).toBe(true);
     expect(taskTool.args.run_in_background.safeParse(false).success).toBe(true);
     expect(taskTool.args.run_in_background.safeParse("true").success).toBe(false);
+
+		expect(taskTool.args).toHaveProperty("task_kind");
+		expect((taskTool.args as any).task_kind.safeParse("review").success).toBe(
+			true,
+		);
+		expect((taskTool.args as any).task_kind.safeParse("generic").success).toBe(
+			true,
+		);
+		expect((taskTool.args as any).task_kind.safeParse("Review").success).toBe(
+			false,
+		);
+		expect((taskTool.args as any).task_kind.safeParse(undefined).success).toBe(
+			true,
+		);
 
     expect(taskTool.args.command.safeParse("/check-file path/to/file").success).toBe(true);
     expect(taskTool.args.command.safeParse(undefined).success).toBe(true);
@@ -144,13 +165,14 @@ describe("PAI task tool override", () => {
       recordBackgroundTaskLaunch: async () => {},
     });
 
-    const res = await taskTool.execute(
+		const res = await taskTool.execute(
       {
         description: "Run subagent",
         prompt: "Do the thing",
         subagent_type: "Engineer",
         run_in_background: true,
-      },
+				task_kind: "review",
+			} as any,
       {
         sessionID: "parent-session-456",
         directory: "/tmp/workspace",
@@ -161,16 +183,15 @@ describe("PAI task tool override", () => {
     expect(res).toContain("Background task launched");
     expect(res).toContain("Task ID:");
     expect(res).toContain("Session ID:");
+		expect(res).toContain("Task kind: review");
+		expect(res).toContain("Expected quiet window:");
+		expect(res).toContain("Minimum tenancy:");
+		expect(res).toContain("Salvage on cancel: required");
   });
 
 	 test("launches background task when run_in_background is true", async () => {
     const calls: Array<{ method: string; payload: unknown }> = [];
-		const launchRecords: Array<{
-			taskId: string;
-			taskDescription?: string;
-			childSessionId: string;
-			parentSessionId: string;
-		}> = [];
+		const launchRecords: RecordBackgroundTaskLaunchArgs[] = [];
 
     const taskTool = createPaiTaskTool({
       client: {
@@ -198,7 +219,8 @@ describe("PAI task tool override", () => {
 				prompt: "Do the thing",
 				subagent_type: "Engineer",
 				run_in_background: true,
-			},
+				task_kind: "review",
+			} as any,
 			{
 				sessionID: "parent-session-456",
 				directory: "/tmp/workspace",
@@ -211,15 +233,18 @@ describe("PAI task tool override", () => {
 		expect(result).toContain("Session ID: child-session-123");
 		expect(calls.map((entry) => entry.method)).toEqual(["create", "prompt"]);
 		expect(launchRecords).toHaveLength(1);
-		expect(launchRecords[0]).toEqual(
-			expect.objectContaining({
-				taskId: "bg_child-session-123",
-				taskDescription: "Run subagent",
-				childSessionId: "child-session-123",
-				parentSessionId: "parent-session-456",
-				concurrencyGroup: "agent:engineer",
-			}),
-		);
+		expect(launchRecords[0]).toMatchObject({
+			taskId: "bg_child-session-123",
+			taskDescription: "Run subagent",
+			childSessionId: "child-session-123",
+			parentSessionId: "parent-session-456",
+			concurrencyGroup: "agent:engineer",
+		});
+		expect((launchRecords[0] as any)?.taskKind).toBe("review");
+		expectFinitePositiveNumber((launchRecords[0] as any)?.expectedQuietWindowMs);
+		expectFinitePositiveNumber((launchRecords[0] as any)?.minimumTenancyMs);
+		expect((launchRecords[0] as any)?.cancelPolicy).toBe("salvage-first");
+		expect((launchRecords[0] as any)?.salvageOnCancelRequired).toBe(true);
 		expect(getSessionRootId("child-session-123")).toBe("root-session-999");
 	 });
 

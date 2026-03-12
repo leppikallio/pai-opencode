@@ -166,6 +166,11 @@ OpenCode’s native `task` delegation surface is the core seam PAI now hardens f
 ### Orchestration Behavior Added on Top
 
 - **Background remains first-class** with durable lifecycle normalization and parent fan-in behavior.
+- **Background review tenacity contract** now renders launch/completion UX from persisted task state:
+  - quiet-analysis expectations for review tasks
+  - next expected update deadlines from `progress.nextExpectedUpdateByMs`
+  - cancellation timing from guardrails + minimum tenancy state
+  - salvage-first cancellation outcomes for review work
 - **Concurrency controls** can gate background admission by provider/model/agent grouping.
 - **Compaction continuity** preserves active-work context via bounded continuation bundles over existing PAI artifacts.
 - **Wisdom projection** is derived from existing `MEMORY/LEARNING` + `MEMORY/STATE`, not a separate memory root.
@@ -176,6 +181,7 @@ You keep OpenCode-native delegation semantics while getting stronger reliability
 
 For the full invariants + acceptance matrix, see:
 - [Orchestration Parity v1 reference](./reference/orchestration-parity-v1.md)
+- [Background review tenacity contract](./reference/background-review-tenacity-contract.md)
 
 ## Comparison: OpenCode vs Alternatives
 
