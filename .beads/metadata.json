@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "server",
+  "dolt_database": "pai_opencode",
+  "project_id": "4c258c9e-c493-4496-85c4-33bc050a8bde"
+}

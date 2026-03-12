@@ -68,3 +68,7 @@ opencode.json.tui-migration.bak
 .opencode/agents/nw-*.md
 .opencode/commands/nw/
 .opencode/skills/nwave/
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db
