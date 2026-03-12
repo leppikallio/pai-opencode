@@ -33,6 +33,111 @@ type ParentFanInState = {
 
 const parentFanInStateBySession = new Map<string, ParentFanInState>();
 
+function formatDurationMs(durationMs: number | undefined): string {
+	if (!Number.isFinite(durationMs) || Number(durationMs) <= 0) {
+		return "unknown";
+	}
+
+	const roundedSeconds = Math.max(1, Math.round(Number(durationMs) / 1_000));
+	if (roundedSeconds % 60 === 0) {
+		return `${roundedSeconds / 60}m`;
+	}
+
+	return `${roundedSeconds}s`;
+}
+
+function formatEpochMs(value: number | undefined): string {
+	if (!Number.isFinite(value) || Number(value) < 0) {
+		return "pending execution start";
+	}
+
+	return `ms ${Math.floor(Number(value))}`;
+}
+
+function resolveTaskKind(task: BackgroundTaskRecord): string {
+	return task.contract?.kind ?? task.task_kind ?? "generic";
+}
+
+export function buildBackgroundLaunchContractReminder(args: {
+	taskRecord: BackgroundTaskRecord;
+}): string {
+	if (resolveTaskKind(args.taskRecord) !== "review") {
+		return "";
+	}
+
+	const quietWindowText = formatDurationMs(
+		args.taskRecord.contract?.expectedQuietWindowMs,
+	);
+	const nextExpectedUpdateText = formatEpochMs(
+		args.taskRecord.progress?.nextExpectedUpdateByMs,
+	);
+	const minimumTenancyText = formatEpochMs(
+		args.taskRecord.cancellation?.minimumTenancyUntilMs,
+	);
+
+	return [
+		"Reminder:",
+		`- Quiet analysis is expected for review tasks (quiet window ${quietWindowText}).`,
+		`- Next update target from persisted state: ${nextExpectedUpdateText}.`,
+		`- Cancel only for explicit failure, explicit user request, or stall policy after minimum tenancy (${minimumTenancyText}).`,
+	].join("\n");
+}
+
+function buildRemainingStateSummary(remainingTasks: BackgroundTaskRecord[]): string | null {
+	if (remainingTasks.length === 0) {
+		return null;
+	}
+
+	const phaseCounts = new Map<string, number>();
+	const statusCounts = new Map<string, number>();
+	let reviewTaskCount = 0;
+	let earliestNextExpectedUpdateByMs: number | undefined;
+
+	for (const task of remainingTasks) {
+		const lifecycleStatus = normalizeBackgroundTaskLifecycle(task).status;
+		statusCounts.set(lifecycleStatus, (statusCounts.get(lifecycleStatus) ?? 0) + 1);
+
+		if (resolveTaskKind(task) === "review") {
+			reviewTaskCount += 1;
+		}
+
+		const phase = task.progress?.phase;
+		if (phase) {
+			phaseCounts.set(phase, (phaseCounts.get(phase) ?? 0) + 1);
+		}
+
+		const candidateDeadline = task.progress?.nextExpectedUpdateByMs;
+		if (typeof candidateDeadline === "number" && Number.isFinite(candidateDeadline)) {
+			earliestNextExpectedUpdateByMs =
+				earliestNextExpectedUpdateByMs == null
+					? candidateDeadline
+					: Math.min(earliestNextExpectedUpdateByMs, candidateDeadline);
+		}
+	}
+
+	const phaseSummary =
+		phaseCounts.size === 0
+			? "semantic phases unavailable"
+			: `phases ${Array.from(phaseCounts.entries())
+					.sort(([left], [right]) => left.localeCompare(right))
+					.map(([phase, count]) => `${phase}=${count}`)
+					.join(", ")}`;
+	const statusSummary = `statuses ${Array.from(statusCounts.entries())
+		.sort(([left], [right]) => left.localeCompare(right))
+		.map(([status, count]) => `${status}=${count}`)
+		.join(", ")}`;
+	const nextUpdateText =
+		earliestNextExpectedUpdateByMs == null
+			? "next update pending execution start"
+			: `next update by ms ${Math.floor(earliestNextExpectedUpdateByMs)}`;
+	const quietHint =
+		reviewTaskCount > 0
+			? "Review quiet-analysis windows remain valid; "
+			: "";
+
+	return `State snapshot: ${quietHint}${phaseSummary}; ${statusSummary}; ${nextUpdateText}.`;
+}
+
 function isCompleteForParent(task: BackgroundTaskRecord): boolean {
 	return normalizeBackgroundTaskLifecycle(task).isTerminal;
 }
@@ -63,13 +168,20 @@ Use \`background_output(task_id="<id>")\` to retrieve each result.
 function buildSingleCompleteText(args: {
 	taskId: string;
 	remainingCount: number;
+	remainingTasks: BackgroundTaskRecord[];
 }): string {
+	const remainingStateSummary = buildRemainingStateSummary(args.remainingTasks);
+	const remainingStateBlock = remainingStateSummary
+		? `\n${remainingStateSummary}`
+		: "";
+
 	return `<system-reminder>
 [BACKGROUND TASK COMPLETED]
 **ID:** \`${args.taskId}\`
 
 **${args.remainingCount} ${pluralize(args.remainingCount, "task")} still in progress.** You WILL be notified when ALL complete.
 Do NOT poll - continue productive work.
+${remainingStateBlock}
 
 Use \`background_output(task_id="${args.taskId}")\` to retrieve this result when ready.
 </system-reminder>`;
@@ -140,7 +252,8 @@ export async function notifyParentSessionBackgroundCompletion(args: {
 
 				const allComplete = tasks.every(isCompleteForParent);
 				const completedTasks = allComplete ? tasks.filter(isCompleteForParent) : [];
-				const remainingCount = tasks.filter((t) => !isCompleteForParent(t)).length;
+				const remainingTasks = tasks.filter((t) => !isCompleteForParent(t));
+				const remainingCount = remainingTasks.length;
 
 				if (allComplete) {
 					const allCompleteFingerprint = completedTasks
@@ -196,6 +309,7 @@ export async function notifyParentSessionBackgroundCompletion(args: {
 				const notificationText = buildSingleCompleteText({
 					taskId: args.taskRecord.task_id,
 					remainingCount,
+					remainingTasks,
 				});
 				const shouldSuppress = await args.deps.shouldSuppressDuplicate({
 					sessionId: parentSessionId,

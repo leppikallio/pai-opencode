@@ -31,6 +31,13 @@ import {
 	type BackgroundConcurrencyLease,
 	type BackgroundConcurrencyManager,
 } from "../background/concurrency";
+import {
+	type BackgroundTaskLaunchContract,
+	buildBackgroundTaskLaunchContract,
+	normalizeBackgroundTaskKind,
+} from "../background/review-contract";
+import { buildBackgroundLaunchContractReminder } from "../background/parent-notifier";
+import { normalizeBackgroundTaskLifecycle } from "../background/lifecycle-normalizer";
 
 type RecordBackgroundTaskLaunchFn = (
 	args: RecordBackgroundTaskLaunchArgs,
@@ -55,6 +62,7 @@ const TASK_TOOL_DESCRIPTION = [
 	"- prompt: full instructions for the delegated agent",
 	"- subagent_type: target agent name",
 	"- task_id: continue an existing delegated session",
+	"- task_kind: optional launch classifier ('review' | 'generic')",
 ].join("\n");
 
 const SCRATCHPAD_BINDING_MARKER = "PAI SCRATCHPAD (Binding)";
@@ -384,6 +392,55 @@ function parseBooleanEnvOverride(value: string | undefined): boolean | undefined
 	return undefined;
 }
 
+function formatDurationMs(durationMs: number): string {
+	if (!Number.isFinite(durationMs) || durationMs <= 0) {
+		return "unknown";
+	}
+
+	const roundedSeconds = Math.max(1, Math.round(durationMs / 1_000));
+	if (roundedSeconds % 60 === 0) {
+		return `${roundedSeconds / 60}m`;
+	}
+
+	return `${roundedSeconds}s`;
+}
+
+function formatEpochMs(value: number | undefined): string {
+	if (!Number.isFinite(value) || Number(value) < 0) {
+		return "pending execution start";
+	}
+
+	return `ms ${Math.floor(Number(value))}`;
+}
+
+function describeNextExpectedUpdate(args: {
+	nextExpectedUpdateByMs?: number;
+	quietWindowMs: number;
+}): string {
+	if (typeof args.nextExpectedUpdateByMs === "number" && Number.isFinite(args.nextExpectedUpdateByMs)) {
+		return `${formatEpochMs(args.nextExpectedUpdateByMs)} (quiet window ${formatDurationMs(args.quietWindowMs)})`;
+	}
+
+	return `pending execution start (quiet window ${formatDurationMs(args.quietWindowMs)} once running)`;
+}
+
+function describeCancellationTiming(args: {
+	contract: BackgroundTaskLaunchContract;
+	minimumTenancyUntilMs?: number;
+}): string {
+	const tenancyText = formatEpochMs(args.minimumTenancyUntilMs);
+	const silenceGuardrailText =
+		args.contract.cancellationGuardrails.silenceAloneDoesNotJustifyCancel
+			? "Silence alone is never cancellation evidence; "
+			: "";
+
+	if (args.contract.cancellationGuardrails.requiresForceDuringMinimumTenancy) {
+		return `${silenceGuardrailText}cancel on explicit failure, explicit user request, or stall policy; force is required before ${tenancyText}.`;
+	}
+
+	return `${silenceGuardrailText}cancel on explicit user intent or failure (minimum tenancy target ${tenancyText}).`;
+}
+
 export function isForegroundParityEnabled(env: Record<string, string | undefined> = process.env): boolean {
 	const envKey =
 		PAI_ORCHESTRATION_FEATURE_FLAG_ENV_KEYS.paiOrchestrationForegroundParityEnabled;
@@ -499,6 +556,7 @@ export function createPaiTaskTool(input: {
 			command: tool.schema.string().optional(),
 			task_id: tool.schema.string().optional(),
 			run_in_background: tool.schema.boolean().optional(),
+			task_kind: tool.schema.enum(["review", "generic"]).optional(),
 		},
 		async execute(
 			args: TaskToolArgs,
@@ -524,6 +582,21 @@ export function createPaiTaskTool(input: {
 						"PAI task override: client.session.promptAsync/prompt is unavailable",
 					);
 				}
+
+				const taskKind = normalizeBackgroundTaskKind(
+					(args as TaskToolArgs & { task_kind?: unknown }).task_kind,
+				);
+				const launchContract = buildBackgroundTaskLaunchContract({
+					taskKind,
+				});
+				const reviewLaunchClassifierMetadata =
+					taskKind === "review"
+						? {
+							// Canonical launcher marker for review inventory checks.
+							run_in_background: true as const,
+							task_kind: "review" as const,
+						}
+						: { task_kind: "generic" as const };
 
 				const { taskId, childSessionId, existingRecord } =
 					await resolveBackgroundSession({
@@ -558,7 +631,35 @@ export function createPaiTaskTool(input: {
 					parentSessionId,
 					status: concurrencyEnabled ? "queued" : "running",
 					concurrencyGroup,
+					...reviewLaunchClassifierMetadata,
+					taskKind,
+					expectedQuietWindowMs: launchContract.expectedQuietWindowMs,
+					minimumTenancyMs: launchContract.minimumTenancyMs,
+					expectedDeliverable: launchContract.expectedDeliverable,
+					cancelPolicy: launchContract.cancelPolicy,
+					cancellationGuardrails: launchContract.cancellationGuardrails,
+					salvageOnCancelRequired: launchContract.salvageOnCancelRequired,
 				});
+
+				const persistedLaunchRecord = await findBackgroundTaskByTaskId({
+					taskId,
+				});
+				const launchTaskRecord: BackgroundTaskRecord =
+					persistedLaunchRecord ?? {
+						version: 2,
+						task_id: taskId,
+						task_description: args.description,
+						task_kind: launchContract.kind,
+						child_session_id: childSessionId,
+						parent_session_id: parentSessionId,
+						launched_at_ms: 0,
+						updated_at_ms: 0,
+						status: concurrencyEnabled ? "queued" : "running",
+						concurrency_group: concurrencyGroup,
+						contract: launchContract,
+					};
+				const launchContractFromState =
+					launchTaskRecord.contract ?? launchContract;
 
 				void (async () => {
 					let lease: BackgroundConcurrencyLease | null = null;
@@ -576,6 +677,15 @@ export function createPaiTaskTool(input: {
 								parentSessionId,
 								status: "running",
 								concurrencyGroup,
+								...reviewLaunchClassifierMetadata,
+								taskKind,
+								expectedQuietWindowMs: launchContract.expectedQuietWindowMs,
+								minimumTenancyMs: launchContract.minimumTenancyMs,
+								expectedDeliverable: launchContract.expectedDeliverable,
+								cancelPolicy: launchContract.cancelPolicy,
+								cancellationGuardrails: launchContract.cancellationGuardrails,
+								salvageOnCancelRequired:
+									launchContract.salvageOnCancelRequired,
 							});
 						}
 
@@ -623,8 +733,30 @@ export function createPaiTaskTool(input: {
 				const queueHint = queueSnapshot
 					? `\nConcurrency group: ${concurrencyGroup} (active=${queueSnapshot.active}/${queueSnapshot.limit}, queued=${queueSnapshot.queued})`
 					: "";
+				const nextExpectedUpdateText = describeNextExpectedUpdate({
+					nextExpectedUpdateByMs:
+						launchTaskRecord.progress?.nextExpectedUpdateByMs,
+					quietWindowMs: launchContractFromState.expectedQuietWindowMs,
+				});
+				const minimumTenancyUntilText = formatEpochMs(
+					launchTaskRecord.cancellation?.minimumTenancyUntilMs,
+				);
+				const cancellationGuardrailsText = describeCancellationTiming({
+					contract: launchContractFromState,
+					minimumTenancyUntilMs:
+						launchTaskRecord.cancellation?.minimumTenancyUntilMs,
+				});
+				const launchReminder = buildBackgroundLaunchContractReminder({
+					taskRecord: launchTaskRecord,
+				});
+				const launchReminderBlock = launchReminder ? `\n${launchReminder}` : "";
+				const launchStatus = normalizeBackgroundTaskLifecycle(launchTaskRecord).status;
+				const launchLeadLine =
+					launchStatus === "queued"
+						? "Background task queued."
+						: "Background task launched.";
 
-				return `Background task launched.\n\nTask ID: ${taskId}\nSession ID: ${childSessionId}\nAgent: ${args.subagent_type}${queueHint}\n\nSystem notifies on completion. Use \`background_output\` with task_id="${taskId}" to check.`;
+				return `${launchLeadLine}\n\nTask ID: ${taskId}\nSession ID: ${childSessionId}\nAgent: ${args.subagent_type}${queueHint}\nStatus: ${launchStatus}\n\nTask kind: ${launchContractFromState.kind}\nExpected quiet window: ${formatDurationMs(launchContractFromState.expectedQuietWindowMs)}\nNext expected update: ${nextExpectedUpdateText}\nMinimum tenancy: ${formatDurationMs(launchContractFromState.minimumTenancyMs)}\nMinimum tenancy until: ${minimumTenancyUntilText}\nCancellation guardrails: ${cancellationGuardrailsText}\nSalvage on cancel: ${launchContractFromState.salvageOnCancelRequired ? "required" : "optional"}${launchReminderBlock}\n\nSystem notifies on completion. Use \`background_output\` with task_id="${taskId}" for early snapshots when needed.`;
 			}
 
 			if (isForegroundParityEnabled()) {

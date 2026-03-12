@@ -4,7 +4,11 @@ import os from "node:os";
 import path from "node:path";
 
 import { createPaiBackgroundOutputTool } from "../../plugins/pai-cc-hooks/tools/background-output";
-import { recordBackgroundTaskLaunch } from "../../plugins/pai-cc-hooks/tools/background-task-state";
+import {
+	findBackgroundTaskByTaskId,
+	recordBackgroundTaskLaunch,
+	recordBackgroundTaskObservation,
+} from "../../plugins/pai-cc-hooks/tools/background-task-state";
 
 function createTempPaiDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), "pai-bg-output-"));
@@ -91,4 +95,63 @@ describe("PAI background_output tool", () => {
       else process.env.OPENCODE_ROOT = originalOpenCodeRoot;
     }
   });
+
+	test("renders persisted progress state for active background tasks", async () => {
+		const paiDir = createTempPaiDir();
+		const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
+		process.env.OPENCODE_ROOT = paiDir;
+		const nowMs = Date.now();
+		try {
+			await recordBackgroundTaskLaunch({
+				taskId: "bg_progress_header_render",
+				childSessionId: "child-progress-header-render",
+				parentSessionId: "parent-progress-header-render",
+				status: "running",
+				nowMs,
+			});
+
+			await recordBackgroundTaskObservation({
+				taskId: "bg_progress_header_render",
+				status: "running",
+				source: "child",
+				nowMs: nowMs + 1_000,
+				phase: "analyzing",
+				lastProductiveAtMs: nowMs + 1_000,
+				nextExpectedUpdateByMs: nowMs + 6_000,
+				counters: {
+					tools: 2,
+					artifacts: 1,
+					checkpoints: 3,
+				},
+			});
+
+			const persisted = await findBackgroundTaskByTaskId({
+				taskId: "bg_progress_header_render",
+				nowMs: nowMs + 1_001,
+			});
+			const persistedLastProductiveAtMs = (persisted as any)?.progress?.lastProductiveAtMs;
+			const persistedNextExpectedUpdateByMs = (persisted as any)?.progress?.nextExpectedUpdateByMs;
+
+			const toolDef = createPaiBackgroundOutputTool({ client: { session: {} } });
+			const out = await toolDef.execute(
+				{ task_id: "bg_progress_header_render" },
+				{ directory: "/tmp" } as any,
+			);
+
+			expect(out).toContain("Task ID: bg_progress_header_render");
+			expect(out).toContain("Progress phase: analyzing");
+			expect(out).toContain(
+				`Last productive at ms: ${persistedLastProductiveAtMs}`,
+			);
+			expect(out).toContain(
+				`Next expected update by ms: ${persistedNextExpectedUpdateByMs}`,
+			);
+			expect(out).toContain(
+				"Progress counters: tools=2, artifacts=1, checkpoints=3",
+			);
+		} finally {
+			if (originalOpenCodeRoot === undefined) delete process.env.OPENCODE_ROOT;
+			else process.env.OPENCODE_ROOT = originalOpenCodeRoot;
+		}
+	});
 });

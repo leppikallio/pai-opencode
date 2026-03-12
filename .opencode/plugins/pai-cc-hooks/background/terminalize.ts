@@ -5,6 +5,10 @@ const DEFAULT_MINIMUM_RUNTIME_MS = 1_500;
 const DEFAULT_STABLE_IDLE_OBSERVATION_MS = 1_200;
 const DEFAULT_STALE_NO_PROGRESS_MS = 90_000;
 
+export function buildNoProgressTimeoutMessage(staleDurationMs: number): string {
+	return `No progress detected for ${Math.max(0, Math.floor(staleDurationMs))}ms; task marked stale and cancellation requested`;
+}
+
 function asPositiveInteger(value: string | undefined): number | undefined {
 	if (typeof value !== "string") {
 		return undefined;

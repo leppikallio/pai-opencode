@@ -2,14 +2,21 @@ import { resolvePaiOrchestrationFeatureFlags } from "../feature-flags";
 import {
 	recordBackgroundTaskObservation as recordBackgroundTaskObservationDefault,
 	type BackgroundTaskRecord,
+	type RecordBackgroundTaskObservationArgs,
+	updateBackgroundTaskPolicyMetadata,
 } from "../tools/background-task-state";
 import {
+	buildNoProgressTimeoutMessage,
 	getTaskLastProgressAtMs,
 	hasStableIdleCompletionConfidence,
 	resolveStableCompletionPolicy,
 	type StableCompletionPolicy,
 	terminalizeBackgroundTask,
 } from "./terminalize";
+import {
+	applyBackgroundCancellationPolicy,
+	classifyBackgroundTaskStall,
+} from "./cancellation-policy";
 
 type CarrierClient = {
 	session?: {
@@ -31,11 +38,9 @@ type PollerDeps = {
 		message?: string;
 		nowMs?: number;
 	}) => Promise<BackgroundTaskRecord | null>;
-	recordBackgroundTaskObservation?: (args: {
-		taskId: string;
-		status: "running" | "idle";
-		nowMs?: number;
-	}) => Promise<BackgroundTaskRecord | null>;
+	recordBackgroundTaskObservation?: (
+		args: RecordBackgroundTaskObservationArgs,
+	) => Promise<BackgroundTaskRecord | null>;
 	onTaskCompleted?: (record: BackgroundTaskRecord) => Promise<void>;
 	pollIntervalMs?: number;
 	nowMs?: () => number;
@@ -81,10 +86,6 @@ function normalizeStatusType(status: { type?: string } | undefined): string {
 	return status.type.trim().toLowerCase();
 }
 
-function buildStaleReason(staleDurationMs: number): string {
-	return `No progress detected for ${staleDurationMs}ms; task marked stale and cancellation requested`;
-}
-
 export class BackgroundTaskPoller {
 	private readonly client: CarrierClient;
 	private readonly listActiveBackgroundTasks: PollerDeps["listActiveBackgroundTasks"];
@@ -110,7 +111,7 @@ export class BackgroundTaskPoller {
 			recordBackgroundTaskObservationDefault;
 		this.onTaskCompleted = deps.onTaskCompleted;
 		this.pollIntervalMs = Math.max(250, Math.min(deps.pollIntervalMs ?? 1_500, 60_000));
-		this.nowMs = deps.nowMs ?? (() => Date.now());
+		this.nowMs = deps.nowMs ?? (() => new Date().valueOf());
 		this.stableCompletionEnabledOverride = deps.stableCompletionEnabled;
 		const defaults = resolveStableCompletionPolicy();
 		this.stableCompletionPolicy = {
@@ -164,7 +165,7 @@ export class BackgroundTaskPoller {
 
 	private async terminalizeTask(args: {
 		taskId: string;
-		reason: "completed" | "stale";
+		reason: "completed" | "stale" | "cancelled";
 		nowMs: number;
 		message?: string;
 	}): Promise<void> {
@@ -202,34 +203,62 @@ export class BackgroundTaskPoller {
 		status: { type?: string } | undefined;
 		nowMs: number;
 	}): Promise<void> {
-		const staleDurationMs =
-			args.nowMs - getTaskLastProgressAtMs(args.record);
-		if (staleDurationMs >= this.stableCompletionPolicy.staleNoProgressMs) {
-			await this.requestTaskCancellation?.({
-				taskRecord: args.record,
-			});
+		let observed = args.record;
+		const stall = classifyBackgroundTaskStall({
+			taskRecord: observed,
+			nowMs: args.nowMs,
+			staleNoProgressMs: this.stableCompletionPolicy.staleNoProgressMs,
+		});
+		if (stall.changed) {
+			observed =
+				(await updateBackgroundTaskPolicyMetadata({
+					taskId: observed.task_id,
+					stall: stall.stall,
+					nowMs: args.nowMs,
+				})) ?? observed;
+		}
 
-			await this.terminalizeTask({
-				taskId: args.record.task_id,
-				reason: "stale",
+		const isReviewTask = observed.contract?.kind === "review";
+		const shouldCancelForStall =
+			stall.stage === "confirmed_stall" ||
+			(!isReviewTask && stall.stage === "suspected_stall");
+		if (shouldCancelForStall) {
+			const staleDurationMs = Math.max(
+				0,
+				args.nowMs - getTaskLastProgressAtMs(observed),
+			);
+			await applyBackgroundCancellationPolicy({
+				taskRecord: observed,
+				source: "stall_monitor",
 				nowMs: args.nowMs,
-				message: buildStaleReason(staleDurationMs),
+				reasonCode:
+					stall.stage === "confirmed_stall"
+						? "STALL_CONFIRMED"
+						: "STALL_SUSPECTED",
+				reason: buildNoProgressTimeoutMessage(staleDurationMs),
+				requestTaskCancellation: async ({ taskRecord }) => {
+					await this.requestTaskCancellation?.({ taskRecord });
+				},
+				shouldTerminalize: true,
+				terminalReason: isReviewTask ? "cancelled" : "stale",
+				onTaskTerminalized: this.onTaskCompleted,
 			});
 			return;
 		}
 
 		const statusType = normalizeStatusType(args.status);
 		if (statusType === "idle") {
-			const observed =
+			const idleObserved =
 				(await this.recordBackgroundTaskObservation({
-					taskId: args.record.task_id,
+					taskId: observed.task_id,
 					status: "idle",
+					source: "poller",
 					nowMs: args.nowMs,
-				})) ?? args.record;
+				})) ?? observed;
 
 			if (
 				!hasStableIdleCompletionConfidence({
-					taskRecord: observed,
+					taskRecord: idleObserved,
 					nowMs: args.nowMs,
 					policy: this.stableCompletionPolicy,
 				})
@@ -238,17 +267,18 @@ export class BackgroundTaskPoller {
 			}
 
 			await this.terminalizeTask({
-				taskId: observed.task_id,
+				taskId: idleObserved.task_id,
 				reason: "completed",
 				nowMs: args.nowMs,
 			});
 			return;
 		}
 
-		if (statusType) {
+		if (statusType && observed.status === "stable_idle") {
 			await this.recordBackgroundTaskObservation({
-				taskId: args.record.task_id,
+				taskId: observed.task_id,
 				status: "running",
+				source: "poller",
 				nowMs: args.nowMs,
 			});
 		}
