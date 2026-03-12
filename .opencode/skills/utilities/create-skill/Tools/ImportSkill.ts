@@ -54,6 +54,7 @@ Options:
 
 Minimal canonicalization includes:
   - rewrite \${PAI_DIR}/$PAI_DIR -> ~/.config/opencode
+  - rewrite legacy .claude runtime paths to OpenCode paths
   - rename CLAUDE.md -> REFERENCE.md and update links
   - convert SkillSearch(...) phrasing in SKILL.md description to skill_find guidance
 
@@ -292,6 +293,15 @@ function rewriteImportedContent(
   // Normalize legacy Superpowers runtime paths to OpenCode runtime paths.
   output = output.replace(/~\/\.config\/superpowers\//g, "~/.config/opencode/");
   output = output.replace(/\/Users\/([^/]+)\/\.config\/superpowers\//g, "/Users/$1/.config/opencode/");
+
+  // Normalize legacy Claude runtime paths to OpenCode runtime paths.
+  output = output.replace(/~\/\.claude\//g, "~/.config/opencode/");
+  output = output.replace(/\/Users\/([^/]+)\/\.claude\//g, "/Users/$1/.config/opencode/");
+
+  // Rewrite project-local runtime paths while avoiding arbitrary token rewrites
+  // (for example: docs.claude/reference should stay untouched).
+  output = output.replace(/(^|[\s"'`([{:;,=])\.\/\.claude\//g, "$1./.opencode/");
+  output = output.replace(/(^|[\s"'`([{:;,=])\.claude\//g, "$1.opencode/");
 
   // Normalize legacy Claude reference docs to OpenCode reference naming.
   output = output.replace(/\bCLAUDE\.md\b/g, "REFERENCE.md");

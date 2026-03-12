@@ -8,12 +8,11 @@ import {
 
 type JsonRecord = Record<string, unknown>;
 
-export type MergeOpencodeInstructionsArgs = {
+export type MergeBeadsOpencodeInstructionsArgs = {
   targetDir: string;
-  supportsRtkRewrite: boolean;
 };
 
-export type MergeOpencodeInstructionsResult = {
+export type MergeBeadsOpencodeInstructionsResult = {
   opencodeConfigPath: string;
   backupPath: string | null;
   changed: boolean;
@@ -52,9 +51,9 @@ function readJsonObjectOrEmpty(filePath: string): JsonRecord {
   return parseJsonObject(raw, filePath);
 }
 
-export function mergeOpencodeInstructions(
-  args: MergeOpencodeInstructionsArgs,
-): MergeOpencodeInstructionsResult {
+export function mergeBeadsOpencodeInstructions(
+  args: MergeBeadsOpencodeInstructionsArgs,
+): MergeBeadsOpencodeInstructionsResult {
   const opencodeConfigPath = path.join(args.targetDir, "opencode.json");
   const runtimeConfigDir = path.dirname(opencodeConfigPath);
   const backupsDir = path.join(args.targetDir, "BACKUPS");
@@ -65,24 +64,22 @@ export function mergeOpencodeInstructions(
     ? existingConfig.instructions
     : [];
 
-  const ownedRtkPathKeys = buildOwnedInstructionPathKeys({
+  const ownedBdPathKeys = buildOwnedInstructionPathKeys({
     targetDir: args.targetDir,
-    instructionFileName: "RTK.md",
+    instructionFileName: "BD.md",
   });
 
   const preservedInstructions = existingInstructionsRaw.filter(
     (entry) =>
       !isOwnedInstructionEntry({
         entry,
-        ownedPathKeys: ownedRtkPathKeys,
+        ownedPathKeys: ownedBdPathKeys,
         configDir: runtimeConfigDir,
       }),
   );
 
-  const canonicalRuntimeRtkPath = path.resolve(path.join(args.targetDir, "RTK.md"));
-  const mergedInstructions = args.supportsRtkRewrite
-    ? [...preservedInstructions, canonicalRuntimeRtkPath]
-    : [...preservedInstructions];
+  const canonicalRuntimeBdPath = path.resolve(path.join(args.targetDir, "BD.md"));
+  const mergedInstructions = [...preservedInstructions, canonicalRuntimeBdPath];
 
   const mergedConfig: JsonRecord = {
     ...existingConfig,

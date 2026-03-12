@@ -15,7 +15,9 @@ export type SessionLifecycleEventName = "SessionStart" | "SessionEnd";
 
 export type SessionStartPolicy = {
 	allowLoadContext: boolean;
+	allowBeadsPrime: boolean;
 	allowLoadContextStdoutInjection: boolean;
+	allowBeadsPrimeStdoutInjection: boolean;
 	allowScratchpadBindingStdoutInjection: boolean;
 	allowRtkAwarenessStdoutInjection: boolean;
 };

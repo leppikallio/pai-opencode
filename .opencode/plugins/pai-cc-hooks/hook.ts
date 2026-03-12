@@ -12,8 +12,14 @@ import {
 } from "./background-completion";
 import {
 	buildCompactionContinuationBundle,
-	injectCompactionContinuationContext,
+	PAI_COMPACTION_CONTINUATION_MAX_BYTES,
+	PAI_COMPACTION_CONTINUATION_MAX_LINES,
+	renderCompactionContinuationContext,
 } from "./compaction/continuation-bundle";
+import {
+	applyCombinedCompactionBudget,
+	executePreCompactHooks,
+} from "./compaction/precompact";
 import {
 	rehydrateCompactionDerivedStateOnParentTurn,
 	snapshotCompactionDerivedState,
@@ -529,11 +535,6 @@ export function createPaiClaudeHooks({
 		},
 
 		"experimental.session.compacting": async (input, output) => {
-			const flags = resolvePaiOrchestrationFeatureFlags();
-			if (!flags.paiOrchestrationCompactionBundleEnabled) {
-				return;
-			}
-
 			const payload = asRecord(input);
 			const sessionId =
 				getString(payload, "sessionID") ??
@@ -543,18 +544,61 @@ export function createPaiClaudeHooks({
 				return;
 			}
 
-			const bundle = await buildCompactionContinuationBundle({
-				parentSessionId: sessionId,
-			});
-			await snapshotCompactionDerivedState({
+			const flags = resolvePaiOrchestrationFeatureFlags();
+			const parentSessionId = await resolveParentSessionId(sessionId, payload, {});
+			const resolvedRootSessionId =
+				getSessionRootId(sessionId) ??
+				(parentSessionId
+					? (getSessionRootId(parentSessionId) ?? parentSessionId)
+					: sessionId);
+
+			const { hooks: config, env } = await getPaiCcHooksSettings();
+			const beadsContext = await executePreCompactHooks({
+				config,
+				cwd: process.cwd(),
 				sessionId,
-				bundle,
+				rootSessionId: resolvedRootSessionId,
+				settingsEnv: env,
 			});
 
-			injectCompactionContinuationContext({
-				output,
-				bundle,
+			let continuationContext: string | undefined;
+			if (flags.paiOrchestrationCompactionBundleEnabled) {
+				const bundle = await buildCompactionContinuationBundle({
+					parentSessionId: sessionId,
+				});
+				await snapshotCompactionDerivedState({
+					sessionId,
+					bundle,
+				});
+				continuationContext = renderCompactionContinuationContext(bundle);
+			}
+
+			const bounded = applyCombinedCompactionBudget({
+				beadsContext,
+				continuationContext,
+				maxLines: PAI_COMPACTION_CONTINUATION_MAX_LINES,
+				maxBytes: PAI_COMPACTION_CONTINUATION_MAX_BYTES,
 			});
+
+			const slices: string[] = [];
+			if (bounded.beadsContext && bounded.beadsContext.trim()) {
+				slices.push(bounded.beadsContext);
+			}
+			if (bounded.continuationContext && bounded.continuationContext.trim()) {
+				slices.push(bounded.continuationContext);
+			}
+
+			if (slices.length === 0 || typeof output !== "object" || output === null) {
+				return;
+			}
+
+			const outputRecord = output as UnknownRecord;
+			if (Array.isArray(outputRecord.context)) {
+				(outputRecord.context as unknown[]).push(...slices);
+				return;
+			}
+
+			outputRecord.context = slices;
 		},
 
 		"command.execute.before": async (input) => {
