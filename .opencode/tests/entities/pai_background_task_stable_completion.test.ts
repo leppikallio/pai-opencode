@@ -339,7 +339,7 @@ describe("background task stable completion", () => {
 			expect(timestamps.nextExpectedUpdateByMs).toBe(1_100);
 			expect(timestamps.lastProgressAtMs).toBe(1_000);
 			expect(timestamps.updatedAtMs).toBe(1_350);
-			expect(Object.prototype.hasOwnProperty.call(snapshot, "reviewOutputTailSummary")).toBe(
+			expect(Object.hasOwn(snapshot, "reviewOutputTailSummary")).toBe(
 				true,
 			);
 		} finally {

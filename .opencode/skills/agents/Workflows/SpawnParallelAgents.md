@@ -1,16 +1,16 @@
 # SpawnParallelAgents Workflow
 
-**Launches multiple generic Intern agents for parallel grunt work (NOT custom agents).**
+**Launches broad parallel grunt-work batches (NOT custom composition).**
 
 ## When to Use
 
 {principal.name} says:
 - "Launch 5 agents to research these companies"
 - "Spin up agents to process this list"
-- "Create agents to analyze these files" (no "custom")
+- "Create intern agents to process this queue fast"
 - "Use interns to check these URLs"
 
-**KEY: No "custom" keyword = generic Intern agents (same voice, fast parallel execution)**
+**KEY: Route specialist-first, then native `general` (never `general-purpose`); use `Intern` only for broad parallel grunt work.**
 
 ## The Workflow
 
@@ -59,20 +59,17 @@ Company A: Acme AI Security Corp
 Task({
   description: "Research Company A",
   prompt: agent1Prompt,
-  subagent_type: "Intern",
-  model: "haiku"  // or "sonnet" depending on complexity
+  subagent_type: "general" // fallback; prefer a research specialist when available
 })
 Task({
   description: "Research Company B",
   prompt: agent2Prompt,
-  subagent_type: "Intern",
-  model: "haiku"
+  subagent_type: "general" // fallback; prefer a research specialist when available
 })
 Task({
   description: "Research Company C",
   prompt: agent3Prompt,
-  subagent_type: "Intern",
-  model: "haiku"
+  subagent_type: "general" // fallback; prefer a research specialist when available
 })
 // ... up to N agents
 ```
@@ -99,22 +96,15 @@ Check for:
 4. Recommendations for follow-up research
 
 Provide a brief assessment and any issues found.`,
-  subagent_type: "Intern",
-  model: "haiku"
+  subagent_type: "QATester"
 })
 ```
 
-## Model Selection
+## Runtime Model Handling
 
-**Choose based on task complexity, not number of agents:**
-
-| Task Type | Model | Reason |
-|-----------|-------|--------|
-| Simple checks (URL validation, file existence, basic lookups) | `haiku` | 10-20x faster, more than sufficient |
-| Standard research/analysis (company research, code review) | `sonnet` | Balanced capability and speed |
-| Deep reasoning (strategic analysis, architectural decisions) | `opus` | Maximum intelligence required |
-
-**Parallel execution especially benefits from `haiku` - spawning 10 haiku agents is both faster AND cheaper than 1 opus agent doing sequential work.**
+- Do not pass `model` in `Task(...)`; it is unsupported.
+- Let runtime policy choose model allocation per delegated task.
+- Optimize speed by keeping prompts scoped and batches independent.
 
 ## Example: Research 5 Companies
 
@@ -126,40 +116,34 @@ Provide a brief assessment and any issues found.`,
 Task({
   description: "Research Acme AI Security",
   prompt: "Research Acme AI Security Corp: products, market, partnerships, tech stack",
-  subagent_type: "Intern",
-  model: "sonnet"
+  subagent_type: "general"
 })
 Task({
   description: "Research Bolt Security AI",
   prompt: "Research Bolt Security AI: products, market, partnerships, tech stack",
-  subagent_type: "Intern",
-  model: "sonnet"
+  subagent_type: "general"
 })
 Task({
   description: "Research Cipher AI Defense",
   prompt: "Research Cipher AI Defense: products, market, partnerships, tech stack",
-  subagent_type: "Intern",
-  model: "sonnet"
+  subagent_type: "general"
 })
 Task({
   description: "Research Delta Threat Intel",
   prompt: "Research Delta Threat Intelligence: products, market, partnerships, tech stack",
-  subagent_type: "Intern",
-  model: "sonnet"
+  subagent_type: "general"
 })
 Task({
   description: "Research Echo AI Protection",
   prompt: "Research Echo AI Protection Systems: products, market, partnerships, tech stack",
-  subagent_type: "Intern",
-  model: "sonnet"
+  subagent_type: "general"
 })
 
 // After results return, spotcheck:
 Task({
   description: "Spotcheck company research",
   prompt: "Review these 5 company research results for consistency and gaps: [results]",
-  subagent_type: "Intern",
-  model: "haiku"
+  subagent_type: "QATester"
 })
 ```
 
@@ -171,7 +155,7 @@ Task({
 
 **Input:** List of items (companies, files, URLs, people)
 **Action:** Create one agent per item, identical task structure
-**Model:** `haiku` for simple tasks, `sonnet` for analysis
+**Routing:** Keep `Intern` for bounded grunt batches
 
 ```typescript
 const items = ["Item1", "Item2", "Item3", "Item4", "Item5"];
@@ -181,8 +165,7 @@ items.forEach(item => {
   Task({
     description: `Process ${item}`,
     prompt: `Analyze ${item} for: [criteria]`,
-    subagent_type: "Intern",
-    model: "haiku"
+    subagent_type: "Intern"
   });
 });
 ```
@@ -191,7 +174,8 @@ items.forEach(item => {
 
 **Input:** Multiple files to analyze
 **Action:** One agent per file, same analysis criteria
-**Model:** `sonnet` for code analysis, `haiku` for simple checks
+**Routing:** `Pentester` for security analysis, `Engineer` for general code review
+**Fallback:** Use `general` if no specialist clearly fits
 
 ```typescript
 const files = ["src/auth.ts", "src/db.ts", "src/api.ts"];
@@ -201,8 +185,7 @@ files.forEach(file => {
   Task({
     description: `Analyze ${file}`,
     prompt: `Review ${file} for security issues, focusing on: [checklist]`,
-    subagent_type: "Intern",
-    model: "sonnet"
+    subagent_type: "Pentester"
   });
 });
 ```
@@ -211,7 +194,7 @@ files.forEach(file => {
 
 **Input:** Multiple data points/questions
 **Action:** One agent per question, independent research
-**Model:** `sonnet` for research, `haiku` for fact-checking
+**Routing:** Specialist-first, then `general`; use `Intern` only for broad grunt substeps
 
 ```typescript
 const questions = [
@@ -227,8 +210,7 @@ questions.forEach(q => {
   Task({
     description: `Research: ${q}`,
     prompt: `Find reliable answer to: ${q}. Include sources.`,
-    subagent_type: "Intern",
-    model: "haiku"
+    subagent_type: "general"
   });
 });
 ```
@@ -256,8 +238,7 @@ Verify:
 - No conflicting data
 
 Flag any issues for follow-up.`,
-  subagent_type: "Intern",
-  model: "haiku"  // Fast spotcheck
+  subagent_type: "QATester"
 })
 ```
 
@@ -286,14 +267,20 @@ Task({ ... })  // Agent 3
 bun run AgentFactory.ts --traits "research,analytical"
 ```
 
-**✅ RIGHT: Direct Intern launch**
+**✅ RIGHT: Specialist-first routing with native fallback**
 ```typescript
-// Simple and fast
+// Substantive research defaults to specialist-first, then `general`
 Task({
   description: "Research X",
   prompt: "Research X and report findings",
-  subagent_type: "Intern",
-  model: "haiku"
+  subagent_type: "general"
+})
+
+// Use Intern only for bounded grunt work
+Task({
+  description: "Collect 50 plain-language URL summaries",
+  prompt: "Summarize each URL in one sentence using this fixed template",
+  subagent_type: "Intern"
 })
 ```
 
@@ -311,25 +298,21 @@ Task({
 // THEN report as complete
 ```
 
-**❌ WRONG: Using opus for simple parallel tasks**
+**❌ WRONG: Passing unsupported extra arguments in Task calls**
 ```typescript
-// Each agent uses opus = slow + expensive
-Task({ ..., model: "opus" })
-Task({ ..., model: "opus" })
-Task({ ..., model: "opus" })
+Task({ ..., subagent_type: "Intern", extra_option: "fast" })
 ```
 
-**✅ RIGHT: Use haiku for grunt work**
+**✅ RIGHT: Let runtime pick model; keep routing explicit**
 ```typescript
-// 10-20x faster, sufficient for simple tasks
-Task({ ..., model: "haiku" })
-Task({ ..., model: "haiku" })
-Task({ ..., model: "haiku" })
+Task({ ..., subagent_type: "Intern" })
+Task({ ..., subagent_type: "Intern" })
+Task({ ..., subagent_type: "Intern" })
 ```
 
 ## Voice Output
 
-All generic Intern agents use the same voice:
+All `Intern` agents in this workflow use the same voice:
 - **Dev Patel** (d3MFdIuCfbAIwiu7jC4a)
 - High-energy genius generalist
 - 270 wpm speaking rate

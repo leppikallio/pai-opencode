@@ -17,6 +17,7 @@ import {
 	applyBackgroundCancellationPolicy,
 	classifyBackgroundTaskStall,
 } from "./cancellation-policy";
+import { currentEpochMs } from "./clock";
 
 type CarrierClient = {
 	session?: {
@@ -111,7 +112,7 @@ export class BackgroundTaskPoller {
 			recordBackgroundTaskObservationDefault;
 		this.onTaskCompleted = deps.onTaskCompleted;
 		this.pollIntervalMs = Math.max(250, Math.min(deps.pollIntervalMs ?? 1_500, 60_000));
-		this.nowMs = deps.nowMs ?? (() => new Date().valueOf());
+		this.nowMs = deps.nowMs ?? currentEpochMs;
 		this.stableCompletionEnabledOverride = deps.stableCompletionEnabled;
 		const defaults = resolveStableCompletionPolicy();
 		this.stableCompletionPolicy = {

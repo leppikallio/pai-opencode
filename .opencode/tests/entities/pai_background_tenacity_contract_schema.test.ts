@@ -73,7 +73,7 @@ function escapeRegex(value: string): string {
 }
 
 function hasOwnField(record: Record<string, unknown>, field: string): boolean {
-	return Object.prototype.hasOwnProperty.call(record, field);
+	return Object.hasOwn(record, field);
 }
 
 describe("background tenacity contract schema lock (Task 0 RED)", () => {

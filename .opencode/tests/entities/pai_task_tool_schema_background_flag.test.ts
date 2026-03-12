@@ -3,12 +3,12 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { createPaiTaskTool } from "../../plugins/pai-cc-hooks/tools/task";
 import type { RecordBackgroundTaskLaunchArgs } from "../../plugins/pai-cc-hooks/tools/background-task-state";
 import { PAI_ORCHESTRATION_FEATURE_FLAG_ENV_KEYS } from "../../plugins/pai-cc-hooks/feature-flags";
-import { handleToolExecuteAfter } from "../../plugins/pai-cc-hooks/tool-after";
 import {
 	__resetSessionRootRegistryForTests,
 	getSessionRootId,
 	setSessionRootId,
 } from "../../plugins/pai-cc-hooks/shared/session-root";
+import { runTaskThroughPluginSeam } from "./helpers/task-plugin-seam";
 
 function restoreEnv(key: string, previousValue: string | undefined): void {
 	if (previousValue === undefined) {
@@ -25,57 +25,6 @@ function expectFinitePositiveNumber(value: unknown): number {
 	expect((value as number) > 0).toBe(true);
 	return value as number;
 }
-
-type ToolSeamOutput = {
-	title: string;
-	output: string;
-	metadata: Record<string, unknown>;
-};
-
-async function runTaskThroughPluginSeam(args: {
-	taskTool: ReturnType<typeof createPaiTaskTool>;
-	taskArgs: {
-		description: string;
-		prompt: string;
-		subagent_type: string;
-		task_id?: string;
-		run_in_background?: boolean;
-		task_kind?: "review" | "generic";
-	};
-	ctx: Record<string, unknown>;
-}): Promise<ToolSeamOutput> {
-	const seamResult = await args.taskTool.execute(args.taskArgs, args.ctx as any);
-	expect(typeof seamResult).toBe("string");
-
-	const seamOutput: ToolSeamOutput = {
-		title: "",
-		output: seamResult,
-		metadata: {
-			truncated: false,
-			outputPath: undefined,
-		},
-	};
-
-	await handleToolExecuteAfter({
-		input: {
-			tool: "task",
-			sessionID:
-				typeof args.ctx.sessionID === "string"
-					? args.ctx.sessionID
-					: typeof args.ctx.sessionId === "string"
-						? args.ctx.sessionId
-						: "",
-			callID: "call-task",
-			args: args.taskArgs,
-		},
-		output: seamOutput,
-		config: null,
-		cwd: process.cwd(),
-	});
-
-	return seamOutput;
-}
-
 describe("PAI task tool override", () => {
 	beforeEach(() => {
 		__resetSessionRootRegistryForTests();
@@ -133,6 +82,7 @@ describe("PAI task tool override", () => {
       $: (() => Promise.resolve(null)) as unknown,
     });
 
+    expect(taskTool.args.run_in_background.safeParse(undefined).success).toBe(true);
     expect(taskTool.args.run_in_background.safeParse(true).success).toBe(true);
     expect(taskTool.args.run_in_background.safeParse(false).success).toBe(true);
     expect(taskTool.args.run_in_background.safeParse("true").success).toBe(false);
@@ -155,6 +105,52 @@ describe("PAI task tool override", () => {
     expect(taskTool.args.command.safeParse(undefined).success).toBe(true);
     expect(taskTool.args.command.safeParse(42).success).toBe(false);
   });
+
+	test("foreground remains default when run_in_background is omitted", async () => {
+		const calls: Array<{ method: string; payload: unknown }> = [];
+		const launchRecords: Array<unknown> = [];
+
+		setSessionRootId("parent-session-456", "root-session-999");
+
+		const taskTool = createPaiTaskTool({
+			client: {
+				session: {
+					create: async (payload: unknown) => {
+						calls.push({ method: "create", payload });
+						return { data: { id: "child-session-123" } };
+					},
+					prompt: async (payload: unknown) => {
+						calls.push({ method: "prompt", payload });
+						return { data: { parts: [{ type: "text", text: "assistant reply" }] } };
+					},
+				},
+			},
+			$: (() => Promise.resolve(null)) as unknown,
+			recordBackgroundTaskLaunch: async (args) => {
+				launchRecords.push(args);
+			},
+		});
+
+		const result = await runTaskThroughPluginSeam({
+			taskTool,
+			taskArgs: {
+				description: "Foreground default",
+				prompt: "Do the thing",
+				subagent_type: "Engineer",
+			},
+			ctx: {
+				sessionID: "parent-session-456",
+				ask: async (payload: unknown) => {
+					calls.push({ method: "ask", payload });
+					return { decision: "allow" };
+				},
+			},
+		});
+
+		expect(launchRecords).toHaveLength(0);
+		expect(calls.map((entry) => entry.method)).toEqual(["ask", "create", "prompt"]);
+		expect(result.output).toContain("task_id: child-session-123");
+	});
 
   test("background task returns string output (tool contract)", async () => {
     const taskTool = createPaiTaskTool({
@@ -231,17 +227,18 @@ describe("PAI task tool override", () => {
 			} as any,
 		);
 
-    expect(typeof result).toBe("string");
-    expect(result).toContain("Background task launched");
-    expect(result).toContain("Task ID: bg_child-session-123");
-    expect(result).toContain("Session ID: child-session-123");
-    expect(calls.map((entry) => entry.method)).toEqual(["create", "prompt"]);
+		expect(typeof result).toBe("string");
+		expect(result).toContain("Background task launched");
+		expect(result).toContain("Task ID: bg_child-session-123");
+		expect(result).toContain("Session ID: child-session-123");
+		expect(calls.map((entry) => entry.method)).toEqual(["create", "prompt"]);
 		expect(launchRecords).toHaveLength(1);
 		expect(launchRecords[0]).toMatchObject({
 			taskId: "bg_child-session-123",
 			taskDescription: "Run subagent",
 			childSessionId: "child-session-123",
 			parentSessionId: "parent-session-456",
+			concurrencyGroup: "agent:engineer",
 		});
 		expect((launchRecords[0] as any)?.taskKind).toBe("review");
 		expectFinitePositiveNumber((launchRecords[0] as any)?.expectedQuietWindowMs);

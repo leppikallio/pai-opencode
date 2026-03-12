@@ -30,58 +30,61 @@ The agents skill is a complete agent composition and management system. It conso
 
 ## Voice Notification
 
-**When executing a workflow, do BOTH:**
+When executing a workflow, do both:
 
-1. **Send voice notification**:
-   Use the `voice_notify` tool:
+1. Send a parent-session notification using `voice_notify`:
+   - `message`: "Running the <WORKFLOW_NAME> workflow from the agents skill"
+2. Run the workflow that matches the routing rules below.
 
-- `message`: "Running the WORKFLOWNAME workflow from the agents skill"
+**Example 1: Create custom agents**
+```text
 User: "Spin up 5 custom science agents to analyze this data"
-→ Invokes CREATECUSTOMAGENT workflow
-→ Runs AgentFactory 5 times with DIFFERENT trait combinations
-→ Each agent gets unique personality + matched voice
-→ Launches agents in parallel with model: "sonnet"
+-> Invokes CREATECUSTOMAGENT workflow
+-> Runs AgentFactory 5 times with different trait combinations
+-> Each agent gets unique personality + matched voice
+-> Launches agents in parallel using Task tool calls
 ```
 
 **Example 2: List available traits**
-```
+```text
 User: "What agent personalities can you create?"
-→ Invokes LISTTRAITS workflow
-→ Displays expertise (security, legal, finance, etc.)
-→ Shows personality types (skeptical, enthusiastic, analytical, etc.)
-→ Lists approach styles (thorough, rapid, systematic, etc.)
+-> Invokes LISTTRAITS workflow
+-> Displays expertise (security, legal, finance, etc.)
+-> Shows personality types (skeptical, enthusiastic, analytical, etc.)
+-> Lists approach styles (thorough, rapid, systematic, etc.)
 ```
 
 **Example 3: Spawn parallel researchers**
-```
+```text
 User: "Launch 10 agents to research these companies"
-→ Invokes SPAWNPARALLEL workflow
-→ Creates 10 Intern agents (generic, same voice)
-→ Uses model: "haiku" for speed
-→ Launches spotcheck agent after completion
+-> Invokes SPAWNPARALLEL workflow
+-> Applies runtime decision tree (specialist first, then `general`)
+-> Uses Intern agents only for broad parallel grunt work
+-> Launches spotcheck agent after completion
 ```
 
 ## Architecture
 
-### Hybrid Agent Model
+### Three Agent Systems (Authoritative)
 
-The system uses two types of agents:
+The system uses three distinct agent systems:
 
-| Type | Definition | Best For |
+| System | Definition | Best For |
 |------|------------|----------|
+| **Task Tool Subagent Types** | Runtime-provided subagent types (`general`, Engineer, Architect, Intern, explore, etc.) | Specialist-first runtime delegation, `general` fallback, and Intern-only broad parallel grunt work |
 | **Named Agents** | Persistent identities with backstories (Remy, Ava, Marcus) | Recurring work, voice output, relationships |
-| **Dynamic Agents** | Task-specific specialists composed from traits | One-off tasks, novel combinations, parallel work |
+| **Dynamic (Custom) Agents** | Task-specific specialists composed from traits via AgentFactory | Explicit custom requests and bounded "expert in X" asks |
 
 ### The Agent Spectrum
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│   NAMED AGENTS          HYBRID USE          DYNAMIC AGENTS          │
-│   (Relationship)        (Best of Both)      (Task-Specific)         │
+│ TASK SUBAGENTS         NAMED AGENTS        DYNAMIC CUSTOM AGENTS     │
+│ (Runtime Routing)      (Relationship)      (AgentFactory Traits)     │
 ├──────────────────────────────────────────────────────────────────────┤
-│ Remy, Ava, Marcus   "Security expert      Ephemeral specialist      │
-│                      with Johannes's      composed from traits      │
-│                      skepticism"                                     │
+│ Specialist-first,      Remy, Ava, Marcus   Ephemeral specialist      │
+│ then `general`;        + continuity +      composed from traits      │
+│ Intern for grunt       voice identity                                 │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -91,14 +94,18 @@ The system uses two types of agents:
 
 | User Says | What to Use | Why |
 |-----------|-------------|-----|
-| "**custom agents**", "create **custom** agents" | AgentFactory | Unique prompts + unique voices |
-| "agents", "launch agents", "bunch of agents" | Generic Interns | Same voice, parallel grunt work |
+| "**custom agents**", "create **custom** agents", "I need an expert in X" (explicit + bounded) | AgentFactory | Unique prompts + unique voices |
+| "agents", "launch agents", "bunch of agents" | Runtime delegation decision tree | Specialist first, then native `general`; `Intern` only for broad parallel grunt work |
+| "use interns to tag 5,000 records", "spin up interns for bulk cleanup" | Intern runtime subagent | Explicitly scoped broad parallel grunt batch; otherwise keep specialist-first -> `general` fallback |
 | "use Remy", "get Ava to" | Named agent | Pre-defined personality |
+
+Runtime catch-all is native `general` (never `general-purpose`).
 
 **Other triggers:**
 - "agent personalities", "available traits" → LISTTRAITS workflow
 - "specialized agents", "expert in X" → CREATECUSTOMAGENT workflow
-- "parallel agents", "spawn 5 agents" → SPAWNPARALLEL workflow
+- "parallel agents", "spawn 5 agents" → SPAWNPARALLEL workflow (runtime decision tree + spotcheck)
+- Routing details for these flows live in `Workflows/CreateCustomAgent.md` and `Workflows/SpawnParallelAgents.md`
 
 ## Components
 
@@ -173,7 +180,7 @@ bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts --list
 Users talk naturally:
 - "I need a legal expert to review this contract" → System composes legal + analytical + thorough agent
 - "Spin up 5 custom science agents" → System uses AgentFactory 5 times with different traits
-- "Launch agents to research these companies" → System spawns generic Intern agents
+- "Launch agents to research these companies" → System applies specialist-first routing, then `general`; Intern only when this is broad parallel grunt work
 - "Get me someone skeptical about security" → System composes security + skeptical + adversarial agent
 
 ### Internal Process
@@ -202,22 +209,18 @@ bun run AgentFactory.ts --traits "research,analytical,systematic"
 # Output: Prompt with voice "Drew" (professional)
 
 # Launch all 3 with Task tool
-Task({ prompt: <agent1_prompt>, subagent_type: "Intern", model: "sonnet" })
-Task({ prompt: <agent2_prompt>, subagent_type: "Intern", model: "sonnet" })
-Task({ prompt: <agent3_prompt>, subagent_type: "Intern", model: "sonnet" })
+Task({ prompt: <agent1_prompt>, subagent_type: "general" })
+Task({ prompt: <agent2_prompt>, subagent_type: "general" })
+Task({ prompt: <agent3_prompt>, subagent_type: "general" })
+
+# Intern remains reserved for broad parallel grunt work
 ```
 
-## Model Selection
+## Runtime Model Handling
 
-Always specify the appropriate model:
-
-| Task Type | Model | Speed Multiplier |
-|-----------|-------|------------------|
-| Grunt work, simple checks | `haiku` | 10-20x faster |
-| Standard analysis, research | `sonnet` | Balanced |
-| Deep reasoning, architecture | `opus` | Maximum intelligence |
-
-**Rule:** Parallel agents especially benefit from `haiku` for speed.
+- Do not pass `model` in `Task(...)`; it is unsupported.
+- Let runtime policy select the model for delegated execution.
+- Control quality through `subagent_type` selection and prompt depth.
 
 ## Related Skills
 
@@ -228,4 +231,3 @@ Always specify the appropriate model:
 ## Version History
 
 - **v1.0.0** (2025-12-16): Initial creation - consolidated all agent infrastructure into discrete skill
-

@@ -13,4 +13,4 @@ OPEN-CODE POLICY BRIDGE: todowrite is canonical ISC.json source.
 
 - Voice: use the `voice_notify` tool (main session only; background agents never call voice).
 - Questions: use the `question` tool (hook-normalized name: AskUserQuestion).
-- Subagents: use the `task` tool; default `run_in_background: true` unless FAST.
+- Subagents: use the `task` tool with hybrid adapter semantics — foreground stock parity by default (interactive v1), optional `run_in_background: true` for explicit async launch.

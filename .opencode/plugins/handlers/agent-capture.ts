@@ -54,7 +54,12 @@ export interface CaptureAgentResult {
  * Extract agent type from Task tool args
  */
 function extractAgentType(args: Record<string, unknown>): string {
-  return (args.subagent_type as string) || "general-purpose";
+  const subagentType = getStringProp(args, "subagent_type");
+  if (!subagentType || subagentType.trim().length === 0) {
+    return "unknown";
+  }
+
+  return subagentType;
 }
 
 /**

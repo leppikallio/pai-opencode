@@ -18,6 +18,7 @@ import type {
 	ReasonCode,
 	SalvageStatus,
 } from "./review-contract";
+import { currentEpochMs } from "./clock";
 
 const SYNTHETIC_EPOCH_THRESHOLD_MS = 1_000_000_000_000;
 
@@ -179,7 +180,7 @@ export function resolveCancellationNowMs(args: {
 		return args.nowMs;
 	}
 
-	const providedNowMs = (args.nowProvider ?? (() => new Date().valueOf()))();
+	const providedNowMs = (args.nowProvider ?? currentEpochMs)();
 	const launchedAtMs = args.taskRecord.launched_at_ms;
 	if (
 		isFiniteNumber(launchedAtMs) &&
@@ -351,7 +352,6 @@ function buildReasonText(args: {
 			return "Cancellation blocked by policy.";
 		case "CHILD_ERROR":
 			return "Cancellation requested due to child task error.";
-		case "INTERNAL_ERROR":
 		default:
 			return "Cancellation requested due to internal error.";
 	}

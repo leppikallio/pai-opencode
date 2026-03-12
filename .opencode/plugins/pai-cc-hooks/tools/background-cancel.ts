@@ -4,8 +4,8 @@ import { findBackgroundTaskByTaskId } from "./background-task-state";
 import {
 	applyBackgroundCancellationPolicy,
 	resolveCancellationNowMs,
-	type BackgroundCancelResult,
 } from "../background/cancellation-policy";
+import { currentEpochMs } from "../background/clock";
 import { getBackgroundConcurrencyManager } from "../background/concurrency";
 import { resolvePaiOrchestrationFeatureFlags } from "../feature-flags";
 
@@ -50,9 +50,9 @@ export function createPaiBackgroundCancelTool(input: { client: unknown }) {
         return `Task not found: ${taskId}`;
       }
 
-      const nowMs = resolveCancellationNowMs({
+		const nowMs = resolveCancellationNowMs({
 			taskRecord: record,
-			nowProvider: () => new Date().valueOf(),
+			nowProvider: currentEpochMs,
 		});
 
 			const flags = resolvePaiOrchestrationFeatureFlags();

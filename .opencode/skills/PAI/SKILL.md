@@ -2,7 +2,7 @@
   🔨 GENERATED FILE - Do not edit directly
   Edit:   ~/Projects/pai-opencode/.opencode/skills/PAI/Components/
   Build:  bun ~/Projects/pai-opencode/.opencode/skills/PAI/Tools/CreateDynamicCore.ts
-  Built:  6 March 2026 16:35:12
+  Built:  12 March 2026 12:30:45
 -->
 ---
 name: PAI
@@ -119,7 +119,7 @@ OPEN-CODE POLICY BRIDGE: todowrite is canonical ISC.json source.
 
 - Voice: use the `voice_notify` tool (main session only; background agents never call voice).
 - Questions: use the `question` tool (hook-normalized name: AskUserQuestion).
-- Subagents: use the `task` tool; default `run_in_background: true` unless FAST.
+- Subagents: use the `task` tool with hybrid adapter semantics — foreground stock parity by default (interactive v1), optional `run_in_background: true` for explicit async launch.
 ## The Algorithm 3.7.0
 
 Core: transition from CURRENT STATE to IDEAL STATE using verifiable criteria (ISC). Goal: **Euphoric Surprise** — 9-10 ratings.
@@ -329,11 +329,12 @@ PLATFORM CAPABILITIES (consider alongside PAI skills):
 | /security-review | Analyze pending changes for security vulnerabilities | Describe: "security review" |
 | Agent Teams | Complex multi-agent work needing coordination + shared tasks | `TeamCreate` + `Agent` with team_name |
 | Worktree Isolation | Parallel dev work — each agent gets isolated file system | `Agent` with `isolation: "worktree"` |
-| Background Agents | Non-blocking parallel research or exploration | `Agent` with `run_in_background: true` |
+| Background Agents | Optional non-blocking parallel research or exploration | `Agent` with `run_in_background: true` (explicit opt-in) |
 | Competing Hypotheses | Debugging with multiple possible causes | Spawn N agents, each testing one theory |
 | Writer/Reviewer | Code quality via role separation | One agent writes, separate agent reviews |
 
 /simplify should be near-default for any code-producing Algorithm run. /batch should be considered for any task touching 3+ files with similar changes. Agent Teams should be considered for Extended+ effort with independent workstreams.
+Foreground execution remains the default interactive routing mode; use background only when asynchronous progress is materially beneficial.
 
 GUIDANCE:
 

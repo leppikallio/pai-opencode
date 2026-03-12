@@ -1,141 +1,96 @@
 #!/usr/bin/env bun
 
+import { shouldAskForForegroundTask } from "../plugins/pai-cc-hooks/claude/agent-execution-guard";
 import { readStdinWithTimeout } from "./lib/stdin";
 
 type JsonRecord = Record<string, unknown>;
 
 type HookInput = {
-  tool_name?: string;
-  tool_input?: {
-    run_in_background?: boolean;
-    subagent_type?: string;
-    description?: string;
-    prompt?: string;
-    model?: string;
-  };
+	tool_name?: string;
+	tool_input?: {
+		run_in_background?: boolean;
+		runInBackground?: boolean;
+		subagent_type?: string;
+		description?: string;
+		prompt?: string;
+	};
 };
 
-const FAST_AGENT_TYPES = new Set(["explore", "fast"]);
-
 if (process.execArgv.includes("--check")) {
-  process.exit(0);
+	process.exit(0);
 }
 
 function asRecord(value: unknown): JsonRecord | undefined {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return undefined;
-  }
-  return value as JsonRecord;
+	if (!value || typeof value !== "object" || Array.isArray(value)) {
+		return undefined;
+	}
+	return value as JsonRecord;
 }
 
 function asString(value: unknown): string {
-  return typeof value === "string" ? value : "";
+	return typeof value === "string" ? value : "";
 }
 
-function isFastAgentType(subagentType: string): boolean {
-  const normalized = subagentType.trim().toLowerCase();
-  if (!normalized) {
-    return false;
-  }
-
-  if (FAST_AGENT_TYPES.has(normalized)) {
-    return true;
-  }
-
-  return /(^|[-_/\s])(explore|fast)($|[-_/\s])/i.test(normalized);
-}
-
-function isFastModel(model: string): boolean {
-  const normalized = model.trim().toLowerCase();
-  if (!normalized) {
-    return false;
-  }
-
-  if (/(^|[-_/\s])haiku($|[-_/\s])/i.test(normalized)) {
-    return true;
-  }
-
-  return /(^|[-_/\s])fast($|[-_/\s])/.test(normalized);
-}
-
-function hasFastScope(prompt: string): boolean {
-  const lines = prompt.split(/\r?\n/);
-  const scopeHeaderIndex = lines.findIndex((line) => /^\s*##\s*Scope\b/i.test(line));
-  if (scopeHeaderIndex === -1) {
-    return false;
-  }
-
-  let scopeBlock = "";
-  for (let i = scopeHeaderIndex; i < lines.length; i += 1) {
-    if (i > scopeHeaderIndex && /^\s*##\s+/.test(lines[i])) {
-      break;
-    }
-    scopeBlock += `${lines[i]}\n`;
-  }
-
-  return /Timing:\s*FAST\b/i.test(scopeBlock);
+function asBoolean(value: unknown): boolean {
+	return value === true;
 }
 
 async function main(): Promise<void> {
-  try {
-    const stdin = await readStdinWithTimeout({ timeoutMs: 1000 });
-    if (!stdin.trim()) {
-      return;
-    }
+	try {
+		const stdin = await readStdinWithTimeout({ timeoutMs: 1000 });
+		if (!stdin.trim()) {
+			return;
+		}
 
-    const parsed = JSON.parse(stdin) as HookInput;
-    const payload = asRecord(parsed);
-    if (!payload) {
-      return;
-    }
+		const parsed = JSON.parse(stdin) as HookInput;
+		const payload = asRecord(parsed);
+		if (!payload) {
+			return;
+		}
 
-    const toolName = asString(payload.tool_name);
-    if (!toolName.trim()) {
-      return;
-    }
+		const toolName = asString(payload.tool_name);
+		if (!toolName.trim()) {
+			return;
+		}
 
-    if (toolName.toLowerCase() !== "task") {
-      return;
-    }
+		if (toolName.toLowerCase() !== "task") {
+			return;
+		}
 
-    const toolInput = asRecord(payload.tool_input) ?? {};
+		const toolInput = asRecord(payload.tool_input) ?? {};
+		const runInBackground =
+			asBoolean(toolInput.run_in_background) || asBoolean(toolInput.runInBackground);
 
-    if (toolInput.run_in_background === true) {
-      return;
-    }
+		if (runInBackground) {
+			return;
+		}
 
-    const agentType = asString(toolInput.subagent_type);
-    if (isFastAgentType(agentType)) {
-      return;
-    }
+		const agentType = asString(toolInput.subagent_type);
+		const prompt = asString(toolInput.prompt);
+		if (
+			!shouldAskForForegroundTask({
+				subagent_type: agentType,
+				prompt,
+			})
+		) {
+			return;
+		}
 
-    const model = asString(toolInput.model);
-    if (isFastModel(model)) {
-      return;
-    }
+		const description = asString(toolInput.description).trim() || agentType || "unknown";
 
-    const prompt = asString(toolInput.prompt);
-    if (hasFastScope(prompt)) {
-      return;
-    }
+		process.stdout.write(`<system-reminder>
+BACKGROUND RECOMMENDATION: "${description}" (${agentType || "unknown"}) appears long-running or fan-out.
+Foreground execution is still available, but this may block the user interface.
 
-    const description = asString(toolInput.description).trim() || agentType || "unknown";
+If non-blocking execution is preferred, set run_in_background: true on this Task call.
 
-    process.stdout.write(`<system-reminder>
-WARNING: FOREGROUND AGENT DETECTED - "${description}" (${agentType || "unknown"})
-run_in_background is missing or false. This may block the user interface.
-
-FIX: Add run_in_background: true to this Task call.
-
-Only FAST exceptions pass inline:
-- run_in_background: true
-- fast/explore agent types
-- fast-tier model (for example, haiku)
-- ## Scope with Timing: FAST
+Foreground-first policy reminder:
+- Default interactive tasks may run in foreground
+- Prefer run_in_background: true for explicit long-running or fan-out work
 </system-reminder>\n`);
-  } catch {
-    // Never block hook execution on parse/runtime errors.
-  }
+	} catch {
+		// Never block hook execution on parse/runtime errors.
+	}
 }
 
 await main();

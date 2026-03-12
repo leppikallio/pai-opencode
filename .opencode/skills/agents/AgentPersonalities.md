@@ -4,41 +4,45 @@
 
 This file defines the character, voice settings, backstories, and personality traits for all agents in the PAI system. The voice server reads this configuration to deliver personality-driven voice communication.
 
-## Hybrid Agent Model
+## Three Agent Systems (Authoritative)
 
-PAI uses a **hybrid agent system** that combines:
+PAI routing uses three distinct systems:
 
-1. **Named Agents** (this file) - Persistent identities with rich backstories, voice mappings, and relationship continuity
-2. **Dynamic Agents** (Traits.yaml + AgentFactory) - Task-specific specialists composed on-the-fly from traits
+1. **Task Tool Subagent Types** (OpenCode runtime) - `general`, Engineer, Architect, Designer, Intern, explore, and other built-in runtime specialists
+2. **Named Agents** (this file) - Persistent identities with rich backstories, voice mappings, and relationship continuity
+3. **Dynamic (Custom) Agents** (Traits.yaml + AgentFactory) - Task-specific specialists composed on-the-fly from traits
 
 ### When to Use Each
 
 | Scenario | Use | Why |
 |----------|-----|-----|
+| Generic request without a clear specialist | Task Tool Subagent (`general`) | Native catch-all fallback in runtime routing |
+| Clear runtime specialist match (code/design/security/research) | Task Tool Specialist | Best-fit ownership and verification |
+| Broad parallel grunt work | Task Tool Subagent (`Intern`) | Safe split fan-out with checklist-style work |
 | Recurring research | Named Agent (Remy, Ava) | Relationship continuity, known behavior |
 | Voice output needed | Named Agent | Pre-mapped to ElevenLabs voices |
 | Deep character interaction | Named Agent | Rich backstory, personality depth |
 | One-off specialized task | Dynamic Agent | Perfect task-fit, no bloat |
 | Novel trait combination | Dynamic Agent | Compose exactly what's needed |
-| Parallel grunt work | Dynamic Agent | No personality overhead |
+| Explicit "custom agents" request | Dynamic Agent | AgentFactory composition + unique voices |
 
 ### The Agent Spectrum
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         AGENT SPECTRUM                               │
+│                         AGENT SPECTRUM                              │
 ├───────────────────┬──────────────────────┬──────────────────────────┤
-│   NAMED AGENTS    │    HYBRID USE        │    DYNAMIC AGENTS        │
-│   (Relationship)  │    (Best of Both)    │    (Task-Specific)       │
+│ TASK SUBAGENTS    │    NAMED AGENTS      │ DYNAMIC CUSTOM AGENTS    │
+│ (Runtime Routing) │    (Relationship)    │ (AgentFactory Traits)    │
 ├───────────────────┼──────────────────────┼──────────────────────────┤
-│ Remy, Ava,        │ "Security expert     │ Ephemeral specialist     │
-│ Johannes, Marcus  │ with Johannes's      │ composed from traits     │
-│                   │ skepticism"          │                          │
+│ Specialist-first  │ Remy, Ava, Marcus    │ Ephemeral specialist     │
+│ then `general`;   │ + continuity + voice │ composed from traits     │
+│ Intern for grunt  │                      │                          │
 ├───────────────────┼──────────────────────┼──────────────────────────┤
 │ Use for:          │ Use for:             │ Use for:                 │
-│ • Recurring work  │ • Named + trait mix  │ • One-off tasks          │
-│ • Voice output    │ • Familiar but       │ • Parallel execution     │
-│ • Continuity      │   specialized        │ • Novel combinations     │
+│ • Runtime tasks   │ • Recurring work     │ • Explicit custom asks   │
+│ • `general` catch │ • Voice output       │ • Bounded expert asks    │
+│ • Intern grunt    │ • Continuity         │ • Novel combinations     │
 └───────────────────┴──────────────────────┴──────────────────────────┘
 ```
 
@@ -60,15 +64,19 @@ PAI uses a **hybrid agent system** that combines:
 
 | {principal.name} Says | What to Use | Why |
 |-------------|-------------|-----|
-| "**custom agents**", "spin up **custom** agents", "create **custom** agents" | **AgentFactory** | Custom-built with unique voices |
-| "spin up agents", "bunch of agents", "launch 5 agents to do X" | **Intern agents** | Generic parallel workers |
-| "interns", "use interns", "spin up some interns" | **Intern agents** | Obviously interns |
+| "**custom agents**", "spin up **custom** agents", "create **custom** agents", "I need an expert in X" (explicit + bounded) | **AgentFactory** | Custom-built with unique voices |
+| "spin up agents", "bunch of agents", "launch 5 agents to do X" | **Runtime decision tree** | Specialist first, then `general`; `Intern` only for broad parallel grunt work |
+| "use interns to tag these records", "spin up interns for bulk cleanup" | **Intern runtime subagent** | Explicitly scoped broad parallel grunt batches only; otherwise keep specialist-first -> `general` fallback |
+
+Execution details mirror `Workflows/CreateCustomAgent.md` and `Workflows/SpawnParallelAgents.md`.
+
+Routing note: explicit and bounded "expert in X" asks can enter AgentFactory dynamic composition when the request is custom in intent.
 
 ---
 
 ### Pattern 1: CUSTOM AGENTS → AgentFactory
 
-**Trigger words:** "custom agents", "custom", "specialized agents with different expertise"
+**Trigger words:** "custom agents", "custom", "specialized agents with different expertise", "I need an expert in X" (explicit + bounded)
 
 **What happens:**
 1. Run `bun run ~/.config/opencode/skills/agents/Tools/AgentFactory.ts` for EACH agent
@@ -92,37 +100,47 @@ bun run AgentFactory.ts --traits "medical,empathetic,consultative" --task "Neuro
 bun run AgentFactory.ts --traits "research,bold,adversarial" --task "Marine biologist"
 
 # Then launch each with their custom prompt:
-Task(prompt=<AgentFactory output>, subagent_type="Intern", model="sonnet")
+Task(prompt=<AgentFactory output>, subagent_type="general")
 # Results: 5 agents with 5 different voices
 ```
 
+For AgentFactory-composed prompts, use `general` as the execution substrate.
+`Intern` remains for explicitly scoped, split-safe broad parallel grunt batches.
+Do not pass `model` in `Task(...)`; runtime policy selects it.
+
 ---
 
-### Pattern 2: GENERIC AGENTS → Interns
+### Pattern 2: GENERIC AGENT REQUESTS → Runtime Decision Tree
 
 **Trigger words:** "spin up agents", "launch agents", "bunch of agents", "5 agents to research X"
 
 **What happens:**
-1. Launch Intern agents directly with task-specific prompts
-2. All get the same Dev Patel voice (that's fine for parallel grunt work)
-3. No AgentFactory needed
+1. Route to a runtime specialist when the task clearly maps (`Engineer`, `Architect`, `Designer`, `QATester`, `Pentester`, `explore`, research variants)
+2. If no specialist fits, route to native `general`
+3. Use `Intern` only when the work is broad parallel grunt work that can be safely split
+4. No AgentFactory needed unless the request becomes explicit custom composition
 
 **Example - CORRECT:**
 ```bash
-# {principal.name}: "Spin up 5 agents to research these companies"
-# {daidentity.name} launches 5 parallel Intern agents:
-Task(prompt="Research Company A...", subagent_type="Intern", model="haiku")
-Task(prompt="Research Company B...", subagent_type="Intern", model="haiku")
+# {principal.name}: "Launch an agent to triage this intake queue"
+# No clear specialist => use native general fallback
+Task(prompt="Classify queue items into implementation/design/qa buckets...", subagent_type="general")
+
+# {principal.name}: "Spin up 5 agents to tag these 5,000 records"
+# This is broad parallel grunt work => Intern is appropriate
+Task(prompt="Tag records batch A...", subagent_type="Intern")
+Task(prompt="Tag records batch B...", subagent_type="Intern")
 # etc.
 ```
 
 ---
 
-### Pattern 3: INTERNS → Obviously Interns
+### Pattern 3: INTERNS → Broad Grunt-Work Routing
 
-**Trigger words:** "interns", "use interns"
+**Trigger signal:** Intern wording + explicit broad parallel grunt scope (bulk tagging, queue cleanup, checklist fan-out).
 
-Same as Pattern 2. Just launch Intern agents.
+Route to `Intern` only for those split-safe grunt batches.
+If intern wording appears without grunt scope, stay on specialist-first routing and fall back to native `general` when no specialist fits.
 
 ---
 
@@ -132,6 +150,10 @@ Same as Pattern 2. Just launch Intern agents.
 # WRONG: User says "custom agents" but you spawn generic Interns
 Task(prompt="You are Dr. Nova, an astrophysicist...", subagent_type="Intern")
 # This ignores AgentFactory and gives everyone the same voice
+
+# WRONG: Generic request with no specialist fit routed straight to Intern
+Task(prompt="Triage this intake queue", subagent_type="Intern")
+# Should use native `general` fallback unless this is broad parallel grunt work
 
 # WRONG: User says "spin up agents" but you use AgentFactory
 bun run AgentFactory.ts --traits "..."  # Overkill for generic parallel work

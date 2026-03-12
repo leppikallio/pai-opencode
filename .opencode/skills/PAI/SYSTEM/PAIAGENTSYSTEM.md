@@ -10,7 +10,7 @@ PAI has three agent systems that serve different purposes. Confusing them causes
 
 | System | What It Is | When to Use | Has Unique Voice? |
 |--------|-----------|-------------|-------------------|
-| **Task Tool Subagent Types** | Pre-built subagent types in OpenCode runtime (Architect, Designer, Engineer, Intern, explore, etc.) | Runtime delegation (including generic user requests), not custom-agent composition | No |
+| **Task Tool Subagent Types** | Pre-built subagent types in OpenCode runtime (`general`, Architect, Designer, Engineer, Intern, explore, etc.) | Runtime delegation (including generic user requests), not custom-agent composition | No |
 | **Named Agents** | Persistent identities with backstories and ElevenLabs voices (Serena, Marcus, Rook, etc.) | Recurring work, voice output, relationships | Yes |
 | **Custom Agents** | Dynamic agents composed via AgentFactory traits | When user says "custom agents" | Yes (trait-mapped) |
 
@@ -43,9 +43,18 @@ functions.task({ subagent_type: "Engineer", prompt: "...", description: "..." })
 | User Says | Action | Implementation |
 |-----------|--------|----------------|
 | "**custom agents**", "spin up **custom** agents" | Invoke agents skill | `agents` skill → CreateCustomAgent workflow |
-| "agents", "launch agents", "parallel agents" | Generic Interns | `functions.task({ subagent_type: "Intern", ... })` |
+| "I need an expert in X" (explicit + bounded) | Dynamic composition | `agents` skill → CreateCustomAgent workflow |
+| "agents", "launch agents", "parallel agents" | Runtime delegation decision tree | Specialist first, then `general`, with `Intern` reserved for broad parallel grunt work |
 | "use Remy", "get Ava to" | Named agent | Use appropriate researcher subagent_type |
 | (Internal workflow calls) | Task subagent_types | `functions.task({ subagent_type: "Engineer", ... })` etc. |
+
+Routing hints such as `@general` / `@<agent>` communicate intent but remain advisory, not imperative. Keep routing aligned with scope, safety, and the best available specialist.
+
+### Runtime Delegation Decision Tree
+
+1. **Specialist first:** if the task clearly maps to a runtime specialist (`Engineer`, `Architect`, `Designer`, `QATester`, `Pentester`, `explore`, research variants), route there.
+2. **Fallback to `general`:** if no better specialist fits, use native `general` as the catch-all runtime subagent type.
+3. **Reserve `Intern`:** use `Intern` only for broad parallel grunt work that can be safely split and independently verified.
 
 ### Custom Agent Creation Flow
 
@@ -68,15 +77,16 @@ bun run ../../agents/Tools/AgentFactory.ts --traits "research,analytical,synthes
 
 ## Task Tool Subagent Types (Runtime Delegation)
 
-These are pre-built agents available via OpenCode's Task tool. Use them for runtime delegation work (including generic user requests), but not for user-requested "custom agents."
+These are pre-built agents available via OpenCode's Task tool. Use specialist-first routing, then `general` fallback, with `Intern` reserved for broad parallel grunt work. Do not use these for user-requested "custom agents."
 
 | Subagent Type | Purpose | When Used |
 |---------------|---------|-----------|
 | `Algorithm` | Ideal-state criteria thinking | ISC creation, verification planning |
+| `general` | Catch-all runtime helper | Default fallback when no better specialist fits |
 | `Architect` | system design | Implementation/design workflows (capability routing) |
 | `Designer` | UX/UI design | Implementation/design workflows (capability routing) |
 | `Engineer` | Code implementation | Implementation/design workflows (capability routing) |
-| `Intern` | General-purpose parallel work | Parallel grunt work, research |
+| `Intern` | Broad parallel grunt work | Safe fan-out grunt tasks with explicit checklists |
 | `explore` | Codebase exploration | Finding files, understanding structure |
 | `QATester` | Quality assurance | Browser testing workflows |
 | `Pentester` | Security testing | web-assessment workflows |
@@ -151,13 +161,13 @@ If explicit model override support is introduced in the runtime, verify tool sch
 
 ## Spotcheck Pattern
 
-**Launch a spotcheck agent when outputs are high-stakes, heterogeneous, or conflict-prone:**
+**Launch a QA spotcheck agent when outputs are high-stakes, heterogeneous, or conflict-prone:**
 
 ```typescript
 functions.task({
   description: "Spotcheck parallel outputs",
   prompt: "Verify consistency across all agent outputs: [results]",
-  subagent_type: "Intern"
+  subagent_type: "QATester"
 })
 ```
 

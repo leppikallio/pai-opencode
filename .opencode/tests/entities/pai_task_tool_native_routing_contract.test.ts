@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { createPaiTaskTool } from "../../plugins/pai-cc-hooks/tools/task";
-import { handleToolExecuteAfter } from "../../plugins/pai-cc-hooks/tool-after";
+import { runTaskThroughPluginSeam } from "./helpers/task-plugin-seam";
 
 type ForegroundCase = {
 	label: string;
@@ -13,53 +13,21 @@ const FOREGROUND_CASES: ForegroundCase[] = [
 	{ label: "run_in_background false", runInBackground: false },
 ];
 
-type ToolSeamOutput = {
-	title: string;
-	output: string;
-	metadata: Record<string, unknown>;
-};
+const EXPLICIT_NAMED_ROUTING_CUES = [
+	"@Remy",
+	"@Ava",
+	"@engineer-fast",
+	"@GrokResearcher",
+	"@Johannes",
+	"@Remington",
+];
 
-async function runTaskThroughPluginSeam(args: {
-	taskTool: ReturnType<typeof createPaiTaskTool>;
-	taskArgs: {
-		description: string;
-		prompt: string;
-		subagent_type: string;
-		run_in_background?: boolean;
-	};
-	ctx: Record<string, unknown>;
-}): Promise<ToolSeamOutput> {
-	const seamResult = await args.taskTool.execute(args.taskArgs, args.ctx as any);
-	expect(typeof seamResult).toBe("string");
-
-	const seamOutput: ToolSeamOutput = {
-		title: "",
-		output: seamResult,
-		metadata: {
-			truncated: false,
-			outputPath: undefined,
-		},
-	};
-
-	await handleToolExecuteAfter({
-		input: {
-			tool: "task",
-			sessionID:
-				typeof args.ctx.sessionID === "string"
-					? args.ctx.sessionID
-					: typeof args.ctx.sessionId === "string"
-						? args.ctx.sessionId
-						: "",
-			callID: "call-task",
-			args: args.taskArgs,
-		},
-		output: seamOutput,
-		config: null,
-		cwd: process.cwd(),
-	});
-
-	return seamOutput;
-}
+const NON_ROUTABLE_OR_FILE_REFERENCE_CUES = [
+	"@Architect.md",
+	"@fast",
+	"@reviewer",
+	"@research",
+];
 
 describe("PAI task tool native-safe foreground routing contract (Task 1 RED)", () => {
 	test("explicit @agent path preserves bypassAgentCheck semantics", async () => {
@@ -136,6 +104,176 @@ describe("PAI task tool native-safe foreground routing contract (Task 1 RED)", (
 		expect(result.title).toBe("Explicit mention seam delegation");
 		expect((result.metadata as any).sessionId).toBe("child-session-123");
 		expect(result.output).toContain("task_id: child-session-123");
+	});
+
+	test("explicit @Architect mention bypasses ask through plugin task seam", async () => {
+		let askCalls = 0;
+
+		const taskTool = createPaiTaskTool({
+			client: {
+				session: {
+					create: async () => ({ data: { id: "child-session-123" } }),
+					prompt: async () => ({
+						metadata: {
+							model: { providerID: "openai", modelID: "gpt-5" },
+						},
+						data: { parts: [{ type: "text", text: "assistant reply" }] },
+					}),
+				},
+			},
+			$: (() => Promise.resolve(null)) as unknown,
+		});
+
+		const result = await runTaskThroughPluginSeam({
+			taskTool,
+			taskArgs: {
+				description: "Named architect seam delegation",
+				prompt: "Long-running architecture plan, explicit route is @Architect.",
+				subagent_type: "Engineer",
+			},
+			ctx: {
+				sessionID: "parent-session-456",
+				directory: "/tmp/workspace",
+				ask: async () => {
+					askCalls += 1;
+					return { decision: "allow" };
+				},
+			},
+		});
+
+		expect(askCalls).toBe(0);
+		expect(result.title).toBe("Named architect seam delegation");
+		expect((result.metadata as any).sessionId).toBe("child-session-123");
+		expect(result.output).toContain("task_id: child-session-123");
+	});
+
+	test("explicit @Writer mention bypasses ask through plugin task seam", async () => {
+		let askCalls = 0;
+
+		const taskTool = createPaiTaskTool({
+			client: {
+				session: {
+					create: async () => ({ data: { id: "child-session-123" } }),
+					prompt: async () => ({
+						metadata: {
+							model: { providerID: "openai", modelID: "gpt-5" },
+						},
+						data: { parts: [{ type: "text", text: "assistant reply" }] },
+					}),
+				},
+			},
+			$: (() => Promise.resolve(null)) as unknown,
+		});
+
+		const result = await runTaskThroughPluginSeam({
+			taskTool,
+			taskArgs: {
+				description: "Named writer seam delegation",
+				prompt: "Background-worthy writing sweep, but explicit route is @Writer.",
+				subagent_type: "Engineer",
+			},
+			ctx: {
+				sessionID: "parent-session-456",
+				directory: "/tmp/workspace",
+				ask: async () => {
+					askCalls += 1;
+					return { decision: "allow" };
+				},
+			},
+		});
+
+		expect(askCalls).toBe(0);
+		expect(result.title).toBe("Named writer seam delegation");
+		expect((result.metadata as any).sessionId).toBe("child-session-123");
+		expect(result.output).toContain("task_id: child-session-123");
+	});
+
+	test("omitted named-agent routing cues bypass ask through plugin task seam", async () => {
+		let askCalls = 0;
+
+		const taskTool = createPaiTaskTool({
+			client: {
+				session: {
+					create: async () => ({ data: { id: "child-session-123" } }),
+					prompt: async () => ({
+						metadata: {
+							model: { providerID: "openai", modelID: "gpt-5" },
+						},
+						data: { parts: [{ type: "text", text: "assistant reply" }] },
+					}),
+				},
+			},
+			$: (() => Promise.resolve(null)) as unknown,
+		});
+
+		for (const cue of EXPLICIT_NAMED_ROUTING_CUES) {
+			const result = await runTaskThroughPluginSeam({
+				taskTool,
+				taskArgs: {
+					description: `Named cue seam delegation (${cue})`,
+					prompt: `Long-running sweep, but explicit route is ${cue}.`,
+					subagent_type: "Engineer",
+				},
+				ctx: {
+					sessionID: "parent-session-456",
+					directory: "/tmp/workspace",
+					ask: async () => {
+						askCalls += 1;
+						return { decision: "allow" };
+					},
+				},
+			});
+
+			expect(result.title).toBe(`Named cue seam delegation (${cue})`);
+			expect((result.metadata as any).sessionId).toBe("child-session-123");
+			expect(result.output).toContain("task_id: child-session-123");
+		}
+
+		expect(askCalls).toBe(0);
+	});
+
+	test("dotted file references and non-routable base aliases do not bypass ask", async () => {
+		let askCalls = 0;
+
+		const taskTool = createPaiTaskTool({
+			client: {
+				session: {
+					create: async () => ({ data: { id: "child-session-123" } }),
+					prompt: async () => ({
+						metadata: {
+							model: { providerID: "openai", modelID: "gpt-5" },
+						},
+						data: { parts: [{ type: "text", text: "assistant reply" }] },
+					}),
+				},
+			},
+			$: (() => Promise.resolve(null)) as unknown,
+		});
+
+		for (const cue of NON_ROUTABLE_OR_FILE_REFERENCE_CUES) {
+			const result = await runTaskThroughPluginSeam({
+				taskTool,
+				taskArgs: {
+					description: `Non-routable cue seam delegation (${cue})`,
+					prompt: `Long-running migration task and should run in the background, explicit route is ${cue}.`,
+					subagent_type: "Engineer",
+				},
+				ctx: {
+					sessionID: "parent-session-456",
+					directory: "/tmp/workspace",
+					ask: async () => {
+						askCalls += 1;
+						return { decision: "allow" };
+					},
+				},
+			});
+
+			expect(result.title).toBe(`Non-routable cue seam delegation (${cue})`);
+			expect((result.metadata as any).sessionId).toBe("child-session-123");
+			expect(result.output).toContain("task_id: child-session-123");
+		}
+
+		expect(askCalls).toBe(NON_ROUTABLE_OR_FILE_REFERENCE_CUES.length);
 	});
 
 	test("foreground task returns stock-compatible metadata envelope", async () => {
@@ -269,5 +407,38 @@ describe("PAI task tool native-safe foreground routing contract (Task 1 RED)", (
 			});
 			expect(result.output).toContain("task_id: child-session-123");
 		}
+	});
+
+	test("background seam accepts subagent_type general and returns bg task id", async () => {
+		const taskTool = createPaiTaskTool({
+			client: {
+				session: {
+					create: async () => ({ data: { id: "child-session-bg-123" } }),
+					promptAsync: async () => ({ ok: true }),
+				},
+			},
+			$: (() => Promise.resolve(null)) as unknown,
+			recordBackgroundTaskLaunch: async () => {},
+			recordBackgroundTaskLaunchError: async () => {},
+			findBackgroundTaskByTaskId: async () => null,
+		});
+
+		const result = await runTaskThroughPluginSeam({
+			taskTool,
+			taskArgs: {
+				description: "Background general seam delegation",
+				prompt: "Continue with @general and do the long-running sweep.",
+				subagent_type: "general",
+				run_in_background: true,
+			},
+			ctx: {
+				sessionID: "parent-session-456",
+				directory: "/tmp/workspace",
+			},
+		});
+
+		expect(result.output).toContain("Background task launched.");
+		expect(result.output).toContain("Task ID: bg_child-session-bg-123");
+		expect(result.output.toLowerCase()).not.toContain("error");
 	});
 });

@@ -2,7 +2,7 @@
 
 **Simple agent context loading for specialized agent types.**
 
-**Status:** ✅ Redesigned (v2.0.0 - Simplified)
+**Status:** ✅ Active (v2.x OpenCode-tailored)
 **Date:** 2025-12-18
 
 ---
@@ -47,7 +47,9 @@ This system DOES:
 ├── ArtistContext.md         # Visual content creator context
 ├── QATesterContext.md       # Quality assurance specialist context
 └── Tools/
-    └── LoadAgentContext.ts  # Simple loader utility
+    ├── LoadAgentContext.ts    # Deterministic context + advisory depth/effort loader
+    ├── AgentProfileLoader.ts  # Active compatibility shim over context loader
+    └── SpawnAgentWithProfile.ts # Execution adapter + launch-spec helpers
 ```
 
 ---
@@ -60,7 +62,8 @@ Each `*Context.md` file follows this simple structure:
 # [AgentType] Agent Context
 
 **Role**: [One-line role description]
-**Model**: opus|sonnet|haiku
+**Runtime Policy**: Specialist-first routing, then native `general` fallback
+**Execution Expectations**: Depth and quality guidance aligned with current OpenCode contract
 
 ---
 
@@ -94,6 +97,14 @@ Load these dynamically based on task keywords:
 
 ## How It Works
 
+### Advisory Execution Metadata (OpenCode-Correct)
+
+`LoadAgentContext.ts` emits deterministic advisory metadata:
+- `depth`: `shallow` | `standard` | `deep`
+- `effort`: `low` | `medium` | `high`
+
+These are advisory prompt-shaping hints only. They do **not** set runtime models and do **not** override routing decisions.
+
 ### 1. Agent Spawning (Manual)
 
 When you need to spawn an agent, use the Task tool with the agent's context:
@@ -101,19 +112,20 @@ When you need to spawn an agent, use the Task tool with the agent's context:
 ```typescript
 // Load the context
 const loader = new AgentContextLoader();
-const { prompt, model } = loader.generateEnrichedPrompt(
+const { prompt } = loader.generateEnrichedPrompt(
   "Architect",
   "Design a new skill system for handling user preferences"
 );
 
 // Spawn the agent with enriched prompt
 Task({
-  subagent_type: "general-purpose",
+  subagent_type: "Architect",
   description: "Architecture design task",
-  prompt: prompt,
-  model: model
+  prompt: prompt
 });
 ```
+
+Routing contract: choose a specialist `subagent_type` first, fall back to `general` when no specialist matches, and reserve `Intern` for bounded grunt-only substeps.
 
 ### 2. What Gets Loaded
 
@@ -184,7 +196,7 @@ To add a new agent type:
 1. Create `[AgentType]Context.md` in `~/.config/opencode/skills/agents/`
 2. Follow the context file format above
 3. Reference relevant Skills (don't duplicate content)
-4. Specify model preference (opus/sonnet/haiku)
+4. Document routing and runtime expectations (specialist-first, native `general` fallback)
 5. Done!
 
 The loader automatically discovers new context files.
@@ -231,19 +243,32 @@ When spawning agents, the main agent can:
 ```typescript
 // Load agent context
 const loader = new AgentContextLoader();
-const { prompt, model } = loader.generateEnrichedPrompt(
+const { prompt } = loader.generateEnrichedPrompt(
   agentType,
   taskDescription
 );
 
 // Spawn with Task tool
 await Task({
-  subagent_type: "general-purpose",
+  subagent_type: agentType,
   description: shortDescription,
-  prompt: prompt,
-  model: model
+  prompt: prompt
 });
 ```
+
+For helper-based launches:
+
+```typescript
+const launch = await buildProfiledAgentLaunchSpec({
+  agentType,
+  taskDescription,
+  description: shortDescription,
+});
+
+await Task(launch);
+```
+
+If no specialist is appropriate, use `subagent_type: "general"`; keep `Intern` for broad grunt-only parallel work.
 
 The spawned agent gets:
 - All of PAI (auto-loaded)
@@ -265,21 +290,11 @@ But start simple. The current design may be sufficient.
 
 ---
 
-## Migration from v1.0.0 (YAML Profiles)
+## Compatibility Lane for Earlier Callers
 
-**Old system (v1.0.0):**
-- Used elaborate YAML files (`Architect.yaml`, etc.)
-- Had memory blocks that duplicated PAI content
-- Had redundant init prompts
-- Used AgentProfileLoader.ts with complex parsing
+`AgentProfileLoader.ts` remains active as a compatibility shim so existing profile-based callers keep working while using the markdown context system.
 
-**New system (v2.0.0):**
-- Uses simple markdown files (`ArchitectContext.md`, etc.)
-- References Skills, doesn't duplicate
-- Uses LoadAgentContext.ts with simple loading
-- Much cleaner and more maintainable
-
-**YAML files are now deprecated.** Use the markdown context files instead.
+The compatibility lane keeps method shape stable (`loadProfile`, `getAvailableProfiles`, `hasProfile`) but normalizes execution metadata to OpenCode-correct advisory depth/effort semantics.
 
 ---
 

@@ -65,7 +65,12 @@ In OpenCode PAI, `MEMORY/RAW/` is the active append-only firehose and source of 
 
 **Additional artifacts (v2.5 port):**
 - `FORMAT_HINTS.jsonl` - Post-turn format hint records (toast + reasons)
-- `PROMPT_HINTS.jsonl` - Pass-1 prompt classification hints (toast + fields)
+- `PROMPT_HINTS.jsonl` - Canonical advisory hint envelopes (`pai.advisory_hint`) with reducer metadata + producer provenance
+
+Prompt hint producer contract:
+- Default runtime producer: deterministic heuristic producer (`runtime_heuristic`)
+- Optional second producer: carrier-backed producer (`runtime_carrier_openai`) in `active` or `shadow` mode
+- Reducer behavior is deterministic and advisory-only (no imperative routing keys such as `run_in_background`)
 
 **Content:** Work directories with metadata, items, verification artifacts
 **Format:** `WORK/{work_id}/` with META.yaml, items/, verification/, etc.

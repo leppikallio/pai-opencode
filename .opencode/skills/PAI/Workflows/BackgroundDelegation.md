@@ -12,20 +12,21 @@ Launch parallel `functions.task` calls while you continue working.
 ## How It Works
 
 1. Parse the task(s) to delegate
-2. Launch each agent as a normal `functions.task` call
+2. Launch each agent with `run_in_background: true`
 3. Continue working while calls execute
-4. Collect results when each `functions.task` call completes
+4. Check status/results with `background_output` using `task_id`
 
 ## Launching Background Agents
 
-OpenCode does not expose a background execution flag in the Task tool.
-To emulate background work, run multiple `functions.task` calls and keep working while they execute.
+OpenCode supports explicit async launch through the Task tool extension `run_in_background: true`.
+Use specialist-first routing, then `general` fallback, and reserve `Intern` for broad parallel grunt work.
 
 ```typescript
 functions.task({
-  description: "Research OpenAI news",
-  prompt: "Research the latest OpenAI developments...",
-  subagent_type: "researcher"  // use an available runtime subagent type
+  description: "Background intake triage",
+  prompt: "Classify new requests by implementation, design, QA, and unknown.",
+  subagent_type: "general",
+  run_in_background: true,
 })
 ```
 
@@ -35,13 +36,12 @@ functions.task({
 
 ## Checking Status
 
-OpenCode does not provide a separate Task output retrieval tool.
-Task outputs are returned in-band when the `functions.task` call completes.
+Use `background_output` with the returned `task_id`.
 
 ## Retrieving Results
 
-Task outputs are returned as the Task tool result.
-Additionally, the runtime plugin captures Task outputs to `~/.config/opencode/MEMORY/RESEARCH/`.
+- `background_output({ task_id: "bg_..." })` returns current state and completed output.
+- Results are also persisted in runtime background-task state for completion notifications.
 
 ## Example Flows
 
@@ -54,7 +54,7 @@ User: "I'm writing the newsletter. Background agents research
 → Launches 3 background agents in parallel
 → Reports agent IDs and what each is researching
 → User continues writing
-→ User retrieves in-band results as each `functions.task` call completes
+→ User checks progress with `background_output` and consumes results when ready
 ```
 
 ### OSINT Investigation
@@ -63,10 +63,10 @@ User: "I'm writing the newsletter. Background agents research
 User: "Background agents investigate John Smith, Jane Doe,
        and Acme Corp for due diligence."
 
-→ Launches 3 Intern agents with OSINT prompts
+→ Launches 3 OSINT-specialist agents when available, otherwise `general`; reserves `Intern` for broad grunt-only substeps
 → User continues other work
-→ User continues other work until task results return
-→ Results are consumed in-band on completion
+→ User checks `background_output` for each task_id
+→ Results are consumed when each background task finishes
 ```
 
 ### Code Exploration
@@ -83,24 +83,24 @@ User: "Background agents explore the codebase for
 ## Best Practices
 
 1. **Use for parallel work** - When you have 3+ independent tasks
-2. **Pick the right subagent** - choose by task type and risk level
+2. **Pick the right subagent** - specialist first, then `general`; reserve `Intern` for broad grunt work
 3. **Don't over-spawn** - 3-5 agents is usually optimal
-4. **No separate status API** - rely on in-band Task completion results
-5. **Retrieve when needed** - consume results as each Task returns
+4. **Track status explicitly** - use `background_output` and keep task IDs
+5. **Cancel when needed** - use `background_cancel` for stale or superseded work
 
 ## Contrast with Foreground Delegation
 
 | Aspect | Foreground (default) | Background |
 |--------|---------------------|------------|
-| Blocking | Yes - waits for each | No dedicated background mode |
+| Blocking | Yes - waits for each | No - returns immediately with `task_id` |
 | When to use | Need results now | Can work on other things |
-| Syntax | Normal `functions.task` call | (no background flag) |
-| Retrieval | Automatic | In-band task result |
+| Syntax | Normal `functions.task` call | `functions.task({... run_in_background: true })` |
+| Retrieval | Inline task result | `background_output(task_id)` |
 
 ## Integration
 
-- Works with all agent types: Intern, researcher, explore, Engineer, etc.
-- For codebase exploration specifically, use `subagent_type: "explore"` (not researcher variants).
+- Works with all runtime subagent types (`general`, Intern, explore, Engineer, etc.).
+- For codebase exploration specifically, use `subagent_type: "explore"`.
 - Combine with research skill for background research workflows
 - Use with osint skill for parallel investigations
 - Pairs well with newsletter/content workflows
