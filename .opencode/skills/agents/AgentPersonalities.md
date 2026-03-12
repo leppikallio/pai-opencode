@@ -16,7 +16,7 @@ PAI routing uses three distinct systems:
 
 | Scenario | Use | Why |
 |----------|-----|-----|
-| Generic request without a clear specialist | Task Tool Subagent (`general`) | Native catch-all fallback |
+| Generic request without a clear specialist | Task Tool Subagent (`general`) | Native catch-all fallback (never `general-purpose`) |
 | Clear runtime specialist match (code/design/security/research) | Task Tool Specialist | Best-fit ownership and verification |
 | Broad parallel grunt work | Task Tool Subagent (`Intern`) | Safe split fan-out with checklist-style work |
 | Recurring research | Named Agent (Remy, Ava) | Relationship continuity, known behavior |
@@ -66,9 +66,11 @@ PAI routing uses three distinct systems:
 |-------------|-------------|-----|
 | "**custom agents**", "spin up **custom** agents", "create **custom** agents", "I need an expert in X" (explicit + bounded) | **AgentFactory** | Custom-built with unique voices |
 | "spin up agents", "bunch of agents", "launch 5 agents to do X" | **Runtime decision tree** | Specialist first, then `general`; `Intern` only for broad parallel grunt work |
-| "interns", "use interns", "spin up some interns" | **Intern runtime subagent** | Explicit Intern ask (or clearly broad grunt batch) |
+| "use interns to tag these records", "spin up interns for bulk cleanup" | **Intern runtime subagent** | Explicitly scoped broad parallel grunt batches only; otherwise keep specialist-first -> `general` fallback |
 
 Execution details mirror `Workflows/CreateCustomAgent.md` and `Workflows/SpawnParallelAgents.md`.
+
+Routing note: explicit and bounded "expert in X" asks can enter AgentFactory dynamic composition when the request is custom in intent.
 
 ---
 
@@ -103,7 +105,7 @@ Task(prompt=<AgentFactory output>, subagent_type="general")
 ```
 
 For AgentFactory-composed prompts, use `general` as the execution substrate.
-`Intern` remains for generic parallel grunt work.
+`Intern` remains for explicitly scoped, split-safe broad parallel grunt batches.
 Do not pass `model` in `Task(...)`; runtime policy selects it.
 
 ---
@@ -133,11 +135,12 @@ Task(prompt="Tag records batch B...", subagent_type="Intern")
 
 ---
 
-### Pattern 3: INTERNS → Explicit Intern Routing
+### Pattern 3: INTERNS → Broad Grunt-Work Routing
 
-**Trigger words:** "interns", "use interns"
+**Trigger signal:** Intern wording + explicit broad parallel grunt scope (bulk tagging, queue cleanup, checklist fan-out).
 
-Route directly to `Intern` in the runtime subagent system.
+Route to `Intern` only for those split-safe grunt batches.
+If intern wording appears without grunt scope, stay on specialist-first routing and fall back to native `general` when no specialist fits.
 
 ---
 

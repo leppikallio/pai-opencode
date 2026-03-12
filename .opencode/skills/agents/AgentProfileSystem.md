@@ -2,7 +2,7 @@
 
 **Simple agent context loading for specialized agent types.**
 
-**Status:** ✅ Redesigned (v2.0.0 - Simplified)
+**Status:** ✅ Active (v2.x OpenCode-tailored)
 **Date:** 2025-12-18
 
 ---
@@ -47,7 +47,9 @@ This system DOES:
 ├── ArtistContext.md         # Visual content creator context
 ├── QATesterContext.md       # Quality assurance specialist context
 └── Tools/
-    └── LoadAgentContext.ts  # Simple loader utility
+    ├── LoadAgentContext.ts    # Deterministic context + advisory depth/effort loader
+    ├── AgentProfileLoader.ts  # Active compatibility shim over context loader
+    └── SpawnAgentWithProfile.ts # Execution adapter + launch-spec helpers
 ```
 
 ---
@@ -94,6 +96,14 @@ Load these dynamically based on task keywords:
 ---
 
 ## How It Works
+
+### Advisory Execution Metadata (OpenCode-Correct)
+
+`LoadAgentContext.ts` emits deterministic advisory metadata:
+- `depth`: `shallow` | `standard` | `deep`
+- `effort`: `low` | `medium` | `high`
+
+These are advisory prompt-shaping hints only. They do **not** set runtime models and do **not** override routing decisions.
 
 ### 1. Agent Spawning (Manual)
 
@@ -246,6 +256,18 @@ await Task({
 });
 ```
 
+For helper-based launches:
+
+```typescript
+const launch = await buildProfiledAgentLaunchSpec({
+  agentType,
+  taskDescription,
+  description: shortDescription,
+});
+
+await Task(launch);
+```
+
 If no specialist is appropriate, use `subagent_type: "general"`; keep `Intern` for broad grunt-only parallel work.
 
 The spawned agent gets:
@@ -268,21 +290,11 @@ But start simple. The current design may be sufficient.
 
 ---
 
-## Migration from v1.0.0 (YAML Profiles)
+## Compatibility Lane for Earlier Callers
 
-**Old system (v1.0.0):**
-- Used elaborate YAML files (`Architect.yaml`, etc.)
-- Had memory blocks that duplicated PAI content
-- Had redundant init prompts
-- Used AgentProfileLoader.ts with complex parsing
+`AgentProfileLoader.ts` remains active as a compatibility shim so existing profile-based callers keep working while using the markdown context system.
 
-**New system (v2.0.0):**
-- Uses simple markdown files (`ArchitectContext.md`, etc.)
-- References Skills, doesn't duplicate
-- Uses LoadAgentContext.ts with simple loading
-- Much cleaner and more maintainable
-
-**YAML files are now deprecated.** Use the markdown context files instead.
+The compatibility lane keeps method shape stable (`loadProfile`, `getAvailableProfiles`, `hasProfile`) but normalizes execution metadata to OpenCode-correct advisory depth/effort semantics.
 
 ---
 

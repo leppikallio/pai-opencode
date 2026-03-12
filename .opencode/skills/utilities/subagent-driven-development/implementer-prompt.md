@@ -3,8 +3,8 @@
 Use this template when dispatching an implementer subagent.
 
 ```
-Task tool (specialist-first routing, native `general` fallback):
-  subagent_type: "[specialist type; use \"general\" only when no specialist matches]"
+Task tool (exact runtime subagent_type):
+  subagent_type: "[exact value: Engineer | Architect | Designer | QATester | Pentester | explore | Intern | general]"
   description: "Implement Task N: [task name]"
   prompt: |
     You are implementing Task N: [task name]

@@ -10,7 +10,7 @@
 - "Create intern agents to process this queue fast"
 - "Use interns to check these URLs"
 
-**KEY: Route specialist-first, then native `general`; use `Intern` only for broad parallel grunt work.**
+**KEY: Route specialist-first, then native `general` (never `general-purpose`); use `Intern` only for broad parallel grunt work.**
 
 ## The Workflow
 

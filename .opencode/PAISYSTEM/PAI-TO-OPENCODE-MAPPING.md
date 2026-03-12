@@ -138,14 +138,16 @@ PAI-OpenCode:   ~/.config/opencode/skills/utilities/fabric/Patterns/
 | Claude Code Agent | OpenCode Equivalent | Usage |
 |-------------------|---------------------|-------|
 | `Explore` | `explore` | Native exploration for codebase discovery and spotchecks |
-| `Plan` | `Architect` | Architecture planning, system design |
-| `general-purpose` | `general` (or specialist) | Catch-all fallback; prefer specialist routing first |
+| `Plan` | `Architect` | Planning/design lane in OpenCode when architecture intent is explicit |
+| `general-purpose` | `general` (or specialist) | Native catch-all fallback label is `general`; prefer specialist routing first |
 
 **When porting workflows:**
 1. Replace `subagent_type: "Explore"` with `subagent_type: "explore"`
 2. Replace `subagent_type: "Plan"` with `subagent_type: "Architect"`
-3. Replace `subagent_type: "general-purpose"` with specialist-first routing, then `general` fallback
+3. Replace `subagent_type: "general-purpose"` with specialist-first routing, then native `general` fallback
 4. Keep `Intern` reserved for explicit broad parallel grunt-work batches
+
+Do not preserve `general-purpose` as a literal runtime label in OpenCode docs or examples.
 
 **Available OpenCode agents** (from `~/.config/opencode/agents/`):
 - `Intern` - Fast parallel grunt work

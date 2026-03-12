@@ -10,7 +10,9 @@
 - "I need specialized agents with Z expertise"
 - "Generate N custom agents to analyze..."
 
-**KEY TRIGGER: `custom` requests AgentFactory composition. Without `custom`, keep specialist-first routing, then native `general`; reserve `Intern` for broad parallel grunt work.**
+**KEY TRIGGER: `custom` requests AgentFactory composition.**
+
+Use this workflow when the request is explicitly custom (including explicit, bounded "expert in X" asks that need composed behavior). Without that trigger, keep specialist-first routing, then native `general`; reserve `Intern` for broad parallel grunt work.
 
 ## The Workflow
 
@@ -70,21 +72,21 @@ AgentFactory returns JSON with:
 Task({
   description: "Research agent 1 - enthusiastic",
   prompt: <agent1_full_prompt>,
-  subagent_type: <agent1_execution_subagent_type>
+  subagent_type: "general"
 })
 Task({
   description: "Research agent 2 - skeptical",
   prompt: <agent2_full_prompt>,
-  subagent_type: <agent2_execution_subagent_type>
+  subagent_type: "general"
 })
 Task({
   description: "Research agent 3 - analytical",
   prompt: <agent3_full_prompt>,
-  subagent_type: <agent3_execution_subagent_type>
+  subagent_type: "general"
 })
 ```
 
-`executionSubagentType` defaults to `general` for AgentFactory-composed prompts.
+`executionSubagentType` defaults to native `general` for AgentFactory-composed prompts (v1 composed-agent lane).
 `Intern` remains reserved for broad parallel grunt work, not custom composition output.
 Task tool examples must not include unsupported `model` arguments.
 

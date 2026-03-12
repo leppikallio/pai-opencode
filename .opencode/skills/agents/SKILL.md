@@ -30,35 +30,37 @@ The agents skill is a complete agent composition and management system. It conso
 
 ## Voice Notification
 
-**When executing a workflow, do BOTH:**
+When executing a workflow, do both:
 
-1. **Send voice notification**:
-   Use the `voice_notify` tool:
+1. Send a parent-session notification using `voice_notify`:
+   - `message`: "Running the <WORKFLOW_NAME> workflow from the agents skill"
+2. Run the workflow that matches the routing rules below.
 
-- `message`: "Running the WORKFLOWNAME workflow from the agents skill"
+**Example 1: Create custom agents**
+```text
 User: "Spin up 5 custom science agents to analyze this data"
-→ Invokes CREATECUSTOMAGENT workflow
-→ Runs AgentFactory 5 times with DIFFERENT trait combinations
-→ Each agent gets unique personality + matched voice
-→ Launches agents in parallel using Task tool calls
+-> Invokes CREATECUSTOMAGENT workflow
+-> Runs AgentFactory 5 times with different trait combinations
+-> Each agent gets unique personality + matched voice
+-> Launches agents in parallel using Task tool calls
 ```
 
 **Example 2: List available traits**
-```
+```text
 User: "What agent personalities can you create?"
-→ Invokes LISTTRAITS workflow
-→ Displays expertise (security, legal, finance, etc.)
-→ Shows personality types (skeptical, enthusiastic, analytical, etc.)
-→ Lists approach styles (thorough, rapid, systematic, etc.)
+-> Invokes LISTTRAITS workflow
+-> Displays expertise (security, legal, finance, etc.)
+-> Shows personality types (skeptical, enthusiastic, analytical, etc.)
+-> Lists approach styles (thorough, rapid, systematic, etc.)
 ```
 
 **Example 3: Spawn parallel researchers**
-```
+```text
 User: "Launch 10 agents to research these companies"
-→ Invokes SPAWNPARALLEL workflow
-→ Applies runtime decision tree (specialist first, then `general`)
-→ Uses Intern agents only for broad parallel grunt work
-→ Launches spotcheck agent after completion
+-> Invokes SPAWNPARALLEL workflow
+-> Applies runtime decision tree (specialist first, then `general`)
+-> Uses Intern agents only for broad parallel grunt work
+-> Launches spotcheck agent after completion
 ```
 
 ## Architecture
@@ -94,8 +96,10 @@ The system uses three distinct agent systems:
 |-----------|-------------|-----|
 | "**custom agents**", "create **custom** agents", "I need an expert in X" (explicit + bounded) | AgentFactory | Unique prompts + unique voices |
 | "agents", "launch agents", "bunch of agents" | Runtime delegation decision tree | Specialist first, then native `general`; `Intern` only for broad parallel grunt work |
-| "interns", "use interns" | Intern runtime subagent | Explicit Intern ask or broad parallel grunt work |
+| "use interns to tag 5,000 records", "spin up interns for bulk cleanup" | Intern runtime subagent | Explicitly scoped broad parallel grunt batch; otherwise keep specialist-first -> `general` fallback |
 | "use Remy", "get Ava to" | Named agent | Pre-defined personality |
+
+Runtime catch-all is native `general` (never `general-purpose`).
 
 **Other triggers:**
 - "agent personalities", "available traits" → LISTTRAITS workflow
