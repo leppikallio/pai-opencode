@@ -2,20 +2,23 @@
 
 Comprehensive guide to task-tool delegation and custom agent composition.
 
-## 🚨 CRITICAL: Agent Type Selection
+## 🚨 CRITICAL: Delegation Decision Tree
 
-**FIRST, determine what the user is asking for:**
+Use this routing order:
+
+1. **Specialist first** (`Engineer`, `Architect`, `Designer`, `QATester`, `Pentester`, `explore`, research variants) when the task clearly maps.
+2. **Then `general`** as the native catch-all fallback when no better specialist fits.
+3. **Reserve `Intern`** for broad parallel grunt work that can be safely split and independently verified.
+4. **Use dynamic composition** only for explicit/bounded custom asks ("custom agents" or "expert in X").
+
+Routing mentions like `@general` and `@<agent>` communicate intent but remain advisory, not imperative.
 
 | User Says | Action | Tool |
 |-------------|--------|------|
-| "**custom agents**", "spin up **custom** agents" | Use **AgentFactory** to generate unique agents with distinct voices | `agents` skill → CreateCustomAgent workflow |
-| "spin up agents", "launch agents", "bunch of agents" | Use **generic Intern** agents for parallel grunt work | `functions.task({ subagent_type: "Intern", ... })` |
-| "interns", "use interns" | Use **Intern** agents | `functions.task({ subagent_type: "Intern", ... })` |
-| "use Ava", "get Remy to", "[named agent]" | Use the **named agent** directly | `functions.task({ subagent_type: "<matching researcher type>", ... })` |
-
-**The word "custom" is the KEY differentiator:**
-- "custom agents" → AgentFactory (unique prompts + unique voices)
-- "agents" (no "custom") → Interns (same voice, parallel work)
+| "**custom agents**", "spin up **custom** agents" | Use AgentFactory for unique specialists | `agents` skill → CreateCustomAgent workflow |
+| "I need an expert in X" (explicit + bounded) | Compose a dynamic specialist | `agents` skill → CreateCustomAgent workflow |
+| "launch agents", "spin up agents" | Apply runtime decision tree | Specialist first, then `general`, with `Intern` only for broad parallel grunt work |
+| "use Ava", "get Remy to", "[named agent]" | Route to matching named/runtime specialist | `functions.task({ subagent_type: "<matching runtime type>", ... })` |
 
 ### 🚫 FORBIDDEN — Never Do This
 
@@ -42,7 +45,7 @@ Routing note: for codebase exploration tasks, use `subagent_type: "explore"` (do
 
 **Users just talk naturally.** Examples:
 
-- "Research these 5 companies for me" → I spawn 5 parallel Intern agents
+- "Research these 5 companies for me" → I route to research specialists first (or `general` if unclear), keeping `Intern` for broad grunt collection only
 - "Spin up custom agents to analyze psychology" → I use AgentFactory for each agent
 - "I need a legal expert to review this contract" → I compose a dynamic agent
 - "Get Ava to investigate this" → I use the named Perplexity researcher
@@ -52,11 +55,11 @@ Routing note: for codebase exploration tasks, use `subagent_type: "explore"` (do
 
 ## Triggers
 
-- "delegate", "spawn agents", "launch agents" → Interns
+- "delegate", "spawn agents", "launch agents" → runtime decision tree (specialist → `general` fallback → `Intern` for broad parallel grunt)
 - "**custom agents**", "specialized agents" → AgentFactory
-- "use an intern", "use researcher", "use [agent name]" → Named/Intern
+- "use an intern", "use researcher", "use [agent name]" → corresponding runtime/named specialist
 - "in parallel", "parallelize" → Multiple agents
-- "I need an expert in", "get me someone who" → Dynamic composition
+- "I need an expert in", "get me someone who" (explicit + bounded) → Dynamic composition
 
 ## The Hybrid Agent Model
 
@@ -64,7 +67,7 @@ The system supports three routing paths:
 
 | Type | Definition | Best For |
 |------|------------|----------|
-| **Task Tool Subagent Types** | Runtime-provided subagent types (Engineer, Architect, Intern, explore, etc.) | General delegation, implementation, research, QA |
+| **Task Tool Subagent Types** | Runtime-provided subagent types (`general`, Engineer, Architect, Intern, explore, etc.) | Specialist-first delegation, `general` fallback, Intern parallel grunt work |
 | **Named Agents** | Persistent identities with backstories and voice mappings | Recurring work, voice output, relationship continuity |
 | **Dynamic (Custom) Agents** | Task-specific specialists composed from traits | One-off tasks needing unique trait combinations/voice |
 
@@ -82,7 +85,7 @@ The system supports three routing paths:
 | Marcus (Engineer) | Battle-scarred leader | "implement this", "build", "code" |
 | Serena (Architect) | Academic visionary | "design the system", "architecture" |
 | Rook (Pentester) | Reformed grey hat | "security test", "find vulnerabilities" |
-| Dev (Intern) | Brilliant overachiever | General-purpose, parallel tasks |
+| Dev (Intern) | Brilliant overachiever | Broad parallel grunt work |
 
 ## Dynamic Agents (When I Compose Them)
 
@@ -200,47 +203,47 @@ Standard blocking delegation - waits for agent to complete.
 
 ```typescript
 functions.task({
-  description: "Research competitor",
-  prompt: "Investigate Acme Corp's recent product launches...",
-  subagent_type: "researcher",
+  description: "Cross-team intake triage",
+  prompt: "Categorize incoming requests by implementation, design, QA, and unknown.",
+  subagent_type: "general",
 })
 // Blocks until complete, returns result
 ```
 
 ### Parallel Agents
 
-**ALWAYS use a single message with multiple Task calls for parallel work:**
+**ALWAYS use a single message with multiple Task calls for parallel work, while keeping specialist-first routing per task:**
 
 ```typescript
 // Send as SINGLE message with multiple tool calls
 functions.task({
   description: "Research company A",
   prompt: "Investigate Company A...",
-  subagent_type: "Intern",
+  subagent_type: "general", // fallback; use a clearer specialist when available
 })
 functions.task({
   description: "Research company B",
   prompt: "Investigate Company B...",
-  subagent_type: "Intern",
+  subagent_type: "general", // fallback; use a clearer specialist when available
 })
 functions.task({
   description: "Research company C",
   prompt: "Investigate Company C...",
-  subagent_type: "Intern",
+  subagent_type: "general", // fallback; use a clearer specialist when available
 })
 // All run in parallel, all results returned together
 ```
 
 ### Spotcheck Pattern
 
-**Launch a spotcheck intern when outputs are high-stakes, heterogeneous, or conflict-prone:**
+**Launch a QA spotcheck agent when outputs are high-stakes, heterogeneous, or conflict-prone:**
 
 ```typescript
 // After parallel agents complete
 functions.task({
   description: "Spotcheck parallel results",
   prompt: "Review these results for consistency and completeness: [results]",
-  subagent_type: "Intern",
+  subagent_type: "QATester",
 })
 ```
 
@@ -254,13 +257,14 @@ See: `BackgroundDelegation.md` for full details.
 functions.task({
   description: "Parallel research",
   prompt: "Research X...",
-  subagent_type: "researcher"  // use an available runtime subagent type
+  subagent_type: "general",
+  run_in_background: true,
 })
 
 Note:
-- OpenCode has no separate Task output retrieval tool.
-- Task results return in-band when the Task call completes.
-- Runtime plugin captures Task outputs under `~/.config/opencode/MEMORY/RESEARCH/`.
+- `run_in_background: true` is the explicit async launch switch.
+- Use `background_output` with `task_id` to check progress/results.
+- Use `background_cancel` to cancel a running background task.
 ```
 
 ## Decision Matrix
@@ -272,7 +276,7 @@ Note:
 | "Research AI news" | Named (Ava/Perplexity) | Standard research, voice needed |
 | "Review this contract for security risks" | Dynamic (legal+security+cautious) | Novel combination |
 | "Explore the codebase" | Task subagent type (`explore`) | Read-only exploration specialist |
-| "Create 5 parallel researchers" | Task subagent types (Intern/researcher) | Fast parallel throughput |
+| "Create 5 parallel researchers" | Task subagent types (specialist researchers first, `general` fallback; `Intern` only for bounded grunt substeps) | Keeps substantive research specialist-first while reserving Intern for grunt-only support |
 | "Red team this idea" | Named (Johannes) OR Dynamic | Depends on whether voice needed |
 | "Strategic architecture review" | Named (Serena) | Deep expertise, relationship |
 

@@ -55,7 +55,7 @@ Default: run **Full**.
 
 ### Step 1: Launch 12 Parallel Audit Agents
 
-**CRITICAL: Use `subagent_type: "Intern"` for all agents.** OpenCode does not have native "Explore" or "Plan" agents.
+**CRITICAL: Use native `subagent_type: "explore"` for broad audit sweeps, then route specialist lanes explicitly (for example, `Pentester` for Agent 11 security checks).**
 
 Use the Task tool to launch agents in a SINGLE message (parallel execution). Each agent audits their assigned component.
 
@@ -273,18 +273,21 @@ Launch ALL 12 agents in a SINGLE Task tool call block for true parallel executio
 
 ```typescript
 // In a single message, call Task 12 times:
-// NOTE: OpenCode uses "Intern" instead of Claude Code's native "Explore"
+// NOTE: Use native `explore` for broad discovery/audit lanes.
+// NOTE: Route specialist lanes explicitly (for example, security -> `Pentester`).
 // NOTE: Model names must include provider prefix for OpenCode
-Task({ subagent_type: "Intern", prompt: "Agent 1: PAI SKILL.md..." })
-Task({ subagent_type: "Intern", prompt: "Agent 2: Identity System..." })
-Task({ subagent_type: "Intern", prompt: "Agent 3: Plugin Scripts..." })
+Task({ subagent_type: "explore", prompt: "Agent 1: PAI SKILL.md..." })
+Task({ subagent_type: "explore", prompt: "Agent 2: Identity System..." })
+Task({ subagent_type: "explore", prompt: "Agent 3: Plugin Scripts..." })
+Task({ subagent_type: "Pentester", prompt: "Agent 11: Security..." })
 // ... all 12 agents
 ```
 
 **Model Selection:**
-- Intern agents automatically use the cheapest available model (haiku for Anthropic, gpt-4o-mini for OpenAI)
+- `explore` is the default for broad integrity discovery passes.
+- Route specialist lanes (`Pentester`, `QATester`, etc.) when domain expertise is required.
 - Model resolution is handled by `~/.config/opencode/plugins/lib/model-config.ts` based on the provider configured in `opencode.json`.
-- Total cost ~12x cheap model = still cheaper than 1x expensive model doing sequential work
+- Keep cheaper models for broad grunt checks; reserve stronger models for specialist analysis.
 
 ---
 
@@ -311,4 +314,3 @@ Note: references like `~/.config/opencode/MEMORY/STATE/integrity/<YYYY-MM-DD>.md
 
 - `DocumentSession.md` - Document what was done
 - `SecretScanning.md` - Scan for credentials
-

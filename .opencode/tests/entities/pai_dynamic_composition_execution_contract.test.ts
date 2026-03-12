@@ -97,11 +97,20 @@ describe("dynamic composition execution contract", () => {
 		);
 
 		expect(skillText).toContain(
-			'Task({ prompt: <agent1_prompt>, subagent_type: "general", model: "sonnet" })',
+			'Task({ prompt: <agent1_prompt>, subagent_type: "general" })',
 		);
 		expect(workflowText).toContain('"executionSubagentType": "general"');
 		expect(personalitiesText).toContain(
-			'Task(prompt=<AgentFactory output>, subagent_type="general", model="sonnet")',
+			'Task(prompt=<AgentFactory output>, subagent_type="general")',
+		);
+		expect(skillText).toContain(
+			"Do not pass `model` in `Task(...)`; it is unsupported.",
+		);
+		expect(workflowText).toContain(
+			"Let runtime policy select the model for the delegated execution.",
+		);
+		expect(personalitiesText).toContain(
+			"Do not pass `model` in `Task(...)`; runtime policy selects it.",
 		);
 	});
 });

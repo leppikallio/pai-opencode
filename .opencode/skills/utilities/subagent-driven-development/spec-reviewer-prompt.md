@@ -5,7 +5,8 @@ Use this template when dispatching a spec compliance reviewer subagent.
 **Purpose:** Verify implementer built what was requested (nothing more, nothing less)
 
 ```
-Task tool (general-purpose):
+Task tool (specialist-first routing, native `general` fallback):
+  subagent_type: "[specialist type; use \"general\" only when no specialist matches]"
   description: "Review spec compliance for Task N"
   prompt: |
     You are reviewing whether an implementation matches its specification.

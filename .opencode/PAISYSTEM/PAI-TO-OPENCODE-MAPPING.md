@@ -133,18 +133,19 @@ PAI-OpenCode:   ~/.config/opencode/skills/utilities/fabric/Patterns/
 
 ## Agent Type Mapping (CRITICAL)
 
-**Claude Code has native agents that OpenCode does NOT have:**
+**Claude Code agent labels map to OpenCode routing as follows:**
 
 | Claude Code Agent | OpenCode Equivalent | Usage |
 |-------------------|---------------------|-------|
-| `Explore` | `Intern` | Fast codebase exploration, parallel tasks |
+| `Explore` | `explore` | Native exploration for codebase discovery and spotchecks |
 | `Plan` | `Architect` | Architecture planning, system design |
-| `general-purpose` | `Intern` or `Engineer` | General tasks |
+| `general-purpose` | `general` (or specialist) | Catch-all fallback; prefer specialist routing first |
 
 **When porting workflows:**
-1. Replace `subagent_type: "Explore"` with `subagent_type: "Intern"`
+1. Replace `subagent_type: "Explore"` with `subagent_type: "explore"`
 2. Replace `subagent_type: "Plan"` with `subagent_type: "Architect"`
-3. Replace `subagent_type: "general-purpose"` with appropriate agent
+3. Replace `subagent_type: "general-purpose"` with specialist-first routing, then `general` fallback
+4. Keep `Intern` reserved for explicit broad parallel grunt-work batches
 
 **Available OpenCode agents** (from `~/.config/opencode/agents/`):
 - `Intern` - Fast parallel grunt work

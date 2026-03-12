@@ -60,7 +60,8 @@ Each `*Context.md` file follows this simple structure:
 # [AgentType] Agent Context
 
 **Role**: [One-line role description]
-**Model**: opus|sonnet|haiku
+**Runtime Policy**: Specialist-first routing, then native `general` fallback
+**Execution Expectations**: Depth and quality guidance aligned with current OpenCode contract
 
 ---
 
@@ -101,19 +102,20 @@ When you need to spawn an agent, use the Task tool with the agent's context:
 ```typescript
 // Load the context
 const loader = new AgentContextLoader();
-const { prompt, model } = loader.generateEnrichedPrompt(
+const { prompt } = loader.generateEnrichedPrompt(
   "Architect",
   "Design a new skill system for handling user preferences"
 );
 
 // Spawn the agent with enriched prompt
 Task({
-  subagent_type: "general-purpose",
+  subagent_type: "Architect",
   description: "Architecture design task",
-  prompt: prompt,
-  model: model
+  prompt: prompt
 });
 ```
+
+Routing contract: choose a specialist `subagent_type` first, fall back to `general` when no specialist matches, and reserve `Intern` for bounded grunt-only substeps.
 
 ### 2. What Gets Loaded
 
@@ -184,7 +186,7 @@ To add a new agent type:
 1. Create `[AgentType]Context.md` in `~/.config/opencode/skills/agents/`
 2. Follow the context file format above
 3. Reference relevant Skills (don't duplicate content)
-4. Specify model preference (opus/sonnet/haiku)
+4. Document routing and runtime expectations (specialist-first, native `general` fallback)
 5. Done!
 
 The loader automatically discovers new context files.
@@ -231,19 +233,20 @@ When spawning agents, the main agent can:
 ```typescript
 // Load agent context
 const loader = new AgentContextLoader();
-const { prompt, model } = loader.generateEnrichedPrompt(
+const { prompt } = loader.generateEnrichedPrompt(
   agentType,
   taskDescription
 );
 
 // Spawn with Task tool
 await Task({
-  subagent_type: "general-purpose",
+  subagent_type: agentType,
   description: shortDescription,
-  prompt: prompt,
-  model: model
+  prompt: prompt
 });
 ```
+
+If no specialist is appropriate, use `subagent_type: "general"`; keep `Intern` for broad grunt-only parallel work.
 
 The spawned agent gets:
 - All of PAI (auto-loaded)

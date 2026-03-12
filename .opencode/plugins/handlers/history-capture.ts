@@ -28,6 +28,7 @@ import { extractLearningsFromWork } from "./learning-capture";
 import { getPermissionRequestId, getSessionStatusType, type UnknownRecord as NormRecord } from "../lib/event-normalize";
 import { classifyFormatHint, type FormatHint } from "./format-reminder";
 import { classifyPromptHint, type PromptHint } from "./prompt-hints";
+import { applyExplicitRoutingPrecedence } from "../shared/hint-envelope";
 import { isTrivialPrompt } from "../lib/prompt-classification";
 import { normalizePromptForArtifacts } from "../lib/prompt-normalization";
 import { maybeCaptureImplicitSentiment } from "./sentiment-capture";
@@ -37,6 +38,7 @@ import { isEnvFlagEnabled } from "../lib/env-flags";
 import { ensurePrdForSession } from "./auto-prd";
 import { recordAgentSpawn, recordToolUse } from "./lineage-tracker";
 import { ensureTaskScaffoldForSession } from "./work-task-scaffolder";
+import { hasExplicitRoutingMention } from "../pai-cc-hooks/claude/agent-execution-guard";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -447,27 +449,36 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
     });
     state.pendingPromptHint = hint;
 
-     await appendRawEvent(
-       storage,
-       `prompt.hint:${storage}:${messageId}`,
-       "prompt",
-       "prompt.hint",
-       {
-         userMessageId: messageId,
-        depth: hint.depth,
-        reasoning_profile: hint.reasoning_profile,
-        verbosity: hint.verbosity,
-        capabilities: hint.capabilities,
-        thinking_tools: hint.thinking_tools,
-        confidence: hint.confidence,
-        source: hint.source,
-       },
-       { sourceSessionId: sessionId }
-     );
+    const routingPrecedence = applyExplicitRoutingPrecedence({
+      hasExplicitRoutingCue: hasExplicitRoutingMention({ prompt: rawUserMessage }),
+      advisoryCapabilities: hint.advisory.capabilities,
+    });
 
-     const workPath = await getCurrentWorkPathForSession(storage);
-     if (workPath) {
-       const hintsPath = path.join(workPath, "PROMPT_HINTS.jsonl");
+    await appendRawEvent(
+      storage,
+      `prompt.hint:${storage}:${messageId}`,
+      "prompt",
+      "prompt.hint",
+      {
+        userMessageId: messageId,
+        depth: hint.advisory.depth,
+        reasoning_profile: hint.advisory.reasoning_profile,
+        verbosity: hint.advisory.verbosity,
+        capabilities: hint.advisory.capabilities,
+        thinking_tools: hint.advisory.thinking_tools,
+        confidence: hint.advisory.confidence,
+        source: hint.source,
+        carrier_mode: hint.carrier_mode,
+        selected_producer: hint.reducer.selectedProducer,
+        routing_precedence: routingPrecedence,
+        provenance: hint.provenance,
+      },
+      { sourceSessionId: sessionId }
+    );
+
+    const workPath = await getCurrentWorkPathForSession(storage);
+    if (workPath) {
+      const hintsPath = path.join(workPath, "PROMPT_HINTS.jsonl");
       await appendJsonlWithRotation(
         hintsPath,
         `${JSON.stringify(hint)}\n`,
@@ -475,10 +486,10 @@ async function commitUserMessage(sessionId: string, messageId: string, carrier: 
       );
     }
 
-     await appendToThreadForSession(
-       storage,
-       `**Prompt Hint:** depth=${hint.depth} reasoning=${hint.reasoning_profile} verbosity=${hint.verbosity}`
-     );
+    await appendToThreadForSession(
+      storage,
+      `**Prompt Hint:** depth=${hint.advisory.depth} reasoning=${hint.advisory.reasoning_profile} verbosity=${hint.advisory.verbosity}`
+    );
   } catch (error) {
     fileLogError("Prompt hint failed", error);
   }

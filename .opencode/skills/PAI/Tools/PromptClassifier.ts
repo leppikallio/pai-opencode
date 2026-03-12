@@ -2,164 +2,208 @@
 /**
  * PromptClassifier.ts
  *
- * Fast, optional pass-1 prompt classification for OpenCode-only PAI.
+ * Canonical advisory prompt-hint producer for utility/testing workflows.
  *
- * - Uses `openai/gpt-5.2` via the OpenCode carrier (`Inference.ts`).
- * - Falls back to deterministic heuristics when inference fails.
- *
- * Output: JSON to stdout.
+ * - Uses `openai/gpt-5.2` via the OpenCode carrier (`Inference.ts`) when enabled.
+ * - Falls back to deterministic heuristics.
+ * - Emits canonical advisory envelope JSON.
  */
 
-import { inference } from './Inference';
+import { inference } from "./Inference";
+import {
+  type AdvisoryHintCandidate,
+  type AdvisoryHintEnvelope,
+  type CarrierHintMode,
+  type PromptDepth,
+  type ReasoningProfile,
+  type Verbosity,
+  createAdvisoryHintCandidate,
+  reduceAdvisoryHintCandidates,
+} from "../../../plugins/shared/hint-envelope";
+import {
+  PROMPT_CLASSIFIER_SYSTEM_PROMPT,
+  createHeuristicPromptHintCandidate,
+} from "../../../plugins/shared/prompt-classifier-contract";
 
-export type PromptDepth = 'MINIMAL' | 'ITERATION' | 'FULL';
-export type ReasoningProfile = 'light' | 'standard' | 'deep';
-export type Verbosity = 'minimal' | 'standard' | 'detailed';
+export type PromptHint = AdvisoryHintEnvelope;
 
-export type PromptHint = {
-  v: '0.1';
-  depth: PromptDepth;
-  reasoning_profile: ReasoningProfile;
-  verbosity: Verbosity;
-  capabilities: string[];
-  thinking_tools: string[];
-  confidence: number;
-  source: 'openai' | 'heuristic';
+type PromptClassifierOptions = {
+  carrierMode?: CarrierHintMode;
 };
+
+const TRUE_VALUES = new Set(["1", "true", "on", "yes"]);
+const FALSE_VALUES = new Set(["0", "false", "off", "no"]);
 
 function usage(): string {
   return [
-    'Usage:',
-    '  bun PromptClassifier.ts "<user prompt>"',
-    '',
-    'Inference preset:',
-    '  - level: fast',
-    '  - timeout: 2000ms (intentional quick-pass budget)',
-    '  - model: openai/gpt-5.2 (explicit override)',
-    '  - reasoningEffort/textVerbosity/steps: not set by this classifier; OpenCode/provider defaults apply',
-    '',
-    'Notes:',
-    '  - Designed for quick pass-1 hints only.',
-    '  - Falls back to deterministic heuristics when inference fails.',
-  ].join('\n');
+    "Usage:",
+    '  bun PromptClassifier.ts [--carrier-mode active|shadow|disabled] "<user prompt>"',
+    "",
+    "Inference preset (when carrier mode is not disabled):",
+    "  - level: fast",
+    "  - timeout: 2000ms (intentional quick-pass budget)",
+    "  - model: openai/gpt-5.2 (explicit override)",
+    "  - reasoningEffort/textVerbosity/steps: not set by this classifier; OpenCode/provider defaults apply",
+    "",
+    "Carrier modes:",
+    "  - active   (default): heuristic + carrier candidate through deterministic reducer",
+    "  - shadow: heuristic remains selected; carrier candidate kept in provenance",
+    "  - disabled: heuristic only (useful for parity tests)",
+    "",
+    "Notes:",
+    "  - Advisory-only schema: no imperative fields (model/spawn/run_in_background/subagent_type).",
+    "  - Emits canonical envelope with reducer metadata + provenance.",
+  ].join("\n");
 }
 
-function isGreeting(s: string): boolean {
-  const t = s.trim().toLowerCase();
-  return t === 'hi' || t === 'hello' || t === 'hey' || t.startsWith('hello ') || t.startsWith('hi ');
+function parseCarrierMode(raw: string | undefined): CarrierHintMode | null {
+  const normalized = (raw ?? "").trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === "active" || TRUE_VALUES.has(normalized)) return "active";
+  if (normalized === "shadow") return "shadow";
+  if (normalized === "disabled" || FALSE_VALUES.has(normalized)) return "disabled";
+  return null;
 }
 
-function heuristic(prompt: string): PromptHint {
-  const p = prompt.trim();
-  const lower = p.toLowerCase();
+function resolveClassifierCarrierMode(
+  options?: PromptClassifierOptions,
+): CarrierHintMode {
+  const fromOptions = parseCarrierMode(options?.carrierMode);
+  if (fromOptions) return fromOptions;
 
-  let depth: PromptDepth = 'FULL';
-  if (p.length <= 40 && isGreeting(p)) depth = 'MINIMAL';
-  else if (/\b(continue|please continue|next step|keep going)\b/i.test(p)) depth = 'ITERATION';
+  const fromEnv = parseCarrierMode(process.env.PAI_PROMPT_CLASSIFIER_CARRIER_MODE);
+  if (fromEnv) return fromEnv;
 
-  let reasoning_profile: ReasoningProfile = 'standard';
-  if (depth === 'MINIMAL') reasoning_profile = 'light';
-  if (/\b(thorough|very thorough|deep|architecture|design doc|system design)\b/i.test(p)) reasoning_profile = 'deep';
-
-  let verbosity: Verbosity = 'standard';
-  if (depth === 'MINIMAL') verbosity = 'minimal';
-  if (/\b(detailed|very detailed|exhaustive)\b/i.test(p)) verbosity = 'detailed';
-
-  const capabilities: string[] = [];
-  if (/\b(ui|ux|design|layout)\b/i.test(lower)) capabilities.push('Designer');
-  if (/\b(test|tests|qa|verify)\b/i.test(lower)) capabilities.push('QATester');
-  if (/\b(security|pentest|vuln|threat model)\b/i.test(lower)) capabilities.push('Pentester');
-  if (/\b(research|sources|citations)\b/i.test(lower)) capabilities.push('researcher');
-  if (/\b(implement|fix|refactor|code)\b/i.test(lower)) capabilities.push('Engineer');
-  if (capabilities.length === 0) capabilities.push('Engineer');
-
-  const thinking_tools: string[] = [];
-  if (depth === 'FULL') {
-    thinking_tools.push('FirstPrinciples', 'RedTeam');
-    if (/\b(options|ideas|brainstorm)\b/i.test(lower)) thinking_tools.push('BeCreative');
-  }
-
-  return {
-    v: '0.1',
-    depth,
-    reasoning_profile,
-    verbosity,
-    capabilities,
-    thinking_tools,
-    confidence: 0.55,
-    source: 'heuristic',
-  };
+  return "active";
 }
 
-async function openAiClassify(prompt: string): Promise<PromptHint> {
-  const systemPrompt = [
-    'You are a classifier for an OpenCode-based Personal AI Infrastructure.',
-    'Return ONLY valid JSON that matches this schema:',
-    '{',
-    '  "v": "0.1",',
-    '  "depth": "MINIMAL"|"ITERATION"|"FULL",',
-    '  "reasoning_profile": "light"|"standard"|"deep",',
-    '  "verbosity": "minimal"|"standard"|"detailed",',
-    '  "capabilities": ["Engineer"|"Designer"|"QATester"|"Pentester"|"researcher"|"Explore"],',
-    '  "thinking_tools": ["FirstPrinciples"|"RedTeam"|"BeCreative"|"Council"|"Research"|"Evals"],',
-    '  "confidence": 0.0,',
-    '  "source": "openai"',
-    '}',
-    '',
-    'Use conservative defaults when uncertain.',
-  ].join('\n');
+function parseObject(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+async function openAiClassifyCandidate(
+  prompt: string,
+  carrierMode: CarrierHintMode,
+): Promise<AdvisoryHintCandidate | null> {
+  const systemPrompt = PROMPT_CLASSIFIER_SYSTEM_PROMPT;
 
   const result = await inference({
     systemPrompt,
     userPrompt: prompt,
-    level: 'fast',
+    level: "fast",
     expectJson: true,
-    // Intentional 2000ms preset: quick pass-1 classification only.
     timeout: 2000,
-    // Intentional override: keep classifier behavior stable across runtime model changes.
-    model: 'openai/gpt-5.2',
+    model: "openai/gpt-5.2",
   });
 
-  if (!result.success || !result.parsed || typeof result.parsed !== 'object') {
-    return heuristic(prompt);
+  if (!result.success) {
+    return null;
   }
 
-  const obj = result.parsed as Record<string, unknown>;
-  const out: PromptHint = {
-    v: '0.1',
-    depth: (obj.depth as PromptDepth) || 'FULL',
-    reasoning_profile: (obj.reasoning_profile as ReasoningProfile) || 'standard',
-    verbosity: (obj.verbosity as Verbosity) || 'standard',
-    capabilities: Array.isArray(obj.capabilities) ? (obj.capabilities as string[]) : ['Engineer'],
-    thinking_tools: Array.isArray(obj.thinking_tools) ? (obj.thinking_tools as string[]) : [],
-    confidence: typeof obj.confidence === 'number' ? obj.confidence : 0.6,
-    source: 'openai',
+  const parsed = parseObject(result.parsed);
+  if (!parsed) {
+    return null;
+  }
+
+  return createAdvisoryHintCandidate({
+    producer: "runtime_carrier_openai",
+    mode: carrierMode === "shadow" ? "runtime_shadow" : "utility",
+    advisory: {
+      depth: parsed.depth as PromptDepth,
+      reasoning_profile: parsed.reasoning_profile as ReasoningProfile,
+      verbosity: parsed.verbosity as Verbosity,
+      capabilities: Array.isArray(parsed.capabilities)
+        ? (parsed.capabilities.filter((value) => typeof value === "string") as string[])
+        : [],
+      thinking_tools: Array.isArray(parsed.thinking_tools)
+        ? (parsed.thinking_tools.filter((value) => typeof value === "string") as string[])
+        : [],
+      confidence: typeof parsed.confidence === "number" ? parsed.confidence : 0.6,
+    },
+  });
+}
+
+export async function classifyPromptToHintEnvelope(
+  prompt: string,
+  options?: PromptClassifierOptions,
+): Promise<PromptHint> {
+  const carrierMode = resolveClassifierCarrierMode(options);
+  const candidates: AdvisoryHintCandidate[] = [
+    createHeuristicPromptHintCandidate(prompt, "utility"),
+  ];
+
+  if (carrierMode !== "disabled") {
+    const carrierCandidate = await openAiClassifyCandidate(prompt, carrierMode);
+    if (carrierCandidate) {
+      candidates.push(carrierCandidate);
+    }
+  }
+
+  return reduceAdvisoryHintCandidates({
+    userMessageId: "utility:prompt-classifier",
+    candidates,
+    carrierMode,
+    forceProducer: carrierMode === "shadow" ? "runtime_heuristic" : undefined,
+  });
+}
+
+function parseCliArgs(argv: string[]): {
+  carrierMode: CarrierHintMode | undefined;
+  prompt: string;
+  help: boolean;
+} {
+  const queue = [...argv];
+  let carrierMode: CarrierHintMode | undefined;
+  const promptParts: string[] = [];
+  let help = false;
+
+  while (queue.length > 0) {
+    const token = queue.shift() ?? "";
+    if (token === "--help" || token === "-h") {
+      help = true;
+      continue;
+    }
+
+    if (token === "--carrier-mode") {
+      const mode = parseCarrierMode(queue.shift());
+      if (mode) {
+        carrierMode = mode;
+      }
+      continue;
+    }
+
+    promptParts.push(token);
+  }
+
+  return {
+    carrierMode,
+    prompt: promptParts.join(" ").trim(),
+    help,
   };
-  return out;
 }
 
 async function main(): Promise<void> {
-  const args = process.argv.slice(2);
-  if (args.includes('--help') || args.includes('-h')) {
+  const parsed = parseCliArgs(process.argv.slice(2));
+  if (parsed.help) {
     console.log(usage());
     return;
   }
 
-  const prompt = args.join(' ').trim();
-  if (!prompt) {
+  if (!parsed.prompt) {
     console.error(usage());
     process.exit(1);
   }
 
-  // NOTE: inference() runs through the OpenCode carrier (no direct OPENAI_API_KEY path here).
-  const hint = await openAiClassify(prompt);
-
+  const hint = await classifyPromptToHintEnvelope(parsed.prompt, {
+    carrierMode: parsed.carrierMode,
+  });
   console.log(JSON.stringify(hint));
 }
 
 if (import.meta.main) {
-  main().catch((e) => {
-    console.error(String(e));
+  main().catch((error) => {
+    console.error(String(error));
     process.exit(1);
   });
 }

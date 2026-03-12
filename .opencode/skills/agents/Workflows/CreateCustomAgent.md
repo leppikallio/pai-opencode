@@ -10,7 +10,7 @@
 - "I need specialized agents with Z expertise"
 - "Generate N custom agents to analyze..."
 
-**KEY TRIGGER: The word "custom" is critical - this distinguishes from generic Intern agents.**
+**KEY TRIGGER: `custom` requests AgentFactory composition. Without `custom`, keep specialist-first routing, then native `general`; reserve `Intern` for broad parallel grunt work.**
 
 ## The Workflow
 
@@ -70,25 +70,23 @@ AgentFactory returns JSON with:
 Task({
   description: "Research agent 1 - enthusiastic",
   prompt: <agent1_full_prompt>,
-  subagent_type: <agent1_execution_subagent_type>,
-  model: "sonnet"  // or "haiku" for speed
+  subagent_type: <agent1_execution_subagent_type>
 })
 Task({
   description: "Research agent 2 - skeptical",
   prompt: <agent2_full_prompt>,
-  subagent_type: <agent2_execution_subagent_type>,
-  model: "sonnet"
+  subagent_type: <agent2_execution_subagent_type>
 })
 Task({
   description: "Research agent 3 - analytical",
   prompt: <agent3_full_prompt>,
-  subagent_type: <agent3_execution_subagent_type>,
-  model: "sonnet"
+  subagent_type: <agent3_execution_subagent_type>
 })
 ```
 
 `executionSubagentType` defaults to `general` for AgentFactory-composed prompts.
 `Intern` remains reserved for broad parallel grunt work, not custom composition output.
+Task tool examples must not include unsupported `model` arguments.
 
 **Note:** Store the voice_id from AgentFactory output - you'll need it to voice the agent's results.
 
@@ -108,14 +106,13 @@ This is more reliable than having agents voice themselves (they often skip curl 
 
 ### Step 6: Spotcheck (Optional but Recommended)
 
-After all agents complete, launch one more to verify consistency:
+After all agents complete, launch one `QATester` pass to verify consistency:
 
 ```typescript
 Task({
   description: "Spotcheck custom agent results",
   prompt: "Review these results for consistency and completeness: [results]",
-  subagent_type: "Intern",
-  model: "haiku"
+  subagent_type: "QATester"
 })
 ```
 
@@ -140,15 +137,11 @@ When creating multiple custom agents, vary traits to ensure different voices:
 - Agent 2: business + analytical + comparative → Drew (balanced news)
 - Agent 3: business + pragmatic + consultative → Charlie (casual laid-back)
 
-## Model Selection
+## Runtime Model Handling
 
-| Task Complexity | Model | Reason |
-|----------------|-------|--------|
-| Simple checks, quick research | `haiku` | 10-20x faster, sufficient for grunt work |
-| Standard analysis, investigation | `sonnet` | Balanced speed + capability |
-| Deep reasoning, strategic planning | `opus` | Maximum intelligence |
-
-**Parallel custom agents benefit from `sonnet` or `haiku` for speed.**
+- Do not pass `model` in `Task(...)`; it is unsupported.
+- Let runtime policy select the model for the delegated execution.
+- Control quality by selecting the right `subagent_type` and prompt depth.
 
 ## Example Execution
 
@@ -240,7 +233,7 @@ AgentFactory automatically maps trait combinations to voices:
 ## Related Workflows
 
 - **ListTraits** - Show available traits for composition
-- **SpawnParallelAgents** - Launch generic Intern agents (not custom)
+- **SpawnParallelAgents** - Launch broad parallel grunt batches (Intern only when bounded)
 
 ## References
 

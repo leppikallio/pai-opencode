@@ -48,6 +48,8 @@ const TASK_TOOL_DESCRIPTION = [
 	"",
 	"Routing-critical guidance:",
 	"- Explicit user mentions like @general / @<agent> are routing intent and should delegate through task.",
+	"- Keep native `general` as the catch-all fallback when no explicit specialist route applies.",
+	"- Use Intern for broad parallel grunt work when the task can be split safely.",
 	"- Foreground execution remains stock-equivalent by default.",
 	"- run_in_background:true is an explicit PAI extension for async launch.",
 	"",

@@ -171,6 +171,13 @@ describe("PAI GPT-5 routing integration contract (Tasks 2+3)", () => {
 		expect(typeof taskTool?.description).toBe("string");
 		expect(taskTool?.description).toContain("@general / @<agent>");
 		expect(taskTool?.description).toContain("run_in_background:true");
+		expect(taskTool?.description).toContain(
+			"native `general` as the catch-all fallback",
+		);
+		expect(taskTool?.description).toContain(
+			"Intern for broad parallel grunt work",
+		);
+		expect(taskTool?.description).not.toContain("general-purpose");
 		expect(taskTool?.description).toContain("task_id");
 	});
 });

@@ -28,8 +28,8 @@ Speed/quality should be optimized through:
 **Examples:**
 
 ```typescript
-// Simple verification task (short prompt)
-functions.task({ description: "Visual check", prompt: "Check if blue bar exists on website", subagent_type: "Intern" })
+// Simple UI verification task (short prompt)
+functions.task({ description: "Visual check", prompt: "Check if blue bar exists on website", subagent_type: "QATester" })
 
 // Standard implementation task
 functions.task({ description: "Implement login validation", prompt: "Implement the login form validation", subagent_type: "Engineer" })
@@ -40,46 +40,51 @@ functions.task({ description: "Design caching strategy", prompt: "Design distrib
 
 If explicit model override support is later added, verify tool schema first and then document exact supported fields.
 
-### Agent Types
+### Routing Decision Tree (Authoritative)
 
-The Intern Agent is your high-agency genius generalist - perfect for parallel execution:
-- Updating multiple files simultaneously
-- Researching multiple topics at once
-- Testing multiple approaches in parallel
-- Processing multiple items from a list
+Use this order consistently:
 
-**How to launch:**
-- Use a SINGLE message with MULTIPLE Task tool calls
-- Each intern gets the context required for its assigned criterion
-- Launch only as many as needed (default 3-5 unless justified)
-- Launch a spotcheck intern when outputs are high-stakes, heterogeneous, or conflict-prone
+1. **Specialist first:** route to a runtime specialist when the task clearly maps (`Engineer`, `Architect`, `Designer`, `QATester`, `Pentester`, `explore`, research variants).
+2. **Then `general`:** if no better specialist fit exists, use native `general` as the catch-all fallback.
+3. **Reserve `Intern` for broad parallel grunt work:** use it only for safely split fan-out grunt tasks, not as the default catch-all.
+4. **Dynamic composition only when explicit/bounded:** if the request is explicitly "custom agents" or a bounded "expert in X" ask, use AgentFactory via the `agents` skill.
+
+Routing mentions like `@general` or `@<agent>` are intent hints. They remain advisory, not imperative.
+
+### Runtime Subagent Guidance
+
+| Subagent | Primary use |
+|----------|-------------|
+| `Engineer` / `Architect` / `Designer` / `QATester` / `Pentester` / `explore` / research variants | Clear specialist ownership |
+| `general` | Catch-all fallback when specialist mapping is unclear |
+| `Intern` | Broad parallel grunt work only |
 
 **CRITICAL: Interns vs Engineers:**
-- **INTERNS:** Research, analysis, investigation, file reading, testing, coordinating
-- **ENGINEERS:** Writing ANY code (TypeScript, Python, etc.), building features, implementing changes
-- If task involves writing code → route to Engineer capability (and Architect/Designer as needed)
-- Interns can delegate to engineers when code changes are needed
+- **INTERNS:** broad parallel grunt work with explicit checklists (tagging, extraction, categorization)
+- **ENGINEERS:** writing and modifying code, implementing features, bug fixes
+- **SPOTCHECKS / VISUAL CHECKS / SYNTHESIS:** route to the best-fit specialist (`QATester`, `Engineer`, `Architect`, or `general`)
+- If work requires code changes, route to Engineer (plus Architect/Designer as needed)
 
-### 🚨 CUSTOM AGENTS vs GENERIC AGENTS (Always Active)
+### Background Launch Example (Current Runtime)
 
-**The word "custom" is the KEY trigger:**
+```typescript
+functions.task({
+  description: "Backlog triage sweep",
+  prompt: "Classify open backlog items into implementation, design, and QA buckets.",
+  subagent_type: "general",
+  run_in_background: true,
+})
+```
+
+### 🚨 CUSTOM AGENTS vs RUNTIME SUBAGENTS
+
+**The word "custom" remains the trigger for AgentFactory:**
 
 | User Says | What to Use | Why |
 |-------------|-------------|-----|
-| "**custom agents**", "spin up **custom** agents" | **AgentFactory** | Unique prompts, unique voices |
-| "spin up agents", "bunch of agents", "launch agents" | **Intern agents** | Generic parallel workers |
-| "interns", "use interns" | **Intern agents** | Obviously |
-
-**When user says "custom agents":**
-1. Invoke the agents skill → CreateCustomAgent workflow
-2. Use DIFFERENT trait combinations to get unique voices
-3. Launch with the full AgentFactory-generated prompt
-4. Each agent gets a personality-matched ElevenLabs voice
-
-**When user says "spin up agents" (no "custom"):**
-1. Use runtime Task subagent types directly (usually Intern for generic parallel work)
-2. Route by capability when needed (Engineer/Architect/Designer/etc.)
-3. Do not invoke AgentFactory unless the user explicitly asked for custom agents
+| "**custom agents**", "spin up **custom** agents" | **AgentFactory** | Unique prompts and unique voices |
+| "I need an expert in X" (explicit + bounded) | **AgentFactory** | Specialized one-off composition |
+| "spin up agents", "launch agents" | **Runtime subagents** | Specialist-first, then `general`, Intern only for broad grunt work |
 
 **Reference:** agents skill (`../../agents/SKILL.md`)
 
