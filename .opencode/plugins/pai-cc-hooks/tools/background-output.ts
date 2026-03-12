@@ -8,6 +8,7 @@ import {
   normalizeBackgroundTaskLifecycle,
   isBackgroundTaskTerminal,
 } from "../background/lifecycle-normalizer";
+import { currentEpochMs } from "../background/clock";
 
 type CarrierClient = {
   session?: {
@@ -135,8 +136,8 @@ function sliceSinceMessageId(
 }
 
 async function waitForCompletion(args: { taskId: string; timeoutMs: number }): Promise<BackgroundTaskRecord | null> {
-  const start = Date.now();
-  while (Date.now() - start < args.timeoutMs) {
+  const start = currentEpochMs();
+  while (currentEpochMs() - start < args.timeoutMs) {
     const record = await findBackgroundTaskByTaskId({ taskId: args.taskId });
     if (!record) return null;
     if (isBackgroundTaskTerminal(record)) return record;

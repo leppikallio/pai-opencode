@@ -5,6 +5,7 @@ import {
 	applyBackgroundCancellationPolicy,
 	resolveCancellationNowMs,
 } from "../background/cancellation-policy";
+import { currentEpochMs } from "../background/clock";
 import { getBackgroundConcurrencyManager } from "../background/concurrency";
 import { resolvePaiOrchestrationFeatureFlags } from "../feature-flags";
 
@@ -51,7 +52,7 @@ export function createPaiBackgroundCancelTool(input: { client: unknown }) {
 
 		const nowMs = resolveCancellationNowMs({
 			taskRecord: record,
-			nowProvider: () => Date.now(),
+			nowProvider: currentEpochMs,
 		});
 
 			const flags = resolvePaiOrchestrationFeatureFlags();

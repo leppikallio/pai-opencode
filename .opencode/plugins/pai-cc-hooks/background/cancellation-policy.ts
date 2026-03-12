@@ -18,6 +18,7 @@ import type {
 	ReasonCode,
 	SalvageStatus,
 } from "./review-contract";
+import { currentEpochMs } from "./clock";
 
 const SYNTHETIC_EPOCH_THRESHOLD_MS = 1_000_000_000_000;
 
@@ -179,7 +180,7 @@ export function resolveCancellationNowMs(args: {
 		return args.nowMs;
 	}
 
-	const providedNowMs = (args.nowProvider ?? (() => Date.now()))();
+	const providedNowMs = (args.nowProvider ?? currentEpochMs)();
 	const launchedAtMs = args.taskRecord.launched_at_ms;
 	if (
 		isFiniteNumber(launchedAtMs) &&
