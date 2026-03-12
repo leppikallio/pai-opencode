@@ -43,6 +43,10 @@ function isRtkAwarenessHookCommand(command: string): boolean {
 	return command.includes("RtkAwareness.hook.ts");
 }
 
+function isBeadsPrimeHookCommand(command: string): boolean {
+	return command.includes("BeadsPrime.hook.ts");
+}
+
 function shouldInjectSessionStartStdout(args: {
 	command: string;
 	policy: SessionStartPolicy;
@@ -59,6 +63,10 @@ function shouldInjectSessionStartStdout(args: {
 		return args.policy.allowRtkAwarenessStdoutInjection;
 	}
 
+	if (isBeadsPrimeHookCommand(args.command)) {
+		return args.policy.allowBeadsPrimeStdoutInjection;
+	}
+
 	return false;
 }
 
@@ -70,14 +78,16 @@ export async function resolveSessionStartPolicy(args: {
 	if (!args.sessionGet) {
 		if (isDebugLoggingEnabled()) {
 			console.warn(
-				"[pai-cc-hooks] SessionStart metadata unavailable; skipping LoadContext hook injection.",
+				"[pai-cc-hooks] SessionStart metadata unavailable; skipping LoadContext and BeadsPrime hook injection.",
 			);
 		}
 		return {
 			parentSessionId: args.fallbackParentSessionId,
 			policy: {
 				allowLoadContext: false,
+				allowBeadsPrime: false,
 				allowLoadContextStdoutInjection: false,
+				allowBeadsPrimeStdoutInjection: false,
 				allowScratchpadBindingStdoutInjection: true,
 				allowRtkAwarenessStdoutInjection: true,
 			},
@@ -96,7 +106,9 @@ export async function resolveSessionStartPolicy(args: {
 			parentSessionId,
 			policy: {
 				allowLoadContext: !isSubagent,
+				allowBeadsPrime: !isSubagent,
 				allowLoadContextStdoutInjection: !isSubagent,
+				allowBeadsPrimeStdoutInjection: !isSubagent,
 				allowScratchpadBindingStdoutInjection: true,
 				allowRtkAwarenessStdoutInjection: true,
 			},
@@ -105,14 +117,16 @@ export async function resolveSessionStartPolicy(args: {
 		if (isDebugLoggingEnabled()) {
 			const reason = sanitizeDebugReason(error);
 			console.warn(
-				`[pai-cc-hooks] SessionStart metadata fetch failed; skipping LoadContext hook injection: ${reason}`,
+				`[pai-cc-hooks] SessionStart metadata fetch failed; skipping LoadContext and BeadsPrime hook injection: ${reason}`,
 			);
 		}
 		return {
 			parentSessionId: args.fallbackParentSessionId,
 			policy: {
 				allowLoadContext: false,
+				allowBeadsPrime: false,
 				allowLoadContextStdoutInjection: false,
+				allowBeadsPrimeStdoutInjection: false,
 				allowScratchpadBindingStdoutInjection: true,
 				allowRtkAwarenessStdoutInjection: true,
 			},
@@ -164,8 +178,10 @@ export async function executeSessionLifecycleHooks(
 			if (
 				args.hookEventName === "SessionStart" &&
 				args.sessionStartPolicy &&
-				!args.sessionStartPolicy.allowLoadContext &&
-				isLoadContextHookCommand(hook.command)
+				((!args.sessionStartPolicy.allowLoadContext &&
+					isLoadContextHookCommand(hook.command)) ||
+					(!args.sessionStartPolicy.allowBeadsPrime &&
+						isBeadsPrimeHookCommand(hook.command)))
 			) {
 				continue;
 			}

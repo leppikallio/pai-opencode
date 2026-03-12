@@ -34,6 +34,7 @@ import {
   type RtkCapabilityRecord,
 } from "../.opencode/plugins/rtk/capability";
 import { mergeOpencodeInstructions } from "./pai-install/merge-opencode-instructions";
+import { mergeBeadsOpencodeInstructions } from "./pai-install/merge-beads-opencode-instructions";
 
 type Mode = "sync";
 
@@ -2935,6 +2936,7 @@ async function sync(mode: Mode, opts: Options) {
     { name: "PAIOpenCodeWizard.ts", overwrite: true },
     { name: "OPENCODE.md", overwrite: true },
     { name: "INSTALL.md", overwrite: true },
+    { name: "BD.md", overwrite: true },
     { name: "RTK.md", overwrite: true },
     { name: "package.json", overwrite: true },
     { name: "bun.lock", overwrite: true },
@@ -3021,6 +3023,18 @@ async function sync(mode: Mode, opts: Options) {
     const mergeState = mergeResult.changed ? "updated" : "unchanged";
     console.log(
       `[write] opencode instructions merge: ${mergeState} (${mergeResult.opencodeConfigPath}, supportsRewrite=${rtkCapability?.supportsRewrite ?? false})`
+    );
+  }
+
+  if (dryRun) {
+    console.log("[dry] opencode instructions merge: would reconcile runtime BD.md entry");
+  } else {
+    const mergeResult = mergeBeadsOpencodeInstructions({
+      targetDir,
+    });
+    const mergeState = mergeResult.changed ? "updated" : "unchanged";
+    console.log(
+      `[write] opencode instructions merge: ${mergeState} (${mergeResult.opencodeConfigPath}, source=BD.md)`
     );
   }
 

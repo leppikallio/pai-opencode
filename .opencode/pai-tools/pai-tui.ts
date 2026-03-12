@@ -31,6 +31,7 @@ const DEFAULT_GC_BUDGET_MS = 30_000;
 const LOOPBACK_HOST = "127.0.0.1";
 
 type CompletionVisibleFallbackMode = "auto" | "on" | "off";
+type BeadsMode = "on" | "off" | "inherit";
 type CodexCleanSlateMode = "on" | "off";
 type DynamicContextMode = "on" | "off";
 type GarbageCollectMode = "on" | "off";
@@ -40,6 +41,13 @@ export interface DynamicContextSettingsPatch {
 	dynamicContext: boolean;
 }
 
+export interface PaiTuiSettingsPatch {
+	dynamicContext?: boolean;
+	paiFeatures?: {
+		beads?: boolean;
+	};
+}
+
 export interface PaiTuiRunOptions {
 	dir: string;
 	startPort: number;
@@ -47,6 +55,7 @@ export interface PaiTuiRunOptions {
 	completionVisibleFallback: CompletionVisibleFallbackMode;
 	codexCleanSlate?: CodexCleanSlateMode;
 	dynamicContext: DynamicContextMode;
+	beads?: BeadsMode;
 	gc: GarbageCollectMode;
 	gcOnStart: GarbageCollectMode;
 	gcOnExit: GarbageCollectMode;
@@ -124,7 +133,7 @@ export interface PaiTuiDeps {
 	runOpencodeCli: (input: RunOpencodeCliInput) => Promise<RunOpencodeCliResult>;
 	writeSettingsPatch: (
 		opencodeRoot: string,
-		patch: DynamicContextSettingsPatch,
+		patch: PaiTuiSettingsPatch,
 	) => Promise<void>;
 	writeState: (input: StateWriteInput) => Promise<PaiTuiStateV1>;
 	logInfo: (line: string) => void;
@@ -167,6 +176,7 @@ const HELP_TEXT = [
 	"  --port <n>                                     Starting port to probe for free bind",
 	"  --opencode-root <path>                         OpenCode config/runtime root",
 	"  --completion-visible-fallback <auto|on|off>    Fallback env behavior when cmux socket is missing",
+	"  --beads <on|off|inherit>                        Persist settings.json.paiFeatures.beads (default: inherit)",
 	"  --codex-clean-slate <on|off>                    Explicitly set PAI_CODEX_CLEAN_SLATE (omit flag to inherit)",
 	"  --dynamic-context <on|off>                      Persist settings.json.dynamicContext for SessionStart injection",
 	"  --gc <on|off>                                   Garbage-collect leaked sessions (default: on)",
@@ -185,6 +195,7 @@ const HELP_TEXT = [
 	`  --port ${DEFAULT_START_PORT}`,
 	`  --opencode-root ${resolveRuntimeRootFromMainScript(import.meta.url)}`,
 	"  --completion-visible-fallback auto",
+	"  --beads inherit",
 	"  --codex-clean-slate omitted (inherit parent env; unchanged)",
 	"  --dynamic-context on",
 	`  --gc ${DEFAULT_GC}`,
@@ -464,9 +475,52 @@ export function buildDynamicContextSettingsPatch(
 	};
 }
 
+export function resolveBeadsMode(value: BeadsMode | undefined): BeadsMode {
+	return value ?? "inherit";
+}
+
+function buildSettingsPatch(
+	dynamicContextMode: DynamicContextMode,
+	beadsMode: BeadsMode,
+): PaiTuiSettingsPatch {
+	const patch: PaiTuiSettingsPatch = {
+		...buildDynamicContextSettingsPatch(dynamicContextMode),
+	};
+
+	if (beadsMode === "on") {
+		patch.paiFeatures = { beads: true };
+	} else if (beadsMode === "off") {
+		patch.paiFeatures = { beads: false };
+	}
+
+	return patch;
+}
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function deepMergeRecords(
+	existing: Record<string, unknown>,
+	patch: Record<string, unknown>,
+): Record<string, unknown> {
+	const next: Record<string, unknown> = { ...existing };
+
+	for (const [key, patchValue] of Object.entries(patch)) {
+		const existingValue = next[key];
+		if (isPlainRecord(existingValue) && isPlainRecord(patchValue)) {
+			next[key] = deepMergeRecords(existingValue, patchValue);
+			continue;
+		}
+		next[key] = patchValue;
+	}
+
+	return next;
+}
+
 export async function writeSettingsPatch(
 	opencodeRoot: string,
-	patch: DynamicContextSettingsPatch,
+	patch: PaiTuiSettingsPatch,
 ): Promise<void> {
 	const settingsPath = path.join(opencodeRoot, "settings.json");
 	let existing: Record<string, unknown> | null = null;
@@ -509,10 +563,10 @@ export async function writeSettingsPatch(
 		existing = parsed as Record<string, unknown>;
 	}
 
-	const next = {
-		...(existing ?? {}),
-		...patch,
-	};
+	const next = deepMergeRecords(
+		existing ?? {},
+		patch as Record<string, unknown>,
+	);
 	await atomicWriteJson(settingsPath, next);
 }
 
@@ -1004,15 +1058,16 @@ export async function runPaiTui(
 	overrides: Partial<PaiTuiDeps> = {},
 ): Promise<number> {
 	const deps = { ...defaultDeps(), ...overrides };
-	const dynamicContextPatch = buildDynamicContextSettingsPatch(
+	const settingsPatch = buildSettingsPatch(
 		resolveDynamicContextMode(options.dynamicContext),
+		resolveBeadsMode(options.beads),
 	);
 
 	try {
-		await deps.writeSettingsPatch(options.opencodeRoot, dynamicContextPatch);
+		await deps.writeSettingsPatch(options.opencodeRoot, settingsPatch);
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		deps.logWarn(`Failed to persist dynamic context setting: ${message}`);
+		deps.logWarn(`Failed to persist settings patch: ${message}`);
 		return 1;
 	}
 
@@ -1176,6 +1231,10 @@ function createCliCommand() {
 				long: "completion-visible-fallback",
 				type: optional(oneOf(["auto", "on", "off"])),
 			}),
+			beads: option({
+				long: "beads",
+				type: optional(oneOf(["on", "off", "inherit"])),
+			}),
 			codexCleanSlate: option({
 				long: "codex-clean-slate",
 				type: optional(oneOf(["on", "off"])),
@@ -1273,6 +1332,7 @@ function createCliCommand() {
 				dynamicContext: resolveDynamicContextMode(
 					args.dynamicContext as DynamicContextMode | undefined,
 				),
+				beads: resolveBeadsMode(args.beads as BeadsMode | undefined),
 				completionVisibleFallback: (args.completionVisibleFallback ??
 					"auto") as CompletionVisibleFallbackMode,
 				codexCleanSlate: args.codexCleanSlate as
@@ -1310,6 +1370,7 @@ if (import.meta.main) {
 
 	try {
 		assertOptionValueProvided(argv, "--bind-retries");
+		assertOptionValueProvided(argv, "--beads");
 		assertOptionValueProvided(argv, "--codex-clean-slate");
 		assertOptionValueProvided(argv, "--dynamic-context");
 		assertOptionValueProvided(argv, "--gc");

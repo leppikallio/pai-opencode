@@ -1,83 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
-import {
-  chmodSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
 import { loadConfiguredInstructions } from "../../plugins/handlers/prompt-sources";
-
-const repoRoot =
-  path.basename(process.cwd()) === ".opencode"
-    ? path.resolve(process.cwd(), "..")
-    : process.cwd();
-
-const installToolPath = path.join(repoRoot, "Tools", "Install.ts");
-const sourceDir = path.join(repoRoot, ".opencode");
-
-function prependPath(binDir: string): string {
-  const existingPath = process.env.PATH ?? "";
-  return existingPath.length > 0 ? `${binDir}:${existingPath}` : binDir;
-}
-
-function createRtkShim(args: { versionOutput: string }): string {
-  const shimDir = mkdtempSync(path.join(os.tmpdir(), "pai-prompt-sources-rtk-shim-"));
-  const shimPath = path.join(shimDir, "rtk");
-  const script = `#!/bin/sh
-if [ "$1" = "--version" ]; then
-  echo "${args.versionOutput}"
-  exit 0
-fi
-if [ "$1" = "rewrite" ]; then
-  shift
-  printf "rtk %s\\n" "$*"
-  exit 0
-fi
-exit 1
-`;
-
-  writeFileSync(shimPath, script, "utf8");
-  chmodSync(shimPath, 0o755);
-  return shimDir;
-}
-
-function runInstall(args: { targetDir: string; pathValue: string }) {
-  return spawnSync(
-    "bun",
-    [
-      installToolPath,
-      "--target",
-      args.targetDir,
-      "--source",
-      sourceDir,
-      "--non-interactive",
-      "--skills",
-      "all",
-      "--skills-gate-profile",
-      "off",
-      "--no-install-deps",
-      "--no-verify",
-    ],
-    {
-      encoding: "utf8",
-      shell: false,
-      env: {
-        ...process.env,
-        PATH: args.pathValue,
-      },
-    },
-  );
-}
+import { createRtkShim, prependPath, runInstall } from "./pai_install_runtime_test_helpers";
 
 describe("prompt-sources RTK runtime doc loading (Task 3 contract)", () => {
   test("installs Task 3 RTK.md semantic source-of-truth contract", () => {
     const targetDir = mkdtempSync(path.join(os.tmpdir(), "pai-prompt-sources-rtk-baseline-"));
-    const shimDir = createRtkShim({ versionOutput: "rtk 0.23.0" });
+    const shimDir = createRtkShim({
+      versionOutput: "rtk 0.23.0",
+      tempPrefix: "pai-prompt-sources-rtk-shim-",
+    });
 
     try {
       const run = runInstall({
@@ -109,7 +44,10 @@ describe("prompt-sources RTK runtime doc loading (Task 3 contract)", () => {
 
   test("loadConfiguredInstructions loads runtime RTK.md from canonical absolute string instructions", () => {
     const targetDir = mkdtempSync(path.join(os.tmpdir(), "pai-prompt-sources-rtk-runtime-"));
-    const shimDir = createRtkShim({ versionOutput: "rtk 0.23.0" });
+    const shimDir = createRtkShim({
+      versionOutput: "rtk 0.23.0",
+      tempPrefix: "pai-prompt-sources-rtk-shim-",
+    });
 
     try {
       const run = runInstall({

@@ -270,11 +270,25 @@
           },
           {
             "type": "command",
+            "command": "${PAI_DIR}/hooks/BeadsPrime.hook.ts"
+          },
+          {
+            "type": "command",
             "command": "${PAI_DIR}/hooks/RtkAwareness.hook.ts"
           },
           {
             "type": "command",
             "command": "${PAI_DIR}/hooks/CheckVersion.hook.ts"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${PAI_DIR}/hooks/BeadsPrime.hook.ts"
           }
         ]
       }
@@ -291,7 +305,7 @@
     ]
   },
   "counts": {
-    "hooks": 22,
+    "hooks": 24,
     "updatedAt": "2026-03-07T17:57:15.470Z"
   }
 }

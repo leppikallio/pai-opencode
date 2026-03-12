@@ -13,6 +13,7 @@ import {
 	__resetPaiCcHooksSettingsCacheForTests,
 	createPaiClaudeHooks,
 } from "../../plugins/pai-cc-hooks/hook";
+import { resolveSessionStartPolicy } from "../../plugins/pai-cc-hooks/session-lifecycle";
 import {
 	__resetSessionRootRegistryForTests,
 	getSessionRootId,
@@ -40,7 +41,7 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 		__resetSessionRootRegistryForTests();
 	});
 
-	test("injects ScratchpadBinding, LoadContext, and RTK awareness stdout for root SessionStart", async () => {
+	test("injects ScratchpadBinding, LoadContext, BeadsPrime, and RTK awareness stdout for root SessionStart", async () => {
 		const tmpRoot = mkdtempSync(
 			path.join(os.tmpdir(), "pai-cc-hooks-session-start-inject-"),
 		);
@@ -48,10 +49,12 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 
 		const scratchpadMarker = path.join(tmpRoot, "scratchpad.marker");
 		const loadContextMarker = path.join(tmpRoot, "loadcontext.marker");
+		const beadsPrimeMarker = path.join(tmpRoot, "beads-prime.marker");
 		const rtkAwarenessMarker = path.join(tmpRoot, "rtk-awareness.marker");
 		const checkVersionMarker = path.join(tmpRoot, "checkversion.marker");
 		const scratchpadHookPath = path.join(tmpRoot, "ScratchpadBinding.hook.ts");
 		const loadContextHookPath = path.join(tmpRoot, "LoadContext.hook.ts");
+		const beadsPrimeHookPath = path.join(tmpRoot, "BeadsPrime.hook.ts");
 		const rtkAwarenessHookPath = path.join(tmpRoot, "RtkAwareness.hook.ts");
 		const checkVersionHookPath = path.join(tmpRoot, "CheckVersion.hook.ts");
 		const promptCalls: Array<unknown> = [];
@@ -70,6 +73,13 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 				"utf-8",
 			);
 			chmodSync(loadContextHookPath, 0o755);
+
+			writeFileSync(
+				beadsPrimeHookPath,
+				`#!/bin/sh\ntouch "${beadsPrimeMarker}"\nprintf '<system-reminder>Injected BeadsPrime context</system-reminder>'\n`,
+				"utf-8",
+			);
+			chmodSync(beadsPrimeHookPath, 0o755);
 
 			writeFileSync(
 				rtkAwarenessHookPath,
@@ -101,6 +111,10 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 								{
 									type: "command",
 									command: loadContextHookPath,
+								},
+								{
+									type: "command",
+									command: beadsPrimeHookPath,
 								},
 								{
 									type: "command",
@@ -152,9 +166,10 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 
 			expect(existsSync(scratchpadMarker)).toBe(true);
 			expect(existsSync(loadContextMarker)).toBe(true);
+			expect(existsSync(beadsPrimeMarker)).toBe(true);
 			expect(existsSync(rtkAwarenessMarker)).toBe(true);
 			expect(existsSync(checkVersionMarker)).toBe(true);
-			expect(promptCalls).toHaveLength(3);
+			expect(promptCalls).toHaveLength(4);
 
 			const scratchpadInjectionCall = promptCalls[0] as {
 				path: { id: string };
@@ -170,7 +185,14 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 					parts: Array<{ type: string; text: string; synthetic?: boolean }>;
 				};
 			};
-			const rtkAwarenessInjectionCall = promptCalls[2] as {
+			const beadsPrimeInjectionCall = promptCalls[2] as {
+				path: { id: string };
+				body: {
+					noReply: boolean;
+					parts: Array<{ type: string; text: string; synthetic?: boolean }>;
+				};
+			};
+			const rtkAwarenessInjectionCall = promptCalls[3] as {
 				path: { id: string };
 				body: {
 					noReply: boolean;
@@ -194,6 +216,14 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 				text: "<system-reminder>Injected LoadContext context</system-reminder>",
 				synthetic: true,
 			});
+			expect(beadsPrimeInjectionCall.path.id).toBe("ses_root");
+			expect(beadsPrimeInjectionCall.body.noReply).toBe(true);
+			expect(beadsPrimeInjectionCall.body.parts).toHaveLength(1);
+			expect(beadsPrimeInjectionCall.body.parts[0]).toEqual({
+				type: "text",
+				text: "<system-reminder>Injected BeadsPrime context</system-reminder>",
+				synthetic: true,
+			});
 			expect(rtkAwarenessInjectionCall.path.id).toBe("ses_root");
 			expect(rtkAwarenessInjectionCall.body.noReply).toBe(true);
 			expect(rtkAwarenessInjectionCall.body.parts).toHaveLength(1);
@@ -206,6 +236,12 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 				"Injected LoadContext context",
 			);
 			expect(loadContextInjectionCall.body.parts[0]?.text).not.toContain(
+				"Injected BeadsPrime context",
+			);
+			expect(loadContextInjectionCall.body.parts[0]?.text).not.toContain(
+				"Injected CheckVersion context",
+			);
+			expect(beadsPrimeInjectionCall.body.parts[0]?.text).not.toContain(
 				"Injected CheckVersion context",
 			);
 			expect(rtkAwarenessInjectionCall.body.parts[0]?.text).not.toContain(
@@ -246,6 +282,19 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 						parts: [
 							{
 								type: "text",
+								text: "<system-reminder>Injected BeadsPrime context</system-reminder>",
+								synthetic: true,
+							},
+						],
+					},
+				},
+				{
+					path: { id: "ses_root" },
+					body: {
+						noReply: true,
+						parts: [
+							{
+								type: "text",
 								text: "<system-reminder>Injected RTK awareness context</system-reminder>",
 								synthetic: true,
 							},
@@ -268,10 +317,12 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 
 		const scratchpadMarker = path.join(tmpRoot, "scratchpad.marker");
 		const loadContextMarker = path.join(tmpRoot, "loadcontext.marker");
+		const beadsPrimeMarker = path.join(tmpRoot, "beads-prime.marker");
 		const rtkAwarenessMarker = path.join(tmpRoot, "rtk-awareness.marker");
 		const checkVersionMarker = path.join(tmpRoot, "checkversion.marker");
 		const scratchpadHookPath = path.join(tmpRoot, "ScratchpadBinding.hook.ts");
 		const loadContextHookPath = path.join(tmpRoot, "LoadContext.hook.ts");
+		const beadsPrimeHookPath = path.join(tmpRoot, "BeadsPrime.hook.ts");
 		const rtkAwarenessHookPath = path.join(tmpRoot, "RtkAwareness.hook.ts");
 		const checkVersionHookPath = path.join(tmpRoot, "CheckVersion.hook.ts");
 		const promptCalls: Array<unknown> = [];
@@ -290,6 +341,13 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 				"utf-8",
 			);
 			chmodSync(loadContextHookPath, 0o755);
+
+			writeFileSync(
+				beadsPrimeHookPath,
+				`#!/bin/sh\ntouch "${beadsPrimeMarker}"\nprintf '<system-reminder>Injected BeadsPrime context</system-reminder>'\n`,
+				"utf-8",
+			);
+			chmodSync(beadsPrimeHookPath, 0o755);
 
 			writeFileSync(
 				rtkAwarenessHookPath,
@@ -321,6 +379,10 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 								{
 									type: "command",
 									command: loadContextHookPath,
+								},
+								{
+									type: "command",
+									command: beadsPrimeHookPath,
 								},
 								{
 									type: "command",
@@ -392,12 +454,59 @@ describe("pai-cc-hooks SessionStart stdout injection", () => {
 			]);
 			expect(existsSync(scratchpadMarker)).toBe(true);
 			expect(existsSync(loadContextMarker)).toBe(false);
+			expect(existsSync(beadsPrimeMarker)).toBe(false);
 			expect(existsSync(rtkAwarenessMarker)).toBe(true);
 			expect(existsSync(checkVersionMarker)).toBe(true);
 		} finally {
 			restoreEnv("PAI_CC_HOOKS_CONFIG_ROOT", prevConfigRoot);
 			rmSync(tmpRoot, { recursive: true, force: true });
 			__resetPaiCcHooksSettingsCacheForTests();
+		}
+	});
+
+	test("fails closed for BeadsPrime when SessionStart metadata is unavailable", async () => {
+		const policyResult = await resolveSessionStartPolicy({
+			sessionId: "ses_unknown",
+		});
+
+		expect(policyResult.parentSessionId).toBeUndefined();
+		expect(policyResult.policy.allowLoadContext).toBe(false);
+		expect(policyResult.policy.allowBeadsPrime).toBe(false);
+		expect(policyResult.policy.allowLoadContextStdoutInjection).toBe(false);
+		expect(policyResult.policy.allowBeadsPrimeStdoutInjection).toBe(false);
+		expect(policyResult.policy.allowScratchpadBindingStdoutInjection).toBe(true);
+		expect(policyResult.policy.allowRtkAwarenessStdoutInjection).toBe(true);
+	});
+
+	test("debug warning mentions LoadContext and BeadsPrime when metadata fetch fails", async () => {
+		const prevDebug = process.env.PAI_CC_HOOKS_DEBUG;
+		const warns: Array<string> = [];
+		const originalWarn = console.warn;
+
+		process.env.PAI_CC_HOOKS_DEBUG = "1";
+		console.warn = (...args: unknown[]) => {
+			warns.push(String(args[0]));
+		};
+
+		try {
+			const policyResult = await resolveSessionStartPolicy({
+				sessionId: "ses_unknown",
+				sessionGet: async () => {
+					throw new Error("metadata unavailable");
+				},
+			});
+
+			expect(policyResult.parentSessionId).toBeUndefined();
+			expect(policyResult.policy.allowLoadContext).toBe(false);
+			expect(policyResult.policy.allowBeadsPrime).toBe(false);
+			expect(policyResult.policy.allowLoadContextStdoutInjection).toBe(false);
+			expect(policyResult.policy.allowBeadsPrimeStdoutInjection).toBe(false);
+			expect(warns).toHaveLength(1);
+			expect(warns[0]).toContain("LoadContext and BeadsPrime");
+			expect(warns[0]).toContain("metadata unavailable");
+		} finally {
+			console.warn = originalWarn;
+			restoreEnv("PAI_CC_HOOKS_DEBUG", prevDebug);
 		}
 	});
 

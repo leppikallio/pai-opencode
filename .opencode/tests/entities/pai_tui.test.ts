@@ -203,6 +203,129 @@ describe("pai-tui wrapper", () => {
 		}
 	});
 
+	test("deep-merges paiFeatures when persisting settings patch", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-tui-settings-"));
+		try {
+			await fs.writeFile(
+				path.join(root, "settings.json"),
+				`${JSON.stringify(
+					{
+						theme: "dark",
+						paiFeatures: { sibling: true, beads: false },
+					},
+					null,
+					2,
+				)}\n`,
+				"utf8",
+			);
+
+			await writeSettingsPatch(root, {
+				dynamicContext: false,
+				paiFeatures: { beads: true },
+			});
+
+			const settings = JSON.parse(
+				await fs.readFile(path.join(root, "settings.json"), "utf8"),
+			) as Record<string, unknown>;
+			expect(settings.theme).toBe("dark");
+			expect(settings.dynamicContext).toBe(false);
+			expect(settings.paiFeatures).toEqual({ sibling: true, beads: true });
+		} finally {
+			await fs.rm(root, { recursive: true, force: true });
+		}
+	});
+
+	test("runPaiTui writes beads=true when beads mode is on", async () => {
+		const observedPatches: Array<Record<string, unknown>> = [];
+
+		const exitCode = await runPaiTui(
+			baseOptions({ writeState: false, beads: "on" }),
+			makeDeps({
+				writeSettingsPatch: async (_root, patch) => {
+					observedPatches.push(patch as unknown as Record<string, unknown>);
+				},
+			}),
+		);
+
+		expect(exitCode).toBe(0);
+		expect(observedPatches).toHaveLength(1);
+		expect(observedPatches[0]).toMatchObject({
+			dynamicContext: true,
+			paiFeatures: { beads: true },
+		});
+	});
+
+	test("runPaiTui writes beads=false when beads mode is off", async () => {
+		const observedPatches: Array<Record<string, unknown>> = [];
+
+		const exitCode = await runPaiTui(
+			baseOptions({ writeState: false, beads: "off" }),
+			makeDeps({
+				writeSettingsPatch: async (_root, patch) => {
+					observedPatches.push(patch as unknown as Record<string, unknown>);
+				},
+			}),
+		);
+
+		expect(exitCode).toBe(0);
+		expect(observedPatches).toHaveLength(1);
+		expect(observedPatches[0]).toMatchObject({
+			dynamicContext: true,
+			paiFeatures: { beads: false },
+		});
+	});
+
+	test("runPaiTui omits paiFeatures patch when beads mode is inherit", async () => {
+		const observedPatches: Array<Record<string, unknown>> = [];
+
+		const exitCode = await runPaiTui(
+			baseOptions({ writeState: false, beads: "inherit" }),
+			makeDeps({
+				writeSettingsPatch: async (_root, patch) => {
+					observedPatches.push(patch as unknown as Record<string, unknown>);
+				},
+			}),
+		);
+
+		expect(exitCode).toBe(0);
+		expect(observedPatches).toHaveLength(1);
+		expect(observedPatches[0]).toEqual({ dynamicContext: true });
+	});
+
+	test("runPaiTui omits paiFeatures patch when beads flag is omitted", async () => {
+		const observedPatches: Array<Record<string, unknown>> = [];
+
+		const exitCode = await runPaiTui(
+			baseOptions({ writeState: false }),
+			makeDeps({
+				writeSettingsPatch: async (_root, patch) => {
+					observedPatches.push(patch as unknown as Record<string, unknown>);
+				},
+			}),
+		);
+
+		expect(exitCode).toBe(0);
+		expect(observedPatches).toHaveLength(1);
+		expect(observedPatches[0]).toEqual({ dynamicContext: true });
+	});
+
+	test("runPaiTui warns generically when settings patch persistence fails", async () => {
+		const warnings: string[] = [];
+
+		const exitCode = await runPaiTui(
+			baseOptions({ writeState: false, beads: "on" }),
+			makeDeps({
+				writeSettingsPatch: async () => {
+					throw new Error("disk full");
+				},
+				logWarn: (msg) => warnings.push(msg),
+			}),
+		);
+
+		expect(exitCode).toBe(1);
+		expect(warnings).toEqual(["Failed to persist settings patch: disk full"]);
+	});
+
 	test("does not clobber existing malformed settings.json", async () => {
 		const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-tui-settings-"));
 		const settingsPath = path.join(root, "settings.json");
@@ -719,6 +842,148 @@ describe("pai-tui wrapper", () => {
 			expect(enabled.stderr).toBe("");
 			expect(enabled.stdout).toContain("&lt;dynamic-context&gt;");
 			expect(enabled.stdout.trim().length).toBeGreaterThan(0);
+		} finally {
+			await fs.rm(root, { recursive: true, force: true });
+		}
+	});
+
+	test("--beads=inherit does not modify existing paiFeatures.beads", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-tui-beads-"));
+		const binPath = path.join(root, "opencode");
+		const runtimeRoot = path.join(root, "runtime");
+		await fs.mkdir(runtimeRoot, { recursive: true });
+
+		await fs.writeFile(
+			path.join(runtimeRoot, "settings.json"),
+			`${JSON.stringify(
+				{
+					dynamicContext: false,
+					paiFeatures: { beads: false, sibling: "keep" },
+				},
+				null,
+				2,
+			)}\n`,
+			"utf8",
+		);
+
+		await fs.writeFile(
+			binPath,
+			[
+				"#!/usr/bin/env node",
+				"const args = process.argv.slice(2);",
+				"if (args.includes('--version')) process.exit(0);",
+				"if (args[0] === 'serve' && args.includes('--help')) process.exit(0);",
+				"process.exit(0);",
+			].join("\n"),
+			"utf8",
+		);
+		await fs.chmod(binPath, 0o755);
+
+		const proc = Bun.spawn({
+			cmd: [
+				"bun",
+				cliPath,
+				"--opencode-root",
+				runtimeRoot,
+				"--write-state",
+				"off",
+				"--gc",
+				"off",
+				"--dynamic-context",
+				"on",
+				"--beads",
+				"inherit",
+			],
+			cwd: repoRoot,
+			env: {
+				...process.env,
+				PAI_OPENCODE_BIN: binPath,
+			},
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+
+		const stderr = await new Response(proc.stderr).text();
+		const exit = await proc.exited;
+
+		try {
+			expect(exit).toBe(0);
+			expect(stderr.trim()).toBe("");
+			const settings = JSON.parse(
+				await fs.readFile(path.join(runtimeRoot, "settings.json"), "utf8"),
+			) as Record<string, unknown>;
+			expect(settings.dynamicContext).toBe(true);
+			expect(settings.paiFeatures).toEqual({ beads: false, sibling: "keep" });
+		} finally {
+			await fs.rm(root, { recursive: true, force: true });
+		}
+	});
+
+	test("omitting --beads does not modify existing paiFeatures.beads", async () => {
+		const root = await fs.mkdtemp(path.join(os.tmpdir(), "pai-tui-beads-"));
+		const binPath = path.join(root, "opencode");
+		const runtimeRoot = path.join(root, "runtime");
+		await fs.mkdir(runtimeRoot, { recursive: true });
+
+		await fs.writeFile(
+			path.join(runtimeRoot, "settings.json"),
+			`${JSON.stringify(
+				{
+					dynamicContext: false,
+					paiFeatures: { beads: false, sibling: "keep" },
+				},
+				null,
+				2,
+			)}\n`,
+			"utf8",
+		);
+
+		await fs.writeFile(
+			binPath,
+			[
+				"#!/usr/bin/env node",
+				"const args = process.argv.slice(2);",
+				"if (args.includes('--version')) process.exit(0);",
+				"if (args[0] === 'serve' && args.includes('--help')) process.exit(0);",
+				"process.exit(0);",
+			].join("\n"),
+			"utf8",
+		);
+		await fs.chmod(binPath, 0o755);
+
+		const proc = Bun.spawn({
+			cmd: [
+				"bun",
+				cliPath,
+				"--opencode-root",
+				runtimeRoot,
+				"--write-state",
+				"off",
+				"--gc",
+				"off",
+				"--dynamic-context",
+				"on",
+			],
+			cwd: repoRoot,
+			env: {
+				...process.env,
+				PAI_OPENCODE_BIN: binPath,
+			},
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+
+		const stderr = await new Response(proc.stderr).text();
+		const exit = await proc.exited;
+
+		try {
+			expect(exit).toBe(0);
+			expect(stderr.trim()).toBe("");
+			const settings = JSON.parse(
+				await fs.readFile(path.join(runtimeRoot, "settings.json"), "utf8"),
+			) as Record<string, unknown>;
+			expect(settings.dynamicContext).toBe(true);
+			expect(settings.paiFeatures).toEqual({ beads: false, sibling: "keep" });
 		} finally {
 			await fs.rm(root, { recursive: true, force: true });
 		}

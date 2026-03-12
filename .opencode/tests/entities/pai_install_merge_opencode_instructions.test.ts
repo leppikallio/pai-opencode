@@ -1,97 +1,32 @@
 import { describe, expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
-import {
-  chmodSync,
-  existsSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const repoRoot =
-  path.basename(process.cwd()) === ".opencode"
-    ? path.resolve(process.cwd(), "..")
-    : process.cwd();
+import {
+  createRtkShim,
+  prependPath,
+  readRuntimeOpenCodeConfig,
+  runInstall,
+} from "./pai_install_runtime_test_helpers";
 
-const installToolPath = path.join(repoRoot, "Tools", "Install.ts");
-const sourceDir = path.join(repoRoot, ".opencode");
-
-function prependPath(binDir: string): string {
-  const existingPath = process.env.PATH ?? "";
-  return existingPath.length > 0 ? `${binDir}:${existingPath}` : binDir;
-}
-
-function createRtkShim(args: { versionOutput: string }): string {
-  const shimDir = mkdtempSync(path.join(os.tmpdir(), "pai-install-rtk-shim-"));
-  const shimPath = path.join(shimDir, "rtk");
-  const script = `#!/bin/sh
-if [ "$1" = "--version" ]; then
-  echo "${args.versionOutput}"
-  exit 0
-fi
-if [ "$1" = "rewrite" ]; then
-  shift
-  printf "rtk %s\\n" "$*"
-  exit 0
-fi
-exit 1
-`;
-
-  writeFileSync(shimPath, script, "utf8");
-  chmodSync(shimPath, 0o755);
-  return shimDir;
-}
-
-function runInstall(args: { targetDir: string; pathValue: string }) {
-  return spawnSync(
-    "bun",
-    [
-      installToolPath,
-      "--target",
-      args.targetDir,
-      "--source",
-      sourceDir,
-      "--non-interactive",
-      "--skills",
-      "all",
-      "--skills-gate-profile",
-      "off",
-      "--no-install-deps",
-      "--no-verify",
-    ],
-    {
-      encoding: "utf8",
-      shell: false,
-      env: {
-        ...process.env,
-        PATH: args.pathValue,
-      },
-    },
-  );
-}
-
-function readRuntimeOpenCodeConfig(targetDir: string): {
-  raw: string;
-  parsed: Record<string, unknown>;
-} {
-  const configPath = path.join(targetDir, "opencode.json");
-  const raw = readFileSync(configPath, "utf8");
-  return {
-    raw,
-    parsed: JSON.parse(raw) as Record<string, unknown>,
-  };
-}
-
-function expectInstructionArray(config: Record<string, unknown>): string[] {
+function expectInstructionEntries(config: Record<string, unknown>): unknown[] {
   const instructions = config.instructions;
   expect(Array.isArray(instructions)).toBe(true);
-  expect((instructions as unknown[]).every((entry) => typeof entry === "string")).toBe(
-    true,
-  );
-  return instructions as string[];
+  return instructions as unknown[];
+}
+
+function instructionPathValue(entry: unknown): string | null {
+  if (typeof entry === "string") {
+    return entry;
+  }
+
+  if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+    return null;
+  }
+
+  const candidatePath = (entry as { path?: unknown }).path;
+  return typeof candidatePath === "string" ? candidatePath : null;
 }
 
 function canonicalInstructionPath(pathValue: string): string {
@@ -113,14 +48,43 @@ function buildOwnedRtkPathKeys(targetDir: string): Set<string> {
   ]);
 }
 
-function isOwnedRtkInstructionEntry(entry: string, ownedPathKeys: Set<string>): boolean {
-  return ownedPathKeys.has(canonicalInstructionPath(entry));
+function buildOwnedBdPathKeys(targetDir: string): Set<string> {
+  return new Set([
+    canonicalInstructionPath(path.join(targetDir, "BD.md")),
+    canonicalInstructionPath(path.join(os.homedir(), ".config", "opencode", "BD.md")),
+  ]);
+}
+
+function isOwnedRtkInstructionEntry(entry: unknown, ownedPathKeys: Set<string>): boolean {
+  const candidatePath = instructionPathValue(entry);
+  if (!candidatePath) {
+    return false;
+  }
+
+  return ownedPathKeys.has(canonicalInstructionPath(candidatePath));
+}
+
+function isOwnedManagedInstructionEntry(args: {
+  entry: unknown;
+  ownedRtkPathKeys: Set<string>;
+  ownedBdPathKeys: Set<string>;
+}): boolean {
+  const candidatePath = instructionPathValue(args.entry);
+  if (!candidatePath) {
+    return false;
+  }
+
+  const normalized = canonicalInstructionPath(candidatePath);
+  return args.ownedRtkPathKeys.has(normalized) || args.ownedBdPathKeys.has(normalized);
 }
 
 describe("runtime opencode.json RTK instructions merge (Task 1 RED)", () => {
   test("creates strict runtime opencode.json and merges one canonical target-derived RTK entry", () => {
     const targetDir = mkdtempSync(path.join(os.tmpdir(), "pai-install-rtk-merge-"));
-    const shimDir = createRtkShim({ versionOutput: "rtk 0.23.0" });
+    const shimDir = createRtkShim({
+      versionOutput: "rtk 0.23.0",
+      tempPrefix: "pai-install-rtk-shim-",
+    });
 
     try {
       const run = runInstall({
@@ -138,7 +102,7 @@ describe("runtime opencode.json RTK instructions merge (Task 1 RED)", () => {
       const { raw, parsed } = readRuntimeOpenCodeConfig(targetDir);
       expect(() => JSON.parse(raw)).not.toThrow();
 
-      const instructions = expectInstructionArray(parsed);
+      const instructions = expectInstructionEntries(parsed);
       expect(instructions.filter((entry) => entry === expectedRtkInstructionPath)).toHaveLength(
         1,
       );
@@ -153,12 +117,23 @@ describe("runtime opencode.json RTK instructions merge (Task 1 RED)", () => {
 
   test("normalizes duplicate RTK instruction variants without clobbering unrelated runtime config", () => {
     const targetDir = mkdtempSync(path.join(os.tmpdir(), "pai-install-rtk-dedupe-"));
-    const shimDir = createRtkShim({ versionOutput: "rtk 0.23.0" });
+    const shimDir = createRtkShim({
+      versionOutput: "rtk 0.23.0",
+      tempPrefix: "pai-install-rtk-shim-",
+    });
 
     try {
       const expectedRtkInstructionPath = path.join(targetDir, "RTK.md");
       const externalA = "https://example.com/instructions/a.md";
       const externalB = "https://example.com/instructions/b.md";
+      const externalObjectInstruction = {
+        path: "https://example.com/instructions/object.md",
+        source: "keep-object-shape",
+      };
+      const unsupportedInstructionShape = {
+        include: ["docs/**/*.md"],
+        tag: "keep-non-path-shape",
+      };
       const unrelatedProjectRtkPath = path.join("/some", "other", "project", "RTK.md");
       const runtimeConfigPath = path.join(targetDir, "opencode.json");
 
@@ -170,8 +145,12 @@ describe("runtime opencode.json RTK instructions merge (Task 1 RED)", () => {
             username: "petteri",
             instructions: [
               externalA,
+              externalObjectInstruction,
+              unsupportedInstructionShape,
               "~/.config/opencode/RTK.md",
               { path: "~/.config/opencode/RTK.md" },
+              "RTK.md",
+              { path: "RTK.md" },
               { path: expectedRtkInstructionPath },
               expectedRtkInstructionPath,
               unrelatedProjectRtkPath,
@@ -195,19 +174,32 @@ describe("runtime opencode.json RTK instructions merge (Task 1 RED)", () => {
       expect(parsed.model).toBe("openai/gpt-5");
       expect(parsed.username).toBe("petteri");
 
-      const instructions = expectInstructionArray(parsed);
+      const instructions = expectInstructionEntries(parsed);
       const ownedRtkPathKeys = buildOwnedRtkPathKeys(targetDir);
+      const ownedBdPathKeys = buildOwnedBdPathKeys(targetDir);
 
       expect(instructions.filter((entry) => entry === expectedRtkInstructionPath)).toHaveLength(
         1,
       );
       expect(instructions).not.toContain("~/.config/opencode/RTK.md");
+      expect(instructions).not.toContain("RTK.md");
       expect(instructions).toContain(unrelatedProjectRtkPath);
 
       const nonRtkInstructions = instructions.filter(
-        (entry) => !isOwnedRtkInstructionEntry(entry, ownedRtkPathKeys),
+        (entry) =>
+          !isOwnedManagedInstructionEntry({
+            entry,
+            ownedRtkPathKeys,
+            ownedBdPathKeys,
+          }),
       );
-      expect(nonRtkInstructions).toEqual([externalA, unrelatedProjectRtkPath, externalB]);
+      expect(nonRtkInstructions).toEqual([
+        externalA,
+        externalObjectInstruction,
+        unsupportedInstructionShape,
+        unrelatedProjectRtkPath,
+        externalB,
+      ]);
     } finally {
       rmSync(shimDir, { recursive: true, force: true });
       rmSync(targetDir, { recursive: true, force: true });
@@ -216,12 +208,23 @@ describe("runtime opencode.json RTK instructions merge (Task 1 RED)", () => {
 
   test("removes stale RTK instruction entries when capability cache refresh says rewrite unsupported", () => {
     const targetDir = mkdtempSync(path.join(os.tmpdir(), "pai-install-rtk-unsupported-"));
-    const shimDir = createRtkShim({ versionOutput: "rtk 0.22.9" });
+    const shimDir = createRtkShim({
+      versionOutput: "rtk 0.22.9",
+      tempPrefix: "pai-install-rtk-shim-",
+    });
 
     try {
       const expectedRtkInstructionPath = path.join(targetDir, "RTK.md");
       const externalA = "https://example.com/instructions/a.md";
       const externalB = "https://example.com/instructions/b.md";
+      const externalObjectInstruction = {
+        path: "https://example.com/instructions/object.md",
+        source: "keep-object-shape",
+      };
+      const unsupportedInstructionShape = {
+        include: ["docs/**/*.md"],
+        tag: "keep-non-path-shape",
+      };
       const unrelatedProjectRtkPath = path.join("/some", "other", "project", "RTK.md");
       const runtimeConfigPath = path.join(targetDir, "opencode.json");
 
@@ -231,6 +234,8 @@ describe("runtime opencode.json RTK instructions merge (Task 1 RED)", () => {
           {
             instructions: [
               externalA,
+              externalObjectInstruction,
+              unsupportedInstructionShape,
               expectedRtkInstructionPath,
               "~/.config/opencode/RTK.md",
               { path: expectedRtkInstructionPath },
@@ -252,13 +257,28 @@ describe("runtime opencode.json RTK instructions merge (Task 1 RED)", () => {
       expect(run.status, output).toBe(0);
 
       const { parsed } = readRuntimeOpenCodeConfig(targetDir);
-      const instructions = expectInstructionArray(parsed);
+      const instructions = expectInstructionEntries(parsed);
       const ownedRtkPathKeys = buildOwnedRtkPathKeys(targetDir);
+      const ownedBdPathKeys = buildOwnedBdPathKeys(targetDir);
 
       expect(
         instructions.some((entry) => isOwnedRtkInstructionEntry(entry, ownedRtkPathKeys)),
       ).toBe(false);
-      expect(instructions).toEqual([externalA, unrelatedProjectRtkPath, externalB]);
+      const nonManagedInstructions = instructions.filter(
+        (entry) =>
+          !isOwnedManagedInstructionEntry({
+            entry,
+            ownedRtkPathKeys,
+            ownedBdPathKeys,
+          }),
+      );
+      expect(nonManagedInstructions).toEqual([
+        externalA,
+        externalObjectInstruction,
+        unsupportedInstructionShape,
+        unrelatedProjectRtkPath,
+        externalB,
+      ]);
     } finally {
       rmSync(shimDir, { recursive: true, force: true });
       rmSync(targetDir, { recursive: true, force: true });

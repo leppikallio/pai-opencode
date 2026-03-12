@@ -399,7 +399,7 @@ function buildContinuationHints(args: {
 	return uniqueStrings(hints, MAX_HINTS);
 }
 
-function applySerializationBudget(args: {
+export function applyCompactionContinuationSerializationBudget(args: {
 	text: string;
 	maxLines: number;
 	maxBytes: number;
@@ -537,7 +537,7 @@ export function renderCompactionContinuationContext(
 		"```",
 	].join("\n");
 
-	return applySerializationBudget({
+	return applyCompactionContinuationSerializationBudget({
 		text: context,
 		maxLines: bundle.budgets.maxLines,
 		maxBytes: bundle.budgets.maxBytes,

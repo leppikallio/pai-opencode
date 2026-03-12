@@ -87,5 +87,15 @@ test("security docs describe current canonical architecture and adapters", () =>
   expect(rtkSkill).toContain("rewrite");
 
   const sessionStartHooks = settings.hooks?.SessionStart?.[0]?.hooks?.map((hook) => hook.command ?? "") ?? [];
+  const loadContextIndex = sessionStartHooks.indexOf("${PAI_DIR}/hooks/LoadContext.hook.ts");
+  const beadsPrimeIndex = sessionStartHooks.indexOf("${PAI_DIR}/hooks/BeadsPrime.hook.ts");
+  const rtkAwarenessIndex = sessionStartHooks.indexOf("${PAI_DIR}/hooks/RtkAwareness.hook.ts");
+  const checkVersionIndex = sessionStartHooks.indexOf("${PAI_DIR}/hooks/CheckVersion.hook.ts");
+
   expect(sessionStartHooks).toContain("${PAI_DIR}/hooks/RtkAwareness.hook.ts");
+  expect(sessionStartHooks).toContain("${PAI_DIR}/hooks/BeadsPrime.hook.ts");
+  expect(loadContextIndex).toBeGreaterThanOrEqual(0);
+  expect(beadsPrimeIndex).toBeGreaterThan(loadContextIndex);
+  expect(rtkAwarenessIndex).toBeGreaterThan(beadsPrimeIndex);
+  expect(checkVersionIndex).toBeGreaterThan(rtkAwarenessIndex);
 });

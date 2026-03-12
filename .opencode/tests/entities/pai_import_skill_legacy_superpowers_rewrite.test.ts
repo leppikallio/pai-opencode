@@ -71,3 +71,63 @@ description: "Import fixture for path normalization. USE WHEN validating canonic
     rmSync(destRoot, { recursive: true, force: true });
   }
 });
+
+test("ImportSkill minimal canonicalization rewrites legacy .claude skill paths", () => {
+  const sourceRoot = mkdtempSync(path.join(tmpdir(), "pai-import-src-"));
+  const destRoot = mkdtempSync(path.join(tmpdir(), "pai-import-dest-"));
+
+  try {
+    const sourceSkillDir = path.join(sourceRoot, "legacy-claude-skill");
+    mkdirSync(sourceSkillDir, { recursive: true });
+
+    const sourceReadme = `Install globally: ~/.claude/skills/legacy-claude-skill/
+Install locally: .claude/skills/legacy-claude-skill/
+Absolute path: /Users/alice/.claude/skills/legacy-claude-skill/
+Literal token (not a runtime path): docs.claude/reference
+`;
+
+    const sourceSkillMd = `---
+name: legacy-claude-skill
+description: "Import fixture for .claude path normalization. USE WHEN validating canonicalization."
+---
+# Fixture
+`;
+
+    writeFileSync(path.join(sourceSkillDir, "SKILL.md"), sourceSkillMd, "utf8");
+    writeFileSync(path.join(sourceSkillDir, "README.md"), sourceReadme, "utf8");
+
+    const run = spawnSync(
+      "bun",
+      [
+        importToolPath,
+        "--source",
+        sourceSkillDir,
+        "--dest",
+        destRoot,
+        "--name",
+        "tmp-claude-skill",
+        "--canonicalize",
+        "minimal",
+      ],
+      {
+        encoding: "utf8",
+        shell: false,
+      },
+    );
+
+    const combinedOutput = `${run.stdout ?? ""}\n${run.stderr ?? ""}`;
+    expect(run.status, combinedOutput).toBe(0);
+
+    const importedReadmePath = path.join(destRoot, "tmp-claude-skill", "README.md");
+    const importedReadme = readFileSync(importedReadmePath, "utf8");
+
+    expect(importedReadme).toContain("~/.config/opencode/skills/tmp-claude-skill/");
+    expect(importedReadme).toContain(".opencode/skills/tmp-claude-skill/");
+    expect(importedReadme).toContain("/Users/alice/.config/opencode/skills/tmp-claude-skill/");
+    expect(importedReadme).toContain("docs.claude/reference");
+    expect(importedReadme).not.toContain(".claude/skills/");
+  } finally {
+    rmSync(sourceRoot, { recursive: true, force: true });
+    rmSync(destRoot, { recursive: true, force: true });
+  }
+});
