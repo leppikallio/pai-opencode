@@ -16,7 +16,7 @@ PAI routing uses three distinct systems:
 
 | Scenario | Use | Why |
 |----------|-----|-----|
-| Generic request without a clear specialist | Task Tool Subagent (`general`) | Native catch-all fallback (never `general-purpose`) |
+| Generic request without a clear specialist | Task Tool Subagent (`general`) | Native catch-all fallback in runtime routing |
 | Clear runtime specialist match (code/design/security/research) | Task Tool Specialist | Best-fit ownership and verification |
 | Broad parallel grunt work | Task Tool Subagent (`Intern`) | Safe split fan-out with checklist-style work |
 | Recurring research | Named Agent (Remy, Ava) | Relationship continuity, known behavior |
