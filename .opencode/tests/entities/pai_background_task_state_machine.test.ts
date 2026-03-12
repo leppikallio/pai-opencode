@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { BackgroundTaskPoller } from "../../plugins/pai-cc-hooks/background/poller";
 import { normalizeBackgroundTaskLifecycle } from "../../plugins/pai-cc-hooks/background/lifecycle-normalizer";
 import {
 	findBackgroundTaskByTaskId,
@@ -10,8 +11,10 @@ import {
 	listActiveBackgroundTasks,
 	markBackgroundTaskCancelled,
 	markBackgroundTaskCompleted,
+	markBackgroundTaskTerminalAtomic,
 	recordBackgroundTaskLaunch,
 	recordBackgroundTaskLaunchError,
+	recordBackgroundTaskObservation,
 } from "../../plugins/pai-cc-hooks/tools/background-task-state";
 
 function createTempPaiDir(): string {
@@ -328,6 +331,238 @@ describe("background task state machine + migration", () => {
 
 			const active = await listActiveBackgroundTasks({ nowMs: 1_500 });
 			expect(active.map((record) => record.task_id)).toEqual(["legacy_running"]);
+		} finally {
+			if (originalOpenCodeRoot === undefined) {
+				delete process.env.OPENCODE_ROOT;
+			} else {
+				process.env.OPENCODE_ROOT = originalOpenCodeRoot;
+			}
+		}
+	});
+});
+
+describe("background tenacity timing guardrails (Task 0 RED)", () => {
+	test("queued-before-running timing anchors tenancy to execution_started_at_ms", async () => {
+		const paiDir = createTempPaiDir();
+		const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
+		process.env.OPENCODE_ROOT = paiDir;
+
+		try {
+			await recordBackgroundTaskLaunch({
+				taskId: "bg_tenacity_queue_anchor",
+				childSessionId: "child_tenacity_queue_anchor",
+				parentSessionId: "parent_tenacity_queue_anchor",
+				status: "queued",
+				nowMs: 1_000,
+				task_kind: "review",
+			} as any);
+
+			await recordBackgroundTaskLaunch({
+				taskId: "bg_tenacity_queue_anchor",
+				childSessionId: "child_tenacity_queue_anchor",
+				parentSessionId: "parent_tenacity_queue_anchor",
+				status: "running",
+				nowMs: 8_000,
+				task_kind: "review",
+			} as any);
+
+			const record = await findBackgroundTaskByTaskId({
+				taskId: "bg_tenacity_queue_anchor",
+				nowMs: 8_001,
+			});
+
+			const executionStartedAtMs = (record as any)?.execution_started_at_ms;
+			const minimumTenancyMs = (record as any)?.contract?.minimumTenancyMs;
+			const minimumTenancyUntilMs =
+				(record as any)?.cancellation?.minimumTenancyUntilMs;
+
+			expect(executionStartedAtMs).toBe(8_000);
+			expect(minimumTenancyMs).toBeTypeOf("number");
+			expect(minimumTenancyUntilMs).toBe(
+				executionStartedAtMs + minimumTenancyMs,
+			);
+			expect(minimumTenancyUntilMs).not.toBe(
+				(record?.launched_at_ms ?? 0) + minimumTenancyMs,
+			);
+		} finally {
+			if (originalOpenCodeRoot === undefined) {
+				delete process.env.OPENCODE_ROOT;
+			} else {
+				process.env.OPENCODE_ROOT = originalOpenCodeRoot;
+			}
+		}
+	});
+
+	test("fake-clock quiet-window boundaries enforce just-under, equal, and just-over semantics", async () => {
+		const paiDir = createTempPaiDir();
+		const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
+		process.env.OPENCODE_ROOT = paiDir;
+
+		let nowMs = 10_000;
+		const cancellationRequests: number[] = [];
+
+		try {
+			await recordBackgroundTaskLaunch({
+				taskId: "bg_tenacity_quiet_window",
+				childSessionId: "child_tenacity_quiet_window",
+				parentSessionId: "parent_tenacity_quiet_window",
+				status: "running",
+				nowMs,
+				task_kind: "generic",
+			} as any);
+
+			const poller = new BackgroundTaskPoller({
+				client: {
+					session: {
+						status: async () => ({ data: {} }),
+					},
+				},
+				listActiveBackgroundTasks,
+				markBackgroundTaskTerminalAtomic,
+				recordBackgroundTaskObservation,
+				nowMs: () => nowMs,
+				stableCompletionEnabled: true,
+				stableCompletionPolicy: {
+					minimumRuntimeMs: 0,
+					stableIdleObservationMs: 0,
+					staleNoProgressMs: 2_000,
+				},
+				requestTaskCancellation: async () => {
+					cancellationRequests.push(nowMs);
+				},
+			});
+
+			nowMs = 11_999;
+			await poller.pollOnce();
+			expect(cancellationRequests).toHaveLength(0);
+
+			nowMs = 12_000;
+			await poller.pollOnce();
+			expect(cancellationRequests).toHaveLength(0);
+
+			nowMs = 12_001;
+			await poller.pollOnce();
+			expect(cancellationRequests).toHaveLength(1);
+		} finally {
+			if (originalOpenCodeRoot === undefined) {
+				delete process.env.OPENCODE_ROOT;
+			} else {
+				process.env.OPENCODE_ROOT = originalOpenCodeRoot;
+			}
+		}
+	});
+
+	test("nextExpectedUpdateByMs updates are monotonic forward-only", async () => {
+		const paiDir = createTempPaiDir();
+		const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
+		process.env.OPENCODE_ROOT = paiDir;
+
+		try {
+			await recordBackgroundTaskLaunch({
+				taskId: "bg_tenacity_deadline_monotonic",
+				childSessionId: "child_tenacity_deadline_monotonic",
+				parentSessionId: "parent_tenacity_deadline_monotonic",
+				status: "running",
+				nowMs: 100,
+				task_kind: "review",
+			} as any);
+
+			const launched = await findBackgroundTaskByTaskId({
+				taskId: "bg_tenacity_deadline_monotonic",
+				nowMs: 101,
+			});
+			const baselineDeadline = (launched as any)?.progress?.nextExpectedUpdateByMs;
+			const forwardDeadline = (baselineDeadline ?? 0) + 5_000;
+
+			await recordBackgroundTaskObservation({
+				taskId: "bg_tenacity_deadline_monotonic",
+				status: "running",
+				nowMs: 200,
+				phase: "collecting",
+				productive: true,
+				nextExpectedUpdateByMs: forwardDeadline,
+			} as any);
+
+			await recordBackgroundTaskObservation({
+				taskId: "bg_tenacity_deadline_monotonic",
+				status: "running",
+				nowMs: 300,
+				phase: "analyzing",
+				productive: true,
+				nextExpectedUpdateByMs: forwardDeadline - 1_000,
+			} as any);
+
+			const record = await findBackgroundTaskByTaskId({
+				taskId: "bg_tenacity_deadline_monotonic",
+				nowMs: 301,
+			});
+
+			expect((record as any)?.progress?.nextExpectedUpdateByMs).toBe(
+				forwardDeadline,
+			);
+		} finally {
+			if (originalOpenCodeRoot === undefined) {
+				delete process.env.OPENCODE_ROOT;
+			} else {
+				process.env.OPENCODE_ROOT = originalOpenCodeRoot;
+			}
+		}
+	});
+
+	test("deadline equality treats only nowMs > nextExpectedUpdateByMs as missed", async () => {
+		const paiDir = createTempPaiDir();
+		const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
+		process.env.OPENCODE_ROOT = paiDir;
+
+		let nowMs = 20_000;
+		const cancellationRequests: number[] = [];
+
+		try {
+			await recordBackgroundTaskLaunch({
+				taskId: "bg_tenacity_deadline_equality",
+				childSessionId: "child_tenacity_deadline_equality",
+				parentSessionId: "parent_tenacity_deadline_equality",
+				status: "running",
+				nowMs,
+				task_kind: "generic",
+				expectedQuietWindowMs: 2_000,
+			} as any);
+
+			await recordBackgroundTaskObservation({
+				taskId: "bg_tenacity_deadline_equality",
+				status: "running",
+				nowMs,
+				nextExpectedUpdateByMs: 22_000,
+			} as any);
+
+			const poller = new BackgroundTaskPoller({
+				client: {
+					session: {
+						status: async () => ({ data: {} }),
+					},
+				},
+				listActiveBackgroundTasks,
+				markBackgroundTaskTerminalAtomic,
+				recordBackgroundTaskObservation,
+				nowMs: () => nowMs,
+				stableCompletionEnabled: true,
+				stableCompletionPolicy: {
+					minimumRuntimeMs: 0,
+					stableIdleObservationMs: 0,
+					staleNoProgressMs: 100_000,
+				},
+				requestTaskCancellation: async () => {
+					cancellationRequests.push(nowMs);
+				},
+			});
+
+			nowMs = 22_000;
+			await poller.pollOnce();
+			expect(cancellationRequests).toHaveLength(0);
+
+			nowMs = 22_001;
+			await poller.pollOnce();
+			expect(cancellationRequests).toHaveLength(1);
 		} finally {
 			if (originalOpenCodeRoot === undefined) {
 				delete process.env.OPENCODE_ROOT;

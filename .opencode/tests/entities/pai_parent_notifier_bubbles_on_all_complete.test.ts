@@ -289,4 +289,86 @@ describe("PAI parent-session background completion notifier", () => {
 			else process.env.OPENCODE_ROOT = originalOpenCodeRoot;
 		}
 	});
+
+	test("remaining-state summary uses persisted lifecycle status when semantic phase is unavailable", async () => {
+		const paiDir = createTempPaiDir();
+		const originalOpenCodeRoot = process.env.OPENCODE_ROOT;
+
+		process.env.OPENCODE_ROOT = paiDir;
+		try {
+			const parentSessionId = "ses_parent_status_summary";
+			const nowMs = Date.now();
+
+			writeStateFile(paiDir, {
+				version: 2,
+				updatedAtMs: nowMs,
+				notifiedTaskIds: {},
+				duplicateBySession: {},
+				backgroundTasks: {
+					bg_queued_no_phase: {
+						version: 2,
+						task_id: "bg_queued_no_phase",
+						task_description: "Queued without semantic phase",
+						child_session_id: "ses_queued_no_phase",
+						parent_session_id: parentSessionId,
+						launched_at_ms: nowMs - 100,
+						updated_at_ms: nowMs,
+						status: "queued",
+					},
+					bg_completed_for_summary: {
+						version: 2,
+						task_id: "bg_completed_for_summary",
+						task_description: "Completed task triggers notification",
+						child_session_id: "ses_completed_for_summary",
+						parent_session_id: parentSessionId,
+						launched_at_ms: nowMs - 200,
+						updated_at_ms: nowMs,
+						status: "completed",
+						terminal_reason: "completed",
+						completed_at_ms: nowMs - 1,
+					},
+				},
+			});
+
+			const tasks = await listBackgroundTasksByParent({
+				parentSessionId,
+				nowMs: nowMs + 1,
+			});
+			const completedTask = tasks.find(
+				(task) => task.task_id === "bg_completed_for_summary",
+			);
+			expect(completedTask).not.toBeUndefined();
+			if (!completedTask) {
+				throw new Error(
+					"expected completed task for status-summary notifier test",
+				);
+			}
+
+			const promptCalls: any[] = [];
+			await notifyParentSessionBackgroundCompletion({
+				taskRecord: completedTask,
+				deps: {
+					promptAsync: async (call: any) => {
+						promptCalls.push(call);
+					},
+					listBackgroundTasksByParent,
+					shouldSuppressDuplicate: async () => false,
+					nowMs: nowMs + 2,
+				},
+			});
+
+			expect(promptCalls).toHaveLength(1);
+			const notificationText = String(
+				promptCalls[0]?.body?.parts?.[0]?.text ?? "",
+			);
+			expect(notificationText).toContain("State snapshot:");
+			expect(notificationText).toContain("semantic phases unavailable");
+			expect(notificationText).toContain("statuses queued=1");
+			expect(notificationText).not.toContain("phases 1 running");
+			expect(notificationText).not.toContain("statuses running=1");
+		} finally {
+			if (originalOpenCodeRoot === undefined) delete process.env.OPENCODE_ROOT;
+			else process.env.OPENCODE_ROOT = originalOpenCodeRoot;
+		}
+	});
 });

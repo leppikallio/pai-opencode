@@ -8,6 +8,28 @@ import {
 	type BackgroundTaskStatus,
 	type BackgroundTaskTerminalReason,
 } from "../background/lifecycle-normalizer";
+import {
+	applyBackgroundTaskProgressHeartbeat,
+	buildLaunchProgressBaseline,
+	type BackgroundTaskProgressCounterPatch,
+	type BackgroundTaskProgressHeartbeat,
+} from "../background/progress-heartbeat";
+import {
+	buildBackgroundTaskLaunchContract,
+	normalizeBackgroundTaskKind,
+	resolveMinimumTenancyUntilMs,
+	type BackgroundTaskCancellation,
+	type BackgroundTaskCancellationGuardrails,
+	type BackgroundTaskCancelPolicy,
+	type BackgroundTaskKind,
+	type BackgroundTaskLaunchContract,
+	type BackgroundTaskProgress,
+	type BackgroundTaskStall,
+	type BackgroundProgressPhase,
+	type BackgroundStallStage,
+	type ReasonCode,
+	type SalvageStatus,
+} from "../background/review-contract";
 import { getPaiDir } from "../../lib/pai-runtime";
 
 const DUPLICATE_WINDOW_MS = 2_000;
@@ -39,6 +61,7 @@ export type BackgroundTaskRecord = {
 	version?: 1 | 2;
 	task_id: string;
 	task_description?: string;
+	task_kind?: BackgroundTaskKind;
 	child_session_id: string;
 	parent_session_id: string;
 	launched_at_ms: number;
@@ -52,6 +75,11 @@ export type BackgroundTaskRecord = {
 	completion_attempts?: number;
 	launch_error?: string;
 	launch_error_at_ms?: number;
+	contract?: BackgroundTaskLaunchContract;
+	progress?: BackgroundTaskProgress;
+	stall?: BackgroundTaskStall;
+	cancellation?: BackgroundTaskCancellation;
+	execution_started_at_ms?: number;
 };
 
 type BackgroundTaskState = {
@@ -69,6 +97,15 @@ export type RecordBackgroundTaskLaunchArgs = {
 	parentSessionId: string;
 	status?: BackgroundTaskStatus;
 	concurrencyGroup?: string;
+	taskKind?: BackgroundTaskKind | string;
+	task_kind?: BackgroundTaskKind | string;
+	expectedQuietWindowMs?: number;
+	minimumTenancyMs?: number;
+	expectedDeliverable?: string;
+	cancelPolicy?: BackgroundTaskCancelPolicy;
+	cancellationGuardrails?: BackgroundTaskCancellationGuardrails;
+	salvageOnCancelRequired?: boolean;
+	run_in_background?: boolean;
 	nowMs?: number;
 };
 
@@ -118,10 +155,38 @@ export type MarkBackgroundTaskTerminalAtomicArgs = {
 	nowMs?: number;
 };
 
+export type UpdateBackgroundTaskPolicyMetadataArgs = {
+	taskId: string;
+	stall?: BackgroundTaskStall;
+	cancellation?: BackgroundTaskCancellation;
+	nowMs?: number;
+};
+
 export type RecordBackgroundTaskObservationArgs = {
 	taskId: string;
 	status: "running" | "idle";
+	source?: "poller" | "child";
+	phase?: BackgroundProgressPhase;
+	lastProductiveAtMs?: number;
+	nextExpectedUpdateByMs?: number;
+	blockedReasonCode?: ReasonCode;
+	counters?: BackgroundTaskProgressCounterPatch;
+	counterIncrements?: BackgroundTaskProgressCounterPatch;
+	productive?: boolean;
 	nowMs?: number;
+};
+
+export type RecordBackgroundTaskProgressHeartbeatArgs = {
+	taskId: string;
+	nowMs?: number;
+	status?: "running" | "idle";
+	phase?: BackgroundProgressPhase;
+	lastProductiveAtMs?: number;
+	nextExpectedUpdateByMs?: number;
+	blockedReasonCode?: ReasonCode;
+	counters?: BackgroundTaskProgressCounterPatch;
+	counterIncrements?: BackgroundTaskProgressCounterPatch;
+	productive?: boolean;
 };
 
 export type ShouldSuppressDuplicateArgs = {
@@ -157,6 +222,15 @@ export function getBackgroundTaskStatePath(): string {
 	return path.join(resolvePaiDir(), "MEMORY", "STATE", "background-tasks.json");
 }
 
+export function getBackgroundTaskArtifactRootPath(): string {
+	return path.join(
+		resolvePaiDir(),
+		"MEMORY",
+		"ARTIFACTS",
+		"background-tasks",
+	);
+}
+
 function createDefaultState(nowMs: number): BackgroundTaskState {
 	return {
 		version: 2,
@@ -182,6 +256,14 @@ function asString(value: unknown): string | null {
 	if (typeof value !== "string") {
 		return null;
 	}
+	return value;
+}
+
+function asBoolean(value: unknown): boolean | undefined {
+	if (typeof value !== "boolean") {
+		return undefined;
+	}
+
 	return value;
 }
 
@@ -247,6 +329,228 @@ function asOptionalTrimmedString(value: unknown): string | undefined {
 	return trimmed ? trimmed : undefined;
 }
 
+function asBackgroundTaskKind(value: unknown): BackgroundTaskKind | undefined {
+	if (typeof value !== "string") {
+		return undefined;
+	}
+
+	return normalizeBackgroundTaskKind(value);
+}
+
+function asCancelPolicy(value: unknown): BackgroundTaskCancelPolicy | undefined {
+	if (value === "salvage-first" || value === "hard-cancel-ok") {
+		return value;
+	}
+
+	return undefined;
+}
+
+function asReasonCode(value: unknown): ReasonCode | undefined {
+	if (
+		value === "MIN_TENANCY_BLOCK" ||
+		value === "POLICY_BLOCK" ||
+		value === "USER_CANCEL" ||
+		value === "USER_FORCE_CANCEL" ||
+		value === "STALL_SUSPECTED" ||
+		value === "STALL_CONFIRMED" ||
+		value === "NO_PRODUCTIVE_PROGRESS" ||
+		value === "CHILD_ERROR" ||
+		value === "INTERNAL_ERROR"
+	) {
+		return value;
+	}
+
+	return undefined;
+}
+
+function asProgressPhase(value: unknown): BackgroundProgressPhase | undefined {
+	if (
+		value === "started" ||
+		value === "collecting" ||
+		value === "analyzing" ||
+		value === "drafting" ||
+		value === "finalizing" ||
+		value === "blocked"
+	) {
+		return value;
+	}
+
+	return undefined;
+}
+
+function asStallStage(value: unknown): BackgroundStallStage | undefined {
+	if (
+		value === "healthy" ||
+		value === "suspected_stall" ||
+		value === "confirmed_stall"
+	) {
+		return value;
+	}
+
+	return undefined;
+}
+
+function asSalvageStatus(value: unknown): SalvageStatus | undefined {
+	if (
+		value === "not_attempted" ||
+		value === "attempted" ||
+		value === "succeeded" ||
+		value === "failed"
+	) {
+		return value;
+	}
+
+	return undefined;
+}
+
+function coerceCancellationGuardrails(
+	value: unknown,
+): BackgroundTaskCancellationGuardrails | undefined {
+	if (!isRecord(value)) {
+		return undefined;
+	}
+
+	const requiresForceDuringMinimumTenancy = asBoolean(
+		value.requiresForceDuringMinimumTenancy,
+	);
+	const silenceAloneDoesNotJustifyCancel = asBoolean(
+		value.silenceAloneDoesNotJustifyCancel,
+	);
+
+	if (
+		requiresForceDuringMinimumTenancy == null ||
+		silenceAloneDoesNotJustifyCancel == null
+	) {
+		return undefined;
+	}
+
+	return {
+		requiresForceDuringMinimumTenancy,
+		silenceAloneDoesNotJustifyCancel,
+	};
+}
+
+function coerceLaunchContract(
+	value: unknown,
+	fallbackTaskKind?: BackgroundTaskKind,
+): BackgroundTaskLaunchContract | undefined {
+	if (!isRecord(value)) {
+		if (!fallbackTaskKind) {
+			return undefined;
+		}
+
+		return buildBackgroundTaskLaunchContract({ taskKind: fallbackTaskKind });
+	}
+
+	return buildBackgroundTaskLaunchContract({
+		taskKind: value.kind ?? fallbackTaskKind,
+		expectedQuietWindowMs: asFiniteNumber(value.expectedQuietWindowMs) ?? undefined,
+		minimumTenancyMs: asFiniteNumber(value.minimumTenancyMs) ?? undefined,
+		expectedDeliverable: value.expectedDeliverable,
+		cancelPolicy: asCancelPolicy(value.cancelPolicy),
+		cancellationGuardrails: coerceCancellationGuardrails(
+			value.cancellationGuardrails,
+		),
+		salvageOnCancelRequired: asBoolean(value.salvageOnCancelRequired),
+	});
+}
+
+function coerceProgress(value: unknown): BackgroundTaskProgress | undefined {
+	if (!isRecord(value)) {
+		return undefined;
+	}
+
+	const phase = asProgressPhase(value.phase);
+	if (!phase) {
+		return undefined;
+	}
+
+	const countersRecord = isRecord(value.counters) ? value.counters : undefined;
+	const counters = countersRecord
+		? {
+				tools: asNonNegativeInteger(countersRecord.tools),
+				artifacts: asNonNegativeInteger(countersRecord.artifacts),
+				checkpoints: asNonNegativeInteger(countersRecord.checkpoints),
+			}
+		: undefined;
+
+	const hasCounters =
+		counters != null &&
+		(counters.tools != null ||
+			counters.artifacts != null ||
+			counters.checkpoints != null);
+
+	return {
+		phase,
+		lastProductiveAtMs: asFiniteNumber(value.lastProductiveAtMs) ?? undefined,
+		nextExpectedUpdateByMs:
+			asFiniteNumber(value.nextExpectedUpdateByMs) ?? undefined,
+		counters: hasCounters ? counters : undefined,
+		blockedReasonCode: asReasonCode(value.blockedReasonCode),
+	};
+}
+
+function coerceStall(value: unknown): BackgroundTaskStall | undefined {
+	if (!isRecord(value)) {
+		return undefined;
+	}
+
+	const stage = asStallStage(value.stage);
+	if (!stage) {
+		return undefined;
+	}
+
+	return {
+		stage,
+		suspectedAtMs: asFiniteNumber(value.suspectedAtMs) ?? undefined,
+		confirmedAtMs: asFiniteNumber(value.confirmedAtMs) ?? undefined,
+		reasonCode: asReasonCode(value.reasonCode),
+	};
+}
+
+function coerceCancellation(
+	value: unknown,
+): BackgroundTaskCancellation | undefined {
+	if (!isRecord(value)) {
+		return undefined;
+	}
+
+	const minimumTenancyUntilMs =
+		asFiniteNumber(value.minimumTenancyUntilMs) ?? undefined;
+	const refusalReasonCode = asReasonCode(value.refusalReasonCode);
+	const cancelReasonCode = asReasonCode(value.cancelReasonCode);
+	const cancelReasonText = asOptionalTrimmedString(value.cancelReasonText);
+	const salvageAttemptedAtMs =
+		asFiniteNumber(value.salvageAttemptedAtMs) ?? undefined;
+	const salvageStatus = asSalvageStatus(value.salvageStatus);
+	const salvageSummary = asOptionalTrimmedString(value.salvageSummary);
+	const salvageArtifactPath = asOptionalTrimmedString(value.salvageArtifactPath);
+
+	if (
+		minimumTenancyUntilMs == null &&
+		refusalReasonCode == null &&
+		cancelReasonCode == null &&
+		cancelReasonText == null &&
+		salvageAttemptedAtMs == null &&
+		salvageStatus == null &&
+		salvageSummary == null &&
+		salvageArtifactPath == null
+	) {
+		return undefined;
+	}
+
+	return {
+		minimumTenancyUntilMs,
+		refusalReasonCode,
+		cancelReasonCode,
+		cancelReasonText,
+		salvageAttemptedAtMs,
+		salvageStatus,
+		salvageSummary,
+		salvageArtifactPath,
+	};
+}
+
 function canonicalizeBackgroundTaskRecord(
 	record: BackgroundTaskRecord,
 ): BackgroundTaskRecord {
@@ -290,15 +594,23 @@ function coerceBackgroundTaskRecord(
 	const version = asVersion(value.version) ?? 1;
 	const status = asStatus(value.status);
 	const terminalReason = asTerminalReason(value.terminal_reason);
+	const taskKind = asBackgroundTaskKind(value.task_kind);
 	const concurrencyGroup = asOptionalTrimmedString(value.concurrency_group);
 	const lastProgressAtMs = asFiniteNumber(value.last_progress_at_ms) ?? undefined;
 	const idleSeenAtMs = asFiniteNumber(value.idle_seen_at_ms) ?? undefined;
 	const completionAttempts = asNonNegativeInteger(value.completion_attempts);
+	const contract = coerceLaunchContract(value.contract, taskKind);
+	const progress = coerceProgress(value.progress);
+	const stall = coerceStall(value.stall);
+	const cancellation = coerceCancellation(value.cancellation);
+	const executionStartedAtMs =
+		asFiniteNumber(value.execution_started_at_ms) ?? undefined;
 
 	const normalized = canonicalizeBackgroundTaskRecord({
 		version,
 		task_id: taskId,
 		task_description: taskDescription,
+		task_kind: taskKind,
 		child_session_id: childSessionId,
 		parent_session_id: parentSessionId,
 		launched_at_ms: launchedAtMs,
@@ -312,6 +624,11 @@ function coerceBackgroundTaskRecord(
 		completion_attempts: completionAttempts,
 		launch_error: launchError,
 		launch_error_at_ms: launchErrorAtMs,
+		contract,
+		progress,
+		stall,
+		cancellation,
+		execution_started_at_ms: executionStartedAtMs,
 	});
 
 	return normalized;
@@ -824,6 +1141,47 @@ export async function markBackgroundTaskTerminalAtomic(
 	});
 }
 
+export async function updateBackgroundTaskPolicyMetadata(
+	args: UpdateBackgroundTaskPolicyMetadataArgs,
+): Promise<BackgroundTaskRecord | null> {
+	const taskId = args.taskId.trim();
+	if (!taskId) {
+		return null;
+	}
+
+	const nowMs = normalizeNowMs(args.nowMs);
+	const statePath = getBackgroundTaskStatePath();
+
+	return withStateLock(statePath, async () => {
+		const state = await readState(statePath, nowMs);
+		pruneState(state, nowMs);
+
+		const existing = state.backgroundTasks[taskId];
+		if (!existing) {
+			return null;
+		}
+
+		if (args.stall == null && args.cancellation == null) {
+			return { ...canonicalizeBackgroundTaskRecord(existing) };
+		}
+
+		const updated = canonicalizeBackgroundTaskRecord({
+			...existing,
+			version: 2,
+			updated_at_ms: nowMs,
+			stall: args.stall ?? existing.stall,
+			cancellation: args.cancellation ?? existing.cancellation,
+		});
+
+		state.backgroundTasks[taskId] = updated;
+		state.updatedAtMs = nowMs;
+		pruneState(state, nowMs);
+
+		await writeState(statePath, state);
+		return { ...updated };
+	});
+}
+
 export async function markNotified(
 	taskId: string,
 	nowMs?: number,
@@ -887,6 +1245,51 @@ export async function shouldSuppressDuplicate(
 	});
 }
 
+function isExecutionStatus(status: BackgroundTaskStatus): boolean {
+	return status === "running" || status === "stable_idle";
+}
+
+function buildLaunchStall(args: {
+	existing?: BackgroundTaskRecord;
+	isTerminalReactivation: boolean;
+}): BackgroundTaskStall {
+	if (args.isTerminalReactivation) {
+		return { stage: "healthy" };
+	}
+
+	return args.existing?.stall ?? { stage: "healthy" };
+}
+
+function buildLaunchCancellation(args: {
+	existing?: BackgroundTaskRecord;
+	minimumTenancyUntilMs?: number;
+	isTerminalReactivation: boolean;
+}): BackgroundTaskCancellation | undefined {
+	const baseline = args.isTerminalReactivation
+		? {}
+		: (args.existing?.cancellation ?? {});
+
+	const cancellation: BackgroundTaskCancellation = {
+		...baseline,
+		minimumTenancyUntilMs: args.minimumTenancyUntilMs,
+	};
+
+	if (
+		cancellation.minimumTenancyUntilMs == null &&
+		cancellation.refusalReasonCode == null &&
+		cancellation.cancelReasonCode == null &&
+		cancellation.cancelReasonText == null &&
+		cancellation.salvageAttemptedAtMs == null &&
+		cancellation.salvageStatus == null &&
+		cancellation.salvageSummary == null &&
+		cancellation.salvageArtifactPath == null
+	) {
+		return undefined;
+	}
+
+	return cancellation;
+}
+
 export async function recordBackgroundTaskLaunch(
 	args: RecordBackgroundTaskLaunchArgs,
 ): Promise<void> {
@@ -896,6 +1299,13 @@ export async function recordBackgroundTaskLaunch(
 	const parentSessionId = args.parentSessionId.trim();
 	const requestedStatus = args.status;
 	const concurrencyGroup = args.concurrencyGroup?.trim();
+	const requestedTaskKind = args.task_kind ?? args.taskKind;
+	const requestedExpectedQuietWindowMs = args.expectedQuietWindowMs;
+	const requestedMinimumTenancyMs = args.minimumTenancyMs;
+	const requestedExpectedDeliverable = args.expectedDeliverable;
+	const requestedCancelPolicy = args.cancelPolicy;
+	const requestedCancellationGuardrails = args.cancellationGuardrails;
+	const requestedSalvageOnCancelRequired = args.salvageOnCancelRequired;
 	if (!taskId || !childSessionId || !parentSessionId) {
 		throw new Error(
 			"recordBackgroundTaskLaunch requires taskId, childSessionId, and parentSessionId",
@@ -924,6 +1334,10 @@ export async function recordBackgroundTaskLaunch(
 		const existingLifecycle =
 			existing != null ? normalizeBackgroundTaskLifecycle(existing) : null;
 		const isTerminalReactivation = existingLifecycle?.isTerminal === true;
+		const existingContract = existing?.contract;
+		const taskKind =
+			existingContract?.kind ??
+			normalizeBackgroundTaskKind(requestedTaskKind ?? existing?.task_kind ?? "generic");
 
 		let nextStatus: BackgroundTaskStatus = requestedStatus ?? "running";
 		if (isTerminalReactivation) {
@@ -942,10 +1356,47 @@ export async function recordBackgroundTaskLaunch(
 			}
 		}
 
+		const contract =
+			existingContract ??
+			buildBackgroundTaskLaunchContract({
+				taskKind,
+				expectedQuietWindowMs: requestedExpectedQuietWindowMs,
+				minimumTenancyMs: requestedMinimumTenancyMs,
+				expectedDeliverable: requestedExpectedDeliverable,
+				cancelPolicy: requestedCancelPolicy,
+				cancellationGuardrails: requestedCancellationGuardrails,
+				salvageOnCancelRequired: requestedSalvageOnCancelRequired,
+			});
+
+		const existingExecutionStartedAtMs = isTerminalReactivation
+			? undefined
+			: existing?.execution_started_at_ms;
+		const executionStartedAtMs = isExecutionStatus(nextStatus)
+			? existingExecutionStartedAtMs ?? nowMs
+			: existingExecutionStartedAtMs;
+		const minimumTenancyUntilMs = resolveMinimumTenancyUntilMs({
+			executionStartedAtMs,
+			contract,
+		});
+		const progress = buildLaunchProgressBaseline({
+			existing: existing?.progress,
+			nextStatus,
+			nowMs,
+			quietWindowMs: contract.expectedQuietWindowMs,
+			isTerminalReactivation,
+		});
+		const stall = buildLaunchStall({ existing, isTerminalReactivation });
+		const cancellation = buildLaunchCancellation({
+			existing,
+			minimumTenancyUntilMs,
+			isTerminalReactivation,
+		});
+
 		const nextRecord = canonicalizeBackgroundTaskRecord({
 			version: 2,
 			task_id: taskId,
 			task_description: taskDescription || existing?.task_description,
+			task_kind: taskKind,
 			child_session_id: childSessionId,
 			parent_session_id: parentSessionId,
 			launched_at_ms: existing?.launched_at_ms ?? nowMs,
@@ -964,6 +1415,11 @@ export async function recordBackgroundTaskLaunch(
 			terminal_reason: undefined,
 			launch_error: undefined,
 			launch_error_at_ms: undefined,
+			contract,
+			progress,
+			stall,
+			cancellation,
+			execution_started_at_ms: executionStartedAtMs,
 		});
 
 		state.backgroundTasks[taskId] = nextRecord;
@@ -1096,6 +1552,50 @@ export async function markBackgroundTaskStale(
 	});
 }
 
+function hasProgressHeartbeatPayload(
+	args: RecordBackgroundTaskObservationArgs,
+): boolean {
+	return (
+		args.phase != null ||
+		args.lastProductiveAtMs != null ||
+		args.nextExpectedUpdateByMs != null ||
+		args.blockedReasonCode != null ||
+		args.counters != null ||
+		args.counterIncrements != null ||
+		typeof args.productive === "boolean"
+	);
+}
+
+function buildObservationHeartbeat(args: {
+	observation: RecordBackgroundTaskObservationArgs;
+	existingProgress: BackgroundTaskProgress | undefined;
+}): BackgroundTaskProgressHeartbeat | undefined {
+	if (!hasProgressHeartbeatPayload(args.observation)) {
+		return undefined;
+	}
+
+	const phaseChanged =
+		args.observation.phase != null &&
+		args.observation.phase !== args.existingProgress?.phase;
+	const defaultProductive =
+		args.observation.source !== "poller" &&
+		args.observation.status === "running" &&
+		phaseChanged &&
+		args.observation.phase !== "blocked" &&
+		args.observation.lastProductiveAtMs == null &&
+		args.observation.productive == null;
+
+	return {
+		phase: args.observation.phase,
+		lastProductiveAtMs: args.observation.lastProductiveAtMs,
+		nextExpectedUpdateByMs: args.observation.nextExpectedUpdateByMs,
+		blockedReasonCode: args.observation.blockedReasonCode,
+		counters: args.observation.counters,
+		counterIncrements: args.observation.counterIncrements,
+		productive: args.observation.productive ?? defaultProductive,
+	};
+}
+
 export async function recordBackgroundTaskObservation(
 	args: RecordBackgroundTaskObservationArgs,
 ): Promise<BackgroundTaskRecord | null> {
@@ -1121,20 +1621,50 @@ export async function recordBackgroundTaskObservation(
 			return { ...canonicalizeBackgroundTaskRecord(existing) };
 		}
 
-		const baselineLastProgressAtMs =
-			existing.last_progress_at_ms ??
-			existing.updated_at_ms ??
-			existing.launched_at_ms;
+		const quietWindowMs =
+			existing.contract?.expectedQuietWindowMs ?? 30_000;
+		const heartbeat = buildObservationHeartbeat({
+			observation: args,
+			existingProgress: existing.progress,
+		});
+		const progressResult = applyBackgroundTaskProgressHeartbeat({
+			existing: existing.progress,
+			heartbeat,
+			nowMs,
+			quietWindowMs,
+		});
+
 		const observedIdle = args.status === "idle";
+		const nextStatus: BackgroundTaskStatus = observedIdle
+			? "stable_idle"
+			: "running";
+		const nextIdleSeenAtMs = observedIdle
+			? (existing.idle_seen_at_ms ?? nowMs)
+			: undefined;
+		const nextLastProgressAtMs =
+			progressResult.productiveAtMs ?? existing.last_progress_at_ms;
+		const hasStatusChange = lifecycle.status !== nextStatus;
+		const hasIdleSeenChange = existing.idle_seen_at_ms !== nextIdleSeenAtMs;
+		const hasProgressTimestampChange =
+			existing.last_progress_at_ms !== nextLastProgressAtMs;
+
+		if (
+			!hasStatusChange &&
+			!hasIdleSeenChange &&
+			!hasProgressTimestampChange &&
+			!progressResult.changed
+		) {
+			return { ...canonicalizeBackgroundTaskRecord(existing) };
+		}
+
 		const updated = canonicalizeBackgroundTaskRecord({
 			...existing,
 			version: 2,
-			status: observedIdle ? "stable_idle" : "running",
+			status: nextStatus,
 			updated_at_ms: nowMs,
-			last_progress_at_ms: observedIdle ? baselineLastProgressAtMs : nowMs,
-			idle_seen_at_ms: observedIdle
-				? existing.idle_seen_at_ms ?? nowMs
-				: undefined,
+			last_progress_at_ms: nextLastProgressAtMs,
+			idle_seen_at_ms: nextIdleSeenAtMs,
+			progress: progressResult.progress,
 		});
 
 		state.backgroundTasks[taskId] = updated;
@@ -1143,6 +1673,24 @@ export async function recordBackgroundTaskObservation(
 
 		await writeState(statePath, state);
 		return { ...updated };
+	});
+}
+
+export async function recordBackgroundTaskProgressHeartbeat(
+	args: RecordBackgroundTaskProgressHeartbeatArgs,
+): Promise<BackgroundTaskRecord | null> {
+	return recordBackgroundTaskObservation({
+		taskId: args.taskId,
+		status: args.status ?? "running",
+		source: "child",
+		phase: args.phase,
+		lastProductiveAtMs: args.lastProductiveAtMs,
+		nextExpectedUpdateByMs: args.nextExpectedUpdateByMs,
+		blockedReasonCode: args.blockedReasonCode,
+		counters: args.counters,
+		counterIncrements: args.counterIncrements,
+		productive: args.productive,
+		nowMs: args.nowMs,
 	});
 }
 
