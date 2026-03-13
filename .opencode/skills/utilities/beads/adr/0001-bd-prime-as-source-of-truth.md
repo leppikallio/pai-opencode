@@ -9,7 +9,7 @@ Accepted
 The beads skill maintained CLI reference documentation in multiple locations:
 
 - `SKILL.md` inline (~2,000+ words of CLI reference)
-- `references/CLI_REFERENCE.md` (~2,363 words)
+- `../resources/CLI_REFERENCE.md` (~2,363 words; previously under `references/`)
 - Scattered examples throughout resource files
 
 This created:

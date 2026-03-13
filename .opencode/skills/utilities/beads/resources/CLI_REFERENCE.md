@@ -66,7 +66,7 @@ bd prime --stealth             # No git operations mode
 bd prime --export              # Dump default content for customization
 ```
 
-**Customization:** Place `.beads/PRIME.md` to override default output.
+**Customization:** Place a custom PRIME override file at the project path .beads/PRIME.md to override default output.
 
 ## Basic Operations
 
@@ -636,7 +636,7 @@ bd dolt push  # Push changes to remote
 
 ## See Also
 
-- [AGENTS.md](../AGENTS.md) - Main agent workflow guide
+- [AGENTS.md](AGENTS.md) - Main agent workflow guide
 - [GIT_INTEGRATION.md](GIT_INTEGRATION.md) - Git worktrees and protected branches
-- [LABELS.md](../LABELS.md) - Label system guide
+- [LABELS.md](LABELS.md) - Label system guide
 - [README.md](../README.md) - User documentation
