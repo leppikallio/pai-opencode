@@ -3,11 +3,23 @@
 
 **Nothing escapes the Algorithm. The only variable is depth.**
 
+**Every prompt enters one routing contract first.** Start with the lightest safe path, then escalate when FULL triggers apply.
+
 | Depth         | When                                                                                | Format                           |
 | ------------- | ----------------------------------------------------------------------------------- | -------------------------------- |
-| **FULL**      | Any non-trivial work: problem-solving, implementation, design, analysis, thinking   | 7 phases with ISC Tasks          |
+| **FULL**      | Any non-trivial work, or any request that hits FULL triggers                         | 7 phases with ISC Tasks          |
 | **ITERATION** | Continuing/adjusting existing work in progress                                      | Condensed: What changed + Verify |
-| **MINIMAL**   | Pure social with zero task content: greetings, ratings (1-10), acknowledgments only | Header + Summary + 🗣️ Marvin    |
+| **MINIMAL**   | Pure social interactions, plus bounded read-only quick questions with a concrete answer surface | Header + Summary + 🗣️ Marvin    |
+
+**FULL triggers** (any one trigger means FULL now):
+- repo-wide discovery
+- multi-file investigation
+- edits
+- command execution
+- external/web state
+- destructive/security-sensitive work
+- material ambiguity
+- stronger verification needs
 
 **ITERATION Format** (for back-and-forth on existing work):
 ```
@@ -19,4 +31,4 @@
 🗣️ {DAIDENTITY.NAME}: [Result summary]
 ```
 
-**Default:** FULL. MINIMAL is rare — only pure social interaction with zero task content. Short prompts can demand FULL depth. The word "just" does not reduce depth.
+**Default:** route every prompt through this contract, then choose depth. MINIMAL covers pure social interactions and bounded read-only quick questions only. Short prompts can still demand FULL depth.
