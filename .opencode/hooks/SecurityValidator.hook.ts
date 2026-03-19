@@ -20,6 +20,26 @@ function asString(value: unknown): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+
+function snakeToCamel(value: string): string {
+  return value.replace(/_([a-z])/g, (_, ch: string) => ch.toUpperCase());
+}
+
+function objectToCamelCase(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => objectToCamelCase(item));
+  }
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const out: JsonRecord = {};
+  for (const [key, nested] of Object.entries(value as JsonRecord)) {
+    out[snakeToCamel(key)] = objectToCamelCase(nested);
+  }
+  return out;
+}
+
 function readPayloadStrict(): JsonRecord | undefined {
   try {
     const raw = readFileSync(0, "utf8").trim();
@@ -43,7 +63,7 @@ if (!payload || !toolName) {
   process.exit(0);
 }
 
-const toolArgs = asRecord(payload.tool_input) ?? {};
+const toolArgs = (asRecord(objectToCamelCase(payload.tool_input)) ?? {}) as ToolInput["args"];
 
 const input: ToolInput = {
   tool: toolName,

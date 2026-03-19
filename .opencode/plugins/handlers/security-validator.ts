@@ -733,8 +733,16 @@ function extractCommand(input: PermissionInput | ToolInput): string | null {
   if (["write", "read", "edit", "apply_patch"].includes(toolName)) {
     // apply_patch carries file paths inside patchText; still return a non-null
     // command so validateSecurity can proceed to path checks.
-    if (toolName === "apply_patch" && typeof input.args?.patchText === "string") {
-      return "apply_patch";
+    if (toolName === "apply_patch") {
+      const patchText =
+        typeof input.args?.patchText === "string"
+          ? input.args.patchText
+          : typeof input.args?.patch_text === "string"
+            ? input.args.patch_text
+            : undefined;
+      if (patchText) {
+        return "apply_patch";
+      }
     }
 
     const filePath =
@@ -896,64 +904,73 @@ export async function validateSecurity(
     // File/path tools: validate path access via path rules first.
     if (["read", "write", "edit", "apply_patch"].includes(input.tool.toLowerCase())) {
       // Special case: apply_patch carries file paths inside patchText.
-      if (input.tool.toLowerCase() === "apply_patch" && typeof input.args?.patchText === "string") {
-        const paiDir = getPaiDir();
-        const items = extractApplyPatchPaths(input.args.patchText);
+      if (input.tool.toLowerCase() === "apply_patch") {
+        const patchText =
+          typeof input.args?.patchText === "string"
+            ? input.args.patchText
+            : typeof input.args?.patch_text === "string"
+              ? input.args.patch_text
+              : undefined;
 
-        const cwd = process.cwd();
+        if (typeof patchText === "string") {
+          const paiDir = getPaiDir();
+          const items = extractApplyPatchPaths(patchText);
 
-        for (const it of items) {
-          const resolvedPaths = resolveApplyPatchPaths({ paiDir, cwd, filePathRaw: it.filePath });
+          const cwd = process.cwd();
 
-          let confirm: { path: string; reason?: string } | null = null;
-          for (const resolvedPath of resolvedPaths) {
-            const res = validatePathAccess(resolvedPath, it.action, config);
-            if (res.action === "block") {
-            await appendSecurityLog({
-              v: "0.1",
-              ts: new Date().toISOString(),
-              sessionId: (input as ToolInput).sessionID ?? "",
-              tool: input.tool,
-              action: "block",
-              category: "path_access",
-              targetPreview: redactSensitiveText(resolvedPath),
-              ruleId: "path.block",
-              reason: res.reason ?? "Path blocked",
-              sourceEventId: `${input.tool}:${(input as ToolInput).sessionID ?? ""}:${(input as ToolInput).callID ?? ""}`,
-            });
-            return {
-              action: "block",
-              reason: res.reason ?? "Blocked path access",
-              message: "This patch targets a blocked file path.",
-            };
+          for (const it of items) {
+            const resolvedPaths = resolveApplyPatchPaths({ paiDir, cwd, filePathRaw: it.filePath });
+
+            let confirm: { path: string; reason?: string } | null = null;
+            for (const resolvedPath of resolvedPaths) {
+              const res = validatePathAccess(resolvedPath, it.action, config);
+              if (res.action === "block") {
+                await appendSecurityLog({
+                  v: "0.1",
+                  ts: new Date().toISOString(),
+                  sessionId: (input as ToolInput).sessionID ?? "",
+                  tool: input.tool,
+                  action: "block",
+                  category: "path_access",
+                  targetPreview: redactSensitiveText(resolvedPath),
+                  ruleId: "path.block",
+                  reason: res.reason ?? "Path blocked",
+                  sourceEventId: `${input.tool}:${(input as ToolInput).sessionID ?? ""}:${(input as ToolInput).callID ?? ""}`,
+                });
+                return {
+                  action: "block",
+                  reason: res.reason ?? "Blocked path access",
+                  message: "This patch targets a blocked file path.",
+                };
+              }
+              if (res.action === "confirm" && !confirm) {
+                confirm = { path: resolvedPath, reason: res.reason };
+              }
             }
-            if (res.action === "confirm" && !confirm) {
-              confirm = { path: resolvedPath, reason: res.reason };
+
+            if (confirm) {
+              await appendSecurityLog({
+                v: "0.1",
+                ts: new Date().toISOString(),
+                sessionId: (input as ToolInput).sessionID ?? "",
+                tool: input.tool,
+                action: "confirm",
+                category: "path_access",
+                targetPreview: redactSensitiveText(confirm.path),
+                ruleId: "path.confirm",
+                reason: confirm.reason ?? "Protected path write",
+                sourceEventId: `${input.tool}:${(input as ToolInput).sessionID ?? ""}:${(input as ToolInput).callID ?? ""}`,
+              });
+              return {
+                action: "confirm",
+                reason: confirm.reason ?? "Protected path write",
+                message: "This patch targets a protected file path. Please confirm.",
+              };
             }
           }
 
-          if (confirm) {
-            await appendSecurityLog({
-              v: "0.1",
-              ts: new Date().toISOString(),
-              sessionId: (input as ToolInput).sessionID ?? "",
-              tool: input.tool,
-              action: "confirm",
-              category: "path_access",
-              targetPreview: redactSensitiveText(confirm.path),
-              ruleId: "path.confirm",
-              reason: confirm.reason ?? "Protected path write",
-              sourceEventId: `${input.tool}:${(input as ToolInput).sessionID ?? ""}:${(input as ToolInput).callID ?? ""}`,
-            });
-            return {
-              action: "confirm",
-              reason: confirm.reason ?? "Protected path write",
-              message: "This patch targets a protected file path. Please confirm.",
-            };
-          }
+          // No file paths found or all allowed.
         }
-
-        // No file paths found or all allowed.
       }
 
       const filePath =
