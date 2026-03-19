@@ -105,8 +105,17 @@ function hashRule(pattern: string): string {
 
 function stripQuotes(value: string): string {
   const v = value.trim();
-  if ((v.startsWith("\"") && v.endsWith("\"")) || (v.startsWith("'") && v.endsWith("'"))) {
-    return v.slice(1, -1);
+  if (v.startsWith("\"") && v.endsWith("\"")) {
+    try {
+      const parsed = JSON.parse(v);
+      if (typeof parsed === "string") return parsed;
+    } catch {
+      // Fall through to conservative unescape.
+    }
+    return v.slice(1, -1).replace(/\\\\/g, "\\");
+  }
+  if (v.startsWith("'") && v.endsWith("'")) {
+    return v.slice(1, -1).replace(/''/g, "'");
   }
   return v;
 }
