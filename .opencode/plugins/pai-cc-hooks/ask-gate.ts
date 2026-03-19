@@ -31,6 +31,7 @@ const ASK_GATE_STATE_FILE_ENV = "PAI_CC_HOOKS_ASK_GATE_STATE_PATH";
 
 const askGateByConfirmId = new Map<string, AskGateEntry>();
 const askGateByKey = new Map<string, AskGateEntry>();
+const confirmedAskGateByKey = new Map<string, number>();
 
 type AskGateStateFileV1 = {
 	version: 1;
@@ -168,8 +169,11 @@ export function markAskGateConfirmed(confirmId: string, nowMs: number = Date.now
 	const pending = askGateByConfirmId.get(confirmId);
 	if (pending && !pending.confirmedAt) {
 		pending.confirmedAt = nowMs;
-		askGateByConfirmId.set(confirmId, pending);
-		askGateByKey.set(pending.key, pending);
+		confirmedAskGateByKey.set(pending.key, nowMs);
+		askGateByConfirmId.delete(confirmId);
+		if (askGateByKey.get(pending.key)?.confirmId === confirmId) {
+			askGateByKey.delete(pending.key);
+		}
 		writeAskGateEntriesToDisk([...askGateByConfirmId.values()]);
 	}
 
@@ -201,6 +205,15 @@ export function consumeAskGateOneShotAllowance(args: {
 		toolName: args.toolName,
 		toolInput: args.toolInput,
 	});
+	const confirmedAt = confirmedAskGateByKey.get(key);
+	if (confirmedAt && nowMs - confirmedAt < ASK_GATE_TTL_MS) {
+		confirmedAskGateByKey.delete(key);
+		return true;
+	}
+
+	if (confirmedAt) {
+		confirmedAskGateByKey.delete(key);
+	}
 
 	const existing = askGateByKey.get(key);
 	if (existing?.confirmedAt && nowMs - existing.confirmedAt < ASK_GATE_TTL_MS) {
@@ -233,6 +246,7 @@ export function createAskGateEntry(args: {
 	});
 
 	const existing = askGateByKey.get(key);
+	confirmedAskGateByKey.delete(key);
 	if (existing && !existing.confirmedAt && nowMs - existing.createdAt < ASK_GATE_TTL_MS) {
 		return existing;
 	}
@@ -283,6 +297,7 @@ export function formatAskGateBlockedMessage(args: {
 export function __resetAskGateInMemoryForTests(): void {
 	askGateByConfirmId.clear();
 	askGateByKey.clear();
+	confirmedAskGateByKey.clear();
 }
 
 export function __resetAskGateForTests(): void {

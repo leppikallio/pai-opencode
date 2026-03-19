@@ -183,7 +183,7 @@ describe("pai-cc-hooks modularity contract", () => {
 		}
 	});
 
-	test("confirmed ask-gate survives in-memory reset and stays one-shot", async () => {
+	test("confirmed ask-gate does not survive in-memory reset", async () => {
 		const tmpRoot = mkdtempSync(
 			path.join(os.tmpdir(), "pai-cc-hooks-modularity-persist-"),
 		);
@@ -256,6 +256,26 @@ describe("pai-cc-hooks modularity contract", () => {
 			__resetAskGateInMemoryForTests();
 			__resetPaiCcHooksSettingsCacheForTests();
 			hooks = createPaiClaudeHooks({ ctx: {} });
+
+			let resetError = "";
+			try {
+				await hooks["tool.execute.before"](input, output);
+				throw new Error("Expected ask-gate block after in-memory reset");
+			} catch (error) {
+				resetError = error instanceof Error ? error.message : String(error);
+			}
+
+			expect(resetError).toContain("Blocked pending confirmation");
+			const secondConfirmId = extractConfirmId(resetError);
+
+			await hooks["chat.message"](
+				{
+					sessionID: "ses_modularity_persist",
+					prompt: `PAI_CONFIRM ${secondConfirmId}`,
+					parts: [{ type: "text", text: `PAI_CONFIRM ${secondConfirmId}` }],
+				},
+				{},
+			);
 
 			await hooks["tool.execute.before"](input, output);
 
