@@ -160,6 +160,20 @@ function parseConfirmMessage(text: string): string | undefined {
 	return match?.[1];
 }
 
+function getChatMessageRole(
+	payload: UnknownRecord,
+	out: UnknownRecord,
+): string | undefined {
+	const payloadMessage = getRecord(payload, "message") ?? {};
+	const outputMessage = getRecord(out, "message") ?? {};
+
+	return (
+		getString(outputMessage, "role") ??
+		getString(payload, "role") ??
+		getString(payloadMessage, "role")
+	);
+}
+
 function pruneAskGate(now: number): void {
 	for (const [id, entry] of askGateByConfirmId.entries()) {
 		if (now - entry.createdAt > ASK_GATE_TTL_MS) {
@@ -867,6 +881,7 @@ export function createPaiClaudeHooks({
 			const payload = asRecord(input);
 			const out = asRecord(output);
 			const { hooks: config, env } = await getSettingsPromise();
+			const messageRole = getChatMessageRole(payload, out);
 
 			const partsRaw = payload.parts;
 			const parts = Array.isArray(partsRaw)
@@ -894,7 +909,8 @@ export function createPaiClaudeHooks({
 			// If the user explicitly confirms a pending hook ask, mark it confirmed.
 			// The next retry of the same tool+args will be allowed once.
 			pruneAskGate(Date.now());
-			const confirmId = parseConfirmMessage(prompt);
+			const confirmId =
+				messageRole === "user" ? parseConfirmMessage(prompt) : undefined;
 			if (confirmId) {
 				const pending = askGateByConfirmId.get(confirmId);
 				if (pending && !pending.confirmedAt) {
